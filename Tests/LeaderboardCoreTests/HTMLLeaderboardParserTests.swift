@@ -6,7 +6,10 @@ final class HTMLLeaderboardParserTests: XCTestCase {
         let records = (1...22).map { index in
             #"{"slug":"model-\#(index)","name":"Model \#(index)","deprecated":false,"creator":{"name":"Maker","logo":"/img/logos/maker.svg"},"intelligenceIndex":\#(100-index),"intelligenceIndexIsEstimated":false}"#
         }
-        let html = #"<html><title>Artificial Analysis Intelligence Index v4.3.2 | Artificial Analysis</title><script>self.__next_f.push([1,"\#(records.joined(separator: ","))"])</script></html>"#
+        let html = rscHTML(
+            payload: "[\(records.joined(separator: ","))]",
+            title: "Artificial Analysis Intelligence Index v4.3.2 | Artificial Analysis"
+        )
 
         let leaderboard = try HTMLLeaderboardParser.artificialAnalysis(fromHTML: html)
 
@@ -29,7 +32,9 @@ final class HTMLLeaderboardParserTests: XCTestCase {
         let records = (1...22).map { index in
             #"{"rank":\#(index),"modelKey":"arena-model-\#(index)","modelDisplayName":"Arena Model \#(index)","modelOrganization":"Maker","rating":\#(2000-index)}"#
         }
-        let html = #"<html><script>self.__next_f.push([1,"{\"leaderboard\":{\"entries\":[\#(records.joined(separator: ","))],\"voteCutoffISOString\":\"2026-09-11T19:00:00.000Z\"}}"])</script></html>"#
+        let html = rscHTML(
+            payload: #"{"leaderboard":{"entries":[\#(records.joined(separator: ","))],"voteCutoffISOString":"2026-09-11T19:00:00.000Z"}}"#
+        )
 
         let leaderboard = try HTMLLeaderboardParser.arenaWebDev(fromHTML: html)
         let formatter = ISO8601DateFormatter()
@@ -42,6 +47,46 @@ final class HTMLLeaderboardParserTests: XCTestCase {
         XCTAssertEqual(leaderboard.entries.first?.score, 1999)
         XCTAssertEqual(leaderboard.entries.first?.modelID, "arena-model-1")
         XCTAssertEqual(leaderboard.entries.first?.organization, "Maker")
+    }
+
+    func testParsesArenaTextToImageWithSharedParser() throws {
+        let records = (1...22).map { index in
+            #"{"rank":\#(index),"modelKey":"image-model-\#(index)","modelDisplayName":"Image Model \#(index)","modelOrganization":"Maker","rating":\#(1300-index)}"#
+        }
+        let html = rscHTML(
+            payload: #"{"leaderboard":{"entries":[\#(records.joined(separator: ","))],"voteCutoffISOString":"2026-09-07T22:00:00.000Z"}}"#
+        )
+
+        let leaderboard = try HTMLLeaderboardParser.arenaTextToImage(fromHTML: html)
+
+        XCTAssertEqual(leaderboard.kind, .arenaTextToImage)
+        XCTAssertEqual(leaderboard.title, "Arena | 文生图")
+        XCTAssertEqual(leaderboard.entries.count, 20)
+        XCTAssertEqual(leaderboard.entries.first?.name, "Image Model 1")
+        XCTAssertEqual(leaderboard.entries.first?.score, 1299)
+    }
+
+    func testParsesArtificialAnalysisMediaBoardAndKeepsPrimaryOccurrence() throws {
+        let primary = (1...22).map { index in
+            #"{"formatted":{"rank":\#(index)},"values":{"id":"image-\#(index)","name":"Image Model \#(index)","elo":\#(1200-index),"creator":{"name":"Maker","logo":"/img/logos/maker.svg"}}}"#
+        }
+        let duplicate = #"{"formatted":{"rank":1},"values":{"id":"image-1","name":"Image Model 1","elo":9999,"creator":{"name":"Maker","logo":"/img/logos/maker.svg"}}}"#
+        let html = rscHTML(
+            payload: "[\(primary.joined(separator: ",")),\(duplicate)]",
+            title: "Text to Image Leaderboard - Top AI Image Models | Artificial Analysis"
+        )
+
+        let leaderboard = try HTMLLeaderboardParser.artificialAnalysisTextToImage(fromHTML: html)
+
+        XCTAssertEqual(leaderboard.kind, .aaTextToImage)
+        XCTAssertEqual(leaderboard.title, "Artificial Analysis | 文生图")
+        XCTAssertEqual(leaderboard.entries.count, 20)
+        XCTAssertEqual(leaderboard.entries.first?.name, "Image Model 1")
+        XCTAssertEqual(leaderboard.entries.first?.score, 1199)
+        XCTAssertEqual(
+            leaderboard.entries.first?.logoURL?.absoluteString,
+            "https://artificialanalysis.ai/img/logos/maker.svg"
+        )
     }
 
     func testParsesSavedArtificialAnalysisPage() throws {
@@ -76,5 +121,13 @@ final class HTMLLeaderboardParserTests: XCTestCase {
             .appending(path: "work", directoryHint: .isDirectory)
             .appending(path: fileName, directoryHint: .inferFromPath)
             .path
+    }
+
+    private func rscHTML(payload: String, title: String? = nil) -> String {
+        let escaped = payload
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        let titleTag = title.map { "<title>\($0)</title>" } ?? ""
+        return #"<html>\#(titleTag)<script>self.__next_f.push([1,"\#(escaped)"])</script></html>"#
     }
 }

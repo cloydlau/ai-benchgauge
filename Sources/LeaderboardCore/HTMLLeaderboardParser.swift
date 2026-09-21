@@ -64,6 +64,110 @@ public enum HTMLLeaderboardParser {
     }
 
     public static func arenaWebDev(fromHTML html: String) throws -> Leaderboard {
+        try arena(fromHTML: html, kind: .codeArenaWebDev, title: "Code Arena | WebDev")
+    }
+
+    public static func arenaText(fromHTML html: String) throws -> Leaderboard {
+        try arena(fromHTML: html, kind: .arenaText, title: "Arena | Text")
+    }
+
+    public static func arenaTextToImage(fromHTML html: String) throws -> Leaderboard {
+        try arena(fromHTML: html, kind: .arenaTextToImage, title: "Arena | 文生图")
+    }
+
+    public static func arenaTextToVideo(fromHTML html: String) throws -> Leaderboard {
+        try arena(fromHTML: html, kind: .arenaTextToVideo, title: "Arena | 文生视频")
+    }
+
+    public static func artificialAnalysisTextToImage(fromHTML html: String) throws -> Leaderboard {
+        try artificialAnalysisArena(
+            fromHTML: html,
+            kind: .aaTextToImage,
+            title: "Artificial Analysis | 文生图"
+        )
+    }
+
+    public static func artificialAnalysisTextToVideo(fromHTML html: String) throws -> Leaderboard {
+        try artificialAnalysisArena(
+            fromHTML: html,
+            kind: .aaTextToVideo,
+            title: "Artificial Analysis | 文生视频"
+        )
+    }
+
+    private static func artificialAnalysisArena(
+        fromHTML html: String,
+        kind: LeaderboardKind,
+        title: String
+    ) throws -> Leaderboard {
+        let objects = jsonObjects(in: html, containing: "formatted")
+
+        var seenRecords = Set<String>()
+        let records: [ParsedArtificialAnalysisRecord] = objects.compactMap { object in
+            guard
+                object["formatted"] is [String: Any],
+                let values = object["values"] as? [String: Any],
+                let name = values["name"] as? String,
+                let score = values["elo"] as? Double
+            else { return nil }
+            let creator = values["creator"] as? [String: Any]
+            let modelID = values["id"] as? String
+            let organization = creator?["name"] as? String
+            let logoPath = creator?["logo"] as? String
+            // These pages embed multiple sub-leaderboards. The primary board is
+            // emitted first, so keep the first occurrence of each model.
+            let key = modelID ?? name
+            guard seenRecords.insert(key).inserted else { return nil }
+            return ParsedArtificialAnalysisRecord(
+                name: name,
+                score: score,
+                modelID: modelID,
+                organization: organization,
+                logoURL: artificialAnalysisLogoURL(from: logoPath)
+            )
+        }
+
+        guard records.count >= 20 else {
+            throw ParserError.notEnoughArtificialAnalysisRecords(records.count)
+        }
+
+        let entries = records
+            .sorted { lhs, rhs in
+                if lhs.score == rhs.score { return lhs.name < rhs.name }
+                return lhs.score > rhs.score
+            }
+            .prefix(20)
+            .enumerated()
+            .map { index, record in
+                LeaderboardEntry(
+                    rank: index + 1,
+                    name: record.name,
+                    score: record.score,
+                    modelID: record.modelID,
+                    organization: record.organization,
+                    logoURL: record.logoURL
+                )
+            }
+
+        let organizationLogoURLs = records.reduce(into: [String: URL]()) { result, record in
+            guard let organization = record.organization,
+                  let logoURL = record.logoURL else { return }
+            result[organization] = logoURL
+        }
+
+        return Leaderboard(
+            kind: kind,
+            title: title,
+            entries: entries,
+            organizationLogoURLs: organizationLogoURLs
+        )
+    }
+
+    private static func arena(
+        fromHTML html: String,
+        kind: LeaderboardKind,
+        title: String
+    ) throws -> Leaderboard {
         let objects = jsonObjects(in: html, containing: "modelDisplayName")
 
         var seenRecords = Set<String>()
@@ -106,8 +210,8 @@ public enum HTMLLeaderboardParser {
             }
 
         return Leaderboard(
-            kind: .codeArenaWebDev,
-            title: "Code Arena | WebDev",
+            kind: kind,
+            title: title,
             sourceUpdatedAt: arenaVoteCutoff(fromHTML: html),
             entries: entries
         )
