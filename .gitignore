@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# Swift / SPM
+.build/
+.swiftpm/
+Package.resolved
+xcuserdata/
+DerivedData/
+*.xcodeproj
+
+# Build artifacts
+work/
+outputs/
