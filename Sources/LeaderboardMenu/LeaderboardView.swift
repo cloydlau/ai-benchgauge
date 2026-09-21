@@ -231,6 +231,8 @@ struct LeaderboardView: View {
         switch words {
         case "moonshot":
             return "kimi"
+        case "alibaba":
+            return "qwen"
         case "zai":
             return "zai"
         case "thinkingmachines":

@@ -39,7 +39,7 @@ public enum PurchaseLinkCatalog {
                 codingPlan: [link("ChatGPT / Codex", "https://chatgpt.com/pricing")],
                 payAsYouGo: [link("OpenAI API", "https://platform.openai.com/settings/organization/billing/overview")]
             )
-        case "alibaba":
+        case "alibaba", "qwen":
             return PurchaseLinks(
                 codingPlan: [
                     link("中国大陆", "https://www.qianwenai.com/benefits/tokenplan"),
