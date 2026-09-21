@@ -28,18 +28,20 @@ struct LeaderboardView: View {
                 }
                 HStack(spacing: 10) {
                     updateStatus
-                    if let artificialAnalysis = state.snapshot.boards[.artificialAnalysis] {
+                    if let artificialAnalysis = state.snapshot.boards[selectedCategory.leftKind] {
                         let note = artificialAnalysis.sourceNote.map { " (\($0))" } ?? ""
-                        Text("AA \(timestamp(artificialAnalysis.fetchedAt))\(note)")
+                        Text("\(selectedCategory.leftKind.sourcePrefix) \(timestamp(artificialAnalysis.fetchedAt))\(note)")
                     }
-                    if let arena = state.snapshot.boards[.codeArenaWebDev] {
-                        Text("Arena \(timestamp(arena.sourceUpdatedAt ?? arena.fetchedAt))")
+                    if let arena = state.snapshot.boards[selectedCategory.rightKind] {
+                        Text("\(selectedCategory.rightKind.sourcePrefix) \(timestamp(arena.sourceUpdatedAt ?? arena.fetchedAt))")
                     }
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
             }
+            Spacer()
+            categoryPicker
             Spacer()
             Text(nextRunLabel)
                 .font(.caption)
@@ -48,6 +50,28 @@ struct LeaderboardView: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
+    }
+
+    private var categoryPicker: some View {
+        Picker(
+            "榜单类别",
+            selection: Binding(
+                get: { state.selectedCategory },
+                set: { state.selectCategory($0) }
+            )
+        ) {
+            ForEach(LeaderboardCategory.allCases) { category in
+                Text(category.title).tag(category)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .frame(width: 360)
+        .help("切换榜单类别")
+    }
+
+    private var selectedCategory: LeaderboardCategory {
+        state.selectedCategory
     }
 
     @ViewBuilder
@@ -83,24 +107,24 @@ struct LeaderboardView: View {
             .width(Self.rankWidth)
             .alignment(.center)
 
-            TableColumn("Artificial Analysis") { row in
-                LeaderboardCell(model: row.artificialAnalysis)
+            TableColumn(selectedCategory.leftColumnTitle) { row in
+                LeaderboardCell(model: row.left)
             }
             .width(Self.modelWidth)
 
-            TableColumn("AA 分数") { row in
-                ScoreCell(model: row.artificialAnalysis, scoreDigits: 1)
+            TableColumn("\(selectedCategory.leftKind.sourcePrefix) 分数") { row in
+                ScoreCell(model: row.left, scoreDigits: 1)
             }
             .width(Self.aaScoreWidth)
             .alignment(.trailing)
 
-            TableColumn("Code Arena | WebDev") { row in
-                LeaderboardCell(model: row.arena)
+            TableColumn(selectedCategory.rightColumnTitle) { row in
+                LeaderboardCell(model: row.right)
             }
             .width(Self.modelWidth)
 
-            TableColumn("Arena 分数") { row in
-                ScoreCell(model: row.arena, scoreDigits: 1)
+            TableColumn("\(selectedCategory.rightKind.sourcePrefix) 分数") { row in
+                ScoreCell(model: row.right, scoreDigits: 1)
             }
             .width(Self.arenaScoreWidth)
             .alignment(.trailing)
@@ -151,13 +175,13 @@ struct LeaderboardView: View {
 
             Text("数据来源")
             sourceLink(
-                title: "Artificial Analysis",
-                url: "https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index"
+                title: selectedCategory.leftKind.sourceLinkTitle,
+                url: selectedCategory.leftKind.sourceURL.absoluteString
             )
             Text("·")
             sourceLink(
-                title: "Code Arena",
-                url: "https://arena.ai/leaderboard/code/webdev"
+                title: selectedCategory.rightKind.sourceLinkTitle,
+                url: selectedCategory.rightKind.sourceURL.absoluteString
             )
 
             Text("·")
@@ -214,9 +238,9 @@ struct LeaderboardView: View {
     }
 
     private var needsSkeleton: Bool {
-        let artificialAnalysisEmpty = state.snapshot.boards[.artificialAnalysis]?.entries.isEmpty ?? true
-        let arenaEmpty = state.snapshot.boards[.codeArenaWebDev]?.entries.isEmpty ?? true
-        return artificialAnalysisEmpty && arenaEmpty
+        let leftEmpty = state.snapshot.boards[selectedCategory.leftKind]?.entries.isEmpty ?? true
+        let rightEmpty = state.snapshot.boards[selectedCategory.rightKind]?.entries.isEmpty ?? true
+        return leftEmpty && rightEmpty
     }
 
     private var rows: [LeaderboardRow] {
@@ -224,25 +248,25 @@ struct LeaderboardView: View {
             return (0..<20).map { index in
                 LeaderboardRow(
                     rank: index + 1,
-                    artificialAnalysis: .placeholder(rank: index + 1),
-                    arena: .placeholder(rank: index + 1)
+                    left: .placeholder(rank: index + 1),
+                    right: .placeholder(rank: index + 1)
                 )
             }
         }
 
-        let aa = state.snapshot.boards[.artificialAnalysis]?.entries ?? []
-        let arena = state.snapshot.boards[.codeArenaWebDev]?.entries ?? []
+        let left = state.snapshot.boards[selectedCategory.leftKind]?.entries ?? []
+        let right = state.snapshot.boards[selectedCategory.rightKind]?.entries ?? []
         let organizationLogos = self.organizationLogos
 
         return (0..<20).map { index in
             LeaderboardRow(
                 rank: index + 1,
-                artificialAnalysis: cellModel(
-                    for: index < aa.count ? aa[index] : nil,
+                left: cellModel(
+                    for: index < left.count ? left[index] : nil,
                     organizationLogos: organizationLogos
                 ),
-                arena: cellModel(
-                    for: index < arena.count ? arena[index] : nil,
+                right: cellModel(
+                    for: index < right.count ? right[index] : nil,
                     organizationLogos: organizationLogos
                 )
             )
@@ -265,12 +289,12 @@ struct LeaderboardView: View {
     }
 
     private var organizationLogos: [String: URL] {
-        var logos = (state.snapshot.boards[.artificialAnalysis]?.organizationLogoURLs ?? [:])
+        var logos = (state.snapshot.boards[selectedCategory.leftKind]?.organizationLogoURLs ?? [:])
             .reduce(into: [String: URL]()) { result, item in
                 result[normalizedOrganization(item.key)] = item.value
             }
 
-        for entry in state.snapshot.boards[.artificialAnalysis]?.entries ?? [] {
+        for entry in state.snapshot.boards[selectedCategory.leftKind]?.entries ?? [] {
             guard let organization = entry.organization,
                   let logoURL = entry.logoURL else { continue }
             logos[normalizedOrganization(organization)] = logoURL
@@ -306,10 +330,32 @@ struct LeaderboardView: View {
     }
 }
 
+private extension LeaderboardCategory {
+    var leftKind: LeaderboardKind { boardKinds[0] }
+    var rightKind: LeaderboardKind { boardKinds[1] }
+
+    var leftColumnTitle: String {
+        switch self {
+        case .general, .coding: "Artificial Analysis Intelligence Index"
+        case .image: "AA | 文生图"
+        case .video: "AA | 文生视频"
+        }
+    }
+
+    var rightColumnTitle: String {
+        switch self {
+        case .general: "Arena | Text"
+        case .coding: "Code Arena | WebDev"
+        case .image: "Arena | 文生图"
+        case .video: "Arena | 文生视频"
+        }
+    }
+}
+
 private struct LeaderboardRow: Identifiable {
     let rank: Int
-    let artificialAnalysis: LeaderboardCellModel?
-    let arena: LeaderboardCellModel?
+    let left: LeaderboardCellModel?
+    let right: LeaderboardCellModel?
     var id: Int { rank }
 }
 
