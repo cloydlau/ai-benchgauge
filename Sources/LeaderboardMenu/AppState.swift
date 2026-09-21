@@ -8,10 +8,12 @@ final class AppState: ObservableObject {
     @Published private(set) var lastErrors: [LeaderboardKind: String] = [:]
     @Published private(set) var schedule = UpdateSchedule.initial()
     @Published private(set) var lastAttemptAt: Date?
+    @Published private(set) var selectedCategory = LeaderboardCategory.general
 
     private let fetcher = LeaderboardFetcher()
     private let cache: LeaderboardCache
     private var updateTimer: Timer?
+    private var refreshPending = false
 
     init(cache: LeaderboardCache) {
         self.cache = cache
@@ -35,6 +37,17 @@ final class AppState: ObservableObject {
             return
         }
         refreshNow()
+    }
+
+    func selectCategory(_ category: LeaderboardCategory) {
+        guard category != selectedCategory else { return }
+        selectedCategory = category
+        guard !isFresh(category) else { return }
+        if isRefreshing {
+            refreshPending = true
+        } else {
+            refreshNow()
+        }
     }
 
     private func startTimer() {
@@ -64,25 +77,39 @@ final class AppState: ObservableObject {
         lastErrors = [:]
         lastAttemptAt = Date()
 
+        let category = selectedCategory
+        let kinds = category.boardKinds
+
         Task {
-            async let artificialAnalysis = fetcher.artificialAnalysis()
-            async let arena = fetcher.arenaWebDev()
+            await withTaskGroup(of: (LeaderboardKind, Leaderboard?, String?).self) { group in
+                for kind in kinds {
+                    let fetcher = fetcher
+                    group.addTask {
+                        do {
+                            return (kind, try await fetcher.fetch(kind), nil)
+                        } catch {
+                            return (kind, nil, error.localizedDescription)
+                        }
+                    }
+                }
 
-            do {
-                let board = try await artificialAnalysis
-                snapshot.boards[board.kind] = board
-            } catch {
-                lastErrors[.artificialAnalysis] = error.localizedDescription
-            }
-
-            do {
-                let board = try await arena
-                snapshot.boards[board.kind] = board
-            } catch {
-                lastErrors[.codeArenaWebDev] = error.localizedDescription
+                for await (kind, board, errorMessage) in group {
+                    if let board {
+                        snapshot.boards[kind] = board
+                    } else {
+                        lastErrors[kind] = errorMessage ?? "未知错误"
+                    }
+                }
             }
 
             finishRefresh()
+        }
+    }
+
+    private func isFresh(_ category: LeaderboardCategory) -> Bool {
+        let startOfDay = Calendar.current.startOfDay(for: Date())
+        return category.boardKinds.allSatisfy { kind in
+            (snapshot.boards[kind]?.fetchedAt ?? .distantPast) >= startOfDay
         }
     }
 
@@ -96,6 +123,11 @@ final class AppState: ObservableObject {
             schedule = schedule.givingUp()
         } else {
             schedule = schedule.schedulingRetry()
+        }
+
+        if refreshPending {
+            refreshPending = false
+            refreshNow()
         }
     }
 }
