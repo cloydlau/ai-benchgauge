@@ -8,6 +8,7 @@ struct LeaderboardView: View {
         VStack(spacing: 0) {
             header
             table
+            Divider()
             footer
         }
         .frame(width: 1000, height: 830)
@@ -15,106 +16,101 @@ struct LeaderboardView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("AI Leaderboards")
-                    .font(.system(size: 17, weight: .semibold))
-                if state.isRefreshing {
-                    Text("更新中")
-                        .foregroundStyle(.secondary)
-                } else if state.lastErrors.isEmpty {
-                    Text("已更新")
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("部分榜单更新失败，将按计划重试")
-                        .foregroundStyle(.orange)
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("AI Leaderboards")
+                        .font(.system(size: 17, weight: .semibold))
+                    Text("v\(appVersion)")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .monospacedDigit()
                 }
+                HStack(spacing: 10) {
+                    updateStatus
+                    if let artificialAnalysis = state.snapshot.boards[.artificialAnalysis] {
+                        let note = artificialAnalysis.sourceNote.map { " (\($0))" } ?? ""
+                        Text("AA \(timestamp(artificialAnalysis.fetchedAt))\(note)")
+                    }
+                    if let arena = state.snapshot.boards[.codeArenaWebDev] {
+                        Text("Arena \(timestamp(arena.sourceUpdatedAt ?? arena.fetchedAt))")
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
             }
             Spacer()
-            HStack(spacing: 14) {
-                Text(nextRunLabel)
-                    .foregroundStyle(.secondary)
-            }
+            Text(nextRunLabel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
     }
 
-    // Fixed column widths keep the custom (clickable) header row aligned
-    // with the table below; the built-in headers are hidden.
+    @ViewBuilder
+    private var updateStatus: some View {
+        if state.isRefreshing {
+            Text("更新中")
+        } else if state.lastErrors.isEmpty {
+            Text("已更新")
+        } else {
+            Text("部分榜单更新失败，将按计划重试")
+                .foregroundStyle(.orange)
+        }
+    }
+
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+    }
+
+    // Column widths for the native table; the header row comes from SwiftUI,
+    // so nothing has to be hand-aligned any more.
     private static let rankWidth: CGFloat = 48
     private static let modelWidth: CGFloat = 402
     private static let aaScoreWidth: CGFloat = 66
     private static let arenaScoreWidth: CGFloat = 72
 
     private var table: some View {
-        VStack(spacing: 0) {
-            tableHeader
-            Divider()
-            Table(rows) {
-                TableColumn("排名") { row in
-                    Text("\(row.rank)")
-                        .monospacedDigit()
-                        .frame(maxWidth: .infinity, alignment: .center)
-                }
-                .width(Self.rankWidth)
-                .alignment(.center)
-
-                TableColumn(artificialAnalysisTitle) { row in
-                    LeaderboardCell(model: row.artificialAnalysis)
-                }
-                .width(Self.modelWidth)
-
-                TableColumn("AA 分数") { row in
-                    ScoreCell(model: row.artificialAnalysis, scoreDigits: 1)
-                }
-                .width(Self.aaScoreWidth)
-                .alignment(.trailing)
-
-                TableColumn(arenaTitle) { row in
-                    LeaderboardCell(model: row.arena)
-                }
-                .width(Self.modelWidth)
-
-                TableColumn("Arena 分数") { row in
-                    ScoreCell(model: row.arena, scoreDigits: 1)
-                }
-                .width(Self.arenaScoreWidth)
-                .alignment(.trailing)
+        Table(rows) {
+            TableColumn("排名") { row in
+                Text("\(row.rank)")
+                    .monospacedDigit()
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
-            .tableColumnHeaders(.hidden)
-            .tableStyle(.bordered(alternatesRowBackgrounds: true))
-            .redacted(reason: needsSkeleton ? .placeholder : [])
-            .disabled(needsSkeleton)
+            .width(Self.rankWidth)
+            .alignment(.center)
+
+            TableColumn("Artificial Analysis") { row in
+                LeaderboardCell(model: row.artificialAnalysis)
+            }
+            .width(Self.modelWidth)
+
+            TableColumn("AA 分数") { row in
+                ScoreCell(model: row.artificialAnalysis, scoreDigits: 1)
+            }
+            .width(Self.aaScoreWidth)
+            .alignment(.trailing)
+
+            TableColumn("Code Arena | WebDev") { row in
+                LeaderboardCell(model: row.arena)
+            }
+            .width(Self.modelWidth)
+
+            TableColumn("Arena 分数") { row in
+                ScoreCell(model: row.arena, scoreDigits: 1)
+            }
+            .width(Self.arenaScoreWidth)
+            .alignment(.trailing)
         }
+        .tableStyle(.bordered(alternatesRowBackgrounds: true))
+        .redacted(reason: needsSkeleton ? .placeholder : [])
+        .disabled(needsSkeleton)
     }
 
-    private var tableHeader: some View {
-        HStack(spacing: 0) {
-            Text("排名")
-                .frame(width: Self.rankWidth)
-            headerLink(
-                title: artificialAnalysisTitle,
-                url: "https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index"
-            )
-            .frame(width: Self.modelWidth, alignment: .leading)
-            Text("AA 分数")
-                .frame(width: Self.aaScoreWidth, alignment: .trailing)
-            headerLink(
-                title: arenaTitle,
-                url: "https://arena.ai/leaderboard/code/webdev"
-            )
-            .frame(width: Self.modelWidth, alignment: .leading)
-            Text("Arena 分数")
-                .frame(width: Self.arenaScoreWidth, alignment: .trailing)
-        }
-        .font(.callout)
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 5)
-        .padding(.vertical, 6)
-    }
-
-    private func headerLink(title: String, url: String) -> some View {
+    private func sourceLink(title: String, url: String) -> some View {
         Button {
             if let url = URL(string: url) {
                 NSWorkspace.shared.open(url)
@@ -132,15 +128,52 @@ struct LeaderboardView: View {
         .help(url)
     }
 
+    private let repositoryURL = "https://github.com/cloydlau/ai-leaderboard-menubar"
+
     private var footer: some View {
-        HStack {
-            if let artificialAnalysis = state.snapshot.boards[.artificialAnalysis] {
-                Text("AA \(timestamp(artificialAnalysis.fetchedAt))")
+        HStack(spacing: 7) {
+            Button {
+                if let url = URL(string: repositoryURL) {
+                    NSWorkspace.shared.open(url)
+                }
+            } label: {
+                githubMark
             }
+            .buttonStyle(.plain)
+            .pointingHandCursor()
+            .help(repositoryURL)
+
+            Text("Cloyd Lau")
+            Text("·")
+            Text("MIT License")
+
             Spacer()
-            if let arena = state.snapshot.boards[.codeArenaWebDev] {
-                Text("Arena \(timestamp(arena.sourceUpdatedAt ?? arena.fetchedAt))")
+
+            Text("数据来源")
+            sourceLink(
+                title: "Artificial Analysis",
+                url: "https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index"
+            )
+            Text("·")
+            sourceLink(
+                title: "Code Arena",
+                url: "https://arena.ai/leaderboard/code/webdev"
+            )
+
+            Text("·")
+
+            Button {
+                NSApp.terminate(nil)
+            } label: {
+                HStack(spacing: 3) {
+                    Image(systemName: "power")
+                        .imageScale(.small)
+                    Text("退出")
+                }
             }
+            .buttonStyle(.plain)
+            .pointingHandCursor()
+            .help("退出 AI Leaderboards")
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -148,22 +181,26 @@ struct LeaderboardView: View {
         .padding(.vertical, 11)
     }
 
-    private var artificialAnalysisTitle: String {
-        if let board = state.snapshot.boards[.artificialAnalysis],
-           let note = board.sourceNote {
-            return "Artificial Analysis (\(note))"
+    @ViewBuilder
+    private var githubMark: some View {
+        if let mark = Self.bundledGitHubMark {
+            Image(nsImage: mark)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 13, height: 13)
+        } else {
+            Image(systemName: "link")
+                .imageScale(.small)
         }
-        return "Artificial Analysis Intelligence Index"
     }
 
-    private var arenaTitle: String {
-        if let updatedAt = state.snapshot.boards[.codeArenaWebDev]?.sourceUpdatedAt {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy/M/d"
-            return "Code Arena | WebDev (\(formatter.string(from: updatedAt)))"
-        }
-        return "Code Arena | WebDev"
-    }
+    private static let bundledGitHubMark: NSImage? = {
+        guard let resourceURL = Bundle.main.resourceURL else { return nil }
+        let url = resourceURL.appending(path: "logos/github.png")
+        guard let image = NSImage(contentsOf: url) else { return nil }
+        image.isTemplate = true
+        return image
+    }()
 
     private var nextRunLabel: String {
         let formatter = DateFormatter()
