@@ -100,7 +100,7 @@ struct LeaderboardView: View {
     private var table: some View {
         Table(rows) {
             TableColumn("排名") { row in
-                Text("\(row.rank)")
+                Text(rankLabel(row.rank))
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .center)
             }
@@ -132,6 +132,15 @@ struct LeaderboardView: View {
         .tableStyle(.bordered(alternatesRowBackgrounds: true))
         .redacted(reason: needsSkeleton ? .placeholder : [])
         .disabled(needsSkeleton)
+    }
+
+    private func rankLabel(_ rank: Int) -> String {
+        switch rank {
+        case 1: "🥇"
+        case 2: "🥈"
+        case 3: "🥉"
+        default: "\(rank)"
+        }
     }
 
     private func sourceLink(title: String, url: String) -> some View {
