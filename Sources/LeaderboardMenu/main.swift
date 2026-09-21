@@ -44,7 +44,10 @@ final class StatusBarController: NSObject {
         popover.contentViewController = NSHostingController(
             rootView: LeaderboardView(state: state)
         )
-        popover.contentSize = NSSize(width: 1000, height: 830)
+        popover.contentSize = NSSize(
+            width: LeaderboardView.contentWidth,
+            height: LeaderboardView.contentHeight
+        )
 
         if let button = statusItem.button {
             button.image = NSImage(

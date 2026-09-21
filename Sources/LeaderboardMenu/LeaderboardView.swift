@@ -4,6 +4,9 @@ import LeaderboardCore
 struct LeaderboardView: View {
     @ObservedObject var state: AppState
 
+    static let contentWidth: CGFloat = 1040
+    static let contentHeight: CGFloat = 830
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -11,7 +14,7 @@ struct LeaderboardView: View {
             Divider()
             footer
         }
-        .frame(width: 1000, height: 830)
+        .frame(width: Self.contentWidth, height: Self.contentHeight)
         .background(.background)
     }
 
@@ -92,11 +95,6 @@ struct LeaderboardView: View {
 
     // Column widths for the native table; the header row comes from SwiftUI,
     // so nothing has to be hand-aligned any more.
-    private static let rankWidth: CGFloat = 48
-    private static let modelWidth: CGFloat = 402
-    private static let aaScoreWidth: CGFloat = 66
-    private static let arenaScoreWidth: CGFloat = 72
-
     private var table: some View {
         Table(rows) {
             TableColumn("排名") { row in
@@ -104,29 +102,29 @@ struct LeaderboardView: View {
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .center)
             }
-            .width(Self.rankWidth)
+            .width(min: 36, ideal: 48, max: 56)
             .alignment(.center)
 
             TableColumn(selectedCategory.leftColumnTitle) { row in
                 LeaderboardCell(model: row.left)
             }
-            .width(Self.modelWidth)
+            .width(min: 300, ideal: 402, max: 460)
 
             TableColumn("\(selectedCategory.leftKind.sourcePrefix) 分数") { row in
                 ScoreCell(model: row.left, scoreDigits: 1)
             }
-            .width(Self.aaScoreWidth)
+            .width(min: 56, ideal: 66, max: 76)
             .alignment(.trailing)
 
             TableColumn(selectedCategory.rightColumnTitle) { row in
                 LeaderboardCell(model: row.right)
             }
-            .width(Self.modelWidth)
+            .width(min: 300, ideal: 402, max: 460)
 
             TableColumn("\(selectedCategory.rightKind.sourcePrefix) 分数") { row in
                 ScoreCell(model: row.right, scoreDigits: 1)
             }
-            .width(Self.arenaScoreWidth)
+            .width(min: 56, ideal: 72, max: 82)
             .alignment(.trailing)
         }
         .tableStyle(.bordered(alternatesRowBackgrounds: true))
@@ -424,6 +422,8 @@ private struct LeaderboardCell: View {
         }
         .padding(.horizontal, 5)
         .padding(.vertical, 3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .clipped()
         .background(cellBackground)
     }
 
