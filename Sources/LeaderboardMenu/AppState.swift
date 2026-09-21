@@ -25,7 +25,15 @@ final class AppState: ObservableObject {
         startTimer()
     }
 
+    /// Menu-bar clicks are throttled: the sources rate-limit, so rapid
+    /// clicking must not turn into a burst of requests.
+    private static let minimumMenuRefreshInterval: TimeInterval = 10 * 60
+
     func refreshFromMenuClick() {
+        if let lastAttemptAt,
+           Date().timeIntervalSince(lastAttemptAt) < Self.minimumMenuRefreshInterval {
+            return
+        }
         refreshNow()
     }
 
