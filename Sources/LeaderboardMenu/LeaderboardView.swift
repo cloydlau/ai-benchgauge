@@ -84,6 +84,8 @@ struct LeaderboardView: View {
             }
             .tableColumnHeaders(.hidden)
             .tableStyle(.bordered(alternatesRowBackgrounds: true))
+            .redacted(reason: needsSkeleton ? .placeholder : [])
+            .disabled(needsSkeleton)
         }
     }
 
@@ -173,7 +175,23 @@ struct LeaderboardView: View {
         return "每日更新 \(formatter.string(from: state.schedule.dailyRunAt))"
     }
 
+    private var needsSkeleton: Bool {
+        let artificialAnalysisEmpty = state.snapshot.boards[.artificialAnalysis]?.entries.isEmpty ?? true
+        let arenaEmpty = state.snapshot.boards[.codeArenaWebDev]?.entries.isEmpty ?? true
+        return artificialAnalysisEmpty && arenaEmpty
+    }
+
     private var rows: [LeaderboardRow] {
+        if needsSkeleton {
+            return (0..<20).map { index in
+                LeaderboardRow(
+                    rank: index + 1,
+                    artificialAnalysis: .placeholder(rank: index + 1),
+                    arena: .placeholder(rank: index + 1)
+                )
+            }
+        }
+
         let aa = state.snapshot.boards[.artificialAnalysis]?.entries ?? []
         let arena = state.snapshot.boards[.codeArenaWebDev]?.entries ?? []
         let organizationLogos = self.organizationLogos
@@ -261,6 +279,16 @@ private struct LeaderboardCellModel {
     let entry: LeaderboardEntry
     let brandColor: Color?
     let logoURL: URL?
+}
+
+private extension LeaderboardCellModel {
+    static func placeholder(rank: Int) -> LeaderboardCellModel {
+        LeaderboardCellModel(
+            entry: LeaderboardEntry(rank: rank, name: "Placeholder Model", score: 0),
+            brandColor: nil,
+            logoURL: nil
+        )
+    }
 }
 
 private struct LeaderboardCell: View {

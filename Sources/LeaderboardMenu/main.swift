@@ -54,6 +54,23 @@ final class StatusBarController: NSObject {
             button.target = self
             button.action = #selector(togglePopover)
         }
+
+        // Pre-warm: create the popover window and run the first SwiftUI
+        // layout pass at launch (invisibly), so the first click opens
+        // instantly instead of paying that cost on screen.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            self?.prewarmPopover()
+        }
+    }
+
+    private func prewarmPopover() {
+        guard !popover.isShown, let button = statusItem.button else { return }
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        popover.contentViewController?.view.window?.alphaValue = 0
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            self?.popover.performClose(nil)
+            self?.popover.contentViewController?.view.window?.alphaValue = 1
+        }
     }
 
     @objc private func togglePopover() {
@@ -62,11 +79,14 @@ final class StatusBarController: NSObject {
             return
         }
 
-        state.refreshFromMenuClick()
+        // Show first, refresh second, so nothing synchronous stands between
+        // the click and the popover appearing.
         if let button = statusItem.button {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            popover.contentViewController?.view.window?.alphaValue = 1
             startOutsideClickMonitor()
         }
+        state.refreshFromMenuClick()
     }
 
     private func closePopover() {
