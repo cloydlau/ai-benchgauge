@@ -128,6 +128,7 @@ struct LeaderboardView: View {
             }
         }
         .buttonStyle(.link)
+        .pointingHandCursor()
         .help(url)
     }
 
@@ -308,14 +309,20 @@ private struct LeaderboardCell: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                 if OrganizationRegion.isChinese(entry.organization) {
+                    // Quiet metadata tag: neutral fill + hairline outline reads
+                    // as a label, clearly distinct from the blue purchase links.
                     Text("国产")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundStyle(.red)
-                        .padding(.horizontal, 4)
+                        .font(.system(size: 9, weight: .regular))
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 5)
                         .padding(.vertical, 1)
                         .background(
                             Capsule(style: .continuous)
-                                .fill(.red.opacity(0.12))
+                                .fill(.primary.opacity(0.04))
+                        )
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .strokeBorder(.primary.opacity(0.12), lineWidth: 0.5)
                         )
                 }
                 InlinePurchaseLinks(organization: entry.organization)
@@ -399,17 +406,17 @@ private struct PurchaseLinkControl: View {
 
     var body: some View {
         if links.count == 1, let link = links.first {
-            Button(title) {
-                open(link.url)
-            }
-            .buttonStyle(.link)
-            .font(.caption)
-            .help(link.url.absoluteString)
+            // SwiftUI Link shows the pointing-hand cursor and opens the URL
+            // itself; an onHover-based cursor here would swallow clicks in
+            // NSTableView-backed cells.
+            Link(title, destination: link.url)
+                .font(.caption)
+                .help(link.url.absoluteString)
         } else if links.count > 1 {
             Menu {
                 ForEach(links) { link in
                     Button(link.label) {
-                        open(link.url)
+                        NSWorkspace.shared.open(link.url)
                     }
                 }
             } label: {
@@ -426,9 +433,6 @@ private struct PurchaseLinkControl: View {
         }
     }
 
-    private func open(_ url: URL) {
-        NSWorkspace.shared.open(url)
-    }
 }
 
 private struct ModelLogoView: View {
@@ -484,6 +488,24 @@ private struct ModelLogoView: View {
         Text(String((organization ?? name).prefix(1)).uppercased())
             .font(.system(size: 10, weight: .semibold))
             .foregroundStyle(.secondary)
+    }
+}
+
+private struct PointingHandCursor: ViewModifier {
+    func body(content: Content) -> some View {
+        content.onHover { hovering in
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
+    }
+}
+
+private extension View {
+    func pointingHandCursor() -> some View {
+        modifier(PointingHandCursor())
     }
 }
 
