@@ -7,18 +7,24 @@ public struct LeaderboardFetcher: Sendable {
         self.session = session
     }
 
-    public func artificialAnalysis() async throws -> Leaderboard {
-        let html = try await html(
-            URL(string: "https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index")!
-        )
-        return try HTMLLeaderboardParser.artificialAnalysis(fromHTML: html)
-    }
-
-    public func arenaWebDev() async throws -> Leaderboard {
-        let html = try await html(
-            URL(string: "https://arena.ai/leaderboard/code/webdev")!
-        )
-        return try HTMLLeaderboardParser.arenaWebDev(fromHTML: html)
+    public func fetch(_ kind: LeaderboardKind) async throws -> Leaderboard {
+        let html = try await html(kind.sourceURL)
+        switch kind {
+        case .artificialAnalysis:
+            return try HTMLLeaderboardParser.artificialAnalysis(fromHTML: html)
+        case .arenaText:
+            return try HTMLLeaderboardParser.arenaText(fromHTML: html)
+        case .codeArenaWebDev:
+            return try HTMLLeaderboardParser.arenaWebDev(fromHTML: html)
+        case .aaTextToImage:
+            return try HTMLLeaderboardParser.artificialAnalysisTextToImage(fromHTML: html)
+        case .arenaTextToImage:
+            return try HTMLLeaderboardParser.arenaTextToImage(fromHTML: html)
+        case .aaTextToVideo:
+            return try HTMLLeaderboardParser.artificialAnalysisTextToVideo(fromHTML: html)
+        case .arenaTextToVideo:
+            return try HTMLLeaderboardParser.arenaTextToVideo(fromHTML: html)
+        }
     }
 
     private func html(_ url: URL) async throws -> String {
