@@ -22,7 +22,7 @@ public enum OrganizationLogoCatalog {
     private static let brandColors: [String: String] = [
         "anthropic": "#D97757",
         "openai": "#0A0A0A",
-        "alibaba": "#615CED",
+        "qwen": "#623AE7",
         "zai": "#3E63DD",
         "spacexai": "#71767B",
         "stepfun": "#1F2937",
@@ -43,7 +43,7 @@ public enum OrganizationLogoCatalog {
     }
 
     private static let bundledKeys: Set<String> = [
-        "anthropic", "openai", "alibaba", "zai", "spacexai", "stepfun",
+        "anthropic", "openai", "qwen", "zai", "spacexai", "stepfun",
         "kimi", "google", "deepseek", "tencent", "meta", "minimax",
         "mistral", "nvidia", "thinkingmachines"
     ]
@@ -51,7 +51,7 @@ public enum OrganizationLogoCatalog {
     private static let favicons: [String: String] = [
         "anthropic": "https://claude.com/favicon.ico",
         "openai": "https://openai.com/favicon.ico",
-        "alibaba": "https://www.alibabacloud.com/favicon.ico",
+        "qwen": "https://qwen.ai/favicon.ico",
         "zai": "https://z.ai/favicon.ico",
         "spacexai": "https://x.ai/favicon.ico",
         "stepfun": "https://www.stepfun.com/favicon.ico",
@@ -74,6 +74,8 @@ public enum OrganizationLogoCatalog {
         switch words {
         case "moonshot":
             return "kimi"
+        case "alibaba":
+            return "qwen"
         default:
             return words
         }

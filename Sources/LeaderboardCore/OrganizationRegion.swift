@@ -8,7 +8,7 @@ public enum OrganizationRegion {
     }
 
     private static let chineseKeys: Set<String> = [
-        "alibaba", "zai", "kimi", "deepseek", "stepfun", "tencent", "minimax"
+        "qwen", "zai", "kimi", "deepseek", "stepfun", "tencent", "minimax"
     ]
 
     private static func normalized(_ organization: String?) -> String {
@@ -19,6 +19,8 @@ public enum OrganizationRegion {
         switch words {
         case "moonshot":
             return "kimi"
+        case "alibaba":
+            return "qwen"
         default:
             return words
         }
