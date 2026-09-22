@@ -5,7 +5,12 @@ let package = Package(
     name: "AI-Leaderboards",
     platforms: [.macOS(.v14)],
     targets: [
-        .target(name: "LeaderboardCore"),
+        .target(
+            name: "LeaderboardCore",
+            linkerSettings: [
+                .linkedLibrary("sqlite3"),
+            ]
+        ),
         .executableTarget(
             name: "leaderboard-menu",
             dependencies: ["LeaderboardCore"],
