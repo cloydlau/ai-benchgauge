@@ -160,6 +160,7 @@ public struct AccountQuotaChip: Identifiable, Equatable, Sendable {
         case note(text: String, help: String)
         case windows([ParsedQuotaWindow])
         case balances([ParsedBalance])
+        case qwenPlan(QwenPlanQuota)
         case usage([ParsedUsageWindow])
         case message(String)
     }
@@ -306,6 +307,8 @@ public enum AccountQuotaFormatting {
             return runs
         case let .balances(balances):
             return balanceRuns(balances)
+        case let .qwenPlan(plan):
+            return qwenPlanRuns(plan, now: now)
         case let .usage(windows):
             return usageRuns(windows)
         }
@@ -326,6 +329,16 @@ public enum AccountQuotaFormatting {
             let summary = plainSummary(for: chip, now: now)
             if !summary.isEmpty {
                 lines.append(summary)
+            }
+            if chip.kind == .qwen {
+                switch chip.status {
+                case .qwenPlan:
+                    lines.append("千问官网套餐额度（qianwen CLI 当前登录账号）")
+                case .usage:
+                    lines.append("CC Switch 本地统计，非千问官网套餐额度；安装并登录 qianwen CLI 可显示官网额度")
+                default:
+                    break
+                }
             }
         }
         if let websiteURL = chip.websiteURL {
@@ -372,6 +385,29 @@ public enum AccountQuotaFormatting {
         return runs
     }
 
+    private static func qwenPlanRuns(_ plan: QwenPlanQuota, now: Date) -> [QuotaTextRun] {
+        var runs = [
+            QuotaTextRun(text: "7天: ", tone: .secondary),
+            QuotaTextRun(text: "\(roundedPercent(plan.usedPercent))%", tone: tone(forUtilization: plan.usedPercent)),
+            QuotaTextRun(
+                text: " · 剩余 \(creditText(plan.remainingCredits))/\(creditText(plan.totalCredits)) Credits",
+                tone: .secondary
+            ),
+        ]
+        if let resetsAt = plan.resetsAt, let countdown = countdown(until: resetsAt, now: now) {
+            runs.append(QuotaTextRun(text: " \(countdown)", tone: .secondary))
+        }
+        return runs
+    }
+
+    private static func creditText(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: NSNumber(value: value)) ?? String(value)
+    }
+
     private static func usageRuns(_ windows: [ParsedUsageWindow]) -> [QuotaTextRun] {
         guard !windows.isEmpty else {
             return [QuotaTextRun(text: AccountQuotaMessage.emptyUsage, tone: .secondary)]
@@ -382,7 +418,7 @@ public enum AccountQuotaFormatting {
                 runs.append(QuotaTextRun(text: "  ", tone: .secondary))
             }
             let tokens = compactTokenCount(window.inputTokens + window.outputTokens)
-            runs.append(QuotaTextRun(text: "\(window.name): ", tone: .secondary))
+            runs.append(QuotaTextRun(text: "本地\(window.name): ", tone: .secondary))
             runs.append(QuotaTextRun(text: "\(tokens) tokens", tone: .green))
             runs.append(QuotaTextRun(text: " · \(window.requests)次", tone: .secondary))
             if window.costUSD > 0 {
@@ -437,7 +473,10 @@ public enum CCSwitchQuotaCatalog {
                 CCSwitchQuotaTarget(
                     id: record.id,
                     shortName: shortName(for: kind),
-                    websiteURL: websiteURL(record.websiteURL),
+                    websiteURL: websiteURL(record.websiteURL)
+                        ?? (kind == .qwen
+                            ? URL(string: "https://platform.qianwenai.com/home/analytics/token-plan/individual")
+                            : nil),
                     kind: kind,
                     isCurrent: record.isCurrent,
                     apiKey: kind == .officialNote || kind == .xaiOAuth ? nil : extracted.apiKey,
@@ -654,7 +693,9 @@ public enum CCSwitchQuotaCatalog {
 
     private static func isQwen(_ url: String) -> Bool {
         let lowered = url.lowercased()
-        return lowered.contains("token-plan.") && lowered.contains("maas.aliyuncs.com")
+        return lowered.contains("token-plan.")
+            && (lowered.contains("maas.aliyuncs.com")
+                || lowered.contains("maas.qianwenaiapi.com"))
     }
 
     private static func baseURLs(inTOML config: String) -> [String] {
