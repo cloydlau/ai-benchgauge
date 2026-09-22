@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // 轮询 Sources/、Package.swift、两个 make-app.sh，以及 git 未提交改动。
 // 变更停止 WATCH_DEBOUNCE_MS（默认 60 秒），且距上次运行至少 WATCH_THROTTLE_MS（默认 60 秒）后，
-// 先按目的拆成原子提交，再在源码变化时重建并重启。
-// 构建或提交失败后，同一签名不再空转。WATCH_AUTOCOMMIT=0 关闭自动提交。
+// 先按目的拆成原子提交并推送到上游，再在源码变化时重建并重启。
+// 构建、提交或推送失败后，同一签名不再空转。WATCH_AUTOCOMMIT=0 关闭自动提交。
+// COMMIT_PUSH=0 或 WATCH_AUTOPUSH=0 关闭自动推送。
 
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, statSync } from 'node:fs'
@@ -31,6 +32,11 @@ export function sourceNewerThanApp(files, appMtime) {
 
 export function autocommitEnabled(env = process.env) {
   return env.WATCH_AUTOCOMMIT !== '0' && env.DEPLOY_AUTOCOMMIT !== '0'
+}
+
+export function autopushEnabled(env = process.env) {
+  if (!autocommitEnabled(env)) return false
+  return env.COMMIT_PUSH !== '0' && env.WATCH_AUTOPUSH !== '0'
 }
 
 function readDuration(name, fallback) {
@@ -105,12 +111,16 @@ function currentAppMtime() {
   return stat ? stat.mtimeMs : null
 }
 
-function gitStatusSignature() {
-  const result = spawnSync('git', ['status', '--porcelain', '-z', '--untracked-files=all'], {
+function gitSync(args) {
+  return spawnSync('git', args, {
     cwd: root,
     encoding: 'utf8',
     maxBuffer: 16 * 1024 * 1024,
   })
+}
+
+function gitStatusSignature() {
+  const result = gitSync(['status', '--porcelain', '-z', '--untracked-files=all'])
   if (result.error) {
     if (!isAccessDenied(result.error)) console.warn(`[watch] git 状态检查失败：${result.error.message}`)
     return null
@@ -120,6 +130,35 @@ function gitStatusSignature() {
     return null
   }
   return result.stdout ?? ''
+}
+
+export function parseAheadCount(stdout) {
+  const parts = String(stdout || '').trim().split(/\s+/)
+  if (parts.length < 2) return null
+  const ahead = Number(parts[1])
+  return Number.isFinite(ahead) ? ahead : null
+}
+
+function unpushedState() {
+  const result = gitSync(['rev-list', '--left-right', '--count', '@{upstream}...HEAD'])
+  if (result.error) {
+    if (!isAccessDenied(result.error)) console.warn(`[watch] 上游检查失败：${result.error.message}`)
+    return { state: 'unknown', signature: '', count: 0 }
+  }
+  if (result.status !== 0) {
+    const detail = (result.stderr || '').trim()
+    if (/no upstream|no tracking information|does not (?:point to|match) a branch/i.test(detail)) {
+      return { state: 'no-upstream', signature: '', count: 0 }
+    }
+    console.warn(`[watch] 上游检查失败：${detail || `退出码 ${result.status}`}`)
+    return { state: 'unknown', signature: '', count: 0 }
+  }
+  const ahead = parseAheadCount(result.stdout)
+  if (ahead == null) return { state: 'unknown', signature: '', count: 0 }
+  if (ahead <= 0) return { state: 'synced', signature: '', count: 0 }
+  const head = gitSync(['rev-parse', 'HEAD'])
+  if (head.status !== 0 || head.error) return { state: 'unknown', signature: '', count: ahead }
+  return { state: 'ahead', signature: (head.stdout || '').trim(), count: ahead }
 }
 
 function run(script) {
@@ -139,6 +178,18 @@ function runNode(script, extraEnv = {}) {
     const child = spawn(process.execPath, [script], {
       cwd: root,
       env: { ...process.env, ...extraEnv },
+      stdio: 'inherit',
+    })
+    child.on('error', (error) => resolvePromise({ status: 1, error }))
+    child.on('close', (status) => resolvePromise({ status: status ?? 1 }))
+  })
+}
+
+function runGit(args) {
+  return new Promise((resolvePromise) => {
+    const child = spawn('git', args, {
+      cwd: root,
+      env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
       stdio: 'inherit',
     })
     child.on('error', (error) => resolvePromise({ status: 1, error }))
@@ -197,12 +248,16 @@ function main() {
   }
 
   const commitEnabled = autocommitEnabled()
+  const pushEnabled = autopushEnabled()
   let timer = null
   let busy = false
   let lastChangeAt = 0
   let lastRunAt = null
   let failedSignature = null
   let failedCommitSignature = null
+  let failedPushSignature = null
+  let lastAheadSignature = ''
+  let warnedNoUpstream = false
   let lastSignature = ''
   let lastGitSignature = gitStatusSignature()
   let lastRebuiltSignature = null
@@ -214,10 +269,12 @@ function main() {
   }
 
   function actionLabel() {
-    return commitEnabled ? '原子提交，并在源码变化时重建重启' : '重建并重启'
+    if (!commitEnabled) return '重建并重启'
+    return pushEnabled ? '原子提交并推送，并在源码变化时重建重启' : '原子提交，并在源码变化时重建重启'
   }
 
-  function schedule(reason, at) {
+  function schedule(reason, at, { retryPush = false } = {}) {
+    if (retryPush) failedPushSignature = null
     lastChangeAt = at
     if (busy) {
       console.log(`[watch] ${reason}，当前正在提交或构建，结束后再调度`)
@@ -248,7 +305,9 @@ function main() {
     try {
       if (commitEnabled && gitSignature && gitSignature !== failedCommitSignature) {
         console.log('[watch] 开始原子提交…')
-        const committed = await runNode(join(root, 'Scripts', 'commit.mjs'), { COMMIT_REQUIRE_LOCK: '1' })
+        const commitEnv = { COMMIT_REQUIRE_LOCK: '1' }
+        if (pushEnabled) commitEnv.COMMIT_PUSH = '0'
+        const committed = await runNode(join(root, 'Scripts', 'commit.mjs'), commitEnv)
         commitStatus = committed.status
         if (committed.status === 0) {
           const after = gitStatusSignature()
@@ -269,6 +328,30 @@ function main() {
         }
       } else if (commitEnabled && gitSignature && gitSignature === failedCommitSignature) {
         console.log('[watch] 这一版提交已失败，等待下次保存')
+      }
+
+      if (pushEnabled) {
+        const ahead = unpushedState()
+        if (ahead.state === 'no-upstream') {
+          if (!warnedNoUpstream) {
+            console.warn('[watch] 当前分支没有上游，跳过自动推送')
+            warnedNoUpstream = true
+          }
+        } else if (ahead.state === 'ahead' && ahead.signature !== failedPushSignature) {
+          console.log(`[watch] 开始推送 ${ahead.count} 个提交…`)
+          const pushed = await runGit(['push'])
+          if (pushed.status === 0) {
+            console.log('[watch] 已推送')
+            failedPushSignature = null
+            lastAheadSignature = ''
+          } else {
+            const detail = pushed.error ? pushed.error.message : `git push 退出码 ${pushed.status}`
+            console.error(`[watch] 推送失败：${detail}`)
+            failedPushSignature = ahead.signature
+            lastAheadSignature = ahead.signature
+            await notify(false, '推送失败', detail)
+          }
+        }
       }
 
       attemptedRebuild = builtSignature !== lastRebuiltSignature && builtSignature !== failedSignature
@@ -296,7 +379,9 @@ function main() {
     const sourceMoved = latest !== builtSignature && latest !== failedSignature
     const gitMoved = commitEnabled && latestGit && latestGit !== failedCommitSignature
     if (commitStatus === 75 || sourceMoved || gitMoved) {
-      schedule(commitStatus === 75 ? '提交锁被占用，稍后重试' : '运行期间有新变更', Date.now())
+      schedule(commitStatus === 75 ? '提交锁被占用，稍后重试' : '运行期间有新变更', Date.now(), {
+        retryPush: sourceMoved || gitMoved,
+      })
     }
   }
 
@@ -306,18 +391,27 @@ function main() {
   lastRebuiltSignature = sourceNewerThanApp(initial, currentAppMtime()) ? null : initialSignature
   const dirty = commitEnabled && Boolean(lastGitSignature)
   const staleApp = lastRebuiltSignature == null
+  const initialAhead = pushEnabled ? unpushedState() : { state: 'synced', signature: '', count: 0 }
+  lastAheadSignature = initialAhead.signature
+  if (initialAhead.state === 'no-upstream') {
+    console.warn('[watch] 当前分支没有上游，跳过自动推送')
+    warnedNoUpstream = true
+  }
+  const ahead = initialAhead.state === 'ahead'
   if (dirty || staleApp) {
     const reason = dirty && staleApp
       ? '启动时检测到未提交改动，且源码新于已构建应用'
       : dirty
         ? '启动时检测到未提交改动'
         : '源码新于已构建应用'
-    schedule(reason, Date.now())
+    schedule(ahead ? `${reason}，且有未推送提交` : reason, Date.now())
+  } else if (ahead) {
+    schedule('启动时检测到未推送提交', Date.now() - debounceMs)
   } else {
     console.log('[watch] 应用已是最新，等待源码变更')
   }
   console.log(commitEnabled
-    ? '[watch] 监听 Sources/、Package.swift、make-app.sh，并自动原子提交；Ctrl-C 停止。'
+    ? `[watch] 监听 Sources/、Package.swift、make-app.sh，并自动原子提交${pushEnabled ? '、推送' : ''}；Ctrl-C 停止。`
     : '[watch] 监听 Sources/、Package.swift、make-app.sh；Ctrl-C 停止。不自动提交。')
 
   const poll = setInterval(() => {
@@ -329,12 +423,20 @@ function main() {
       return
     }
     const nextGit = gitStatusSignature()
+    const nextAhead = pushEnabled ? unpushedState() : null
     const sourceChanged = next !== lastSignature && next !== failedSignature
     const gitChanged = commitEnabled && nextGit && nextGit !== lastGitSignature && nextGit !== failedCommitSignature
-    if (!sourceChanged && !gitChanged) return
+    const aheadChanged = nextAhead?.state === 'ahead'
+      && nextAhead.signature
+      && nextAhead.signature !== lastAheadSignature
+      && nextAhead.signature !== failedPushSignature
+    if (nextAhead && nextAhead.state !== 'ahead') lastAheadSignature = ''
+    if (!sourceChanged && !gitChanged && !aheadChanged) return
     if (sourceChanged) lastSignature = next
     if (nextGit != null && nextGit !== failedCommitSignature) lastGitSignature = nextGit
-    schedule(sourceChanged ? '检测到源码变更' : '检测到未提交改动', Date.now())
+    if (aheadChanged) lastAheadSignature = nextAhead.signature
+    const reason = sourceChanged ? '检测到源码变更' : gitChanged ? '检测到未提交改动' : '检测到未推送提交'
+    schedule(reason, Date.now(), { retryPush: sourceChanged || gitChanged })
   }, pollMs)
 
   const stop = () => {
