@@ -1,11 +1,21 @@
 import SwiftUI
 import LeaderboardCore
 
+/// Screenshot toast state. `@State` is a SwiftUI macro, and Command Line Tools
+/// do not ship the SwiftUIMacros plugin, so this stays an observable object.
+@MainActor
+private final class ScreenshotUIState: ObservableObject {
+    @Published var note: String?
+    @Published var noteID = 0
+    @Published var isCapturing = false
+}
+
 struct LeaderboardView: View {
     @ObservedObject var state: AppState
+    @StateObject private var screenshot = ScreenshotUIState()
 
-    static let contentWidth: CGFloat = 1040
-    static let contentHeight: CGFloat = 830
+    static let contentWidth: CGFloat = 1300
+    static let contentHeight: CGFloat = 866
 
     var body: some View {
         VStack(spacing: 0) {
@@ -16,10 +26,63 @@ struct LeaderboardView: View {
         }
         .frame(width: Self.contentWidth, height: Self.contentHeight)
         .background(.background)
+        .overlay(alignment: .bottom) {
+            if let note = screenshot.note, !state.isQuitting {
+                screenshotToast(note)
+            }
+        }
+        .overlay {
+            if state.isQuitting {
+                quittingOverlay
+            }
+        }
+    }
+
+    /// Painted before terminate. Closing this popover tears down the table on
+    /// the main thread, so the click itself has to show feedback first.
+    private var quittingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.22)
+            VStack(spacing: 10) {
+                ProgressView()
+                    .controlSize(.regular)
+                Text("正在退出…")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.primary)
+            }
+            .padding(.horizontal, 22)
+            .padding(.vertical, 16)
+            .background(.background, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(.quaternary, lineWidth: 1)
+            )
+        }
+    }
+
+    private var showsQuotaStrip: Bool {
+        state.quotaUnavailable || !state.quotaChips.isEmpty
     }
 
     private var header: some View {
-        HStack(alignment: .top) {
+        VStack(alignment: .leading, spacing: 10) {
+            titleRow
+            if showsQuotaStrip {
+                QuotaStrip(
+                    chips: state.quotaChips,
+                    updatedAt: state.quotaUpdatedAt,
+                    unavailable: state.quotaUnavailable
+                )
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+    }
+
+    private var titleRow: some View {
+        // Equal side columns keep the tabs centered. Status text changes length
+        // when the category changes; spacers around the picker would slide it.
+        HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text("AI Leaderboards")
@@ -42,34 +105,30 @@ struct LeaderboardView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
+                .lineLimit(1)
             }
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
+
             categoryPicker
-            Spacer()
+
             Text(nextRunLabel)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
+        .animation(nil, value: state.selectedCategory)
     }
 
     private var categoryPicker: some View {
-        Picker(
-            "榜单类别",
+        CategorySegmentedControl(
             selection: Binding(
                 get: { state.selectedCategory },
                 set: { state.selectCategory($0) }
             )
-        ) {
-            ForEach(LeaderboardCategory.allCases) { category in
-                Text(category.title).tag(category)
-            }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .frame(width: 360)
+        )
+        .frame(width: CategorySegmentedControl.width, height: CategorySegmentedControl.height)
         .help("切换榜单类别")
     }
 
@@ -93,8 +152,9 @@ struct LeaderboardView: View {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
 
-    // Column widths for the native table; the header row comes from SwiftUI,
-    // so nothing has to be hand-aligned any more.
+    // Longest names are about 420pt, before the logo and purchase links.
+    // Score columns only need a value like 1800.3. Keep their max tight so the
+    // native table gives leftover width to the model-name columns.
     private var table: some View {
         Table(rows) {
             TableColumn("排名") { row in
@@ -102,30 +162,30 @@ struct LeaderboardView: View {
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .center)
             }
-            .width(min: 36, ideal: 48, max: 56)
+            .width(min: 36, ideal: 42, max: 48)
             .alignment(.center)
 
             TableColumn(selectedCategory.leftColumnTitle) { row in
                 LeaderboardCell(model: row.left)
             }
-            .width(min: 300, ideal: 402, max: 460)
+            .width(min: 500, ideal: 560, max: 680)
 
-            TableColumn("\(selectedCategory.leftKind.sourcePrefix) 分数") { row in
+            TableColumn("分数") { row in
                 ScoreCell(model: row.left, scoreDigits: 1)
             }
-            .width(min: 56, ideal: 66, max: 76)
-            .alignment(.trailing)
+            .width(min: 48, ideal: 56, max: 64)
+            .alignment(.center)
 
             TableColumn(selectedCategory.rightColumnTitle) { row in
                 LeaderboardCell(model: row.right)
             }
-            .width(min: 300, ideal: 402, max: 460)
+            .width(min: 500, ideal: 560, max: 680)
 
-            TableColumn("\(selectedCategory.rightKind.sourcePrefix) 分数") { row in
+            TableColumn("分数") { row in
                 ScoreCell(model: row.right, scoreDigits: 1)
             }
-            .width(min: 56, ideal: 72, max: 82)
-            .alignment(.trailing)
+            .width(min: 48, ideal: 56, max: 64)
+            .alignment(.center)
         }
         .tableStyle(.bordered(alternatesRowBackgrounds: true))
         .redacted(reason: needsSkeleton ? .placeholder : [])
@@ -161,6 +221,99 @@ struct LeaderboardView: View {
 
     private let repositoryURL = "https://github.com/cloydlau/ai-leaderboard-menubar"
 
+    private func quit() {
+        guard state.beginQuitting() else { return }
+        Task { @MainActor in
+            // One frame is not always enough for SwiftUI to commit the overlay
+            // before terminate freezes the window on the main thread.
+            try? await Task.sleep(for: .milliseconds(120))
+            NSApp.terminate(nil)
+        }
+    }
+
+    /// Wait out the button highlight, and any toast fade, so neither is in the image.
+    private func captureScreenshot() {
+        guard !state.isQuitting, !screenshot.isCapturing else { return }
+        screenshot.isCapturing = true
+        let settle = screenshot.note == nil ? 80 : 220
+        // Invalidate a pending dismiss so it cannot clear the result toast.
+        screenshot.noteID += 1
+        screenshot.note = nil
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(settle))
+            performScreenshotCapture()
+            screenshot.isCapturing = false
+        }
+    }
+
+    private func performScreenshotCapture() {
+        guard !state.isQuitting else { return }
+        guard let view = panelContentView(),
+              let shot = PanelScreenshot.capture(view: view) else {
+            showScreenshotNote("截图失败")
+            return
+        }
+        let copied = PanelScreenshot.copyToPasteboard(image: shot.image, png: shot.png)
+        let saved = PanelScreenshot.saveToDesktop(
+            png: shot.png,
+            categoryTitle: selectedCategory.title
+        ) != nil
+        guard copied || saved else {
+            showScreenshotNote("截图失败")
+            return
+        }
+        showScreenshotNote(PanelScreenshot.statusMessage(copied: copied, savedToDesktop: saved))
+    }
+
+    private func showScreenshotNote(_ text: String) {
+        screenshot.noteID += 1
+        let noteID = screenshot.noteID
+        withAnimation(.easeOut(duration: 0.15)) {
+            screenshot.note = text
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.4))
+            guard screenshot.noteID == noteID, !state.isQuitting else { return }
+            withAnimation(.easeOut(duration: 0.15)) {
+                screenshot.note = nil
+            }
+        }
+    }
+
+    private func panelContentView() -> NSView? {
+        let ordered = NSApp.windows.filter(\.isVisible) + NSApp.windows.filter { !$0.isVisible }
+        for window in ordered {
+            if let view = window.contentViewController?.view as? NSHostingView<LeaderboardView> {
+                return view
+            }
+        }
+        for window in ordered {
+            guard let view = window.contentViewController?.view else { continue }
+            if abs(view.bounds.width - Self.contentWidth) < 2,
+               abs(view.bounds.height - Self.contentHeight) < 2 {
+                return view
+            }
+        }
+        return nil
+    }
+
+    private func screenshotToast(_ message: String) -> some View {
+        Text(message)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.background, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(.quaternary, lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.12), radius: 10, y: 3)
+            .padding(.bottom, 48)
+            .allowsHitTesting(false)
+            .accessibilityLabel(message)
+    }
+
     private var footer: some View {
         HStack(spacing: 7) {
             Button {
@@ -194,17 +347,42 @@ struct LeaderboardView: View {
             Text("·")
 
             Button {
-                NSApp.terminate(nil)
+                captureScreenshot()
             } label: {
-                HStack(spacing: 3) {
-                    Image(systemName: "power")
+                HStack(spacing: 4) {
+                    Image(systemName: "camera")
                         .imageScale(.small)
-                    Text("退出")
+                    Text("截图")
                 }
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .help("退出 AI Leaderboards")
+            .allowsHitTesting(!state.isQuitting && !screenshot.isCapturing)
+            .help("把当前榜单截图复制到剪贴板，并保存到桌面")
+
+            Text("·")
+
+            Button {
+                quit()
+            } label: {
+                HStack(spacing: 4) {
+                    if state.isQuitting {
+                        ProgressView()
+                            .controlSize(.small)
+                            .scaleEffect(0.55)
+                            .frame(width: 12, height: 12)
+                        Text("退出中")
+                    } else {
+                        Image(systemName: "power")
+                            .imageScale(.small)
+                        Text("退出")
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .pointingHandCursor()
+            .allowsHitTesting(!state.isQuitting)
+            .help(state.isQuitting ? "正在退出 AI Leaderboards" : "退出 AI Leaderboards")
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -285,48 +463,44 @@ struct LeaderboardView: View {
         organizationLogos: [String: URL]
     ) -> LeaderboardCellModel? {
         guard let entry else { return nil }
+        let key = OrganizationLogoCatalog.resolvedKey(
+            organization: entry.organization,
+            modelName: entry.name
+        )
         return LeaderboardCellModel(
             entry: entry,
-            brandColor: OrganizationLogoCatalog.brandColorHex(forOrganization: entry.organization)
-                .flatMap(Color.init(hex:)),
-            logoURL: entry.logoURL ?? entry.organization.flatMap {
-                organizationLogos[normalizedOrganization($0)]
-            } ?? OrganizationLogoCatalog.logoURL(forOrganization: entry.organization)
+            brandHex: OrganizationLogoCatalog.brandColorHex(
+                forOrganization: entry.organization,
+                modelName: entry.name
+            ),
+            logoURL: entry.logoURL
+                ?? key.flatMap { organizationLogos[$0] }
+                ?? OrganizationLogoCatalog.logoURL(
+                    forOrganization: entry.organization,
+                    modelName: entry.name
+                )
         )
     }
 
     private var organizationLogos: [String: URL] {
-        var logos = (state.snapshot.boards[selectedCategory.leftKind]?.organizationLogoURLs ?? [:])
-            .reduce(into: [String: URL]()) { result, item in
-                result[normalizedOrganization(item.key)] = item.value
+        var logos: [String: URL] = [:]
+        for kind in [selectedCategory.leftKind, selectedCategory.rightKind] {
+            for item in state.snapshot.boards[kind]?.organizationLogoURLs ?? [:] {
+                let key = OrganizationLogoCatalog.normalizedKey(item.key)
+                if !key.isEmpty {
+                    logos[key] = item.value
+                }
             }
-
-        for entry in state.snapshot.boards[selectedCategory.leftKind]?.entries ?? [] {
-            guard let organization = entry.organization,
-                  let logoURL = entry.logoURL else { continue }
-            logos[normalizedOrganization(organization)] = logoURL
+            for entry in state.snapshot.boards[kind]?.entries ?? [] {
+                guard let organization = entry.organization,
+                      let logoURL = entry.logoURL else { continue }
+                let key = OrganizationLogoCatalog.normalizedKey(organization)
+                if !key.isEmpty {
+                    logos[key] = logoURL
+                }
+            }
         }
         return logos
-    }
-
-    private func normalizedOrganization(_ organization: String) -> String {
-        let words = organization
-            .lowercased()
-            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
-            .joined()
-
-        switch words {
-        case "moonshot":
-            return "kimi"
-        case "alibaba":
-            return "qwen"
-        case "zai":
-            return "zai"
-        case "thinkingmachines":
-            return "thinkingmachines"
-        default:
-            return words
-        }
     }
 
     private func timestamp(_ date: Date) -> String {
@@ -343,9 +517,10 @@ private extension LeaderboardCategory {
 
     var leftColumnTitle: String {
         switch self {
-        case .general, .coding: "Artificial Analysis Intelligence Index"
-        case .image: "AA | 文生图"
-        case .video: "AA | 文生视频"
+        case .general: "Artificial Analysis Intelligence Index"
+        case .coding: "Artificial Analysis Coding Agent Index"
+        case .image: "Artificial Analysis | 文生图"
+        case .video: "Artificial Analysis | 文生视频"
         }
     }
 
@@ -368,26 +543,45 @@ private struct LeaderboardRow: Identifiable {
 
 private struct LeaderboardCellModel {
     let entry: LeaderboardEntry
-    let brandColor: Color?
+    let brandHex: String?
     let logoURL: URL?
+
+    func brandColor(isDark: Bool) -> Color? {
+        guard let brandHex else { return nil }
+        return Color(hex: OrganizationLogoCatalog.displayBrandColorHex(brandHex, isDark: isDark))
+    }
 }
 
 private extension LeaderboardCellModel {
     static func placeholder(rank: Int) -> LeaderboardCellModel {
         LeaderboardCellModel(
             entry: LeaderboardEntry(rank: rank, name: "Placeholder Model", score: 0),
-            brandColor: nil,
+            brandHex: nil,
             logoURL: nil
         )
     }
 }
 
 private struct LeaderboardCell: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let model: LeaderboardCellModel?
 
     private var entry: LeaderboardEntry? { model?.entry }
 
+    private var isDomestic: Bool {
+        OrganizationRegion.isChinese(entry?.organization, modelName: entry?.name)
+    }
+
+    /// Same ink as the row wash, so the domestic outline follows that
+    /// background instead of a separate hue.
+    private var domesticInk: Color {
+        model?.brandColor(isDark: colorScheme == .dark) ?? .primary
+    }
+
     var body: some View {
+        // A chip in the row shifts the logo. Domestic origin is a border so
+        // it does not take a layout slot or cover the purchase links.
         HStack(spacing: 10) {
             if let entry {
                 ModelLogoView(
@@ -395,27 +589,8 @@ private struct LeaderboardCell: View {
                     organization: entry.organization,
                     name: entry.name
                 )
-                Text(entry.name)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                if OrganizationRegion.isChinese(entry.organization) {
-                    // Quiet metadata tag: neutral fill + hairline outline reads
-                    // as a label, clearly distinct from the blue purchase links.
-                    Text("国产")
-                        .font(.system(size: 9, weight: .regular))
-                        .foregroundStyle(.tertiary)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(.primary.opacity(0.04))
-                        )
-                        .overlay(
-                            Capsule(style: .continuous)
-                                .strokeBorder(.primary.opacity(0.12), lineWidth: 0.5)
-                        )
-                }
-                InlinePurchaseLinks(organization: entry.organization)
+                modelName(entry)
+                InlinePurchaseLinks(organization: entry.organization, modelName: entry.name)
             } else {
                 Text("-")
             }
@@ -425,11 +600,33 @@ private struct LeaderboardCell: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .clipped()
         .background(cellBackground)
+        .overlay {
+            if isDomestic {
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .strokeBorder(domesticInk, lineWidth: 1.5)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func modelName(_ entry: LeaderboardEntry) -> some View {
+        let name = Text(entry.name)
+            .lineLimit(1)
+            .truncationMode(.middle)
+        if isDomestic {
+            name
+                .help("国产模型")
+                .accessibilityLabel("国产模型 \(entry.name)")
+        } else {
+            name
+        }
     }
 
     private var cellBackground: some View {
         Group {
-            if let brandColor = model?.brandColor {
+            if let brandColor = model?.brandColor(isDark: colorScheme == .dark) {
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 5, style: .continuous)
                         .fill(brandColor.opacity(0.16))
@@ -444,6 +641,8 @@ private struct LeaderboardCell: View {
 }
 
 private struct ScoreCell: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let model: LeaderboardCellModel?
     let scoreDigits: Int
 
@@ -458,15 +657,15 @@ private struct ScoreCell: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .trailing)
-        .padding(.horizontal, 7)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.horizontal, 4)
         .padding(.vertical, 3)
         .background(matchBackground)
     }
 
     private var matchBackground: some View {
         Group {
-            if let brandColor = model?.brandColor {
+            if let brandColor = model?.brandColor(isDark: colorScheme == .dark) {
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .fill(brandColor.opacity(0.16))
             }
@@ -476,9 +675,10 @@ private struct ScoreCell: View {
 
 private struct InlinePurchaseLinks: View {
     let organization: String?
+    let modelName: String
 
     private var links: PurchaseLinks {
-        PurchaseLinkCatalog.links(forOrganization: organization)
+        PurchaseLinkCatalog.links(forOrganization: organization, modelName: modelName)
     }
 
     var body: some View {
@@ -505,27 +705,241 @@ private struct PurchaseLinkControl: View {
                 .font(.caption)
                 .help(link.url.absoluteString)
         } else if links.count > 1 {
-            Menu {
-                ForEach(links) { link in
-                    Button(link.label) {
-                        NSWorkspace.shared.open(link.url)
-                    }
-                }
-            } label: {
-                HStack(spacing: 2) {
-                    Text(title)
-                    Image(systemName: "chevron.up.chevron.down")
-                        .imageScale(.small)
-                }
-                .font(.caption)
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .help(links.map(\.url.absoluteString).joined(separator: "\n"))
+            PurchaseMenuLink(title: title, links: links)
         }
     }
-
 }
+
+/// Multi-link trigger painted as a real `Link`, so caption size and link color
+/// match the single-URL control. SwiftUI `Menu` + `.borderlessButton` is an
+/// `NSPopUpButton` and ignores those styles. The transparent button only
+/// handles the click; `onHover` would swallow it inside `NSTableView` cells.
+private struct PurchaseMenuLink: View {
+    let title: String
+    let links: [PurchaseLink]
+
+    private var helpText: String {
+        links.map(\.url.absoluteString).joined(separator: "\n")
+    }
+
+    var body: some View {
+        // String Link, not a custom label: only that initializer is guaranteed
+        // to use the same caption face and link color as the single-URL control.
+        HStack(spacing: 2) {
+            Link(title, destination: links[0].url)
+                .font(.caption)
+                .allowsHitTesting(false)
+            // Same link color as the string Link, not the accent tint. A custom
+            // accent would otherwise make the chevron a different color.
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.caption)
+                .imageScale(.small)
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(Color(nsColor: .linkColor))
+                .accessibilityHidden(true)
+        }
+        .lineLimit(1)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .background {
+            PurchaseMenuButton(links: links, title: title, helpText: helpText)
+        }
+        .fixedSize()
+        .help(helpText)
+    }
+}
+
+private struct CategorySegmentedControl: NSViewRepresentable {
+    static let width: CGFloat = 360
+    static let height: CGFloat = 24
+
+    @Binding var selection: LeaderboardCategory
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(selection: $selection)
+    }
+
+    func makeNSView(context: Context) -> CategorySegmentedControlView {
+        let control = CategorySegmentedControlView()
+        control.segmentStyle = .automatic
+        control.trackingMode = .selectOne
+        // Selected labels are heavier. Content-sized segments then change width
+        // and the whole control jitters. Equal widths stay put.
+        control.segmentDistribution = .fillEqually
+        control.segmentCount = LeaderboardCategory.allCases.count
+        let segmentWidth = Self.width / CGFloat(LeaderboardCategory.allCases.count)
+        for (index, category) in LeaderboardCategory.allCases.enumerated() {
+            control.setLabel(category.title, forSegment: index)
+            control.setWidth(segmentWidth, forSegment: index)
+        }
+        control.selectedSegment = selectedIndex
+        control.target = context.coordinator
+        control.action = #selector(Coordinator.changed(_:))
+        control.toolTip = "切换榜单类别"
+        control.setAccessibilityLabel("榜单类别")
+        control.setContentCompressionResistancePriority(.required, for: .horizontal)
+        control.setContentHuggingPriority(.required, for: .horizontal)
+        return control
+    }
+
+    func updateNSView(_ control: CategorySegmentedControlView, context: Context) {
+        context.coordinator.selection = $selection
+        let index = selectedIndex
+        guard control.selectedSegment != index else { return }
+        // A SwiftUI refresh must not replay the click animation.
+        NSAnimationContext.beginGrouping()
+        NSAnimationContext.current.duration = 0
+        control.selectedSegment = index
+        NSAnimationContext.endGrouping()
+    }
+
+    func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        nsView: CategorySegmentedControlView,
+        context: Context
+    ) -> CGSize? {
+        CGSize(width: Self.width, height: Self.height)
+    }
+
+    private var selectedIndex: Int {
+        LeaderboardCategory.allCases.firstIndex(of: selection) ?? 0
+    }
+
+    final class Coordinator: NSObject {
+        var selection: Binding<LeaderboardCategory>
+
+        init(selection: Binding<LeaderboardCategory>) {
+            self.selection = selection
+        }
+
+        @objc func changed(_ sender: NSSegmentedControl) {
+            let index = sender.selectedSegment
+            guard LeaderboardCategory.allCases.indices.contains(index) else { return }
+            let category = LeaderboardCategory.allCases[index]
+            guard selection.wrappedValue != category else { return }
+            selection.wrappedValue = category
+        }
+    }
+}
+
+/// The menu-bar popover is not key until the click, so the control has to
+/// accept that first mouse or the tab will not switch.
+private final class CategorySegmentedControlView: NSSegmentedControl {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
+private struct PurchaseMenuButton: NSViewRepresentable {
+
+    let links: [PurchaseLink]
+    let title: String
+    let helpText: String
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeNSView(context: Context) -> LinkMenuButton {
+        let button = LinkMenuButton()
+        button.isTransparent = true
+        button.isBordered = false
+        button.title = ""
+        button.focusRingType = .none
+        button.refusesFirstResponder = true
+        button.setAccessibilityElement(true)
+        button.setAccessibilityRole(.popUpButton)
+        configure(button, context: context)
+        return button
+    }
+
+    func updateNSView(_ button: LinkMenuButton, context: Context) {
+        configure(button, context: context)
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: LinkMenuButton, context: Context) -> CGSize? {
+        // An empty proposal must not collapse the hit target to 0×0. Nil lets
+        // SwiftUI use the label size; a real proposal fills that label.
+        guard let width = proposal.width, let height = proposal.height, width > 0, height > 0 else {
+            return nil
+        }
+        return CGSize(width: width, height: height)
+    }
+
+    private func configure(_ button: LinkMenuButton, context: Context) {
+        context.coordinator.links = links
+        button.coordinator = context.coordinator
+        button.toolTip = helpText
+        button.setAccessibilityLabel(title)
+        button.setAccessibilityHelp(helpText)
+    }
+
+    final class Coordinator: NSObject {
+        var links: [PurchaseLink] = []
+
+        func popMenu(from button: NSButton) {
+            guard !links.isEmpty else { return }
+            let menu = NSMenu()
+            menu.autoenablesItems = false
+            for link in links {
+                let item = NSMenuItem(
+                    title: link.label,
+                    action: #selector(openURL(_:)),
+                    keyEquivalent: ""
+                )
+                item.target = self
+                item.representedObject = link.url as NSURL
+                item.isEnabled = true
+                menu.addItem(item)
+            }
+            // y-up: pin the menu's top-left to the control's bottom-left so it
+            // opens downward, the same direction as the old popup.
+            menu.popUp(positioning: nil, at: NSPoint(x: 0, y: 0), in: button)
+        }
+
+        @objc func openURL(_ sender: NSMenuItem) {
+            guard let url = sender.representedObject as? URL else { return }
+            NSWorkspace.shared.open(url)
+        }
+    }
+}
+
+private final class LinkMenuButton: NSButton {
+    weak var coordinator: PurchaseMenuButton.Coordinator?
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        bounds.contains(point) ? self : nil
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        coordinator?.popMenu(from: self)
+    }
+
+    override func resetCursorRects() {
+        discardCursorRects()
+        addCursorRect(bounds, cursor: .pointingHand)
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(
+            rect: .zero,
+            options: [.mouseEnteredAndExited, .cursorUpdate, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        ))
+    }
+
+    override func cursorUpdate(with event: NSEvent) {
+        NSCursor.pointingHand.set()
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        NSCursor.pointingHand.set()
+    }
+}
+
 
 private struct ModelLogoView: View {
     let url: URL?
@@ -565,7 +979,7 @@ private struct ModelLogoView: View {
     }
 
     private var bundledLogoURL: URL? {
-        guard let key = OrganizationLogoCatalog.bundledLogoKey(forOrganization: organization),
+        guard let key = OrganizationLogoCatalog.bundledLogoKey(forOrganization: organization, modelName: name),
               let resourceURL = Bundle.main.resourceURL else { return nil }
         for ext in ["png", "ico", "jpg"] {
             let candidate = resourceURL.appending(path: "logos/" + key + "." + ext)
@@ -595,13 +1009,13 @@ private struct PointingHandCursor: ViewModifier {
     }
 }
 
-private extension View {
+extension View {
     func pointingHandCursor() -> some View {
         modifier(PointingHandCursor())
     }
 }
 
-private extension Color {
+extension Color {
     init?(hex: String) {
         var value = hex
         if value.hasPrefix("#") { value.removeFirst() }
