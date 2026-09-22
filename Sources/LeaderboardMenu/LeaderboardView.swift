@@ -73,7 +73,8 @@ struct LeaderboardView: View {
                 QuotaStrip(
                     chips: state.quotaChips,
                     updatedAt: state.quotaUpdatedAt,
-                    unavailable: state.quotaUnavailable
+                    unavailable: state.quotaUnavailable,
+                    onConnectQwen: state.connectQwenWebsite
                 )
             }
         }

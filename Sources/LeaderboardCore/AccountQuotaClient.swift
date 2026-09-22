@@ -171,7 +171,7 @@ public actor AccountQuotaClient {
         async let xaiChips = xaiChips(for: targets, previous: previous, authFileURL: authFileURL)
         async let qwenPlan = qwenTargets.isEmpty
             ? nil
-            : await qwenQuotaSource.loadSummary().flatMap(QwenPlanQuotaParser.parse)
+            : await qwenQuotaSource.loadSummary()
         let keyChips = try await withThrowingTaskGroup(of: AccountQuotaChip.self) { group in
             for target in keyTargets {
                 group.addTask {
@@ -184,7 +184,13 @@ public actor AccountQuotaClient {
             }
             return chips
         }
-        let resolvedQwenPlan = await qwenPlan
+        let qwenSummary = await qwenPlan
+        let resolvedQwenStatus: AccountQuotaChip.Status? = qwenSummary.flatMap { data in
+            if let website = QwenWebsiteQuotaParser.parse(data) {
+                return .qwenWebsite(website)
+            }
+            return QwenPlanQuotaParser.parse(data).map(AccountQuotaChip.Status.qwenPlan)
+        }
         let qwenChips = qwenTargets.map { target in
             AccountQuotaChip(
                 id: target.id,
@@ -192,7 +198,7 @@ public actor AccountQuotaClient {
                 websiteURL: target.websiteURL,
                 kind: target.kind,
                 isCurrent: target.isCurrent,
-                status: resolvedQwenPlan.map(AccountQuotaChip.Status.qwenPlan)
+                status: resolvedQwenStatus
                     ?? .usage(
                         CCSwitchProviderStore.localUsage(
                             providerID: target.id,
@@ -455,7 +461,7 @@ public actor AccountQuotaClient {
             return chip
         }
         switch prior.status {
-        case .windows, .balances, .qwenPlan:
+        case .windows, .balances, .qwenPlan, .qwenWebsite:
             return AccountQuotaChip(
                 id: chip.id,
                 shortName: chip.shortName,

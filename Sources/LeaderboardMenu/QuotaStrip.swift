@@ -10,6 +10,7 @@ struct QuotaStrip: View {
     let chips: [AccountQuotaChip]
     let updatedAt: Date?
     let unavailable: Bool
+    let onConnectQwen: () -> Void
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
@@ -43,8 +44,25 @@ struct QuotaStrip: View {
                 }
                 .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
                 .frame(height: 28)
+                if needsQwenConnection {
+                    Button("连接千问官网") {
+                        onConnectQwen()
+                    }
+                    .buttonStyle(.link)
+                    .font(.system(size: 11))
+                    .help("登录一次千问官网；应用之后直接读取官网显示的个人版剩余百分比")
+                    .fixedSize()
+                }
                 statusLabel(now: now)
             }
+        }
+    }
+
+    private var needsQwenConnection: Bool {
+        chips.contains { chip in
+            guard chip.kind == .qwen else { return false }
+            if case .usage = chip.status { return true }
+            return false
         }
     }
 

@@ -161,6 +161,7 @@ public struct AccountQuotaChip: Identifiable, Equatable, Sendable {
         case windows([ParsedQuotaWindow])
         case balances([ParsedBalance])
         case qwenPlan(QwenPlanQuota)
+        case qwenWebsite(QwenWebsiteQuota)
         case usage([ParsedUsageWindow])
         case message(String)
     }
@@ -309,6 +310,19 @@ public enum AccountQuotaFormatting {
             return balanceRuns(balances)
         case let .qwenPlan(plan):
             return qwenPlanRuns(plan, now: now)
+        case let .qwenWebsite(quota):
+            var runs = [
+                QuotaTextRun(text: "\(quota.periodLabel)剩余: ", tone: .secondary),
+                QuotaTextRun(
+                    text: "\(balanceAmountText(quota.remainingPercent).replacingOccurrences(of: ".00", with: ""))%",
+                    tone: tone(forUtilization: 100 - quota.remainingPercent)
+                ),
+            ]
+            if let resetsAt = quota.resetsAt,
+               let countdown = countdown(until: resetsAt, now: now) {
+                runs.append(QuotaTextRun(text: " \(countdown)", tone: .secondary))
+            }
+            return runs
         case let .usage(windows):
             return usageRuns(windows)
         }
@@ -334,6 +348,8 @@ public enum AccountQuotaFormatting {
                 switch chip.status {
                 case .qwenPlan:
                     lines.append("千问官网套餐额度（qianwen CLI 当前登录账号）")
+                case .qwenWebsite:
+                    lines.append("千问官网个人版用量（网页显示的剩余百分比；网页未提供精确 Credits）")
                 case .usage:
                     lines.append("CC Switch 本地统计，非千问官网套餐额度；qianwen CLI 未返回个人版额度时，请在千问官网查看实时用量")
                 default:

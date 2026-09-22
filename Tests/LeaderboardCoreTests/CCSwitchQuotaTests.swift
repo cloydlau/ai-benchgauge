@@ -300,6 +300,17 @@ final class CCSwitchQuotaParserTests: XCTestCase {
         XCTAssertNil(QwenPlanQuotaParser.parse(Data(#"{"token_plan":{"subscribed":false}}"#.utf8)))
     }
 
+    func testParsesQwenWebsiteQuotaText() {
+        let data = Data("个人版 Pro 套餐\n月额度 剩余量 6.8 %\n重置时间 2026-10-05 00:00:00".utf8)
+        let quota = QwenWebsiteQuotaParser.parse(data)
+        XCTAssertEqual(quota?.periodLabel, "每月")
+        XCTAssertEqual(quota?.remainingPercent, 6.8)
+        XCTAssertEqual(
+            quota?.resetsAt?.timeIntervalSince1970,
+            ISO8601DateFormatter().date(from: "2026-10-04T16:00:00Z")?.timeIntervalSince1970
+        )
+    }
+
     func testParsesKimiZhipuAndDeepSeekBodiesWithoutKeepingRawText() {
         let kimi = CCSwitchQuotaParsers.parseKimi(Data(#"""
         {"limits":[{"detail":{"limit":100,"remaining":100,"resetTime":"2026-09-22T08:37:00Z"}}],"usage":{"limit":200,"remaining":50,"resetTime":1760000000}}
