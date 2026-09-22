@@ -97,9 +97,32 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         if window.frame != frame {
             window.setFrame(frame, display: false)
         }
+        insetPopoverFromScreenEdges(window)
         if bringPopoverForwardOnShow {
             window.orderFrontRegardless()
             bringPopoverForwardOnShow = false
+        }
+    }
+
+    /// A 1300pt panel anchored to a right-side status item sits flush with the
+    /// screen edge. The top-right corner is then clipped, and a capture of that
+    /// region comes back blank.
+    private func insetPopoverFromScreenEdges(_ window: NSWindow) {
+        guard let screen = window.screen ?? NSScreen.main else { return }
+        let visible = screen.visibleFrame
+        var frame = window.frame
+        let margin: CGFloat = 8
+        if frame.width > visible.width - margin * 2 {
+            return
+        }
+        if frame.maxX > visible.maxX - margin {
+            frame.origin.x -= frame.maxX - (visible.maxX - margin)
+        }
+        if frame.minX < visible.minX + margin {
+            frame.origin.x = visible.minX + margin
+        }
+        if frame != window.frame {
+            window.setFrame(frame, display: false)
         }
     }
 
