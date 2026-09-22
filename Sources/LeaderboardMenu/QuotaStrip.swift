@@ -166,13 +166,6 @@ private struct QuotaChipView: View {
             : Color(red: 0.13, green: 0.58, blue: 0.34)
     }
 
-    private var brandColor: Color? {
-        guard let hex = OrganizationLogoCatalog.brandColorHex(forOrganization: organizationName) else {
-            return nil
-        }
-        return Color(hex: OrganizationLogoCatalog.displayBrandColorHex(hex, isDark: colorScheme == .dark))
-    }
-
     private var organizationName: String {
         switch chip.kind {
         case .officialNote: "OpenAI"
