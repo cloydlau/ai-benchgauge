@@ -37,12 +37,19 @@ enum PanelScreenshot {
         if cachedScore == 0, layeredScore == 0 {
             return cached ?? layered
         }
-        // Prefer a fresh redraw when the table actually painted.
+        // cacheDisplay often skips SwiftUI header text. A table-only bitmap
+        // then has a blank top-right. Require the header to have painted too.
+        let cachedHeader = headerRegionVariety(cached)
+        let layeredHeader = headerRegionVariety(layered)
+        if cachedScore >= 3, cachedHeader >= 2 { return cached }
+        if layeredScore >= 3, layeredHeader >= 2 { return layered }
+        if layeredHeader > cachedHeader, max(layeredScore, layeredHeader) >= 2 { return layered }
         if cachedScore >= 3 { return cached }
         if layeredScore >= 3 { return layered }
         if max(cachedScore, layeredScore) < 2 { return nil }
-        if cachedScore >= layeredScore { return cached }
-        return layered
+        if cachedHeader >= layeredHeader, cachedScore >= layeredScore { return cached }
+        if layeredScore >= cachedScore { return layered }
+        return cached ?? layered
     }
 
     private static func cacheDisplayRepresentation(of view: NSView) -> NSBitmapImageRep? {
@@ -86,9 +93,23 @@ enum PanelScreenshot {
         return rep
     }
 
+    /// Trailing header (title row / schedule). A blank corner here is the
+    /// failure mode where SwiftUI text never made it into the bitmap.
+    private static func headerRegionVariety(_ rep: NSBitmapImageRep?) -> Int {
+        regionVariety(rep, xs: [0.72, 0.8, 0.88, 0.94], ys: [0.04, 0.08, 0.12, 0.16])
+    }
+
     /// Header text can look "successful" even when the table did not paint.
     /// Sample only the table band.
     private static func tableRegionVariety(_ rep: NSBitmapImageRep?) -> Int {
+        regionVariety(rep, xs: [0.08, 0.2, 0.36, 0.52, 0.7, 0.88], ys: [0.3, 0.42, 0.54, 0.66, 0.78, 0.9])
+    }
+
+    private static func regionVariety(
+        _ rep: NSBitmapImageRep?,
+        xs: [Double],
+        ys: [Double]
+    ) -> Int {
         guard let rep else { return 0 }
         let width = rep.pixelsWide
         let height = rep.pixelsHigh
