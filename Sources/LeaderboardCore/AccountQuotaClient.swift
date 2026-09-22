@@ -70,8 +70,7 @@ private final class QuotaRedirectRejector: NSObject, URLSessionTaskDelegate, @un
 
 extension XaiAuthFile {
     public static var defaultURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appending(path: ".cc-switch/xai_oauth_auth.json", directoryHint: .notDirectory)
+        CCSwitchProviderStore.defaultXAIAuthURL
     }
 
     /// Rewrites `refresh_token` only when the file still contains `oldToken`.
@@ -147,16 +146,18 @@ public actor AccountQuotaClient {
 
     public func refresh(
         targets: [CCSwitchQuotaTarget],
-        previous: [AccountQuotaChip] = []
+        previous: [AccountQuotaChip] = [],
+        authFileURL: URL? = nil
     ) async throws -> [AccountQuotaChip] {
         let transport = self.transport
+        let authFileURL = authFileURL ?? self.authFileURL
         let keyTargets = targets.filter { target in
             switch target.kind {
             case .kimi, .zhipu, .deepseek: true
             case .officialNote, .xaiOAuth: false
             }
         }
-        async let xaiChips = xaiChips(for: targets, previous: previous)
+        async let xaiChips = xaiChips(for: targets, previous: previous, authFileURL: authFileURL)
         let keyChips = try await withThrowingTaskGroup(of: AccountQuotaChip.self) { group in
             for target in keyTargets {
                 group.addTask {
@@ -184,7 +185,8 @@ public actor AccountQuotaClient {
 
     private func xaiChips(
         for targets: [CCSwitchQuotaTarget],
-        previous: [AccountQuotaChip]
+        previous: [AccountQuotaChip],
+        authFileURL: URL
     ) async throws -> [AccountQuotaChip] {
         let xaiTargets = targets.filter { $0.kind == .xaiOAuth }
         guard !xaiTargets.isEmpty else { return [] }
@@ -214,8 +216,8 @@ public actor AccountQuotaClient {
         _ target: CCSwitchQuotaTarget,
         transport: any AccountQuotaTransport
     ) async throws -> AccountQuotaChip {
-        guard let apiKey = target.apiKey, !apiKey.isEmpty else {
-            return chip(target, .failed)
+        guard let apiKey = usableKey(target.apiKey) else {
+            return chip(target, .notConfigured)
         }
         guard let request = keyRequest(target, apiKey: apiKey) else {
             return chip(target, .failed)
@@ -248,6 +250,16 @@ public actor AccountQuotaClient {
             return chip(target, .failed)
         }
         return chip(target, parsed: parsed)
+    }
+
+    /// Empty and `proxy-` keys are local placeholders, not credentials to send.
+    private static func usableKey(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty || trimmed.hasPrefix("proxy-") {
+            return nil
+        }
+        return trimmed
     }
 
     private static func keyRequest(_ target: CCSwitchQuotaTarget, apiKey: String) -> URLRequest? {
@@ -310,11 +322,24 @@ public actor AccountQuotaClient {
     }
 
     private static func chip(_ target: CCSwitchQuotaTarget, _ failure: QuotaFailure) -> AccountQuotaChip {
-        let text: String
+        let status: AccountQuotaChip.Status
         switch failure {
-        case .failed: text = AccountQuotaMessage.queryFailed
-        case .reauth: text = AccountQuotaMessage.reauthRequired
-        case .network: text = AccountQuotaMessage.network
+        case .failed:
+            status = .message(AccountQuotaMessage.queryFailed)
+        case .reauth:
+            status = .message(AccountQuotaMessage.reauthRequired)
+        case .network:
+            status = .message(AccountQuotaMessage.network)
+        case .notConfigured:
+            status = .note(
+                text: AccountQuotaMessage.notConfigured,
+                help: AccountQuotaMessage.notConfiguredHelp
+            )
+        case .notLoggedIn:
+            status = .note(
+                text: AccountQuotaMessage.notLoggedIn,
+                help: AccountQuotaMessage.notLoggedInHelp
+            )
         }
         return AccountQuotaChip(
             id: target.id,
@@ -322,7 +347,7 @@ public actor AccountQuotaClient {
             websiteURL: target.websiteURL,
             kind: target.kind,
             isCurrent: target.isCurrent,
-            status: .message(text)
+            status: status
         )
     }
 
@@ -360,6 +385,8 @@ private enum QuotaFailure: Sendable {
     case failed
     case reauth
     case network
+    case notConfigured
+    case notLoggedIn
 }
 
 private enum XAIBillingResult: Sendable {
@@ -418,12 +445,16 @@ private actor XAIAccessTokens {
         authFileURL: URL,
         now: Date
     ) async throws -> XAITokenResult {
-        guard let data = try? Data(contentsOf: authFileURL),
-              let snapshot = XaiAuthFile.parse(data),
-              let account = XaiAuthFile.selectedAccount(snapshot),
-              !account.requiresReauth else {
+        let account: XaiAuthFile.Account
+        switch Self.readLogin(at: authFileURL) {
+        case .notLoggedIn:
+            cached = nil
+            return .failure(.notLoggedIn)
+        case .reauth:
             cached = nil
             return .failure(.reauth)
+        case let .account(value):
+            account = value
         }
         if let cached, cached.accountID == account.id, now < cached.validUntil {
             return .token(cached.token)
@@ -621,6 +652,32 @@ private actor XAIAccessTokens {
         var allowed = CharacterSet.alphanumerics
         allowed.insert(charactersIn: "-._~")
         return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
+    }
+}
+
+private enum XAILoginRead: Sendable {
+    case account(XaiAuthFile.Account)
+    case notLoggedIn
+    case reauth
+}
+
+extension XAIAccessTokens {
+    /// A missing or unreadable auth file is "not logged in". `requires_reauth`
+    /// is a real login that CC Switch has already marked invalid.
+    fileprivate static func readLogin(at url: URL) -> XAILoginRead {
+        let path = url.path(percentEncoded: false)
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory),
+              !isDirectory.boolValue,
+              let data = try? Data(contentsOf: url),
+              let snapshot = XaiAuthFile.parse(data),
+              let account = XaiAuthFile.selectedAccount(snapshot) else {
+            return .notLoggedIn
+        }
+        if account.requiresReauth {
+            return .reauth
+        }
+        return .account(account)
     }
 }
 

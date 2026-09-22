@@ -4,6 +4,7 @@ import LeaderboardCore
 private struct CCSwitchQuotaLoad: Sendable {
     var result: CCSwitchProviderLoadResult
     var currentProviderID: String?
+    var xaiAuthURL: URL
 }
 
 @MainActor
@@ -130,15 +131,29 @@ final class AppState: ObservableObject {
         quotaTask = Task { [weak self] in
             guard let self else { return }
             let loaded = await Task.detached(priority: .utility) {
-                CCSwitchQuotaLoad(
-                    result: CCSwitchProviderStore.loadCodexProviders(),
-                    currentProviderID: CCSwitchProviderStore.currentCodexProviderID()
+                let install = CCSwitchProviderStore.resolveInstall()
+                let result = CCSwitchProviderStore.loadCodexProviders(databaseURL: install.databaseURL)
+                let currentID: String?
+                if case .records = result {
+                    currentID = CCSwitchProviderStore.currentCodexProviderID(settingsURL: install.settingsURL)
+                } else {
+                    currentID = nil
+                }
+                return CCSwitchQuotaLoad(
+                    result: result,
+                    currentProviderID: currentID,
+                    xaiAuthURL: install.xaiAuthURL
                 )
             }.value
             guard !Task.isCancelled, !self.isQuitting, generation == self.quotaGeneration else { return }
 
             switch loaded.result {
+            case .absent:
+                self.quotaUnavailable = false
+                self.quotaChips = []
+                self.quotaUpdatedAt = nil
             case .unavailable:
+                // Keep the last chips. The strip only notes that this read failed.
                 self.quotaUnavailable = true
             case let .records(records):
                 self.quotaUnavailable = false
@@ -148,13 +163,18 @@ final class AppState: ObservableObject {
                 )
                 guard !targets.isEmpty else {
                     self.quotaChips = []
+                    self.quotaUpdatedAt = nil
                     return
                 }
                 let previous = self.displayChips(for: targets)
                 self.quotaChips = previous
                 let client = self.quotaClient
                 do {
-                    let chips = try await client.refresh(targets: targets, previous: previous)
+                    let chips = try await client.refresh(
+                        targets: targets,
+                        previous: previous,
+                        authFileURL: loaded.xaiAuthURL
+                    )
                     guard !Task.isCancelled, !self.isQuitting, generation == self.quotaGeneration else { return }
                     self.quotaChips = chips
                     self.quotaUpdatedAt = Date()

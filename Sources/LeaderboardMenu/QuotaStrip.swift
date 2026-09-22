@@ -20,14 +20,16 @@ struct QuotaStrip: View {
     @ViewBuilder
     private func strip(now: Date) -> some View {
         if chips.isEmpty {
-            HStack(spacing: 8) {
-                sectionLabel
-                Text("CC Switch 暂不可读")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.orange)
-                Spacer(minLength: 0)
+            if unavailable {
+                HStack(spacing: 8) {
+                    sectionLabel
+                    Text("CC Switch 暂不可读")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .help("这次没读成本机 CC Switch 数据库")
+                    Spacer(minLength: 0)
+                }
             }
-            .help("无法读取 ~/.cc-switch/cc-switch.db")
         } else {
             HStack(spacing: 8) {
                 sectionLabel
@@ -60,9 +62,10 @@ struct QuotaStrip: View {
         if !text.isEmpty {
             Text(text)
                 .font(.system(size: 11))
-                .foregroundStyle(unavailable ? AnyShapeStyle(.orange) : AnyShapeStyle(.tertiary))
+                .foregroundStyle(.tertiary)
                 .monospacedDigit()
                 .fixedSize()
+                .help(unavailable ? "数据库这次没有读成，显示的是上次余量" : "")
         }
     }
 
