@@ -31,6 +31,7 @@ final class AppState: ObservableObject {
     private var quotaTask: Task<Void, Never>?
     private var refreshPending = false
     private var lastQuotaAttemptAt: Date?
+    private var lastQuotaAttemptAtByID: [String: Date] = [:]
     private var quotaGeneration = 0
 
     init(cache: LeaderboardCache) {
@@ -47,14 +48,18 @@ final class AppState: ObservableObject {
         startTimer()
     }
 
-    /// Menu-bar clicks are throttled: the sources rate-limit, so rapid
-    /// clicking must not turn into a burst of requests.
+    /// Leaderboard sources rate-limit, so menu clicks do not refetch them
+    /// on every open. The selected provider's quota has no such interval.
     private static let minimumMenuRefreshInterval: TimeInterval = 10 * 60
+    private static let inactiveQuotaRefreshInterval: TimeInterval = 60
     /// Matches CC Switch's default auto-query interval.
     private static let backgroundQuotaRefreshInterval: TimeInterval = 5 * 60
 
     func refreshFromMenuClick() {
-        refreshQuotas(minimumInterval: 0)
+        refreshQuotas(
+            minimumInterval: 0,
+            inactiveMinimumInterval: Self.inactiveQuotaRefreshInterval
+        )
         if let lastAttemptAt,
            Date().timeIntervalSince(lastAttemptAt) < Self.minimumMenuRefreshInterval {
             return
@@ -116,7 +121,10 @@ final class AppState: ObservableObject {
 
     /// Loads Codex providers from the local CC Switch database and refreshes
     /// their quotas. Credential material stays inside the client request.
-    private func refreshQuotas(minimumInterval: TimeInterval) {
+    private func refreshQuotas(
+        minimumInterval: TimeInterval,
+        inactiveMinimumInterval: TimeInterval = 0
+    ) {
         guard !isQuitting else { return }
         if let lastQuotaAttemptAt,
            Date().timeIntervalSince(lastQuotaAttemptAt) < minimumInterval {
@@ -152,6 +160,7 @@ final class AppState: ObservableObject {
                 self.quotaUnavailable = false
                 self.quotaChips = []
                 self.quotaUpdatedAt = nil
+                self.lastQuotaAttemptAtByID = [:]
             case .unavailable:
                 // Keep the last chips. The strip only notes that this read failed.
                 self.quotaUnavailable = true
@@ -164,20 +173,34 @@ final class AppState: ObservableObject {
                 guard !targets.isEmpty else {
                     self.quotaChips = []
                     self.quotaUpdatedAt = nil
+                    self.lastQuotaAttemptAtByID = [:]
                     return
                 }
                 let previous = self.displayChips(for: targets)
                 self.quotaChips = previous
+                let now = Date()
+                let targetsToRefresh = targets.filter { target in
+                    if target.isCurrent { return true }
+                    guard let lastAttempt = self.lastQuotaAttemptAtByID[target.id] else {
+                        return true
+                    }
+                    return now.timeIntervalSince(lastAttempt) >= inactiveMinimumInterval
+                }
+                guard !targetsToRefresh.isEmpty else { return }
+                for target in targetsToRefresh {
+                    self.lastQuotaAttemptAtByID[target.id] = now
+                }
                 let client = self.quotaClient
                 do {
                     let chips = try await client.refresh(
-                        targets: targets,
+                        targets: targetsToRefresh,
                         previous: previous,
                         authFileURL: loaded.xaiAuthURL,
                         databaseURL: loaded.databaseURL
                     )
                     guard !Task.isCancelled, !self.isQuitting, generation == self.quotaGeneration else { return }
-                    self.quotaChips = chips
+                    let refreshedByID = Dictionary(uniqueKeysWithValues: chips.map { ($0.id, $0) })
+                    self.quotaChips = previous.map { refreshedByID[$0.id] ?? $0 }
                     self.quotaUpdatedAt = Date()
                 } catch is CancellationError {
                     return
