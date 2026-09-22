@@ -6,11 +6,18 @@ import Foundation
 /// Purchase-link keys are separate: Alibaba links stay under `alibaba`.
 public enum OrganizationLogoCatalog {
     /// Canonical logo and color key.
-    /// A present organization always wins. An empty organization falls back
-    /// to a Devin model-name prefix, which is the only board that omits it.
+    /// A present organization wins, unless the label is a coding-agent
+    /// `Harness - Model` pair and the model belongs to another company.
+    /// Otherwise Claude Code - Qwen3.8 Max is painted with Anthropic's mark.
+    /// An empty organization falls back to a Devin model-name prefix, which
+    /// is the only board that omits it. That fallback is not overridden:
+    /// Devin Fusion names a second model after the dash.
     public static func resolvedKey(organization: String?, modelName: String? = nil) -> String? {
         let organizationKey = normalizedKey(organization ?? "")
         if !organizationKey.isEmpty {
+            if let hosted = hostedModelKey(from: modelName), hosted != organizationKey {
+                return hosted
+            }
             return organizationKey
         }
         let inferred = normalizedKey(modelName ?? "")
@@ -19,6 +26,52 @@ public enum OrganizationLogoCatalog {
         }
         return nil
     }
+
+    /// Brand of the model half of `Harness - Model`. Nil when the label is
+    /// not that shape, or the model family has no bundled mark.
+    private static func hostedModelKey(from modelName: String?) -> String? {
+        guard let modelName, let separator = modelName.range(of: " - ") else { return nil }
+        let tokens = modelName[separator.upperBound...]
+            .lowercased()
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .map(String.init)
+        for token in tokens {
+            guard let key = modelFamilyKey(for: token), bundledKeys.contains(key) else { continue }
+            return key
+        }
+        return nil
+    }
+
+    /// `Qwen3.8` tokenizes to `qwen38`, so a family matches the token or the
+    /// token plus a leading digit. Longer families are listed first.
+    private static func modelFamilyKey(for token: String) -> String? {
+        for (family, key) in modelFamilies {
+            if token == family { return key }
+            guard token.hasPrefix(family), token.count > family.count else { continue }
+            let next = token[token.index(token.startIndex, offsetBy: family.count)]
+            if next.isNumber { return key }
+        }
+        return nil
+    }
+
+    private static let modelFamilies: [(family: String, key: String)] = [
+        ("deepseek", "deepseek"),
+        ("minimax", "minimax"),
+        ("stepfun", "stepfun"),
+        ("gemini", "google"),
+        ("chatgpt", "openai"),
+        ("claude", "anthropic"),
+        ("fable", "anthropic"),
+        ("opus", "anthropic"),
+        ("sonnet", "anthropic"),
+        ("haiku", "anthropic"),
+        ("qwen", "qwen"),
+        ("kimi", "kimi"),
+        ("grok", "spacexai"),
+        ("muse", "meta"),
+        ("glm", "zai"),
+        ("gpt", "openai")
+    ]
 
     /// Alias-normalized key for an organization string or a remote logo-map key.
     /// Does not infer from model names. Empty input returns an empty string.

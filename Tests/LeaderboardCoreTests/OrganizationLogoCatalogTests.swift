@@ -57,27 +57,73 @@ final class OrganizationLogoCatalogTests: XCTestCase {
         XCTAssertNil(OrganizationLogoCatalog.brandColorHex(forOrganization: "", modelName: "Some Other Model"))
     }
 
-    func testPresentOrganizationIsNotOverriddenByModelName() {
+    func testHostedModelBrandOverridesHarnessOrganization() {
         XCTAssertEqual(
             OrganizationLogoCatalog.bundledLogoKey(
                 forOrganization: "Anthropic",
                 modelName: "Claude Code - Qwen3.8 Max"
             ),
-            "anthropic"
+            "qwen"
+        )
+        XCTAssertEqual(
+            OrganizationLogoCatalog.brandColorHex(
+                forOrganization: "Anthropic",
+                modelName: "Claude Code - Qwen3.8 Max"
+            ),
+            "#623AE7"
         )
         XCTAssertEqual(
             OrganizationLogoCatalog.bundledLogoKey(
                 forOrganization: "OpenAI",
                 modelName: "Codex - DeepSeek V4 Pro 0813 (max)"
             ),
-            "openai"
+            "deepseek"
+        )
+        XCTAssertEqual(
+            OrganizationLogoCatalog.brandColorHex(
+                forOrganization: "OpenAI",
+                modelName: "Codex - DeepSeek V4 Flash 0731 (max)"
+            ),
+            "#4D6BFE"
         )
         XCTAssertEqual(
             OrganizationLogoCatalog.resolvedKey(
                 organization: "Opencode",
                 modelName: "Opencode - GLM-5.3"
             ),
-            "opencode"
+            "zai"
+        )
+
+        // Same company on both sides of the dash stays with the harness.
+        XCTAssertEqual(
+            OrganizationLogoCatalog.bundledLogoKey(
+                forOrganization: "Anthropic",
+                modelName: "Claude Code - Fable 5.1 (max) (with fallback)"
+            ),
+            "anthropic"
+        )
+        XCTAssertEqual(
+            OrganizationLogoCatalog.brandColorHex(
+                forOrganization: "Anthropic",
+                modelName: "Claude Code - Opus 5 (max)"
+            ),
+            "#D97757"
+        )
+        // Intelligence-index names are not harness labels.
+        XCTAssertEqual(
+            OrganizationLogoCatalog.bundledLogoKey(
+                forOrganization: "Alibaba",
+                modelName: "Qwen3.8 Max (0902)"
+            ),
+            "qwen"
+        )
+        // Devin Fusion has no organization. Do not steal the mark from the model half.
+        XCTAssertEqual(
+            OrganizationLogoCatalog.bundledLogoKey(
+                forOrganization: nil,
+                modelName: "Devin Fusion CLI - Claude Fable 5.1 XHigh + SWE-2 Medium"
+            ),
+            "devin"
         )
     }
 
