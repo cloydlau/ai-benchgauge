@@ -12,15 +12,17 @@ public struct LeaderboardFetcher: Sendable {
         switch kind {
         case .artificialAnalysis:
             return try HTMLLeaderboardParser.artificialAnalysis(fromHTML: html)
+        case .artificialAnalysisCodingAgent:
+            return try HTMLLeaderboardParser.artificialAnalysisCodingAgent(fromHTML: html)
         case .arenaText:
             return try HTMLLeaderboardParser.arenaText(fromHTML: html)
         case .codeArenaWebDev:
             return try HTMLLeaderboardParser.arenaWebDev(fromHTML: html)
-        case .aaTextToImage:
+        case .artificialAnalysisTextToImage:
             return try HTMLLeaderboardParser.artificialAnalysisTextToImage(fromHTML: html)
         case .arenaTextToImage:
             return try HTMLLeaderboardParser.arenaTextToImage(fromHTML: html)
-        case .aaTextToVideo:
+        case .artificialAnalysisTextToVideo:
             return try HTMLLeaderboardParser.artificialAnalysisTextToVideo(fromHTML: html)
         case .arenaTextToVideo:
             return try HTMLLeaderboardParser.arenaTextToVideo(fromHTML: html)
