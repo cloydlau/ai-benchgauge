@@ -335,7 +335,7 @@ public enum AccountQuotaFormatting {
                 case .qwenPlan:
                     lines.append("千问官网套餐额度（qianwen CLI 当前登录账号）")
                 case .usage:
-                    lines.append("CC Switch 本地统计，非千问官网套餐额度；安装并登录 qianwen CLI 可显示官网额度")
+                    lines.append("CC Switch 本地统计，非千问官网套餐额度；qianwen CLI 未返回套餐额度，请确认已登录购买套餐的账号")
                 default:
                     break
                 }
