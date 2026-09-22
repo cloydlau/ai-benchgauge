@@ -25,12 +25,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @MainActor
-final class StatusBarController: NSObject {
+final class StatusBarController: NSObject, NSPopoverDelegate {
     @IBOutlet private var button: NSStatusBarButton?
     private let popover = NSPopover()
     private let state: AppState
     private let statusItem: NSStatusItem
-    private var outsideClickMonitor: Any?
+    /// Only a real menu-bar click should order the popover in front.
+    /// Pre-warm shows it invisibly and must not surface that window.
+    private var bringPopoverForwardOnShow = false
 
     init(state: AppState) {
         self.state = state
@@ -41,6 +43,7 @@ final class StatusBarController: NSObject {
         // as soon as a drop-down Menu opens its own window outside the popover,
         // which swallows the menu item action that opens the purchase link.
         popover.behavior = .applicationDefined
+        popover.delegate = self
         popover.contentViewController = NSHostingController(
             rootView: LeaderboardView(state: state)
         )
@@ -68,11 +71,43 @@ final class StatusBarController: NSObject {
 
     private func prewarmPopover() {
         guard !popover.isShown, let button = statusItem.button else { return }
+        bringPopoverForwardOnShow = false
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.alphaValue = 0
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
             self?.popover.performClose(nil)
             self?.popover.contentViewController?.view.window?.alphaValue = 1
+        }
+    }
+
+    /// A status-item popover is a child of the menu-bar window, so it inherits
+    /// status-bar level and nothing else can cover it. Detach that relationship
+    /// after show and drop to the normal window level. It still comes forward
+    /// when opened; later clicks on other windows can then cover it.
+    private func allowOtherWindowsToCoverPopover() {
+        guard popover.isShown,
+              let window = popover.contentViewController?.view.window else { return }
+        let frame = window.frame
+        window.parent?.removeChildWindow(window)
+        if let panel = window as? NSPanel {
+            panel.isFloatingPanel = false
+            panel.hidesOnDeactivate = false
+        }
+        window.level = .normal
+        if window.frame != frame {
+            window.setFrame(frame, display: false)
+        }
+        if bringPopoverForwardOnShow {
+            window.orderFrontRegardless()
+            bringPopoverForwardOnShow = false
+        }
+    }
+
+    func popoverDidShow(_ notification: Notification) {
+        allowOtherWindowsToCoverPopover()
+        // AppKit can reapply the menu-bar level after the show animation.
+        DispatchQueue.main.async { [weak self] in
+            self?.allowOtherWindowsToCoverPopover()
         }
     }
 
@@ -85,34 +120,15 @@ final class StatusBarController: NSObject {
         // Show first, refresh second, so nothing synchronous stands between
         // the click and the popover appearing.
         if let button = statusItem.button {
+            bringPopoverForwardOnShow = true
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.alphaValue = 1
-            startOutsideClickMonitor()
         }
         state.refreshFromMenuClick()
     }
 
     private func closePopover() {
         popover.performClose(nil)
-        stopOutsideClickMonitor()
-    }
-
-    private func startOutsideClickMonitor() {
-        stopOutsideClickMonitor()
-        // Global monitor only sees events delivered to other apps, so clicks
-        // inside the popover and its menus keep it open.
-        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
-            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
-        ) { [weak self] _ in
-            self?.closePopover()
-        }
-    }
-
-    private func stopOutsideClickMonitor() {
-        if let monitor = outsideClickMonitor {
-            NSEvent.removeMonitor(monitor)
-            outsideClickMonitor = nil
-        }
     }
 }
 

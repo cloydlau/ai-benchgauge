@@ -1,6 +1,11 @@
 import Foundation
 import LeaderboardCore
 
+private struct CCSwitchQuotaLoad: Sendable {
+    var result: CCSwitchProviderLoadResult
+    var currentProviderID: String?
+}
+
 @MainActor
 final class AppState: ObservableObject {
     @Published private(set) var snapshot = LeaderboardSnapshot()
@@ -9,29 +14,47 @@ final class AppState: ObservableObject {
     @Published private(set) var schedule = UpdateSchedule.initial()
     @Published private(set) var lastAttemptAt: Date?
     @Published private(set) var selectedCategory = LeaderboardCategory.general
+    @Published private(set) var isQuitting = false
+    /// Codex account quotas from the local CC Switch database. These are not
+    /// leaderboard rows, so they stay off the table.
+    @Published private(set) var quotaChips: [AccountQuotaChip] = []
+    @Published private(set) var quotaUpdatedAt: Date?
+    @Published private(set) var quotaUnavailable = false
 
     private let fetcher = LeaderboardFetcher()
     private let cache: LeaderboardCache
+    private let quotaClient = AccountQuotaClient()
     private var updateTimer: Timer?
+    private var refreshTask: Task<Void, Never>?
+    private var quotaTask: Task<Void, Never>?
     private var refreshPending = false
+    private var lastQuotaAttemptAt: Date?
+    private var quotaGeneration = 0
 
     init(cache: LeaderboardCache) {
         self.cache = cache
         if let cached = cache.load() {
             snapshot = cached
         }
+        selectedCategory = CategoryPreference.load()
     }
 
     func start() {
         refreshNow()
+        refreshQuotas(minimumInterval: 0)
         startTimer()
     }
 
     /// Menu-bar clicks are throttled: the sources rate-limit, so rapid
     /// clicking must not turn into a burst of requests.
     private static let minimumMenuRefreshInterval: TimeInterval = 10 * 60
+    /// Reopening the menu can refresh quotas sooner than the background cadence.
+    private static let minimumQuotaRefreshInterval: TimeInterval = 60
+    /// Matches CC Switch's default auto-query interval.
+    private static let backgroundQuotaRefreshInterval: TimeInterval = 5 * 60
 
     func refreshFromMenuClick() {
+        refreshQuotas(minimumInterval: Self.minimumQuotaRefreshInterval)
         if let lastAttemptAt,
            Date().timeIntervalSince(lastAttemptAt) < Self.minimumMenuRefreshInterval {
             return
@@ -39,9 +62,27 @@ final class AppState: ObservableObject {
         refreshNow()
     }
 
+    /// Show the quitting state, then drop the timer and in-flight fetch so
+    /// terminate is not held open by them. Returns false if quit already started.
+    @discardableResult
+    func beginQuitting() -> Bool {
+        guard !isQuitting else { return false }
+        isQuitting = true
+        refreshPending = false
+        updateTimer?.invalidate()
+        updateTimer = nil
+        refreshTask?.cancel()
+        refreshTask = nil
+        quotaTask?.cancel()
+        quotaTask = nil
+        quotaGeneration += 1
+        return true
+    }
+
     func selectCategory(_ category: LeaderboardCategory) {
         guard category != selectedCategory else { return }
         selectedCategory = category
+        CategoryPreference.save(category)
         guard !isFresh(category) else { return }
         if isRefreshing {
             refreshPending = true
@@ -62,6 +103,8 @@ final class AppState: ObservableObject {
     }
 
     private func tick() {
+        guard !isQuitting else { return }
+        refreshQuotas(minimumInterval: Self.backgroundQuotaRefreshInterval)
         if Date() >= schedule.giveUpAt {
             schedule = schedule.givingUp()
             return
@@ -71,8 +114,91 @@ final class AppState: ObservableObject {
         refreshNow()
     }
 
+    /// Loads Codex providers from the local CC Switch database and refreshes
+    /// their quotas. Credential material stays inside the client request.
+    private func refreshQuotas(minimumInterval: TimeInterval) {
+        guard !isQuitting else { return }
+        if let lastQuotaAttemptAt,
+           Date().timeIntervalSince(lastQuotaAttemptAt) < minimumInterval {
+            return
+        }
+        lastQuotaAttemptAt = Date()
+        quotaGeneration += 1
+        let generation = quotaGeneration
+        quotaTask?.cancel()
+
+        quotaTask = Task { [weak self] in
+            guard let self else { return }
+            let loaded = await Task.detached(priority: .utility) {
+                CCSwitchQuotaLoad(
+                    result: CCSwitchProviderStore.loadCodexProviders(),
+                    currentProviderID: CCSwitchProviderStore.currentCodexProviderID()
+                )
+            }.value
+            guard !Task.isCancelled, !self.isQuitting, generation == self.quotaGeneration else { return }
+
+            switch loaded.result {
+            case .unavailable:
+                self.quotaUnavailable = true
+            case let .records(records):
+                self.quotaUnavailable = false
+                let targets = CCSwitchQuotaCatalog.targets(
+                    from: records,
+                    currentProviderID: loaded.currentProviderID
+                )
+                guard !targets.isEmpty else {
+                    self.quotaChips = []
+                    return
+                }
+                let previous = self.displayChips(for: targets)
+                self.quotaChips = previous
+                let client = self.quotaClient
+                do {
+                    let chips = try await client.refresh(targets: targets, previous: previous)
+                    guard !Task.isCancelled, !self.isQuitting, generation == self.quotaGeneration else { return }
+                    self.quotaChips = chips
+                    self.quotaUpdatedAt = Date()
+                } catch is CancellationError {
+                    return
+                } catch {
+                    guard !Task.isCancelled, !self.isQuitting, generation == self.quotaGeneration else { return }
+                    self.quotaChips = self.quotaChips.map { chip in
+                        guard chip.status == .pending else { return chip }
+                        return AccountQuotaChip(
+                            id: chip.id,
+                            shortName: chip.shortName,
+                            websiteURL: chip.websiteURL,
+                            kind: chip.kind,
+                            isCurrent: chip.isCurrent,
+                            status: .message(AccountQuotaMessage.queryFailed)
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /// Keeps the last shown value while a refresh is in flight so a failure
+    /// color does not flash on every menu open.
+    private func displayChips(for targets: [CCSwitchQuotaTarget]) -> [AccountQuotaChip] {
+        targets.map { target in
+            if let existing = quotaChips.first(where: { $0.id == target.id }),
+               existing.status != .pending {
+                return AccountQuotaChip(
+                    id: target.id,
+                    shortName: target.shortName,
+                    websiteURL: target.websiteURL,
+                    kind: target.kind,
+                    isCurrent: target.isCurrent,
+                    status: existing.status
+                )
+            }
+            return .placeholder(for: target)
+        }
+    }
+
     private func refreshNow() {
-        guard !isRefreshing else { return }
+        guard !isQuitting, !isRefreshing else { return }
         isRefreshing = true
         lastErrors = [:]
         lastAttemptAt = Date()
@@ -80,7 +206,7 @@ final class AppState: ObservableObject {
         let category = selectedCategory
         let kinds = category.boardKinds
 
-        Task {
+        refreshTask = Task {
             await withTaskGroup(of: (LeaderboardKind, Leaderboard?, String?).self) { group in
                 for kind in kinds {
                     let fetcher = fetcher
@@ -94,6 +220,7 @@ final class AppState: ObservableObject {
                 }
 
                 for await (kind, board, errorMessage) in group {
+                    if Task.isCancelled { continue }
                     if let board {
                         snapshot.boards[kind] = board
                     } else {
@@ -102,6 +229,7 @@ final class AppState: ObservableObject {
                 }
             }
 
+            guard !Task.isCancelled else { return }
             finishRefresh()
         }
     }
