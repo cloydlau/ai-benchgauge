@@ -604,8 +604,8 @@ private struct LeaderboardCell: View {
     }
 
     var body: some View {
-        // A chip in the row shifts the logo. Domestic origin is a border so
-        // it does not take a layout slot or cover the purchase links.
+        // Domestic origin is a border so it does not take a layout slot or
+        // cover the purchase links.
         HStack(spacing: 10) {
             if let entry {
                 ModelLogoView(
@@ -651,14 +651,8 @@ private struct LeaderboardCell: View {
     private var cellBackground: some View {
         Group {
             if let brandColor = model?.brandColor(isDark: colorScheme == .dark) {
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(brandColor.opacity(0.16))
-                    Capsule()
-                        .fill(brandColor)
-                        .frame(width: 3)
-                        .padding(.vertical, 1)
-                }
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(brandColor.opacity(0.16))
             }
         }
     }
