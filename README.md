@@ -11,6 +11,8 @@ The app shows the top 20 models from each leaderboard with separate score column
 
 Codex provider quotas appear in a strip above the table only when this Mac has a readable CC Switch database with recognizable Codex providers. A missing install, a database this app does not understand, or no recognizable providers leaves the leaderboard unchanged. If that database is present but this read fails, the strip keeps the last quotas and marks them stale instead of showing an error. Those figures are account balances, not scores for a ranked model, so they are not another table column.
 
+For 千问 Token Plan, the app prefers the official subscription snapshot from the 千问 AI 平台 CLI. Install \`@qianwenai/qianwen-cli\`, run \`qianwen auth login\` with the same account used for the subscription, and confirm \`qianwen usage summary --format json\` works. If the CLI is unavailable or not logged in, the strip shows CC Switch's local request totals instead, labeled “本地”; these totals are not the subscription's remaining Credits.
+
 ## Requirements
 
 - macOS 14 or later

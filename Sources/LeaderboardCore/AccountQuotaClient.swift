@@ -132,6 +132,7 @@ public actor AccountQuotaClient {
     private let transport: any AccountQuotaTransport
     private let authFileURL: URL
     private let databaseURL: URL
+    private let qwenQuotaSource: any QwenQuotaSource
     private let now: @Sendable () -> Date
     private let xaiTokens = XAIAccessTokens()
 
@@ -139,11 +140,13 @@ public actor AccountQuotaClient {
         transport: any AccountQuotaTransport = URLSessionAccountQuotaTransport(),
         authFileURL: URL = XaiAuthFile.defaultURL,
         databaseURL: URL = CCSwitchProviderStore.defaultDatabaseURL,
+        qwenQuotaSource: any QwenQuotaSource = QwenCLIQuotaSource(),
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.transport = transport
         self.authFileURL = authFileURL
         self.databaseURL = databaseURL
+        self.qwenQuotaSource = qwenQuotaSource
         self.now = now
     }
 
@@ -166,6 +169,9 @@ public actor AccountQuotaClient {
         let qwenTargets = targets.filter { $0.kind == .qwen }
         async let officialChips = officialChips(for: officialTargets, previous: previous)
         async let xaiChips = xaiChips(for: targets, previous: previous, authFileURL: authFileURL)
+        async let qwenPlan = qwenTargets.isEmpty
+            ? nil
+            : await qwenQuotaSource.loadSummary().flatMap(QwenPlanQuotaParser.parse)
         let keyChips = try await withThrowingTaskGroup(of: AccountQuotaChip.self) { group in
             for target in keyTargets {
                 group.addTask {
@@ -178,26 +184,28 @@ public actor AccountQuotaClient {
             }
             return chips
         }
-        let localQwenChips = qwenTargets.map { target in
+        let resolvedQwenPlan = await qwenPlan
+        let qwenChips = qwenTargets.map { target in
             AccountQuotaChip(
                 id: target.id,
                 shortName: target.shortName,
                 websiteURL: target.websiteURL,
                 kind: target.kind,
                 isCurrent: target.isCurrent,
-                status: .usage(
-                    CCSwitchProviderStore.localUsage(
-                        providerID: target.id,
-                        databaseURL: databaseURL,
-                        now: now()
+                status: resolvedQwenPlan.map(AccountQuotaChip.Status.qwenPlan)
+                    ?? .usage(
+                        CCSwitchProviderStore.localUsage(
+                            providerID: target.id,
+                            databaseURL: databaseURL,
+                            now: now()
+                        )
                     )
-                )
             )
         }
         let resolvedOfficial = try await officialChips
         let resolvedXAI = try await xaiChips
         var byID: [String: AccountQuotaChip] = [:]
-        for chip in keyChips + resolvedOfficial + resolvedXAI + localQwenChips {
+        for chip in keyChips + resolvedOfficial + resolvedXAI + qwenChips {
             byID[chip.id] = Self.keepingLastGood(chip, previous: previous)
         }
         return targets.map { target in
@@ -447,7 +455,7 @@ public actor AccountQuotaClient {
             return chip
         }
         switch prior.status {
-        case .windows, .balances:
+        case .windows, .balances, .qwenPlan:
             return AccountQuotaChip(
                 id: chip.id,
                 shortName: chip.shortName,

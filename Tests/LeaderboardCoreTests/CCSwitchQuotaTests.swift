@@ -240,8 +240,24 @@ final class AccountQuotaFormattingTests: XCTestCase {
         )
         XCTAssertEqual(
             AccountQuotaFormatting.plainSummary(for: qwen, now: now),
-            "24小时: 2.0M tokens · 12次 · $1.25"
+            "本地24小时: 2.0M tokens · 12次 · $1.25"
         )
+        XCTAssertTrue(AccountQuotaFormatting.help(for: qwen, now: now).contains("非千问官网套餐额度"))
+
+        let officialQwen = chip(
+            kind: .qwen,
+            status: .qwenPlan(QwenPlanQuota(
+                usedPercent: 28,
+                remainingCredits: 18_000,
+                totalCredits: 25_000,
+                resetsAt: now.addingTimeInterval(2 * 86_400)
+            ))
+        )
+        XCTAssertEqual(
+            AccountQuotaFormatting.plainSummary(for: officialQwen, now: now),
+            "7天: 28% · 剩余 18,000/25,000 Credits 2d0h"
+        )
+        XCTAssertTrue(AccountQuotaFormatting.help(for: officialQwen, now: now).contains("千问官网套餐额度"))
     }
 
     func testCountdownBoundariesAndUtilizationTones() {
@@ -268,6 +284,22 @@ final class AccountQuotaFormattingTests: XCTestCase {
 }
 
 final class CCSwitchQuotaParserTests: XCTestCase {
+    func testParsesOfficialQwenPlanCredits() {
+        let data = Data(#"""
+        {"token_plan":{"subscribed":true,"totalCredits":25000,"remainingCredits":18000,"usedPct":28,"resetDate":"2026-08-01T00:00:00.000Z"}}
+        """#.utf8)
+        XCTAssertEqual(
+            QwenPlanQuotaParser.parse(data),
+            QwenPlanQuota(
+                usedPercent: 28,
+                remainingCredits: 18_000,
+                totalCredits: 25_000,
+                resetsAt: ISO8601DateFormatter().date(from: "2026-08-01T00:00:00Z")
+            )
+        )
+        XCTAssertNil(QwenPlanQuotaParser.parse(Data(#"{"token_plan":{"subscribed":false}}"#.utf8)))
+    }
+
     func testParsesKimiZhipuAndDeepSeekBodiesWithoutKeepingRawText() {
         let kimi = CCSwitchQuotaParsers.parseKimi(Data(#"""
         {"limits":[{"detail":{"limit":100,"remaining":100,"resetTime":"2026-09-22T08:37:00Z"}}],"usage":{"limit":200,"remaining":50,"resetTime":1760000000}}
@@ -478,6 +510,7 @@ final class AccountQuotaClientTests: XCTestCase {
                 return AccountQuotaHTTPResponse(statusCode: 500, headers: [:], body: Data())
             },
             databaseURL: databaseURL,
+            qwenQuotaSource: FixedQwenQuotaSource(data: nil),
             now: { Date() }
         )
         let chips = try await client.refresh(targets: [
@@ -507,6 +540,27 @@ final class AccountQuotaClientTests: XCTestCase {
                     costUSD: 0.12
                 ),
             ])
+        )
+    }
+
+    func testQwenPrefersOfficialPlanOverLocalUsage() async throws {
+        let summary = Data(#"""
+        {"token_plan":{"subscribed":true,"totalCredits":25000,"remainingCredits":18000,"usedPct":28}}
+        """#.utf8)
+        let client = AccountQuotaClient(
+            qwenQuotaSource: FixedQwenQuotaSource(data: summary)
+        )
+        let chips = try await client.refresh(targets: [
+            quotaTarget(id: "qwen", name: "千问", kind: .qwen, key: "model-key"),
+        ])
+        XCTAssertEqual(
+            chips.first?.status,
+            .qwenPlan(QwenPlanQuota(
+                usedPercent: 28,
+                remainingCredits: 18_000,
+                totalCredits: 25_000,
+                resetsAt: nil
+            ))
         )
     }
 }
@@ -626,6 +680,12 @@ private final class ScriptedQuotaTransport: AccountQuotaTransport, @unchecked Se
         seen.append(request)
         lock.unlock()
     }
+}
+
+private struct FixedQwenQuotaSource: QwenQuotaSource {
+    let data: Data?
+
+    func loadSummary() async -> Data? { data }
 }
 
 private func record(
