@@ -115,8 +115,6 @@ enum PanelScreenshot {
         let height = rep.pixelsHigh
         guard width > 8, height > 8 else { return 0 }
         var colors = Set<UInt32>()
-        let xs = [0.08, 0.2, 0.36, 0.52, 0.7, 0.88]
-        let ys = [0.3, 0.42, 0.54, 0.66, 0.78, 0.9]
         for yFraction in ys {
             for xFraction in xs {
                 let x = min(width - 1, max(0, Int((Double(width - 1) * xFraction).rounded())))
