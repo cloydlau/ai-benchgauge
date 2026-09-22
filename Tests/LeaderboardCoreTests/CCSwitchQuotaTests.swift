@@ -112,6 +112,31 @@ final class CCSwitchQuotaCatalogTests: XCTestCase {
         XCTAssertEqual(targets.first?.apiKey, "qwen-key")
     }
 
+    func testReadsKimiBearerTokenFromCodexConfig() {
+        let targets = CCSwitchQuotaCatalog.targets(
+            from: [
+                record(
+                    id: "kimi",
+                    name: "Kimi For Coding",
+                    meta: #"{"usage_script":{"enabled":true,"codingPlanProvider":"kimi"}}"#,
+                    settings: settings(
+                        key: nil,
+                        toml: """
+                        model_provider = "custom"
+                        [model_providers.custom]
+                        base_url = "https://api.kimi.com/coding/v1"
+                        experimental_bearer_token = "kimi-bearer"
+                        """
+                    )
+                ),
+            ],
+            currentProviderID: nil
+        )
+
+        XCTAssertEqual(targets.first?.kind, .kimi)
+        XCTAssertEqual(targets.first?.apiKey, "kimi-bearer")
+    }
+
     func testDropsProxyKeysLoopbackURLsAndDisambiguatesDuplicateNames() {
         let records = [
             record(

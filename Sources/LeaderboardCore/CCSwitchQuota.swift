@@ -568,13 +568,16 @@ public enum CCSwitchQuotaCatalog {
             return ExtractedCredentials(apiKey: nil, accessToken: nil, accountID: nil, baseURLs: [])
         }
         let auth = root["auth"] as? [String: Any]
-        let apiKey = usableAPIKey(auth?["OPENAI_API_KEY"] as? String)
+        var apiKey = usableAPIKey(auth?["OPENAI_API_KEY"] as? String)
         let tokens = auth?["tokens"] as? [String: Any]
         let accessToken = usableToken(tokens?["access_token"] as? String)
         let accountID = usableToken(tokens?["account_id"] as? String)
         var extractedBaseURLs: [String] = []
         if let config = root["config"] as? String {
             extractedBaseURLs.append(contentsOf: baseURLs(inTOML: config))
+            if apiKey == nil {
+                apiKey = usableAPIKey(tomlStringValue(named: "experimental_bearer_token", in: config))
+            }
         } else if let config = root["config"] {
             extractedBaseURLs.append(contentsOf: baseURLs(inJSON: config))
         }
@@ -599,6 +602,28 @@ public enum CCSwitchQuotaCatalog {
         guard let value else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static func tomlStringValue(named key: String, in config: String) -> String? {
+        for line in config.split(whereSeparator: \.isNewline) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty, !trimmed.hasPrefix("#"),
+                  let equals = trimmed.firstIndex(of: "=") else { continue }
+            let name = trimmed[..<equals].trimmingCharacters(in: .whitespaces)
+            guard name == key else { continue }
+            var value = trimmed[trimmed.index(after: equals)...]
+                .trimmingCharacters(in: .whitespaces)
+            if let comment = value.firstIndex(of: "#") {
+                value = value[..<comment].trimmingCharacters(in: .whitespaces)
+            }
+            guard value.count >= 2,
+                  (value.first == "\"" && value.last == "\"")
+                    || (value.first == "'" && value.last == "'") else {
+                continue
+            }
+            return String(value.dropFirst().dropLast())
+        }
+        return nil
     }
 
     private static func preferredBaseURL(_ urls: [String], kind: CCSwitchQuotaKind) -> String? {
