@@ -131,32 +131,40 @@ extension XaiAuthFile {
 public actor AccountQuotaClient {
     private let transport: any AccountQuotaTransport
     private let authFileURL: URL
+    private let databaseURL: URL
     private let now: @Sendable () -> Date
     private let xaiTokens = XAIAccessTokens()
 
     public init(
         transport: any AccountQuotaTransport = URLSessionAccountQuotaTransport(),
         authFileURL: URL = XaiAuthFile.defaultURL,
+        databaseURL: URL = CCSwitchProviderStore.defaultDatabaseURL,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.transport = transport
         self.authFileURL = authFileURL
+        self.databaseURL = databaseURL
         self.now = now
     }
 
     public func refresh(
         targets: [CCSwitchQuotaTarget],
         previous: [AccountQuotaChip] = [],
-        authFileURL: URL? = nil
+        authFileURL: URL? = nil,
+        databaseURL: URL? = nil
     ) async throws -> [AccountQuotaChip] {
         let transport = self.transport
         let authFileURL = authFileURL ?? self.authFileURL
+        let databaseURL = databaseURL ?? self.databaseURL
         let keyTargets = targets.filter { target in
             switch target.kind {
             case .kimi, .zhipu, .deepseek: true
-            case .officialNote, .xaiOAuth: false
+            case .officialNote, .qwen, .xaiOAuth: false
             }
         }
+        let officialTargets = targets.filter { $0.kind == .officialNote }
+        let qwenTargets = targets.filter { $0.kind == .qwen }
+        async let officialChips = officialChips(for: officialTargets, previous: previous)
         async let xaiChips = xaiChips(for: targets, previous: previous, authFileURL: authFileURL)
         let keyChips = try await withThrowingTaskGroup(of: AccountQuotaChip.self) { group in
             for target in keyTargets {
@@ -170,9 +178,26 @@ public actor AccountQuotaClient {
             }
             return chips
         }
+        let localQwenChips = qwenTargets.map { target in
+            AccountQuotaChip(
+                id: target.id,
+                shortName: target.shortName,
+                websiteURL: target.websiteURL,
+                kind: target.kind,
+                isCurrent: target.isCurrent,
+                status: .usage(
+                    CCSwitchProviderStore.localUsage(
+                        providerID: target.id,
+                        databaseURL: databaseURL,
+                        now: now()
+                    )
+                )
+            )
+        }
+        let resolvedOfficial = try await officialChips
         let resolvedXAI = try await xaiChips
         var byID: [String: AccountQuotaChip] = [:]
-        for chip in keyChips + resolvedXAI {
+        for chip in keyChips + resolvedOfficial + resolvedXAI + localQwenChips {
             byID[chip.id] = Self.keepingLastGood(chip, previous: previous)
         }
         return targets.map { target in
@@ -180,6 +205,24 @@ public actor AccountQuotaClient {
                 return AccountQuotaChip.placeholder(for: target)
             }
             return byID[target.id] ?? Self.chip(target, .failed)
+        }
+    }
+
+    private func officialChips(
+        for targets: [CCSwitchQuotaTarget],
+        previous: [AccountQuotaChip]
+    ) async throws -> [AccountQuotaChip] {
+        try await withThrowingTaskGroup(of: AccountQuotaChip.self) { group in
+            for target in targets {
+                group.addTask {
+                    try await Self.queryOfficial(target, transport: self.transport)
+                }
+            }
+            var chips: [AccountQuotaChip] = []
+            for try await chip in group {
+                chips.append(Self.keepingLastGood(chip, previous: previous))
+            }
+            return chips
         }
     }
 
@@ -246,10 +289,57 @@ public actor AccountQuotaClient {
             parsed = CCSwitchQuotaParsers.parseZhipu(response.body)
         case .deepseek:
             parsed = CCSwitchQuotaParsers.parseDeepSeek(response.body)
-        case .officialNote, .xaiOAuth:
+        case .officialNote, .qwen, .xaiOAuth:
             return chip(target, .failed)
         }
         return chip(target, parsed: parsed)
+    }
+
+    private static func queryOfficial(
+        _ target: CCSwitchQuotaTarget,
+        transport: any AccountQuotaTransport
+    ) async throws -> AccountQuotaChip {
+        guard let accessToken = usableKey(target.accessToken) else {
+            return chip(target, .notLoggedIn)
+        }
+        guard let url = URL(string: "https://chatgpt.com/backend-api/wham/usage") else {
+            return chip(target, .failed)
+        }
+        var request = URLRequest(url: url, timeoutInterval: 15)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let accountID = usableKey(target.accountID) {
+            request.setValue(accountID, forHTTPHeaderField: "ChatGPT-Account-ID")
+        }
+        let response: AccountQuotaHTTPResponse
+        do {
+            response = try await transport.data(for: request)
+        } catch {
+            if Self.isCancellation(error) { throw CancellationError() }
+            return chip(target, .network)
+        }
+        guard response.body.count <= 1_048_576 else {
+            return chip(target, .failed)
+        }
+        if response.statusCode == 401 || response.statusCode == 403 {
+            return chip(target, .reauth)
+        }
+        guard (200...299).contains(response.statusCode) else {
+            return chip(target, .failed)
+        }
+        guard case let .windows(windows) = CCSwitchQuotaParsers.parseOpenAI(response.body),
+              !windows.isEmpty else {
+            return chip(target, .failed)
+        }
+        return AccountQuotaChip(
+            id: target.id,
+            shortName: target.shortName,
+            websiteURL: target.websiteURL,
+            kind: target.kind,
+            isCurrent: target.isCurrent,
+            status: .windows(windows)
+        )
     }
 
     /// Empty and `proxy-` keys are local placeholders, not credentials to send.
@@ -277,7 +367,7 @@ public actor AccountQuotaClient {
         case .zhipu:
             url = CCSwitchQuotaCatalog.zhipuQuotaURL(baseURL: target.baseURL)
             authorization = apiKey
-        case .officialNote, .xaiOAuth:
+        case .officialNote, .qwen, .xaiOAuth:
             return nil
         }
         var request = URLRequest(url: url, timeoutInterval: 15)
@@ -369,7 +459,7 @@ public actor AccountQuotaClient {
                 isCurrent: chip.isCurrent,
                 status: prior.status
             )
-        case .pending, .note, .message:
+        case .pending, .note, .usage, .message:
             return chip
         }
     }

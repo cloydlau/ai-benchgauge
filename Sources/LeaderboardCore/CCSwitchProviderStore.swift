@@ -160,6 +160,58 @@ public enum CCSwitchProviderStore {
         return trimmed.isEmpty ? nil : trimmed
     }
 
+    /// Reads the usage totals that CC Switch has already recorded for a Codex
+    /// provider. This is intentionally read-only and contains no credentials.
+    public static func localUsage(
+        providerID: String,
+        databaseURL: URL = defaultDatabaseURL,
+        now: Date = Date()
+    ) -> [ParsedUsageWindow] {
+        let path = databaseURL.path(percentEncoded: false)
+        guard FileManager.default.fileExists(atPath: path) else { return [] }
+        var database: OpaquePointer?
+        guard sqlite3_open_v2(path, &database, SQLITE_OPEN_READONLY, nil) == SQLITE_OK,
+              let database else {
+            if let database { sqlite3_close(database) }
+            return []
+        }
+        defer { sqlite3_close(database) }
+        sqlite3_busy_timeout(database, 250)
+
+        let escapedID = providerID.replacingOccurrences(of: "'", with: "''")
+        let windows: [(String, TimeInterval)] = [("24小时", 24 * 3600), ("7天", 7 * 24 * 3600)]
+        return windows.compactMap { name, interval in
+            let cutoff = Int64(now.timeIntervalSince1970 - interval)
+            let sql = """
+            SELECT COUNT(*),
+                   COALESCE(SUM(input_tokens), 0),
+                   COALESCE(SUM(output_tokens), 0),
+                   COALESCE(SUM(total_cost_usd), 0)
+            FROM proxy_request_logs
+            WHERE app_type = 'codex' AND provider_id = '\(escapedID)' AND created_at >= \(cutoff)
+            """
+            var statement: OpaquePointer?
+            guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+                  let statement else { return nil }
+            defer { sqlite3_finalize(statement) }
+            guard sqlite3_step(statement) == SQLITE_ROW else { return nil }
+            let requests = Int(sqlite3_column_int64(statement, 0))
+            let inputTokens = sqlite3_column_int64(statement, 1)
+            let outputTokens = sqlite3_column_int64(statement, 2)
+            let costUSD = sqlite3_column_double(statement, 3)
+            guard requests > 0 || inputTokens > 0 || outputTokens > 0 || costUSD > 0 else {
+                return nil
+            }
+            return ParsedUsageWindow(
+                name: name,
+                requests: requests,
+                inputTokens: inputTokens,
+                outputTokens: outputTokens,
+                costUSD: costUSD
+            )
+        }
+    }
+
     private static func defaultAppPathsURL(in home: URL) -> URL {
         home.appending(
             path: "Library/Application Support/com.ccswitch.desktop/app_paths.json",
