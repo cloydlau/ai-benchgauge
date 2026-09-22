@@ -91,6 +91,27 @@ final class CCSwitchQuotaCatalogTests: XCTestCase {
         XCTAssertTrue(targets[0].isCurrent)
     }
 
+    func testRecognizesQwenTokenPlanProvider() {
+        let targets = CCSwitchQuotaCatalog.targets(
+            from: [
+                record(
+                    id: "qwen",
+                    name: "通义千问 Token Plan",
+                    meta: #"{"usage_script":{"enabled":true,"codingPlanProvider":"qwen"}}"#,
+                    settings: settings(
+                        key: "qwen-key",
+                        toml: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+                    )
+                ),
+            ],
+            currentProviderID: nil
+        )
+
+        XCTAssertEqual(targets.map(\.kind), [.qwen])
+        XCTAssertEqual(targets.first?.shortName, "千问")
+        XCTAssertEqual(targets.first?.apiKey, "qwen-key")
+    }
+
     func testDropsProxyKeysLoopbackURLsAndDisambiguatesDuplicateNames() {
         let records = [
             record(
