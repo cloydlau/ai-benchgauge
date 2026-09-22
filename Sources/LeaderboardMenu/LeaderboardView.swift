@@ -80,9 +80,9 @@ struct LeaderboardView: View {
     }
 
     private var titleRow: some View {
-        // Equal side columns keep the tabs centered. Status text changes length
-        // when the category changes; spacers around the picker would slide it.
-        HStack(alignment: .top, spacing: 12) {
+        // Tabs stay in a trailing group with the schedule. Equal side columns
+        // centered the picker and left a wide empty band in the top-right.
+        HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text("AI Leaderboards")
@@ -107,16 +107,19 @@ struct LeaderboardView: View {
                 .monospacedDigit()
                 .lineLimit(1)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .layoutPriority(1)
 
-            categoryPicker
+            Spacer(minLength: 12)
 
-            Text(nextRunLabel)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .trailing)
+            VStack(alignment: .trailing, spacing: 6) {
+                categoryPicker
+                Text(nextRunLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
+            .fixedSize(horizontal: true, vertical: false)
         }
         .animation(nil, value: state.selectedCategory)
     }
