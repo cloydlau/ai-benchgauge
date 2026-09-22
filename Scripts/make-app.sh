@@ -5,6 +5,22 @@ ROOT=${0:A:h:h}
 APP="$ROOT/outputs/AI-Leaderboards.app"
 BIN="$ROOT/.build/release/leaderboard-menu"
 
+notify() {
+  if [[ -n "${LOCAL_CI_NOTIFY_OWNER:-}" || "${DESKTOP_NOTIFY:-}" == "0" ]]; then
+    return 0
+  fi
+  node "$ROOT/Scripts/desktop-notify.mjs" --wait "$1" "$2" "$3" || true
+}
+
+on_err() {
+  # zsh treats status as a read-only alias of $?.
+  local exit_code=$?
+  trap - ERR
+  notify failure "构建失败" "make-app.sh 退出码 $exit_code"
+  exit $exit_code
+}
+trap on_err ERR
+
 env CLANG_MODULE_CACHE_PATH="$ROOT/work/clang-modules" \
   swift build \
     -c release \
@@ -20,3 +36,4 @@ cp -R "$ROOT/Sources/LeaderboardMenu/Resources/logos" "$APP/Contents/Resources/l
 codesign --force --sign - "$APP"
 
 printf 'Built %s\n' "$APP"
+notify success "构建成功" "已生成 outputs/AI-Leaderboards.app"
