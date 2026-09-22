@@ -30,7 +30,13 @@ export function ensureNotificationApp(kind, directory) {
   const app = join(directory, `${name}.app`)
   const binary = join(app, 'Contents', 'MacOS', 'notification-settings')
   const marker = join(app, 'Contents', 'Resources', 'notification-revision')
-  const current = () => existsSync(binary) && existsSync(marker) && readFileSync(marker, 'utf8') === revision
+  const current = () => {
+    try {
+      return existsSync(binary) && existsSync(marker) && readFileSync(marker, 'utf8') === revision
+    } catch {
+      return false
+    }
+  }
   if (current()) return app
   mkdirSync(directory, { recursive: true })
   const staging = mkdtempSync(join(directory, '.local-ci-notify-'))
