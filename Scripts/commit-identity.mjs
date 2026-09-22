@@ -12,6 +12,8 @@ const ICONES_FALLBACK = 'https://api.iconify.design/mdi:robot-outline.svg'
 const GROK_GITHUB_EMAIL = '304785771+grokkybara[bot]@users.noreply.github.com'
 const QWEN_GITHUB_EMAIL = '269191875+qwen-code-dev-bot@users.noreply.github.com'
 const GEMINI_GITHUB_EMAIL = '224641728+gemini-cli-robot@users.noreply.github.com'
+// OpenAI Codex's official commit-attribution implementation uses this address.
+const OPENAI_GITHUB_EMAIL = 'noreply@openai.com'
 const HUMAN = Object.freeze({
   name: 'Cloyd Lau',
   email: '31238760+cloydlau@users.noreply.github.com',
@@ -35,7 +37,7 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
   {
     key: 'openai',
     brands: ['gpt', 'openai', 'codex', 'o1', 'o3', 'o4'],
-    email: 'noreply@openai.com',
+    email: OPENAI_GITHUB_EMAIL,
     favicon: 'https://openai.com/favicon.ico',
     icon: 'https://api.iconify.design/logos:openai-icon.svg',
   },

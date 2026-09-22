@@ -9,6 +9,7 @@ import {
 } from './commit-identity.mjs'
 
 test('uses official GitHub Bot emails for model identities', () => {
+  assert.equal(emailForModel('gpt-5-codex'), 'noreply@openai.com')
   assert.equal(emailForModel('grok-4.7'), '304785771+grokkybara[bot]@users.noreply.github.com')
   assert.equal(emailForModel('qwen3-coder'), '269191875+qwen-code-dev-bot@users.noreply.github.com')
   assert.equal(emailForModel('gemini-2.5-pro'), '224641728+gemini-cli-robot@users.noreply.github.com')
