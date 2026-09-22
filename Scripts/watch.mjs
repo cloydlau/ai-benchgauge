@@ -139,20 +139,19 @@ export function parseAheadCount(stdout) {
   return Number.isFinite(ahead) ? ahead : null
 }
 
+let loggedUpstreamError = ''
+
 function unpushedState() {
   const result = gitSync(['rev-list', '--left-right', '--count', '@{upstream}...HEAD'])
   if (result.error) {
-    if (!isAccessDenied(result.error)) console.warn(`[watch] 上游检查失败：${result.error.message}`)
-    return { state: 'unknown', signature: '', count: 0 }
-  }
-  if (result.status !== 0) {
-    const detail = (result.stderr || '').trim()
-    if (/no upstream|no tracking information|does not (?:point to|match) a branch/i.test(detail)) {
-      return { state: 'no-upstream', signature: '', count: 0 }
+    if (!isAccessDenied(result.error) && result.error.message !== loggedUpstreamError) {
+      loggedUpstreamError = result.error.message
+      console.warn(`[watch] 上游检查失败：${result.error.message}`)
     }
-    console.warn(`[watch] 上游检查失败：${detail || `退出码 ${result.status}`}`)
     return { state: 'unknown', signature: '', count: 0 }
   }
+  if (result.status !== 0) return { state: 'no-upstream', signature: '', count: 0 }
+  loggedUpstreamError = ''
   const ahead = parseAheadCount(result.stdout)
   if (ahead == null) return { state: 'unknown', signature: '', count: 0 }
   if (ahead <= 0) return { state: 'synced', signature: '', count: 0 }
@@ -277,7 +276,7 @@ function main() {
     if (retryPush) failedPushSignature = null
     lastChangeAt = at
     if (busy) {
-      console.log(`[watch] ${reason}，当前正在提交或构建，结束后再调度`)
+      console.log(`[watch] ${reason}，当前正在提交、推送或构建，结束后再调度`)
       return
     }
     const wait = nextWaitMs({
@@ -341,9 +340,18 @@ function main() {
           console.log(`[watch] 开始推送 ${ahead.count} 个提交…`)
           const pushed = await runGit(['push'])
           if (pushed.status === 0) {
-            console.log('[watch] 已推送')
-            failedPushSignature = null
-            lastAheadSignature = ''
+            const after = unpushedState()
+            if (after.state === 'ahead') {
+              const detail = 'git push 已退出，但上游仍落后'
+              console.error(`[watch] 推送失败：${detail}`)
+              failedPushSignature = after.signature
+              lastAheadSignature = after.signature
+              await notify(false, '推送失败', detail)
+            } else {
+              console.log('[watch] 已推送')
+              failedPushSignature = null
+              lastAheadSignature = ''
+            }
           } else {
             const detail = pushed.error ? pushed.error.message : `git push 退出码 ${pushed.status}`
             console.error(`[watch] 推送失败：${detail}`)
@@ -378,7 +386,13 @@ function main() {
     if (!rebuiltOk && attemptedRebuild) console.log('[watch] 同一签名不再自动重试，请再保存一次或重启 ./dev.sh')
     const sourceMoved = latest !== builtSignature && latest !== failedSignature
     const gitMoved = commitEnabled && latestGit && latestGit !== failedCommitSignature
-    if (commitStatus === 75 || sourceMoved || gitMoved) {
+    const latestAhead = pushEnabled ? unpushedState() : null
+    if (latestAhead && latestAhead.state !== 'ahead') lastAheadSignature = ''
+    const aheadMoved = latestAhead?.state === 'ahead'
+      && latestAhead.signature
+      && latestAhead.signature !== failedPushSignature
+    if (commitStatus === 75 || sourceMoved || gitMoved || aheadMoved) {
+      if (aheadMoved) lastAheadSignature = latestAhead.signature
       schedule(commitStatus === 75 ? '提交锁被占用，稍后重试' : '运行期间有新变更', Date.now(), {
         retryPush: sourceMoved || gitMoved,
       })
