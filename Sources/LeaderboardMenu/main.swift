@@ -5,8 +5,6 @@ import LeaderboardCore
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var stateController: StatusBarController?
-    private var snapshotController: PanelSnapshot?
-
     func applicationDidFinishLaunching(_ notification: Notification) {
         let cache: LeaderboardCache
         do {
@@ -15,11 +13,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             cache = LeaderboardCache(fileURL: temporaryCacheURL())
         }
         let state = AppState(cache: cache)
-        if let outputURL = PanelSnapshot.outputURL(from: CommandLine.arguments) {
-            snapshotController = PanelSnapshot(state: state, outputURL: outputURL)
-            snapshotController?.start()
-            return
-        }
         stateController = StatusBarController(state: state)
         state.start()
     }
@@ -170,98 +163,5 @@ enum LeaderboardApp {
         application.delegate = delegate
         application.setActivationPolicy(.accessory)
         application.run()
-    }
-}
-
-/// One-shot render of the real panel. Not a user-facing mode: `dev.sh` does
-/// not pass `--snapshot`, and the process quits after writing the PNG.
-@MainActor
-final class PanelSnapshot: NSObject {
-    private let state: AppState
-    private let outputURL: URL
-    private var window: NSWindow?
-    private var startedAt = Date()
-
-    init(state: AppState, outputURL: URL) {
-        self.state = state
-        self.outputURL = outputURL
-    }
-
-    static func outputURL(from arguments: [String]) -> URL? {
-        guard let index = arguments.firstIndex(of: "--snapshot"),
-              arguments.indices.contains(index + 1) else { return nil }
-        return URL(fileURLWithPath: arguments[index + 1])
-    }
-
-    func start() {
-        let host = NSHostingController(rootView: LeaderboardView(state: state))
-        let size = NSSize(width: LeaderboardView.contentWidth, height: LeaderboardView.contentHeight)
-        let visible = (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame
-            ?? NSRect(x: 40, y: 120, width: size.width, height: size.height)
-        let origin = NSPoint(
-            x: visible.minX + max(0, (visible.width - size.width) / 2),
-            y: visible.minY + max(0, (visible.height - size.height) / 2)
-        )
-        let window = NSWindow(
-            contentRect: NSRect(origin: origin, size: size),
-            styleMask: [.titled, .closable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "AI Leaderboards"
-        window.contentViewController = host
-        window.setContentSize(size)
-        window.setFrameOrigin(origin)
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-        self.window = window
-        state.start()
-        scheduleCapture()
-    }
-
-    private func scheduleCapture() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
-            self?.captureIfReady()
-        }
-    }
-
-    private func captureIfReady() {
-        let waited = Date().timeIntervalSince(startedAt)
-        let chips = state.quotaChips
-        let pending = chips.contains { chip in
-            if case .pending = chip.status { return true }
-            return false
-        }
-        let ready = !chips.isEmpty && !pending && state.quotaUpdatedAt != nil
-        if !ready, !state.quotaUnavailable, waited < 22 {
-            scheduleCapture()
-            return
-        }
-        // One more turn so SwiftUI paints the resolved chips.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
-            self?.writePNG()
-        }
-    }
-
-    private func writePNG() {
-        guard let view = window?.contentView else {
-            fputs("snapshot: no view\n", stderr)
-            NSApp.terminate(nil)
-            return
-        }
-        view.layoutSubtreeIfNeeded()
-        window?.displayIfNeeded()
-        guard let shot = PanelScreenshot.capture(view: view) else {
-            fputs("snapshot: capture failed\n", stderr)
-            NSApp.terminate(nil)
-            return
-        }
-        do {
-            try shot.png.write(to: outputURL, options: .atomic)
-            fputs("snapshot: \(outputURL.path)\n", stderr)
-        } catch {
-            fputs("snapshot: \(error)\n", stderr)
-        }
-        NSApp.terminate(nil)
     }
 }
