@@ -179,6 +179,23 @@ final class AccountQuotaFormattingTests: XCTestCase {
             ])
         )
         XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: deepseek, now: now), "剩余 12.36 CNY")
+
+        let qwen = chip(
+            kind: .qwen,
+            status: .usage([
+                ParsedUsageWindow(
+                    name: "24小时",
+                    requests: 12,
+                    inputTokens: 1_234_567,
+                    outputTokens: 765_433,
+                    costUSD: 1.25
+                ),
+            ])
+        )
+        XCTAssertEqual(
+            AccountQuotaFormatting.plainSummary(for: qwen, now: now),
+            "24小时: 2.0M tokens · 12次 · $1.25"
+        )
     }
 
     func testCountdownBoundariesAndUtilizationTones() {
@@ -388,6 +405,64 @@ final class AccountQuotaClientTests: XCTestCase {
             ),
         ])
     }
+
+    func testQwenUsesRecordedLocalUsageWithoutSendingItsModelKeyToAnUnknownEndpoint() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "qwen-usage-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let databaseURL = directory.appending(path: "cc-switch.db")
+        try runSQLite(
+            """
+            CREATE TABLE proxy_request_logs (
+                provider_id TEXT NOT NULL,
+                app_type TEXT NOT NULL,
+                input_tokens INTEGER NOT NULL DEFAULT 0,
+                output_tokens INTEGER NOT NULL DEFAULT 0,
+                total_cost_usd TEXT NOT NULL DEFAULT '0',
+                created_at INTEGER NOT NULL
+            );
+            INSERT INTO proxy_request_logs VALUES ('qwen', 'codex', 1000, 250, '0.12', \(Int(Date().timeIntervalSince1970)));
+            """,
+            database: databaseURL
+        )
+        let client = AccountQuotaClient(
+            transport: ScriptedQuotaTransport { request in
+                XCTFail("unexpected request \(request.url?.absoluteString ?? "")")
+                return AccountQuotaHTTPResponse(statusCode: 500, headers: [:], body: Data())
+            },
+            databaseURL: databaseURL,
+            now: { Date() }
+        )
+        let chips = try await client.refresh(targets: [
+            quotaTarget(
+                id: "qwen",
+                name: "千问",
+                kind: .qwen,
+                key: "qwen-key",
+                baseURL: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+            ),
+        ])
+        XCTAssertEqual(
+            chips.first?.status,
+            .usage([
+                ParsedUsageWindow(
+                    name: "24小时",
+                    requests: 1,
+                    inputTokens: 1000,
+                    outputTokens: 250,
+                    costUSD: 0.12
+                ),
+                ParsedUsageWindow(
+                    name: "7天",
+                    requests: 1,
+                    inputTokens: 1000,
+                    outputTokens: 250,
+                    costUSD: 0.12
+                ),
+            ])
+        )
+    }
 }
 
 final class CCSwitchProviderStoreTests: XCTestCase {
@@ -591,6 +666,7 @@ private extension CCSwitchQuotaKind {
         case .kimi: "kimi"
         case .zhipu: "zhipu"
         case .deepseek: "deepseek"
+        case .qwen: "qwen"
         case .xaiOAuth: "xai"
         }
     }
