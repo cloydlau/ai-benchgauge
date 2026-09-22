@@ -84,11 +84,15 @@ public struct QwenCLIQuotaSource: QwenQuotaSource {
         ].joined(separator: ":")
         process.environment = environment
         process.standardOutput = output
-        process.standardError = Pipe()
+        process.standardError = FileHandle.nullDevice
         do {
             try process.run()
         } catch {
             return nil
+        }
+        let capturedOutput = QwenCLIOutput()
+        DispatchQueue.global(qos: .utility).async {
+            capturedOutput.read(from: output.fileHandleForReading)
         }
         state.track(process)
         let deadline = Date().addingTimeInterval(20)
@@ -101,8 +105,7 @@ public struct QwenCLIQuotaSource: QwenQuotaSource {
             return nil
         }
         guard !state.isCancelled, process.terminationStatus == 0 else { return nil }
-        let data = output.fileHandleForReading.readDataToEndOfFile()
-        return data.count <= 1_048_576 ? data : nil
+        return capturedOutput.waitForData()
     }
 
     private static func executableURL() -> URL? {
@@ -133,6 +136,34 @@ public struct QwenCLIQuotaSource: QwenQuotaSource {
             if FileManager.default.isExecutableFile(atPath: url.path) { return url }
         }
         return nil
+    }
+}
+
+private final class QwenCLIOutput: @unchecked Sendable {
+    private let done = DispatchSemaphore(value: 0)
+    private var data: Data?
+
+    func read(from handle: FileHandle) {
+        var captured = Data()
+        var tooLarge = false
+        while true {
+            let chunk = handle.readData(ofLength: 65_536)
+            if chunk.isEmpty { break }
+            if !tooLarge {
+                if captured.count + chunk.count <= 1_048_576 {
+                    captured.append(chunk)
+                } else {
+                    tooLarge = true
+                }
+            }
+        }
+        data = tooLarge ? nil : captured
+        done.signal()
+    }
+
+    func waitForData() -> Data? {
+        guard done.wait(timeout: .now() + 2) == .success else { return nil }
+        return data
     }
 }
 
