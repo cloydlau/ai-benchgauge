@@ -76,7 +76,12 @@ public struct QwenCLIQuotaSource: QwenQuotaSource {
         process.executableURL = executable
         process.arguments = ["usage", "summary", "--format", "json"]
         var environment = ProcessInfo.processInfo.environment
-        environment["PATH"] = "\(executable.deletingLastPathComponent().path):\(environment["PATH"] ?? "/usr/bin:/bin")"
+        environment["PATH"] = [
+            executable.deletingLastPathComponent().path,
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            environment["PATH"] ?? "/usr/bin:/bin",
+        ].joined(separator: ":")
         process.environment = environment
         process.standardOutput = output
         process.standardError = Pipe()
@@ -104,7 +109,13 @@ public struct QwenCLIQuotaSource: QwenQuotaSource {
         let environment = ProcessInfo.processInfo.environment
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         var directories = (environment["PATH"] ?? "").split(separator: ":").map(String.init)
-        directories += ["/opt/homebrew/bin", "/usr/local/bin", "\(home)/.local/bin", "\(home)/.volta/bin"]
+        directories += [
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            "\(home)/Library/pnpm/bin",
+            "\(home)/.local/bin",
+            "\(home)/.volta/bin",
+        ]
         let nvmVersions = URL(fileURLWithPath: home).appending(path: ".nvm/versions/node")
         if let versions = try? FileManager.default.contentsOfDirectory(
             at: nvmVersions,
