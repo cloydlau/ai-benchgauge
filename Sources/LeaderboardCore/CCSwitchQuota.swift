@@ -463,7 +463,9 @@ public enum CCSwitchQuotaCatalog {
                 kind: target.kind,
                 isCurrent: isCurrent,
                 apiKey: target.apiKey,
-                baseURL: target.baseURL
+                baseURL: target.baseURL,
+                accessToken: target.accessToken,
+                accountID: target.accountID
             )
         }
     }
@@ -540,7 +542,9 @@ public enum CCSwitchQuotaCatalog {
                 kind: target.kind,
                 isCurrent: target.isCurrent,
                 apiKey: target.apiKey,
-                baseURL: target.baseURL
+                baseURL: target.baseURL,
+                accessToken: target.accessToken,
+                accountID: target.accountID
             )
         }
     }

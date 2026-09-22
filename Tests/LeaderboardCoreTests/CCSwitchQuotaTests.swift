@@ -251,6 +251,11 @@ final class AccountQuotaClientTests: XCTestCase {
         let transport = ScriptedQuotaTransport { request in
             let body: String
             switch request.url?.host {
+            case "chatgpt.com":
+                XCTAssertEqual(request.url?.path, "/backend-api/wham/usage")
+                XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer official-token")
+                XCTAssertEqual(request.value(forHTTPHeaderField: "ChatGPT-Account-ID"), "account-id")
+                body = #"{"rate_limit":{"primary_window":{"used_percent":42,"limit_window_seconds":18000,"reset_at":1760000000},"secondary_window":{"used_percent":13,"limit_window_seconds":604800,"reset_at":1760500000}}}"#
             case "api.kimi.com":
                 XCTAssertEqual(request.url?.path, "/coding/v1/usages")
                 XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer unit-test-key")
@@ -269,7 +274,14 @@ final class AccountQuotaClientTests: XCTestCase {
             authFileURL: URL(fileURLWithPath: "/tmp/missing-xai-auth-\(UUID().uuidString).json")
         )
         let targets = [
-            quotaTarget(id: "official", name: "OpenAI", kind: .officialNote, key: "must-not-be-sent"),
+            quotaTarget(
+                id: "official",
+                name: "OpenAI",
+                kind: .officialNote,
+                key: "must-not-be-sent",
+                accessToken: "official-token",
+                accountID: "account-id"
+            ),
             quotaTarget(id: "kimi", name: "Kimi", kind: .kimi, key: "unit-test-key"),
             quotaTarget(id: "deepseek", name: "DeepSeek", kind: .deepseek, key: "unit-test-key", baseURL: "https://api.deepseek.com"),
         ]
@@ -278,7 +290,18 @@ final class AccountQuotaClientTests: XCTestCase {
 
         XCTAssertEqual(chips.map(\.id), ["official", "kimi", "deepseek"])
         XCTAssertEqual(chips.map(\.status), [
-            .note(text: AccountQuotaMessage.officialSummary, help: AccountQuotaMessage.officialHelp),
+            .windows([
+                ParsedQuotaWindow(
+                    name: "five_hour",
+                    utilization: 42,
+                    resetsAt: Date(timeIntervalSince1970: 1_760_000_000)
+                ),
+                ParsedQuotaWindow(
+                    name: "weekly_limit",
+                    utilization: 13,
+                    resetsAt: Date(timeIntervalSince1970: 1_760_500_000)
+                ),
+            ]),
             .windows([
                 ParsedQuotaWindow(
                     name: "five_hour",
@@ -289,7 +312,7 @@ final class AccountQuotaClientTests: XCTestCase {
             .balances([ParsedBalance(currency: "CNY", amount: 12.36)]),
         ])
         let hosts = transport.requests.compactMap { $0.url?.host }
-        XCTAssertEqual(hosts.sorted(), ["api.deepseek.com", "api.kimi.com"])
+        XCTAssertEqual(hosts.sorted(), ["api.deepseek.com", "api.kimi.com", "chatgpt.com"])
         XCTAssertFalse(chips.contains { AccountQuotaFormatting.plainSummary(for: $0, now: Date()).contains("unit-test-key") })
     }
 
@@ -544,7 +567,9 @@ private func quotaTarget(
     kind: CCSwitchQuotaKind,
     key: String?,
     baseURL: String? = nil,
-    current: Bool = false
+    current: Bool = false,
+    accessToken: String? = nil,
+    accountID: String? = nil
 ) -> CCSwitchQuotaTarget {
     CCSwitchQuotaTarget(
         id: id,
@@ -553,7 +578,9 @@ private func quotaTarget(
         kind: kind,
         isCurrent: current,
         apiKey: key,
-        baseURL: baseURL
+        baseURL: baseURL,
+        accessToken: accessToken,
+        accountID: accountID
     )
 }
 
