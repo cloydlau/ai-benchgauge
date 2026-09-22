@@ -251,8 +251,14 @@ struct LeaderboardView: View {
 
     private func performScreenshotCapture() {
         guard !state.isQuitting else { return }
-        guard let view = panelContentView(),
-              let shot = PanelScreenshot.capture(view: view) else {
+        guard let view = panelContentView() else {
+            showScreenshotNote("截图失败")
+            return
+        }
+        // A panel flush with the screen edge clips its top-right corner, and
+        // that clipped region is blank in the bitmap.
+        keepPanelInsideScreen(view)
+        guard let shot = PanelScreenshot.capture(view: view) else {
             showScreenshotNote("截图失败")
             return
         }
@@ -276,6 +282,24 @@ struct LeaderboardView: View {
                 screenshot.note = nil
             }
         }
+    }
+
+    private func keepPanelInsideScreen(_ view: NSView) {
+        guard let window = view.window,
+              let screen = window.screen ?? NSScreen.main else { return }
+        let visible = screen.visibleFrame
+        var frame = window.frame
+        let margin: CGFloat = 8
+        guard frame.width <= visible.width - margin * 2 else { return }
+        if frame.maxX > visible.maxX - margin {
+            frame.origin.x -= frame.maxX - (visible.maxX - margin)
+        }
+        if frame.minX < visible.minX + margin {
+            frame.origin.x = visible.minX + margin
+        }
+        guard frame != window.frame else { return }
+        window.setFrame(frame, display: true)
+        view.layoutSubtreeIfNeeded()
     }
 
     private func panelContentView() -> NSView? {
