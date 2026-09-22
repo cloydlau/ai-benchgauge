@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -euo pipefail
 
-ROOT=${0:A:h:h}
+ROOT=${0:A:h}
 APP="$ROOT/outputs/AI-Leaderboards.app"
 BIN="$ROOT/.build/release/leaderboard-menu"
 
