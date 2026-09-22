@@ -201,9 +201,6 @@ public actor AccountQuotaClient {
             byID[chip.id] = Self.keepingLastGood(chip, previous: previous)
         }
         return targets.map { target in
-            if target.kind == .officialNote {
-                return AccountQuotaChip.placeholder(for: target)
-            }
             return byID[target.id] ?? Self.chip(target, .failed)
         }
     }
