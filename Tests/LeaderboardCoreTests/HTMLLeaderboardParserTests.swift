@@ -28,6 +28,26 @@ final class HTMLLeaderboardParserTests: XCTestCase {
         XCTAssertEqual(leaderboard.entries.last?.name, "Model 20")
     }
 
+    func testParsesArtificialAnalysisCodingAgentIndex() throws {
+        let records = (1...12).map { index in
+            #"{"displayLabel":"Agent \#(index) - Model \#(index)","hostModelSlug":"model-\#(index)","display":{"creator":{"agent":"Maker"}},"indexScore":\#(Double(100 - index) / 100)}"#
+        }
+        let html = rscHTML(
+            payload: "[\(records.joined(separator: ","))]",
+            title: "Artificial Analysis Coding Agent Index v1.5"
+        )
+
+        let leaderboard = try HTMLLeaderboardParser.artificialAnalysisCodingAgent(fromHTML: html)
+
+        XCTAssertEqual(leaderboard.kind, .artificialAnalysisCodingAgent)
+        XCTAssertEqual(leaderboard.entries.count, 12)
+        XCTAssertEqual(leaderboard.entries.first?.name, "Agent 1 - Model 1")
+        XCTAssertEqual(leaderboard.entries.first?.score, 99)
+        XCTAssertEqual(leaderboard.entries.first?.modelID, "model-1")
+        XCTAssertEqual(leaderboard.entries.first?.organization, "Maker")
+        XCTAssertEqual(leaderboard.sourceNote, "v1.5")
+    }
+
     func testParsesArenaTopTwentyAndCutoff() throws {
         let records = (1...22).map { index in
             #"{"rank":\#(index),"modelKey":"arena-model-\#(index)","modelDisplayName":"Arena Model \#(index)","modelOrganization":"Maker","rating":\#(2000-index)}"#
@@ -78,7 +98,7 @@ final class HTMLLeaderboardParserTests: XCTestCase {
 
         let leaderboard = try HTMLLeaderboardParser.artificialAnalysisTextToImage(fromHTML: html)
 
-        XCTAssertEqual(leaderboard.kind, .aaTextToImage)
+        XCTAssertEqual(leaderboard.kind, .artificialAnalysisTextToImage)
         XCTAssertEqual(leaderboard.title, "Artificial Analysis | 文生图")
         XCTAssertEqual(leaderboard.entries.count, 20)
         XCTAssertEqual(leaderboard.entries.first?.name, "Image Model 1")
