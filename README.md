@@ -9,7 +9,7 @@ A native macOS menu-bar app for comparing paired AI leaderboards across four cat
 
 The app shows the top 20 models from each leaderboard with separate score columns. Switching categories loads the corresponding pair from cache when available, otherwise it fetches both sources. The last selected category is remembered locally and restored the next time the app opens. Coding Plan and pay-as-you-go API purchase links appear inline next to each model name; when a provider has both a mainland China site and an international site, the entry becomes a small menu. It refreshes when its menu-bar icon is clicked and updates itself daily. Failed daily updates retry hourly until local midnight.
 
-If CC Switch is installed, Codex provider quotas from its local database appear in a strip above the table. Those figures are account balances, not scores for a ranked model, so they are not another table column.
+Codex provider quotas appear in a strip above the table only when this Mac has a readable CC Switch database with recognizable Codex providers. A missing install, a database this app does not understand, or no recognizable providers leaves the leaderboard unchanged. If that database is present but this read fails, the strip keeps the last quotas and marks them stale instead of showing an error. Those figures are account balances, not scores for a ranked model, so they are not another table column.
 
 ## Requirements
 
