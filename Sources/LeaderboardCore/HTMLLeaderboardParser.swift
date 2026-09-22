@@ -63,6 +63,57 @@ public enum HTMLLeaderboardParser {
         )
     }
 
+    public static func artificialAnalysisCodingAgent(fromHTML html: String) throws -> Leaderboard {
+        let objects = jsonObjects(in: html, containing: "indexScore")
+        var seenRecords = Set<String>()
+        let records: [ParsedCodingAgentRecord] = objects.compactMap { object in
+            guard
+                let name = object["displayLabel"] as? String,
+                let rawScore = object["indexScore"] as? Double,
+                seenRecords.insert(name).inserted
+            else { return nil }
+
+            let display = object["display"] as? [String: Any]
+            let creator = display?["creator"] as? [String: Any]
+            let organization = creator?["agent"] as? String
+            let modelID = object["hostModelSlug"] as? String
+            return ParsedCodingAgentRecord(
+                name: name,
+                score: rawScore * 100,
+                modelID: modelID,
+                organization: organization
+            )
+        }
+
+        guard records.count >= 10 else {
+            throw ParserError.notEnoughCodingAgentRecords(records.count)
+        }
+
+        let entries = records
+            .sorted { lhs, rhs in
+                if lhs.score == rhs.score { return lhs.name < rhs.name }
+                return lhs.score > rhs.score
+            }
+            .prefix(20)
+            .enumerated()
+            .map { index, record in
+                LeaderboardEntry(
+                    rank: index + 1,
+                    name: record.name,
+                    score: record.score,
+                    modelID: record.modelID,
+                    organization: record.organization
+                )
+            }
+
+        return Leaderboard(
+            kind: .artificialAnalysisCodingAgent,
+            title: "Artificial Analysis Coding Agent Index",
+            sourceNote: artificialAnalysisCodingAgentVersion(fromHTML: html),
+            entries: entries
+        )
+    }
+
     public static func arenaWebDev(fromHTML html: String) throws -> Leaderboard {
         try arena(fromHTML: html, kind: .codeArenaWebDev, title: "Code Arena | WebDev")
     }
@@ -82,7 +133,7 @@ public enum HTMLLeaderboardParser {
     public static func artificialAnalysisTextToImage(fromHTML html: String) throws -> Leaderboard {
         try artificialAnalysisArena(
             fromHTML: html,
-            kind: .aaTextToImage,
+            kind: .artificialAnalysisTextToImage,
             title: "Artificial Analysis | 文生图"
         )
     }
@@ -90,7 +141,7 @@ public enum HTMLLeaderboardParser {
     public static func artificialAnalysisTextToVideo(fromHTML html: String) throws -> Leaderboard {
         try artificialAnalysisArena(
             fromHTML: html,
-            kind: .aaTextToVideo,
+            kind: .artificialAnalysisTextToVideo,
             title: "Artificial Analysis | 文生视频"
         )
     }
@@ -219,6 +270,7 @@ public enum HTMLLeaderboardParser {
 
     public enum ParserError: Error, Equatable {
         case notEnoughArtificialAnalysisRecords(Int)
+        case notEnoughCodingAgentRecords(Int)
         case notEnoughArenaRecords(Int)
         case invalidArenaDate(String)
     }
@@ -229,6 +281,13 @@ public enum HTMLLeaderboardParser {
         let modelID: String?
         let organization: String?
         let logoURL: URL?
+    }
+
+    private struct ParsedCodingAgentRecord: Sendable {
+        let name: String
+        let score: Double
+        let modelID: String?
+        let organization: String?
     }
 
     private struct ParsedArenaRecord: Sendable {
@@ -362,6 +421,18 @@ public enum HTMLLeaderboardParser {
             let versionRange = title.range(of: "v[0-9]+(\\.[0-9]+)*", options: .regularExpression)
         else { return nil }
         return String(title[versionRange])
+    }
+
+    private static func artificialAnalysisCodingAgentVersion(fromHTML html: String) -> String? {
+        guard
+            let versionRange = html.range(
+                of: "Artificial Analysis Coding Agent Index v[0-9]+(\\.[0-9]+)*",
+                options: .regularExpression
+            )
+        else { return nil }
+
+        let value = String(html[versionRange])
+        return value.replacingOccurrences(of: "Artificial Analysis Coding Agent Index ", with: "")
     }
 
     private static func arenaVoteCutoff(fromHTML html: String) -> Date? {
