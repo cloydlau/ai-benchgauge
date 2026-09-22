@@ -49,11 +49,11 @@ struct QuotaStrip: View {
     }
 
     private var sectionLabel: some View {
-        Text("Codex 余量")
+        Text("Codex 用量")
             .font(.system(size: 11, weight: .medium))
             .foregroundStyle(.secondary)
             .fixedSize()
-            .help("本机 CC Switch 里的 Codex 供应商余量，不是榜单分数")
+            .help("本机 CC Switch 里的 Codex 供应商用量和余量，不是榜单分数")
     }
 
     @ViewBuilder
@@ -174,6 +174,7 @@ private struct QuotaChipView: View {
         case .officialNote: "OpenAI"
         case .kimi: "Kimi"
         case .deepseek: "DeepSeek"
+        case .qwen: "Qwen"
         case .xaiOAuth: "xAI"
         case .zhipu: "Z.ai"
         }

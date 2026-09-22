@@ -5,6 +5,34 @@ import Foundation
 /// These functions never see credentials. Callers map `.rejected` to the
 /// fixed "查询失败" string and must not surface raw response text.
 public enum CCSwitchQuotaParsers {
+    /// Parses the Codex official `backend-api/wham/usage` response.
+    public static func parseOpenAI(_ data: Data) -> ProviderQuotaParseResult {
+        guard let body = jsonObject(data),
+              let rateLimit = body["rate_limit"] as? [String: Any] else {
+            return .rejected
+        }
+        var windows: [ParsedQuotaWindow] = []
+        for (key, value) in rateLimit {
+            guard let object = value as? [String: Any],
+                  let used = jsonDouble(object["used_percent"]),
+                  used.isFinite else { continue }
+            let name: String
+            switch key {
+            case "primary_window": name = windowName(seconds: jsonInt(object["limit_window_seconds"]) ?? 0, fallback: "five_hour")
+            case "secondary_window": name = windowName(seconds: jsonInt(object["limit_window_seconds"]) ?? 0, fallback: "weekly_limit")
+            default: name = key
+            }
+            windows.append(
+                ParsedQuotaWindow(
+                    name: name,
+                    utilization: min(max(used, 0), 100),
+                    resetsAt: resetDate(object["reset_at"])
+                )
+            )
+        }
+        return .windows(windows)
+    }
+
     public static func parseKimi(_ data: Data) -> ProviderQuotaParseResult {
         guard let body = jsonObject(data) else { return .rejected }
         var windows: [ParsedQuotaWindow] = []
@@ -75,6 +103,18 @@ public enum CCSwitchQuotaParsers {
         guard let number = jsonInt(value), number > 0 else { return nil }
         let milliseconds = number < 1_000_000_000_000 ? number * 1000 : number
         return Date(timeIntervalSince1970: TimeInterval(milliseconds) / 1000)
+    }
+
+    private static func windowName(seconds: Int64, fallback: String) -> String {
+        switch seconds {
+        case 18_000: return "five_hour"
+        case 604_800: return "weekly_limit"
+        case 2_592_000: return "monthly"
+        default:
+            guard seconds > 0 else { return fallback }
+            let hours = seconds / 3_600
+            return hours >= 24 ? "(hours / 24)_day" : "(hours)_hour"
+        }
     }
 
     private static func zhipuWindows(_ data: [String: Any]) -> [ParsedQuotaWindow] {

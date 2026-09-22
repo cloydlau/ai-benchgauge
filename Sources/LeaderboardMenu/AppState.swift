@@ -5,6 +5,7 @@ private struct CCSwitchQuotaLoad: Sendable {
     var result: CCSwitchProviderLoadResult
     var currentProviderID: String?
     var xaiAuthURL: URL
+    var databaseURL: URL
 }
 
 @MainActor
@@ -142,7 +143,8 @@ final class AppState: ObservableObject {
                 return CCSwitchQuotaLoad(
                     result: result,
                     currentProviderID: currentID,
-                    xaiAuthURL: install.xaiAuthURL
+                    xaiAuthURL: install.xaiAuthURL,
+                    databaseURL: install.databaseURL
                 )
             }.value
             guard !Task.isCancelled, !self.isQuitting, generation == self.quotaGeneration else { return }
@@ -173,7 +175,8 @@ final class AppState: ObservableObject {
                     let chips = try await client.refresh(
                         targets: targets,
                         previous: previous,
-                        authFileURL: loaded.xaiAuthURL
+                        authFileURL: loaded.xaiAuthURL,
+                        databaseURL: loaded.databaseURL
                     )
                     guard !Task.isCancelled, !self.isQuitting, generation == self.quotaGeneration else { return }
                     self.quotaChips = chips
