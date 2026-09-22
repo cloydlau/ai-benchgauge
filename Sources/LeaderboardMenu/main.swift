@@ -195,15 +195,23 @@ final class PanelSnapshot: NSObject {
 
     func start() {
         let host = NSHostingController(rootView: LeaderboardView(state: state))
+        let size = NSSize(width: LeaderboardView.contentWidth, height: LeaderboardView.contentHeight)
+        let visible = (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame
+            ?? NSRect(x: 40, y: 120, width: size.width, height: size.height)
+        let origin = NSPoint(
+            x: visible.minX + max(0, (visible.width - size.width) / 2),
+            y: visible.minY + max(0, (visible.height - size.height) / 2)
+        )
         let window = NSWindow(
-            contentRect: NSRect(x: 40, y: 80, width: LeaderboardView.contentWidth, height: LeaderboardView.contentHeight),
+            contentRect: NSRect(origin: origin, size: size),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
         window.title = "AI Leaderboards"
         window.contentViewController = host
-        window.setContentSize(NSSize(width: LeaderboardView.contentWidth, height: LeaderboardView.contentHeight))
+        window.setContentSize(size)
+        window.setFrameOrigin(origin)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         self.window = window
