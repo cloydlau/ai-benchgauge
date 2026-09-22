@@ -25,7 +25,8 @@ final class AppState: ObservableObject {
 
     private let fetcher = LeaderboardFetcher()
     private let cache: LeaderboardCache
-    private let quotaClient = AccountQuotaClient()
+    private let qwenWebsiteSource = QwenWebsiteQuotaSource()
+    private var quotaClient: AccountQuotaClient!
     private var updateTimer: Timer?
     private var refreshTask: Task<Void, Never>?
     private var quotaTask: Task<Void, Never>?
@@ -36,6 +37,12 @@ final class AppState: ObservableObject {
 
     init(cache: LeaderboardCache) {
         self.cache = cache
+        quotaClient = AccountQuotaClient(
+            qwenQuotaSource: QwenPreferredQuotaSource(website: qwenWebsiteSource)
+        )
+        qwenWebsiteSource.onConnected = { [weak self] in
+            self?.refreshQuotas(minimumInterval: 0)
+        }
         if let cached = cache.load() {
             snapshot = cached
         }
@@ -65,6 +72,10 @@ final class AppState: ObservableObject {
             return
         }
         refreshNow()
+    }
+
+    func connectQwenWebsite() {
+        qwenWebsiteSource.connect()
     }
 
     /// Show the quitting state, then drop the timer and in-flight fetch so
@@ -190,7 +201,7 @@ final class AppState: ObservableObject {
                 for target in targetsToRefresh {
                     self.lastQuotaAttemptAtByID[target.id] = now
                 }
-                let client = self.quotaClient
+                let client = self.quotaClient!
                 do {
                     let chips = try await client.refresh(
                         targets: targetsToRefresh,
