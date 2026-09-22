@@ -40,7 +40,7 @@ struct QuotaStrip: View {
                     .padding(.vertical, 1)
                 }
                 .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
-                .frame(height: 26)
+                .frame(height: 28)
                 statusLabel(now: now)
             }
         }
@@ -102,29 +102,18 @@ private struct QuotaChipView: View {
 
     private var chipBody: some View {
         let runs = AccountQuotaFormatting.runs(for: chip, now: now)
-        let brand = brandColor
-        return HStack(spacing: 0) {
-            if chip.isCurrent {
-                Capsule()
-                    .fill(brand ?? Color.green)
-                    .frame(width: 3)
-                    .padding(.vertical, 4)
-                    .padding(.leading, 3)
-            }
-            HStack(spacing: 5) {
-                logo
-                Text(chip.shortName)
-                    .font(.system(size: 11, weight: chip.isCurrent ? .semibold : .medium))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                QuotaRunsText(runs: runs)
-            }
-            .padding(.leading, chip.isCurrent ? 5 : 7)
-            .padding(.trailing, 7)
-            .padding(.vertical, 3)
+        return HStack(spacing: 5) {
+            logo
+            Text(chip.shortName)
+                .font(.system(size: 11, weight: chip.isCurrent ? .semibold : .medium))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+            QuotaRunsText(runs: runs)
         }
-        .background(chipBackground(brand: brand))
-        .overlay(chipStroke(brand: brand))
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(chipBackground)
+        .overlay(chipStroke)
         .fixedSize()
         .help(AccountQuotaFormatting.help(for: chip, now: now))
         .accessibilityElement(children: .ignore)
@@ -151,8 +140,8 @@ private struct QuotaChipView: View {
                 .resizable()
                 .interpolation(.high)
                 .scaledToFit()
-                .padding(1)
-                .frame(width: 14, height: 14)
+                .padding(0.5)
+                .frame(width: 16, height: 16)
                 .background(.white, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 3, style: .continuous)
@@ -167,6 +156,14 @@ private struct QuotaChipView: View {
               let resourceURL = Bundle.main.resourceURL else { return nil }
         let url = resourceURL.appending(path: "logos/\(key).png")
         return NSImage(contentsOf: url)
+    }
+
+    /// "In use" is a status, not a brand. xAI and Z.ai marks are near-black, so a
+    /// brand wash disappears into the logo and reads as a clipped icon.
+    private var currentAccent: Color {
+        colorScheme == .dark
+            ? Color(red: 0.45, green: 0.86, blue: 0.58)
+            : Color(red: 0.13, green: 0.58, blue: 0.34)
     }
 
     private var brandColor: Color? {
@@ -186,15 +183,15 @@ private struct QuotaChipView: View {
         }
     }
 
-    private func chipBackground(brand: Color?) -> some View {
+    private var chipBackground: some View {
         RoundedRectangle(cornerRadius: 6, style: .continuous)
-            .fill(chip.isCurrent ? (brand ?? Color.green).opacity(0.12) : Color.primary.opacity(0.04))
+            .fill(chip.isCurrent ? currentAccent.opacity(colorScheme == .dark ? 0.20 : 0.12) : Color.primary.opacity(0.04))
     }
 
-    private func chipStroke(brand: Color?) -> some View {
+    private var chipStroke: some View {
         RoundedRectangle(cornerRadius: 6, style: .continuous)
             .strokeBorder(
-                chip.isCurrent ? (brand ?? Color.green).opacity(0.55) : Color.primary.opacity(0.08),
+                chip.isCurrent ? currentAccent.opacity(colorScheme == .dark ? 0.90 : 0.72) : Color.primary.opacity(0.08),
                 lineWidth: chip.isCurrent ? 1 : 0.5
             )
     }
