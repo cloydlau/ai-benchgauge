@@ -13,6 +13,9 @@ test('uses official GitHub Bot emails for model identities', () => {
   assert.equal(emailForModel('grok-4.7'), '304785771+grokkybara[bot]@users.noreply.github.com')
   assert.equal(emailForModel('qwen3-coder'), '269191875+qwen-code-dev-bot@users.noreply.github.com')
   assert.equal(emailForModel('gemini-2.5-pro'), '224641728+gemini-cli-robot@users.noreply.github.com')
+  assert.equal(emailForModel('MiMo-V2.5-Pro'), 'mimo@xiaomi.com')
+  assert.equal(emailForModel('minimax-m2'), 'minimax-m2@users.noreply.github.com')
+  assert.equal(emailForModel('mistral-large'), 'mistral-large@users.noreply.github.com')
 })
 
 test('keeps the model username while changing only its GitHub identity email', () => {

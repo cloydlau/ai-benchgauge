@@ -14,6 +14,8 @@ const QWEN_GITHUB_EMAIL = '269191875+qwen-code-dev-bot@users.noreply.github.com'
 const GEMINI_GITHUB_EMAIL = '224641728+gemini-cli-robot@users.noreply.github.com'
 // OpenAI Codex's official commit-attribution implementation uses this address.
 const OPENAI_GITHUB_EMAIL = 'noreply@openai.com'
+// Public contact address listed on the official Xiaomi MiMo GitHub profile.
+const MIMO_EMAIL = 'mimo@xiaomi.com'
 const HUMAN = Object.freeze({
   name: 'Cloyd Lau',
   email: '31238760+cloydlau@users.noreply.github.com',
@@ -85,18 +87,11 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
     icon: 'https://api.iconify.design/logos:meta-icon.svg',
   },
   {
-    key: 'minimax',
-    brands: ['minimax'],
-    email: 'noreply@minimax.io',
-    favicon: 'https://www.minimax.io/favicon.ico',
-    icon: 'https://api.iconify.design/simple-icons:minimax.svg',
-  },
-  {
-    key: 'mistral',
-    brands: ['mistral'],
-    email: 'noreply@mistral.ai',
-    favicon: 'https://mistral.ai/favicon.ico',
-    icon: 'https://api.iconify.design/simple-icons:mistralai.svg',
+    key: 'mimo',
+    brands: ['mimo', 'xiaomi'],
+    email: MIMO_EMAIL,
+    favicon: 'https://mimo.xiaomi.com/favicon.ico',
+    icon: 'https://api.iconify.design/simple-icons:xiaomi.svg',
   },
   {
     key: 'cursor',
