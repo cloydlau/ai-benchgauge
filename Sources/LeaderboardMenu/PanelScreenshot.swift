@@ -28,43 +28,6 @@ enum PanelScreenshot {
         return pasteboard.writeObjects([item])
     }
 
-    /// Desktop only. Downloads would raise a second folder prompt if Desktop is denied.
-    static func saveToDesktop(png: Data, categoryTitle: String, date: Date = Date()) -> URL? {
-        guard let desktop = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first else {
-            return nil
-        }
-        let url = desktop.appending(path: fileName(categoryTitle: categoryTitle, date: date))
-        do {
-            try png.write(to: url, options: .atomic)
-            return url
-        } catch {
-            return nil
-        }
-    }
-
-    static func fileName(categoryTitle: String, date: Date = Date()) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd-HH-mm-ss"
-        let stamp = formatter.string(from: date)
-        let unsafe = CharacterSet(charactersIn: "/:\\?%*|\"<>\n\r\t")
-        let title = categoryTitle
-            .components(separatedBy: unsafe)
-            .joined()
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let safe = title.isEmpty ? "leaderboard" : title
-        return "AI-Leaderboards-\(safe)-\(stamp).png"
-    }
-
-    static func statusMessage(copied: Bool, savedToDesktop: Bool) -> String {
-        switch (copied, savedToDesktop) {
-        case (true, true): "已复制，并保存到桌面"
-        case (true, false): "已复制到剪贴板"
-        case (false, true): "已保存到桌面"
-        case (false, false): "截图失败"
-        }
-    }
-
     private static func bestRepresentation(of view: NSView) -> NSBitmapImageRep? {
         let cached = cacheDisplayRepresentation(of: view)
         let layered = layerRepresentation(of: view)

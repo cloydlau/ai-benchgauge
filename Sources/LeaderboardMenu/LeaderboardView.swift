@@ -256,16 +256,11 @@ struct LeaderboardView: View {
             showScreenshotNote("截图失败")
             return
         }
-        let copied = PanelScreenshot.copyToPasteboard(image: shot.image, png: shot.png)
-        let saved = PanelScreenshot.saveToDesktop(
-            png: shot.png,
-            categoryTitle: selectedCategory.title
-        ) != nil
-        guard copied || saved else {
+        guard PanelScreenshot.copyToPasteboard(image: shot.image, png: shot.png) else {
             showScreenshotNote("截图失败")
             return
         }
-        showScreenshotNote(PanelScreenshot.statusMessage(copied: copied, savedToDesktop: saved))
+        showScreenshotNote("已复制到剪贴板")
     }
 
     private func showScreenshotNote(_ text: String) {
@@ -361,7 +356,7 @@ struct LeaderboardView: View {
             .buttonStyle(.plain)
             .pointingHandCursor()
             .allowsHitTesting(!state.isQuitting && !screenshot.isCapturing)
-            .help("把当前榜单截图复制到剪贴板，并保存到桌面")
+            .help("把当前榜单截图复制到剪贴板")
 
             Text("·")
 
