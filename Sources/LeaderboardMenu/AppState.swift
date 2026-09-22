@@ -50,13 +50,11 @@ final class AppState: ObservableObject {
     /// Menu-bar clicks are throttled: the sources rate-limit, so rapid
     /// clicking must not turn into a burst of requests.
     private static let minimumMenuRefreshInterval: TimeInterval = 10 * 60
-    /// Reopening the menu can refresh quotas sooner than the background cadence.
-    private static let minimumQuotaRefreshInterval: TimeInterval = 60
     /// Matches CC Switch's default auto-query interval.
     private static let backgroundQuotaRefreshInterval: TimeInterval = 5 * 60
 
     func refreshFromMenuClick() {
-        refreshQuotas(minimumInterval: Self.minimumQuotaRefreshInterval)
+        refreshQuotas(minimumInterval: 0)
         if let lastAttemptAt,
            Date().timeIntervalSince(lastAttemptAt) < Self.minimumMenuRefreshInterval {
             return
