@@ -102,7 +102,7 @@ struct LeaderboardView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            leaderboardTable
+            table
             Divider()
             footer
         }
@@ -184,68 +184,6 @@ struct LeaderboardView: View {
             .pointingHandCursor()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// The source explanation and native column labels form one table header.
-    private var leaderboardTable: some View {
-        VStack(spacing: 0) {
-            leaderboardHeaders
-            table
-        }
-        .background(Color(nsColor: .controlBackgroundColor))
-    }
-
-    /// Each summary sits directly above its board's native column title.
-    private var leaderboardHeaders: some View {
-        let lenses = selectedCategory.sourceLenses(language: language)
-        let sideWidth = (contentWidth - 64 - 14 - 1) / 2
-        return HStack(spacing: 0) {
-            Color.clear
-                .frame(width: 64, height: 1)
-                .accessibilityHidden(true)
-            leaderboardHeader(
-                fullTitle: selectedCategory.leftColumnTitle,
-                kind: selectedCategory.leftKind,
-                description: lenses.aa,
-                tint: .blue
-            )
-            .frame(width: sideWidth, alignment: .leading)
-            Divider()
-                .frame(width: 1, height: 14)
-            leaderboardHeader(
-                fullTitle: selectedCategory.rightColumnTitle,
-                kind: selectedCategory.rightKind,
-                description: lenses.arena,
-                tint: .purple
-            )
-            .frame(width: sideWidth, alignment: .leading)
-        }
-        .padding(.trailing, 14)
-        .frame(height: 24)
-    }
-
-    private func leaderboardHeader(
-        fullTitle: String,
-        kind: LeaderboardKind,
-        description: SourceLensDescription,
-        tint: Color
-    ) -> some View {
-        HStack(spacing: 6) {
-            Text(description.emphasis)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(tint)
-                .fixedSize(horizontal: true, vertical: false)
-            Text(description.detail)
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 6)
-        .help(fullTitle + tr(". ", "。") + sourceHeaderHelp(kind: kind, description: description))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel([fullTitle, description.emphasis, description.detail].joined(separator: tr(", ", "，")))
     }
 
     private func sourceHeaderHelp(kind: LeaderboardKind, description: SourceLensDescription) -> String {
@@ -441,7 +379,8 @@ struct LeaderboardView: View {
     // Both name columns grow with the longest visible name. The country and
     // score columns stay aligned across rows and both halves of the table.
     private var table: some View {
-        Table(rows) {
+        let lenses = selectedCategory.sourceLenses(language: language)
+        return Table(rows) {
             TableColumn(tr("Rank", "排名")) { row in
                 Text(rankLabel(row.rank))
                     .monospacedDigit()
@@ -494,7 +433,14 @@ struct LeaderboardView: View {
         }
         .tableStyle(.bordered(alternatesRowBackgrounds: true))
         .scrollIndicators(.hidden)
-        .background(TableScrollerHider())
+        .background(TableChrome(
+            left: lenses.aa,
+            right: lenses.arena,
+            leftHelp: selectedCategory.leftColumnTitle + tr(". ", "。")
+                + sourceHeaderHelp(kind: selectedCategory.leftKind, description: lenses.aa),
+            rightHelp: selectedCategory.rightColumnTitle + tr(". ", "。")
+                + sourceHeaderHelp(kind: selectedCategory.rightKind, description: lenses.arena)
+        ))
         .id(contentWidth)
         .redacted(reason: needsSkeleton ? .placeholder : [])
         .disabled(needsSkeleton)
@@ -910,52 +856,184 @@ struct LeaderboardView: View {
 
 }
 
-/// The fixed-height table still scrolls with a trackpad when needed, but its
-/// AppKit scrollers should not cover the last column or add a bottom bar.
-private struct TableScrollerHider: NSViewRepresentable {
-    func makeNSView(context: Context) -> ProbeView { ProbeView() }
+/// SwiftUI's TableColumn labels cannot span score and country columns. Install
+/// a native two-tier table header so each full source title stays above its
+/// corresponding one-line explanation, inside the table's own scroll view.
+private struct TableChrome: NSViewRepresentable {
+    let left: SourceLensDescription
+    let right: SourceLensDescription
+    let leftHelp: String
+    let rightHelp: String
+
+    func makeNSView(context: Context) -> ProbeView {
+        let view = ProbeView()
+        view.configure(left: left, right: right, leftHelp: leftHelp, rightHelp: rightHelp)
+        return view
+    }
 
     func updateNSView(_ view: ProbeView, context: Context) {
-        view.updateScroller()
+        view.configure(left: left, right: right, leftHelp: leftHelp, rightHelp: rightHelp)
     }
 
     final class ProbeView: NSView {
+        private var left = SourceLensDescription(emphasis: "", detail: "")
+        private var right = SourceLensDescription(emphasis: "", detail: "")
+        private var leftHelp = ""
+        private var rightHelp = ""
+
+        func configure(
+            left: SourceLensDescription,
+            right: SourceLensDescription,
+            leftHelp: String,
+            rightHelp: String
+        ) {
+            self.left = left
+            self.right = right
+            self.leftHelp = leftHelp
+            self.rightHelp = rightHelp
+            updateTable()
+        }
+
         override func layout() {
             super.layout()
-            updateScroller()
+            updateTable()
         }
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            updateScroller()
-            // Table creates its NSScrollView after the representable is mounted.
+            updateTable()
+            // SwiftUI may mount the NSTableView after this background probe.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-                self?.updateScroller()
+                self?.updateTable()
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.updateScroller()
+                self?.updateTable()
             }
         }
 
-        func updateScroller() {
+        private func updateTable() {
             DispatchQueue.main.async { [weak self] in
-                guard let root = self?.window?.contentView else { return }
-                Self.hideScrollers(in: root)
+                guard let self, let root = self.window?.contentView else { return }
+                self.configureScrollViews(in: root)
             }
         }
 
-        private static func hideScrollers(in view: NSView) {
+        private func configureScrollViews(in view: NSView) {
             if let scrollView = view as? NSScrollView {
                 if scrollView.hasHorizontalScroller { scrollView.hasHorizontalScroller = false }
                 if scrollView.hasVerticalScroller { scrollView.hasVerticalScroller = false }
                 if scrollView.horizontalScrollElasticity != .none {
                     scrollView.horizontalScrollElasticity = .none
                 }
+                if let tableView = Self.findTable(in: scrollView.documentView),
+                   tableView.tableColumns.count >= 7 {
+                    configureHeader(in: tableView, scrollView: scrollView)
+                }
             }
             for child in view.subviews {
-                hideScrollers(in: child)
+                configureScrollViews(in: child)
             }
         }
+
+        private static func findTable(in view: NSView?) -> NSTableView? {
+            guard let view else { return nil }
+            if let table = view as? NSTableView { return table }
+            for child in view.subviews {
+                if let table = findTable(in: child) { return table }
+            }
+            return nil
+        }
+
+        private func configureHeader(in tableView: NSTableView, scrollView: NSScrollView) {
+            let header: SourceTableHeaderView
+            if let existing = tableView.headerView as? SourceTableHeaderView {
+                header = existing
+            } else {
+                header = SourceTableHeaderView(frame: NSRect(
+                    x: 0, y: 0, width: tableView.bounds.width, height: SourceTableHeaderView.height
+                ))
+                header.tableView = tableView
+                tableView.headerView = header
+                scrollView.tile()
+            }
+            header.configure(left: left, right: right)
+            tableView.tableColumns[1].headerToolTip = leftHelp
+            tableView.tableColumns[4].headerToolTip = rightHelp
+        }
+    }
+}
+
+private final class SourceTableHeaderView: NSTableHeaderView {
+    static let height: CGFloat = 46
+    private static let titleHeight: CGFloat = 23
+    private var left = SourceLensDescription(emphasis: "", detail: "")
+    private var right = SourceLensDescription(emphasis: "", detail: "")
+
+    func configure(left: SourceLensDescription, right: SourceLensDescription) {
+        self.left = left
+        self.right = right
+        needsDisplay = true
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard let tableView, tableView.tableColumns.count >= 7 else {
+            super.draw(dirtyRect)
+            return
+        }
+        NSColor.controlBackgroundColor.setFill()
+        bounds.fill()
+
+        let titleY = isFlipped ? CGFloat(0) : bounds.height - Self.titleHeight
+        for index in tableView.tableColumns.indices {
+            let columnRect = headerRect(ofColumn: index)
+            let titleRect = NSRect(
+                x: columnRect.minX, y: titleY,
+                width: columnRect.width, height: Self.titleHeight
+            )
+            tableView.tableColumns[index].headerCell.draw(withFrame: titleRect, in: self)
+        }
+
+        let summaryY = isFlipped ? Self.titleHeight : CGFloat(0)
+        let summaryHeight = bounds.height - Self.titleHeight
+        let leftRect = (1...3).map { headerRect(ofColumn: $0) }.reduce(NSRect.null) { $0.union($1) }
+        let rightRect = (4...6).map { headerRect(ofColumn: $0) }.reduce(NSRect.null) { $0.union($1) }
+        drawSummary(left, tint: .systemBlue, in: NSRect(
+            x: leftRect.minX, y: summaryY, width: leftRect.width, height: summaryHeight
+        ))
+        drawSummary(right, tint: .systemPurple, in: NSRect(
+            x: rightRect.minX, y: summaryY, width: rightRect.width, height: summaryHeight
+        ))
+
+        NSColor.separatorColor.setFill()
+        NSRect(x: 0, y: summaryY, width: bounds.width, height: 1).fill()
+        NSRect(x: 0, y: isFlipped ? bounds.height - 1 : 0, width: bounds.width, height: 1).fill()
+    }
+
+    private func drawSummary(_ summary: SourceLensDescription, tint: NSColor, in rect: NSRect) {
+        let emphasisFont = NSFont.systemFont(ofSize: 10, weight: .semibold)
+        let detailFont = NSFont.systemFont(ofSize: 10)
+        let emphasisAttributes: [NSAttributedString.Key: Any] = [
+            .font: emphasisFont, .foregroundColor: tint,
+        ]
+        let emphasisWidth = (summary.emphasis as NSString)
+            .size(withAttributes: emphasisAttributes).width
+        let textY = rect.minY + (rect.height - 13) / 2
+        (summary.emphasis as NSString).draw(
+            in: NSRect(x: rect.minX + 8, y: textY, width: emphasisWidth + 2, height: 13),
+            withAttributes: emphasisAttributes
+        )
+        let detailX = rect.minX + 8 + emphasisWidth + 8
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineBreakMode = .byTruncatingTail
+        let detailAttributes: [NSAttributedString.Key: Any] = [
+            .font: detailFont,
+            .foregroundColor: NSColor.secondaryLabelColor,
+            .paragraphStyle: paragraph,
+        ]
+        (summary.detail as NSString).draw(
+            in: NSRect(x: detailX, y: textY, width: max(0, rect.maxX - detailX - 8), height: 13),
+            withAttributes: detailAttributes
+        )
     }
 }
 
