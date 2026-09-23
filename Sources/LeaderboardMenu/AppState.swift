@@ -17,6 +17,7 @@ final class AppState: ObservableObject {
     @Published private(set) var selectedCategory = LeaderboardCategory.general
     @Published private(set) var selectedGrouping = LeaderboardGrouping.model
     @Published private(set) var selectedLanguage = AppLanguage.load()
+    @Published private(set) var countryFilters: [LeaderboardKind: CountryFilter] = [:]
     @Published private(set) var isQuitting = false
     /// Provider quotas from the local CC Switch database. These are not
     /// leaderboard rows, so they stay off the table. Missing CC Switch data
@@ -107,6 +108,10 @@ final class AppState: ObservableObject {
         } else {
             refreshNow()
         }
+    }
+
+    func selectCountryFilter(_ filter: CountryFilter, for kind: LeaderboardKind) {
+        countryFilters[kind] = filter == .all ? nil : filter
     }
 
     /// Grouping is a local view of the cached boards. Company rows are derived
