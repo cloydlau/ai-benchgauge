@@ -1,58 +1,58 @@
 import Foundation
 
-/// Distinguishes Chinese (mainland) models from overseas ones so the UI can
-/// badge domestic models. Coding-agent rows name the harness as the
-/// organization (Opencode, Claude Code, Codex), so the hosted model is read
-/// from the display name when the organization itself is not Chinese.
+public enum OrganizationCountry: String, CaseIterable, Sendable {
+    case china, unitedStates, canada, france, germany, singapore
+
+    public var regionCode: String {
+        switch self {
+        case .china: "CN"
+        case .unitedStates: "US"
+        case .canada: "CA"
+        case .france: "FR"
+        case .germany: "DE"
+        case .singapore: "SG"
+        }
+    }
+
+    public var flagEmoji: String {
+        let regionalIndicatorBase: UInt32 = 0x1F1E6
+        let scalars = regionCode.utf8.map { byte in
+            Unicode.Scalar(regionalIndicatorBase + UInt32(byte - 65))!
+        }
+        return String(String.UnicodeScalarView(scalars))
+    }
+
+    /// System locale data supplies the hover and accessibility name.
+    public func localizedName(language: AppLanguage) -> String {
+        language.locale.localizedString(forRegionCode: regionCode) ?? regionCode
+    }
+}
+
+/// Country of the model developer's headquarters. Coding harnesses follow
+/// the lead model, while a company row follows the company's own key.
 public enum OrganizationRegion {
+    public static func country(_ organization: String?, modelName: String? = nil) -> OrganizationCountry? {
+        guard let key = OrganizationLogoCatalog.developerKey(
+            organization: organization,
+            modelName: modelName
+        ) else { return nil }
+        switch key {
+        case "qwen", "zai", "stepfun", "kimi", "deepseek", "tencent", "minimax",
+             "bytedance", "xiaomi", "klingai":
+            return .china
+        case "anthropic", "openai", "spacexai", "google", "meta", "nvidia",
+             "microsoftai", "krea", "runway", "luma", "fal", "opencode",
+             "devin", "reve", "thinkingmachines", "github":
+            return .unitedStates
+        case "ideogram": return .canada
+        case "mistral": return .france
+        case "blackforestlabs": return .germany
+        case "pixverse", "videorebirth": return .singapore
+        default: return nil
+        }
+    }
+
     public static func isChinese(_ organization: String?, modelName: String? = nil) -> Bool {
-        if chineseKeys.contains(normalized(organization)) {
-            return true
-        }
-        return modelTokens(modelName).contains(where: isChineseModelToken)
-    }
-
-    private static let chineseKeys: Set<String> = [
-        "qwen", "zai", "kimi", "deepseek", "stepfun", "tencent", "minimax",
-        "xiaomi", "bytedance", "klingai"
-    ]
-
-    /// Family tokens. A version may be glued on (`Qwen3.8` → `qwen3`), so a
-    /// match is the token itself or the token plus a leading digit.
-    private static let chineseModelTokens: Set<String> = [
-        "glm", "qwen", "deepseek", "kimi", "minimax", "stepfun", "hunyuan",
-        "doubao", "mimo", "kling", "seedance", "seedream", "wan"
-    ]
-
-    private static func normalized(_ organization: String?) -> String {
-        let words = (organization ?? "")
-            .lowercased()
-            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
-            .joined()
-        switch words {
-        case "moonshot", "moonshotai":
-            return "kimi"
-        case "alibaba", "alibabaath":
-            return "qwen"
-        case "bytedanceseed":
-            return "bytedance"
-        default:
-            return words
-        }
-    }
-
-    private static func modelTokens(_ modelName: String?) -> [String] {
-        (modelName ?? "")
-            .lowercased()
-            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
-            .map(String.init)
-    }
-
-    private static func isChineseModelToken(_ token: String) -> Bool {
-        chineseModelTokens.contains { family in
-            if token == family { return true }
-            guard token.hasPrefix(family), token.count > family.count else { return false }
-            return token[token.index(token.startIndex, offsetBy: family.count)].isNumber
-        }
+        country(organization, modelName: modelName) == .china
     }
 }
