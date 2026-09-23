@@ -10,6 +10,7 @@ import LeaderboardCore
 /// Codex does not need to be installed.
 struct QuotaStrip: View {
     let chips: [AccountQuotaChip]
+    let language: AppLanguage
     let onConnectQwen: () -> Void
 
     var body: some View {
@@ -22,6 +23,7 @@ struct QuotaStrip: View {
                     QuotaChipView(
                         chip: chip,
                         now: context.date,
+                        language: language,
                         onConnectQwen: needsQwenConnection(chip) ? onConnectQwen : nil
                     )
                 }
@@ -45,6 +47,7 @@ private struct QuotaChipView: View {
 
     let chip: AccountQuotaChip
     let now: Date
+    let language: AppLanguage
     let onConnectQwen: (() -> Void)?
 
     var body: some View {
@@ -66,10 +69,12 @@ private struct QuotaChipView: View {
     }
 
     private var chipBody: some View {
-        let runs = AccountQuotaFormatting.runs(for: chip, now: now)
+        let runs = AccountQuotaFormatting.runs(for: chip, now: now).map {
+            QuotaTextRun(text: language.quotaText($0.text), tone: $0.tone)
+        }
         return HStack(spacing: 5) {
             logo
-            Text(chip.shortName)
+            Text(language.providerName(chip.kind) + providerSuffix)
                 .font(.system(size: 11, weight: chip.isCurrent ? .semibold : .medium))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
@@ -88,20 +93,29 @@ private struct QuotaChipView: View {
 
     private var helpText: String {
         let help = AccountQuotaFormatting.help(for: chip, now: now)
+            .components(separatedBy: "\n")
+            .map(language.quotaText)
+            .joined(separator: "\n")
         guard onConnectQwen != nil else { return help }
-        return [help, "点击连接千问官网用量"].filter { !$0.isEmpty }.joined(separator: "\n")
+        return [help, language.text("Click to connect Qwen usage", "点击连接千问官网用量")]
+            .filter { !$0.isEmpty }.joined(separator: "\n")
     }
 
     private var accessibilityLabel: String {
-        var parts = [chip.shortName]
+        var parts = [language.providerName(chip.kind) + providerSuffix]
         if chip.isCurrent {
-            parts.append("当前供应商")
+            parts.append(language.text("Current provider", "当前供应商"))
         }
         let summary = AccountQuotaFormatting.plainSummary(for: chip, now: now)
         if !summary.isEmpty {
-            parts.append(summary)
+            parts.append(language.quotaText(summary))
         }
-        return parts.joined(separator: "，")
+        return parts.joined(separator: language.text(", ", "，"))
+    }
+
+    private var providerSuffix: String {
+        let base = language.providerName(chip.kind)
+        return chip.shortName.hasPrefix(base) ? String(chip.shortName.dropFirst(base.count)) : ""
     }
 
     @ViewBuilder
@@ -269,7 +283,7 @@ private struct QuotaFlowLayout: Layout {
     }
 }
 
-/// Marks the quota chip row so a screenshot can mosaic that band. Hits pass
+/// Marks the quota chip row so a screenshot can replace that band. Hits pass
 /// through; the chips drawn above this background keep their clicks.
 struct QuotaStripAnchor: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {

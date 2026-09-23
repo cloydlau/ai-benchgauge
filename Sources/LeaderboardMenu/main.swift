@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 import LeaderboardCore
 
@@ -29,6 +30,8 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private let popover = NSPopover()
     private let state: AppState
     private let statusItem: NSStatusItem
+    private let hosting: NSHostingController<LeaderboardView>
+    private var stateObservation: AnyCancellable?
     /// Real clicks stay transparent until the post-show frame pin lands.
     /// Pre-warm shows the popover invisibly and must not surface that window.
     private var revealAfterSettle = false
@@ -40,9 +43,16 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private var framePinAttempts = 0
     private var framePinGeneration = 0
 
+    private var maximumWidth: CGFloat {
+        let screen = statusItem.button?.window?.screen ?? NSScreen.main
+        return max(600, floor((screen?.visibleFrame.width ?? 1136) - 16))
+    }
+
     init(state: AppState) {
         self.state = state
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        let initialMaximumWidth = max(600, floor((NSScreen.main?.visibleFrame.width ?? 1136) - 16))
+        hosting = NSHostingController(rootView: LeaderboardView(state: state, maximumWidth: initialMaximumWidth))
         super.init()
 
         // .applicationDefined instead of .transient: a transient popover closes
@@ -54,12 +64,11 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         popover.animates = false
         popover.delegate = self
         let contentSize = NSSize(
-            width: LeaderboardView.contentWidth,
+            width: LeaderboardView.preferredWidth(for: state, maximumWidth: initialMaximumWidth),
             height: LeaderboardView.contentHeight
         )
-        let hosting = NSHostingController(rootView: LeaderboardView(state: state))
-        // Fixed panel. Tracking preferredContentSize lets SwiftUI resize the
-        // popover after show, and a right-side anchor then shifts it down-left.
+        // Resize explicitly so AppKit cannot re-anchor the popover on each
+        // SwiftUI layout pass.
         hosting.sizingOptions = []
         hosting.preferredContentSize = contentSize
         popover.contentViewController = hosting
@@ -74,6 +83,18 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             button.action = #selector(togglePopover)
         }
 
+        stateObservation = state.objectWillChange.sink { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.updatePanelWidth()
+            }
+        }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(screenParametersChanged(_:)),
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
+
         // Pre-warm: create the popover window and run the first SwiftUI
         // layout pass at launch (invisibly), so the first click opens
         // instantly instead of paying that cost on screen.
@@ -84,6 +105,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 
     private func prewarmPopover() {
         guard !popover.isShown, let button = statusItem.button else { return }
+        updatePanelWidth()
         revealAfterSettle = false
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.alphaValue = 0
@@ -138,7 +160,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             && abs(lhs.size.height - rhs.size.height) < 0.5
     }
 
-    /// A 1300pt panel anchored to a right-side status item sits flush with the
+    /// A wide panel anchored to a right-side status item sits flush with the
     /// screen edge. The top-right corner is then clipped, and a capture of that
     /// region comes back blank.
     private func frameInsetFromScreenEdges(_ frame: NSRect, screen: NSScreen?) -> NSRect {
@@ -190,6 +212,49 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         )
     }
 
+    private func removeFramePinAfterSettling() {
+        framePinGeneration += 1
+        let generation = framePinGeneration
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
+            guard let self, self.framePinGeneration == generation else { return }
+            self.removeFramePin()
+        }
+    }
+
+    @objc private func screenParametersChanged(_ notification: Notification) {
+        updatePanelWidth()
+    }
+
+    private func updatePanelWidth() {
+        let limit = maximumWidth
+        if hosting.rootView.maximumWidth != limit {
+            hosting.rootView = LeaderboardView(state: state, maximumWidth: limit)
+        }
+        let width = LeaderboardView.preferredWidth(for: state, maximumWidth: limit)
+        let oldWidth = popover.contentSize.width
+        guard abs(width - oldWidth) > 0.5 else { return }
+
+        let window = popover.isShown ? hosting.view.window : nil
+        if let window {
+            let delta = width - oldWidth
+            var frame = window.frame
+            frame.origin.x -= delta // Keep the right edge near the menu item.
+            frame.size.width += delta
+            settledPopoverFrame = frameInsetFromScreenEdges(frame, screen: window.screen)
+            framePinAttempts = 0
+            installFramePin(on: window)
+        }
+
+        let size = NSSize(width: width, height: LeaderboardView.contentHeight)
+        hosting.preferredContentSize = size
+        popover.contentSize = size
+
+        if let window {
+            applySettledFrame(to: window)
+            removeFramePinAfterSettling()
+        }
+    }
+
     /// AppKit re-anchors after the level drop. Snap back before that frame paints.
     @objc private func popoverWindowDidMove(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
@@ -218,12 +283,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         }
         // Only the open-time re-anchor should be pinned. A later show must not
         // have its pin removed by this timer.
-        framePinGeneration += 1
-        let generation = framePinGeneration
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
-            guard let self, self.framePinGeneration == generation else { return }
-            self.removeFramePin()
-        }
+        removeFramePinAfterSettling()
     }
 
     func popoverDidClose(_ notification: Notification) {
@@ -252,6 +312,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         // the click and the popover appearing. Stay transparent until the
         // post-show frame pin has landed.
         if let button = statusItem.button {
+            updatePanelWidth()
             revealAfterSettle = true
             popover.contentViewController?.view.window?.alphaValue = 0
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
@@ -262,6 +323,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private func closePopover() {
         popover.performClose(nil)
     }
+
 }
 
 @main

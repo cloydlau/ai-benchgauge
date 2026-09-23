@@ -21,7 +21,7 @@ final class QuotaNotifier: NSObject, UNUserNotificationCenterDelegate {
         UNUserNotificationCenter.current().delegate = self
     }
 
-    func consider(chips: [AccountQuotaChip], now: Date = Date()) {
+    func consider(chips: [AccountQuotaChip], now: Date = Date(), language: AppLanguage = .english) {
         let alerts = chips.flatMap { QuotaAlerts.alerts(for: $0, now: now) }
         let active = Set(alerts.flatMap(\.componentKeys))
         let retained = QuotaAlerts.retainedKeys(
@@ -45,7 +45,7 @@ final class QuotaNotifier: NSObject, UNUserNotificationCenterDelegate {
             }
             var sent: Set<String> = []
             for alert in pending {
-                if await self.post(alert) {
+                if await self.post(alert, language: language) {
                     sent.formUnion(alert.componentKeys)
                 }
             }
@@ -96,11 +96,11 @@ final class QuotaNotifier: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
-    private func post(_ alert: QuotaAlert) async -> Bool {
+    private func post(_ alert: QuotaAlert, language: AppLanguage) async -> Bool {
         let content = UNMutableNotificationContent()
-        content.title = alert.title
-        content.subtitle = alert.subtitle
-        content.body = alert.body
+        content.title = language.quotaText(alert.title)
+        content.subtitle = language.quotaText(alert.subtitle)
+        content.body = language.quotaText(alert.body)
         let request = UNNotificationRequest(
             identifier: UUID().uuidString,
             content: content,
