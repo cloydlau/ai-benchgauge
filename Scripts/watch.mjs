@@ -4,6 +4,7 @@
 // 先按目的拆成原子提交并推送到上游，再在源码变化时重建并重启。
 // 构建、提交或推送失败后，同一签名不再空转。WATCH_AUTOCOMMIT=0 关闭自动提交。
 // COMMIT_PUSH=0 或 WATCH_AUTOPUSH=0 关闭自动推送。
+// git 不读 macOS 系统代理；未设置 https_proxy 时，推送改用 scutil 读到的代理。
 
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, statSync } from 'node:fs'
@@ -11,6 +12,7 @@ import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { avatarForModel, detectModelName } from './commit-identity.mjs'
 import { materializeAvatar, notifyDesktop } from './desktop-notify.mjs'
+import { gitProxyArgs, gitProxyValue } from './git-network.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const appPath = join(root, 'outputs', 'AI-Leaderboards.app')
@@ -184,9 +186,17 @@ function runNode(script, extraEnv = {}) {
   })
 }
 
+let announcedProxy = false
+
 function runGit(args) {
+  const proxy = gitProxyValue()
+  const gitArgs = [...gitProxyArgs(), ...args]
+  if (!announcedProxy && proxy) {
+    announcedProxy = true
+    console.log(`[watch] git 没有代理环境变量，推送改用系统代理 ${proxy}`)
+  }
   return new Promise((resolvePromise) => {
-    const child = spawn('git', args, {
+    const child = spawn('git', gitArgs, {
       cwd: root,
       env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
       stdio: 'inherit',
