@@ -41,43 +41,57 @@ struct LeaderboardView: View {
     }
 
     static func preferredWidth(for state: AppState, maximumWidth: CGFloat) -> CGFloat {
-        let category = state.selectedCategory
         let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
         let captionFont = NSFont.systemFont(ofSize: 12)
-        // Reserve enough room for either grouping so toggling Models/Companies
-        // changes table contents without resizing the popover.
-        let columnWidth = LeaderboardGrouping.allCases.map { grouping in
-            category.boardKinds
-                .flatMap { kind -> [LeaderboardEntry] in
-                    let entries = state.snapshot.boards[kind]?.entries ?? []
-                    return grouping == .company
-                        ? CompanyLeaderboard.rank(entries).map(\.entry)
-                        : Array(entries.prefix(20))
-                }
-                .map { entry -> CGFloat in
-                    let nameWidth = (entry.name as NSString).size(withAttributes: [.font: font]).width
-                    var width = nameWidth + 54 // Logo, spacing, cell padding, and table inset.
-                    if grouping == .company {
-                        let links = PurchaseLinkCatalog.links(
-                            forOrganization: entry.organization,
-                            modelName: entry.name
-                        )
-                        let titles = [
-                            (links.codingPlan, state.selectedLanguage.text("Plan", "套餐")),
-                            (links.payAsYouGo, state.selectedLanguage.text("Pay as you go", "按量")),
-                        ].compactMap { item in item.0.isEmpty ? nil : item.1 }
-                        if !titles.isEmpty {
-                            width += 10 + CGFloat(titles.count - 1) * 10
-                            width += titles.reduce(0) { partial, title in
-                                partial + (title as NSString).size(withAttributes: [.font: captionFont]).width + 4
+        // Size against every category and grouping. Switching tabs then keeps
+        // the popover width stable even when the video rows have short names.
+        let columnWidth = LeaderboardCategory.allCases.flatMap { category in
+            LeaderboardGrouping.allCases.map { grouping in
+                category.boardKinds
+                    .flatMap { kind -> [LeaderboardEntry] in
+                        let entries = state.snapshot.boards[kind]?.entries ?? []
+                        return grouping == .company
+                            ? CompanyLeaderboard.rank(entries).map(\.entry)
+                            : Array(entries.prefix(20))
+                    }
+                    .map { entry -> CGFloat in
+                        let nameWidth = (entry.name as NSString).size(withAttributes: [.font: font]).width
+                        var width = nameWidth + 54 // Logo, spacing, cell padding, and table inset.
+                        if grouping == .company {
+                            let links = PurchaseLinkCatalog.links(
+                                forOrganization: entry.organization,
+                                modelName: entry.name
+                            )
+                            let titles = [
+                                (links.codingPlan, state.selectedLanguage.text("Plan", "套餐")),
+                                (links.payAsYouGo, state.selectedLanguage.text("Pay as you go", "按量")),
+                            ].compactMap { item in item.0.isEmpty ? nil : item.1 }
+                            if !titles.isEmpty {
+                                width += 10 + CGFloat(titles.count - 1) * 10
+                                width += titles.reduce(0) { partial, title in
+                                    partial + (title as NSString).size(withAttributes: [.font: captionFont]).width + 4
+                                }
                             }
                         }
+                        return width
                     }
-                    return width
-                }
-                .max() ?? 0
+                    .max() ?? 0
+            }
         }.max() ?? 0
-        let desired = max(minimumWidth, ceil(columnWidth * 2 + tableChromeWidth))
+        let headerWidth = LeaderboardCategory.allCases.flatMap { category -> [CGFloat] in
+            let lenses = category.sourceLenses(language: state.selectedLanguage)
+            return [
+                SourceTableHeaderView.requiredNameColumnWidth(
+                    title: boardColumnTitle(category.leftColumnTitle, kind: category.leftKind, state: state),
+                    summary: lenses.aa
+                ),
+                SourceTableHeaderView.requiredNameColumnWidth(
+                    title: boardColumnTitle(category.rightColumnTitle, kind: category.rightKind, state: state),
+                    summary: lenses.arena
+                ),
+            ]
+        }.max() ?? 0
+        let desired = max(minimumWidth, ceil(max(columnWidth, headerWidth) * 2 + tableChromeWidth))
         return min(desired, maximumWidth)
     }
 
@@ -962,6 +976,13 @@ private final class SourceTableHeaderView: NSTableHeaderView {
     private var left = SourceLensDescription(emphasis: "", detail: "")
     private var right = SourceLensDescription(emphasis: "", detail: "")
 
+    static func requiredNameColumnWidth(title: String, summary: SourceLensDescription) -> CGFloat {
+        ceil(headerText(
+            title: title, summary: summary, tint: .systemBlue,
+            titleSize: 11, descriptionSize: 10
+        ).size().width + 10)
+    }
+
     func configure(left: SourceLensDescription, right: SourceLensDescription) {
         self.left = left
         self.right = right
@@ -1009,8 +1030,6 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         in rect: NSRect
     ) {
         let availableWidth = max(0, rect.width - 10)
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.lineBreakMode = .byTruncatingTail
         let sizePairs: [(CGFloat, CGFloat)] = [
             (11, 10), (11, 9), (11, 8),
             (10.5, 8), (10, 8), (9.5, 8), (9, 8),
@@ -1018,37 +1037,10 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         ]
         var text = NSAttributedString()
         for (titleSize, descriptionSize) in sizePairs {
-            let candidate = NSMutableAttributedString(
-                string: title,
-                attributes: [
-                    .font: NSFont.systemFont(ofSize: titleSize, weight: .medium),
-                    .foregroundColor: NSColor.labelColor,
-                ]
+            let candidate = Self.headerText(
+                title: title, summary: summary, tint: tint,
+                titleSize: titleSize, descriptionSize: descriptionSize
             )
-            candidate.append(NSAttributedString(
-                string: " · ",
-                attributes: [
-                    .font: NSFont.systemFont(ofSize: descriptionSize),
-                    .foregroundColor: NSColor.tertiaryLabelColor,
-                ]
-            ))
-            candidate.append(NSAttributedString(
-                string: summary.emphasis,
-                attributes: [
-                    .font: NSFont.systemFont(ofSize: descriptionSize, weight: .semibold),
-                    .foregroundColor: tint,
-                ]
-            ))
-            candidate.append(NSAttributedString(
-                string: " " + summary.detail,
-                attributes: [
-                    .font: NSFont.systemFont(ofSize: descriptionSize),
-                    .foregroundColor: NSColor.secondaryLabelColor,
-                ]
-            ))
-            candidate.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(
-                location: 0, length: candidate.length
-            ))
             text = candidate
             if candidate.size().width <= availableWidth { break }
         }
@@ -1059,6 +1051,49 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             width: availableWidth,
             height: textHeight
         ))
+    }
+
+    private static func headerText(
+        title: String,
+        summary: SourceLensDescription,
+        tint: NSColor,
+        titleSize: CGFloat,
+        descriptionSize: CGFloat
+    ) -> NSAttributedString {
+        let text = NSMutableAttributedString(
+            string: title,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: titleSize, weight: .medium),
+                .foregroundColor: NSColor.labelColor,
+            ]
+        )
+        text.append(NSAttributedString(
+            string: " · ",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: descriptionSize),
+                .foregroundColor: NSColor.tertiaryLabelColor,
+            ]
+        ))
+        text.append(NSAttributedString(
+            string: summary.emphasis,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: descriptionSize, weight: .semibold),
+                .foregroundColor: tint,
+            ]
+        ))
+        text.append(NSAttributedString(
+            string: " " + summary.detail,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: descriptionSize),
+                .foregroundColor: NSColor.secondaryLabelColor,
+            ]
+        ))
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineBreakMode = .byTruncatingTail
+        text.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(
+            location: 0, length: text.length
+        ))
+        return text
     }
 }
 
