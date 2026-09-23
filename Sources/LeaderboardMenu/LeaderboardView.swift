@@ -73,7 +73,8 @@ struct LeaderboardView: View {
                 QuotaStrip(
                     chips: state.quotaChips,
                     updatedAt: state.quotaUpdatedAt,
-                    unavailable: state.quotaUnavailable
+                    unavailable: state.quotaUnavailable,
+                    onConnectQwen: state.connectQwenWebsite
                 )
             }
         }
@@ -82,9 +83,9 @@ struct LeaderboardView: View {
     }
 
     private var titleRow: some View {
-        // Tabs stay in a trailing group with the schedule. Equal side columns
-        // centered the picker and left a wide empty band in the top-right.
-        HStack(alignment: .center, spacing: 16) {
+        // Equal side columns keep the tabs centered. A trailing spacer left a
+        // wide empty band between the title and the picker.
+        HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text("AI Leaderboards")
@@ -98,19 +99,16 @@ struct LeaderboardView: View {
                     .font(.caption)
                     .lineLimit(1)
             }
-            .layoutPriority(1)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            Spacer(minLength: 12)
+            categoryPicker
 
-            VStack(alignment: .trailing, spacing: 6) {
-                categoryPicker
-                Text(nextRunLabel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-                    .lineLimit(1)
-            }
-            .fixedSize(horizontal: true, vertical: false)
+            Text(nextRunLabel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .animation(nil, value: state.selectedCategory)
     }
@@ -613,8 +611,8 @@ private struct LeaderboardCell: View {
     }
 
     var body: some View {
-        // A chip in the row shifts the logo. Domestic origin is a border so
-        // it does not take a layout slot or cover the purchase links.
+        // Domestic origin is a border so it does not take a layout slot or
+        // cover the purchase links.
         HStack(spacing: 10) {
             if let entry {
                 ModelLogoView(
@@ -660,14 +658,8 @@ private struct LeaderboardCell: View {
     private var cellBackground: some View {
         Group {
             if let brandColor = model?.brandColor(isDark: colorScheme == .dark) {
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(brandColor.opacity(0.16))
-                    Capsule()
-                        .fill(brandColor)
-                        .frame(width: 3)
-                        .padding(.vertical, 1)
-                }
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(brandColor.opacity(0.16))
             }
         }
     }
