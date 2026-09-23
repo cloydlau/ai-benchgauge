@@ -8,9 +8,6 @@ private final class ScreenshotUIState: ObservableObject {
     @Published var note: String?
     @Published var noteID = 0
     @Published var isCapturing = false
-    /// Hides the balance row while a screenshot is copied, so that row is not
-    /// in the shared image even if a pixel crop misses it.
-    @Published var hidesQuotaStrip = false
 }
 
 struct LeaderboardView: View {
@@ -65,10 +62,11 @@ struct LeaderboardView: View {
 
     private var header: some View {
         // Gap lives on the chip row so the screenshot anchor includes it.
-        // Cropping that frame closes the gap instead of leaving a hole.
+        // The copied image mosaics that frame. Removing the row left a blank
+        // band at the bottom of this fixed-height panel.
         VStack(alignment: .leading, spacing: 0) {
             titleRow
-            if showsQuotaStrip {
+            if !state.quotaChips.isEmpty {
                 QuotaStrip(
                     chips: state.quotaChips,
                     onConnectQwen: state.connectQwenWebsite
@@ -79,13 +77,6 @@ struct LeaderboardView: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
-        .animation(nil, value: screenshot.isCapturing)
-        .animation(nil, value: screenshot.hidesQuotaStrip)
-    }
-
-    /// Personal balance data. Screenshots hide this row before copying.
-    private var showsQuotaStrip: Bool {
-        !state.quotaChips.isEmpty && !screenshot.hidesQuotaStrip
     }
 
     private var titleRow: some View {
@@ -111,9 +102,6 @@ struct LeaderboardView: View {
             TimelineView(.periodic(from: .now, by: 60)) { context in
                 freshnessLine(now: context.date)
             }
-            // Recreate on capture. A periodic timeline can keep the 余量
-            // caption until the next tick, which would leave it in the image.
-            .id(omitsQuotaClause)
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .animation(nil, value: state.selectedCategory)
@@ -156,7 +144,7 @@ struct LeaderboardView: View {
                 .foregroundStyle(rankingFailed ? Color.orange : Color.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-            if let quota = quotaClause(now: now), !omitsQuotaClause {
+            if let quota = quotaClause(now: now) {
                 Rectangle()
                     .fill(.quaternary)
                     .frame(width: 1, height: 9)
@@ -195,7 +183,7 @@ struct LeaderboardView: View {
 
     private func freshnessAccessibilityLabel(now: Date) -> String {
         var label = rankingSentence(now: now)
-        if let quota = quotaClause(now: now), !omitsQuotaClause {
+        if let quota = quotaClause(now: now) {
             label += "。\(quota)"
         }
         return label
@@ -215,7 +203,7 @@ struct LeaderboardView: View {
             parts.append("余量暂不可读，这次没读成本机 CC Switch 数据库")
         } else if state.quotaUnavailable {
             parts.append("余量数据库这次没有读成，显示的是上次余量")
-        } else if quotaClause(now: now) != nil, !omitsQuotaClause {
+        } else if quotaClause(now: now) != nil {
             parts.append("余量来自本机 CC Switch。没安装或读不懂配置时不显示，也不需要安装 Codex")
         }
         return parts.joined(separator: "。")
@@ -230,12 +218,6 @@ struct LeaderboardView: View {
             return "每天 \(clockTime(run))"
         }
         return "下次 \(compactWhen(run, now: now))"
-    }
-
-    /// True while a screenshot is being taken and a balance row is on screen.
-    /// The subtitle must not keep saying 余量 after that row is cropped out.
-    private var omitsQuotaClause: Bool {
-        screenshot.isCapturing && !state.quotaChips.isEmpty
     }
 
     private func quotaClause(now: Date) -> String? {
@@ -368,46 +350,18 @@ struct LeaderboardView: View {
         }
     }
 
-    /// Hide the balance row, wait out the button highlight and the 余量
-    /// caption, then copy. Crop is only a backup if the row is still on screen.
+    /// Wait out the button highlight, then copy. The balance row stays on
+    /// screen so the fixed panel does not collapse; the copied image mosaics it.
     private func captureScreenshot() {
         guard !state.isQuitting, !screenshot.isCapturing else { return }
         screenshot.isCapturing = true
         let settle = screenshot.note == nil ? 120 : 240
         screenshot.noteID += 1
         screenshot.note = nil
-        var transaction = Transaction()
-        transaction.disablesAnimations = true
-        withTransaction(transaction) {
-            screenshot.hidesQuotaStrip = true
-        }
         Task { @MainActor in
-            defer {
-                var restore = Transaction()
-                restore.disablesAnimations = true
-                withTransaction(restore) {
-                    screenshot.hidesQuotaStrip = false
-                }
-                screenshot.isCapturing = false
-            }
+            defer { screenshot.isCapturing = false }
             try? await Task.sleep(for: .milliseconds(settle))
-            await waitUntilQuotaStripHidden()
             performScreenshotCapture()
-        }
-    }
-
-    /// The chip anchor stays until SwiftUI commits the hide. A bitmap taken
-    /// before that still contains the balance row.
-    private func waitUntilQuotaStripHidden() async {
-        guard !state.quotaChips.isEmpty else { return }
-        for _ in 0..<8 {
-            guard let view = panelContentView() else { return }
-            view.layoutSubtreeIfNeeded()
-            if !PanelScreenshot.containsQuotaStrip(in: view) {
-                view.window?.displayIfNeeded()
-                return
-            }
-            try? await Task.sleep(for: .milliseconds(40))
         }
     }
 
@@ -421,16 +375,17 @@ struct LeaderboardView: View {
         // that clipped region is blank in the bitmap.
         keepPanelInsideScreen(view)
         view.layoutSubtreeIfNeeded()
-        let band = PanelScreenshot.quotaStripBand(in: view)
-        guard let shot = PanelScreenshot.capture(view: view, omittingTopBand: band) else {
+        let band = state.quotaChips.isEmpty ? nil : PanelScreenshot.quotaStripBand(in: view)
+        // Do not copy balances in the clear if the row could not be found.
+        if !state.quotaChips.isEmpty, band == nil {
             showScreenshotNote("截图失败")
             return
         }
-        // Hide is the real omission. Crop covers a row SwiftUI has not removed yet.
-        // Do not copy an image that still contains that row.
-        if !state.quotaChips.isEmpty,
-           PanelScreenshot.containsQuotaStrip(in: view),
-           !shot.omittedBand {
+        guard let shot = PanelScreenshot.capture(view: view, redactingTopBand: band) else {
+            showScreenshotNote("截图失败")
+            return
+        }
+        if band != nil, !shot.redactedBand {
             showScreenshotNote("截图失败")
             return
         }
@@ -552,7 +507,7 @@ struct LeaderboardView: View {
             .buttonStyle(.plain)
             .pointingHandCursor()
             .allowsHitTesting(!state.isQuitting && !screenshot.isCapturing)
-            .help("把当前榜单截图复制到剪贴板，不含余量")
+            .help("把当前榜单截图复制到剪贴板，余量行会打码")
 
             Text("·")
 
