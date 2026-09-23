@@ -233,17 +233,93 @@ public enum AccountQuotaFormatting {
     /// `diff <= 0` hides the countdown. `hours > 24` drops minutes (`6d2h`).
     /// Exactly 24 hours stays `24h0m`, matching the CC Switch formatter.
     public static func countdown(until resetsAt: Date, now: Date) -> String? {
+        guard let parts = countdownParts(until: resetsAt, now: now) else { return nil }
+        if parts.hours > 24 {
+            return "\(parts.hours / 24)d\(parts.hours % 24)h"
+        }
+        if parts.hours > 0 {
+            return "\(parts.hours)h\(parts.minutes)m"
+        }
+        return "\(parts.minutes)m"
+    }
+
+    /// Chip clock in Asia/Shanghai. The same calendar day is `14:37`; a later
+    /// day is `9月29日 14:37`. Expired resets stay hidden, same as `countdown`.
+    public static func resetClock(until resetsAt: Date, now: Date) -> String? {
+        guard countdownParts(until: resetsAt, now: now) != nil else { return nil }
+        let formatter = shanghaiFormatter()
+        formatter.dateFormat = shanghaiCalendar.isDate(resetsAt, inSameDayAs: now)
+            ? "HH:mm"
+            : "M'月'd'日' HH:mm"
+        return formatter.string(from: resetsAt)
+    }
+
+    /// Tooltip date, always including the calendar day: `9月23日 14:37`.
+    public static func resetDateText(_ resetsAt: Date, now: Date) -> String? {
+        guard countdownParts(until: resetsAt, now: now) != nil else { return nil }
+        let formatter = shanghaiFormatter()
+        formatter.dateFormat = "M'月'd'日' HH:mm"
+        return formatter.string(from: resetsAt)
+    }
+
+    /// Spoken countdown for the tooltip. Minutes stay through 24 hours
+    /// (`4小时37分`, `24小时0分`) and drop after that (`6天2小时`, `2天`).
+    public static func chineseCountdown(until resetsAt: Date, now: Date) -> String? {
+        guard let parts = countdownParts(until: resetsAt, now: now) else { return nil }
+        if parts.hours > 24 {
+            let days = parts.hours / 24
+            let remainder = parts.hours % 24
+            if remainder == 0 {
+                return "\(days)天"
+            }
+            return "\(days)天\(remainder)小时"
+        }
+        if parts.hours > 0 {
+            return "\(parts.hours)小时\(parts.minutes)分"
+        }
+        return "\(parts.minutes)分钟"
+    }
+
+    private struct CountdownParts {
+        let hours: Int
+        let minutes: Int
+    }
+
+    private static func countdownParts(until resetsAt: Date, now: Date) -> CountdownParts? {
         let diffMs = resetsAt.timeIntervalSince(now) * 1000
         if diffMs <= 0 { return nil }
-        let hours = Int(diffMs / 3_600_000)
-        let minutes = Int(diffMs.truncatingRemainder(dividingBy: 3_600_000) / 60_000)
-        if hours > 24 {
-            return "\(hours / 24)d\(hours % 24)h"
+        return CountdownParts(
+            hours: Int(diffMs / 3_600_000),
+            minutes: Int(diffMs.truncatingRemainder(dividingBy: 3_600_000) / 60_000)
+        )
+    }
+
+    private static let shanghaiTimeZone: TimeZone = TimeZone(identifier: "Asia/Shanghai")
+        ?? TimeZone(secondsFromGMT: 8 * 3_600)
+        ?? .current
+
+    private static var shanghaiCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "zh_CN")
+        calendar.timeZone = shanghaiTimeZone
+        return calendar
+    }
+
+    private static func shanghaiFormatter() -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.timeZone = shanghaiTimeZone
+        formatter.calendar = shanghaiCalendar
+        return formatter
+    }
+
+    /// Compact chip suffix: ` 4h37m · 14:37`. Nil when the reset has passed.
+    private static func countdownSuffix(until resetsAt: Date?, now: Date) -> String? {
+        guard let resetsAt, let countdown = countdown(until: resetsAt, now: now) else { return nil }
+        if let clock = resetClock(until: resetsAt, now: now) {
+            return " \(countdown) · \(clock)"
         }
-        if hours > 0 {
-            return "\(hours)h\(minutes)m"
-        }
-        return "\(minutes)m"
+        return " \(countdown)"
     }
 
     public static func balanceAmountText(_ amount: Double) -> String {
@@ -318,9 +394,8 @@ public enum AccountQuotaFormatting {
                     tone: tone(forUtilization: 100 - quota.remainingPercent)
                 ),
             ]
-            if let resetsAt = quota.resetsAt,
-               let countdown = countdown(until: resetsAt, now: now) {
-                runs.append(QuotaTextRun(text: " \(countdown)", tone: .secondary))
+            if let suffix = countdownSuffix(until: quota.resetsAt, now: now) {
+                runs.append(QuotaTextRun(text: suffix, tone: .secondary))
             }
             return runs
         case let .usage(windows):
@@ -340,10 +415,7 @@ public enum AccountQuotaFormatting {
         if case let .note(_, help) = chip.status {
             lines.append(help)
         } else {
-            let summary = plainSummary(for: chip, now: now)
-            if !summary.isEmpty {
-                lines.append(summary)
-            }
+            lines.append(contentsOf: detailLines(for: chip, now: now))
             if chip.kind == .qwen {
                 switch chip.status {
                 case .qwenPlan:
@@ -365,6 +437,51 @@ public enum AccountQuotaFormatting {
             lines.append(websiteURL.absoluteString)
         }
         return lines.joined(separator: "\n")
+    }
+
+    private static func detailLines(for chip: AccountQuotaChip, now: Date) -> [String] {
+        switch chip.status {
+        case let .windows(windows) where !windows.isEmpty:
+            return sortedWindows(windows).map { windowHelpLine($0, now: now) }
+        case let .qwenPlan(plan):
+            return [qwenPlanHelp(plan, now: now)]
+        case let .qwenWebsite(quota):
+            return [qwenWebsiteHelp(quota, now: now)]
+        default:
+            let summary = plainSummary(for: chip, now: now)
+            return summary.isEmpty ? [] : [summary]
+        }
+    }
+
+    private static func windowHelpLine(_ window: ParsedQuotaWindow, now: Date) -> String {
+        let label = label(forWindowName: window.name)
+        let percent = "\(roundedPercent(window.utilization))%"
+        guard let resetsAt = window.resetsAt,
+              let phrase = chineseCountdown(until: resetsAt, now: now),
+              let date = resetDateText(resetsAt, now: now) else {
+            return "\(label) \(percent)"
+        }
+        return "\(label) \(percent)，\(phrase)后重置，\(date)"
+    }
+
+    private static func qwenPlanHelp(_ plan: QwenPlanQuota, now: Date) -> String {
+        var text = "7天 \(roundedPercent(plan.usedPercent))%，剩余 \(creditText(plan.remainingCredits))/\(creditText(plan.totalCredits)) Credits"
+        if let resetsAt = plan.resetsAt,
+           let phrase = chineseCountdown(until: resetsAt, now: now),
+           let date = resetDateText(resetsAt, now: now) {
+            text += "，\(phrase)后重置，\(date)"
+        }
+        return text
+    }
+
+    private static func qwenWebsiteHelp(_ quota: QwenWebsiteQuota, now: Date) -> String {
+        var text = "\(quota.periodLabel) \(creditText(quota.remainingPercent))%"
+        if let resetsAt = quota.resetsAt,
+           let phrase = chineseCountdown(until: resetsAt, now: now),
+           let date = resetDateText(resetsAt, now: now) {
+            text += "，\(phrase)后重置，\(date)"
+        }
+        return text
     }
 
     private static func cachedDateText(_ date: Date) -> String {
@@ -389,8 +506,8 @@ public enum AccountQuotaFormatting {
                     tone: tone(forUtilization: window.utilization)
                 )
             )
-            if let resetsAt = window.resetsAt, let countdown = countdown(until: resetsAt, now: now) {
-                runs.append(QuotaTextRun(text: " \(countdown)", tone: .secondary))
+            if let suffix = countdownSuffix(until: window.resetsAt, now: now) {
+                runs.append(QuotaTextRun(text: suffix, tone: .secondary))
             }
         }
         return runs
@@ -422,8 +539,8 @@ public enum AccountQuotaFormatting {
                 tone: .secondary
             ),
         ]
-        if let resetsAt = plan.resetsAt, let countdown = countdown(until: resetsAt, now: now) {
-            runs.append(QuotaTextRun(text: " \(countdown)", tone: .secondary))
+        if let suffix = countdownSuffix(until: plan.resetsAt, now: now) {
+            runs.append(QuotaTextRun(text: suffix, tone: .secondary))
         }
         return runs
     }
