@@ -29,16 +29,15 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private let popover = NSPopover()
     private let state: AppState
     private let statusItem: NSStatusItem
-    /// Only a real menu-bar click should order the popover in front.
-    /// Pre-warm shows it invisibly and must not surface that window.
-    private var bringPopoverForwardOnShow = false
     /// Real clicks stay transparent until the post-show frame pin lands.
+    /// Pre-warm shows the popover invisibly and must not surface that window.
     private var revealAfterSettle = false
     /// Frame captured after AppKit anchors the popover, plus the screen-edge
     /// inset. Later level resets must not replace this with a shifted frame.
     private var settledPopoverFrame: NSRect?
     private var isApplyingSettledFrame = false
     private var framePinInstalled = false
+    private var framePinAttempts = 0
 
     init(state: AppState) {
         self.state = state
@@ -84,7 +83,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 
     private func prewarmPopover() {
         guard !popover.isShown, let button = statusItem.button else { return }
-        bringPopoverForwardOnShow = false
         revealAfterSettle = false
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.alphaValue = 0
@@ -125,6 +123,8 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private func applySettledFrame(to window: NSWindow) {
         guard let settled = settledPopoverFrame, !isApplyingSettledFrame else { return }
         guard !framesMatch(window.frame, settled) else { return }
+        guard framePinAttempts < 8 else { return }
+        framePinAttempts += 1
         isApplyingSettledFrame = true
         window.setFrame(settled, display: false, animate: false)
         isApplyingSettledFrame = false
@@ -197,6 +197,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 
     func popoverWillShow(_ notification: Notification) {
         settledPopoverFrame = nil
+        framePinAttempts = 0
         guard revealAfterSettle else { return }
         popover.contentViewController?.view.window?.alphaValue = 0
     }
@@ -214,6 +215,11 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             self?.settlePopoverWindow()
             self?.revealPopoverIfNeeded()
         }
+        // Only the open-time re-anchor should be pinned. Later menu-bar
+        // layout can still move the panel once that twitch window has passed.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
+            self?.removeFramePin()
+        }
     }
 
     func popoverDidClose(_ notification: Notification) {
@@ -227,7 +233,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
               let window = popover.contentViewController?.view.window else { return }
         applySettledFrame(to: window)
         revealAfterSettle = false
-        bringPopoverForwardOnShow = false
         window.alphaValue = 1
         window.orderFrontRegardless()
     }
@@ -242,7 +247,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         // the click and the popover appearing. Stay transparent until the
         // post-show frame pin has landed.
         if let button = statusItem.button {
-            bringPopoverForwardOnShow = true
             revealAfterSettle = true
             popover.contentViewController?.view.window?.alphaValue = 0
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
