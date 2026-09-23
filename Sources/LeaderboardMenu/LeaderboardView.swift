@@ -85,11 +85,8 @@ struct LeaderboardView: View {
         // beside the chips.
         HStack(alignment: .center, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                // New York, not SF. The title should read as a masthead,
-                // not as another system label beside the controls.
                 Text("AI Leaderboards")
-                    .font(.system(size: 20, weight: .semibold, design: .serif))
-                    .tracking(0.25)
+                    .font(.system(size: 17, weight: .semibold))
                 Text("v\(appVersion)")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
