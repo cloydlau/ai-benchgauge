@@ -337,7 +337,13 @@ final class AccountQuotaClientTests: XCTestCase {
         let chips = try await client.refresh(targets: [
             quotaTarget(id: "xai", name: "xAI", kind: .xaiOAuth, key: nil),
         ])
-        XCTAssertEqual(chips.map(\.status), [.message(AccountQuotaMessage.reauthRequired)])
+        XCTAssertEqual(chips.map(\.status), [
+            .note(text: AccountQuotaMessage.notLoggedIn, help: AccountQuotaMessage.notLoggedInHelp),
+        ])
+        XCTAssertEqual(
+            AccountQuotaFormatting.runs(for: chips[0], now: Date()).map(\.tone),
+            [.secondary]
+        )
         XCTAssertTrue(transport.requests.isEmpty)
     }
 
@@ -365,19 +371,201 @@ final class AccountQuotaClientTests: XCTestCase {
             ),
         ])
     }
+
+    func testMissingOrPlaceholderKeyDoesNotCallTheNetwork() async throws {
+        let transport = ScriptedQuotaTransport { request in
+            XCTFail("unexpected request \(request.url?.absoluteString ?? "")")
+            return AccountQuotaHTTPResponse(statusCode: 500, headers: [:], body: Data())
+        }
+        let client = AccountQuotaClient(
+            transport: transport,
+            authFileURL: URL(fileURLWithPath: "/tmp/unused-xai-auth-\(UUID().uuidString).json")
+        )
+        let chips = try await client.refresh(targets: [
+            quotaTarget(id: "blank", name: "Kimi", kind: .kimi, key: "  "),
+            quotaTarget(id: "proxy", name: "Kimi 2", kind: .kimi, key: " proxy-local"),
+            quotaTarget(id: "none", name: "DeepSeek", kind: .deepseek, key: nil),
+        ])
+
+        let expected = AccountQuotaChip.Status.note(
+            text: AccountQuotaMessage.notConfigured,
+            help: AccountQuotaMessage.notConfiguredHelp
+        )
+        XCTAssertEqual(chips.map(\.status), [expected, expected, expected])
+        XCTAssertTrue(transport.requests.isEmpty)
+        for chip in chips {
+            XCTAssertEqual(
+                AccountQuotaFormatting.runs(for: chip, now: Date()).map(\.tone),
+                [.secondary]
+            )
+        }
+    }
+
+    func testRefreshAuthFileOverridesTheClientURL() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "xai-auth-override-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let reauthURL = directory.appending(path: "reauth.json")
+        try Data(xaiAuthJSON(requiresReauth: true).utf8).write(to: reauthURL)
+        let missingURL = directory.appending(path: "missing.json")
+
+        let transport = ScriptedQuotaTransport { request in
+            XCTFail("unexpected request \(request.url?.absoluteString ?? "")")
+            return AccountQuotaHTTPResponse(statusCode: 500, headers: [:], body: Data())
+        }
+        let loggedOutClient = AccountQuotaClient(transport: transport, authFileURL: reauthURL)
+        let loggedOut = try await loggedOutClient.refresh(
+            targets: [quotaTarget(id: "xai", name: "xAI", kind: .xaiOAuth, key: nil)],
+            authFileURL: missingURL
+        )
+        XCTAssertEqual(loggedOut.map(\.status), [
+            .note(text: AccountQuotaMessage.notLoggedIn, help: AccountQuotaMessage.notLoggedInHelp),
+        ])
+        XCTAssertEqual(
+            AccountQuotaFormatting.runs(for: loggedOut[0], now: Date()).map(\.tone),
+            [.secondary]
+        )
+
+        let reauthClient = AccountQuotaClient(transport: transport, authFileURL: missingURL)
+        let reauth = try await reauthClient.refresh(
+            targets: [quotaTarget(id: "xai", name: "xAI", kind: .xaiOAuth, key: nil)],
+            authFileURL: reauthURL
+        )
+        XCTAssertEqual(reauth.map(\.status), [.message(AccountQuotaMessage.reauthRequired)])
+        XCTAssertEqual(
+            AccountQuotaFormatting.runs(for: reauth[0], now: Date()).map(\.tone),
+            [.orange]
+        )
+        XCTAssertTrue(transport.requests.isEmpty)
+    }
+
+    func testInvalidGrantAfterARealLoginStaysReauth() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "xai-invalid-grant-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let authURL = directory.appending(path: "xai_oauth_auth.json")
+        try Data(xaiAuthJSON(requiresReauth: false).utf8).write(to: authURL)
+
+        let transport = ScriptedQuotaTransport { request in
+            switch request.url?.absoluteString {
+            case "https://auth.x.ai/.well-known/openid-configuration":
+                return AccountQuotaHTTPResponse(
+                    statusCode: 200,
+                    headers: [:],
+                    body: Data(
+                        #"{"issuer":"https://auth.x.ai","token_endpoint":"https://auth.x.ai/oauth2/token"}"#.utf8
+                    )
+                )
+            case "https://auth.x.ai/oauth2/token":
+                return AccountQuotaHTTPResponse(
+                    statusCode: 400,
+                    headers: [:],
+                    body: Data(#"{"error":"invalid_grant"}"#.utf8)
+                )
+            default:
+                XCTFail("unexpected request \(request.url?.absoluteString ?? "")")
+                return AccountQuotaHTTPResponse(statusCode: 500, headers: [:], body: Data())
+            }
+        }
+        let client = AccountQuotaClient(
+            transport: transport,
+            authFileURL: directory.appending(path: "unused.json")
+        )
+        let chips = try await client.refresh(
+            targets: [quotaTarget(id: "xai", name: "xAI", kind: .xaiOAuth, key: nil)],
+            authFileURL: authURL
+        )
+        XCTAssertEqual(chips.map(\.status), [.message(AccountQuotaMessage.reauthRequired)])
+        XCTAssertEqual(
+            AccountQuotaFormatting.runs(for: chips[0], now: Date()).map(\.tone),
+            [.orange]
+        )
+        XCTAssertFalse(transport.requests.contains { $0.url?.host == "grok.com" })
+    }
 }
 
 final class CCSwitchProviderStoreTests: XCTestCase {
-    func testMissingDatabaseIsEmptyAndAnUnreadablePathIsUnavailable() {
+    func testMissingOrUnusableDatabaseIsAbsent() throws {
         let missing = FileManager.default.temporaryDirectory
             .appending(path: "missing-cc-switch-\(UUID().uuidString).db")
-        XCTAssertEqual(CCSwitchProviderStore.loadCodexProviders(databaseURL: missing), .records([]))
+        XCTAssertEqual(CCSwitchProviderStore.loadCodexProviders(databaseURL: missing), .absent)
 
         let directory = FileManager.default.temporaryDirectory
             .appending(path: "not-a-db-\(UUID().uuidString)", directoryHint: .isDirectory)
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
-        XCTAssertEqual(CCSwitchProviderStore.loadCodexProviders(databaseURL: directory), .unavailable)
+        XCTAssertEqual(CCSwitchProviderStore.loadCodexProviders(databaseURL: directory), .absent)
+
+        let textFile = directory.appending(path: "notes.db")
+        try Data("not a database".utf8).write(to: textFile)
+        XCTAssertEqual(CCSwitchProviderStore.loadCodexProviders(databaseURL: textFile), .absent)
+
+        let fakeSQLite = directory.appending(path: "fake.db")
+        var header = Data("SQLite format 3\0".utf8)
+        header.append(Data(repeating: 0, count: 64))
+        try header.write(to: fakeSQLite)
+        XCTAssertEqual(CCSwitchProviderStore.loadCodexProviders(databaseURL: fakeSQLite), .absent)
+
+        let otherTable = directory.appending(path: "other.db")
+        try Data().write(to: otherTable)
+        try runSQLite("CREATE TABLE notes (id TEXT);", database: otherTable)
+        XCTAssertEqual(CCSwitchProviderStore.loadCodexProviders(databaseURL: otherTable), .absent)
+
+        let missingColumn = directory.appending(path: "partial.db")
+        try Data().write(to: missingColumn)
+        try runSQLite(
+            """
+            CREATE TABLE providers (
+                id TEXT,
+                app_type TEXT,
+                name TEXT
+            );
+            """,
+            database: missingColumn
+        )
+        XCTAssertEqual(CCSwitchProviderStore.loadCodexProviders(databaseURL: missingColumn), .absent)
+
+        let noCodex = directory.appending(path: "claude-only.db")
+        try Data().write(to: noCodex)
+        try runSQLite(
+            """
+            CREATE TABLE providers (
+                id TEXT NOT NULL,
+                app_type TEXT NOT NULL,
+                name TEXT NOT NULL,
+                settings_config TEXT NOT NULL,
+                website_url TEXT,
+                created_at INTEGER,
+                sort_index INTEGER,
+                meta TEXT NOT NULL DEFAULT '{}',
+                is_current INTEGER NOT NULL DEFAULT 0
+            );
+            INSERT INTO providers (id, app_type, name, settings_config)
+            VALUES ('claude-1', 'claude', 'Claude', '{}');
+            """,
+            database: noCodex
+        )
+        XCTAssertEqual(CCSwitchProviderStore.loadCodexProviders(databaseURL: noCodex), .records([]))
+    }
+
+    func testUnreadableDatabaseIsUnavailable() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appending(path: "unreadable-cc-switch-\(UUID().uuidString).db")
+        try Data("present but unreadable".utf8).write(to: url)
+        defer {
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o644],
+                ofItemAtPath: url.path(percentEncoded: false)
+            )
+            try? FileManager.default.removeItem(at: url)
+        }
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o000],
+            ofItemAtPath: url.path(percentEncoded: false)
+        )
+        XCTAssertEqual(CCSwitchProviderStore.loadCodexProviders(databaseURL: url), .unavailable)
     }
 
     func testLoadsOnlyCodexRowsAndTheSelectedProviderID() throws {
@@ -427,6 +615,101 @@ final class CCSwitchProviderStoreTests: XCTestCase {
         XCTAssertEqual(targets[0].apiKey, "unit-test-key")
         XCTAssertNil(targets[1].apiKey)
         XCTAssertNil(targets[1].websiteURL)
+    }
+
+    func testInvalidSettingsAreIgnoredAndTheDatabaseFlagRemainsCurrent() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "cc-switch-settings-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let settingsURL = directory.appending(path: "settings.json")
+
+        try Data("not-json".utf8).write(to: settingsURL)
+        XCTAssertNil(CCSwitchProviderStore.currentCodexProviderID(settingsURL: settingsURL))
+        try Data(#"{"currentProviderCodex":" "}"#.utf8).write(to: settingsURL)
+        XCTAssertNil(CCSwitchProviderStore.currentCodexProviderID(settingsURL: settingsURL))
+        try Data(#"{"currentProviderCodex":1}"#.utf8).write(to: settingsURL)
+        XCTAssertNil(CCSwitchProviderStore.currentCodexProviderID(settingsURL: settingsURL))
+        try Data(#"["xai"]"#.utf8).write(to: settingsURL)
+        XCTAssertNil(CCSwitchProviderStore.currentCodexProviderID(settingsURL: settingsURL))
+
+        let records = [
+            record(
+                id: "kimi",
+                name: "Kimi",
+                isCurrent: true,
+                meta: #"{"usage_script":{"codingPlanProvider":"kimi"}}"#,
+                settings: settings(key: "unit-test-key", toml: "https://api.kimi.com/coding/v1")
+            ),
+        ]
+        let targets = CCSwitchQuotaCatalog.targets(from: records, currentProviderID: nil)
+        XCTAssertEqual(targets.map(\.id), ["kimi"])
+        XCTAssertTrue(targets[0].isCurrent)
+    }
+
+    func testConfigDirectoryOverrideFallsBackUnlessThePathExists() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appending(path: "cc-switch-paths-\(UUID().uuidString)", directoryHint: .isDirectory)
+        let home = root.appending(path: "home", directoryHint: .isDirectory)
+        let appPaths = root.appending(path: "app_paths.json")
+        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let fallback = home.appending(path: ".cc-switch", directoryHint: .isDirectory)
+
+        func resolved(writing json: String? = nil) throws -> CCSwitchInstall {
+            if let json {
+                try Data(json.utf8).write(to: appPaths)
+            } else if FileManager.default.fileExists(atPath: appPaths.path(percentEncoded: false)) {
+                try FileManager.default.removeItem(at: appPaths)
+            }
+            return CCSwitchProviderStore.resolveInstall(appPathsURL: appPaths, homeDirectory: home)
+        }
+
+        XCTAssertEqual(pathKey(try resolved().root), pathKey(fallback))
+        XCTAssertEqual(pathKey(try resolved(writing: "{}").root), pathKey(fallback))
+        XCTAssertEqual(pathKey(try resolved(writing: "not-json").root), pathKey(fallback))
+        XCTAssertEqual(pathKey(try resolved(writing: #"{"app_config_dir_override":" "}"#).root), pathKey(fallback))
+        XCTAssertEqual(pathKey(try resolved(writing: #"{"app_config_dir_override":12}"#).root), pathKey(fallback))
+        XCTAssertEqual(
+            pathKey(try resolved(writing: #"{"app_config_dir_override":["/tmp"]}"#).root),
+            pathKey(fallback)
+        )
+        let missingOverride = root.appending(path: "missing-override", directoryHint: .isDirectory)
+        XCTAssertEqual(
+            pathKey(try resolved(writing: #"{"app_config_dir_override":"\#(missingOverride.path(percentEncoded: false))"}"#).root),
+            pathKey(fallback)
+        )
+        XCTAssertEqual(
+            pathKey(try resolved(writing: #"{"app_config_dir_override":"~/does-not-exist"}"#).root),
+            pathKey(fallback)
+        )
+
+        let custom = root.appending(path: "custom-switch", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: custom, withIntermediateDirectories: true)
+        let overridden = try resolved(
+            writing: #"{"app_config_dir_override":"\#(custom.path(percentEncoded: false))"}"#
+        )
+        XCTAssertEqual(pathKey(overridden.root), pathKey(custom))
+        XCTAssertEqual(pathKey(overridden.databaseURL), pathKey(custom.appending(path: "cc-switch.db")))
+        XCTAssertEqual(pathKey(overridden.settingsURL), pathKey(custom.appending(path: "settings.json")))
+        XCTAssertEqual(pathKey(overridden.xaiAuthURL), pathKey(custom.appending(path: "xai_oauth_auth.json")))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: overridden.databaseURL.path(percentEncoded: false)))
+
+        let tildeTarget = home.appending(path: "tilde-switch", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: tildeTarget, withIntermediateDirectories: true)
+        XCTAssertEqual(
+            pathKey(try resolved(writing: #"{"app_config_dir_override":"~/tilde-switch"}"#).root),
+            pathKey(tildeTarget)
+        )
+        XCTAssertEqual(pathKey(try resolved(writing: #"{"app_config_dir_override":"~"}"#).root), pathKey(home))
+
+        let windowsName = "win\\switch"
+        let windowsTarget = home.appending(path: windowsName, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: windowsTarget, withIntermediateDirectories: true)
+        XCTAssertEqual(
+            pathKey(try resolved(writing: #"{"app_config_dir_override":"~\\win\\switch"}"#).root),
+            pathKey(windowsTarget)
+        )
     }
 }
 
@@ -567,6 +850,21 @@ private extension CCSwitchQuotaKind {
         case .xaiOAuth: "xai"
         }
     }
+}
+
+
+private func xaiAuthJSON(requiresReauth: Bool) -> String {
+    """
+    {"default_account_id":"acct-1","accounts":{"acct-1":{"account_id":"acct-1","refresh_token":"unit-test-refresh","requires_reauth":\(requiresReauth ? "true" : "false")}}}
+    """
+}
+
+private func pathKey(_ url: URL) -> String {
+    var path = url.standardizedFileURL.path(percentEncoded: false)
+    while path.count > 1, path.hasSuffix("/") {
+        path.removeLast()
+    }
+    return path
 }
 
 private func sqlLiteral(_ value: String) -> String {
