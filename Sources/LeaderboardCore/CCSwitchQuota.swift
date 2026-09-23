@@ -348,8 +348,12 @@ public enum AccountQuotaFormatting {
                 switch chip.status {
                 case .qwenPlan:
                     lines.append("千问官网套餐额度（qianwen CLI 当前登录账号）")
-                case .qwenWebsite:
-                    lines.append("千问官网个人版用量（网页显示的剩余百分比；网页未提供精确 Credits）")
+                case let .qwenWebsite(quota):
+                    if quota.isCached, let capturedAt = quota.capturedAt {
+                        lines.append("千问官网个人版用量（官网本次读取失败，显示 \(cachedDateText(capturedAt)) 保存的结果）")
+                    } else {
+                        lines.append("千问官网个人版用量（网页显示的剩余百分比；网页未提供精确 Credits）")
+                    }
                 case .usage:
                     lines.append("CC Switch 本地统计，非千问官网套餐额度；qianwen CLI 未返回个人版额度时，请在千问官网查看实时用量")
                 default:
@@ -361,6 +365,14 @@ public enum AccountQuotaFormatting {
             lines.append(websiteURL.absoluteString)
         }
         return lines.joined(separator: "\n")
+    }
+
+    private static func cachedDateText(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 
     private static func windowRuns(_ windows: [ParsedQuotaWindow], now: Date) -> [QuotaTextRun] {

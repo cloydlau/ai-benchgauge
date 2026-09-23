@@ -11,24 +11,35 @@ final class QwenWebsiteQuotaSource: NSObject, WKNavigationDelegate, @unchecked S
         string: "https://platform.qianwenai.com/home/analytics/token-plan/individual"
     )!
     private static let connectedKey = "qwenWebsiteConnected"
+    private static let cachedQuotaKey = "qwenWebsiteCachedQuota"
+    private static let cacheLifetime: TimeInterval = 24 * 60 * 60
 
     private let webView: WKWebView
     private var loginWindow: NSWindow?
+    private var activeNavigation: WKNavigation?
     private var pending: CheckedContinuation<Data?, Never>?
     private var pollTask: Task<Void, Never>?
+    private var timeoutTask: Task<Void, Never>?
     private var connected: Bool
+    private var presentingLogin = false
     var onConnected: (() -> Void)?
 
     override init() {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
-        webView = WKWebView(frame: .zero, configuration: configuration)
+        // Some of the quota page is rendered lazily from the viewport. Keep a
+        // real viewport even when the web view is not currently visible.
+        webView = WKWebView(
+            frame: NSRect(x: 0, y: 0, width: 1080, height: 740),
+            configuration: configuration
+        )
         connected = UserDefaults.standard.bool(forKey: Self.connectedKey)
         super.init()
         webView.navigationDelegate = self
     }
 
     func connect() {
+        presentingLogin = true
         if loginWindow == nil {
             let window = NSWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 1080, height: 740),
@@ -44,29 +55,42 @@ final class QwenWebsiteQuotaSource: NSObject, WKNavigationDelegate, @unchecked S
         loginWindow?.makeKeyAndOrderFront(nil)
         loginWindow?.orderFrontRegardless()
         NSApp.activate(ignoringOtherApps: true)
-        webView.load(URLRequest(url: Self.usageURL))
+        activeNavigation = webView.load(URLRequest(url: Self.usageURL))
     }
 
     func loadSummary() async -> Data? {
         guard connected else { return nil }
+        pollTask?.cancel()
+        timeoutTask?.cancel()
         finish(nil)
         return await withCheckedContinuation { continuation in
             pending = continuation
-            webView.load(URLRequest(url: Self.usageURL))
-            startPolling()
+            activeNavigation = webView.load(URLRequest(url: Self.usageURL))
+            timeoutTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(25))
+                guard !Task.isCancelled, let self else { return }
+                finish(cachedSummary())
+            }
         }
     }
 
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        activeNavigation = navigation
+    }
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        guard navigation === activeNavigation else { return }
         startPolling()
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        finish(nil)
+        guard navigation === activeNavigation else { return }
+        finish(cachedSummary())
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        finish(nil)
+        guard navigation === activeNavigation else { return }
+        finish(cachedSummary())
     }
 
     private func startPolling() {
@@ -77,13 +101,19 @@ final class QwenWebsiteQuotaSource: NSObject, WKNavigationDelegate, @unchecked S
                 guard !Task.isCancelled else { return }
                 if let text = try? await webView.evaluateJavaScript("document.body.innerText") as? String {
                     let data = Data(text.utf8)
-                    if QwenWebsiteQuotaParser.parse(data) != nil {
-                        let wasConnected = connected
+                    if let quota = QwenWebsiteQuotaParser.parse(data) {
+                        let shouldNotify = presentingLogin || !connected
                         connected = true
                         UserDefaults.standard.set(true, forKey: Self.connectedKey)
+                        if let persisted = QwenWebsiteQuotaParser.persistedData(for: quota) {
+                            UserDefaults.standard.set(persisted, forKey: Self.cachedQuotaKey)
+                        }
                         finish(data)
-                        if !wasConnected {
+                        if presentingLogin {
+                            presentingLogin = false
                             loginWindow?.close()
+                        }
+                        if shouldNotify {
                             onConnected?()
                         }
                         return
@@ -91,13 +121,29 @@ final class QwenWebsiteQuotaSource: NSObject, WKNavigationDelegate, @unchecked S
                 }
                 try? await Task.sleep(for: .milliseconds(500))
             }
-            finish(nil)
+            finish(cachedSummary())
         }
     }
 
     private func finish(_ data: Data?) {
+        timeoutTask?.cancel()
+        timeoutTask = nil
         pending?.resume(returning: data)
         pending = nil
+    }
+
+    private func cachedSummary(now: Date = Date()) -> Data? {
+        let defaults = UserDefaults.standard
+        guard let data = defaults.data(forKey: Self.cachedQuotaKey),
+              let quota = QwenWebsiteQuotaParser.parse(data),
+              quota.isCached,
+              let capturedAt = quota.capturedAt,
+              (0...Self.cacheLifetime).contains(now.timeIntervalSince(capturedAt)),
+              quota.resetsAt.map({ $0 > now }) ?? true else {
+            defaults.removeObject(forKey: Self.cachedQuotaKey)
+            return nil
+        }
+        return data
     }
 }
 
