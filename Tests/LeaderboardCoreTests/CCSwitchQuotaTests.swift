@@ -3,26 +3,6 @@ import LeaderboardCore
 import XCTest
 
 final class CCSwitchQuotaCatalogTests: XCTestCase {
-    func testReadsConfiguredModelNameWithoutUsingProviderCredentials() {
-        let toml = record(
-            id: "current",
-            name: "OpenAI Official",
-            settings: settings(
-                key: "private-key",
-                config: "model = \"gpt-5.3-codex\"\n[model_providers.custom]\nmodel = \"other\""
-            )
-        )
-        XCTAssertEqual(CCSwitchQuotaCatalog.configuredModelName(for: toml), "gpt-5.3-codex")
-
-        let json = record(
-            id: "json",
-            name: "Kimi",
-            settings: settings(key: nil, configObject: ["model": "kimi-k2"])
-        )
-        XCTAssertEqual(CCSwitchQuotaCatalog.configuredModelName(for: json), "kimi-k2")
-        XCTAssertNil(CCSwitchQuotaCatalog.configuredModelName(for: record(id: "none", name: "Kimi")))
-    }
-
     func testBuildsVisibleProvidersInCCSwitchOrderAndMarksTheSelectedOneCurrent() {
         let records = [
             record(

@@ -744,24 +744,6 @@ public enum AccountQuotaFormatting {
 }
 
 public enum CCSwitchQuotaCatalog {
-    /// Read only the explicit model identifier from a CC Switch provider config.
-    public static func configuredModelName(for record: CCSwitchProviderRecord) -> String? {
-        guard let root = jsonObject(record.settingsConfigJSON) else { return nil }
-        let raw: String?
-        if let toml = root["config"] as? String {
-            let topLevel = toml.split(whereSeparator: \.isNewline)
-                .prefix { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("[") }
-                .joined(separator: "\n")
-            raw = tomlStringValue(named: "model", in: topLevel)
-        } else if let config = root["config"] as? [String: Any] {
-            raw = config["model"] as? String
-        } else {
-            raw = nil
-        }
-        let name = raw?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return name?.isEmpty == false ? name : nil
-    }
-
     public static func targets(
         from records: [CCSwitchProviderRecord],
         currentProviderID: String?
