@@ -5,13 +5,13 @@ import Foundation
 /// leaderboard logos are often SVG and will not render in `NSImage`.
 /// Purchase-link keys are separate: Alibaba links stay under `alibaba`.
 public enum OrganizationLogoCatalog {
-    /// Canonical logo and color key.
+    /// Canonical logo key.
     /// A present organization wins, unless the label is a coding-agent
     /// `Harness - Model` pair and the model belongs to another company.
     /// Otherwise Claude Code - Qwen3.8 Max is painted with Anthropic's mark.
     /// An empty organization falls back to a Devin name prefix, which is the
-    /// only board that omits it. Fusion still follows the lead model after
-    /// the dash. The sidekick after `+` does not own the mark or the wash.
+    /// only board that omits it. That fallback keeps the Devin mark. The row
+    /// wash is separate and follows the lead model.
     public static func resolvedKey(organization: String?, modelName: String? = nil) -> String? {
         let organizationKey = normalizedKey(organization ?? "")
         if !organizationKey.isEmpty {
@@ -19,9 +19,6 @@ public enum OrganizationLogoCatalog {
                 return hosted
             }
             return organizationKey
-        }
-        if let hosted = hostedModelKey(from: modelName) {
-            return hosted
         }
         let inferred = normalizedKey(modelName ?? "")
         if inferred.hasPrefix("devin") {
@@ -118,7 +115,13 @@ public enum OrganizationLogoCatalog {
     /// Kimi is an official secondary, because the mark's blue matches Meta.
     /// Black marks use a medium display tint, not a logo color, so dark menus
     /// do not flip the row to white.
+    /// Row wash. A harness label follows the lead model, not the tool and not
+    /// the sidekick after `+`. Devin Fusion therefore uses Claude or OpenAI
+    /// ink while the mark stays Devin.
     public static func brandColorHex(forOrganization organization: String?, modelName: String? = nil) -> String? {
+        if let hosted = hostedModelKey(from: modelName), let color = brandColors[hosted] {
+            return color
+        }
         guard let key = resolvedKey(organization: organization, modelName: modelName) else { return nil }
         return brandColors[key]
     }
