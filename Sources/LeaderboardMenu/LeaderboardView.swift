@@ -84,7 +84,9 @@ struct LeaderboardView: View {
 
     private var titleRow: some View {
         // Equal side columns keep the tabs centered. A trailing spacer left a
-        // wide empty band between the title and the picker.
+        // wide empty band between the title and the picker. Grouping sits
+        // beside the category control; both widths are fixed so 公司 does not
+        // reflow the table columns.
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -101,7 +103,10 @@ struct LeaderboardView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            categoryPicker
+            HStack(spacing: 8) {
+                groupingPicker
+                categoryPicker
+            }
 
             Text(nextRunLabel)
                 .font(.caption)
@@ -111,6 +116,18 @@ struct LeaderboardView: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .animation(nil, value: state.selectedCategory)
+        .animation(nil, value: state.selectedGrouping)
+    }
+
+    private var groupingPicker: some View {
+        GroupingSegmentedControl(
+            selection: Binding(
+                get: { state.selectedGrouping },
+                set: { state.selectGrouping($0) }
+            )
+        )
+        .frame(width: GroupingSegmentedControl.width, height: GroupingSegmentedControl.height)
+        .help("按公司查看时，用名次加权均分，上榜数量不加分")
     }
 
     private var categoryPicker: some View {
@@ -443,6 +460,8 @@ struct LeaderboardView: View {
         return "每日更新 \(formatter.string(from: state.schedule.dailyRunAt))"
     }
 
+    /// Empty boards skeleton from the raw model list, not the company
+    /// aggregation. Grouping is a local view and must not look like a fetch.
     private var needsSkeleton: Bool {
         let leftEmpty = state.snapshot.boards[selectedCategory.leftKind]?.entries.isEmpty ?? true
         let rightEmpty = state.snapshot.boards[selectedCategory.rightKind]?.entries.isEmpty ?? true
@@ -460,8 +479,8 @@ struct LeaderboardView: View {
             }
         }
 
-        let left = state.snapshot.boards[selectedCategory.leftKind]?.entries ?? []
-        let right = state.snapshot.boards[selectedCategory.rightKind]?.entries ?? []
+        let left = displayedEntries(kind: selectedCategory.leftKind)
+        let right = displayedEntries(kind: selectedCategory.rightKind)
         let organizationLogos = self.organizationLogos
 
         return (0..<20).map { index in
@@ -479,11 +498,30 @@ struct LeaderboardView: View {
         }
     }
 
+    /// Company rows are derived here, from models already on the board.
+    /// Fewer than 20 companies keep the existing dash slots.
+    private func displayedEntries(kind: LeaderboardKind) -> [DisplayedLeaderboardEntry] {
+        let entries = state.snapshot.boards[kind]?.entries ?? []
+        guard state.selectedGrouping == .company else {
+            return entries.map {
+                DisplayedLeaderboardEntry(entry: $0, scoreHelp: nil, isCompany: false)
+            }
+        }
+        return CompanyLeaderboard.rank(entries).map { standing in
+            DisplayedLeaderboardEntry(
+                entry: standing.entry,
+                scoreHelp: CompanyLeaderboard.scoreHelp(for: standing),
+                isCompany: true
+            )
+        }
+    }
+
     private func cellModel(
-        for entry: LeaderboardEntry?,
+        for displayed: DisplayedLeaderboardEntry?,
         organizationLogos: [String: URL]
     ) -> LeaderboardCellModel? {
-        guard let entry else { return nil }
+        guard let displayed else { return nil }
+        let entry = displayed.entry
         let key = OrganizationLogoCatalog.resolvedKey(
             organization: entry.organization,
             modelName: entry.name
@@ -499,7 +537,9 @@ struct LeaderboardView: View {
                 ?? OrganizationLogoCatalog.logoURL(
                     forOrganization: entry.organization,
                     modelName: entry.name
-                )
+                ),
+            scoreHelp: displayed.scoreHelp,
+            isCompany: displayed.isCompany
         )
     }
 
@@ -572,10 +612,18 @@ private struct LeaderboardRow: Identifiable {
     var id: Int { rank }
 }
 
+private struct DisplayedLeaderboardEntry {
+    let entry: LeaderboardEntry
+    let scoreHelp: String?
+    let isCompany: Bool
+}
+
 private struct LeaderboardCellModel {
     let entry: LeaderboardEntry
     let brandHex: String?
     let logoURL: URL?
+    let scoreHelp: String?
+    let isCompany: Bool
 
     func brandColor(isDark: Bool) -> Color? {
         guard let brandHex else { return nil }
@@ -588,7 +636,9 @@ private extension LeaderboardCellModel {
         LeaderboardCellModel(
             entry: LeaderboardEntry(rank: rank, name: "Placeholder Model", score: 0),
             brandHex: nil,
-            logoURL: nil
+            logoURL: nil,
+            scoreHelp: nil,
+            isCompany: false
         )
     }
 }
@@ -646,13 +696,35 @@ private struct LeaderboardCell: View {
         let name = Text(entry.name)
             .lineLimit(1)
             .truncationMode(.middle)
-        if isDomestic {
-            name
-                .help("国产模型")
-                .accessibilityLabel("国产模型 \(entry.name)")
+        if let help = nameHelpText {
+            if isDomestic {
+                name
+                    .help(help)
+                    .accessibilityLabel(domesticAccessibilityLabel(entry))
+            } else {
+                name.help(help)
+            }
         } else {
             name
         }
+    }
+
+    /// Company mode must not keep saying 国产模型. The border is unchanged;
+    /// only the words follow the grouping.
+    private var nameHelpText: String? {
+        var lines: [String] = []
+        if isDomestic {
+            lines.append(model?.isCompany == true ? "国产公司" : "国产模型")
+        }
+        if let scoreHelp = model?.scoreHelp {
+            lines.append(scoreHelp)
+        }
+        return lines.isEmpty ? nil : lines.joined(separator: "\n")
+    }
+
+    private func domesticAccessibilityLabel(_ entry: LeaderboardEntry) -> String {
+        let kind = model?.isCompany == true ? "国产公司" : "国产模型"
+        return "\(kind) \(entry.name)"
     }
 
     private var cellBackground: some View {
@@ -682,6 +754,7 @@ private struct ScoreCell: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .modifier(OptionalHelp(model?.scoreHelp))
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(.horizontal, 4)
         .padding(.vertical, 3)
@@ -843,6 +916,79 @@ private struct CategorySegmentedControl: NSViewRepresentable {
             let category = LeaderboardCategory.allCases[index]
             guard selection.wrappedValue != category else { return }
             selection.wrappedValue = category
+        }
+    }
+}
+
+private struct GroupingSegmentedControl: NSViewRepresentable {
+    static let width: CGFloat = 180
+    static let height: CGFloat = 24
+
+    @Binding var selection: LeaderboardGrouping
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(selection: $selection)
+    }
+
+    func makeNSView(context: Context) -> CategorySegmentedControlView {
+        let control = CategorySegmentedControlView()
+        control.segmentStyle = .automatic
+        control.trackingMode = .selectOne
+        // Selected labels are heavier. Content-sized segments then change width
+        // and the whole control jitters. Equal widths stay put.
+        control.segmentDistribution = .fillEqually
+        control.segmentCount = LeaderboardGrouping.allCases.count
+        let segmentWidth = Self.width / CGFloat(LeaderboardGrouping.allCases.count)
+        for (index, grouping) in LeaderboardGrouping.allCases.enumerated() {
+            control.setLabel(grouping.title, forSegment: index)
+            control.setWidth(segmentWidth, forSegment: index)
+        }
+        control.selectedSegment = selectedIndex
+        control.target = context.coordinator
+        control.action = #selector(Coordinator.changed(_:))
+        control.toolTip = "按公司查看时，用名次加权均分，上榜数量不加分"
+        control.setAccessibilityLabel("榜单分组")
+        control.setContentCompressionResistancePriority(.required, for: .horizontal)
+        control.setContentHuggingPriority(.required, for: .horizontal)
+        return control
+    }
+
+    func updateNSView(_ control: CategorySegmentedControlView, context: Context) {
+        context.coordinator.selection = $selection
+        let index = selectedIndex
+        guard control.selectedSegment != index else { return }
+        // A SwiftUI refresh must not replay the click animation.
+        NSAnimationContext.beginGrouping()
+        NSAnimationContext.current.duration = 0
+        control.selectedSegment = index
+        NSAnimationContext.endGrouping()
+    }
+
+    func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        nsView: CategorySegmentedControlView,
+        context: Context
+    ) -> CGSize? {
+        CGSize(width: Self.width, height: Self.height)
+    }
+
+    private var selectedIndex: Int {
+        LeaderboardGrouping.allCases.firstIndex(of: selection) ?? 0
+    }
+
+    final class Coordinator: NSObject {
+        var selection: Binding<LeaderboardGrouping>
+
+        init(selection: Binding<LeaderboardGrouping>) {
+            self.selection = selection
+        }
+
+        @objc func changed(_ sender: NSSegmentedControl) {
+            let index = sender.selectedSegment
+            guard LeaderboardGrouping.allCases.indices.contains(index) else { return }
+            let grouping = LeaderboardGrouping.allCases[index]
+            guard selection.wrappedValue != grouping else { return }
+            selection.wrappedValue = grouping
         }
     }
 }
@@ -1037,6 +1183,18 @@ private struct PointingHandCursor: ViewModifier {
 extension View {
     func pointingHandCursor() -> some View {
         modifier(PointingHandCursor())
+    }
+}
+
+private struct OptionalHelp: ViewModifier {
+    let text: String?
+
+    func body(content: Content) -> some View {
+        if let text, !text.isEmpty {
+            content.help(text)
+        } else {
+            content
+        }
     }
 }
 
