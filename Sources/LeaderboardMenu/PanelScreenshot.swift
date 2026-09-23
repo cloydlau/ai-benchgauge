@@ -257,12 +257,20 @@ enum PanelScreenshot {
               ) else { return nil }
         context.interpolationQuality = .none
         if bottomPixels > 0,
-           let lower = image.cropping(to: CGRect(x: 0, y: pixelBottom, width: width, height: bottomPixels)) {
-            context.draw(lower, in: CGRect(x: 0, y: 0, width: width, height: bottomPixels))
+           let lower = image.cropping(to: CGRect(
+            x: 0,
+            y: CGFloat(pixelBottom),
+            width: CGFloat(width),
+            height: CGFloat(bottomPixels)
+           )) {
+            context.draw(lower, in: CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(bottomPixels)))
         }
         if topPixels > 0,
-           let upper = image.cropping(to: CGRect(x: 0, y: 0, width: width, height: topPixels)) {
-            context.draw(upper, in: CGRect(x: 0, y: CGFloat(bottomPixels), width: width, height: topPixels))
+           let upper = image.cropping(to: CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(topPixels))) {
+            context.draw(
+                upper,
+                in: CGRect(x: 0, y: CGFloat(bottomPixels), width: CGFloat(width), height: CGFloat(topPixels))
+            )
         }
         guard let joined = context.makeImage(), joined.height == newHeight else { return nil }
         let pointHeight = viewSize.height * CGFloat(newHeight) / CGFloat(image.height)
