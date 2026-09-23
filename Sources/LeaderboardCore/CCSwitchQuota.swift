@@ -312,37 +312,57 @@ public enum AccountQuotaFormatting {
             ?? String(format: "%0.2f", locale: Locale(identifier: "en_US_POSIX"), amount)
     }
 
-    /// CC Switch shows the 5-hour window before the weekly window even when the
-    /// weekly reset is sooner, or the 5-hour window has no reset time.
+    /// Later reset first. A missing reset is not an expiry, so it sorts last.
+    /// Equal resets keep the incoming order.
     public static func sortedWindows(_ windows: [ParsedQuotaWindow]) -> [ParsedQuotaWindow] {
         windows.enumerated()
             .sorted { lhs, rhs in
-                let leftRank = windowRank(lhs.element.name)
-                let rightRank = windowRank(rhs.element.name)
-                if leftRank != rightRank {
-                    return leftRank < rightRank
+                if let ordered = expiresLater(lhs.element.resetsAt, than: rhs.element.resetsAt) {
+                    return ordered
                 }
-                switch (lhs.element.resetsAt, rhs.element.resetsAt) {
-                case let (left?, right?) where left != right:
-                    return left < right
-                case (.some, .none):
-                    return true
-                case (.none, .some):
-                    return false
-                default:
-                    return lhs.offset < rhs.offset
-                }
+                return lhs.offset < rhs.offset
             }
             .map(\.element)
     }
 
-    private static func windowRank(_ name: String) -> Int {
-        switch name {
-        case "five_hour": 0
-        case "weekly_limit", "seven_day": 1
-        case "monthly": 2
-        case "credits": 3
-        default: 4
+    /// Providers whose quota expires last come first. A chip's expiry is its
+    /// latest window or plan reset. Missing expiry sorts last, ties keep the
+    /// stored order, and the current provider is not pinned.
+    public static func sortedChips(_ chips: [AccountQuotaChip]) -> [AccountQuotaChip] {
+        chips.enumerated()
+            .sorted { lhs, rhs in
+                if let ordered = expiresLater(latestReset(lhs.element), than: latestReset(rhs.element)) {
+                    return ordered
+                }
+                return lhs.offset < rhs.offset
+            }
+            .map(\.element)
+    }
+
+    private static func latestReset(_ chip: AccountQuotaChip) -> Date? {
+        switch chip.status {
+        case let .windows(windows):
+            return windows.compactMap(\.resetsAt).max()
+        case let .qwenPlan(plan):
+            return plan.resetsAt
+        case let .qwenWebsite(quota):
+            return quota.resetsAt
+        case .pending, .note, .balances, .message:
+            return nil
+        }
+    }
+
+    /// `true` when `lhs` should precede `rhs`. `nil` means the dates do not decide.
+    private static func expiresLater(_ lhs: Date?, than rhs: Date?) -> Bool? {
+        switch (lhs, rhs) {
+        case let (left?, right?) where left != right:
+            return left > right
+        case (.some, .none):
+            return true
+        case (.none, .some):
+            return false
+        default:
+            return nil
         }
     }
 

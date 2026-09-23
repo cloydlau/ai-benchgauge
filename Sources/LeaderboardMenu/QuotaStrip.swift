@@ -16,8 +16,9 @@ struct QuotaStrip: View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             // Chips keep their full text. Freshness lives in the header caption,
             // so a timestamp cannot sit on this row and steal width from wrapping.
+            // Last expiry first. Stored chip order stays stable for refresh identity.
             QuotaFlowLayout(spacing: 6, lineSpacing: 6) {
-                ForEach(chips) { chip in
+                ForEach(AccountQuotaFormatting.sortedChips(chips)) { chip in
                     QuotaChipView(
                         chip: chip,
                         now: context.date,
