@@ -324,6 +324,16 @@ struct LeaderboardView: View {
         state.selectedGrouping == .company ? tr("Company", "公司") : tr("Model", "模型")
     }
 
+    private func nameColumnTitle(for kind: LeaderboardKind) -> String {
+        guard let sourceDate = state.snapshot.boards[kind]?.sourceUpdatedAt else {
+            return nameColumnTitle
+        }
+        let formatter = DateFormatter()
+        formatter.locale = language.locale
+        formatter.dateFormat = "M/d HH:mm"
+        return "\(nameColumnTitle) · \(formatter.string(from: sourceDate))"
+    }
+
     /// One heading identifies both timestamps; the hairline separates the
     /// leaderboard data from this Mac's quota data.
     private func freshnessLine(now: Date) -> some View {
@@ -437,7 +447,7 @@ struct LeaderboardView: View {
             .width(48)
             .alignment(.center)
 
-            TableColumn(nameColumnTitle) { row in
+            TableColumn(nameColumnTitle(for: selectedCategory.leftKind)) { row in
                 LeaderboardCell(model: row.left, language: language, onCopyName: nameCopyAction)
             }
             .width(nameColumnWidth)
@@ -454,7 +464,7 @@ struct LeaderboardView: View {
             .width(Self.countryColumnWidth)
             .alignment(.center)
 
-            TableColumn(nameColumnTitle) { row in
+            TableColumn(nameColumnTitle(for: selectedCategory.rightKind)) { row in
                 LeaderboardCell(model: row.right, language: language, onCopyName: nameCopyAction)
             }
             .width(nameColumnWidth)
