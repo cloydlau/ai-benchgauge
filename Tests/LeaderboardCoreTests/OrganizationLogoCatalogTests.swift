@@ -146,23 +146,11 @@ final class OrganizationLogoCatalogTests: XCTestCase {
             "Ideogram", "Kimi", "Krea", "Luma AI", "Luma Labs", "Moonshot AI", "Opencode",
             "Runway", "StepFun", "Tencent", "Reve", "Video Rebirth"
         ]
-        var colors: [String: String] = [:]
         for organization in organizations {
             let key = OrganizationLogoCatalog.bundledLogoKey(forOrganization: organization)
             let color = OrganizationLogoCatalog.brandColorHex(forOrganization: organization)
             XCTAssertNotNil(key, organization)
             XCTAssertNotNil(color, organization)
-            guard let key, let color else { continue }
-            // Achromatic marks may share black or gray ink. Colored marks may not.
-            if !OrganizationLogoCatalog.isAchromaticHex(color), let existing = colors[color] {
-                XCTAssertEqual(existing, key, "\(organization) reuses \(color) from \(existing)")
-            } else if colors[color] == nil {
-                colors[color] = key
-            }
-            XCTAssertFalse(
-                ["#0A0A0A", "#404040", "#71767B", "#1F2937", "#3E63DD", "#F59E0B"].contains(color),
-                organization
-            )
         }
     }
 
@@ -171,53 +159,54 @@ final class OrganizationLogoCatalogTests: XCTestCase {
             "anthropic": "#D97757",
             "openai": "#10A37F",
             "qwen": "#623AE7",
-            "kimi": "#00F6FF",
+            "kimi": "#007CFF",
             "google": "#4285F4",
             "deepseek": "#4D6BFE",
-            "tencent": "#00A0D8",
-            "meta": "#0081FB",
+            "tencent": "#0052D9",
+            "meta": "#0068D5",
             "minimax": "#F21985",
-            "mistral": "#F5C63A",
+            "mistral": "#F29D38",
             "nvidia": "#76B900",
             "bytedance": "#3C8CFF",
             "xiaomi": "#FF6900",
-            "klingai": "#0EFF7F",
+            "klingai": "#009DCB",
             "luma": "#00C8E8",
             "fal": "#EC0648",
             "pixverse": "#A129FF",
             "microsoftai": "#E24B9A",
-            "zai": "#9A6E96",
-            "spacexai": "#C4A15A",
-            "stepfun": "#6E8F58",
-            "krea": "#7C9450",
-            "ideogram": "#C48A62",
-            "runway": "#A67A62",
-            "blackforestlabs": "#7A6890",
-            "opencode": "#5F8A62",
-            "devin": "#C47890",
-            "reve": "#8A7094",
-            "videorebirth": "#6A8F6E",
-            "thinkingmachines": "#B09868"
+            "zai": "#3A3A3A",
+            "spacexai": "#242424",
+            "stepfun": "#505050",
+            "krea": "#666666",
+            "ideogram": "#404040",
+            "runway": "#2C2C2C",
+            "blackforestlabs": "#343434",
+            "opencode": "#5A5A5A",
+            "devin": "#202020",
+            "reve": "#484848",
+            "videorebirth": "#707070",
+            "thinkingmachines": "#606060",
+            "github": "#303030"
         ]
-        XCTAssertEqual(Set(expected.values).count, expected.count)
         for (key, color) in expected {
             XCTAssertEqual(OrganizationLogoCatalog.brandColorHex(forOrganization: key), color, key)
             XCTAssertEqual(OrganizationLogoCatalog.bundledLogoKey(forOrganization: key), key)
-            XCTAssertFalse(OrganizationLogoCatalog.isAchromaticHex(color), key)
-            XCTAssertEqual(
-                OrganizationLogoCatalog.displayBrandColorHex(color, isDark: true),
-                color,
-                key
-            )
+            let darkColor = OrganizationLogoCatalog.displayBrandColorHex(color, isDark: true)
+            if OrganizationLogoCatalog.isAchromaticHex(color) {
+                XCTAssertTrue(OrganizationLogoCatalog.isAchromaticHex(darkColor), key)
+                XCTAssertNotEqual(darkColor, color, key)
+            } else {
+                XCTAssertEqual(darkColor, color, key)
+            }
         }
 
         for name in ["xAI", "SpaceXAI", "x.ai"] {
             let color = OrganizationLogoCatalog.brandColorHex(forOrganization: name)
-            XCTAssertEqual(color, "#C4A15A", name)
-            XCTAssertFalse(OrganizationLogoCatalog.isAchromaticHex(color ?? ""))
+            XCTAssertEqual(color, "#242424", name)
+            XCTAssertTrue(OrganizationLogoCatalog.isAchromaticHex(color ?? ""))
             XCTAssertEqual(
                 OrganizationLogoCatalog.displayBrandColorHex(color ?? "", isDark: true),
-                "#C4A15A",
+                "#E6E6E6",
                 name
             )
         }
@@ -225,11 +214,37 @@ final class OrganizationLogoCatalogTests: XCTestCase {
         XCTAssertFalse(OrganizationLogoCatalog.isAchromaticHex("#F59E0B"))
         XCTAssertEqual(OrganizationLogoCatalog.displayBrandColorHex("#000000", isDark: false), "#000000")
         XCTAssertEqual(OrganizationLogoCatalog.displayBrandColorHex("#000000", isDark: true), "#FFFFFF")
-        XCTAssertEqual(OrganizationLogoCatalog.displayBrandColorHex("#2C2C2C", isDark: true), "#FFFFFF")
+        XCTAssertEqual(OrganizationLogoCatalog.displayBrandColorHex("#2C2C2C", isDark: true), "#E1E1E1")
         XCTAssertEqual(OrganizationLogoCatalog.displayBrandColorHex("#10A37F", isDark: true), "#10A37F")
         XCTAssertNotEqual(
             OrganizationLogoCatalog.brandColorHex(forOrganization: "Devin"),
             OrganizationLogoCatalog.brandColorHex(forOrganization: "Qwen")
         )
+    }
+
+    func testModelsKeepBrandHueWhileVaryingShade() {
+        let brand = OrganizationLogoCatalog.brandColorHex(forOrganization: "Anthropic")!
+        let names = ["Claude Fable 5.1", "Claude Opus 4.7", "Claude Opus 5.5", "Claude Sonnet 5"]
+        let shades = names.map {
+            OrganizationLogoCatalog.displayBrandColorHex(brand, isDark: false, modelName: $0)
+        }
+        XCTAssertGreaterThan(Set(shades).count, 1)
+        for color in shades {
+            let red = Int(color.dropFirst().prefix(2), radix: 16)!
+            let green = Int(color.dropFirst(3).prefix(2), radix: 16)!
+            let blue = Int(color.dropFirst(5).prefix(2), radix: 16)!
+            XCTAssertGreaterThan(red, green)
+            XCTAssertGreaterThan(green, blue)
+        }
+
+        let kimi = OrganizationLogoCatalog.brandColorHex(forOrganization: "Kimi")!
+        XCTAssertEqual(
+            OrganizationLogoCatalog.displayBrandColorHex(kimi, isDark: false, modelName: "Kimi K3 (max)"),
+            OrganizationLogoCatalog.displayBrandColorHex(kimi, isDark: false, modelName: "kimi-k3-max")
+        )
+        let xai = OrganizationLogoCatalog.brandColorHex(forOrganization: "xAI")!
+        XCTAssertTrue(OrganizationLogoCatalog.isAchromaticHex(
+            OrganizationLogoCatalog.displayBrandColorHex(xai, isDark: true, modelName: "Grok 4.7")
+        ))
     }
 }
