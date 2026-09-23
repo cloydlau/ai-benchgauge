@@ -60,23 +60,19 @@ struct LeaderboardView: View {
         }
     }
 
-    /// Hidden unless recognizable provider quotas exist, or a present CC Switch
-    /// database could not be read this time. A missing install stays hidden.
-    /// Official usage with no stored login is omitted; Codex need not be installed.
-    private var showsQuotaStrip: Bool {
-        state.quotaUnavailable || !state.quotaChips.isEmpty
-    }
-
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
             titleRow
-            if showsQuotaStrip {
-                QuotaStrip(
-                    chips: state.quotaChips,
-                    updatedAt: state.quotaUpdatedAt,
-                    unavailable: state.quotaUnavailable,
-                    onConnectQwen: state.connectQwenWebsite
-                )
+            VStack(alignment: .leading, spacing: 8) {
+                TimelineView(.periodic(from: .now, by: 60)) { context in
+                    freshnessLine(now: context.date)
+                }
+                if !state.quotaChips.isEmpty {
+                    QuotaStrip(
+                        chips: state.quotaChips,
+                        onConnectQwen: state.connectQwenWebsite
+                    )
+                }
             }
         }
         .padding(.horizontal, 18)
@@ -87,20 +83,15 @@ struct LeaderboardView: View {
         // Equal side columns keep the tabs centered. A trailing spacer left a
         // wide empty band between the title and the picker. Grouping sits
         // beside the category control; both widths are fixed so 公司 does not
-        // reflow the table columns.
+        // reflow the table columns. Freshness is its own row, not a corner of this one.
         HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("AI Leaderboards")
-                        .font(.system(size: 17, weight: .semibold))
-                    Text("v\(appVersion)")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .monospacedDigit()
-                }
-                updateStatus
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("AI Leaderboards")
+                    .font(.system(size: 17, weight: .semibold))
+                Text("v\(appVersion)")
                     .font(.caption)
-                    .lineLimit(1)
+                    .foregroundStyle(.tertiary)
+                    .monospacedDigit()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -109,12 +100,9 @@ struct LeaderboardView: View {
                 categoryPicker
             }
 
-            Text(nextRunLabel)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .trailing)
+            Color.clear
+                .frame(maxWidth: .infinity, maxHeight: 1)
+                .accessibilityHidden(true)
         }
         .animation(nil, value: state.selectedCategory)
         .animation(nil, value: state.selectedGrouping)
@@ -146,18 +134,105 @@ struct LeaderboardView: View {
         state.selectedCategory
     }
 
-    @ViewBuilder
-    private var updateStatus: some View {
-        if state.isRefreshing {
-            Text("更新中")
-                .foregroundStyle(.secondary)
-        } else if state.lastErrors.isEmpty {
-            Text("已更新")
-                .foregroundStyle(.secondary)
-        } else {
-            Text("部分榜单更新失败，将按计划重试")
-                .foregroundStyle(.orange)
+    /// One caption for every freshness fact. They used to sit in three places:
+    /// under the title, at the trailing edge, and beside the quota chips.
+    private func freshnessLine(now: Date) -> some View {
+        freshnessText(now: now)
+            .font(.system(size: 11))
+            .monospacedDigit()
+            .lineLimit(1)
+            .help(freshnessHelp(now: now))
+    }
+
+    private func freshnessText(now: Date) -> Text {
+        var text = leaderboardStatusText
+        text = text + Text(" · ").foregroundStyle(.quaternary)
+        text = text + Text(scheduleClause(now: now)).foregroundStyle(.secondary)
+        if let quota = quotaClause(now: now) {
+            text = text + Text(" · ").foregroundStyle(.quaternary)
+            let tone: Color = state.quotaUnavailable ? .orange : .secondary
+            text = text + Text(quota).foregroundStyle(tone)
         }
+        return text
+    }
+
+    private var leaderboardStatusText: Text {
+        if state.isRefreshing {
+            return Text("更新中").foregroundStyle(.secondary)
+        }
+        if state.lastErrors.isEmpty {
+            return Text("已更新").foregroundStyle(.secondary)
+        }
+        return Text("部分榜单更新失败").foregroundStyle(.orange)
+    }
+
+    private func freshnessHelp(now: Date) -> String {
+        var parts: [String] = []
+        if state.isRefreshing {
+            parts.append("正在更新榜单")
+        } else if state.lastErrors.isEmpty {
+            parts.append("榜单已更新，每天 \(clockTime(state.schedule.dailyRunAt)) 自动更新")
+        } else {
+            parts.append("部分榜单更新失败，将按计划重试")
+        }
+        if state.quotaUnavailable && state.quotaChips.isEmpty {
+            parts.append("这次没读成本机 CC Switch 数据库")
+        } else if state.quotaUnavailable {
+            parts.append("余量数据库这次没有读成，显示的是上次余量")
+        } else if quotaClause(now: now) != nil {
+            parts.append("余量来自本机 CC Switch。没安装或读不懂配置时不显示，也不需要安装 Codex")
+        }
+        return parts.joined(separator: "。")
+    }
+
+    private func scheduleClause(now: Date) -> String {
+        if let retryAt = state.schedule.retryAfterFailureAt, retryAt < state.schedule.giveUpAt {
+            return "下次重试 \(compactWhen(retryAt, now: now))"
+        }
+        let run = state.schedule.dailyRunAt
+        if Calendar.current.isDateInToday(run) || Calendar.current.isDateInTomorrow(run) {
+            return "每日 \(clockTime(run))"
+        }
+        return "每日 \(compactWhen(run, now: now))"
+    }
+
+    private func quotaClause(now: Date) -> String? {
+        if state.quotaChips.isEmpty {
+            return state.quotaUnavailable ? "CC Switch 暂不可读" : nil
+        }
+        if state.quotaUnavailable { return "余量未刷新" }
+        guard let updatedAt = state.quotaUpdatedAt else { return "余量" }
+        return "余量 \(relativeTime(updatedAt, now: now))"
+    }
+
+    private func relativeTime(_ date: Date, now: Date) -> String {
+        let seconds = now.timeIntervalSince(date)
+        if seconds < 45 { return "刚刚" }
+        let minutes = Int(seconds / 60)
+        if minutes < 60 { return "\(max(minutes, 1)) 分钟前" }
+        return compactWhen(date, now: now)
+    }
+
+    private func compactWhen(_ date: Date, now: Date) -> String {
+        let time = clockTime(date)
+        let calendar = Calendar.current
+        if calendar.isDate(date, inSameDayAs: now) { return time }
+        if calendar.isDateInTomorrow(date) { return "明天 \(time)" }
+        return "\(monthDay(date)) \(time)"
+    }
+
+    private func clockTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
+
+    private func monthDay(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "M月d日"
+        return formatter.string(from: date)
     }
 
     private var appVersion: String {
@@ -449,17 +524,6 @@ struct LeaderboardView: View {
         image.isTemplate = true
         return image
     }()
-
-    private var nextRunLabel: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
-
-        if let retryAt = state.schedule.retryAfterFailureAt, retryAt < state.schedule.giveUpAt {
-            return "下次重试 \(formatter.string(from: retryAt))"
-        }
-        return "每日更新 \(formatter.string(from: state.schedule.dailyRunAt))"
-    }
 
     /// Empty boards skeleton from the raw model list, not the company
     /// aggregation. Grouping is a local view and must not look like a fetch.
