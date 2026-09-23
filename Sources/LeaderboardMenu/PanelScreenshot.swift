@@ -6,21 +6,19 @@ import QuartzCore
 /// cacheDisplay sometimes skips. The table region decides which result is real.
 @MainActor
 enum PanelScreenshot {
-    /// `redactingTopBand` is in view points, origin at the top-left, y downward.
-    /// The quota row uses that rect so the shared image mosaics it in place.
-    /// Cropping the row out of this fixed-height panel left a blank band at the
-    /// bottom, so the row stays and only the copied pixels are censored.
-    /// `redactedBand` is false when a band was requested but could not be mosaicked.
+    /// The quota band is in view points, origin at the top-left, y downward.
+    /// Its original pixels are covered before the rendered CC Switch guide is
+    /// inserted. A failed replacement must never produce a shareable image.
     static func capture(
         view: NSView,
-        redactingTopBand band: CGRect? = nil
-    ) -> (image: NSImage, png: Data, redactedBand: Bool)? {
+        replacingTopBandWith replacement: (band: CGRect, prompt: CGImage)? = nil
+    ) -> (image: NSImage, png: Data, replacedBand: Bool)? {
         view.layoutSubtreeIfNeeded()
         view.window?.displayIfNeeded()
         CATransaction.flush()
 
         guard let rep = bestRepresentation(of: view) else { return nil }
-        return flattenedCapture(from: rep, view: view, redactingTopBand: band)
+        return flattenedCapture(from: rep, view: view, replacingTopBandWith: replacement)
     }
 
     static let quotaStripIdentifier = NSUserInterfaceItemIdentifier("ai-leaderboard.quota-strip")
@@ -35,8 +33,8 @@ enum PanelScreenshot {
             return nil
         }
         var band = CGRect(x: 0, y: topDown.minY, width: host.bounds.width, height: topDown.height)
-        // One point of the surrounding header fill, so a Retina rounding sliver
-        // of a chip border cannot survive the mosaic.
+        // Include the surrounding header fill so Retina rounding cannot leave
+        // a sliver of the original quota row in the copied image.
         let bleed: CGFloat = 1
         if band.minY > bleed {
             band.origin.y -= bleed
@@ -181,8 +179,8 @@ enum PanelScreenshot {
     private static func flattenedCapture(
         from rep: NSBitmapImageRep,
         view: NSView,
-        redactingTopBand band: CGRect?
-    ) -> (image: NSImage, png: Data, redactedBand: Bool)? {
+        replacingTopBandWith replacement: (band: CGRect, prompt: CGImage)?
+    ) -> (image: NSImage, png: Data, replacedBand: Bool)? {
         guard let source = rep.cgImage, source.width > 1, source.height > 1 else { return nil }
         let pixelsWide = source.width
         let pixelsHigh = source.height
@@ -209,11 +207,16 @@ enum PanelScreenshot {
         context.draw(drawing, in: CGRect(x: 0, y: 0, width: pixelsWide, height: pixelsHigh))
         guard let flattened = context.makeImage() else { return nil }
         var output = flattened
-        var redactedBand = false
-        if let band,
-           let censored = pixelatingHorizontalBand(flattened, band: band, viewSize: view.bounds.size) {
-            output = censored
-            redactedBand = true
+        var replacedBand = false
+        if let replacement {
+            guard let replaced = replacingHorizontalBand(
+                flattened,
+                band: replacement.band,
+                prompt: replacement.prompt,
+                view: view
+            ) else { return nil }
+            output = replaced
+            replacedBand = true
         }
 
         let bitmap = NSBitmapImageRep(cgImage: output)
@@ -221,19 +224,18 @@ enum PanelScreenshot {
         guard let png = bitmap.representation(using: .png, properties: [:]) else { return nil }
         let image = NSImage(size: pointSize)
         image.addRepresentation(bitmap)
-        return (image, png, redactedBand)
+        return (image, png, replacedBand)
     }
 
-    /// Mosaics a horizontal band in place. `band` is in points with a top-left
-    /// origin, matching `NSBitmapImageRep.colorAt`. Image size stays the same:
-    /// dropping this row left a blank strip at the bottom of the fixed-height
-    /// panel. Crop rects are not used; their origin does not match that axis.
-    static func pixelatingHorizontalBand(
+    /// Overwrites the entire source band, then draws an image of the same
+    /// CC Switch guide used in the live empty state.
+    private static func replacingHorizontalBand(
         _ image: CGImage,
         band: CGRect,
-        viewSize: CGSize,
-        blockPoints: CGFloat = 14
+        prompt: CGImage,
+        view: NSView
     ) -> CGImage? {
+        let viewSize = view.bounds.size
         guard viewSize.width > 1, viewSize.height > 1, image.width > 1, image.height > 1 else { return nil }
         let bleed: CGFloat = 2
         var top = band.minY - bleed
@@ -258,52 +260,19 @@ enum PanelScreenshot {
                 bytesPerRow: 0,
                 space: colorSpace,
                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-              ),
-              let data = context.data else { return nil }
+              ) else { return nil }
 
-        context.interpolationQuality = .none
+        context.interpolationQuality = .high
         context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
-        // After drawing into this bitmap, row 0 is the visual top, same as colorAt.
-        let rowBytes = context.bytesPerRow
-        let bytes = data.bindMemory(to: UInt8.self, capacity: rowBytes * height)
-        let block = max(8, Int((blockPoints * scaleY).rounded()))
-
-        var y = pixelTop
-        while y < pixelBottom {
-            let blockHeight = min(block, pixelBottom - y)
-            var x = 0
-            while x < width {
-                let blockWidth = min(block, width - x)
-                var red = 0
-                var green = 0
-                var blue = 0
-                let count = blockWidth * blockHeight
-                for row in y..<(y + blockHeight) {
-                    let rowStart = row * rowBytes + x * 4
-                    for col in 0..<blockWidth {
-                        let i = rowStart + col * 4
-                        red += Int(bytes[i])
-                        green += Int(bytes[i + 1])
-                        blue += Int(bytes[i + 2])
-                    }
-                }
-                let r = UInt8(red / count)
-                let g = UInt8(green / count)
-                let b = UInt8(blue / count)
-                for row in y..<(y + blockHeight) {
-                    let rowStart = row * rowBytes + x * 4
-                    for col in 0..<blockWidth {
-                        let i = rowStart + col * 4
-                        bytes[i] = r
-                        bytes[i + 1] = g
-                        bytes[i + 2] = b
-                        bytes[i + 3] = 255
-                    }
-                }
-                x += blockWidth
-            }
-            y += blockHeight
-        }
+        let replacementRect = CGRect(x: 0, y: height - pixelBottom, width: width, height: pixelBottom - pixelTop)
+        // The panel's semantic background can differ slightly from its final
+        // captured pixels. Sample the empty left margin for a seamless fill.
+        let marginColor = NSBitmapImageRep(cgImage: image)
+            .colorAt(x: min(2, width - 1), y: (pixelTop + pixelBottom) / 2)?
+            .usingColorSpace(.sRGB)?.cgColor
+        context.setFillColor(marginColor ?? opaqueBackground(for: view))
+        context.fill(replacementRect)
+        context.draw(prompt, in: replacementRect)
         return context.makeImage()
     }
 

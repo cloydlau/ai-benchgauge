@@ -3,6 +3,7 @@ import LeaderboardCore
 
 private struct CCSwitchQuotaLoad: Sendable {
     var result: CCSwitchProviderLoadResult
+    var databaseMissing: Bool
     var currentProviderID: String?
     var xaiAuthURL: URL
 }
@@ -13,16 +14,17 @@ final class AppState: ObservableObject {
     @Published private(set) var isRefreshing = false
     @Published private(set) var lastErrors: [LeaderboardKind: String] = [:]
     @Published private(set) var schedule = UpdateSchedule.initial()
-    @Published private(set) var lastAttemptAt: Date?
     @Published private(set) var selectedCategory = LeaderboardCategory.general
     @Published private(set) var selectedGrouping = LeaderboardGrouping.model
+    @Published private(set) var selectedLanguage = AppLanguage.load()
     @Published private(set) var isQuitting = false
     /// Provider quotas from the local CC Switch database. These are not
-    /// leaderboard rows, so they stay off the table. Missing CC Switch or Codex
-    /// installs are not errors.
+    /// leaderboard rows, so they stay off the table. Missing CC Switch data
+    /// prompts installation; Codex itself does not need to be installed.
     @Published private(set) var quotaChips: [AccountQuotaChip] = []
     @Published private(set) var quotaUpdatedAt: Date?
     @Published private(set) var quotaUnavailable = false
+    @Published private(set) var quotaNeedsCCSwitch = false
 
     private let fetcher = LeaderboardFetcher()
     private let cache: LeaderboardCache
@@ -33,6 +35,7 @@ final class AppState: ObservableObject {
     private var refreshTask: Task<Void, Never>?
     private var quotaTask: Task<Void, Never>?
     private var refreshPending = false
+    private var lastLeaderboardAttemptAtByCategory: [LeaderboardCategory: Date] = [:]
     private var lastQuotaAttemptAt: Date?
     private var lastQuotaAttemptAtByID: [String: Date] = [:]
     private var quotaGeneration = 0
@@ -58,9 +61,9 @@ final class AppState: ObservableObject {
         startTimer()
     }
 
-    /// Leaderboard sources rate-limit, so menu clicks do not refetch them
-    /// on every open. The selected provider's quota has no such interval.
-    private static let minimumMenuRefreshInterval: TimeInterval = 10 * 60
+    /// Applies to every leaderboard refresh path. Quota refreshes use their
+    /// own intervals because they read different sources.
+    private static let minimumLeaderboardRefreshInterval: TimeInterval = 30 * 60
     private static let inactiveQuotaRefreshInterval: TimeInterval = 60
     /// Matches CC Switch's default auto-query interval.
     private static let backgroundQuotaRefreshInterval: TimeInterval = 5 * 60
@@ -70,10 +73,6 @@ final class AppState: ObservableObject {
             minimumInterval: 0,
             inactiveMinimumInterval: Self.inactiveQuotaRefreshInterval
         )
-        if let lastAttemptAt,
-           Date().timeIntervalSince(lastAttemptAt) < Self.minimumMenuRefreshInterval {
-            return
-        }
         refreshNow()
     }
 
@@ -116,6 +115,12 @@ final class AppState: ObservableObject {
         guard grouping != selectedGrouping else { return }
         selectedGrouping = grouping
         GroupingPreference.save(grouping)
+    }
+
+    func selectLanguage(_ language: AppLanguage) {
+        guard language != selectedLanguage else { return }
+        selectedLanguage = language
+        language.save()
     }
 
     private func startTimer() {
@@ -171,6 +176,7 @@ final class AppState: ObservableObject {
                 }
                 return CCSwitchQuotaLoad(
                     result: result,
+                    databaseMissing: !FileManager.default.fileExists(atPath: install.databaseURL.path(percentEncoded: false)),
                     currentProviderID: currentID,
                     xaiAuthURL: install.xaiAuthURL
                 )
@@ -180,14 +186,17 @@ final class AppState: ObservableObject {
             switch loaded.result {
             case .absent:
                 self.quotaUnavailable = false
+                self.quotaNeedsCCSwitch = loaded.databaseMissing
                 self.quotaChips = []
                 self.quotaUpdatedAt = nil
                 self.lastQuotaAttemptAtByID = [:]
             case .unavailable:
                 // Keep the last chips. The strip only notes that this read failed.
                 self.quotaUnavailable = true
+                self.quotaNeedsCCSwitch = false
             case let .records(records):
                 self.quotaUnavailable = false
+                self.quotaNeedsCCSwitch = false
                 let targets = CCSwitchQuotaCatalog.targets(
                     from: records,
                     currentProviderID: loaded.currentProviderID
@@ -237,7 +246,7 @@ final class AppState: ObservableObject {
                     let refreshedAt = Date()
                     self.quotaChips = previous.map { refreshedByID[$0.id] ?? $0 }
                     self.quotaUpdatedAt = refreshedAt
-                    self.quotaNotifier.consider(chips: chips, now: refreshedAt)
+                    self.quotaNotifier.consider(chips: chips, now: refreshedAt, language: self.selectedLanguage)
                 } catch is CancellationError {
                     return
                 } catch {
@@ -279,11 +288,25 @@ final class AppState: ObservableObject {
 
     private func refreshNow() {
         guard !isQuitting, !isRefreshing else { return }
+        let category = selectedCategory
+        let now = Date()
+        if let lastAttempt = lastLeaderboardAttemptAtByCategory[category],
+           now.timeIntervalSince(lastAttempt) < Self.minimumLeaderboardRefreshInterval {
+            return
+        }
+        // A recent successful fetch in the cache also limits refreshes after
+        // an app restart. Missing boards still get their first fetch promptly.
+        if category.boardKinds.allSatisfy({ kind in
+            guard let fetchedAt = snapshot.boards[kind]?.fetchedAt else { return false }
+            return now.timeIntervalSince(fetchedAt) < Self.minimumLeaderboardRefreshInterval
+        }) {
+            return
+        }
+
         isRefreshing = true
         lastErrors = [:]
-        lastAttemptAt = Date()
+        lastLeaderboardAttemptAtByCategory[category] = now
 
-        let category = selectedCategory
         let kinds = category.boardKinds
 
         refreshTask = Task {

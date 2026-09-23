@@ -47,11 +47,12 @@ final class QwenWebsiteQuotaSource: NSObject, WKNavigationDelegate, @unchecked S
                 backing: .buffered,
                 defer: false
             )
-            window.title = "连接千问官网用量"
+            window.title = AppLanguage.load().text("Connect Qwen usage", "连接千问官网用量")
             window.contentView = webView
             window.center()
             loginWindow = window
         }
+        loginWindow?.title = AppLanguage.load().text("Connect Qwen usage", "连接千问官网用量")
         loginWindow?.makeKeyAndOrderFront(nil)
         loginWindow?.orderFrontRegardless()
         NSApp.activate(ignoringOtherApps: true)
