@@ -115,9 +115,9 @@ public enum OrganizationLogoCatalog {
     /// Kimi is an official secondary, because the mark's blue matches Meta.
     /// Black marks use a medium display tint, not a logo color, so dark menus
     /// do not flip the row to white.
-    /// Row wash. A harness label follows the lead model, not the tool and not
-    /// the sidekick after `+`. Devin Fusion therefore uses Claude or OpenAI
-    /// ink while the mark stays Devin.
+    /// A harness label follows the lead model, not the tool and not the
+    /// sidekick after `+`. Devin Fusion therefore uses Claude or OpenAI ink
+    /// while the mark stays Devin.
     public static func brandColorHex(forOrganization organization: String?, modelName: String? = nil) -> String? {
         if let hosted = hostedModelKey(from: modelName), let color = brandColors[hosted] {
             return color
