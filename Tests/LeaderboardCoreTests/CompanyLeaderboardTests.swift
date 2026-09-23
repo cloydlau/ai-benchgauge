@@ -17,40 +17,40 @@ final class CompanyLeaderboardTests: XCTestCase {
         XCTAssertEqual(ranked[1].components.count, 3)
     }
 
-    func testRankOneAndRankFourWeightToEightyEight() {
+    func testFlagshipScoreIgnoresTheWeakerModel() {
         let ranked = CompanyLeaderboard.rank([
             entry(4, "Tail", 40, organization: "Alpha"),
             entry(1, "Top", 100, organization: "Alpha"),
         ])
         let standing = try! XCTUnwrap(ranked.first)
-        XCTAssertEqual(standing.entry.score, 88, accuracy: 1e-9)
+        XCTAssertEqual(standing.entry.score, 100, accuracy: 1e-9)
         XCTAssertEqual(standing.components.map(\.name), ["Top", "Tail"])
-        XCTAssertEqual(standing.components.map(\.weight).reduce(0, +), 1, accuracy: 1e-9)
-        XCTAssertEqual(standing.components[0].weight, 0.8, accuracy: 1e-9)
-        XCTAssertEqual(standing.components[1].weight, 0.2, accuracy: 1e-9)
-        let recomputed = standing.components.reduce(0) { $0 + $1.score * $1.weight }
-        XCTAssertEqual(standing.entry.score, recomputed, accuracy: 1e-9)
         XCTAssertEqual(
             CompanyLeaderboard.scoreHelp(for: standing),
             """
-            名次加权均分，上榜数量不加分
-            Top · 第1名 · 80% · 100.0
-            Tail · 第4名 · 20% · 40.0
+            以最强模型分数为准，弱型号不拉低
+            Top · 第1名 · 100.0 · 最强
+            Tail · 第4名 · 40.0
             """
         )
         XCTAssertFalse(standing.entry.name.contains("2"))
     }
 
-    func testRankTwoAndRankThreeWeightToSeventySix() {
+    func testWeakerSiblingDoesNotRankBelowAStrongerFlagship() {
+        // Reciprocal-rank mean would score xAI at 72*(4/7)+40*(3/7) ≈ 58.3,
+        // behind Xiaomi's 68, even though Grok 4.7 is the stronger model.
         let ranked = CompanyLeaderboard.rank([
-            entry(2, "Lead", 100, organization: "Alpha"),
-            entry(3, "Next", 40, organization: "Alpha"),
+            entry(4, "Grok 4.6", 40, organization: "xAI"),
+            entry(8, "MiMo 2.6", 68, organization: "Xiaomi"),
+            entry(3, "Grok 4.7", 72, organization: "xAI"),
         ])
-        XCTAssertEqual(ranked[0].entry.score, 76, accuracy: 1e-9)
-        XCTAssertEqual(ranked[0].components.map(\.weight).reduce(0, +), 1, accuracy: 1e-9)
+        XCTAssertEqual(ranked.map(\.entry.name), ["xAI", "Xiaomi"])
+        XCTAssertEqual(ranked[0].entry.score, 72, accuracy: 1e-9)
+        XCTAssertEqual(ranked[1].entry.score, 68, accuracy: 1e-9)
+        XCTAssertEqual(ranked[0].components.map(\.name), ["Grok 4.7", "Grok 4.6"])
     }
 
-    func testWeakerTailDoesNotEraseTheFrontierModel() {
+    func testWeakerTailDoesNotChangeTheFlagshipScore() {
         let alone = CompanyLeaderboard.rank([
             entry(1, "Top", 100, organization: "Alpha"),
         ])[0].entry.score
@@ -58,11 +58,8 @@ final class CompanyLeaderboardTests: XCTestCase {
             entry(1, "Top", 100, organization: "Alpha"),
             entry(20, "Tail", 10, organization: "Alpha"),
         ])[0].entry.score
-        // Equal mean would be 55. Sum would be 110. Neither is the company level.
         XCTAssertEqual(alone, 100)
-        XCTAssertLessThan(withTail, alone)
-        XCTAssertGreaterThan(withTail, 95)
-        XCTAssertLessThan(withTail, 96)
+        XCTAssertEqual(withTail, alone)
     }
 
     func testEightAverageModelsDoNotBeatOneStrongModel() {
@@ -89,7 +86,6 @@ final class CompanyLeaderboardTests: XCTestCase {
         let alibaba = try! XCTUnwrap(ranked.first { $0.entry.name == "Alibaba" })
         XCTAssertEqual(alibaba.entry.organization, "Alibaba")
         XCTAssertEqual(alibaba.components.map(\.name).sorted(), ["Qwen3 Max", "Qwen3 Next"])
-        XCTAssertEqual(alibaba.components.map(\.weight).reduce(0, +), 1, accuracy: 1e-9)
         XCTAssertFalse(alibaba.entry.name.contains("×"))
     }
 

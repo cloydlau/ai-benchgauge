@@ -2,25 +2,21 @@ import Foundation
 
 /// Company standings derived from one board's model rows.
 ///
-/// The score is a reciprocal-rank weighted mean. Weight is `1 / rank` on that
-/// board, then normalized inside the company so the weights sum to 1. A sum,
-/// a count, reciprocal-rank fusion, or log-sum-exp would all grow with how
-/// many of that company's models made the board. An equal mean lets a long
-/// tail erase the frontier model: rank 1 at 100 plus rank 20 at 10 would
-/// become 55 instead of about 95.7. A weaker extra model can only pull this
-/// mean; it never adds a bonus. Model count is not a tie-break.
+/// The score is the strongest listed model. A weaker sibling stays in the
+/// breakdown and must not pull the company below a rival whose flagship is
+/// stronger. Breadth is not a bonus: a longer listing never outranks a
+/// stronger flagship, and model count is not a tie-break.
 public enum CompanyLeaderboard {
     /// The table has 20 slots. Extra companies would not be visible.
     private static let displayLimit = 20
 
-    /// Shown on the company score. Count is named so a longer listing is not
-    /// read as a higher score.
-    public static let scoreExplanation = "名次加权均分，上榜数量不加分"
+    /// Shown on the company score. The number is the flagship, not a blend.
+    public static let scoreExplanation = "以最强模型分数为准，弱型号不拉低"
 
     public static func rank(_ entries: [LeaderboardEntry]) -> [CompanyStanding] {
         var grouped: [String: [LeaderboardEntry]] = [:]
         for entry in entries {
-            // 1/rank is the weight. A non-positive rank is not a board position.
+            // A non-positive rank is not a board position.
             guard entry.rank > 0 else { continue }
             guard let key = OrganizationLogoCatalog.resolvedKey(
                 organization: entry.organization,
@@ -57,11 +53,11 @@ public enum CompanyLeaderboard {
     }
 
     public static func scoreHelp(for standing: CompanyStanding) -> String {
-        let details = standing.components.map { component in
+        let details = standing.components.enumerated().map { index, component in
             let rank = "第\(component.rank)名"
-            let weight = percentText(component.weight)
             let score = scoreText(component.score)
-            return "\(component.name) · \(rank) · \(weight) · \(score)"
+            let marker = index == 0 ? " · 最强" : ""
+            return "\(component.name) · \(rank) · \(score)\(marker)"
         }
         return ([scoreExplanation] + details).joined(separator: "\n")
     }
@@ -116,49 +112,29 @@ public enum CompanyLeaderboard {
     }
 
     private static func aggregate(key: String, members: [LeaderboardEntry]) -> Aggregate {
-        let rawWeights = members.map { 1.0 / Double($0.rank) }
-        let weightSum = rawWeights.reduce(0, +)
-        let components = zip(members, rawWeights).map { member, raw in
+        let ordered = members.sorted { isStronger($0, than: $1) }
+        let flagship = ordered[0]
+        let components = ordered.map { member in
             CompanyStandingComponent(
                 name: member.name,
                 rank: member.rank,
-                score: member.score,
-                weight: raw / weightSum
+                score: member.score
             )
-        }.sorted { lhs, rhs in
-            if lhs.rank != rhs.rank { return lhs.rank < rhs.rank }
-            return lhs.name < rhs.name
         }
-        let score = weightedMean(components)
-        let best = bestMember(members)
         return Aggregate(
-            name: displayName(key: key, best: best),
-            score: score,
-            bestRank: best?.rank ?? Int.max,
-            logoURL: best?.logoURL,
+            name: displayName(key: key, best: flagship),
+            score: flagship.score,
+            bestRank: flagship.rank,
+            logoURL: flagship.logoURL,
             components: components
         )
     }
 
-    /// Normalized `1/rank` weights do not sum to 1 in floating point. Summing
-    /// `score * weight` then ranks a longer listing of the same scores above a
-    /// shorter one. The mean of a constant is that constant, so count cannot
-    /// move it.
-    private static func weightedMean(_ components: [CompanyStandingComponent]) -> Double {
-        guard let first = components.first else { return 0 }
-        if components.allSatisfy({ $0.score == first.score }) {
-            return first.score
-        }
-        return components.reduce(0.0) { partial, component in
-            partial + component.score * component.weight
-        }
-    }
-
-    private static func bestMember(_ members: [LeaderboardEntry]) -> LeaderboardEntry? {
-        members.min { lhs, rhs in
-            if lhs.rank != rhs.rank { return lhs.rank < rhs.rank }
-            return lhs.name < rhs.name
-        }
+    /// Highest score is the flagship. Rank, then name, only separate equals.
+    private static func isStronger(_ lhs: LeaderboardEntry, than rhs: LeaderboardEntry) -> Bool {
+        if lhs.score != rhs.score { return lhs.score > rhs.score }
+        if lhs.rank != rhs.rank { return lhs.rank < rhs.rank }
+        return lhs.name < rhs.name
     }
 
     private static func displayName(key: String, best: LeaderboardEntry?) -> String {
@@ -172,11 +148,6 @@ public enum CompanyLeaderboard {
         return key
     }
 
-    private static func percentText(_ weight: Double) -> String {
-        let percent = Int((weight * 100).rounded())
-        return "\(percent)%"
-    }
-
     private static func scoreText(_ score: Double) -> String {
         String(format: "%.1f", locale: Locale(identifier: "en_US_POSIX"), arguments: [score])
     }
@@ -186,14 +157,11 @@ public struct CompanyStandingComponent: Equatable, Sendable {
     public let name: String
     public let rank: Int
     public let score: Double
-    /// Share of this company's score. Components of one standing sum to 1.
-    public let weight: Double
 
-    public init(name: String, rank: Int, score: Double, weight: Double) {
+    public init(name: String, rank: Int, score: Double) {
         self.name = name
         self.rank = rank
         self.score = score
-        self.weight = weight
     }
 }
 

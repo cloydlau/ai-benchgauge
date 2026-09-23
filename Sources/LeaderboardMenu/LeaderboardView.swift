@@ -128,7 +128,7 @@ struct LeaderboardView: View {
             )
         )
         .frame(width: GroupingSegmentedControl.width, height: GroupingSegmentedControl.height)
-        .help("按公司查看时，用名次加权均分，上榜数量不加分")
+        .help("按公司查看时，以最强模型分数为准，弱型号不拉低")
     }
 
     private var categoryPicker: some View {
@@ -947,7 +947,7 @@ private struct GroupingSegmentedControl: NSViewRepresentable {
         control.selectedSegment = selectedIndex
         control.target = context.coordinator
         control.action = #selector(Coordinator.changed(_:))
-        control.toolTip = "按公司查看时，用名次加权均分，上榜数量不加分"
+        control.toolTip = "按公司查看时，以最强模型分数为准，弱型号不拉低"
         control.setAccessibilityLabel("榜单分组")
         control.setContentCompressionResistancePriority(.required, for: .horizontal)
         control.setContentHuggingPriority(.required, for: .horizontal)
