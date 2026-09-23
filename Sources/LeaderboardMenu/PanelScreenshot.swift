@@ -220,8 +220,9 @@ enum PanelScreenshot {
     }
 
     /// Drops a horizontal band and closes the gap. `band` is in points with a
-    /// top-left origin. The image comes from `CGContext.makeImage()`, whose
-    /// crop rect is bottom-left, so the header slice is the high-y end.
+    /// top-left origin, matching `NSBitmapImageRep.colorAt`. Crop rects are not
+    /// used: their origin does not match that axis, and a wrong cut leaves the
+    /// quota chips in the shared image.
     static func omittingHorizontalBand(
         _ image: CGImage,
         band: CGRect,
@@ -244,10 +245,17 @@ enum PanelScreenshot {
         guard newHeight > 1 else { return nil }
 
         let width = image.width
-        let topPixels = pixelTop
-        let bottomPixels = image.height - pixelBottom
         guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
-              let context = CGContext(
+              let source = CGContext(
+                data: nil,
+                width: width,
+                height: image.height,
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              ),
+              let destination = CGContext(
                 data: nil,
                 width: width,
                 height: newHeight,
@@ -255,32 +263,27 @@ enum PanelScreenshot {
                 bytesPerRow: 0,
                 space: colorSpace,
                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-              ) else { return nil }
-        context.interpolationQuality = .none
-        // Table slice sits at CG y = 0 (visual bottom) and is drawn there.
-        if bottomPixels > 0,
-           let body = image.cropping(to: CGRect(
-            x: 0,
-            y: 0,
-            width: CGFloat(width),
-            height: CGFloat(bottomPixels)
-           )) {
-            context.draw(body, in: CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(bottomPixels)))
+              ),
+              let sourceData = source.data,
+              let destinationData = destination.data else { return nil }
+
+        source.interpolationQuality = .none
+        source.draw(image, in: CGRect(x: 0, y: 0, width: width, height: image.height))
+        // After drawing into this bitmap, row 0 is the visual top, same as colorAt.
+        let sourceRowBytes = source.bytesPerRow
+        let destinationRowBytes = destination.bytesPerRow
+        let rowBytes = min(width * 4, sourceRowBytes, destinationRowBytes)
+        func copyVisualRows(from sourceStart: Int, to destinationStart: Int, count: Int) {
+            guard count > 0 else { return }
+            for offset in 0..<count {
+                let sourcePtr = sourceData.advanced(by: (sourceStart + offset) * sourceRowBytes)
+                let destinationPtr = destinationData.advanced(by: (destinationStart + offset) * destinationRowBytes)
+                destinationPtr.copyMemory(from: sourcePtr, byteCount: rowBytes)
+            }
         }
-        // Header slice is the high-y end. Draw it above the table slice.
-        if topPixels > 0,
-           let header = image.cropping(to: CGRect(
-            x: 0,
-            y: CGFloat(image.height - topPixels),
-            width: CGFloat(width),
-            height: CGFloat(topPixels)
-           )) {
-            context.draw(
-                header,
-                in: CGRect(x: 0, y: CGFloat(bottomPixels), width: CGFloat(width), height: CGFloat(topPixels))
-            )
-        }
-        guard let joined = context.makeImage(), joined.height == newHeight else { return nil }
+        copyVisualRows(from: 0, to: 0, count: pixelTop)
+        copyVisualRows(from: pixelBottom, to: pixelTop, count: image.height - pixelBottom)
+        guard let joined = destination.makeImage(), joined.height == newHeight else { return nil }
         let pointHeight = viewSize.height * CGFloat(newHeight) / CGFloat(image.height)
         return (joined, CGSize(width: viewSize.width, height: pointHeight))
     }
