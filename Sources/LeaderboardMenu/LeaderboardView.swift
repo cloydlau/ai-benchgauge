@@ -77,15 +77,32 @@ struct LeaderboardView: View {
                 }
                 .max() ?? 0
         }.max() ?? 0
-        let desired = max(minimumWidth, ceil(columnWidth * 2 + tableChromeWidth))
+        let headerFont = NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .medium)
+        let headerWidth = category.boardKinds.enumerated().map { index, kind in
+            let title = index == 0 ? category.leftColumnTitle : category.rightColumnTitle
+            let header = boardColumnTitle(title, kind: kind, state: state)
+            return (header as NSString).size(withAttributes: [.font: headerFont]).width + 40
+        }.max() ?? 0
+        let desired = max(minimumWidth, ceil(max(columnWidth, headerWidth) * 2 + tableChromeWidth))
         return min(desired, maximumWidth)
+    }
+
+    private static func boardColumnTitle(
+        _ title: String,
+        kind: LeaderboardKind,
+        state: AppState
+    ) -> String {
+        guard let sourceDate = state.snapshot.boards[kind]?.sourceUpdatedAt else { return title }
+        let formatter = DateFormatter()
+        formatter.locale = state.selectedLanguage.locale
+        formatter.dateFormat = "M/d HH:mm"
+        return "\(title) · \(formatter.string(from: sourceDate))"
     }
 
     var body: some View {
         VStack(spacing: 0) {
             header
-            leaderboardHeaders
-            table
+            leaderboardTable
             Divider()
             footer
         }
@@ -169,7 +186,16 @@ struct LeaderboardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// One compact line identifies both boards above the native data columns.
+    /// The source explanation and native column labels form one table header.
+    private var leaderboardTable: some View {
+        VStack(spacing: 0) {
+            leaderboardHeaders
+            table
+        }
+        .background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    /// Each summary sits directly above its board's native column title.
     private var leaderboardHeaders: some View {
         let lenses = selectedCategory.sourceLenses(language: language)
         let sideWidth = (contentWidth - 64 - 14 - 1) / 2
@@ -178,7 +204,6 @@ struct LeaderboardView: View {
                 .frame(width: 64, height: 1)
                 .accessibilityHidden(true)
             leaderboardHeader(
-                title: "AA",
                 fullTitle: selectedCategory.leftColumnTitle,
                 kind: selectedCategory.leftKind,
                 description: lenses.aa,
@@ -188,7 +213,6 @@ struct LeaderboardView: View {
             Divider()
                 .frame(width: 1, height: 14)
             leaderboardHeader(
-                title: "Arena",
                 fullTitle: selectedCategory.rightColumnTitle,
                 kind: selectedCategory.rightKind,
                 description: lenses.arena,
@@ -197,23 +221,16 @@ struct LeaderboardView: View {
             .frame(width: sideWidth, alignment: .leading)
         }
         .padding(.trailing, 14)
-        .frame(height: 26)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .overlay(alignment: .bottom) { Divider() }
+        .frame(height: 24)
     }
 
     private func leaderboardHeader(
-        title: String,
         fullTitle: String,
         kind: LeaderboardKind,
         description: SourceLensDescription,
         tint: Color
     ) -> some View {
         HStack(spacing: 6) {
-            Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: true, vertical: false)
             Text(description.emphasis)
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(tint)
@@ -318,20 +335,6 @@ struct LeaderboardView: View {
 
     private var selectedCategory: LeaderboardCategory {
         state.selectedCategory
-    }
-
-    private var nameColumnTitle: String {
-        state.selectedGrouping == .company ? tr("Company", "公司") : tr("Model", "模型")
-    }
-
-    private func nameColumnTitle(for kind: LeaderboardKind) -> String {
-        guard let sourceDate = state.snapshot.boards[kind]?.sourceUpdatedAt else {
-            return nameColumnTitle
-        }
-        let formatter = DateFormatter()
-        formatter.locale = language.locale
-        formatter.dateFormat = "M/d HH:mm"
-        return "\(nameColumnTitle) · \(formatter.string(from: sourceDate))"
     }
 
     /// One heading identifies both timestamps; the hairline separates the
@@ -447,7 +450,11 @@ struct LeaderboardView: View {
             .width(48)
             .alignment(.center)
 
-            TableColumn(nameColumnTitle(for: selectedCategory.leftKind)) { row in
+            TableColumn(Self.boardColumnTitle(
+                selectedCategory.leftColumnTitle,
+                kind: selectedCategory.leftKind,
+                state: state
+            )) { row in
                 LeaderboardCell(model: row.left, language: language, onCopyName: nameCopyAction)
             }
             .width(nameColumnWidth)
@@ -464,7 +471,11 @@ struct LeaderboardView: View {
             .width(Self.countryColumnWidth)
             .alignment(.center)
 
-            TableColumn(nameColumnTitle(for: selectedCategory.rightKind)) { row in
+            TableColumn(Self.boardColumnTitle(
+                selectedCategory.rightColumnTitle,
+                kind: selectedCategory.rightKind,
+                state: state
+            )) { row in
                 LeaderboardCell(model: row.right, language: language, onCopyName: nameCopyAction)
             }
             .width(nameColumnWidth)
