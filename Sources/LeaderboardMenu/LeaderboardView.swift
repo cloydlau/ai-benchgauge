@@ -796,7 +796,16 @@ private struct LeaderboardCell: View {
         Group {
             if let brandColor = model?.brandColor(isDark: colorScheme == .dark) {
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(brandColor.opacity(0.16))
+                    .fill(brandColor.opacity(0.34))
+                    .overlay(alignment: .leading) {
+                        // 3px full-ink bar in the 5px leading padding, so it
+                        // does not cover the logo.
+                        RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                            .fill(brandColor)
+                            .frame(width: 3)
+                            .padding(.leading, 2)
+                            .padding(.vertical, 3)
+                    }
             }
         }
     }
@@ -830,7 +839,7 @@ private struct ScoreCell: View {
         Group {
             if let brandColor = model?.brandColor(isDark: colorScheme == .dark) {
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(brandColor.opacity(0.16))
+                    .fill(brandColor.opacity(0.34))
             }
         }
     }
