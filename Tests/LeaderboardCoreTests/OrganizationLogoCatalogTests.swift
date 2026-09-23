@@ -117,27 +117,24 @@ final class OrganizationLogoCatalogTests: XCTestCase {
             ),
             "qwen"
         )
-        // Fusion has no organization. The lead owns the mark; the sidekick does not.
+        // Fusion has no organization. The mark stays Devin. The wash follows the lead.
+        let claudeFusion = "Devin Fusion CLI - Claude Fable 5.1 XHigh + SWE-2 Medium"
         XCTAssertEqual(
-            OrganizationLogoCatalog.bundledLogoKey(
-                forOrganization: nil,
-                modelName: "Devin Fusion CLI - Claude Fable 5.1 XHigh + SWE-2 Medium"
-            ),
-            "anthropic"
+            OrganizationLogoCatalog.bundledLogoKey(forOrganization: nil, modelName: claudeFusion),
+            "devin"
         )
         XCTAssertEqual(
-            OrganizationLogoCatalog.brandColorHex(
-                forOrganization: nil,
-                modelName: "Devin Fusion CLI - Claude Fable 5.1 XHigh + SWE-2 Medium"
-            ),
+            OrganizationLogoCatalog.brandColorHex(forOrganization: nil, modelName: claudeFusion),
             "#D97757"
         )
+        let astraFusion = "Devin Fusion CLI - GPT-6 Astra XHigh + SWE-2 Medium"
         XCTAssertEqual(
-            OrganizationLogoCatalog.resolvedKey(
-                organization: nil,
-                modelName: "Devin Fusion CLI - GPT-6 Astra XHigh + SWE-2 Medium"
-            ),
-            "openai"
+            OrganizationLogoCatalog.bundledLogoKey(forOrganization: nil, modelName: astraFusion),
+            "devin"
+        )
+        XCTAssertEqual(
+            OrganizationLogoCatalog.brandColorHex(forOrganization: nil, modelName: astraFusion),
+            "#10A37F"
         )
     }
 
