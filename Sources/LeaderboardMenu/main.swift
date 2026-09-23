@@ -82,12 +82,15 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
                 systemSymbolName: "brain.head.profile",
                 accessibilityDescription: "AI Leaderboards"
             )
+            button.imagePosition = .imageLeading
             button.target = self
             button.action = #selector(togglePopover)
         }
+        updateStatusItem()
 
         stateObservation = state.objectWillChange.sink { [weak self] _ in
             Task { @MainActor [weak self] in
+                self?.updateStatusItem()
                 self?.updatePanelWidth()
                 self?.updateDismissMonitor()
             }
@@ -130,6 +133,24 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             self.popover.performClose(nil)
             self.popover.contentViewController?.view.window?.alphaValue = 1
         }
+    }
+
+    private func updateStatusItem() {
+        guard let button = statusItem.button else { return }
+        guard !state.quotaNeedsCCSwitch, !state.quotaUnavailable,
+              state.quotaUpdatedAt != nil,
+              let current = state.quotaChips.first(where: \.isCurrent),
+              let quota = AccountQuotaFormatting.compactMenuBarQuota(
+                for: current, language: state.selectedLanguage
+              ) else {
+            button.title = ""
+            button.toolTip = "AI Leaderboards"
+            return
+        }
+        let fullName = state.currentQuotaModelName ?? current.shortName
+        let compactName = fullName.count > 24 ? String(fullName.prefix(23)) + "…" : fullName
+        button.title = "\(compactName) · \(quota)"
+        button.toolTip = "AI Leaderboards · \(fullName) · \(quota)"
     }
 
     /// A status-item popover is a child of the menu-bar window, so it inherits

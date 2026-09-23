@@ -3,6 +3,26 @@ import LeaderboardCore
 import XCTest
 
 final class CCSwitchQuotaCatalogTests: XCTestCase {
+    func testReadsConfiguredModelNameWithoutUsingProviderCredentials() {
+        let toml = record(
+            id: "current",
+            name: "OpenAI Official",
+            settings: settings(
+                key: "private-key",
+                config: "model = \"gpt-5.3-codex\"\n[model_providers.custom]\nmodel = \"other\""
+            )
+        )
+        XCTAssertEqual(CCSwitchQuotaCatalog.configuredModelName(for: toml), "gpt-5.3-codex")
+
+        let json = record(
+            id: "json",
+            name: "Kimi",
+            settings: settings(key: nil, configObject: ["model": "kimi-k2"])
+        )
+        XCTAssertEqual(CCSwitchQuotaCatalog.configuredModelName(for: json), "kimi-k2")
+        XCTAssertNil(CCSwitchQuotaCatalog.configuredModelName(for: record(id: "none", name: "Kimi")))
+    }
+
     func testBuildsVisibleProvidersInCCSwitchOrderAndMarksTheSelectedOneCurrent() {
         let records = [
             record(
@@ -257,6 +277,45 @@ final class CCSwitchQuotaCatalogTests: XCTestCase {
 }
 
 final class AccountQuotaFormattingTests: XCTestCase {
+    func testMenuBarUsesTheShortestSuccessfulWindow() {
+        let windows = [
+            ParsedQuotaWindow(name: "monthly", utilization: 40, resetsAt: nil),
+            ParsedQuotaWindow(name: "weekly_limit", utilization: 20, resetsAt: nil),
+            ParsedQuotaWindow(name: "five_hour", utilization: 13, resetsAt: nil),
+        ]
+        func summary(_ windows: [ParsedQuotaWindow]) -> String? {
+            AccountQuotaFormatting.compactMenuBarQuota(
+                for: chip(kind: .officialNote, isCurrent: true, status: .windows(windows)),
+                language: .chinese
+            )
+        }
+        XCTAssertEqual(summary(windows), "5小时 87%")
+        XCTAssertEqual(summary(Array(windows.prefix(2))), "7天 80%")
+        XCTAssertEqual(summary(Array(windows.prefix(1))), "1个月 60%")
+        XCTAssertNil(summary([ParsedQuotaWindow(
+            name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: nil
+        )]))
+    }
+
+    func testMenuBarHidesUnqueriedAndStaleQuota() {
+        let pending = chip(kind: .officialNote, status: .pending)
+        XCTAssertNil(AccountQuotaFormatting.compactMenuBarQuota(for: pending, language: .chinese))
+        let stale = AccountQuotaChip(
+            id: "current", shortName: "OpenAI", websiteURL: nil,
+            kind: .officialNote, isCurrent: true,
+            status: .windows([ParsedQuotaWindow(name: "five_hour", utilization: 25, resetsAt: nil)]),
+            isStale: true
+        )
+        XCTAssertNil(AccountQuotaFormatting.compactMenuBarQuota(for: stale, language: .chinese))
+        let cachedQwen = chip(
+            kind: .qwen,
+            status: .qwenWebsite(QwenWebsiteQuota(
+                periodLabel: "7天", remainingPercent: 88, resetsAt: nil, isCached: true
+            ))
+        )
+        XCTAssertNil(AccountQuotaFormatting.compactMenuBarQuota(for: cachedQwen, language: .chinese))
+    }
+
     func testFormatsQuotasTheWayCCSwitchShowsThem() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let kimi = chip(

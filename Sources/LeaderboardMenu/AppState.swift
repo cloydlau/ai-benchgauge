@@ -24,6 +24,7 @@ final class AppState: ObservableObject {
     /// leaderboard rows, so they stay off the table. Missing CC Switch data
     /// prompts installation; Codex itself does not need to be installed.
     @Published private(set) var quotaChips: [AccountQuotaChip] = []
+    @Published private(set) var currentQuotaModelName: String?
     @Published private(set) var quotaUpdatedAt: Date?
     @Published private(set) var quotaUnavailable = false
     @Published private(set) var quotaNeedsCCSwitch = false
@@ -200,12 +201,14 @@ final class AppState: ObservableObject {
                 self.quotaUnavailable = false
                 self.quotaNeedsCCSwitch = loaded.databaseMissing
                 self.quotaChips = []
+                self.currentQuotaModelName = nil
                 self.quotaUpdatedAt = nil
                 self.lastQuotaAttemptAtByID = [:]
             case .unavailable:
                 // Keep the last chips. The strip only notes that this read failed.
                 self.quotaUnavailable = true
                 self.quotaNeedsCCSwitch = false
+                self.currentQuotaModelName = nil
             case let .records(records):
                 self.quotaUnavailable = false
                 self.quotaNeedsCCSwitch = false
@@ -213,8 +216,17 @@ final class AppState: ObservableObject {
                     from: records,
                     currentProviderID: loaded.currentProviderID
                 )
+                if let current = targets.first(where: \.isCurrent),
+                   let record = records.first(where: { $0.id == current.id }) {
+                    let name = record.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                    self.currentQuotaModelName = CCSwitchQuotaCatalog.configuredModelName(for: record)
+                        ?? (name.isEmpty ? nil : name)
+                } else {
+                    self.currentQuotaModelName = nil
+                }
                 guard !targets.isEmpty else {
                     self.quotaChips = []
+                    self.currentQuotaModelName = nil
                     self.quotaUpdatedAt = nil
                     self.lastQuotaAttemptAtByID = [:]
                     return
@@ -229,7 +241,8 @@ final class AppState: ObservableObject {
                             websiteURL: chip.websiteURL,
                             kind: chip.kind,
                             isCurrent: chip.isCurrent,
-                            status: .qwenWebsite(cachedQwen)
+                            status: .qwenWebsite(cachedQwen),
+                            isStale: chip.isStale
                         )
                     }
                 }
@@ -291,7 +304,8 @@ final class AppState: ObservableObject {
                     websiteURL: target.websiteURL,
                     kind: target.kind,
                     isCurrent: target.isCurrent,
-                    status: existing.status
+                    status: existing.status,
+                    isStale: existing.isStale
                 )
             }
             return .placeholder(for: target)
