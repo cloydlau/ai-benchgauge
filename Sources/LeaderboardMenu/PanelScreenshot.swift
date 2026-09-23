@@ -12,9 +12,7 @@ enum PanelScreenshot {
         CATransaction.flush()
 
         guard let rep = bestRepresentation(of: view) else { return nil }
-        let image = flattenedImage(from: rep, view: view)
-        guard let png = pngData(from: image) else { return nil }
-        return (image, png)
+        return flattenedCapture(from: rep, view: view)
     }
 
     static func copyToPasteboard(image: NSImage, png: Data) -> Bool {
@@ -22,7 +20,12 @@ enum PanelScreenshot {
         pasteboard.clearContents()
         let item = NSPasteboardItem()
         item.setData(png, forType: .png)
-        if let tiff = image.tiffRepresentation {
+        // Build TIFF from the same PNG bytes. NSImage.tiffRepresentation redraws
+        // through the point size and can put a Retina capture back in the corner.
+        if let rep = NSBitmapImageRep(data: png),
+           let tiff = rep.representation(using: .tiff, properties: [:]) {
+            item.setData(tiff, forType: .tiff)
+        } else if let tiff = image.tiffRepresentation {
             item.setData(tiff, forType: .tiff)
         }
         return pasteboard.writeObjects([item])
@@ -130,62 +133,67 @@ enum PanelScreenshot {
         return colors.count
     }
 
-    private static func flattenedImage(from rep: NSBitmapImageRep, view: NSView) -> NSImage {
-        let size = rep.size.width > 1 && rep.size.height > 1
-            ? rep.size
-            : NSSize(width: rep.pixelsWide, height: rep.pixelsHigh)
-        let source = NSImage(size: size)
-        source.addRepresentation(rep)
-
+    /// Copy captured pixels 1:1. `NSImage.draw` uses the point size, which on a
+    /// Retina bitmap is half the pixel buffer, so the picture lands in the
+    /// bottom-left quarter and the top-right stays transparent.
+    private static func flattenedCapture(from rep: NSBitmapImageRep, view: NSView) -> (image: NSImage, png: Data)? {
+        guard let source = rep.cgImage, source.width > 1, source.height > 1 else { return nil }
+        let pixelsWide = source.width
+        let pixelsHigh = source.height
         let scale = max(view.window?.backingScaleFactor ?? 2, 1)
-        let pixelsWide = max(Int((size.width * scale).rounded(.up)), 1)
-        let pixelsHigh = max(Int((size.height * scale).rounded(.up)), 1)
-        guard let flattened = NSBitmapImageRep(
-            bitmapDataPlanes: nil,
-            pixelsWide: pixelsWide,
-            pixelsHigh: pixelsHigh,
-            bitsPerSample: 8,
-            samplesPerPixel: 4,
-            hasAlpha: true,
-            isPlanar: false,
-            colorSpaceName: .deviceRGB,
-            bytesPerRow: 0,
-            bitsPerPixel: 0
-        ), let graphics = NSGraphicsContext(bitmapImageRep: flattened) else {
-            return source
-        }
-        flattened.size = size
+        let pointSize = rep.size.width > 1 && rep.size.height > 1
+            ? rep.size
+            : NSSize(width: CGFloat(pixelsWide) / scale, height: CGFloat(pixelsHigh) / scale)
 
-        // Bitmap contexts are pixel-sized. Drawing the point rect without this
-        // scale leaves the top and right of a Retina capture blank.
-        let pixelScaleX = CGFloat(flattened.pixelsWide) / max(size.width, 1)
-        let pixelScaleY = CGFloat(flattened.pixelsHigh) / max(size.height, 1)
+        guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(
+                data: nil,
+                width: pixelsWide,
+                height: pixelsHigh,
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              ) else { return nil }
 
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = graphics
-        graphics.imageInterpolation = .high
-        graphics.cgContext.scaleBy(x: pixelScaleX, y: pixelScaleY)
-        view.effectiveAppearance.performAsCurrentDrawingAppearance {
-            NSColor.windowBackgroundColor.setFill()
-            NSRect(origin: .zero, size: size).fill()
-            source.draw(
-                in: NSRect(origin: .zero, size: size),
-                from: NSRect(origin: .zero, size: size),
-                operation: .sourceOver,
-                fraction: 1
-            )
-        }
-        NSGraphicsContext.restoreGraphicsState()
+        context.interpolationQuality = .high
+        context.setFillColor(opaqueBackground(for: view))
+        context.fill(CGRect(x: 0, y: 0, width: pixelsWide, height: pixelsHigh))
+        let drawing = quarterFilledSource(source, rep: rep) ?? source
+        context.draw(drawing, in: CGRect(x: 0, y: 0, width: pixelsWide, height: pixelsHigh))
+        guard let flattened = context.makeImage() else { return nil }
 
-        let image = NSImage(size: size)
-        image.addRepresentation(flattened)
-        return image
+        let bitmap = NSBitmapImageRep(cgImage: flattened)
+        bitmap.size = pointSize
+        guard let png = bitmap.representation(using: .png, properties: [:]) else { return nil }
+        let image = NSImage(size: pointSize)
+        image.addRepresentation(bitmap)
+        return (image, png)
     }
 
-    private static func pngData(from image: NSImage) -> Data? {
-        guard let tiff = image.tiffRepresentation,
-              let rep = NSBitmapImageRep(data: tiff) else { return nil }
-        return rep.representation(using: .png, properties: [:])
+
+    /// A Retina buffer drawn in points keeps the whole panel in the bottom-left
+    /// quarter. Crop that quadrant so it can be scaled back to the full image.
+    private static func quarterFilledSource(_ image: CGImage, rep: NSBitmapImageRep) -> CGImage? {
+        let width = image.width
+        let height = image.height
+        guard width > 32, height > 32, width == rep.pixelsWide, height == rep.pixelsHigh else { return nil }
+        func opaque(_ x: Int, _ y: Int) -> Bool {
+            guard let color = rep.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { return false }
+            return color.alphaComponent > 0.2
+        }
+        // colorAt is top-left. A quarter-filled capture is empty on the top row
+        // and painted only in the bottom-left half.
+        if opaque(8, 8) || opaque(width - 8, 8) || opaque(width - 8, height / 4) {
+            return nil
+        }
+        guard opaque(8, height - 8), opaque(width / 4, height * 3 / 4) else { return nil }
+        return image.cropping(to: CGRect(
+            x: 0,
+            y: height / 2,
+            width: width / 2,
+            height: height / 2
+        ))
     }
 
     private static func opaqueBackground(for view: NSView) -> CGColor {
