@@ -66,8 +66,15 @@ struct LeaderboardView: View {
     private var header: some View {
         // Gap lives on the chip row so the screenshot anchor includes it.
         // Cropping that frame closes the gap instead of leaving a hole.
+        // Status is a full-width line so a long failure caption is not trapped
+        // in the 346pt side column, and the tabs stay aligned with the title.
         VStack(alignment: .leading, spacing: 0) {
-            titleRow
+            VStack(alignment: .leading, spacing: 6) {
+                titleRow
+                TimelineView(.periodic(from: .now, by: 60)) { context in
+                    freshnessLine(now: context.date)
+                }
+            }
             if showsQuotaStrip {
                 QuotaStrip(
                     chips: state.quotaChips,
@@ -90,21 +97,16 @@ struct LeaderboardView: View {
     }
 
     private var titleRow: some View {
-        // Equal side columns keep the tabs centered. Freshness is the title's
-        // subtitle, not a second corner and not a chip-row timestamp.
+        // Equal side columns keep the tabs centered. Status is the line below,
+        // not a corner label and not a chip-row timestamp.
         HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("AI Leaderboards")
-                        .font(.system(size: 17, weight: .semibold))
-                    Text("v\(appVersion)")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .monospacedDigit()
-                }
-                TimelineView(.periodic(from: .now, by: 60)) { context in
-                    freshnessLine(now: context.date)
-                }
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("AI Leaderboards")
+                    .font(.system(size: 17, weight: .semibold))
+                Text("v\(appVersion)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .monospacedDigit()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -154,7 +156,8 @@ struct LeaderboardView: View {
             .font(.system(size: 11))
             .monospacedDigit()
             .lineLimit(1)
-            .minimumScaleFactor(0.85)
+            .minimumScaleFactor(0.9)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .help(freshnessHelp(now: now))
     }
 
@@ -206,9 +209,9 @@ struct LeaderboardView: View {
         }
         let run = state.schedule.dailyRunAt
         if Calendar.current.isDateInToday(run) || Calendar.current.isDateInTomorrow(run) {
-            return "每日 \(clockTime(run))"
+            return "每日更新 \(clockTime(run))"
         }
-        return "每日 \(compactWhen(run, now: now))"
+        return "每日更新 \(compactWhen(run, now: now))"
     }
 
     /// True while a screenshot is being taken and a balance row is on screen.
