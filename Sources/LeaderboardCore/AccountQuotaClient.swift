@@ -302,13 +302,62 @@ public actor AccountQuotaClient {
         case .kimi:
             parsed = CCSwitchQuotaParsers.parseKimi(response.body)
         case .zhipu:
-            parsed = CCSwitchQuotaParsers.parseZhipu(response.body)
+            return try await zhipuChip(
+                target,
+                apiKey: apiKey,
+                body: response.body,
+                transport: transport
+            )
         case .deepseek:
             parsed = CCSwitchQuotaParsers.parseDeepSeek(response.body)
         case .officialNote, .qwen, .xaiOAuth:
             return chip(target, .failed)
         }
         return chip(target, parsed: parsed)
+    }
+
+    /// Quota success is enough to show the card. A subscription failure keeps
+    /// the 5-hour and 7-day windows and simply omits 总到期.
+    private static func zhipuChip(
+        _ target: CCSwitchQuotaTarget,
+        apiKey: String,
+        body: Data,
+        transport: any AccountQuotaTransport
+    ) async throws -> AccountQuotaChip {
+        let parsed = CCSwitchQuotaParsers.parseZhipu(body)
+        guard case let .windows(quotaWindows) = parsed else {
+            return chip(target, parsed: parsed)
+        }
+        var windows = quotaWindows
+        if let expiry = try await zhipuPlanExpiry(target, apiKey: apiKey, transport: transport) {
+            windows.append(expiry)
+        }
+        return chip(target, parsed: .windows(windows))
+    }
+
+    private static func zhipuPlanExpiry(
+        _ target: CCSwitchQuotaTarget,
+        apiKey: String,
+        transport: any AccountQuotaTransport
+    ) async throws -> ParsedQuotaWindow? {
+        let url = CCSwitchQuotaCatalog.zhipuSubscriptionURL(baseURL: target.baseURL)
+        var request = URLRequest(url: url, timeoutInterval: 15)
+        request.httpMethod = "GET"
+        request.setValue(apiKey, forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("en-US,en", forHTTPHeaderField: "Accept-Language")
+        let response: AccountQuotaHTTPResponse
+        do {
+            response = try await transport.data(for: request)
+        } catch {
+            if Self.isCancellation(error) { throw CancellationError() }
+            return nil
+        }
+        guard response.body.count <= 1_048_576, (200...299).contains(response.statusCode) else {
+            return nil
+        }
+        return CCSwitchQuotaParsers.parseZhipuSubscription(response.body)
     }
 
     /// Returns nil when CC Switch has no usable official login. That is not an

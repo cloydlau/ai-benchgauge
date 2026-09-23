@@ -78,6 +78,10 @@ final class CCSwitchQuotaCatalogTests: XCTestCase {
             CCSwitchQuotaCatalog.zhipuQuotaURL(baseURL: targets[4].baseURL).absoluteString,
             "https://open.bigmodel.cn/api/monitor/usage/quota/limit"
         )
+        XCTAssertEqual(
+            CCSwitchQuotaCatalog.zhipuSubscriptionURL(baseURL: targets[4].baseURL).absoluteString,
+            "https://open.bigmodel.cn/api/biz/subscription/list"
+        )
     }
 
     func testOfficialWithoutStoredLoginIsOmittedAndDoesNotRequireCodex() {
@@ -245,6 +249,10 @@ final class CCSwitchQuotaCatalogTests: XCTestCase {
             CCSwitchQuotaCatalog.zhipuQuotaURL(baseURL: nil).absoluteString,
             "https://api.z.ai/api/monitor/usage/quota/limit"
         )
+        XCTAssertEqual(
+            CCSwitchQuotaCatalog.zhipuSubscriptionURL(baseURL: nil).absoluteString,
+            "https://api.z.ai/api/biz/subscription/list"
+        )
     }
 }
 
@@ -289,25 +297,50 @@ final class AccountQuotaFormattingTests: XCTestCase {
                 .contains("7天 13%，6天2小时后重置，11月21日 08:13")
         )
 
+        let planEnd = now.addingTimeInterval((40 * 24 + 4) * 3600)
         let zhipu = chip(
             kind: .zhipu,
             status: .windows([
                 ParsedQuotaWindow(name: "weekly_limit", utilization: 100, resetsAt: now.addingTimeInterval((2 * 24 + 3) * 3600)),
+                ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: planEnd),
                 ParsedQuotaWindow(name: "five_hour", utilization: 0, resetsAt: nil),
             ])
         )
+        let planCountdown = AccountQuotaFormatting.countdown(until: planEnd, now: now)!
+        let planClock = AccountQuotaFormatting.resetClock(until: planEnd, now: now)!
         XCTAssertEqual(
             AccountQuotaFormatting.plainSummary(for: zhipu, now: now),
-            "7天: 100% 2d3h · 11月17日 09:13  5小时: 0%"
+            "5小时: 0%  7天: 100% 2d3h · 11月17日 09:13  总到期: \(planCountdown) · \(planClock)"
         )
         XCTAssertEqual(
             AccountQuotaFormatting.runs(for: zhipu, now: now).map(\.tone),
-            [.secondary, .red, .secondary, .secondary, .secondary, .green]
+            [.secondary, .green, .secondary, .secondary, .red, .secondary, .secondary, .secondary, .secondary]
         )
         let zhipuHelp = AccountQuotaFormatting.help(for: zhipu, now: now)
         XCTAssertTrue(zhipuHelp.contains("5小时 0%"))
         XCTAssertTrue(zhipuHelp.contains("7天 100%，2天3小时后重置，11月17日 09:13"))
         XCTAssertFalse(zhipuHelp.contains("5小时 0%，"))
+        let planPhrase = AccountQuotaFormatting.chineseCountdown(until: planEnd, now: now)!
+        let planDate = AccountQuotaFormatting.resetDateText(planEnd, now: now)!
+        XCTAssertTrue(zhipuHelp.contains("总到期 \(planPhrase)后到期，\(planDate)"))
+        XCTAssertFalse(zhipuHelp.contains("总到期 \(planPhrase)后重置"))
+        XCTAssertFalse(zhipuHelp.contains("1个月"))
+        XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: zhipu, now: now).contains("1个月"))
+        XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: zhipu, now: now).contains("%  总到期"))
+        let five = zhipuHelp.range(of: "5小时")!
+        let week = zhipuHelp.range(of: "7天")!
+        let plan = zhipuHelp.range(of: "总到期")!
+        XCTAssertLessThan(five.lowerBound, week.lowerBound)
+        XCTAssertLessThan(week.lowerBound, plan.lowerBound)
+
+        let expiredPlan = chip(
+            kind: .zhipu,
+            status: .windows([
+                ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: now.addingTimeInterval(-60)),
+            ])
+        )
+        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: expiredPlan, now: now), "总到期: 已到期")
+        XCTAssertEqual(AccountQuotaFormatting.help(for: expiredPlan, now: now), "总到期 已到期")
 
         let deepseek = chip(
             kind: .deepseek,
@@ -512,6 +545,31 @@ final class AccountQuotaFormattingTests: XCTestCase {
             ["website", "current", "plan", "same", "latest", "note", "balance"]
         )
     }
+
+    func testZhipuPlanExpiryDoesNotChangeProviderOrder() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let weekly = now.addingTimeInterval(7 * 86_400)
+        let other = now.addingTimeInterval(20 * 86_400)
+        let planEnd = now.addingTimeInterval(40 * 86_400)
+        let chips = [
+            quotaChip(
+                id: "other",
+                kind: .kimi,
+                status: .windows([
+                    ParsedQuotaWindow(name: "weekly_limit", utilization: 1, resetsAt: other),
+                ])
+            ),
+            quotaChip(
+                id: "zhipu",
+                kind: .zhipu,
+                status: .windows([
+                    ParsedQuotaWindow(name: "weekly_limit", utilization: 10, resetsAt: weekly),
+                    ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: planEnd),
+                ])
+            ),
+        ]
+        XCTAssertEqual(AccountQuotaFormatting.sortedChips(chips).map(\.id), ["zhipu", "other"])
+    }
 }
 
 private func quotaChip(
@@ -605,6 +663,38 @@ final class CCSwitchQuotaParserTests: XCTestCase {
         XCTAssertEqual(CCSwitchQuotaParsers.parseZhipu(Data(#"{"success":false}"#.utf8)), .rejected)
         XCTAssertEqual(CCSwitchQuotaParsers.parseDeepSeek(Data("[]".utf8)), .rejected)
         XCTAssertEqual(CCSwitchQuotaParsers.parseKimi(Data(#"{}"#.utf8)), .windows([]))
+    }
+
+    func testParsesZhipuPlanExpiryFromTheValidRangeEnd() {
+        let body = Data(#"""
+        {"success":true,"data":[
+          {"status":"VALID","inCurrentPeriod":false,"valid":"2026-10-03 10:00:00-2026-12-03 10:00:00","nextRenewTime":"2026-10-03"},
+          {"status":"INVALID","inCurrentPeriod":true,"valid":"2026-10-03 10:00:00-2027-01-03 10:00:00"},
+          {"status":"VALID","inCurrentPeriod":true,"valid":"2026-09-03 10:00:00-2026-10-03 10:00:00","nextRenewTime":"2099-01-01"},
+          {"status":"VALID","inCurrentPeriod":true,"valid":"2026-10-03 10:00:00-2026-11-03 10:00:00","nextRenewTime":"2026-10-03"}
+        ]}
+        """#.utf8)
+        let window = CCSwitchQuotaParsers.parseZhipuSubscription(body)
+        XCTAssertEqual(window?.name, ParsedQuotaWindow.planExpiryName)
+        XCTAssertEqual(window?.utilization, 0)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "Asia/Shanghai")
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        XCTAssertEqual(window?.resetsAt, formatter.date(from: "2026-11-03 10:00:00"))
+        XCTAssertNotEqual(window?.resetsAt, formatter.date(from: "2026-10-03 10:00:00"))
+        XCTAssertNotEqual(window?.resetsAt, formatter.date(from: "2026-12-03 10:00:00"))
+    }
+
+    func testZhipuSubscriptionWithoutACurrentPeriodAddsNothing() {
+        XCTAssertNil(CCSwitchQuotaParsers.parseZhipuSubscription(Data(
+            #"{"success":true,"data":[{"status":"VALID","inCurrentPeriod":true,"nextRenewTime":"2026-10-03"}]}"#.utf8
+        )))
+        XCTAssertNil(CCSwitchQuotaParsers.parseZhipuSubscription(Data(#"{"success":false}"#.utf8)))
+        XCTAssertNil(CCSwitchQuotaParsers.parseZhipuSubscription(Data("not-json".utf8)))
+        XCTAssertNil(CCSwitchQuotaParsers.parseZhipuSubscription(Data(
+            #"{"success":true,"data":[{"status":"VALID","inCurrentPeriod":false,"valid":"2026-10-03 10:00:00-2026-12-03 10:00:00"}]}"#.utf8
+        )))
     }
 }
 
@@ -733,28 +823,121 @@ final class AccountQuotaClientTests: XCTestCase {
     }
 
     func testZhipuUsesTheHostThatMatchesItsBaseURL() async throws {
+        let baseURL = "https://open.bigmodel.cn/api/paas/v4"
         let transport = ScriptedQuotaTransport { request in
-            XCTAssertEqual(
-                request.url?.absoluteString,
-                "https://open.bigmodel.cn/api/monitor/usage/quota/limit"
-            )
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "unit-test-key")
-            return AccountQuotaHTTPResponse(
-                statusCode: 200,
-                headers: [:],
-                body: Data(#"{"success":true,"data":{"limits":[]}}"#.utf8)
-            )
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Accept-Language"), "en-US,en")
+            switch request.url?.path {
+            case "/api/monitor/usage/quota/limit":
+                return AccountQuotaHTTPResponse(
+                    statusCode: 200,
+                    headers: [:],
+                    body: Data(#"{"success":true,"data":{"limits":[{"type":"CREDIT_LIMIT","unit":3,"percentage":0},{"type":"CREDIT_LIMIT","unit":6,"percentage":100,"nextResetTime":1790255529998}]}}"#.utf8)
+                )
+            case "/api/biz/subscription/list":
+                return AccountQuotaHTTPResponse(
+                    statusCode: 200,
+                    headers: [:],
+                    body: Data(#"{"success":true,"data":[{"status":"VALID","inCurrentPeriod":true,"valid":"2026-10-03 10:00:00-2026-11-03 10:00:00","nextRenewTime":"2026-10-03"}]}"#.utf8)
+                )
+            default:
+                XCTFail("unexpected \(request.url?.absoluteString ?? "")")
+                return AccountQuotaHTTPResponse(statusCode: 500, headers: [:], body: Data())
+            }
         }
         let client = AccountQuotaClient(transport: transport)
-        _ = try await client.refresh(targets: [
+        let chips = try await client.refresh(targets: [
             quotaTarget(
                 id: "zhipu",
                 name: "智谱",
                 kind: .zhipu,
                 key: "unit-test-key",
-                baseURL: "https://open.bigmodel.cn/api/paas/v4"
+                baseURL: baseURL
             ),
         ])
+        XCTAssertEqual(
+            transport.requests.map { $0.url?.absoluteString },
+            [
+                CCSwitchQuotaCatalog.zhipuQuotaURL(baseURL: baseURL).absoluteString,
+                CCSwitchQuotaCatalog.zhipuSubscriptionURL(baseURL: baseURL).absoluteString,
+            ]
+        )
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "Asia/Shanghai")
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        XCTAssertEqual(chips.map(\.status), [
+            .windows([
+                ParsedQuotaWindow(name: "five_hour", utilization: 0, resetsAt: nil),
+                ParsedQuotaWindow(
+                    name: "weekly_limit",
+                    utilization: 100,
+                    resetsAt: Date(timeIntervalSince1970: 1_790_255_529.998)
+                ),
+                ParsedQuotaWindow(
+                    name: ParsedQuotaWindow.planExpiryName,
+                    utilization: 0,
+                    resetsAt: formatter.date(from: "2026-11-03 10:00:00")
+                ),
+            ]),
+        ])
+        let summary = AccountQuotaFormatting.plainSummary(for: chips[0], now: Date(timeIntervalSince1970: 1_758_600_000))
+        XCTAssertTrue(summary.hasPrefix("5小时: 0%  7天:"))
+        XCTAssertTrue(summary.contains("总到期:"))
+        XCTAssertFalse(summary.contains("1个月"))
+        XCTAssertFalse(summary.contains("unit-test-key"))
+    }
+
+    func testZhipuKeepsQuotaWindowsWhenSubscriptionFails() async throws {
+        let quota = Data(#"{"success":true,"data":{"limits":[{"type":"tokens_limit","unit":3,"percentage":12},{"type":"tokens_limit","unit":6,"percentage":34}]}}"#.utf8)
+        let unauthorized = ScriptedQuotaTransport { request in
+            if request.url?.path == "/api/biz/subscription/list" {
+                return AccountQuotaHTTPResponse(statusCode: 401, headers: [:], body: Data(#"{"success":false}"#.utf8))
+            }
+            return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: quota)
+        }
+        let unauthorizedChips = try await AccountQuotaClient(transport: unauthorized).refresh(targets: [
+            quotaTarget(id: "zhipu", name: "智谱", kind: .zhipu, key: "unit-test-key", baseURL: "https://open.bigmodel.cn/api/paas/v4"),
+        ])
+        XCTAssertEqual(unauthorizedChips.map(\.status), [
+            .windows([
+                ParsedQuotaWindow(name: "five_hour", utilization: 12, resetsAt: nil),
+                ParsedQuotaWindow(name: "weekly_limit", utilization: 34, resetsAt: nil),
+            ]),
+        ])
+
+        let offline = ScriptedQuotaTransport { request in
+            if request.url?.path == "/api/biz/subscription/list" {
+                throw URLError(.timedOut)
+            }
+            return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: quota)
+        }
+        let offlineChips = try await AccountQuotaClient(transport: offline).refresh(targets: [
+            quotaTarget(id: "zhipu", name: "智谱", kind: .zhipu, key: "unit-test-key"),
+        ])
+        XCTAssertEqual(offlineChips.map(\.status), unauthorizedChips.map(\.status))
+        XCTAssertEqual(offline.requests.map { $0.url?.host }, ["api.z.ai", "api.z.ai"])
+    }
+
+    func testZhipuDoesNotQuerySubscriptionWhenQuotaFails() async throws {
+        let rejected = ScriptedQuotaTransport { request in
+            XCTAssertEqual(request.url?.path, "/api/monitor/usage/quota/limit")
+            return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(#"{"success":false}"#.utf8))
+        }
+        let chips = try await AccountQuotaClient(transport: rejected).refresh(targets: [
+            quotaTarget(id: "zhipu", name: "智谱", kind: .zhipu, key: "unit-test-key", baseURL: "https://open.bigmodel.cn/api/paas/v4"),
+        ])
+        XCTAssertEqual(chips.map(\.status), [.message(AccountQuotaMessage.queryFailed)])
+        XCTAssertEqual(rejected.requests.count, 1)
+
+        let unauthorized = ScriptedQuotaTransport { request in
+            return AccountQuotaHTTPResponse(statusCode: 401, headers: [:], body: Data("{}".utf8))
+        }
+        let failed = try await AccountQuotaClient(transport: unauthorized).refresh(targets: [
+            quotaTarget(id: "zhipu", name: "智谱", kind: .zhipu, key: "unit-test-key"),
+        ])
+        XCTAssertEqual(failed.map(\.status), [.message(AccountQuotaMessage.queryFailed)])
+        XCTAssertEqual(unauthorized.requests.count, 1)
     }
 
     func testOfficialWithoutALoginDoesNotCallTheNetworkOrRequireCodex() async throws {
