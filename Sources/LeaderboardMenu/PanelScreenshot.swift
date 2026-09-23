@@ -123,7 +123,12 @@ enum PanelScreenshot {
         context.scaleBy(x: scale, y: scale)
         context.setFillColor(opaqueBackground(for: view))
         context.fill(CGRect(origin: .zero, size: bounds.size))
-        // Layer space is y-up. An unflipped bitmap context already matches it.
+        // Layer space is y-up. A flipped view's visual top is y = 0, so render
+        // into a flipped user space or the bitmap — and the quota crop — is upside down.
+        if view.isFlipped {
+            context.translateBy(x: 0, y: bounds.height)
+            context.scaleBy(x: 1, y: -1)
+        }
         layer.render(in: context)
         guard let cgImage = context.makeImage() else { return nil }
         let rep = NSBitmapImageRep(cgImage: cgImage)
