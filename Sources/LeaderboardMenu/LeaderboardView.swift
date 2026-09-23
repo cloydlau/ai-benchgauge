@@ -1029,7 +1029,12 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         tint: NSColor,
         in rect: NSRect
     ) {
-        let availableWidth = max(0, rect.width - 10)
+        // Use the same native header cell drawing as Rank, Score and Country.
+        // It places the entire attributed line on their shared vertical center.
+        let cell = NSTableHeaderCell(textCell: "")
+        cell.alignment = .left
+        cell.lineBreakMode = .byTruncatingTail
+        let availableWidth = max(0, cell.titleRect(forBounds: rect).width)
         let sizePairs: [(CGFloat, CGFloat)] = [
             (11, 10), (11, 9), (11, 8),
             (10.5, 8), (10, 8), (9.5, 8), (9, 8),
@@ -1044,13 +1049,8 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             text = candidate
             if candidate.size().width <= availableWidth { break }
         }
-        let textHeight = ceil(text.size().height)
-        text.draw(in: NSRect(
-            x: rect.minX + 5,
-            y: rect.minY + (rect.height - textHeight) / 2,
-            width: availableWidth,
-            height: textHeight
-        ))
+        cell.attributedStringValue = text
+        cell.draw(withFrame: rect, in: self)
     }
 
     private static func headerText(
@@ -1060,6 +1060,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         titleSize: CGFloat,
         descriptionSize: CGFloat
     ) -> NSAttributedString {
+        let secondaryBaselineOffset = (titleSize - descriptionSize) / 2
         let text = NSMutableAttributedString(
             string: title,
             attributes: [
@@ -1072,6 +1073,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             attributes: [
                 .font: NSFont.systemFont(ofSize: descriptionSize),
                 .foregroundColor: NSColor.tertiaryLabelColor,
+                .baselineOffset: secondaryBaselineOffset,
             ]
         ))
         text.append(NSAttributedString(
@@ -1079,6 +1081,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             attributes: [
                 .font: NSFont.systemFont(ofSize: descriptionSize, weight: .semibold),
                 .foregroundColor: tint,
+                .baselineOffset: secondaryBaselineOffset,
             ]
         ))
         text.append(NSAttributedString(
@@ -1086,6 +1089,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             attributes: [
                 .font: NSFont.systemFont(ofSize: descriptionSize),
                 .foregroundColor: NSColor.secondaryLabelColor,
+                .baselineOffset: secondaryBaselineOffset,
             ]
         ))
         let paragraph = NSMutableParagraphStyle()
