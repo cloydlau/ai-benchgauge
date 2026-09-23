@@ -383,7 +383,7 @@ async function main() {
       console.log(`[commit] dry-run，将以 ${formatCommitIdentity(identity)} 执行 git commit ${parsed.args.join(' ')}`)
       return
     }
-    const result = git(['-c', `user.name=${identity.committer.name}`, '-c', `user.email=${identity.committer.email}`, 'commit', ...parsed.args, '--author', `${identity.author.name} <${identity.author.email}>`], {
+    const result = git(['-c', 'gc.auto=0', '-c', `user.name=${identity.committer.name}`, '-c', `user.email=${identity.committer.email}`, 'commit', ...parsed.args, '--author', `${identity.author.name} <${identity.author.email}>`], {
       inherit: true,
       env: privateIndexEnv(commitIdentityEnv(identity)),
     })
