@@ -1,14 +1,14 @@
 // 成功和失败使用两个 macOS 应用身份，通知样式由系统按应用记住。
-// 已安装的 Local CI Success/Failure 直接复用，避免覆盖 watrek 编好的同一 bundle。
+// 已安装且版本一致的 Local CI Success/Failure 直接复用，避免覆盖同一 bundle。
 import { spawnSync } from 'node:child_process'
 import {
-  existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync,
+  existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync,
 } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const revision = '1'
+const revision = '4'
 const source = fileURLToPath(new URL('./desktop-notify-settings.m', import.meta.url))
 
 function run(command, args, options = {}) {
@@ -29,7 +29,15 @@ export function ensureNotificationApp(kind, directory) {
   const name = notificationAppName(kind)
   const app = join(directory, `${name}.app`)
   const binary = join(app, 'Contents', 'MacOS', 'notification-settings')
-  if (existsSync(binary)) return app
+  const marker = join(app, 'Contents', 'Resources', 'notification-revision')
+  const current = () => {
+    try {
+      return existsSync(binary) && existsSync(marker) && readFileSync(marker, 'utf8') === revision
+    } catch {
+      return false
+    }
+  }
+  if (current()) return app
   mkdirSync(directory, { recursive: true })
   const staging = mkdtempSync(join(directory, '.local-ci-notify-'))
   try {
@@ -45,7 +53,7 @@ export function ensureNotificationApp(kind, directory) {
       CFBundlePackageType: 'APPL',
       CFBundleVersion: revision,
       CFBundleShortVersionString: revision,
-      NSUserNotificationAlertStyle: kind === 'failure' ? 'alert' : 'banner',
+    NSUserNotificationAlertStyle: 'banner',
       LSUIElement: true,
     }))
     run('/usr/bin/plutil', ['-convert', 'xml1', plist])
@@ -54,11 +62,11 @@ export function ensureNotificationApp(kind, directory) {
     run('/usr/bin/codesign', ['--force', '--sign', '-', '--identifier', `local.limphase.ci.${kind}`, compiledBinary])
     writeFileSync(join(compiled, 'Contents', 'Resources', 'notification-revision'), revision)
     run('/usr/bin/codesign', ['--force', '--sign', '-', compiled])
-    if (existsSync(binary)) return app
+    if (current()) return app
     renameSync(compiled, app)
     return app
   } catch (error) {
-    if (existsSync(binary)) return app
+    if (current()) return app
     throw error
   } finally {
     rmSync(staging, { recursive: true, force: true })
