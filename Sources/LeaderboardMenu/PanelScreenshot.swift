@@ -6,13 +6,48 @@ import QuartzCore
 /// cacheDisplay sometimes skips. The table region decides which result is real.
 @MainActor
 enum PanelScreenshot {
-    static func capture(view: NSView) -> (image: NSImage, png: Data)? {
+    /// `omittingTopBand` is in view points, origin at the top-left, y downward.
+    /// The quota row uses that rect so the shared image does not include it.
+    /// `omittedBand` is false when a band was requested but could not be removed.
+    static func capture(
+        view: NSView,
+        omittingTopBand band: CGRect? = nil
+    ) -> (image: NSImage, png: Data, omittedBand: Bool)? {
         view.layoutSubtreeIfNeeded()
         view.window?.displayIfNeeded()
         CATransaction.flush()
 
         guard let rep = bestRepresentation(of: view) else { return nil }
-        return flattenedCapture(from: rep, view: view)
+        return flattenedCapture(from: rep, view: view, omittingTopBand: band)
+    }
+
+    static let quotaStripIdentifier = NSUserInterfaceItemIdentifier("ai-leaderboard.quota-strip")
+
+    /// Full-width band covering the quota chip row, in top-left view points.
+    /// Nil when the row is absent or the measured frame is not a header band.
+    static func quotaStripBand(in host: NSView) -> CGRect? {
+        guard let anchor = descendant(of: host, identified: quotaStripIdentifier) else { return nil }
+        let frame = anchor.convert(anchor.bounds, to: host)
+        let topDown = topDownRect(frame, in: host)
+        guard topDown.width > 1, topDown.height > 8, host.bounds.width > 1, host.bounds.height > 1 else {
+            return nil
+        }
+        var band = CGRect(x: 0, y: topDown.minY, width: host.bounds.width, height: topDown.height)
+        // One point of the surrounding header fill, so a Retina rounding sliver
+        // of a chip border cannot survive the cut.
+        let bleed: CGFloat = 1
+        if band.minY > bleed {
+            band.origin.y -= bleed
+            band.size.height += bleed
+        }
+        if band.maxY + bleed < host.bounds.height {
+            band.size.height += bleed
+        }
+        guard band.minY >= 16,
+              band.height >= 8,
+              band.height < host.bounds.height * 0.45,
+              band.maxY <= host.bounds.height - 24 else { return nil }
+        return band
     }
 
     static func copyToPasteboard(image: NSImage, png: Data) -> Bool {
@@ -136,7 +171,11 @@ enum PanelScreenshot {
     /// Copy captured pixels 1:1. `NSImage.draw` uses the point size, which on a
     /// Retina bitmap is half the pixel buffer, so the picture lands in the
     /// bottom-left quarter and the top-right stays transparent.
-    private static func flattenedCapture(from rep: NSBitmapImageRep, view: NSView) -> (image: NSImage, png: Data)? {
+    private static func flattenedCapture(
+        from rep: NSBitmapImageRep,
+        view: NSView,
+        omittingTopBand band: CGRect?
+    ) -> (image: NSImage, png: Data, omittedBand: Bool)? {
         guard let source = rep.cgImage, source.width > 1, source.height > 1 else { return nil }
         let pixelsWide = source.width
         let pixelsHigh = source.height
@@ -162,13 +201,93 @@ enum PanelScreenshot {
         let drawing = quarterFilledSource(source, rep: rep) ?? source
         context.draw(drawing, in: CGRect(x: 0, y: 0, width: pixelsWide, height: pixelsHigh))
         guard let flattened = context.makeImage() else { return nil }
+        var output = flattened
+        var outputSize = pointSize
+        var omittedBand = false
+        if let band,
+           let cropped = omittingHorizontalBand(flattened, band: band, viewSize: view.bounds.size) {
+            output = cropped.image
+            outputSize = NSSize(width: pointSize.width, height: cropped.pointSize.height)
+            omittedBand = true
+        }
 
-        let bitmap = NSBitmapImageRep(cgImage: flattened)
-        bitmap.size = pointSize
+        let bitmap = NSBitmapImageRep(cgImage: output)
+        bitmap.size = outputSize
         guard let png = bitmap.representation(using: .png, properties: [:]) else { return nil }
-        let image = NSImage(size: pointSize)
+        let image = NSImage(size: outputSize)
         image.addRepresentation(bitmap)
-        return (image, png)
+        return (image, png, omittedBand)
+    }
+
+    /// Drops a horizontal band and closes the gap. `band` is in points with a
+    /// top-left origin. `CGImage.cropping(to:)` uses that same axis — the
+    /// quarter-fill crop already depends on it — while the destination context
+    /// is y-up, so the pieces are drawn from the bottom.
+    static func omittingHorizontalBand(
+        _ image: CGImage,
+        band: CGRect,
+        viewSize: CGSize
+    ) -> (image: CGImage, pointSize: CGSize)? {
+        guard viewSize.width > 1, viewSize.height > 1, image.width > 1, image.height > 1 else { return nil }
+        var top = band.minY
+        var bottom = band.maxY
+        if top < 0 { top = 0 }
+        if bottom > viewSize.height { bottom = viewSize.height }
+        guard bottom - top > 0.5 else { return nil }
+
+        let scaleY = CGFloat(image.height) / viewSize.height
+        let pixelTop = Int((top * scaleY).rounded())
+        let pixelBottom = Int((bottom * scaleY).rounded())
+        guard pixelTop >= 0, pixelBottom <= image.height, pixelBottom - pixelTop >= 1 else { return nil }
+        let newHeight = image.height - (pixelBottom - pixelTop)
+        guard newHeight > 1 else { return nil }
+
+        let width = image.width
+        let topPixels = pixelTop
+        let bottomPixels = image.height - pixelBottom
+        guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(
+                data: nil,
+                width: width,
+                height: newHeight,
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              ) else { return nil }
+        context.interpolationQuality = .none
+        if bottomPixels > 0,
+           let lower = image.cropping(to: CGRect(x: 0, y: pixelBottom, width: width, height: bottomPixels)) {
+            context.draw(lower, in: CGRect(x: 0, y: 0, width: width, height: bottomPixels))
+        }
+        if topPixels > 0,
+           let upper = image.cropping(to: CGRect(x: 0, y: 0, width: width, height: topPixels)) {
+            context.draw(upper, in: CGRect(x: 0, y: CGFloat(bottomPixels), width: width, height: topPixels))
+        }
+        guard let joined = context.makeImage(), joined.height == newHeight else { return nil }
+        let pointHeight = viewSize.height * CGFloat(newHeight) / CGFloat(image.height)
+        return (joined, CGSize(width: viewSize.width, height: pointHeight))
+    }
+
+    private static func topDownRect(_ frame: CGRect, in host: NSView) -> CGRect {
+        guard !host.isFlipped else { return frame }
+        return CGRect(
+            x: frame.origin.x,
+            y: host.bounds.height - frame.maxY,
+            width: frame.width,
+            height: frame.height
+        )
+    }
+
+    private static func descendant(
+        of view: NSView,
+        identified identifier: NSUserInterfaceItemIdentifier
+    ) -> NSView? {
+        if view.identifier == identifier { return view }
+        for subview in view.subviews {
+            if let found = descendant(of: subview, identified: identifier) { return found }
+        }
+        return nil
     }
 
 
