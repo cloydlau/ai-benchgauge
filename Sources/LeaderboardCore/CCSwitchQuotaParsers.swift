@@ -70,6 +70,32 @@ public enum CCSwitchQuotaParsers {
         return .windows(zhipuWindows(payload))
     }
 
+    /// Coding-plan end from `subscription/list`. `valid` is
+    /// `yyyy-MM-dd HH:mm:ss-yyyy-MM-dd HH:mm:ss` in Asia/Shanghai. The end of
+    /// that range is the plan expiry. `nextRenewTime` is a billing date, not
+    /// the plan end. Nil when there is no current valid period, so callers
+    /// keep the quota windows instead of failing the card.
+    public static func parseZhipuSubscription(_ data: Data) -> ParsedQuotaWindow? {
+        guard let body = jsonObject(data),
+              (body["success"] as? Bool) != false,
+              let items = body["data"] as? [Any] else {
+            return nil
+        }
+        let ends = items.compactMap { item -> Date? in
+            guard let object = item as? [String: Any] else { return nil }
+            guard (object["status"] as? String)?.uppercased() == "VALID" else { return nil }
+            guard (object["inCurrentPeriod"] as? Bool) == true else { return nil }
+            guard let valid = object["valid"] as? String else { return nil }
+            return zhipuValidEnd(valid)
+        }
+        guard let end = ends.max() else { return nil }
+        return ParsedQuotaWindow(
+            name: ParsedQuotaWindow.planExpiryName,
+            utilization: 0,
+            resetsAt: end
+        )
+    }
+
     public static func parseDeepSeek(_ data: Data) -> ProviderQuotaParseResult {
         guard let body = jsonObject(data) else { return .rejected }
         var balances: [ParsedBalance] = []
@@ -191,6 +217,28 @@ public enum CCSwitchQuotaParsers {
                 }
             )
         }
+    }
+
+    /// `2026-10-03 10:00:00-2026-11-03 10:00:00` → the second timestamp.
+    private static func zhipuValidEnd(_ value: String) -> Date? {
+        let text = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard text.count == 39 else { return nil }
+        let middle = text.index(text.startIndex, offsetBy: 19)
+        guard text[middle] == "-" else { return nil }
+        let start = String(text[..<middle])
+        let end = String(text[text.index(after: middle)...])
+        guard shanghaiTimestamp(start) != nil else { return nil }
+        return shanghaiTimestamp(end)
+    }
+
+    private static func shanghaiTimestamp(_ text: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = TimeZone(identifier: "Asia/Shanghai")
+            ?? TimeZone(secondsFromGMT: 8 * 3_600)
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return formatter.date(from: text)
     }
 
     /// `unit` 3 is the 5-hour window. `unit` 6 is weekly. Anything else falls

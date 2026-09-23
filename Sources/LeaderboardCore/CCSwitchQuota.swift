@@ -98,6 +98,9 @@ public enum AccountQuotaMessage {
 }
 
 public struct ParsedQuotaWindow: Equatable, Sendable {
+    /// Zhipu coding-plan end. Not a usage window, and not a monthly reset.
+    public static let planExpiryName = "plan_expiry"
+
     public let name: String
     public let utilization: Double
     public let resetsAt: Date?
@@ -203,6 +206,7 @@ public enum AccountQuotaFormatting {
         case "five_hour": "5小时"
         case "weekly_limit", "seven_day": "7天"
         case "monthly": "1个月"
+        case ParsedQuotaWindow.planExpiryName: "总到期"
         case "credits": "额度"
         default: name
         }
@@ -313,7 +317,7 @@ public enum AccountQuotaFormatting {
     }
 
     /// Later reset first. A missing reset is not an expiry, so it sorts last.
-    /// Equal resets keep the incoming order.
+    /// Equal resets keep the incoming order. Zhipu chips do not use this order.
     public static func sortedWindows(_ windows: [ParsedQuotaWindow]) -> [ParsedQuotaWindow] {
         windows.enumerated()
             .sorted { lhs, rhs in
@@ -325,9 +329,30 @@ public enum AccountQuotaFormatting {
             .map(\.element)
     }
 
+    /// Chip, tooltip, and alert order. Zhipu is fixed: 5小时, 7天, 总到期.
+    /// Other providers stay later-reset-first.
+    static func displayWindows(
+        _ windows: [ParsedQuotaWindow],
+        kind: CCSwitchQuotaKind
+    ) -> [ParsedQuotaWindow] {
+        guard kind == .zhipu else { return sortedWindows(windows) }
+        let order = ["five_hour", "weekly_limit", ParsedQuotaWindow.planExpiryName]
+        var grouped: [String: [ParsedQuotaWindow]] = [:]
+        var rest: [ParsedQuotaWindow] = []
+        for window in windows {
+            if order.contains(window.name) {
+                grouped[window.name, default: []].append(window)
+            } else {
+                rest.append(window)
+            }
+        }
+        return order.flatMap { grouped[$0] ?? [] } + rest
+    }
+
     /// Providers whose quota expires soonest come first. A chip's expiry is its
-    /// latest window or plan reset. Missing expiry sorts last, ties keep the
-    /// stored order, and the current provider is not pinned.
+    /// latest usage-window reset. The Zhipu subscription end is not a reset and
+    /// does not move the card. Missing expiry sorts last, ties keep the stored
+    /// order, and the current provider is not pinned.
     public static func sortedChips(_ chips: [AccountQuotaChip]) -> [AccountQuotaChip] {
         chips.enumerated()
             .sorted { lhs, rhs in
@@ -342,7 +367,10 @@ public enum AccountQuotaFormatting {
     private static func latestReset(_ chip: AccountQuotaChip) -> Date? {
         switch chip.status {
         case let .windows(windows):
-            return windows.compactMap(\.resetsAt).max()
+            return windows
+                .filter { $0.name != ParsedQuotaWindow.planExpiryName }
+                .compactMap(\.resetsAt)
+                .max()
         case let .qwenPlan(plan):
             return plan.resetsAt
         case let .qwenWebsite(quota):
@@ -386,7 +414,7 @@ public enum AccountQuotaFormatting {
         case let .message(text):
             return [QuotaTextRun(text: text, tone: .orange)]
         case let .windows(windows):
-            let runs = windowRuns(sortedWindows(windows), now: now)
+            let runs = windowRuns(displayWindows(windows, kind: chip.kind), now: now)
             if runs.isEmpty {
                 return [QuotaTextRun(text: AccountQuotaMessage.queryFailed, tone: .orange)]
             }
@@ -447,7 +475,7 @@ public enum AccountQuotaFormatting {
     private static func detailLines(for chip: AccountQuotaChip, now: Date) -> [String] {
         switch chip.status {
         case let .windows(windows) where !windows.isEmpty:
-            return sortedWindows(windows).map { windowHelpLine($0, now: now) }
+            return displayWindows(windows, kind: chip.kind).map { windowHelpLine($0, now: now) }
         case let .qwenPlan(plan):
             return [qwenPlanHelp(plan, now: now)]
         case let .qwenWebsite(quota):
@@ -460,6 +488,9 @@ public enum AccountQuotaFormatting {
 
     private static func windowHelpLine(_ window: ParsedQuotaWindow, now: Date) -> String {
         let label = label(forWindowName: window.name)
+        if window.name == ParsedQuotaWindow.planExpiryName {
+            return planExpiryHelp(label: label, resetsAt: window.resetsAt, now: now)
+        }
         let percent = "\(roundedPercent(window.utilization))%"
         guard let resetsAt = window.resetsAt,
               let phrase = chineseCountdown(until: resetsAt, now: now),
@@ -467,6 +498,16 @@ public enum AccountQuotaFormatting {
             return "\(label) \(percent)"
         }
         return "\(label) \(percent)，\(phrase)后重置，\(date)"
+    }
+
+    /// Plan end is not usage and does not reset. No percentage.
+    private static func planExpiryHelp(label: String, resetsAt: Date?, now: Date) -> String {
+        guard let resetsAt,
+              let phrase = chineseCountdown(until: resetsAt, now: now),
+              let date = resetDateText(resetsAt, now: now) else {
+            return "\(label) 已到期"
+        }
+        return "\(label) \(phrase)后到期，\(date)"
     }
 
     private static func qwenPlanHelp(_ plan: QwenPlanQuota, now: Date) -> String {
@@ -504,6 +545,10 @@ public enum AccountQuotaFormatting {
                 runs.append(QuotaTextRun(text: "  ", tone: .secondary))
             }
             let label = label(forWindowName: window.name)
+            if window.name == ParsedQuotaWindow.planExpiryName {
+                runs.append(contentsOf: planExpiryRuns(label: label, resetsAt: window.resetsAt, now: now))
+                continue
+            }
             runs.append(QuotaTextRun(text: "\(label): ", tone: .secondary))
             runs.append(
                 QuotaTextRun(
@@ -516,6 +561,16 @@ public enum AccountQuotaFormatting {
             }
         }
         return runs
+    }
+
+    private static func planExpiryRuns(label: String, resetsAt: Date?, now: Date) -> [QuotaTextRun] {
+        if let suffix = countdownSuffix(until: resetsAt, now: now) {
+            return [
+                QuotaTextRun(text: "\(label):", tone: .secondary),
+                QuotaTextRun(text: suffix, tone: .secondary),
+            ]
+        }
+        return [QuotaTextRun(text: "\(label): 已到期", tone: .secondary)]
     }
 
     private static func balanceRuns(_ balances: [ParsedBalance]) -> [QuotaTextRun] {
@@ -636,10 +691,18 @@ public enum CCSwitchQuotaCatalog {
     }
 
     public static func zhipuQuotaURL(baseURL: String?) -> URL {
+        zhipuAPIURL(baseURL: baseURL, path: "/api/monitor/usage/quota/limit")
+    }
+
+    public static func zhipuSubscriptionURL(baseURL: String?) -> URL {
+        zhipuAPIURL(baseURL: baseURL, path: "/api/biz/subscription/list")
+    }
+
+    private static func zhipuAPIURL(baseURL: String?, path: String) -> URL {
         let host = baseURL?.lowercased().contains("bigmodel.cn") == true
             ? "https://open.bigmodel.cn"
             : "https://api.z.ai"
-        return URL(string: "\(host)/api/monitor/usage/quota/limit")!
+        return URL(string: "\(host)\(path)")!
     }
 
     private static func kind(for record: CCSwitchProviderRecord) -> CCSwitchQuotaKind? {
