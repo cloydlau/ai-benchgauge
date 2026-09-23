@@ -303,7 +303,7 @@ final class CCSwitchQuotaParserTests: XCTestCase {
     func testParsesQwenWebsiteQuotaText() {
         let data = Data("个人版 Pro 套餐\n月额度 剩余量 6.8 %\n重置时间 2026-10-05 00:00:00".utf8)
         let quota = QwenWebsiteQuotaParser.parse(data)
-        XCTAssertEqual(quota?.periodLabel, "每月")
+        XCTAssertEqual(quota?.periodLabel, "1个月")
         XCTAssertEqual(quota?.remainingPercent, 6.8)
         XCTAssertEqual(
             quota?.resetsAt?.timeIntervalSince1970,
