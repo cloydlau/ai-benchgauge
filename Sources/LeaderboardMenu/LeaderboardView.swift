@@ -282,14 +282,8 @@ struct LeaderboardView: View {
     }
 
     private var appTitle: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("AI Leaderboards")
-                .font(.system(size: 17, weight: .semibold))
-            Text("v\(appVersion)")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .monospacedDigit()
-        }
+        Text("AI Leaderboards")
+            .font(.system(size: 17, weight: .semibold))
     }
 
     private var freshness: some View {
@@ -429,10 +423,6 @@ struct LeaderboardView: View {
         }
         guard let updatedAt = state.quotaUpdatedAt else { return tr("Quota pending", "余量待更新") }
         return tr("Quota \(updateAge(updatedAt, now: now))", "余量 \(updateAge(updatedAt, now: now))")
-    }
-
-    private var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
 
     // Both name columns grow with the longest visible name. The country and
