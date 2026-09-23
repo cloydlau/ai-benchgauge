@@ -325,13 +325,13 @@ public enum AccountQuotaFormatting {
             .map(\.element)
     }
 
-    /// Providers whose quota expires last come first. A chip's expiry is its
+    /// Providers whose quota expires soonest come first. A chip's expiry is its
     /// latest window or plan reset. Missing expiry sorts last, ties keep the
     /// stored order, and the current provider is not pinned.
     public static func sortedChips(_ chips: [AccountQuotaChip]) -> [AccountQuotaChip] {
         chips.enumerated()
             .sorted { lhs, rhs in
-                if let ordered = expiresLater(latestReset(lhs.element), than: latestReset(rhs.element)) {
+                if let ordered = expiresSooner(latestReset(lhs.element), than: latestReset(rhs.element)) {
                     return ordered
                 }
                 return lhs.offset < rhs.offset
@@ -352,11 +352,22 @@ public enum AccountQuotaFormatting {
         }
     }
 
-    /// `true` when `lhs` should precede `rhs`. `nil` means the dates do not decide.
+    /// `true` when `lhs` should precede `rhs` because it resets later.
+    /// `nil` means the dates do not decide.
     private static func expiresLater(_ lhs: Date?, than rhs: Date?) -> Bool? {
+        compareExpiry(lhs, rhs, soonerFirst: false)
+    }
+
+    /// `true` when `lhs` should precede `rhs` because it expires sooner.
+    /// A dated value still precedes a missing date. `nil` means the dates do not decide.
+    private static func expiresSooner(_ lhs: Date?, than rhs: Date?) -> Bool? {
+        compareExpiry(lhs, rhs, soonerFirst: true)
+    }
+
+    private static func compareExpiry(_ lhs: Date?, _ rhs: Date?, soonerFirst: Bool) -> Bool? {
         switch (lhs, rhs) {
         case let (left?, right?) where left != right:
-            return left > right
+            return soonerFirst ? left < right : left > right
         case (.some, .none):
             return true
         case (.none, .some):
