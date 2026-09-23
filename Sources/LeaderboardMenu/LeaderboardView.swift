@@ -258,8 +258,18 @@ struct LeaderboardView: View {
     }
 
     private var appTitle: some View {
-        Text("AI Leaderboards")
-            .font(.system(size: 17, weight: .semibold))
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("AI Leaderboards")
+                .font(.system(size: 17, weight: .semibold))
+            Text("v\(appVersion)")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .monospacedDigit()
+        }
+    }
+
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
 
     private var freshness: some View {
