@@ -6,19 +6,21 @@ import QuartzCore
 /// cacheDisplay sometimes skips. The table region decides which result is real.
 @MainActor
 enum PanelScreenshot {
-    /// `omittingTopBand` is in view points, origin at the top-left, y downward.
-    /// The quota row uses that rect so the shared image does not include it.
-    /// `omittedBand` is false when a band was requested but could not be removed.
+    /// `redactingTopBand` is in view points, origin at the top-left, y downward.
+    /// The quota row uses that rect so the shared image mosaics it in place.
+    /// Cropping the row out of this fixed-height panel left a blank band at the
+    /// bottom, so the row stays and only the copied pixels are censored.
+    /// `redactedBand` is false when a band was requested but could not be mosaicked.
     static func capture(
         view: NSView,
-        omittingTopBand band: CGRect? = nil
-    ) -> (image: NSImage, png: Data, omittedBand: Bool)? {
+        redactingTopBand band: CGRect? = nil
+    ) -> (image: NSImage, png: Data, redactedBand: Bool)? {
         view.layoutSubtreeIfNeeded()
         view.window?.displayIfNeeded()
         CATransaction.flush()
 
         guard let rep = bestRepresentation(of: view) else { return nil }
-        return flattenedCapture(from: rep, view: view, omittingTopBand: band)
+        return flattenedCapture(from: rep, view: view, redactingTopBand: band)
     }
 
     static let quotaStripIdentifier = NSUserInterfaceItemIdentifier("ai-leaderboard.quota-strip")
@@ -34,7 +36,7 @@ enum PanelScreenshot {
         }
         var band = CGRect(x: 0, y: topDown.minY, width: host.bounds.width, height: topDown.height)
         // One point of the surrounding header fill, so a Retina rounding sliver
-        // of a chip border cannot survive the cut.
+        // of a chip border cannot survive the mosaic.
         let bleed: CGFloat = 1
         if band.minY > bleed {
             band.origin.y -= bleed
@@ -48,11 +50,6 @@ enum PanelScreenshot {
               band.height < host.bounds.height * 0.45,
               band.maxY <= host.bounds.height - 24 else { return nil }
         return band
-    }
-
-    /// True when the balance-row anchor is still in the view tree.
-    static func containsQuotaStrip(in host: NSView) -> Bool {
-        descendant(of: host, identified: quotaStripIdentifier) != nil
     }
 
     static func copyToPasteboard(image: NSImage, png: Data) -> Bool {
@@ -184,8 +181,8 @@ enum PanelScreenshot {
     private static func flattenedCapture(
         from rep: NSBitmapImageRep,
         view: NSView,
-        omittingTopBand band: CGRect?
-    ) -> (image: NSImage, png: Data, omittedBand: Bool)? {
+        redactingTopBand band: CGRect?
+    ) -> (image: NSImage, png: Data, redactedBand: Bool)? {
         guard let source = rep.cgImage, source.width > 1, source.height > 1 else { return nil }
         let pixelsWide = source.width
         let pixelsHigh = source.height
@@ -212,90 +209,102 @@ enum PanelScreenshot {
         context.draw(drawing, in: CGRect(x: 0, y: 0, width: pixelsWide, height: pixelsHigh))
         guard let flattened = context.makeImage() else { return nil }
         var output = flattened
-        var outputSize = pointSize
-        var omittedBand = false
+        var redactedBand = false
         if let band,
-           let cropped = omittingHorizontalBand(flattened, band: band, viewSize: view.bounds.size) {
-            output = cropped.image
-            outputSize = NSSize(width: pointSize.width, height: cropped.pointSize.height)
-            omittedBand = true
+           let censored = pixelatingHorizontalBand(flattened, band: band, viewSize: view.bounds.size) {
+            output = censored
+            redactedBand = true
         }
 
         let bitmap = NSBitmapImageRep(cgImage: output)
-        bitmap.size = outputSize
+        bitmap.size = pointSize
         guard let png = bitmap.representation(using: .png, properties: [:]) else { return nil }
-        let image = NSImage(size: outputSize)
+        let image = NSImage(size: pointSize)
         image.addRepresentation(bitmap)
-        return (image, png, omittedBand)
+        return (image, png, redactedBand)
     }
 
-    /// Drops a horizontal band and closes the gap. `band` is in points with a
-    /// top-left origin, matching `NSBitmapImageRep.colorAt`. Crop rects are not
-    /// used: their origin does not match that axis, and a wrong cut leaves the
-    /// quota chips in the shared image.
-    static func omittingHorizontalBand(
+    /// Mosaics a horizontal band in place. `band` is in points with a top-left
+    /// origin, matching `NSBitmapImageRep.colorAt`. Image size stays the same:
+    /// dropping this row left a blank strip at the bottom of the fixed-height
+    /// panel. Crop rects are not used; their origin does not match that axis.
+    static func pixelatingHorizontalBand(
         _ image: CGImage,
         band: CGRect,
-        viewSize: CGSize
-    ) -> (image: CGImage, pointSize: CGSize)? {
+        viewSize: CGSize,
+        blockPoints: CGFloat = 14
+    ) -> CGImage? {
         guard viewSize.width > 1, viewSize.height > 1, image.width > 1, image.height > 1 else { return nil }
-        var top = band.minY
-        var bottom = band.maxY
+        let bleed: CGFloat = 2
+        var top = band.minY - bleed
+        var bottom = band.maxY + bleed
         if top < 0 { top = 0 }
         if bottom > viewSize.height { bottom = viewSize.height }
         guard bottom - top > 0.5 else { return nil }
 
         let scaleY = CGFloat(image.height) / viewSize.height
-        // Floor the top and ceil the bottom so a Retina rounding sliver of the
-        // quota chips cannot survive the cut.
         let pixelTop = Int(floor(top * scaleY))
         let pixelBottom = Int(ceil(bottom * scaleY))
         guard pixelTop >= 0, pixelBottom <= image.height, pixelBottom - pixelTop >= 1 else { return nil }
-        let newHeight = image.height - (pixelBottom - pixelTop)
-        guard newHeight > 1 else { return nil }
 
         let width = image.width
+        let height = image.height
         guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
-              let source = CGContext(
+              let context = CGContext(
                 data: nil,
                 width: width,
-                height: image.height,
+                height: height,
                 bitsPerComponent: 8,
                 bytesPerRow: 0,
                 space: colorSpace,
                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
               ),
-              let destination = CGContext(
-                data: nil,
-                width: width,
-                height: newHeight,
-                bitsPerComponent: 8,
-                bytesPerRow: 0,
-                space: colorSpace,
-                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-              ),
-              let sourceData = source.data,
-              let destinationData = destination.data else { return nil }
+              let data = context.data else { return nil }
 
-        source.interpolationQuality = .none
-        source.draw(image, in: CGRect(x: 0, y: 0, width: width, height: image.height))
+        context.interpolationQuality = .none
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
         // After drawing into this bitmap, row 0 is the visual top, same as colorAt.
-        let sourceRowBytes = source.bytesPerRow
-        let destinationRowBytes = destination.bytesPerRow
-        let rowBytes = min(width * 4, sourceRowBytes, destinationRowBytes)
-        func copyVisualRows(from sourceStart: Int, to destinationStart: Int, count: Int) {
-            guard count > 0 else { return }
-            for offset in 0..<count {
-                let sourcePtr = sourceData.advanced(by: (sourceStart + offset) * sourceRowBytes)
-                let destinationPtr = destinationData.advanced(by: (destinationStart + offset) * destinationRowBytes)
-                destinationPtr.copyMemory(from: sourcePtr, byteCount: rowBytes)
+        let rowBytes = context.bytesPerRow
+        let bytes = data.bindMemory(to: UInt8.self, capacity: rowBytes * height)
+        let block = max(8, Int((blockPoints * scaleY).rounded()))
+
+        var y = pixelTop
+        while y < pixelBottom {
+            let blockHeight = min(block, pixelBottom - y)
+            var x = 0
+            while x < width {
+                let blockWidth = min(block, width - x)
+                var red = 0
+                var green = 0
+                var blue = 0
+                let count = blockWidth * blockHeight
+                for row in y..<(y + blockHeight) {
+                    let rowStart = row * rowBytes + x * 4
+                    for col in 0..<blockWidth {
+                        let i = rowStart + col * 4
+                        red += Int(bytes[i])
+                        green += Int(bytes[i + 1])
+                        blue += Int(bytes[i + 2])
+                    }
+                }
+                let r = UInt8(red / count)
+                let g = UInt8(green / count)
+                let b = UInt8(blue / count)
+                for row in y..<(y + blockHeight) {
+                    let rowStart = row * rowBytes + x * 4
+                    for col in 0..<blockWidth {
+                        let i = rowStart + col * 4
+                        bytes[i] = r
+                        bytes[i + 1] = g
+                        bytes[i + 2] = b
+                        bytes[i + 3] = 255
+                    }
+                }
+                x += blockWidth
             }
+            y += blockHeight
         }
-        copyVisualRows(from: 0, to: 0, count: pixelTop)
-        copyVisualRows(from: pixelBottom, to: pixelTop, count: image.height - pixelBottom)
-        guard let joined = destination.makeImage(), joined.height == newHeight else { return nil }
-        let pointHeight = viewSize.height * CGFloat(newHeight) / CGFloat(image.height)
-        return (joined, CGSize(width: viewSize.width, height: pointHeight))
+        return context.makeImage()
     }
 
     private static func topDownRect(_ frame: CGRect, in host: NSView) -> CGRect {

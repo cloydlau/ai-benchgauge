@@ -269,7 +269,7 @@ private struct QuotaFlowLayout: Layout {
     }
 }
 
-/// Marks the quota chip row so a screenshot can crop that band out. Hits pass
+/// Marks the quota chip row so a screenshot can mosaic that band. Hits pass
 /// through; the chips drawn above this background keep their clicks.
 struct QuotaStripAnchor: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
