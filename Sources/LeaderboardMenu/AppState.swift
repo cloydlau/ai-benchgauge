@@ -67,8 +67,8 @@ final class AppState: ObservableObject {
     /// own intervals because they read different sources.
     private static let minimumLeaderboardRefreshInterval: TimeInterval = 30 * 60
     private static let inactiveQuotaRefreshInterval: TimeInterval = 60
-    /// Matches CC Switch's default auto-query interval.
-    private static let backgroundQuotaRefreshInterval: TimeInterval = 5 * 60
+    /// Refresh the persistent menu bar quota every 30 minutes.
+    private static let backgroundQuotaRefreshInterval: TimeInterval = 30 * 60
 
     func refreshFromMenuClick() {
         refreshQuotas(
