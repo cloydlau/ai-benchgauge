@@ -178,7 +178,7 @@ struct LeaderboardView: View {
             }
         }
         .padding(.horizontal, 18)
-        .padding(.vertical, 14)
+        .padding(.vertical, 10)
     }
 
     private var quotaSetupPrompt: some View {
@@ -210,7 +210,7 @@ struct LeaderboardView: View {
             sourceLens(title: "Arena", description: lenses.arena, tint: .purple)
         }
         .padding(.horizontal, 18)
-        .padding(.bottom, 6)
+        .padding(.bottom, 2)
     }
 
     private func sourceLens(
@@ -218,27 +218,26 @@ struct LeaderboardView: View {
         description: SourceLensDescription,
         tint: Color
     ) -> some View {
-        HStack(spacing: 7) {
-            Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: true, vertical: false)
-            Text(description.emphasis)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(tint)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(tint.opacity(0.1), in: Capsule())
-                .fixedSize(horizontal: true, vertical: false)
-            Text(description.summary)
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 7) {
+                Text(title)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.primary)
+                Text(description.emphasis)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(tint)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(tint.opacity(0.1), in: Capsule())
+            }
+            Text(description.detail)
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 10)
-        .padding(.vertical, 5)
+        .padding(.vertical, 4)
         .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
         .overlay {
             RoundedRectangle(cornerRadius: 9)
@@ -1004,7 +1003,6 @@ private extension LeaderboardCategory {
             return (
                 SourceLensDescription(
                     emphasis: language.text("Task benchmarks", "任务测评"),
-                    summary: language.text("Overall capability", "看综合能力"),
                     detail: language.text(
                         "Combines standardized tests across several abilities.",
                         "汇总多项标准化测试，适合看综合能力"
@@ -1012,7 +1010,6 @@ private extension LeaderboardCategory {
                 ),
                 SourceLensDescription(
                     emphasis: language.text("User votes", "用户盲测"),
-                    summary: language.text("Real-world preference", "看实际偏好"),
                     detail: language.text(
                         "People compare anonymous answers to real prompts.",
                         "真实提问下盲选回答，贴近用户偏好"
@@ -1023,7 +1020,6 @@ private extension LeaderboardCategory {
             return (
                 SourceLensDescription(
                     emphasis: language.text("Task completion", "任务完成率"),
-                    summary: language.text("Coding ability", "看编程能力"),
                     detail: language.text(
                         "Scores coding agents on software engineering tasks.",
                         "通过软件工程任务，检验编程智能体的完成能力"
@@ -1031,7 +1027,6 @@ private extension LeaderboardCategory {
                 ),
                 SourceLensDescription(
                     emphasis: language.text("WebDev votes", "网页开发盲选"),
-                    summary: language.text("Web build preference", "看成品观感"),
                     detail: language.text(
                         "People pick the better result from paired web builds.",
                         "用户盲选网页成品，侧重实际观感"
@@ -1042,7 +1037,6 @@ private extension LeaderboardCategory {
             return (
                 SourceLensDescription(
                     emphasis: language.text("Curated prompts", "场景化盲测"),
-                    summary: language.text("Across use cases", "看多场景质量"),
                     detail: language.text(
                         "Blind votes across a balanced set of image use cases.",
                         "按用途均衡选题，盲选图片质量"
@@ -1050,7 +1044,6 @@ private extension LeaderboardCategory {
                 ),
                 SourceLensDescription(
                     emphasis: language.text("User prompts", "用户出题"),
-                    summary: language.text("Everyday taste", "看日常审美"),
                     detail: language.text(
                         "People vote on images made from their own prompts.",
                         "用户自由出题并盲选，贴近日常审美"
@@ -1061,7 +1054,6 @@ private extension LeaderboardCategory {
             return (
                 SourceLensDescription(
                     emphasis: language.text("Matched settings", "统一设置"),
-                    summary: language.text("Comparable quality", "看可比质量"),
                     detail: language.text(
                         "Blind votes on videos made with comparable settings.",
                         "相同提示词、统一设置下盲选视频质量"
@@ -1069,7 +1061,6 @@ private extension LeaderboardCategory {
                 ),
                 SourceLensDescription(
                     emphasis: language.text("User prompts", "用户出题"),
-                    summary: language.text("Viewer preference", "看观看偏好"),
                     detail: language.text(
                         "People vote on paired videos from real prompts.",
                         "用户自由出题并盲选，贴近日常偏好"
@@ -1082,7 +1073,6 @@ private extension LeaderboardCategory {
 
 private struct SourceLensDescription {
     let emphasis: String
-    let summary: String
     let detail: String
 }
 
