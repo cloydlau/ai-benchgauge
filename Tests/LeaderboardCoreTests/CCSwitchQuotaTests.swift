@@ -450,7 +450,7 @@ final class AccountQuotaFormattingTests: XCTestCase {
         )
     }
 
-    func testSortsChipsByLatestExpiryFirstWithoutPinningCurrent() {
+    func testSortsChipsBySoonestExpiryFirstWithoutPinningCurrent() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let soon = now.addingTimeInterval(3_600)
         let mid = now.addingTimeInterval(3 * 86_400)
@@ -509,7 +509,7 @@ final class AccountQuotaFormattingTests: XCTestCase {
 
         XCTAssertEqual(
             AccountQuotaFormatting.sortedChips(chips).map(\.id),
-            ["latest", "current", "plan", "same", "website", "note", "balance"]
+            ["website", "current", "plan", "same", "latest", "note", "balance"]
         )
     }
 }
