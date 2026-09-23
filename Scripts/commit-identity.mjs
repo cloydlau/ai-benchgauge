@@ -2,8 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-// 每次提交前重新读取 Codex 当前模型。Git 没有头像字段，
-// 头像 URL 写入 Model-Avatar trailer，通知里再挂上探测到的图标。
+// 每次提交前重新读取 Codex 当前模型。头像只给桌面通知用，不写入提交说明。
 const DEFAULT_CONFIG_PATH = join(homedir(), '.codex', 'config.toml')
 const ICONES_FALLBACK = 'https://api.iconify.design/mdi:robot-outline.svg'
 // GitHub associates these official coding-agent Bots with their numeric
