@@ -216,6 +216,7 @@ export function formatCommitIdentity(identity) {
 
 export function commitArgs(message, identity) {
   const args = [
+    '-c', 'gc.auto=0',
     '-c', `user.name=${identity.committer.name}`,
     '-c', `user.email=${identity.committer.email}`,
     'commit',
