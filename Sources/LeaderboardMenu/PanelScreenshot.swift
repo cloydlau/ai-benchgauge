@@ -220,9 +220,8 @@ enum PanelScreenshot {
     }
 
     /// Drops a horizontal band and closes the gap. `band` is in points with a
-    /// top-left origin. `CGImage.cropping(to:)` uses that same axis — the
-    /// quarter-fill crop already depends on it — while the destination context
-    /// is y-up, so the pieces are drawn from the bottom.
+    /// top-left origin. The image comes from `CGContext.makeImage()`, whose
+    /// crop rect is bottom-left, so the header slice is the high-y end.
     static func omittingHorizontalBand(
         _ image: CGImage,
         band: CGRect,
@@ -236,8 +235,10 @@ enum PanelScreenshot {
         guard bottom - top > 0.5 else { return nil }
 
         let scaleY = CGFloat(image.height) / viewSize.height
-        let pixelTop = Int((top * scaleY).rounded())
-        let pixelBottom = Int((bottom * scaleY).rounded())
+        // Floor the top and ceil the bottom so a Retina rounding sliver of the
+        // quota chips cannot survive the cut.
+        let pixelTop = Int(floor(top * scaleY))
+        let pixelBottom = Int(ceil(bottom * scaleY))
         guard pixelTop >= 0, pixelBottom <= image.height, pixelBottom - pixelTop >= 1 else { return nil }
         let newHeight = image.height - (pixelBottom - pixelTop)
         guard newHeight > 1 else { return nil }
@@ -256,19 +257,26 @@ enum PanelScreenshot {
                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
               ) else { return nil }
         context.interpolationQuality = .none
+        // Table slice sits at CG y = 0 (visual bottom) and is drawn there.
         if bottomPixels > 0,
-           let lower = image.cropping(to: CGRect(
+           let body = image.cropping(to: CGRect(
             x: 0,
-            y: CGFloat(pixelBottom),
+            y: 0,
             width: CGFloat(width),
             height: CGFloat(bottomPixels)
            )) {
-            context.draw(lower, in: CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(bottomPixels)))
+            context.draw(body, in: CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(bottomPixels)))
         }
+        // Header slice is the high-y end. Draw it above the table slice.
         if topPixels > 0,
-           let upper = image.cropping(to: CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(topPixels))) {
+           let header = image.cropping(to: CGRect(
+            x: 0,
+            y: CGFloat(image.height - topPixels),
+            width: CGFloat(width),
+            height: CGFloat(topPixels)
+           )) {
             context.draw(
-                upper,
+                header,
                 in: CGRect(x: 0, y: CGFloat(bottomPixels), width: CGFloat(width), height: CGFloat(topPixels))
             )
         }
