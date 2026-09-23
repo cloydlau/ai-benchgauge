@@ -576,7 +576,8 @@ public actor AccountQuotaClient {
                 websiteURL: chip.websiteURL,
                 kind: chip.kind,
                 isCurrent: chip.isCurrent,
-                status: prior.status
+                status: prior.status,
+                isStale: true
             )
         case .pending, .note, .message:
             return chip

@@ -153,6 +153,8 @@ public struct AccountQuotaChip: Identifiable, Equatable, Sendable {
     public let kind: CCSwitchQuotaKind
     public let isCurrent: Bool
     public let status: Status
+    /// A previous successful value retained after a failed refresh.
+    public let isStale: Bool
 
     public init(
         id: String,
@@ -160,7 +162,8 @@ public struct AccountQuotaChip: Identifiable, Equatable, Sendable {
         websiteURL: URL?,
         kind: CCSwitchQuotaKind,
         isCurrent: Bool,
-        status: Status
+        status: Status,
+        isStale: Bool = false
     ) {
         self.id = id
         self.shortName = shortName
@@ -168,6 +171,7 @@ public struct AccountQuotaChip: Identifiable, Equatable, Sendable {
         self.kind = kind
         self.isCurrent = isCurrent
         self.status = status
+        self.isStale = isStale
     }
 }
 
@@ -189,6 +193,51 @@ public struct QuotaTextRun: Equatable, Sendable {
 }
 
 public enum AccountQuotaFormatting {
+    /// One successfully queried quota for the menu bar, in shortest-window order.
+    public static func compactMenuBarQuota(
+        for chip: AccountQuotaChip,
+        language: AppLanguage
+    ) -> String? {
+        guard !chip.isStale else { return nil }
+        switch chip.status {
+        case let .windows(windows):
+            let slots: [(String, String)] = [
+                ("five_hour", language.text("5h", "5小时")),
+                ("seven_day", language.text("7d", "7天")),
+                ("weekly_limit", language.text("7d", "7天")),
+                ("monthly", language.text("1mo", "1个月")),
+            ]
+            for (name, label) in slots {
+                if let window = windows.first(where: {
+                    $0.name == name && $0.utilization.isFinite && (0...100).contains($0.utilization)
+                }) {
+                    return "\(label) \(remainingPercent(utilization: window.utilization))%"
+                }
+            }
+            return nil
+        case let .qwenPlan(plan):
+            return "\(language.text("7d", "7天")) \(qwenPlanRemainingPercent(plan))%"
+        case let .qwenWebsite(quota):
+            guard !quota.isCached, quota.remainingPercent.isFinite,
+                  (0...100).contains(quota.remainingPercent) else { return nil }
+            let label: String
+            switch quota.periodLabel {
+            case "7天": label = language.text("7d", "7天")
+            case "1个月", "月度": label = language.text("1mo", "1个月")
+            default: return nil
+            }
+            return "\(label) \(roundedPercent(quota.remainingPercent))%"
+        case let .balances(balances):
+            let available = balances.filter {
+                $0.amount.isFinite && $0.amount >= 0 && !$0.currency.isEmpty
+            }
+            guard let balance = available.first(where: { $0.amount > 0 }) ?? available.first else { return nil }
+            return "\(balanceAmountText(balance.amount)) \(balance.currency)"
+        case .pending, .note, .message:
+            return nil
+        }
+    }
+
     public static func roundedPercent(_ value: Double) -> Int {
         guard value.isFinite else { return 0 }
         return Int(floor(value + 0.5))
@@ -695,6 +744,24 @@ public enum AccountQuotaFormatting {
 }
 
 public enum CCSwitchQuotaCatalog {
+    /// Read only the explicit model identifier from a CC Switch provider config.
+    public static func configuredModelName(for record: CCSwitchProviderRecord) -> String? {
+        guard let root = jsonObject(record.settingsConfigJSON) else { return nil }
+        let raw: String?
+        if let toml = root["config"] as? String {
+            let topLevel = toml.split(whereSeparator: \.isNewline)
+                .prefix { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("[") }
+                .joined(separator: "\n")
+            raw = tomlStringValue(named: "model", in: topLevel)
+        } else if let config = root["config"] as? [String: Any] {
+            raw = config["model"] as? String
+        } else {
+            raw = nil
+        }
+        let name = raw?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name?.isEmpty == false ? name : nil
+    }
+
     public static func targets(
         from records: [CCSwitchProviderRecord],
         currentProviderID: String?
