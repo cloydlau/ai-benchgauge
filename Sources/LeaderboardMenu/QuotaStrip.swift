@@ -34,11 +34,14 @@ struct QuotaStrip: View {
                 }
             }
         } else {
-            // Chips keep their full text. A horizontal scroller clipped the reset
-            // times and still drew a bar when macOS shows scroll bars always.
-            HStack(alignment: .top, spacing: 8) {
-                sectionLabel
-                    .padding(.top, 5)
+            // Chips keep their full text and the full row. The refresh time used
+            // to sit in a trailing column, so it floated beside the first chip
+            // row and stole width from wrapping. It belongs with the section label.
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    sectionLabel
+                    statusLabel(now: now)
+                }
                 QuotaFlowLayout(spacing: 6, lineSpacing: 6) {
                     ForEach(chips) { chip in
                         QuotaChipView(
@@ -50,8 +53,6 @@ struct QuotaStrip: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
-                statusLabel(now: now)
-                    .padding(.top, 5)
             }
         }
     }
@@ -74,12 +75,18 @@ struct QuotaStrip: View {
     private func statusLabel(now: Date) -> some View {
         let text = statusText(now: now)
         if !text.isEmpty {
-            Text(text)
-                .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
-                .monospacedDigit()
-                .fixedSize()
-                .help(unavailable ? "数据库这次没有读成，显示的是上次余量" : "")
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("·")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.quaternary)
+                Text(text)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                    .monospacedDigit()
+                    .fixedSize()
+            }
+            .fixedSize()
+            .help(unavailable ? "数据库这次没有读成，显示的是上次余量" : "")
         }
     }
 
