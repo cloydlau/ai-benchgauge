@@ -40,6 +40,7 @@ public enum CCSwitchQuotaKind: Equatable, Sendable {
     case kimi
     case zhipu
     case deepseek
+    case qwen
     case xaiOAuth
 }
 
@@ -51,6 +52,10 @@ public struct CCSwitchQuotaTarget: Equatable, Sendable, Identifiable {
     public let isCurrent: Bool
     /// Present only for key-backed providers. Never display or persist this.
     public let apiKey: String?
+    /// OAuth access token for the official Codex provider. Never display or persist this.
+    public let accessToken: String?
+    /// Account scope used by the official Codex usage endpoint.
+    public let accountID: String?
     public let baseURL: String?
 
     public init(
@@ -60,7 +65,9 @@ public struct CCSwitchQuotaTarget: Equatable, Sendable, Identifiable {
         kind: CCSwitchQuotaKind,
         isCurrent: Bool,
         apiKey: String?,
-        baseURL: String?
+        baseURL: String?,
+        accessToken: String? = nil,
+        accountID: String? = nil
     ) {
         self.id = id
         self.shortName = shortName
@@ -68,6 +75,8 @@ public struct CCSwitchQuotaTarget: Equatable, Sendable, Identifiable {
         self.kind = kind
         self.isCurrent = isCurrent
         self.apiKey = apiKey
+        self.accessToken = accessToken
+        self.accountID = accountID
         self.baseURL = baseURL
     }
 }
@@ -77,13 +86,16 @@ public enum AccountQuotaMessage {
     public static let queryFailed = "查询失败"
     public static let reauthRequired = "需要重新登录"
     public static let notConfigured = "未配置"
-    public static let notConfiguredHelp = "没有可用的 API Key，未发起查询"
+    public static let notConfiguredHelp = "没有可用的 API Key 或供应商令牌，未发起查询"
     public static let notLoggedIn = "未登录"
     public static let notLoggedInHelp = "没有可用的 xAI 登录，未发起查询"
     public static let network = "网络错误"
-    public static let officialSummary = "随登录变化"
-    public static let officialHelp = "账号会随 Codex CLI 当前登录变化"
+    public static let officialFollowsLogin = "随登录变化"
+    public static let officialFollowsLoginHelp = "账号会随 Codex CLI 当前登录变化；没有可用登录时不查询"
+    public static let officialSummary = "查询中"
+    public static let officialHelp = "正在查询 Codex 官方用量"
     public static let emptyBalance = "无可用余额"
+    public static let emptyUsage = "暂无本地用量"
 }
 
 public struct ParsedQuotaWindow: Equatable, Sendable {
@@ -108,6 +120,28 @@ public struct ParsedBalance: Equatable, Sendable {
     }
 }
 
+public struct ParsedUsageWindow: Equatable, Sendable {
+    public let name: String
+    public let requests: Int
+    public let inputTokens: Int64
+    public let outputTokens: Int64
+    public let costUSD: Double
+
+    public init(
+        name: String,
+        requests: Int,
+        inputTokens: Int64,
+        outputTokens: Int64,
+        costUSD: Double
+    ) {
+        self.name = name
+        self.requests = requests
+        self.inputTokens = inputTokens
+        self.outputTokens = outputTokens
+        self.costUSD = costUSD
+    }
+}
+
 public enum ProviderQuotaParseResult: Equatable, Sendable {
     case windows([ParsedQuotaWindow])
     case balances([ParsedBalance])
@@ -128,6 +162,9 @@ public struct AccountQuotaChip: Identifiable, Equatable, Sendable {
         case note(text: String, help: String)
         case windows([ParsedQuotaWindow])
         case balances([ParsedBalance])
+        case qwenPlan(QwenPlanQuota)
+        case qwenWebsite(QwenWebsiteQuota)
+        case usage([ParsedUsageWindow])
         case message(String)
     }
 
@@ -189,7 +226,7 @@ public enum AccountQuotaFormatting {
         switch name {
         case "five_hour": "5小时"
         case "weekly_limit", "seven_day": "7天"
-        case "monthly": "每月"
+        case "monthly": "1个月"
         case "credits": "额度"
         default: name
         }
@@ -273,6 +310,23 @@ public enum AccountQuotaFormatting {
             return runs
         case let .balances(balances):
             return balanceRuns(balances)
+        case let .qwenPlan(plan):
+            return qwenPlanRuns(plan, now: now)
+        case let .qwenWebsite(quota):
+            var runs = [
+                QuotaTextRun(text: "\(quota.periodLabel): ", tone: .secondary),
+                QuotaTextRun(
+                    text: "\(creditText(quota.remainingPercent))%",
+                    tone: tone(forUtilization: 100 - quota.remainingPercent)
+                ),
+            ]
+            if let resetsAt = quota.resetsAt,
+               let countdown = countdown(until: resetsAt, now: now) {
+                runs.append(QuotaTextRun(text: " \(countdown)", tone: .secondary))
+            }
+            return runs
+        case let .usage(windows):
+            return usageRuns(windows)
         }
     }
 
@@ -292,11 +346,35 @@ public enum AccountQuotaFormatting {
             if !summary.isEmpty {
                 lines.append(summary)
             }
+            if chip.kind == .qwen {
+                switch chip.status {
+                case .qwenPlan:
+                    lines.append("千问官网套餐额度（qianwen CLI 当前登录账号）")
+                case let .qwenWebsite(quota):
+                    if quota.isCached, let capturedAt = quota.capturedAt {
+                        lines.append("千问官网个人版用量（官网本次读取失败，显示 \(cachedDateText(capturedAt)) 保存的结果）")
+                    } else {
+                        lines.append("千问官网个人版用量（网页显示的剩余百分比；网页未提供精确 Credits）")
+                    }
+                case .usage:
+                    lines.append("CC Switch 本地统计，非千问官网套餐额度；qianwen CLI 未返回个人版额度时，请在千问官网查看实时用量")
+                default:
+                    break
+                }
+            }
         }
         if let websiteURL = chip.websiteURL {
             lines.append(websiteURL.absoluteString)
         }
         return lines.joined(separator: "\n")
+    }
+
+    private static func cachedDateText(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 
     private static func windowRuns(_ windows: [ParsedQuotaWindow], now: Date) -> [QuotaTextRun] {
@@ -336,6 +414,63 @@ public enum AccountQuotaFormatting {
         }
         return runs
     }
+
+    private static func qwenPlanRuns(_ plan: QwenPlanQuota, now: Date) -> [QuotaTextRun] {
+        var runs = [
+            QuotaTextRun(text: "7天: ", tone: .secondary),
+            QuotaTextRun(text: "\(roundedPercent(plan.usedPercent))%", tone: tone(forUtilization: plan.usedPercent)),
+            QuotaTextRun(
+                text: " · 剩余 \(creditText(plan.remainingCredits))/\(creditText(plan.totalCredits)) Credits",
+                tone: .secondary
+            ),
+        ]
+        if let resetsAt = plan.resetsAt, let countdown = countdown(until: resetsAt, now: now) {
+            runs.append(QuotaTextRun(text: " \(countdown)", tone: .secondary))
+        }
+        return runs
+    }
+
+    private static func creditText(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: NSNumber(value: value)) ?? String(value)
+    }
+
+    private static func usageRuns(_ windows: [ParsedUsageWindow]) -> [QuotaTextRun] {
+        guard !windows.isEmpty else {
+            return [QuotaTextRun(text: AccountQuotaMessage.emptyUsage, tone: .secondary)]
+        }
+        var runs: [QuotaTextRun] = []
+        for (index, window) in windows.enumerated() {
+            if index > 0 {
+                runs.append(QuotaTextRun(text: "  ", tone: .secondary))
+            }
+            let tokens = compactTokenCount(window.inputTokens + window.outputTokens)
+            runs.append(QuotaTextRun(text: "本地\(window.name): ", tone: .secondary))
+            runs.append(QuotaTextRun(text: "\(tokens) tokens", tone: .green))
+            runs.append(QuotaTextRun(text: " · \(window.requests)次", tone: .secondary))
+            if window.costUSD > 0 {
+                runs.append(QuotaTextRun(text: " · $\(balanceAmountText(window.costUSD))", tone: .secondary))
+            }
+        }
+        return runs
+    }
+
+    private static func compactTokenCount(_ value: Int64) -> String {
+        let absolute = max(value, 0)
+        if absolute >= 1_000_000_000 {
+            return String(format: "%.1fB", locale: Locale(identifier: "en_US_POSIX"), Double(absolute) / 1_000_000_000)
+        }
+        if absolute >= 1_000_000 {
+            return String(format: "%.1fM", locale: Locale(identifier: "en_US_POSIX"), Double(absolute) / 1_000_000)
+        }
+        if absolute >= 1_000 {
+            return String(format: "%.1fK", locale: Locale(identifier: "en_US_POSIX"), Double(absolute) / 1_000)
+        }
+        return String(absolute)
+    }
 }
 
 public enum CCSwitchQuotaCatalog {
@@ -368,11 +503,16 @@ public enum CCSwitchQuotaCatalog {
                 CCSwitchQuotaTarget(
                     id: record.id,
                     shortName: shortName(for: kind),
-                    websiteURL: websiteURL(record.websiteURL),
+                    websiteURL: websiteURL(record.websiteURL)
+                        ?? (kind == .qwen
+                            ? URL(string: "https://platform.qianwenai.com/home/analytics/token-plan/individual")
+                            : nil),
                     kind: kind,
                     isCurrent: record.isCurrent,
                     apiKey: kind == .officialNote || kind == .xaiOAuth ? nil : extracted.apiKey,
-                    baseURL: baseURL
+                    baseURL: baseURL,
+                    accessToken: kind == .officialNote ? extracted.accessToken : nil,
+                    accountID: kind == .officialNote ? extracted.accountID : nil
                 )
             )
         }
@@ -392,7 +532,9 @@ public enum CCSwitchQuotaCatalog {
                 kind: target.kind,
                 isCurrent: isCurrent,
                 apiKey: target.apiKey,
-                baseURL: target.baseURL
+                baseURL: target.baseURL,
+                accessToken: target.accessToken,
+                accountID: target.accountID
             )
         }
     }
@@ -406,33 +548,51 @@ public enum CCSwitchQuotaCatalog {
 
     private static func kind(for record: CCSwitchProviderRecord) -> CCSwitchQuotaKind? {
         let meta = jsonObject(record.metaJSON)
-        let script = meta?["usage_script"] as? [String: Any]
-        if (script?["enabled"] as? Bool) == false {
-            return nil
-        }
         if isXai(meta) {
             return .xaiOAuth
+        }
+        let script = meta?["usage_script"] as? [String: Any]
+        // A disabled script is not a quota source. Do not trust its provider
+        // label, and do not query a key the user turned off. A Qwen token-plan
+        // host is still shown from local usage or the Qwen login, which never
+        // sends that key.
+        if (script?["enabled"] as? Bool) == false {
+            return qwenHostKind(record)
         }
         let template = (script?["templateType"] as? String)?.lowercased()
         let plan = (script?["codingPlanProvider"] as? String)?.lowercased()
         if record.id == "codex-official" || template == "official_subscription" {
             return .officialNote
         }
+        // Host wins over a stale coding-plan label so a Qwen key is never
+        // sent to another provider's quota API.
+        if let qwen = qwenHostKind(record) {
+            return qwen
+        }
         if let plan, !plan.isEmpty {
             switch plan {
             case "kimi": return .kimi
             case "zhipu": return .zhipu
-            default: return nil
+            case "qwen", "bailian", "alibaba": return .qwen
+            default:
+                return qwenHostKind(record)
             }
         }
         let bases = credentials(from: record.settingsConfigJSON).baseURLs
+        if bases.contains(where: isQwen) { return .qwen }
         if template == "balance" {
             return bases.contains(where: isDeepSeek) ? .deepseek : nil
         }
         if bases.contains(where: isKimi) { return .kimi }
         if bases.contains(where: isZhipu) { return .zhipu }
         if bases.contains(where: isDeepSeek) { return .deepseek }
-        return nil
+        return qwenHostKind(record)
+    }
+
+    /// Nil unless the saved base URL is a Qwen token-plan host.
+    private static func qwenHostKind(_ record: CCSwitchProviderRecord) -> CCSwitchQuotaKind? {
+        let bases = credentials(from: record.settingsConfigJSON).baseURLs
+        return bases.contains(where: isQwen) ? .qwen : nil
     }
 
     private static func isXai(_ meta: [String: Any]?) -> Bool {
@@ -450,6 +610,7 @@ public enum CCSwitchQuotaCatalog {
         case .deepseek: "DeepSeek"
         case .xaiOAuth: "xAI"
         case .zhipu: "智谱"
+        case .qwen: "千问"
         }
     }
 
@@ -466,7 +627,9 @@ public enum CCSwitchQuotaCatalog {
                 kind: target.kind,
                 isCurrent: target.isCurrent,
                 apiKey: target.apiKey,
-                baseURL: target.baseURL
+                baseURL: target.baseURL,
+                accessToken: target.accessToken,
+                accountID: target.accountID
             )
         }
     }
@@ -480,22 +643,35 @@ public enum CCSwitchQuotaCatalog {
 
     private struct ExtractedCredentials {
         var apiKey: String?
+        var accessToken: String?
+        var accountID: String?
         var baseURLs: [String]
     }
 
     private static func credentials(from settingsJSON: String) -> ExtractedCredentials {
         guard let root = jsonObject(settingsJSON) else {
-            return ExtractedCredentials(apiKey: nil, baseURLs: [])
+            return ExtractedCredentials(apiKey: nil, accessToken: nil, accountID: nil, baseURLs: [])
         }
         let auth = root["auth"] as? [String: Any]
-        let apiKey = usableAPIKey(auth?["OPENAI_API_KEY"] as? String)
+        var apiKey = usableAPIKey(auth?["OPENAI_API_KEY"] as? String)
+        let tokens = auth?["tokens"] as? [String: Any]
+        let accessToken = usableToken(tokens?["access_token"] as? String)
+        let accountID = usableToken(tokens?["account_id"] as? String)
         var extractedBaseURLs: [String] = []
         if let config = root["config"] as? String {
             extractedBaseURLs.append(contentsOf: baseURLs(inTOML: config))
+            if apiKey == nil {
+                apiKey = usableAPIKey(tomlStringValue(named: "experimental_bearer_token", in: config))
+            }
         } else if let config = root["config"] {
             extractedBaseURLs.append(contentsOf: baseURLs(inJSON: config))
         }
-        return ExtractedCredentials(apiKey: apiKey, baseURLs: extractedBaseURLs)
+        return ExtractedCredentials(
+            apiKey: apiKey,
+            accessToken: accessToken,
+            accountID: accountID,
+            baseURLs: extractedBaseURLs
+        )
     }
 
     private static func usableAPIKey(_ value: String?) -> String? {
@@ -507,12 +683,41 @@ public enum CCSwitchQuotaCatalog {
         return trimmed
     }
 
+    private static func usableToken(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static func tomlStringValue(named key: String, in config: String) -> String? {
+        for line in config.split(whereSeparator: \.isNewline) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty, !trimmed.hasPrefix("#"),
+                  let equals = trimmed.firstIndex(of: "=") else { continue }
+            let name = trimmed[..<equals].trimmingCharacters(in: .whitespaces)
+            guard name == key else { continue }
+            var value = trimmed[trimmed.index(after: equals)...]
+                .trimmingCharacters(in: .whitespaces)
+            if let comment = value.firstIndex(of: "#") {
+                value = value[..<comment].trimmingCharacters(in: .whitespaces)
+            }
+            guard value.count >= 2,
+                  (value.first == "\"" && value.last == "\"")
+                    || (value.first == "'" && value.last == "'") else {
+                continue
+            }
+            return String(value.dropFirst().dropLast())
+        }
+        return nil
+    }
+
     private static func preferredBaseURL(_ urls: [String], kind: CCSwitchQuotaKind) -> String? {
         let matches = urls.filter { url in
             switch kind {
             case .kimi: isKimi(url)
             case .zhipu: isZhipu(url)
             case .deepseek: isDeepSeek(url)
+            case .qwen: isQwen(url)
             case .officialNote, .xaiOAuth: false
             }
         }
@@ -530,6 +735,13 @@ public enum CCSwitchQuotaCatalog {
 
     private static func isDeepSeek(_ url: String) -> Bool {
         url.lowercased().contains("api.deepseek.com")
+    }
+
+    private static func isQwen(_ url: String) -> Bool {
+        let lowered = url.lowercased()
+        return lowered.contains("token-plan.")
+            && (lowered.contains("maas.aliyuncs.com")
+                || lowered.contains("maas.qianwenaiapi.com"))
     }
 
     private static func baseURLs(inTOML config: String) -> [String] {
@@ -689,12 +901,7 @@ extension AccountQuotaChip {
     public static func placeholder(for target: CCSwitchQuotaTarget) -> AccountQuotaChip {
         let status: Status
         switch target.kind {
-        case .officialNote:
-            status = .note(
-                text: AccountQuotaMessage.officialSummary,
-                help: AccountQuotaMessage.officialHelp
-            )
-        case .kimi, .zhipu, .deepseek, .xaiOAuth:
+        case .officialNote, .kimi, .zhipu, .deepseek, .qwen, .xaiOAuth:
             status = .pending
         }
         return AccountQuotaChip(
