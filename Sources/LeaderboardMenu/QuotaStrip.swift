@@ -267,3 +267,28 @@ private struct QuotaFlowLayout: Layout {
         return Arrangement(rows: rows, width: usedWidth, height: height)
     }
 }
+
+/// Marks the quota chip row so a screenshot can crop that band out. Hits pass
+/// through; the chips drawn above this background keep their clicks.
+struct QuotaStripAnchor: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = QuotaStripAnchorView()
+        view.identifier = PanelScreenshot.quotaStripIdentifier
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        nsView.identifier = PanelScreenshot.quotaStripIdentifier
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSView, context: Context) -> CGSize? {
+        guard let width = proposal.width, let height = proposal.height, width > 0, height > 0 else {
+            return nil
+        }
+        return CGSize(width: width, height: height)
+    }
+}
+
+private final class QuotaStripAnchorView: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}

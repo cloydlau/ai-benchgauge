@@ -8,6 +8,9 @@ private final class ScreenshotUIState: ObservableObject {
     @Published var note: String?
     @Published var noteID = 0
     @Published var isCapturing = false
+    /// Used only when the quota row cannot be measured. The retry capture is
+    /// taken after SwiftUI has removed that row.
+    @Published var hidesQuotaStrip = false
 }
 
 struct LeaderboardView: View {
@@ -61,17 +64,29 @@ struct LeaderboardView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        // Gap lives on the chip row so the screenshot anchor includes it.
+        // Cropping that frame closes the gap instead of leaving a hole.
+        VStack(alignment: .leading, spacing: 0) {
             titleRow
-            if !state.quotaChips.isEmpty {
+            if showsQuotaStrip {
                 QuotaStrip(
                     chips: state.quotaChips,
                     onConnectQwen: state.connectQwenWebsite
                 )
+                .padding(.top, 10)
+                .background(QuotaStripAnchor())
             }
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
+        .animation(nil, value: screenshot.isCapturing)
+        .animation(nil, value: screenshot.hidesQuotaStrip)
+    }
+
+    /// Personal balance data. Screenshots crop this row out; the hide flag is
+    /// only the fallback when its frame cannot be measured.
+    private var showsQuotaStrip: Bool {
+        !state.quotaChips.isEmpty && !screenshot.hidesQuotaStrip
     }
 
     private var titleRow: some View {
@@ -147,7 +162,8 @@ struct LeaderboardView: View {
         var text = leaderboardStatusText
         text = text + Text(" · ").foregroundStyle(.quaternary)
         text = text + Text(scheduleClause(now: now)).foregroundStyle(.secondary)
-        if let quota = quotaClause(now: now) {
+        // The shared image is the leaderboard, not this machine's balance.
+        if let quota = quotaClause(now: now), !omitsQuotaClause {
             text = text + Text(" · ").foregroundStyle(.quaternary)
             let tone: Color = state.quotaUnavailable ? .orange : .secondary
             text = text + Text(quota).foregroundStyle(tone)
@@ -178,7 +194,7 @@ struct LeaderboardView: View {
             parts.append("这次没读成本机 CC Switch 数据库")
         } else if state.quotaUnavailable {
             parts.append("余量数据库这次没有读成，显示的是上次余量")
-        } else if quotaClause(now: now) != nil {
+        } else if quotaClause(now: now) != nil, !omitsQuotaClause {
             parts.append("余量来自本机 CC Switch。没安装或读不懂配置时不显示，也不需要安装 Codex")
         }
         return parts.joined(separator: "。")
@@ -193,6 +209,12 @@ struct LeaderboardView: View {
             return "每日 \(clockTime(run))"
         }
         return "每日 \(compactWhen(run, now: now))"
+    }
+
+    /// True while a screenshot is being taken and a balance row is on screen.
+    /// The subtitle must not keep saying 余量 after that row is cropped out.
+    private var omitsQuotaClause: Bool {
+        screenshot.isCapturing && !state.quotaChips.isEmpty
     }
 
     private func quotaClause(now: Date) -> String? {
@@ -325,39 +347,62 @@ struct LeaderboardView: View {
         }
     }
 
-    /// Wait out the button highlight, and any toast fade, so neither is in the image.
+    /// Wait out the button highlight, the 余量 caption, and any toast fade.
     private func captureScreenshot() {
         guard !state.isQuitting, !screenshot.isCapturing else { return }
         screenshot.isCapturing = true
-        let settle = screenshot.note == nil ? 80 : 220
+        screenshot.hidesQuotaStrip = false
+        let settle = screenshot.note == nil ? 120 : 240
         // Invalidate a pending dismiss so it cannot clear the result toast.
         screenshot.noteID += 1
         screenshot.note = nil
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(settle))
-            performScreenshotCapture()
+            if performScreenshotCapture(allowFallback: true) == false {
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    screenshot.hidesQuotaStrip = true
+                }
+                try? await Task.sleep(for: .milliseconds(160))
+                _ = performScreenshotCapture(allowFallback: false)
+                var restore = Transaction()
+                restore.disablesAnimations = true
+                withTransaction(restore) {
+                    screenshot.hidesQuotaStrip = false
+                }
+            }
             screenshot.isCapturing = false
         }
     }
 
-    private func performScreenshotCapture() {
-        guard !state.isQuitting else { return }
+    /// False means the quota row was still in the bitmap and should be hidden
+    /// for a retry. A hard failure already showed a note and must not retry.
+    private func performScreenshotCapture(allowFallback: Bool) -> Bool {
+        guard !state.isQuitting else { return true }
         guard let view = panelContentView() else {
             showScreenshotNote("截图失败")
-            return
+            return true
         }
         // A panel flush with the screen edge clips its top-right corner, and
         // that clipped region is blank in the bitmap.
         keepPanelInsideScreen(view)
-        guard let shot = PanelScreenshot.capture(view: view) else {
+        view.layoutSubtreeIfNeeded()
+        let band = screenshot.hidesQuotaStrip ? nil : PanelScreenshot.quotaStripBand(in: view)
+        let wantsOmit = !state.quotaChips.isEmpty && !screenshot.hidesQuotaStrip
+        guard let shot = PanelScreenshot.capture(view: view, omittingTopBand: band) else {
             showScreenshotNote("截图失败")
-            return
+            return true
+        }
+        if allowFallback, wantsOmit, !shot.omittedBand {
+            return false
         }
         guard PanelScreenshot.copyToPasteboard(image: shot.image, png: shot.png) else {
             showScreenshotNote("截图失败")
-            return
+            return true
         }
         showScreenshotNote("已复制到剪贴板")
+        return true
     }
 
     private func showScreenshotNote(_ text: String) {
@@ -471,7 +516,7 @@ struct LeaderboardView: View {
             .buttonStyle(.plain)
             .pointingHandCursor()
             .allowsHitTesting(!state.isQuitting && !screenshot.isCapturing)
-            .help("把当前榜单截图复制到剪贴板")
+            .help("把当前榜单截图复制到剪贴板，不含余量")
 
             Text("·")
 
