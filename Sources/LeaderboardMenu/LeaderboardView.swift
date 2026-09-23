@@ -144,54 +144,73 @@ struct LeaderboardView: View {
         state.selectedCategory
     }
 
-    /// One caption for every freshness fact, pinned to the top-right.
+    /// Ranking freshness, then a hairline, then quota freshness.
+    /// The first clause is the leaderboard; 余量 is this machine only.
     /// The side column is about 346pt; a long failure phrase scales instead
     /// of wrapping into the tabs or growing a second line.
     private func freshnessLine(now: Date) -> some View {
-        freshnessText(now: now)
-            .font(.system(size: 11))
-            .monospacedDigit()
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-            .multilineTextAlignment(.trailing)
-            .frame(maxWidth: .infinity, alignment: .trailing)
-            .help(freshnessHelp(now: now))
-    }
-
-    private func freshnessText(now: Date) -> Text {
-        var text = leaderboardStatusText
-        text = text + Text(" · ").foregroundStyle(.quaternary)
-        text = text + Text(scheduleClause(now: now)).foregroundStyle(.secondary)
-        // The shared image is the leaderboard, not this machine's balance.
-        if let quota = quotaClause(now: now), !omitsQuotaClause {
-            text = text + Text(" · ").foregroundStyle(.quaternary)
-            let tone: Color = state.quotaUnavailable ? .orange : .secondary
-            text = text + Text(quota).foregroundStyle(tone)
+        HStack(spacing: 8) {
+            Text(rankingSentence(now: now))
+                .foregroundStyle(rankingFailed ? Color.orange : Color.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            if let quota = quotaClause(now: now), !omitsQuotaClause {
+                Rectangle()
+                    .fill(.quaternary)
+                    .frame(width: 1, height: 9)
+                    .accessibilityHidden(true)
+                Text(quota)
+                    .foregroundStyle(state.quotaUnavailable ? Color.orange : Color.secondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
         }
-        return text
+        .font(.system(size: 11))
+        .monospacedDigit()
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(freshnessAccessibilityLabel(now: now))
+        .help(freshnessHelp(now: now))
     }
 
-    private var leaderboardStatusText: Text {
+    private func rankingSentence(now: Date) -> String {
+        "\(rankingStatus)，\(scheduleClause(now: now))"
+    }
+
+    private var rankingStatus: String {
         if state.isRefreshing {
-            return Text("更新中").foregroundStyle(.secondary)
+            return "排名更新中"
         }
         if state.lastErrors.isEmpty {
-            return Text("已更新").foregroundStyle(.secondary)
+            return "排名已更新"
         }
-        return Text("部分榜单更新失败").foregroundStyle(.orange)
+        return "部分排名更新失败"
+    }
+
+    private var rankingFailed: Bool {
+        !state.isRefreshing && !state.lastErrors.isEmpty
+    }
+
+    private func freshnessAccessibilityLabel(now: Date) -> String {
+        var label = rankingSentence(now: now)
+        if let quota = quotaClause(now: now), !omitsQuotaClause {
+            label += "。\(quota)"
+        }
+        return label
     }
 
     private func freshnessHelp(now: Date) -> String {
         var parts: [String] = []
+        let clock = clockTime(state.schedule.dailyRunAt)
         if state.isRefreshing {
-            parts.append("正在更新榜单")
+            parts.append("正在更新排名，每天 \(clock) 自动更新")
         } else if state.lastErrors.isEmpty {
-            parts.append("榜单已更新，每天 \(clockTime(state.schedule.dailyRunAt)) 自动更新")
+            parts.append("排名已更新，每天 \(clock) 自动更新")
         } else {
-            parts.append("部分榜单更新失败，将按计划重试")
+            parts.append("部分排名更新失败，将按计划重试")
         }
         if state.quotaUnavailable && state.quotaChips.isEmpty {
-            parts.append("这次没读成本机 CC Switch 数据库")
+            parts.append("余量暂不可读，这次没读成本机 CC Switch 数据库")
         } else if state.quotaUnavailable {
             parts.append("余量数据库这次没有读成，显示的是上次余量")
         } else if quotaClause(now: now) != nil, !omitsQuotaClause {
@@ -206,9 +225,9 @@ struct LeaderboardView: View {
         }
         let run = state.schedule.dailyRunAt
         if Calendar.current.isDateInToday(run) || Calendar.current.isDateInTomorrow(run) {
-            return "每日更新 \(clockTime(run))"
+            return "每天 \(clockTime(run))"
         }
-        return "每日更新 \(compactWhen(run, now: now))"
+        return "下次 \(compactWhen(run, now: now))"
     }
 
     /// True while a screenshot is being taken and a balance row is on screen.
@@ -219,7 +238,7 @@ struct LeaderboardView: View {
 
     private func quotaClause(now: Date) -> String? {
         if state.quotaChips.isEmpty {
-            return state.quotaUnavailable ? "CC Switch 暂不可读" : nil
+            return state.quotaUnavailable ? "余量暂不可读" : nil
         }
         if state.quotaUnavailable { return "余量未刷新" }
         guard let updatedAt = state.quotaUpdatedAt else { return "余量" }
