@@ -11,20 +11,119 @@ private final class ScreenshotUIState: ObservableObject {
 }
 
 struct LeaderboardView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var state: AppState
     @StateObject private var screenshot = ScreenshotUIState()
 
-    static let contentWidth: CGFloat = 1300
+    private var language: AppLanguage { state.selectedLanguage }
+    private func tr(_ english: String, _ chinese: String) -> String {
+        language.text(english, chinese)
+    }
+
     static let contentHeight: CGFloat = 866
+    private static let minimumWidth: CGFloat = 850
+    // macOS Table adds its own padding around fixed-width columns.
+    private static let tableChromeBaseWidth: CGFloat = 288
+    private static let countryColumnWidth: CGFloat = 68
+
+    let maximumWidth: CGFloat
+
+    private var contentWidth: CGFloat {
+        Self.preferredWidth(for: state, maximumWidth: maximumWidth)
+    }
+
+    private var nameColumnWidth: CGFloat {
+        (contentWidth - Self.tableChromeWidth) / 2
+    }
+
+    private static var tableChromeWidth: CGFloat {
+        tableChromeBaseWidth + countryColumnWidth * 2
+    }
+
+    static func preferredWidth(for state: AppState, maximumWidth: CGFloat) -> CGFloat {
+        let category = state.selectedCategory
+        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        let captionFont = NSFont.systemFont(ofSize: 12)
+        // Reserve enough room for either grouping so toggling Models/Companies
+        // changes table contents without resizing the popover.
+        let columnWidth = LeaderboardGrouping.allCases.map { grouping in
+            category.boardKinds
+                .flatMap { kind -> [LeaderboardEntry] in
+                    let entries = state.snapshot.boards[kind]?.entries ?? []
+                    return grouping == .company
+                        ? CompanyLeaderboard.rank(entries).map(\.entry)
+                        : Array(entries.prefix(20))
+                }
+                .map { entry -> CGFloat in
+                    let nameWidth = (entry.name as NSString).size(withAttributes: [.font: font]).width
+                    var width = nameWidth + 54 // Logo, spacing, cell padding, and table inset.
+                    if grouping == .company {
+                        let links = PurchaseLinkCatalog.links(
+                            forOrganization: entry.organization,
+                            modelName: entry.name
+                        )
+                        let titles = [
+                            (links.codingPlan, state.selectedLanguage.text("Plan", "套餐")),
+                            (links.payAsYouGo, state.selectedLanguage.text("Pay as you go", "按量")),
+                        ].compactMap { item in item.0.isEmpty ? nil : item.1 }
+                        if !titles.isEmpty {
+                            width += 10 + CGFloat(titles.count - 1) * 10
+                            width += titles.reduce(0) { partial, title in
+                                partial + (title as NSString).size(withAttributes: [.font: captionFont]).width + 4
+                            }
+                        }
+                    }
+                    return width
+                }
+                .max() ?? 0
+        }.max() ?? 0
+        let headerFont = NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .medium)
+        let headerWidth = category.boardKinds.enumerated().map { index, kind in
+            let title = index == 0 ? category.leftColumnTitle : category.rightColumnTitle
+            let header = columnTitle(
+                title,
+                kind: kind,
+                state: state
+            )
+            return (header as NSString).size(withAttributes: [.font: headerFont]).width + 40
+        }.max() ?? 0
+        let desired = max(minimumWidth, ceil(max(columnWidth, headerWidth) * 2
+                                            + tableChromeWidth))
+        return min(desired, maximumWidth)
+    }
+
+    private static func columnTitle(
+        _ title: String,
+        kind: LeaderboardKind,
+        state: AppState
+    ) -> String {
+        guard let board = state.snapshot.boards[kind] else { return title }
+        var parts = [title]
+        if let sourceDate = board.sourceUpdatedAt {
+            let formatter = DateFormatter()
+            formatter.locale = state.selectedLanguage.locale
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .short
+            let dateLabel = kind.sourcePrefix == "Arena"
+                ? state.selectedLanguage.text("Votes through", "投票截至")
+                : state.selectedLanguage.text("Updated", "更新于")
+            parts.append("\(dateLabel) \(formatter.string(from: sourceDate))")
+        }
+        if let note = board.sourceNote, !note.isEmpty {
+            parts.append(note)
+        }
+        return parts.joined(separator: " · ")
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             header
+            sourceExplanation
             table
             Divider()
             footer
         }
-        .frame(width: Self.contentWidth, height: Self.contentHeight)
+        .frame(width: contentWidth, height: Self.contentHeight)
         .background(.background)
         .overlay(alignment: .bottom) {
             if let note = screenshot.note, !state.isQuitting {
@@ -46,7 +145,7 @@ struct LeaderboardView: View {
             VStack(spacing: 10) {
                 ProgressView()
                     .controlSize(.regular)
-                Text("正在退出…")
+                Text(tr("Quitting…", "正在退出…"))
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.primary)
             }
@@ -61,86 +160,176 @@ struct LeaderboardView: View {
     }
 
     private var header: some View {
-        // Gap lives on the chip row so the screenshot anchor includes it.
-        // The copied image mosaics that frame. Removing the row left a blank
-        // band at the bottom of this fixed-height panel.
+        // Keep the quota row's frame so screenshots can replace it with the
+        // same CC Switch guide shown when quotas are unavailable.
         VStack(alignment: .leading, spacing: 0) {
             titleRow
             if !state.quotaChips.isEmpty {
                 QuotaStrip(
                     chips: state.quotaChips,
+                    language: language,
                     onConnectQwen: state.connectQwenWebsite
                 )
                 .padding(.top, 10)
                 .background(QuotaStripAnchor())
+            } else if state.quotaNeedsCCSwitch {
+                quotaSetupPrompt
+                    .padding(.top, 10)
             }
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
     }
 
-    private var titleRow: some View {
-        // Equal side columns keep the tabs centered. The whole freshness
-        // phrase sits in the trailing column, not under the title and not
-        // beside the chips.
-        HStack(alignment: .center, spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("AI Leaderboards")
-                    .font(.system(size: 17, weight: .semibold))
-                Text("v\(appVersion)")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .monospacedDigit()
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            HStack(spacing: 8) {
-                groupingPicker
-                categoryPicker
-            }
-
-            TimelineView(.periodic(from: .now, by: 60)) { context in
-                freshnessLine(now: context.date)
-            }
-            .frame(maxWidth: .infinity, alignment: .trailing)
+    private var quotaSetupPrompt: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "chart.bar.xaxis")
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Text(tr(
+                "See provider quotas here with CC Switch.",
+                "安装 CC Switch，即可在这里查看各家提供商的余量。"
+            ))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 8)
+            Link(
+                tr("Download CC Switch", "下载 CC Switch"),
+                destination: URL(string: "https://github.com/farion1231/cc-switch/releases/latest")!
+            )
+            .font(.system(size: 11, weight: .medium))
+            .pointingHandCursor()
         }
-        .animation(nil, value: state.selectedCategory)
-        .animation(nil, value: state.selectedGrouping)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var sourceExplanation: some View {
+        let lenses = selectedCategory.sourceLenses(language: language)
+        return HStack(spacing: 10) {
+            sourceLens(title: "Artificial Analysis", description: lenses.aa, tint: .blue)
+            sourceLens(title: "Arena", description: lenses.arena, tint: .purple)
+        }
+        .padding(.horizontal, 18)
+        .padding(.bottom, 6)
+    }
+
+    private func sourceLens(
+        title: String,
+        description: SourceLensDescription,
+        tint: Color
+    ) -> some View {
+        HStack(spacing: 7) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: true, vertical: false)
+            Text(description.emphasis)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(tint)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(tint.opacity(0.1), in: Capsule())
+                .fixedSize(horizontal: true, vertical: false)
+            Text(description.summary)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
+        .overlay {
+            RoundedRectangle(cornerRadius: 9)
+                .strokeBorder(tint.opacity(0.18), lineWidth: 1)
+        }
+        .help(description.detail + tr(". Scores are not directly comparable across lists.", "。两榜分数不直接互比。"))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel([title, description.emphasis, description.detail].joined(separator: tr(", ", "，")))
+    }
+
+    @ViewBuilder
+    private var titleRow: some View {
+        if contentWidth < 1100 {
+            VStack(spacing: 8) {
+                HStack(spacing: 12) {
+                    appTitle
+                    Spacer(minLength: 12)
+                    freshness
+                }
+                HStack(spacing: 8) {
+                    groupingPicker
+                    categoryPicker
+                }
+            }
+        } else {
+            // Equal side columns keep the tabs centered on wider panels.
+            HStack(alignment: .center, spacing: 12) {
+                appTitle.frame(maxWidth: .infinity, alignment: .leading)
+                HStack(spacing: 8) {
+                    groupingPicker
+                    categoryPicker
+                }
+                freshness.frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+    }
+
+    private var appTitle: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("AI Leaderboards")
+                .font(.system(size: 17, weight: .semibold))
+            Text("v\(appVersion)")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .monospacedDigit()
+        }
+    }
+
+    private var freshness: some View {
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            freshnessLine(now: context.date)
+        }
     }
 
     private var groupingPicker: some View {
         GroupingSegmentedControl(
+            language: language,
             selection: Binding(
                 get: { state.selectedGrouping },
                 set: { state.selectGrouping($0) }
             )
         )
         .frame(width: GroupingSegmentedControl.width, height: GroupingSegmentedControl.height)
-        .help("按公司查看时，以最强模型分数为准，弱型号不拉低")
+        .help(tr("Company scores use each company's strongest model.", "按公司查看时，以最强模型分数为准，弱型号不拉低"))
     }
 
     private var categoryPicker: some View {
         CategorySegmentedControl(
+            language: language,
             selection: Binding(
                 get: { state.selectedCategory },
                 set: { state.selectCategory($0) }
             )
         )
         .frame(width: CategorySegmentedControl.width, height: CategorySegmentedControl.height)
-        .help("切换榜单类别")
+        .help(tr("Switch leaderboard category", "切换榜单类别"))
     }
 
     private var selectedCategory: LeaderboardCategory {
         state.selectedCategory
     }
 
-    /// Ranking freshness, then a hairline, then quota freshness.
-    /// The first clause is the leaderboard; 余量 is this machine only.
-    /// The side column is about 346pt; a long failure phrase scales instead
-    /// of wrapping into the tabs or growing a second line.
+    /// One heading identifies both timestamps; the hairline separates the
+    /// leaderboard data from this Mac's quota data.
     private func freshnessLine(now: Date) -> some View {
         HStack(spacing: 8) {
-            Text(rankingSentence(now: now))
+            Text(tr("CHECKED", "本机查询"))
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: true, vertical: false)
+            Text(rankingClause(now: now))
                 .foregroundStyle(rankingFailed ? Color.orange : Color.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
@@ -163,150 +352,136 @@ struct LeaderboardView: View {
         .help(freshnessHelp(now: now))
     }
 
-    private func rankingSentence(now: Date) -> String {
-        "\(rankingStatus)，\(scheduleClause(now: now))"
+    private func rankingClause(now: Date) -> String {
+        // Use the oldest visible board so a partially refreshed category does
+        // not appear newer than all of its data.
+        let fetchedAt = state.selectedCategory.boardKinds
+            .compactMap { state.snapshot.boards[$0]?.fetchedAt }
+            .min()
+        guard let fetchedAt else { return tr("Rankings pending", "榜单待更新") }
+        let age = updateAge(fetchedAt, now: now)
+        return tr("Rankings \(age)", "榜单 \(age)")
     }
 
-    private var rankingStatus: String {
-        if state.isRefreshing {
-            return "排名更新中"
-        }
-        if state.lastErrors.isEmpty {
-            return "排名已更新"
-        }
-        return "部分排名更新失败"
+    private func updateAge(_ date: Date, now: Date) -> String {
+        let seconds = max(0, now.timeIntervalSince(date))
+        if seconds < 60 { return tr("just now", "刚刚") }
+        let minutes = Int(seconds / 60)
+        if minutes < 60 { return tr("\(minutes) min ago", "\(minutes) 分钟前") }
+        let hours = Int(seconds / 3600)
+        if hours < 24 { return tr("\(hours) hr ago", "\(hours) 小时前") }
+        let days = Int(seconds / 86_400)
+        return tr("\(days) \(days == 1 ? "day" : "days") ago", "\(days) 天前")
     }
 
     private var rankingFailed: Bool {
         !state.isRefreshing && !state.lastErrors.isEmpty
     }
 
-    private func freshnessAccessibilityLabel(now: Date) -> String {
-        var label = rankingSentence(now: now)
+    private func freshnessSummary(now: Date) -> String {
+        var summary = tr("Last checked: ", "本机查询：") + rankingClause(now: now)
         if let quota = quotaClause(now: now) {
-            label += "。\(quota)"
+            summary += tr("; ", "；") + quota
+        }
+        return summary
+    }
+
+    private func freshnessAccessibilityLabel(now: Date) -> String {
+        var label = freshnessSummary(now: now)
+        if state.isRefreshing {
+            label = tr("Updating rankings. \(label)", "正在更新排名。\(label)")
+        } else if rankingFailed {
+            label = tr("Some rankings failed to update. \(label)", "部分排名更新失败。\(label)")
         }
         return label
     }
 
     private func freshnessHelp(now: Date) -> String {
         var parts: [String] = []
-        let clock = clockTime(state.schedule.dailyRunAt)
         if state.isRefreshing {
-            parts.append("正在更新排名，每天 \(clock) 自动更新")
-        } else if state.lastErrors.isEmpty {
-            parts.append("排名已更新，每天 \(clock) 自动更新")
-        } else {
-            parts.append("部分排名更新失败，将按计划重试")
+            parts.append(tr("Updating rankings", "正在更新排名"))
+        } else if !state.lastErrors.isEmpty {
+            parts.append(tr("Some rankings failed to update", "部分排名更新失败"))
         }
+        parts.append(freshnessSummary(now: now))
         if state.quotaUnavailable && state.quotaChips.isEmpty {
-            parts.append("余量暂不可读，这次没读成本机 CC Switch 数据库")
+            parts.append(tr("Quota unavailable; CC Switch database could not be read", "余量暂不可读，这次没读成本机 CC Switch 数据库"))
         } else if state.quotaUnavailable {
-            parts.append("余量数据库这次没有读成，显示的是上次余量")
+            parts.append(tr("Quota refresh failed; showing previous values", "余量数据库这次没有读成，显示的是上次余量"))
         } else if quotaClause(now: now) != nil {
-            parts.append("余量来自本机 CC Switch。没安装或读不懂配置时不显示，也不需要安装 Codex")
+            parts.append(tr("Quota comes from this Mac's CC Switch data", "余量来自本机 CC Switch。没安装或读不懂配置时不显示，也不需要安装 Codex"))
         }
-        return parts.joined(separator: "。")
-    }
-
-    private func scheduleClause(now: Date) -> String {
-        if let retryAt = state.schedule.retryAfterFailureAt, retryAt < state.schedule.giveUpAt {
-            return "下次重试 \(compactWhen(retryAt, now: now))"
-        }
-        let run = state.schedule.dailyRunAt
-        if Calendar.current.isDateInToday(run) || Calendar.current.isDateInTomorrow(run) {
-            return "每天 \(clockTime(run))"
-        }
-        return "下次 \(compactWhen(run, now: now))"
+        return parts.joined(separator: tr(". ", "。"))
     }
 
     private func quotaClause(now: Date) -> String? {
         if state.quotaChips.isEmpty {
-            return state.quotaUnavailable ? "余量暂不可读" : nil
+            return state.quotaUnavailable ? tr("Quota unavailable", "余量暂不可读") : nil
         }
-        if state.quotaUnavailable { return "余量未刷新" }
-        guard let updatedAt = state.quotaUpdatedAt else { return "余量" }
-        return "余量 \(relativeTime(updatedAt, now: now))"
-    }
-
-    private func relativeTime(_ date: Date, now: Date) -> String {
-        let seconds = now.timeIntervalSince(date)
-        if seconds < 45 { return "刚刚" }
-        let minutes = Int(seconds / 60)
-        if minutes < 60 { return "\(max(minutes, 1)) 分钟前" }
-        return compactWhen(date, now: now)
-    }
-
-    private func compactWhen(_ date: Date, now: Date) -> String {
-        let time = clockTime(date)
-        let calendar = Calendar.current
-        if calendar.isDate(date, inSameDayAs: now) { return time }
-        if calendar.isDateInTomorrow(date) { return "明天 \(time)" }
-        return "\(monthDay(date)) \(time)"
-    }
-
-    private func clockTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "HH:mm"
-        return formatter.string(from: date)
-    }
-
-    private func monthDay(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "M月d日"
-        return formatter.string(from: date)
+        guard let updatedAt = state.quotaUpdatedAt else { return tr("Quota pending", "余量待更新") }
+        return tr("Quota \(updateAge(updatedAt, now: now))", "余量 \(updateAge(updatedAt, now: now))")
     }
 
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
 
-    // Longest names are about 420pt, before the logo and purchase links.
-    // Score columns only need a value like 1800.3. Keep their max tight so the
-    // native table gives leftover width to the model-name columns.
+    // Both name columns grow with the longest visible name. The country and
+    // score columns stay aligned across rows and both halves of the table.
     private var table: some View {
         Table(rows) {
-            TableColumn("排名") { row in
+            TableColumn(tr("Rank", "排名")) { row in
                 Text(rankLabel(row.rank))
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .center)
             }
-            .width(min: 36, ideal: 42, max: 48)
+            .width(48)
             .alignment(.center)
 
-            TableColumn(columnTitle(
+            TableColumn(fittedColumnTitle(
                 selectedCategory.leftColumnTitle,
-                kind: selectedCategory.leftKind,
-                preferSourceUpdatedAt: false
+                kind: selectedCategory.leftKind
             )) { row in
-                LeaderboardCell(model: row.left, onCopyName: nameCopyAction)
+                LeaderboardCell(model: row.left, language: language, onCopyName: nameCopyAction)
             }
-            .width(min: 500, ideal: 560, max: 680)
+            .width(nameColumnWidth)
 
-            TableColumn("分数") { row in
+            TableColumn(tr("Score", "分数")) { row in
                 ScoreCell(model: row.left, scoreDigits: 1)
             }
-            .width(min: 48, ideal: 56, max: 64)
+            .width(60)
             .alignment(.center)
 
-            TableColumn(columnTitle(
-                selectedCategory.rightColumnTitle,
-                kind: selectedCategory.rightKind,
-                preferSourceUpdatedAt: true
-            )) { row in
-                LeaderboardCell(model: row.right, onCopyName: nameCopyAction)
+            TableColumn(tr("Country", "国家")) { row in
+                CountryCell(model: row.left, language: language)
             }
-            .width(min: 500, ideal: 560, max: 680)
+            .width(Self.countryColumnWidth)
+            .alignment(.center)
 
-            TableColumn("分数") { row in
+            TableColumn(fittedColumnTitle(
+                selectedCategory.rightColumnTitle,
+                kind: selectedCategory.rightKind
+            )) { row in
+                LeaderboardCell(model: row.right, language: language, onCopyName: nameCopyAction)
+            }
+            .width(nameColumnWidth)
+
+            TableColumn(tr("Score", "分数")) { row in
                 ScoreCell(model: row.right, scoreDigits: 1)
             }
-            .width(min: 48, ideal: 56, max: 64)
+            .width(60)
+            .alignment(.center)
+
+            TableColumn(tr("Country", "国家")) { row in
+                CountryCell(model: row.right, language: language)
+            }
+            .width(Self.countryColumnWidth)
             .alignment(.center)
         }
         .tableStyle(.bordered(alternatesRowBackgrounds: true))
+        .scrollIndicators(.hidden)
+        .background(TableScrollerHider())
+        .id(contentWidth)
         .redacted(reason: needsSkeleton ? .placeholder : [])
         .disabled(needsSkeleton)
     }
@@ -350,8 +525,8 @@ struct LeaderboardView: View {
         }
     }
 
-    /// Wait out the button highlight, then copy. The balance row stays on
-    /// screen so the fixed panel does not collapse; the copied image mosaics it.
+    /// Wait out the button highlight, then copy. The balance row stays visible
+    /// in the app; only the copied image shows the CC Switch guide instead.
     private func captureScreenshot() {
         guard !state.isQuitting, !screenshot.isCapturing else { return }
         screenshot.isCapturing = true
@@ -368,7 +543,7 @@ struct LeaderboardView: View {
     private func performScreenshotCapture() {
         guard !state.isQuitting else { return }
         guard let view = panelContentView() else {
-            showScreenshotNote("截图失败")
+            showScreenshotNote(tr("Screenshot failed", "截图失败"))
             return
         }
         // A panel flush with the screen edge clips its top-right corner, and
@@ -378,22 +553,36 @@ struct LeaderboardView: View {
         let band = state.quotaChips.isEmpty ? nil : PanelScreenshot.quotaStripBand(in: view)
         // Do not copy balances in the clear if the row could not be found.
         if !state.quotaChips.isEmpty, band == nil {
-            showScreenshotNote("截图失败")
+            showScreenshotNote(tr("Screenshot failed", "截图失败"))
             return
         }
-        guard let shot = PanelScreenshot.capture(view: view, redactingTopBand: band) else {
-            showScreenshotNote("截图失败")
+        var replacement: (band: CGRect, prompt: CGImage)?
+        if let band {
+            let content = quotaSetupPrompt
+                .padding(.horizontal, 18)
+                .frame(width: band.width, height: band.height)
+                .environment(\.colorScheme, colorScheme)
+            let renderer = ImageRenderer(content: content)
+            renderer.scale = view.window?.backingScaleFactor ?? 2
+            guard let prompt = renderer.cgImage else {
+                showScreenshotNote(tr("Screenshot failed", "截图失败"))
+                return
+            }
+            replacement = (band, prompt)
+        }
+        guard let shot = PanelScreenshot.capture(view: view, replacingTopBandWith: replacement) else {
+            showScreenshotNote(tr("Screenshot failed", "截图失败"))
             return
         }
-        if band != nil, !shot.redactedBand {
-            showScreenshotNote("截图失败")
+        if band != nil, !shot.replacedBand {
+            showScreenshotNote(tr("Screenshot failed", "截图失败"))
             return
         }
         guard PanelScreenshot.copyToPasteboard(image: shot.image, png: shot.png) else {
-            showScreenshotNote("截图失败")
+            showScreenshotNote(tr("Screenshot failed", "截图失败"))
             return
         }
-        showScreenshotNote("已复制到剪贴板")
+        showScreenshotNote(tr("Copied to clipboard", "已复制到剪贴板"))
     }
 
     /// Placeholder rows are not real names. A click there must not copy them.
@@ -412,10 +601,10 @@ struct LeaderboardView: View {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         guard pasteboard.setString(name, forType: .string) else {
-            showScreenshotNote("复制失败")
+            showScreenshotNote(tr("Copy failed", "复制失败"))
             return false
         }
-        showScreenshotNote("已复制 \(name)")
+        showScreenshotNote(tr("Copied ", "已复制 ") + name)
         return true
     }
 
@@ -461,7 +650,7 @@ struct LeaderboardView: View {
         }
         for window in ordered {
             guard let view = window.contentViewController?.view else { continue }
-            if abs(view.bounds.width - Self.contentWidth) < 2,
+            if abs(view.bounds.width - contentWidth) < 2,
                abs(view.bounds.height - Self.contentHeight) < 2 {
                 return view
             }
@@ -508,7 +697,7 @@ struct LeaderboardView: View {
 
             Spacer()
 
-            Text("数据来源")
+            Text(tr("Sources", "数据来源"))
             sourceLink(
                 title: selectedCategory.leftKind.sourceLinkTitle,
                 url: selectedCategory.leftKind.sourceURL.absoluteString
@@ -527,13 +716,28 @@ struct LeaderboardView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "camera")
                         .imageScale(.small)
-                    Text("截图")
+                    Text(tr("Screenshot", "截图"))
                 }
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
             .allowsHitTesting(!state.isQuitting && !screenshot.isCapturing)
-            .help("把当前榜单截图复制到剪贴板，余量行会打码")
+            .help(tr("Copy a screenshot with the CC Switch quota guide", "复制显示 CC Switch 余量引导的截图"))
+
+            Text("·")
+
+            Picker(tr("Language", "语言"), selection: Binding(
+                get: { state.selectedLanguage },
+                set: { state.selectLanguage($0) }
+            )) {
+                Text("EN").tag(AppLanguage.english)
+                Text("简中").tag(AppLanguage.chinese)
+                Text("繁中").tag(AppLanguage.traditionalChinese)
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .frame(width: 150)
+            .help(tr("Interface language", "界面语言"))
 
             Text("·")
 
@@ -546,18 +750,18 @@ struct LeaderboardView: View {
                             .controlSize(.small)
                             .scaleEffect(0.55)
                             .frame(width: 12, height: 12)
-                        Text("退出中")
+                        Text(tr("Quitting", "退出中"))
                     } else {
                         Image(systemName: "power")
                             .imageScale(.small)
-                        Text("退出")
+                        Text(tr("Quit", "退出"))
                     }
                 }
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
             .allowsHitTesting(!state.isQuitting)
-            .help(state.isQuitting ? "正在退出 AI Leaderboards" : "退出 AI Leaderboards")
+            .help(state.isQuitting ? tr("Quitting AI Leaderboards", "正在退出 AI Leaderboards") : tr("Quit AI Leaderboards", "退出 AI Leaderboards"))
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -636,7 +840,7 @@ struct LeaderboardView: View {
         return CompanyLeaderboard.rank(entries).map { standing in
             DisplayedLeaderboardEntry(
                 entry: standing.entry,
-                scoreHelp: CompanyLeaderboard.scoreHelp(for: standing),
+                scoreHelp: CompanyLeaderboard.scoreHelp(for: standing, language: language),
                 isCompany: true
             )
         }
@@ -690,21 +894,82 @@ struct LeaderboardView: View {
         return logos
     }
 
-    /// Update time follows the board name in that column's header. Artificial
-    /// Analysis has no source timestamp, so that side keeps the fetch time and
-    /// index version. Arena prefers the vote cutoff.
-    private func columnTitle(_ title: String, kind: LeaderboardKind, preferSourceUpdatedAt: Bool) -> String {
-        guard let board = state.snapshot.boards[kind] else { return title }
-        let date = preferSourceUpdatedAt ? (board.sourceUpdatedAt ?? board.fetchedAt) : board.fetchedAt
-        let note = board.sourceNote.map { " (\($0))" } ?? ""
-        return "\(title) · \(timestamp(date))\(note)"
+    /// Only source-provided dates appear in board headers. A local fetch time
+    /// belongs to the separate "last checked" caption above the table.
+    private func columnTitle(_ title: String, kind: LeaderboardKind) -> String {
+        Self.columnTitle(title, kind: kind, state: state)
     }
 
-    private func timestamp(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+    private func fittedColumnTitle(_ title: String, kind: LeaderboardKind) -> String {
+        let full = columnTitle(title, kind: kind)
+        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .medium)
+        let attributes: [NSAttributedString.Key: Any] = [.font: font]
+        let available = nameColumnWidth - 40
+        if (full as NSString).size(withAttributes: attributes).width <= available {
+            return full
+        }
+        let characters = Array(full)
+        var low = 0
+        var high = characters.count
+        while low < high {
+            let middle = (low + high + 1) / 2
+            let candidate = String(characters.prefix(middle)) + "…"
+            if (candidate as NSString).size(withAttributes: attributes).width <= available {
+                low = middle
+            } else {
+                high = middle - 1
+            }
+        }
+        return String(characters.prefix(low)) + "…"
+    }
+}
+
+/// The fixed-height table still scrolls with a trackpad when needed, but its
+/// AppKit scrollers should not cover the last column or add a bottom bar.
+private struct TableScrollerHider: NSViewRepresentable {
+    func makeNSView(context: Context) -> ProbeView { ProbeView() }
+
+    func updateNSView(_ view: ProbeView, context: Context) {
+        view.updateScroller()
+    }
+
+    final class ProbeView: NSView {
+        override func layout() {
+            super.layout()
+            updateScroller()
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            updateScroller()
+            // Table creates its NSScrollView after the representable is mounted.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                self?.updateScroller()
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.updateScroller()
+            }
+        }
+
+        func updateScroller() {
+            DispatchQueue.main.async { [weak self] in
+                guard let root = self?.window?.contentView else { return }
+                Self.hideScrollers(in: root)
+            }
+        }
+
+        private static func hideScrollers(in view: NSView) {
+            if let scrollView = view as? NSScrollView {
+                if scrollView.hasHorizontalScroller { scrollView.hasHorizontalScroller = false }
+                if scrollView.hasVerticalScroller { scrollView.hasVerticalScroller = false }
+                if scrollView.horizontalScrollElasticity != .none {
+                    scrollView.horizontalScrollElasticity = .none
+                }
+            }
+            for child in view.subviews {
+                hideScrollers(in: child)
+            }
+        }
     }
 }
 
@@ -729,6 +994,96 @@ private extension LeaderboardCategory {
         case .video: "Arena | 文生视频"
         }
     }
+
+    /// AA's language/coding indexes use task benchmarks; its image/video
+    /// boards also use human votes, but with curated prompts or matched settings.
+    /// Arena ratings come from blind user comparisons across the categories.
+    func sourceLenses(language: AppLanguage) -> (aa: SourceLensDescription, arena: SourceLensDescription) {
+        switch self {
+        case .general:
+            return (
+                SourceLensDescription(
+                    emphasis: language.text("Task benchmarks", "任务测评"),
+                    summary: language.text("Overall capability", "看综合能力"),
+                    detail: language.text(
+                        "Combines standardized tests across several abilities.",
+                        "汇总多项标准化测试，适合看综合能力"
+                    )
+                ),
+                SourceLensDescription(
+                    emphasis: language.text("User votes", "用户盲测"),
+                    summary: language.text("Real-world preference", "看实际偏好"),
+                    detail: language.text(
+                        "People compare anonymous answers to real prompts.",
+                        "真实提问下盲选回答，贴近用户偏好"
+                    )
+                )
+            )
+        case .coding:
+            return (
+                SourceLensDescription(
+                    emphasis: language.text("Task completion", "任务完成率"),
+                    summary: language.text("Coding ability", "看编程能力"),
+                    detail: language.text(
+                        "Scores coding agents on software engineering tasks.",
+                        "通过软件工程任务，检验编程智能体的完成能力"
+                    )
+                ),
+                SourceLensDescription(
+                    emphasis: language.text("WebDev votes", "网页开发盲选"),
+                    summary: language.text("Web build preference", "看成品观感"),
+                    detail: language.text(
+                        "People pick the better result from paired web builds.",
+                        "用户盲选网页成品，侧重实际观感"
+                    )
+                )
+            )
+        case .image:
+            return (
+                SourceLensDescription(
+                    emphasis: language.text("Curated prompts", "场景化盲测"),
+                    summary: language.text("Across use cases", "看多场景质量"),
+                    detail: language.text(
+                        "Blind votes across a balanced set of image use cases.",
+                        "按用途均衡选题，盲选图片质量"
+                    )
+                ),
+                SourceLensDescription(
+                    emphasis: language.text("User prompts", "用户出题"),
+                    summary: language.text("Everyday taste", "看日常审美"),
+                    detail: language.text(
+                        "People vote on images made from their own prompts.",
+                        "用户自由出题并盲选，贴近日常审美"
+                    )
+                )
+            )
+        case .video:
+            return (
+                SourceLensDescription(
+                    emphasis: language.text("Matched settings", "统一设置"),
+                    summary: language.text("Comparable quality", "看可比质量"),
+                    detail: language.text(
+                        "Blind votes on videos made with comparable settings.",
+                        "相同提示词、统一设置下盲选视频质量"
+                    )
+                ),
+                SourceLensDescription(
+                    emphasis: language.text("User prompts", "用户出题"),
+                    summary: language.text("Viewer preference", "看观看偏好"),
+                    detail: language.text(
+                        "People vote on paired videos from real prompts.",
+                        "用户自由出题并盲选，贴近日常偏好"
+                    )
+                )
+            )
+        }
+    }
+}
+
+private struct SourceLensDescription {
+    let emphasis: String
+    let summary: String
+    let detail: String
 }
 
 private struct LeaderboardRow: Identifiable {
@@ -753,7 +1108,11 @@ private struct LeaderboardCellModel {
 
     func brandColor(isDark: Bool) -> Color? {
         guard let brandHex else { return nil }
-        return Color(hex: OrganizationLogoCatalog.displayBrandColorHex(brandHex, isDark: isDark))
+        return Color(hex: OrganizationLogoCatalog.displayBrandColorHex(
+            brandHex,
+            isDark: isDark,
+            modelName: isCompany ? nil : entry.name
+        ))
     }
 }
 
@@ -773,24 +1132,13 @@ private struct LeaderboardCell: View {
     @Environment(\.colorScheme) private var colorScheme
 
     let model: LeaderboardCellModel?
+    let language: AppLanguage
     /// Nil for skeleton placeholders, which must not be copied.
     let onCopyName: ((String) -> Bool)?
 
     private var entry: LeaderboardEntry? { model?.entry }
 
-    private var isDomestic: Bool {
-        OrganizationRegion.isChinese(entry?.organization, modelName: entry?.name)
-    }
-
-    /// Same ink as the row wash, so the domestic outline follows that
-    /// background instead of a separate hue.
-    private var domesticInk: Color {
-        model?.brandColor(isDark: colorScheme == .dark) ?? .primary
-    }
-
     var body: some View {
-        // Domestic origin is a border so it does not take a layout slot or
-        // cover the purchase links.
         HStack(spacing: 10) {
             if let entry {
                 ModelLogoView(
@@ -799,24 +1147,18 @@ private struct LeaderboardCell: View {
                     name: entry.name
                 )
                 modelName(entry)
-                InlinePurchaseLinks(organization: entry.organization, modelName: entry.name)
+                if model?.isCompany == true {
+                    InlinePurchaseLinks(organization: entry.organization, modelName: entry.name, language: language)
+                }
             } else {
                 Text("-")
             }
         }
         .padding(.horizontal, 5)
-        .padding(.vertical, 3)
+        .padding(.vertical, 2)
         .frame(maxWidth: .infinity, alignment: .leading)
         .clipped()
         .background(cellBackground)
-        .overlay {
-            if isDomestic {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .strokeBorder(domesticInk, lineWidth: 1.5)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
-        }
     }
 
     @ViewBuilder
@@ -829,16 +1171,10 @@ private struct LeaderboardCell: View {
                 onCopy: { onCopyName?(entry.name) ?? false }
             )
         } else if let help = nameHelpText {
-            let name = Text(entry.name)
+            Text(entry.name)
                 .lineLimit(1)
                 .truncationMode(.middle)
-            if isDomestic {
-                name
-                    .help(help)
-                    .accessibilityLabel(domesticAccessibilityLabel(entry))
-            } else {
-                name.help(help)
-            }
+                .help(help)
         } else {
             Text(entry.name)
                 .lineLimit(1)
@@ -852,10 +1188,7 @@ private struct LeaderboardCell: View {
         if let name = entry?.name, !name.isEmpty {
             lines.append(name)
         }
-        lines.append("点击复制")
-        if isDomestic {
-            lines.append(model?.isCompany == true ? "国产公司" : "国产模型")
-        }
+        lines.append(language.text("Click to copy", "点击复制"))
         if let scoreHelp = model?.scoreHelp {
             lines.append(scoreHelp)
         }
@@ -863,26 +1196,11 @@ private struct LeaderboardCell: View {
     }
 
     private func copyAccessibilityLabel(_ entry: LeaderboardEntry) -> String {
-        let name = isDomestic ? domesticAccessibilityLabel(entry) : entry.name
-        return "\(name)，点击复制"
+        entry.name + language.text(", click to copy", "，点击复制")
     }
 
-    /// Company mode must not keep saying 国产模型. The border is unchanged;
-    /// only the words follow the grouping.
     private var nameHelpText: String? {
-        var lines: [String] = []
-        if isDomestic {
-            lines.append(model?.isCompany == true ? "国产公司" : "国产模型")
-        }
-        if let scoreHelp = model?.scoreHelp {
-            lines.append(scoreHelp)
-        }
-        return lines.isEmpty ? nil : lines.joined(separator: "\n")
-    }
-
-    private func domesticAccessibilityLabel(_ entry: LeaderboardEntry) -> String {
-        let kind = model?.isCompany == true ? "国产公司" : "国产模型"
-        return "\(kind) \(entry.name)"
+        model?.scoreHelp
     }
 
     private var cellBackground: some View {
@@ -895,9 +1213,26 @@ private struct LeaderboardCell: View {
     }
 }
 
-private struct ScoreCell: View {
-    @Environment(\.colorScheme) private var colorScheme
+private struct CountryCell: View {
+    let model: LeaderboardCellModel?
+    let language: AppLanguage
 
+    private var country: OrganizationCountry? {
+        OrganizationRegion.country(model?.entry.organization, modelName: model?.entry.name)
+    }
+
+    var body: some View {
+        Text(country?.flagEmoji ?? "-")
+            .font(.system(size: 17))
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.vertical, 2)
+            .modifier(OptionalHelp(text: country?.localizedName(language: language)))
+            .accessibilityLabel(country?.localizedName(language: language)
+                                ?? language.text("Country unknown", "国家未知"))
+    }
+}
+
+private struct ScoreCell: View {
     let model: LeaderboardCellModel?
     let scoreDigits: Int
 
@@ -915,23 +1250,14 @@ private struct ScoreCell: View {
         .modifier(OptionalHelp(text: model?.scoreHelp))
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(.horizontal, 4)
-        .padding(.vertical, 3)
-        .background(matchBackground)
-    }
-
-    private var matchBackground: some View {
-        Group {
-            if let brandColor = model?.brandColor(isDark: colorScheme == .dark) {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(brandColor.opacity(0.34))
-            }
-        }
+        .padding(.vertical, 2)
     }
 }
 
 private struct InlinePurchaseLinks: View {
     let organization: String?
     let modelName: String
+    let language: AppLanguage
 
     private var links: PurchaseLinks {
         PurchaseLinkCatalog.links(forOrganization: organization, modelName: modelName)
@@ -940,8 +1266,8 @@ private struct InlinePurchaseLinks: View {
     var body: some View {
         if !links.isEmpty {
             HStack(spacing: 10) {
-                PurchaseLinkControl(title: "套餐", links: links.codingPlan)
-                PurchaseLinkControl(title: "按量", links: links.payAsYouGo)
+                PurchaseLinkControl(title: language.text("Plan", "套餐"), links: links.codingPlan, language: language)
+                PurchaseLinkControl(title: language.text("Pay as you go", "按量"), links: links.payAsYouGo, language: language)
             }
             .font(.caption)
         }
@@ -951,57 +1277,17 @@ private struct InlinePurchaseLinks: View {
 private struct PurchaseLinkControl: View {
     let title: String
     let links: [PurchaseLink]
+    let language: AppLanguage
 
     var body: some View {
-        if links.count == 1, let link = links.first {
+        if let link = PurchaseLinkCatalog.preferredLink(from: links, language: language) {
             // SwiftUI Link shows the pointing-hand cursor and opens the URL
             // itself; an onHover-based cursor here would swallow clicks in
             // NSTableView-backed cells.
             Link(title, destination: link.url)
                 .font(.caption)
                 .help(link.url.absoluteString)
-        } else if links.count > 1 {
-            PurchaseMenuLink(title: title, links: links)
         }
-    }
-}
-
-/// Multi-link trigger painted as a real `Link`, so caption size and link color
-/// match the single-URL control. SwiftUI `Menu` + `.borderlessButton` is an
-/// `NSPopUpButton` and ignores those styles. The transparent button only
-/// handles the click; `onHover` would swallow it inside `NSTableView` cells.
-private struct PurchaseMenuLink: View {
-    let title: String
-    let links: [PurchaseLink]
-
-    private var helpText: String {
-        links.map(\.url.absoluteString).joined(separator: "\n")
-    }
-
-    var body: some View {
-        // String Link, not a custom label: only that initializer is guaranteed
-        // to use the same caption face and link color as the single-URL control.
-        HStack(spacing: 2) {
-            Link(title, destination: links[0].url)
-                .font(.caption)
-                .allowsHitTesting(false)
-            // Same link color as the string Link, not the accent tint. A custom
-            // accent would otherwise make the chevron a different color.
-            Image(systemName: "chevron.up.chevron.down")
-                .font(.caption)
-                .imageScale(.small)
-                .symbolRenderingMode(.monochrome)
-                .foregroundStyle(Color(nsColor: .linkColor))
-                .accessibilityHidden(true)
-        }
-        .lineLimit(1)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-        .background {
-            PurchaseMenuButton(links: links, title: title, helpText: helpText)
-        }
-        .fixedSize()
-        .help(helpText)
     }
 }
 
@@ -1009,7 +1295,25 @@ private struct CategorySegmentedControl: NSViewRepresentable {
     static let width: CGFloat = 360
     static let height: CGFloat = 24
 
+    let language: AppLanguage
     @Binding var selection: LeaderboardCategory
+
+    private func label(_ category: LeaderboardCategory) -> String {
+        switch category {
+        case .general: language.text("General", "综合")
+        case .coding: language.text("Coding", "编程")
+        case .image: language.text("Image", "图片")
+        case .video: language.text("Video", "视频")
+        }
+    }
+
+    private func configureLabels(_ control: NSSegmentedControl) {
+        for (index, category) in LeaderboardCategory.allCases.enumerated() {
+            control.setLabel(label(category), forSegment: index)
+        }
+        control.toolTip = language.text("Switch leaderboard category", "切换榜单类别")
+        control.setAccessibilityLabel(language.text("Leaderboard category", "榜单类别"))
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(selection: $selection)
@@ -1024,15 +1328,13 @@ private struct CategorySegmentedControl: NSViewRepresentable {
         control.segmentDistribution = .fillEqually
         control.segmentCount = LeaderboardCategory.allCases.count
         let segmentWidth = Self.width / CGFloat(LeaderboardCategory.allCases.count)
-        for (index, category) in LeaderboardCategory.allCases.enumerated() {
-            control.setLabel(category.title, forSegment: index)
+        for (index, _) in LeaderboardCategory.allCases.enumerated() {
             control.setWidth(segmentWidth, forSegment: index)
         }
+        configureLabels(control)
         control.selectedSegment = selectedIndex
         control.target = context.coordinator
         control.action = #selector(Coordinator.changed(_:))
-        control.toolTip = "切换榜单类别"
-        control.setAccessibilityLabel("榜单类别")
         control.setContentCompressionResistancePriority(.required, for: .horizontal)
         control.setContentHuggingPriority(.required, for: .horizontal)
         return control
@@ -1040,6 +1342,7 @@ private struct CategorySegmentedControl: NSViewRepresentable {
 
     func updateNSView(_ control: CategorySegmentedControlView, context: Context) {
         context.coordinator.selection = $selection
+        configureLabels(control)
         let index = selectedIndex
         guard control.selectedSegment != index else { return }
         // A SwiftUI refresh must not replay the click animation.
@@ -1082,7 +1385,23 @@ private struct GroupingSegmentedControl: NSViewRepresentable {
     static let width: CGFloat = 180
     static let height: CGFloat = 24
 
+    let language: AppLanguage
     @Binding var selection: LeaderboardGrouping
+
+    private func label(_ grouping: LeaderboardGrouping) -> String {
+        switch grouping {
+        case .model: language.text("Models", "模型")
+        case .company: language.text("Companies", "公司")
+        }
+    }
+
+    private func configureLabels(_ control: NSSegmentedControl) {
+        for (index, grouping) in LeaderboardGrouping.allCases.enumerated() {
+            control.setLabel(label(grouping), forSegment: index)
+        }
+        control.toolTip = language.text("Company scores use each company's strongest model.", "按公司查看时，以最强模型分数为准，弱型号不拉低")
+        control.setAccessibilityLabel(language.text("Leaderboard grouping", "榜单分组"))
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(selection: $selection)
@@ -1097,15 +1416,13 @@ private struct GroupingSegmentedControl: NSViewRepresentable {
         control.segmentDistribution = .fillEqually
         control.segmentCount = LeaderboardGrouping.allCases.count
         let segmentWidth = Self.width / CGFloat(LeaderboardGrouping.allCases.count)
-        for (index, grouping) in LeaderboardGrouping.allCases.enumerated() {
-            control.setLabel(grouping.title, forSegment: index)
+        for (index, _) in LeaderboardGrouping.allCases.enumerated() {
             control.setWidth(segmentWidth, forSegment: index)
         }
+        configureLabels(control)
         control.selectedSegment = selectedIndex
         control.target = context.coordinator
         control.action = #selector(Coordinator.changed(_:))
-        control.toolTip = "按公司查看时，以最强模型分数为准，弱型号不拉低"
-        control.setAccessibilityLabel("榜单分组")
         control.setContentCompressionResistancePriority(.required, for: .horizontal)
         control.setContentHuggingPriority(.required, for: .horizontal)
         return control
@@ -1113,6 +1430,7 @@ private struct GroupingSegmentedControl: NSViewRepresentable {
 
     func updateNSView(_ control: CategorySegmentedControlView, context: Context) {
         context.coordinator.selection = $selection
+        configureLabels(control)
         let index = selectedIndex
         guard control.selectedSegment != index else { return }
         // A SwiftUI refresh must not replay the click animation.
@@ -1155,118 +1473,6 @@ private struct GroupingSegmentedControl: NSViewRepresentable {
 /// accept that first mouse or the tab will not switch.
 private final class CategorySegmentedControlView: NSSegmentedControl {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-}
-
-private struct PurchaseMenuButton: NSViewRepresentable {
-
-    let links: [PurchaseLink]
-    let title: String
-    let helpText: String
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
-
-    func makeNSView(context: Context) -> LinkMenuButton {
-        let button = LinkMenuButton()
-        button.isTransparent = true
-        button.isBordered = false
-        button.title = ""
-        button.focusRingType = .none
-        button.refusesFirstResponder = true
-        button.setAccessibilityElement(true)
-        button.setAccessibilityRole(.popUpButton)
-        configure(button, context: context)
-        return button
-    }
-
-    func updateNSView(_ button: LinkMenuButton, context: Context) {
-        configure(button, context: context)
-    }
-
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView: LinkMenuButton, context: Context) -> CGSize? {
-        // An empty proposal must not collapse the hit target to 0×0. Nil lets
-        // SwiftUI use the label size; a real proposal fills that label.
-        guard let width = proposal.width, let height = proposal.height, width > 0, height > 0 else {
-            return nil
-        }
-        return CGSize(width: width, height: height)
-    }
-
-    private func configure(_ button: LinkMenuButton, context: Context) {
-        context.coordinator.links = links
-        button.coordinator = context.coordinator
-        button.toolTip = helpText
-        button.setAccessibilityLabel(title)
-        button.setAccessibilityHelp(helpText)
-    }
-
-    final class Coordinator: NSObject {
-        var links: [PurchaseLink] = []
-
-        func popMenu(from button: NSButton) {
-            guard !links.isEmpty else { return }
-            let menu = NSMenu()
-            menu.autoenablesItems = false
-            for link in links {
-                let item = NSMenuItem(
-                    title: link.label,
-                    action: #selector(openURL(_:)),
-                    keyEquivalent: ""
-                )
-                item.target = self
-                item.representedObject = link.url as NSURL
-                item.isEnabled = true
-                menu.addItem(item)
-            }
-            // y-up: pin the menu's top-left to the control's bottom-left so it
-            // opens downward, the same direction as the old popup.
-            menu.popUp(positioning: nil, at: NSPoint(x: 0, y: 0), in: button)
-        }
-
-        @objc func openURL(_ sender: NSMenuItem) {
-            guard let url = sender.representedObject as? URL else { return }
-            NSWorkspace.shared.open(url)
-        }
-    }
-}
-
-private final class LinkMenuButton: NSButton {
-    weak var coordinator: PurchaseMenuButton.Coordinator?
-
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        bounds.contains(point) ? self : nil
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        coordinator?.popMenu(from: self)
-    }
-
-    override func resetCursorRects() {
-        discardCursorRects()
-        addCursorRect(bounds, cursor: .pointingHand)
-    }
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        trackingAreas.forEach(removeTrackingArea)
-        addTrackingArea(NSTrackingArea(
-            rect: .zero,
-            options: [.mouseEnteredAndExited, .cursorUpdate, .activeAlways, .inVisibleRect],
-            owner: self,
-            userInfo: nil
-        ))
-    }
-
-    override func cursorUpdate(with event: NSEvent) {
-        NSCursor.pointingHand.set()
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        NSCursor.pointingHand.set()
-    }
 }
 
 /// Command Line Tools do not ship the SwiftUI `@State` macro, so the brief
