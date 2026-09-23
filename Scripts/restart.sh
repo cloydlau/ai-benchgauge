@@ -55,7 +55,20 @@ if [[ -n "$old_pids" ]]; then
   fi
 fi
 
-open "$APP"
+launched=false
+launch_error=''
+for attempt in {1..6}; do
+  if launch_error=$(open "$APP" 2>&1); then
+    launched=true
+    break
+  fi
+  # Launch Services may still be releasing the old instance after its PID exits.
+  sleep 0.5
+done
+if [[ "$launched" != true ]]; then
+  print -u2 "$launch_error"
+  exit 1
+fi
 for attempt in {1..20}; do
   new_pids=$(running_pids)
   [[ -n "$new_pids" ]] && break
