@@ -1,5 +1,5 @@
 #!/bin/zsh
-# 自动拆分原子提交，并以当前 Codex 模型署名、附上头像。
+# 自动拆分原子提交，并以当前 Codex 模型署名。
 #
 #   Scripts/commit.sh
 #   Scripts/commit.sh -m "feat(menu): …"
