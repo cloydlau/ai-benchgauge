@@ -63,16 +63,11 @@ struct LeaderboardView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
             titleRow
-            VStack(alignment: .leading, spacing: 8) {
-                TimelineView(.periodic(from: .now, by: 60)) { context in
-                    freshnessLine(now: context.date)
-                }
-                if !state.quotaChips.isEmpty {
-                    QuotaStrip(
-                        chips: state.quotaChips,
-                        onConnectQwen: state.connectQwenWebsite
-                    )
-                }
+            if !state.quotaChips.isEmpty {
+                QuotaStrip(
+                    chips: state.quotaChips,
+                    onConnectQwen: state.connectQwenWebsite
+                )
             }
         }
         .padding(.horizontal, 18)
@@ -80,18 +75,21 @@ struct LeaderboardView: View {
     }
 
     private var titleRow: some View {
-        // Equal side columns keep the tabs centered. A trailing spacer left a
-        // wide empty band between the title and the picker. Grouping sits
-        // beside the category control; both widths are fixed so 公司 does not
-        // reflow the table columns. Freshness is its own row, not a corner of this one.
+        // Equal side columns keep the tabs centered. Freshness is the title's
+        // subtitle, not a second corner and not a chip-row timestamp.
         HStack(alignment: .center, spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("AI Leaderboards")
-                    .font(.system(size: 17, weight: .semibold))
-                Text("v\(appVersion)")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .monospacedDigit()
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("AI Leaderboards")
+                        .font(.system(size: 17, weight: .semibold))
+                    Text("v\(appVersion)")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .monospacedDigit()
+                }
+                TimelineView(.periodic(from: .now, by: 60)) { context in
+                    freshnessLine(now: context.date)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -141,6 +139,7 @@ struct LeaderboardView: View {
             .font(.system(size: 11))
             .monospacedDigit()
             .lineLimit(1)
+            .minimumScaleFactor(0.85)
             .help(freshnessHelp(now: now))
     }
 
