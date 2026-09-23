@@ -298,11 +298,11 @@ final class AccountQuotaFormattingTests: XCTestCase {
         )
         XCTAssertEqual(
             AccountQuotaFormatting.plainSummary(for: zhipu, now: now),
-            "5小时: 0%  7天: 100% 2d3h · 11月17日 09:13"
+            "7天: 100% 2d3h · 11月17日 09:13  5小时: 0%"
         )
         XCTAssertEqual(
             AccountQuotaFormatting.runs(for: zhipu, now: now).map(\.tone),
-            [.secondary, .green, .secondary, .secondary, .red, .secondary]
+            [.secondary, .red, .secondary, .secondary, .secondary, .green]
         )
         let zhipuHelp = AccountQuotaFormatting.help(for: zhipu, now: now)
         XCTAssertTrue(zhipuHelp.contains("5小时 0%"))
@@ -424,6 +424,110 @@ final class AccountQuotaFormattingTests: XCTestCase {
             AccountQuotaMessage.queryFailed
         )
     }
+
+    func testSortsWindowsByLatestResetFirst() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let soon = now.addingTimeInterval(3_600)
+        let later = now.addingTimeInterval(6 * 86_400)
+        let windows = [
+            ParsedQuotaWindow(name: "five_hour", utilization: 10, resetsAt: soon),
+            ParsedQuotaWindow(name: "weekly_limit", utilization: 20, resetsAt: later),
+            ParsedQuotaWindow(name: "credits", utilization: 30, resetsAt: nil),
+            ParsedQuotaWindow(name: "monthly", utilization: 40, resetsAt: later),
+        ]
+        XCTAssertEqual(
+            AccountQuotaFormatting.sortedWindows(windows).map(\.name),
+            ["weekly_limit", "monthly", "five_hour", "credits"]
+        )
+
+        let fiveHourLater = [
+            ParsedQuotaWindow(name: "weekly_limit", utilization: 1, resetsAt: soon),
+            ParsedQuotaWindow(name: "five_hour", utilization: 1, resetsAt: later),
+        ]
+        XCTAssertEqual(
+            AccountQuotaFormatting.sortedWindows(fiveHourLater).map(\.name),
+            ["five_hour", "weekly_limit"]
+        )
+    }
+
+    func testSortsChipsByLatestExpiryFirstWithoutPinningCurrent() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let soon = now.addingTimeInterval(3_600)
+        let mid = now.addingTimeInterval(3 * 86_400)
+        let late = now.addingTimeInterval(10 * 86_400)
+        let chips = [
+            quotaChip(id: "note", kind: .xaiOAuth, status: .note(text: "未连接", help: "help")),
+            quotaChip(
+                id: "current",
+                kind: .kimi,
+                isCurrent: true,
+                status: .windows([
+                    ParsedQuotaWindow(name: "five_hour", utilization: 1, resetsAt: soon),
+                    ParsedQuotaWindow(name: "weekly_limit", utilization: 1, resetsAt: mid),
+                ])
+            ),
+            quotaChip(
+                id: "balance",
+                kind: .deepseek,
+                status: .balances([ParsedBalance(currency: "CNY", amount: 1)])
+            ),
+            quotaChip(
+                id: "plan",
+                kind: .qwen,
+                status: .qwenPlan(QwenPlanQuota(
+                    usedPercent: 10,
+                    remainingCredits: 90,
+                    totalCredits: 100,
+                    resetsAt: mid
+                ))
+            ),
+            quotaChip(
+                id: "website",
+                kind: .officialNote,
+                status: .qwenWebsite(QwenWebsiteQuota(
+                    periodLabel: "7天",
+                    remainingPercent: 50,
+                    resetsAt: soon
+                ))
+            ),
+            quotaChip(
+                id: "latest",
+                kind: .zhipu,
+                status: .windows([
+                    ParsedQuotaWindow(name: "five_hour", utilization: 1, resetsAt: soon),
+                    ParsedQuotaWindow(name: "weekly_limit", utilization: 1, resetsAt: late),
+                ])
+            ),
+            quotaChip(
+                id: "same",
+                kind: .kimi,
+                status: .windows([
+                    ParsedQuotaWindow(name: "weekly_limit", utilization: 1, resetsAt: mid),
+                ])
+            ),
+        ]
+
+        XCTAssertEqual(
+            AccountQuotaFormatting.sortedChips(chips).map(\.id),
+            ["latest", "current", "plan", "same", "website", "note", "balance"]
+        )
+    }
+}
+
+private func quotaChip(
+    id: String,
+    kind: CCSwitchQuotaKind,
+    isCurrent: Bool = false,
+    status: AccountQuotaChip.Status
+) -> AccountQuotaChip {
+    AccountQuotaChip(
+        id: id,
+        shortName: id,
+        websiteURL: nil,
+        kind: kind,
+        isCurrent: isCurrent,
+        status: status
+    )
 }
 
 final class CCSwitchQuotaParserTests: XCTestCase {
