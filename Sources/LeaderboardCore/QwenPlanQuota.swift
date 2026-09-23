@@ -4,6 +4,9 @@ public struct QwenPlanQuota: Equatable, Sendable {
     public let usedPercent: Double
     public let remainingCredits: Double
     public let totalCredits: Double
+    /// Old `qianwen usage summary` `token_plan.resetDate`. That value was the
+    /// subscription instance end (`EndTime`), not a usage-window reset. Current
+    /// CLI builds may omit it; then the plan expiry is hidden rather than invented.
     public let resetsAt: Date?
 
     public init(usedPercent: Double, remainingCredits: Double, totalCredits: Double, resetsAt: Date?) {
@@ -26,6 +29,7 @@ public enum QwenPlanQuotaParser {
         }
         let used = number(plan["usedPct"]) ?? (1 - remaining / total) * 100
         guard used.isFinite else { return nil }
+        // Historical CLI field. Do not treat a missing value as a window reset.
         let reset = (plan["resetDate"] as? String).flatMap { value in
             let formatter = ISO8601DateFormatter()
             formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
