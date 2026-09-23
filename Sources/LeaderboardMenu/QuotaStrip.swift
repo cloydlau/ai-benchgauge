@@ -10,6 +10,7 @@ struct QuotaStrip: View {
     let chips: [AccountQuotaChip]
     let updatedAt: Date?
     let unavailable: Bool
+    let onConnectQwen: () -> Void
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
@@ -36,7 +37,11 @@ struct QuotaStrip: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(chips) { chip in
-                            QuotaChipView(chip: chip, now: now)
+                            QuotaChipView(
+                                chip: chip,
+                                now: now,
+                                onConnectQwen: needsQwenConnection(chip) ? onConnectQwen : nil
+                            )
                         }
                     }
                     .padding(.vertical, 1)
@@ -48,12 +53,18 @@ struct QuotaStrip: View {
         }
     }
 
+    private func needsQwenConnection(_ chip: AccountQuotaChip) -> Bool {
+        guard chip.kind == .qwen else { return false }
+        if case .usage = chip.status { return true }
+        return false
+    }
+
     private var sectionLabel: some View {
-        Text("Codex 余量")
+        Text("余量")
             .font(.system(size: 11, weight: .medium))
             .foregroundStyle(.secondary)
             .fixedSize()
-            .help("本机 CC Switch 里的 Codex 供应商余量，不是榜单分数")
+            .help("本机 CC Switch 里的 Codex 供应商余量。没安装或读不懂配置时不显示")
     }
 
     @ViewBuilder
@@ -88,11 +99,16 @@ private struct QuotaChipView: View {
 
     let chip: AccountQuotaChip
     let now: Date
+    let onConnectQwen: (() -> Void)?
 
     var body: some View {
-        if let url = chip.websiteURL {
+        if onConnectQwen != nil || chip.websiteURL != nil {
             Button {
-                NSWorkspace.shared.open(url)
+                if let onConnectQwen {
+                    onConnectQwen()
+                } else if let url = chip.websiteURL {
+                    NSWorkspace.shared.open(url)
+                }
             } label: {
                 chipBody
             }
@@ -118,10 +134,16 @@ private struct QuotaChipView: View {
         .background(chipBackground)
         .overlay(chipStroke)
         .fixedSize()
-        .help(AccountQuotaFormatting.help(for: chip, now: now))
+        .help(helpText)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
-        .accessibilityAddTraits(chip.websiteURL == nil ? [] : .isButton)
+        .accessibilityAddTraits(onConnectQwen == nil && chip.websiteURL == nil ? [] : .isButton)
+    }
+
+    private var helpText: String {
+        let help = AccountQuotaFormatting.help(for: chip, now: now)
+        guard onConnectQwen != nil else { return help }
+        return [help, "点击连接千问官网用量"].filter { !$0.isEmpty }.joined(separator: "\n")
     }
 
     private var accessibilityLabel: String {
@@ -174,6 +196,7 @@ private struct QuotaChipView: View {
         case .officialNote: "OpenAI"
         case .kimi: "Kimi"
         case .deepseek: "DeepSeek"
+        case .qwen: "Qwen"
         case .xaiOAuth: "xAI"
         case .zhipu: "Z.ai"
         }

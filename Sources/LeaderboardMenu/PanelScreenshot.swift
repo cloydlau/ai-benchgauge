@@ -156,8 +156,15 @@ enum PanelScreenshot {
         }
         flattened.size = size
 
+        // Bitmap contexts are pixel-sized. Drawing the point rect without this
+        // scale leaves the top and right of a Retina capture blank.
+        let pixelScaleX = CGFloat(flattened.pixelsWide) / max(size.width, 1)
+        let pixelScaleY = CGFloat(flattened.pixelsHigh) / max(size.height, 1)
+
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = graphics
+        graphics.imageInterpolation = .high
+        graphics.cgContext.scaleBy(x: pixelScaleX, y: pixelScaleY)
         view.effectiveAppearance.performAsCurrentDrawingAppearance {
             NSColor.windowBackgroundColor.setFill()
             NSRect(origin: .zero, size: size).fill()
