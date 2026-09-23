@@ -222,7 +222,6 @@ export function commitArgs(message, identity) {
     '-m', message,
     '--author', `${identity.author.name} <${identity.author.email}>`,
   ]
-  if (identity.avatar?.url) args.push('--trailer', `Model-Avatar: ${identity.avatar.url}`)
   if (identity.coauthor) {
     args.push('--trailer', `Co-authored-by: ${identity.coauthor.name} <${identity.coauthor.email}>`)
   }
