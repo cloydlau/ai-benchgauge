@@ -14,6 +14,7 @@ final class HTMLLeaderboardParserTests: XCTestCase {
         let leaderboard = try HTMLLeaderboardParser.artificialAnalysis(fromHTML: html)
 
         XCTAssertEqual(leaderboard.sourceNote, "v4.3.2")
+        XCTAssertNil(leaderboard.sourceUpdatedAt)
         XCTAssertEqual(leaderboard.entries.count, 20)
         XCTAssertEqual(leaderboard.entries.first?.name, "Model 1")
         XCTAssertEqual(leaderboard.entries.first?.score, 99)
@@ -46,6 +47,7 @@ final class HTMLLeaderboardParserTests: XCTestCase {
         XCTAssertEqual(leaderboard.entries.first?.modelID, "model-1")
         XCTAssertEqual(leaderboard.entries.first?.organization, "Maker")
         XCTAssertEqual(leaderboard.sourceNote, "v1.5")
+        XCTAssertNil(leaderboard.sourceUpdatedAt)
     }
 
     func testParsesArenaTopTwentyAndCutoff() throws {
@@ -100,6 +102,7 @@ final class HTMLLeaderboardParserTests: XCTestCase {
 
         XCTAssertEqual(leaderboard.kind, .artificialAnalysisTextToImage)
         XCTAssertEqual(leaderboard.title, "Artificial Analysis | 文生图")
+        XCTAssertNil(leaderboard.sourceUpdatedAt)
         XCTAssertEqual(leaderboard.entries.count, 20)
         XCTAssertEqual(leaderboard.entries.first?.name, "Image Model 1")
         XCTAssertEqual(leaderboard.entries.first?.score, 1199)
