@@ -742,6 +742,21 @@ struct LeaderboardView: View {
 
             Text("·")
 
+            Toggle(tr("Close on blur", "失焦关闭"), isOn: Binding(
+                get: { state.closesOnFocusLoss },
+                set: { state.setClosesOnFocusLoss($0) }
+            ))
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            .font(.system(size: 11))
+            .fixedSize()
+            .help(tr(
+                "Close the panel when clicking outside or switching apps.",
+                "点击弹窗外或切换应用时关闭弹窗。"
+            ))
+
+            Text("·")
+
             Picker(tr("Language", "语言"), selection: Binding(
                 get: { state.selectedLanguage },
                 set: { state.selectLanguage($0) }

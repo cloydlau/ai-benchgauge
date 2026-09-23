@@ -32,6 +32,8 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private let statusItem: NSStatusItem
     private let hosting: NSHostingController<LeaderboardView>
     private var stateObservation: AnyCancellable?
+    private var outsideClickMonitor: Any?
+    private var appActivationObserver: NSObjectProtocol?
     /// Real clicks stay transparent until the post-show frame pin lands.
     /// Pre-warm shows the popover invisibly and must not surface that window.
     private var revealAfterSettle = false
@@ -87,6 +89,19 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         stateObservation = state.objectWillChange.sink { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.updatePanelWidth()
+                self?.updateDismissMonitor()
+            }
+        }
+        appActivationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey]
+                as? NSRunningApplication else { return }
+            Task { @MainActor [weak self] in
+                guard application.processIdentifier != NSRunningApplication.current.processIdentifier else { return }
+                self?.closeIfUnfocused()
             }
         }
         NotificationCenter.default.addObserver(
@@ -293,6 +308,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }
 
     func popoverDidClose(_ notification: Notification) {
+        removeDismissMonitor()
         framePinGeneration += 1
         removeFramePin()
         settledPopoverFrame = nil
@@ -306,6 +322,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         revealAfterSettle = false
         window.alphaValue = 1
         window.orderFrontRegardless()
+        updateDismissMonitor()
     }
 
     @objc private func togglePopover() {
@@ -327,7 +344,36 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }
 
     private func closePopover() {
+        removeDismissMonitor()
         popover.performClose(nil)
+    }
+
+    private func closeIfUnfocused() {
+        guard state.closesOnFocusLoss, popover.isShown,
+              (popover.contentViewController?.view.window?.alphaValue ?? 0) > 0 else { return }
+        closePopover()
+    }
+
+    private func updateDismissMonitor() {
+        guard state.closesOnFocusLoss, popover.isShown,
+              (popover.contentViewController?.view.window?.alphaValue ?? 0) > 0 else {
+            removeDismissMonitor()
+            return
+        }
+        guard outsideClickMonitor == nil else { return }
+        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.closeIfUnfocused()
+            }
+        }
+    }
+
+    private func removeDismissMonitor() {
+        guard let outsideClickMonitor else { return }
+        NSEvent.removeMonitor(outsideClickMonitor)
+        self.outsideClickMonitor = nil
     }
 
 }

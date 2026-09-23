@@ -17,6 +17,7 @@ final class AppState: ObservableObject {
     @Published private(set) var selectedCategory = LeaderboardCategory.general
     @Published private(set) var selectedGrouping = LeaderboardGrouping.model
     @Published private(set) var selectedLanguage = AppLanguage.load()
+    @Published private(set) var closesOnFocusLoss = UserDefaults.standard.bool(forKey: "AILeaderboards.closesOnFocusLoss")
     @Published private(set) var countryFilters: [LeaderboardKind: CountryFilter] = [:]
     @Published private(set) var isQuitting = false
     /// Provider quotas from the local CC Switch database. These are not
@@ -126,6 +127,12 @@ final class AppState: ObservableObject {
         guard language != selectedLanguage else { return }
         selectedLanguage = language
         language.save()
+    }
+
+    func setClosesOnFocusLoss(_ enabled: Bool) {
+        guard enabled != closesOnFocusLoss else { return }
+        closesOnFocusLoss = enabled
+        UserDefaults.standard.set(enabled, forKey: "AILeaderboards.closesOnFocusLoss")
     }
 
     private func startTimer() {
