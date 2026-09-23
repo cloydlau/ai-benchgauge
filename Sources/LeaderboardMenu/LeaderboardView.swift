@@ -287,7 +287,7 @@ struct LeaderboardView: View {
     /// leaderboard data from this Mac's quota data.
     private func freshnessLine(now: Date) -> some View {
         HStack(spacing: 8) {
-            Text(tr("CHECKED", "本机查询"))
+            Text(tr("UPDATED", "更新时间"))
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: true, vertical: false)
@@ -341,7 +341,7 @@ struct LeaderboardView: View {
     }
 
     private func freshnessSummary(now: Date) -> String {
-        var summary = tr("Last checked: ", "本机查询：") + rankingClause(now: now)
+        var summary = tr("Last updated: ", "更新时间：") + rankingClause(now: now)
         if let quota = quotaClause(now: now) {
             summary += tr("; ", "；") + quota
         }
