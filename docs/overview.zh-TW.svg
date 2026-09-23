@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="570" viewBox="0 0 1200 570" role="img" aria-label="AI Leaderboards 介面示意：雙榜比較與 CC Switch 額度">
+  <defs>
+    <linearGradient id="backdrop" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#101a3d"/>
+      <stop offset="0.55" stop-color="#1a2555"/>
+      <stop offset="1" stop-color="#263b78"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#77e1cf"/>
+      <stop offset="1" stop-color="#8ba9ff"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-30%" width="140%" height="170%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#091127" flood-opacity="0.34"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="570" rx="28" fill="url(#backdrop)"/>
+  <circle cx="1070" cy="50" r="210" fill="#7f8eff" opacity="0.12"/>
+  <circle cx="65" cy="540" r="230" fill="#55d5c3" opacity="0.09"/>
+
+  <text x="64" y="73" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="38" font-weight="700">AI Leaderboards</text>
+  <text x="65" y="105" fill="#c6d3f9" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="17">兩張榜單，一眼比較。模型排行與帳戶額度，常駐選單列。</text>
+  <rect x="909" y="47" width="226" height="35" rx="17" fill="#ffffff" opacity="0.12"/>
+  <text x="933" y="70" fill="#e9f2ff" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="15" font-weight="600">macOS 14+ · Swift 6</text>
+
+  <g filter="url(#shadow)">
+    <rect x="64" y="135" width="1072" height="367" rx="18" fill="#f8faff"/>
+  </g>
+  <rect x="64" y="135" width="1072" height="65" rx="18" fill="#ffffff"/>
+  <rect x="64" y="184" width="1072" height="16" fill="#ffffff"/>
+  <circle cx="91" cy="161" r="5" fill="#f19f9f"/>
+  <circle cx="107" cy="161" r="5" fill="#f3cd75"/>
+  <circle cx="123" cy="161" r="5" fill="#89d3a5"/>
+  <text x="148" y="168" fill="#202c4d" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="17" font-weight="700">AI Leaderboards</text>
+
+  <rect x="486" y="151" width="85" height="29" rx="9" fill="#273f7a"/>
+  <text x="514" y="171" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="14" font-weight="600">模型</text>
+  <text x="593" y="171" fill="#657393" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="14">公司</text>
+  <rect x="684" y="151" width="64" height="29" rx="9" fill="#dce6ff"/>
+  <text x="703" y="171" fill="#263c75" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="14" font-weight="600">綜合</text>
+  <text x="771" y="171" fill="#657393" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="14">編程</text>
+  <text x="841" y="171" fill="#657393" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="14">圖片</text>
+  <text x="911" y="171" fill="#657393" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="14">視頻</text>
+
+  <rect x="84" y="211" width="1032" height="58" rx="12" fill="#e9f2ff"/>
+  <circle cx="108" cy="240" r="14" fill="#4c69b0"/>
+  <text x="102" y="246" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="17" font-weight="700">C</text>
+  <text x="132" y="236" fill="#273d74" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="15" font-weight="700">CC Switch 本機額度</text>
+  <text x="132" y="254" fill="#5b6b8e" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="12">支援的供應商顯示於榜單上方</text>
+  <rect x="460" y="222" width="176" height="34" rx="9" fill="#ffffff"/>
+  <circle cx="479" cy="239" r="5" fill="#44c3a6"/>
+  <text x="494" y="244" fill="#34456b" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="13">目前使用的供應商</text>
+  <rect x="650" y="222" width="202" height="34" rx="9" fill="#ffffff"/>
+  <text x="666" y="244" fill="#34456b" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="13">額度與重置時間</text>
+  <rect x="866" y="222" width="228" height="34" rx="9" fill="#ffffff"/>
+  <text x="883" y="244" fill="#34456b" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="13">截圖自動隱藏真實額度</text>
+
+  <rect x="84" y="282" width="503" height="194" rx="12" fill="#ffffff" stroke="#e1e8f4"/>
+  <rect x="613" y="282" width="503" height="194" rx="12" fill="#ffffff" stroke="#e1e8f4"/>
+  <text x="105" y="311" fill="#263755" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="16" font-weight="700">Artificial Analysis</text>
+  <text x="634" y="311" fill="#263755" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="16" font-weight="700">Arena</text>
+  <text x="530" y="311" fill="#7784a1" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="12">分数</text>
+  <text x="1059" y="311" fill="#7784a1" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="12">分数</text>
+  <path d="M101 323H571 M630 323H1100" stroke="#e8edf6"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="13" fill="#32405f">
+    <text x="107" y="348">01</text><text x="142" y="348">Model / Company</text><text x="530" y="348">—</text>
+    <text x="107" y="385">02</text><text x="142" y="385">Model / Company</text><text x="530" y="385">—</text>
+    <text x="107" y="422">03</text><text x="142" y="422">Model / Company</text><text x="530" y="422">—</text>
+    <text x="107" y="459">04</text><text x="142" y="459">Model / Company</text><text x="530" y="459">—</text>
+    <text x="636" y="348">01</text><text x="671" y="348">Model / Company</text><text x="1059" y="348">—</text>
+    <text x="636" y="385">02</text><text x="671" y="385">Model / Company</text><text x="1059" y="385">—</text>
+    <text x="636" y="422">03</text><text x="671" y="422">Model / Company</text><text x="1059" y="422">—</text>
+    <text x="636" y="459">04</text><text x="671" y="459">Model / Company</text><text x="1059" y="459">—</text>
+  </g>
+  <g fill="url(#accent)">
+    <rect x="284" y="338" width="221" height="9" rx="4" opacity="0.85"/>
+    <rect x="284" y="375" width="183" height="9" rx="4" opacity="0.66"/>
+    <rect x="284" y="412" width="146" height="9" rx="4" opacity="0.5"/>
+    <rect x="284" y="449" width="116" height="9" rx="4" opacity="0.38"/>
+    <rect x="813" y="338" width="221" height="9" rx="4" opacity="0.85"/>
+    <rect x="813" y="375" width="183" height="9" rx="4" opacity="0.66"/>
+    <rect x="813" y="412" width="146" height="9" rx="4" opacity="0.5"/>
+    <rect x="813" y="449" width="116" height="9" rx="4" opacity="0.38"/>
+  </g>
+
+  <text x="66" y="541" fill="#bfcced" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="14">4 類榜單  ·  雙榜 Top 20  ·  模型 / 公司切換</text>
+  <text x="1064" y="541" fill="#bfcced" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="12">介面示意</text>
+</svg>
