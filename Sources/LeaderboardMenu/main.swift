@@ -38,6 +38,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private var isApplyingSettledFrame = false
     private var framePinInstalled = false
     private var framePinAttempts = 0
+    private var framePinGeneration = 0
 
     init(state: AppState) {
         self.state = state
@@ -215,14 +216,18 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             self?.settlePopoverWindow()
             self?.revealPopoverIfNeeded()
         }
-        // Only the open-time re-anchor should be pinned. Later menu-bar
-        // layout can still move the panel once that twitch window has passed.
+        // Only the open-time re-anchor should be pinned. A later show must not
+        // have its pin removed by this timer.
+        framePinGeneration += 1
+        let generation = framePinGeneration
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
-            self?.removeFramePin()
+            guard let self, self.framePinGeneration == generation else { return }
+            self.removeFramePin()
         }
     }
 
     func popoverDidClose(_ notification: Notification) {
+        framePinGeneration += 1
         removeFramePin()
         settledPopoverFrame = nil
         revealAfterSettle = false
