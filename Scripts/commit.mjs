@@ -25,6 +25,7 @@ import {
   normalizeCommitPlan, parseStagedPatch, redactBinaryPatchesForPrompt, stagedPatchInventory,
 } from './commit-split.mjs'
 import { materializeAvatar, notifyDesktop } from './desktop-notify.mjs'
+import { gitProxyArgs, gitProxyValue } from './git-network.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const lockPath = join(root, '.git', 'commit.lock')
@@ -70,6 +71,12 @@ function gitOk(args, options = {}) {
     throw new Error((result.stderr || result.stdout || `git ${args.join(' ')} 失败`).trim())
   }
   return result.stdout ?? ''
+}
+
+function pushUpstream() {
+  const proxy = gitProxyValue()
+  if (proxy) console.log(`[commit] git 没有代理环境变量，推送改用系统代理 ${proxy}`)
+  gitOk([...gitProxyArgs(), 'push'], { inherit: true, env: process.env })
 }
 
 function setupPrivateIndex() {
@@ -426,7 +433,7 @@ async function main() {
     commitOne(message, identity)
     alignSharedIndex()
     await notifyResult(true, '提交完成', `${identity.model}\n${message}`, avatar)
-    if (process.env.COMMIT_PUSH === '1') gitOk(['push'], { inherit: true, env: process.env })
+    if (process.env.COMMIT_PUSH === '1') pushUpstream()
     return
   }
 
@@ -460,7 +467,7 @@ async function main() {
   const summary = plan.commits.map((commit) => commit.message).join('\n')
   console.log(`[commit] 已创建 ${plan.commits.length} 个提交`)
   await notifyResult(true, `已提交 ${plan.commits.length} 个`, `${identity.model}\n${summary}`, avatar)
-  if (process.env.COMMIT_PUSH === '1') gitOk(['push'], { inherit: true, env: process.env })
+  if (process.env.COMMIT_PUSH === '1') pushUpstream()
 }
 
 try {
