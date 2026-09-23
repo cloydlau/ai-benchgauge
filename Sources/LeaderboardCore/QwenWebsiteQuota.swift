@@ -24,7 +24,7 @@ public enum QwenWebsiteQuotaParser {
               let percentRange = Range(match.range(at: 2), in: text),
               let percent = Double(text[percentRange]),
               percent.isFinite, (0...100).contains(percent) else { return nil }
-        let periodLabel = text[labelRange].contains("月") ? "每月" : "7天"
+        let periodLabel = text[labelRange].contains("月") ? "1个月" : "7天"
         let resetPattern = #"重置时间\s*([0-9]{4}-[0-9]{2}-[0-9]{2}\s+[0-9]{2}:[0-9]{2}:[0-9]{2})"#
         var resetsAt: Date?
         if let resetExpression = try? NSRegularExpression(pattern: resetPattern),

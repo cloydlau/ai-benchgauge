@@ -224,7 +224,7 @@ public enum AccountQuotaFormatting {
         switch name {
         case "five_hour": "5小时"
         case "weekly_limit", "seven_day": "7天"
-        case "monthly": "每月"
+        case "monthly": "1个月"
         case "credits": "额度"
         default: name
         }
@@ -312,7 +312,7 @@ public enum AccountQuotaFormatting {
             return qwenPlanRuns(plan, now: now)
         case let .qwenWebsite(quota):
             var runs = [
-                QuotaTextRun(text: "\(quota.periodLabel)剩余: ", tone: .secondary),
+                QuotaTextRun(text: "\(quota.periodLabel): ", tone: .secondary),
                 QuotaTextRun(
                     text: "\(creditText(quota.remainingPercent))%",
                     tone: tone(forUtilization: 100 - quota.remainingPercent)
