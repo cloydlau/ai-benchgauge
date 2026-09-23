@@ -20,7 +20,9 @@ struct LeaderboardView: View {
         language.text(english, chinese)
     }
 
-    static let contentHeight: CGFloat = 866
+    // Native header plus 20 rows. The panel itself grows only when the quota
+    // strip wraps, so the table never paints empty stripes below rank 20.
+    private static let tableHeight: CGFloat = 24 + 20 * 32
     private static let minimumWidth: CGFloat = 850
     // macOS Table adds its own padding around fixed-width columns.
     private static let tableChromeBaseWidth: CGFloat = 288
@@ -30,6 +32,10 @@ struct LeaderboardView: View {
 
     private var contentWidth: CGFloat {
         Self.preferredWidth(for: state, maximumWidth: maximumWidth)
+    }
+
+    private var contentHeight: CGFloat {
+        Self.preferredHeight(for: state, width: contentWidth, maximumWidth: maximumWidth)
     }
 
     private var nameColumnWidth: CGFloat {
@@ -95,6 +101,13 @@ struct LeaderboardView: View {
         return min(desired, maximumWidth)
     }
 
+    static func preferredHeight(for state: AppState, width: CGFloat, maximumWidth: CGFloat) -> CGFloat {
+        let view = LeaderboardView(state: state, maximumWidth: maximumWidth)
+        let header = NSHostingView(rootView: view.header.frame(width: width))
+        let footer = NSHostingView(rootView: view.footer.frame(width: width))
+        return ceil(header.fittingSize.height + tableHeight + 1 + footer.fittingSize.height)
+    }
+
     private static func boardColumnTitle(
         _ title: String,
         kind: LeaderboardKind,
@@ -114,7 +127,7 @@ struct LeaderboardView: View {
             Divider()
             footer
         }
-        .frame(width: contentWidth, height: Self.contentHeight)
+        .frame(width: contentWidth, height: contentHeight)
         .background(.background)
         .overlay(alignment: .bottom) {
             if let note = screenshot.note, !state.isQuitting {
@@ -619,7 +632,7 @@ struct LeaderboardView: View {
         for window in ordered {
             guard let view = window.contentViewController?.view else { continue }
             if abs(view.bounds.width - contentWidth) < 2,
-               abs(view.bounds.height - Self.contentHeight) < 2 {
+               abs(view.bounds.height - contentHeight) < 2 {
                 return view
             }
         }
