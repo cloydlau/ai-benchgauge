@@ -269,15 +269,24 @@ final class AccountQuotaFormattingTests: XCTestCase {
                 ),
             ])
         )
-        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: kimi, now: now), "5小时: 0% 4h37m · 10:50")
+        let kimiExpiry = AccountQuotaFormatting.planExpiryPhrase(
+            until: now.addingTimeInterval(4 * 3600 + 37 * 60),
+            now: now
+        )!
+        XCTAssertEqual(
+            AccountQuotaFormatting.plainSummary(for: kimi, now: now),
+            "5小时 100% · \(kimiExpiry)"
+        )
         XCTAssertEqual(
             AccountQuotaFormatting.runs(for: kimi, now: now).map(\.tone),
-            [.secondary, .green, .secondary]
+            [.secondary, .green, .secondary, .secondary]
         )
-        XCTAssertTrue(
-            AccountQuotaFormatting.help(for: kimi, now: now)
-                .contains("5小时 0%，4小时37分后重置，11月15日 10:50")
-        )
+        let kimiHelp = AccountQuotaFormatting.help(for: kimi, now: now)
+        XCTAssertTrue(kimiHelp.contains("5小时 100%"))
+        XCTAssertTrue(kimiHelp.contains(kimiExpiry))
+        XCTAssertFalse(kimiHelp.contains("后重置"))
+        XCTAssertFalse(kimiHelp.contains("总到期"))
+        XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: kimi, now: now).contains("4h37m"))
 
         let xai = chip(
             kind: .xaiOAuth,
@@ -290,12 +299,21 @@ final class AccountQuotaFormattingTests: XCTestCase {
                 ),
             ])
         )
-        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: xai, now: now), "7天: 13% 6d2h · 11月21日 08:13")
-        XCTAssertTrue(AccountQuotaFormatting.help(for: xai, now: now).contains("当前供应商"))
-        XCTAssertTrue(
-            AccountQuotaFormatting.help(for: xai, now: now)
-                .contains("7天 13%，6天2小时后重置，11月21日 08:13")
+        let xaiExpiry = AccountQuotaFormatting.planExpiryPhrase(
+            until: now.addingTimeInterval((6 * 24 + 2) * 3600),
+            now: now
+        )!
+        XCTAssertEqual(
+            AccountQuotaFormatting.plainSummary(for: xai, now: now),
+            "7天 87% · \(xaiExpiry)"
         )
+        XCTAssertTrue(AccountQuotaFormatting.help(for: xai, now: now).contains("当前供应商"))
+        let xaiHelp = AccountQuotaFormatting.help(for: xai, now: now)
+        XCTAssertTrue(xaiHelp.contains("7天 87%"))
+        XCTAssertTrue(xaiHelp.contains(xaiExpiry))
+        XCTAssertFalse(xaiHelp.contains("后重置"))
+        XCTAssertFalse(xaiHelp.contains("总到期"))
+        XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: xai, now: now).contains("6d2h"))
 
         let planEnd = now.addingTimeInterval((40 * 24 + 4) * 3600)
         let zhipu = chip(
@@ -306,32 +324,54 @@ final class AccountQuotaFormattingTests: XCTestCase {
                 ParsedQuotaWindow(name: "five_hour", utilization: 0, resetsAt: nil),
             ])
         )
-        let planCountdown = AccountQuotaFormatting.countdown(until: planEnd, now: now)!
-        let planClock = AccountQuotaFormatting.resetClock(until: planEnd, now: now)!
+        let planText = AccountQuotaFormatting.planExpiryPhrase(until: planEnd, now: now)!
         XCTAssertEqual(
             AccountQuotaFormatting.plainSummary(for: zhipu, now: now),
-            "5小时: 0%  7天: 100% 2d3h · 11月17日 09:13  总到期: \(planCountdown) · \(planClock)"
+            "5小时 100% · 7天 0% · \(planText)"
         )
+        XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: zhipu, now: now).contains("总到期"))
         XCTAssertEqual(
             AccountQuotaFormatting.runs(for: zhipu, now: now).map(\.tone),
-            [.secondary, .green, .secondary, .secondary, .red, .secondary, .secondary, .secondary, .secondary]
+            [.secondary, .green, .secondary, .secondary, .red, .secondary, .secondary]
         )
         let zhipuHelp = AccountQuotaFormatting.help(for: zhipu, now: now)
-        XCTAssertTrue(zhipuHelp.contains("5小时 0%"))
-        XCTAssertTrue(zhipuHelp.contains("7天 100%，2天3小时后重置，11月17日 09:13"))
-        XCTAssertFalse(zhipuHelp.contains("5小时 0%，"))
-        let planPhrase = AccountQuotaFormatting.chineseCountdown(until: planEnd, now: now)!
-        let planDate = AccountQuotaFormatting.resetDateText(planEnd, now: now)!
-        XCTAssertTrue(zhipuHelp.contains("总到期 \(planPhrase)后到期，\(planDate)"))
-        XCTAssertFalse(zhipuHelp.contains("总到期 \(planPhrase)后重置"))
-        XCTAssertFalse(zhipuHelp.contains("1个月"))
-        XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: zhipu, now: now).contains("1个月"))
-        XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: zhipu, now: now).contains("%  总到期"))
+        XCTAssertTrue(zhipuHelp.contains("5小时 100%"))
+        XCTAssertTrue(zhipuHelp.contains("7天 0%"))
+        XCTAssertFalse(zhipuHelp.contains("后重置"))
+        XCTAssertFalse(zhipuHelp.contains("5小时 100%，"))
+        XCTAssertTrue(zhipuHelp.contains(planText))
+        XCTAssertFalse(zhipuHelp.contains("总到期"))
+        XCTAssertFalse(zhipuHelp.contains("后到期"))
+        XCTAssertFalse(zhipuHelp.contains("月度"))
+        XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: zhipu, now: now).contains("月度"))
+        XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: zhipu, now: now).contains("2d3h"))
+        XCTAssertFalse(zhipuHelp.contains("2天3小时后重置"))
         let five = zhipuHelp.range(of: "5小时")!
         let week = zhipuHelp.range(of: "7天")!
-        let plan = zhipuHelp.range(of: "总到期")!
+        let plan = zhipuHelp.range(of: planText)!
         XCTAssertLessThan(five.lowerBound, week.lowerBound)
         XCTAssertLessThan(week.lowerBound, plan.lowerBound)
+
+        let laterReset = now.addingTimeInterval(6 * 86_400)
+        let soonerReset = now.addingTimeInterval(3_600)
+        let mixed = chip(
+            kind: .kimi,
+            status: .windows([
+                ParsedQuotaWindow(name: "monthly", utilization: 40, resetsAt: laterReset),
+                ParsedQuotaWindow(name: "weekly_limit", utilization: 20, resetsAt: laterReset),
+                ParsedQuotaWindow(name: "five_hour", utilization: 10, resetsAt: soonerReset),
+                ParsedQuotaWindow(name: "credits", utilization: 30, resetsAt: nil),
+            ])
+        )
+        let mixedExpiry = AccountQuotaFormatting.planExpiryPhrase(until: laterReset, now: now)!
+        XCTAssertEqual(
+            AccountQuotaFormatting.plainSummary(for: mixed, now: now),
+            "5小时 90% · 7天 80% · 月度 60% · 额度 70% · \(mixedExpiry)"
+        )
+        let mixedHelp = AccountQuotaFormatting.help(for: mixed, now: now)
+        XCTAssertLessThan(mixedHelp.range(of: "5小时")!.lowerBound, mixedHelp.range(of: "7天")!.lowerBound)
+        XCTAssertLessThan(mixedHelp.range(of: "7天")!.lowerBound, mixedHelp.range(of: "月度")!.lowerBound)
+        XCTAssertLessThan(mixedHelp.range(of: "月度")!.lowerBound, mixedHelp.range(of: mixedExpiry)!.lowerBound)
 
         let expiredPlan = chip(
             kind: .zhipu,
@@ -339,8 +379,13 @@ final class AccountQuotaFormattingTests: XCTestCase {
                 ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: now.addingTimeInterval(-60)),
             ])
         )
-        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: expiredPlan, now: now), "总到期: 已到期")
-        XCTAssertEqual(AccountQuotaFormatting.help(for: expiredPlan, now: now), "总到期 已到期")
+        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: expiredPlan, now: now), "已到期")
+        // Chip help appends the provider site on its own line. Expired plan
+        // copy is only the expiry sentence: no percent, no reset verb.
+        XCTAssertEqual(
+            AccountQuotaFormatting.help(for: expiredPlan, now: now),
+            "已到期\nhttps://example.com"
+        )
 
         let deepseek = chip(
             kind: .deepseek,
@@ -371,34 +416,60 @@ final class AccountQuotaFormattingTests: XCTestCase {
                 resetsAt: now.addingTimeInterval(2 * 86_400)
             ))
         )
+        let qwenPlanEnd = now.addingTimeInterval(2 * 86_400)
+        let qwenText = AccountQuotaFormatting.planExpiryPhrase(until: qwenPlanEnd, now: now)!
         XCTAssertEqual(
             AccountQuotaFormatting.plainSummary(for: officialQwen, now: now),
-            "7天: 28% · 剩余 18,000/25,000 Credits 2d0h · 11月17日 06:13"
+            "7天 72% · \(qwenText)"
         )
         XCTAssertTrue(AccountQuotaFormatting.help(for: officialQwen, now: now).contains("千问官网套餐额度"))
-        XCTAssertTrue(
-            AccountQuotaFormatting.help(for: officialQwen, now: now)
-                .contains("7天 28%，剩余 18,000/25,000 Credits，2天后重置，11月17日 06:13")
-        )
+        let qwenHelp = AccountQuotaFormatting.help(for: officialQwen, now: now)
+        XCTAssertTrue(qwenHelp.contains("7天 72%"))
+        XCTAssertTrue(qwenHelp.contains("剩余 18,000/25,000 Credits"))
+        XCTAssertTrue(qwenHelp.contains(qwenText))
+        XCTAssertFalse(qwenHelp.contains("总到期"))
+        XCTAssertFalse(qwenHelp.contains("后到期"))
+        XCTAssertFalse(qwenHelp.contains("后重置"))
 
         let websiteQwen = chip(
             kind: .qwen,
             status: .qwenWebsite(QwenWebsiteQuota(
-                periodLabel: "1个月",
+                periodLabel: "月度",
                 remainingPercent: 6.8,
                 resetsAt: now.addingTimeInterval(45 * 60)
             ))
         )
+        let websiteExpiry = AccountQuotaFormatting.planExpiryPhrase(
+            until: now.addingTimeInterval(45 * 60),
+            now: now
+        )!
         XCTAssertEqual(
             AccountQuotaFormatting.plainSummary(for: websiteQwen, now: now),
-            "1个月: 6.8% 45m · 06:58"
+            "月度 6.8% · \(websiteExpiry)"
         )
-        XCTAssertTrue(
-            AccountQuotaFormatting.help(for: websiteQwen, now: now)
-                .contains("1个月 6.8%，45分钟后重置，11月15日 06:58")
-        )
+        let websiteHelp = AccountQuotaFormatting.help(for: websiteQwen, now: now)
+        XCTAssertTrue(websiteHelp.contains("月度 6.8%"))
+        XCTAssertTrue(websiteHelp.contains(websiteExpiry))
+        XCTAssertFalse(websiteHelp.contains("后重置"))
+        XCTAssertFalse(websiteHelp.contains("总到期"))
+        XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: websiteQwen, now: now).contains("45m"))
         XCTAssertFalse(AccountQuotaFormatting.help(for: deepseek, now: now).contains("后重置"))
         XCTAssertFalse(AccountQuotaFormatting.help(for: qwen, now: now).contains("后重置"))
+
+        let qwenWithoutEnd = chip(
+            kind: .qwen,
+            status: .qwenPlan(QwenPlanQuota(
+                usedPercent: 28,
+                remainingCredits: 18_000,
+                totalCredits: 25_000,
+                resetsAt: nil
+            ))
+        )
+        XCTAssertEqual(
+            AccountQuotaFormatting.plainSummary(for: qwenWithoutEnd, now: now),
+            "7天 72%"
+        )
+        XCTAssertFalse(AccountQuotaFormatting.help(for: qwenWithoutEnd, now: now).contains("总到期"))
     }
 
     func testCountdownBoundariesAndUtilizationTones() {
@@ -435,6 +506,21 @@ final class AccountQuotaFormattingTests: XCTestCase {
         XCTAssertEqual(AccountQuotaFormatting.resetDateText(overnight, now: evening), "9月24日 02:00")
         XCTAssertEqual(AccountQuotaFormatting.chineseCountdown(until: overnight, now: evening), "4小时0分")
         XCTAssertNil(AccountQuotaFormatting.resetClock(until: evening, now: overnight))
+        XCTAssertEqual(
+            AccountQuotaFormatting.planExpiryPhrase(until: overnight, now: evening),
+            "截至9月24日2时"
+        )
+        let withMinutes = calendar.date(from: DateComponents(year: 2026, month: 9, day: 24, hour: 2, minute: 7))!
+        XCTAssertEqual(
+            AccountQuotaFormatting.planExpiryPhrase(until: withMinutes, now: evening),
+            "截至9月24日2时7分"
+        )
+        let midnight = calendar.date(from: DateComponents(year: 2026, month: 9, day: 24, hour: 0, minute: 0))!
+        XCTAssertEqual(
+            AccountQuotaFormatting.planExpiryPhrase(until: midnight, now: evening),
+            "截至9月24日"
+        )
+        XCTAssertNil(AccountQuotaFormatting.planExpiryPhrase(until: evening, now: overnight))
 
         let expired = chip(
             kind: .kimi,
@@ -442,8 +528,10 @@ final class AccountQuotaFormattingTests: XCTestCase {
                 ParsedQuotaWindow(name: "five_hour", utilization: 12, resetsAt: now.addingTimeInterval(-60)),
             ])
         )
-        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: expired, now: now), "5小时: 12%")
+        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: expired, now: now), "5小时 88%")
+        XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: expired, now: now).contains("已到期"))
         XCTAssertFalse(AccountQuotaFormatting.help(for: expired, now: now).contains("后重置"))
+        XCTAssertFalse(AccountQuotaFormatting.help(for: expired, now: now).contains("已到期"))
 
         XCTAssertEqual(AccountQuotaFormatting.tone(forUtilization: 69.4), .green)
         XCTAssertEqual(AccountQuotaFormatting.tone(forUtilization: 69.5), .orange)
@@ -483,7 +571,7 @@ final class AccountQuotaFormattingTests: XCTestCase {
         )
     }
 
-    func testSortsChipsBySoonestExpiryFirstWithoutPinningCurrent() {
+    func testSortsChipsByEarliestExpiryFirstWithoutPinningCurrent() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let soon = now.addingTimeInterval(3_600)
         let mid = now.addingTimeInterval(3 * 86_400)
@@ -546,7 +634,7 @@ final class AccountQuotaFormattingTests: XCTestCase {
         )
     }
 
-    func testZhipuPlanExpiryDoesNotChangeProviderOrder() {
+    func testZhipuPlanExpiryIsTheCardExpiryForProviderOrder() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let weekly = now.addingTimeInterval(7 * 86_400)
         let other = now.addingTimeInterval(20 * 86_400)
@@ -568,7 +656,7 @@ final class AccountQuotaFormattingTests: XCTestCase {
                 ])
             ),
         ]
-        XCTAssertEqual(AccountQuotaFormatting.sortedChips(chips).map(\.id), ["zhipu", "other"])
+        XCTAssertEqual(AccountQuotaFormatting.sortedChips(chips).map(\.id), ["other", "zhipu"])
     }
 }
 
@@ -608,7 +696,7 @@ final class CCSwitchQuotaParserTests: XCTestCase {
     func testParsesQwenWebsiteQuotaText() {
         let data = Data("个人版 Pro 套餐\n月额度 剩余量 6.8 %\n重置时间 2026-10-05 00:00:00".utf8)
         let quota = QwenWebsiteQuotaParser.parse(data)
-        XCTAssertEqual(quota?.periodLabel, "1个月")
+        XCTAssertEqual(quota?.periodLabel, "月度")
         XCTAssertEqual(quota?.remainingPercent, 6.8)
         XCTAssertEqual(
             quota?.resetsAt?.timeIntervalSince1970,
@@ -619,7 +707,7 @@ final class CCSwitchQuotaParserTests: XCTestCase {
             QwenWebsiteQuotaParser.persistedData(for: $0, capturedAt: capturedAt)
         }
         let cached = persisted.flatMap(QwenWebsiteQuotaParser.parse)
-        XCTAssertEqual(cached?.periodLabel, "1个月")
+        XCTAssertEqual(cached?.periodLabel, "月度")
         XCTAssertEqual(cached?.remainingPercent, 6.8)
         XCTAssertEqual(cached?.capturedAt, capturedAt)
         XCTAssertEqual(cached?.isCached, true)
@@ -665,36 +753,264 @@ final class CCSwitchQuotaParserTests: XCTestCase {
         XCTAssertEqual(CCSwitchQuotaParsers.parseKimi(Data(#"{}"#.utf8)), .windows([]))
     }
 
-    func testParsesZhipuPlanExpiryFromTheValidRangeEnd() {
+    func testParsesKimiResetDatesFromCountRatioAndCLIBodies() {
+        let counted = CCSwitchQuotaParsers.parseKimi(Data(#"""
+        {"usage":{"limit":"2048","used":"10","remaining":"1834","resetTime":"2026-01-09T15:23:13.716839300Z"},"limits":[{"window":{"duration":300,"timeUnit":"TIME_UNIT_MINUTE"},"detail":{"limit":"200","used":"1","remaining":"61","resetTime":"2026-01-06T13:33:02.717479433Z"}}]}
+        """#.utf8))
+        guard case let .windows(countedWindows) = counted else {
+            return XCTFail("expected counted kimi windows")
+        }
+        XCTAssertEqual(countedWindows.map(\.name), ["five_hour", "weekly_limit"])
+        XCTAssertEqual(countedWindows[0].utilization, 69.5, accuracy: 0.0001)
+        XCTAssertEqual(countedWindows[1].utilization, Double(2048 - 1834) / 2048 * 100, accuracy: 0.0001)
+        assertReset(countedWindows[0].resetsAt, equals: "2026-01-06T13:33:02.717Z")
+        assertReset(countedWindows[1].resetsAt, equals: "2026-01-09T15:23:13.716Z")
+
+        let longFraction = "2026-01-09T15:23:13.716" + String(repeating: "8", count: 15) + "Z"
+        let truncated = CCSwitchQuotaParsers.parseKimi(Data("""
+        {"usage":{"limit":100,"remaining":100,"resetTime":"\(longFraction)"}}
+        """.utf8))
+        guard case let .windows(truncatedWindows) = truncated else {
+            return XCTFail("expected truncated kimi reset")
+        }
+        assertReset(truncatedWindows.first?.resetsAt, equals: "2026-01-09T15:23:13.716Z")
+
+        let alternateKeys = CCSwitchQuotaParsers.parseKimi(Data(#"""
+        {"limits":[{"detail":{"limit":"100","remaining":"25","reset_at":"1760000000"}}],"usage":{"limit":80,"used":20,"resetAt":"1760000000000"}}
+        """#.utf8))
+        guard case let .windows(alternateWindows) = alternateKeys else {
+            return XCTFail("expected alternate kimi reset keys")
+        }
+        XCTAssertEqual(alternateWindows.map(\.name), ["five_hour", "weekly_limit"])
+        XCTAssertEqual(alternateWindows.map { AccountQuotaFormatting.roundedPercent($0.utilization) }, [75, 25])
+        XCTAssertEqual(alternateWindows[0].resetsAt, Date(timeIntervalSince1970: 1_760_000_000))
+        XCTAssertEqual(alternateWindows[1].resetsAt, Date(timeIntervalSince1970: 1_760_000_000))
+
+        let missingReset = CCSwitchQuotaParsers.parseKimi(Data(#"""
+        {"limits":[{"detail":{"limit":100,"remaining":40,"resetTime":"not-a-date"}}],"usage":{"limit":80,"remaining":20,"resetTime":""}}
+        """#.utf8))
+        guard case let .windows(missingWindows) = missingReset else {
+            return XCTFail("expected kimi windows without resets")
+        }
+        XCTAssertEqual(missingWindows.map(\.name), ["five_hour", "weekly_limit"])
+        XCTAssertEqual(missingWindows.map { AccountQuotaFormatting.roundedPercent($0.utilization) }, [60, 75])
+        XCTAssertNil(missingWindows[0].resetsAt)
+        XCTAssertNil(missingWindows[1].resetsAt)
+
+        let ratios = CCSwitchQuotaParsers.parseKimi(Data(#"""
+        {"usages":{"limit_5h":{"used_ratio":0.5,"reset_time":"2026-09-22T08:37:00Z"},"limit_7d":{"used_ratio":1.4,"reset_time":"2026-09-29T08:37:00Z"},"limit_month_total":{"used_ratio":"0.25","reset_time":1760500000}},"limits":[{"detail":{"limit":100,"remaining":0,"resetTime":"2026-09-22T08:37:00Z"}}],"usage":{"limit":200,"remaining":0,"resetTime":"2026-09-29T08:37:00Z"}}
+        """#.utf8))
+        guard case let .windows(ratioWindows) = ratios else {
+            return XCTFail("expected kimi ratio windows")
+        }
+        XCTAssertEqual(ratioWindows.map(\.name), ["five_hour", "weekly_limit", "monthly"])
+        XCTAssertEqual(ratioWindows[0].utilization, 50, accuracy: 0.0001)
+        XCTAssertEqual(ratioWindows[1].utilization, 100, accuracy: 0.0001)
+        XCTAssertEqual(ratioWindows[2].utilization, 25, accuracy: 0.0001)
+        XCTAssertEqual(ratioWindows[2].resetsAt, Date(timeIntervalSince1970: 1_760_500_000))
+        XCTAssertNotNil(ratioWindows[0].resetsAt)
+        XCTAssertNotNil(ratioWindows[1].resetsAt)
+
+        let weeklyOnly = CCSwitchQuotaParsers.parseKimi(Data(#"""
+        {"usages":{"limit_7d":{"used_ratio":0.2,"reset_time":"2026-09-29T08:37:00Z"}}}
+        """#.utf8))
+        guard case let .windows(weeklyOnlyWindows) = weeklyOnly else {
+            return XCTFail("expected weekly-only ratio")
+        }
+        XCTAssertEqual(weeklyOnlyWindows.map(\.name), ["weekly_limit"])
+        XCTAssertEqual(weeklyOnlyWindows[0].utilization, 20, accuracy: 0.0001)
+
+        let fallback = CCSwitchQuotaParsers.parseKimi(Data(#"""
+        {"usages":{"limit_5h":{"used_ratio":0,"reset_time":"2026-09-22T08:37:00Z"},"limit_7d":{"used_ratio":0,"reset_time":"2026-09-29T08:37:00Z"}},"limits":[{"window":{"duration":300,"timeUnit":"TIME_UNIT_MINUTE"},"detail":{"limit":100,"used":60,"remaining":40,"resetTime":"2026-09-22T08:37:01Z"}}],"usage":{"limit":200,"used":150,"remaining":50,"resetTime":"2026-09-29T08:37:01.500Z"}}
+        """#.utf8))
+        guard case let .windows(fallbackWindows) = fallback else {
+            return XCTFail("expected kimi count fallback")
+        }
+        XCTAssertEqual(fallbackWindows.map(\.name), ["five_hour", "weekly_limit"])
+        XCTAssertEqual(fallbackWindows.map { AccountQuotaFormatting.roundedPercent($0.utilization) }, [60, 75])
+
+        let monthlyKeepsZero = CCSwitchQuotaParsers.parseKimi(Data(#"""
+        {"usages":{"limit_5h":{"used_ratio":0,"reset_time":"2026-09-22T08:37:00Z"},"limit_month_total":{"used_ratio":0.4,"reset_time":"2026-10-22T08:37:00Z"}},"limits":[{"detail":{"limit":100,"remaining":40,"resetTime":"2026-09-22T08:37:00Z"}}],"usage":{"limit":200,"remaining":50,"resetTime":"2026-09-29T08:37:00Z"}}
+        """#.utf8))
+        guard case let .windows(monthlyWindows) = monthlyKeepsZero else {
+            return XCTFail("expected monthly ratio to keep the zero session")
+        }
+        XCTAssertEqual(monthlyWindows.map(\.name), ["five_hour", "weekly_limit", "monthly"])
+        XCTAssertEqual(monthlyWindows.map { AccountQuotaFormatting.roundedPercent($0.utilization) }, [0, 75, 40])
+
+        let mismatched = CCSwitchQuotaParsers.parseKimi(Data(#"""
+        {"usages":{"limit_5h":{"used_ratio":0,"reset_time":"2026-09-22T08:37:00Z"}},"limits":[{"window":{"duration":7,"timeUnit":"TIME_UNIT_DAY"},"detail":{"limit":100,"remaining":40,"resetTime":"2026-09-22T08:37:00Z"}}],"usage":{"limit":200,"remaining":50,"resetTime":"2026-09-29T08:37:00Z"}}
+        """#.utf8))
+        guard case let .windows(mismatchedWindows) = mismatched else {
+            return XCTFail("expected mismatched period to keep the zero ratio")
+        }
+        XCTAssertEqual(mismatchedWindows.map(\.name), ["five_hour", "weekly_limit"])
+        XCTAssertEqual(mismatchedWindows.map { AccountQuotaFormatting.roundedPercent($0.utilization) }, [0, 75])
+
+        let drifted = CCSwitchQuotaParsers.parseKimi(Data(#"""
+        {"usages":{"limit_5h":{"used_ratio":0,"reset_time":"2026-09-22T08:37:00Z"},"limit_7d":{"used_ratio":0,"reset_time":"2026-09-29T08:37:00Z"}},"limits":[{"detail":{"limit":100,"remaining":40,"resetTime":"2026-09-22T08:37:03Z"}}],"usage":{"limit":200,"remaining":50,"resetTime":"2026-09-29T08:37:03Z"}}
+        """#.utf8))
+        guard case let .windows(driftedWindows) = drifted else {
+            return XCTFail("expected drifted resets to keep zero ratios")
+        }
+        XCTAssertEqual(driftedWindows.map { AccountQuotaFormatting.roundedPercent($0.utilization) }, [0, 0])
+
+        let cli = CCSwitchQuotaParsers.parseKimi(Data(#"""
+        {"data":{"quota":{"usages":{"limit5h":{"usedRatio":0.1,"resetAt":"2026-09-22T08:37:00Z"},"limit7d":{"usedRatio":0.2,"resetAt":1760000000},"monthTotal":{"usedRatio":0.3,"resetAt":"2026-10-22T08:37:00Z"},"monthCode":{"usedRatio":0.9,"resetAt":"2026-10-01T00:00:00Z"}}}}}
+        """#.utf8))
+        guard case let .windows(cliWindows) = cli else {
+            return XCTFail("expected kimi cli windows")
+        }
+        XCTAssertEqual(cliWindows.map(\.name), ["five_hour", "weekly_limit", "monthly"])
+        XCTAssertEqual(cliWindows.map { AccountQuotaFormatting.roundedPercent($0.utilization) }, [10, 20, 30])
+        XCTAssertNotNil(cliWindows[0].resetsAt)
+        XCTAssertEqual(cliWindows[1].resetsAt, Date(timeIntervalSince1970: 1_760_000_000))
+        XCTAssertNotNil(cliWindows[2].resetsAt)
+
+        let web = CCSwitchQuotaParsers.parseKimi(Data(#"""
+        {"usages":[{"scope":"FEATURE_OTHER","detail":{"limit":1,"remaining":0}},{"scope":"FEATURE_CODING","detail":{"limit":"2048","remaining":"1834","resetTime":"2026-01-09T15:23:13.716839300Z"},"limits":[{"window":{"duration":300,"timeUnit":"TIME_UNIT_MINUTE"},"detail":{"limit":"200","remaining":"61","resetTime":"2026-01-06T13:33:02.717479433Z"}}]}]}
+        """#.utf8))
+        guard case let .windows(webWindows) = web else {
+            return XCTFail("expected kimi web windows")
+        }
+        XCTAssertEqual(webWindows.map(\.name), ["five_hour", "weekly_limit"])
+        XCTAssertEqual(webWindows[0].utilization, 69.5, accuracy: 0.0001)
+        assertReset(webWindows[0].resetsAt, equals: "2026-01-06T13:33:02.717Z")
+        assertReset(webWindows[1].resetsAt, equals: "2026-01-09T15:23:13.716Z")
+        XCTAssertEqual(
+            CCSwitchQuotaParsers.parseKimi(Data(#"""
+            {"usages":[{"scope":"FEATURE_OTHER","detail":{"limit":1,"remaining":0}}]}
+            """#.utf8)),
+            .windows([])
+        )
+    }
+
+    func testKeepsOrdinaryISOResetDates() {
+        let parsed = CCSwitchQuotaParsers.parseOpenAI(Data(#"""
+        {"rate_limit":{"primary_window":{"used_percent":1,"limit_window_seconds":18000,"reset_at":"2026-09-22T08:37:00Z"},"secondary_window":{"used_percent":2,"limit_window_seconds":604800,"reset_at":"2026-09-22T08:37:00.500Z"}}}
+        """#.utf8))
+        guard case let .windows(windows) = parsed else {
+            return XCTFail("expected openai windows")
+        }
+        let plain = ISO8601DateFormatter()
+        plain.formatOptions = [.withInternetDateTime]
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        XCTAssertEqual(
+            windows.first { $0.name == "five_hour" }?.resetsAt,
+            plain.date(from: "2026-09-22T08:37:00Z")
+        )
+        XCTAssertEqual(
+            windows.first { $0.name == "weekly_limit" }?.resetsAt,
+            fractional.date(from: "2026-09-22T08:37:00.500Z")
+        )
+    }
+
+    private func assertReset(
+        _ date: Date?,
+        equals iso: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date, let expected = formatter.date(from: iso) else {
+            return XCTFail("missing reset \(String(describing: date)) expected \(iso)", file: file, line: line)
+        }
+        XCTAssertEqual(date.timeIntervalSince1970, expected.timeIntervalSince1970, accuracy: 0.001, file: file, line: line)
+    }
+
+    private func shanghaiFormatter() -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "Asia/Shanghai")
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return formatter
+    }
+
+    func testParsesZhipuPlanExpiryFromNextRenewTime() {
         let body = Data(#"""
         {"success":true,"data":[
-          {"status":"VALID","inCurrentPeriod":false,"valid":"2026-10-03 10:00:00-2026-12-03 10:00:00","nextRenewTime":"2026-10-03"},
-          {"status":"INVALID","inCurrentPeriod":true,"valid":"2026-10-03 10:00:00-2027-01-03 10:00:00"},
-          {"status":"VALID","inCurrentPeriod":true,"valid":"2026-09-03 10:00:00-2026-10-03 10:00:00","nextRenewTime":"2099-01-01"},
-          {"status":"VALID","inCurrentPeriod":true,"valid":"2026-10-03 10:00:00-2026-11-03 10:00:00","nextRenewTime":"2026-10-03"}
+          {"status":"VALID","inCurrentPeriod":false,"valid":"2026-10-03 10:00:00-2026-12-03 10:00:00","nextRenewTime":"2026-12-03"},
+          {"status":"INVALID","inCurrentPeriod":true,"valid":"2026-10-03 10:00:00-2027-01-03 10:00:00","nextRenewTime":"2027-01-03"},
+          {"status":"VALID","inCurrentPeriod":true,"valid":"2026-10-03 10:00:00-2026-11-03 10:00:00","nextRenewTime":"2026-10-03"},
+          {"status":"VALID","inCurrentPeriod":true,"valid":"2026-09-03 10:00:00-2026-10-03 10:00:00","nextRenewTime":"2099-01-01"}
         ]}
         """#.utf8)
         let window = CCSwitchQuotaParsers.parseZhipuSubscription(body)
         XCTAssertEqual(window?.name, ParsedQuotaWindow.planExpiryName)
         XCTAssertEqual(window?.utilization, 0)
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "Asia/Shanghai")
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        XCTAssertEqual(window?.resetsAt, formatter.date(from: "2026-11-03 10:00:00"))
-        XCTAssertNotEqual(window?.resetsAt, formatter.date(from: "2026-10-03 10:00:00"))
-        XCTAssertNotEqual(window?.resetsAt, formatter.date(from: "2026-12-03 10:00:00"))
+        let formatter = shanghaiFormatter()
+        XCTAssertEqual(window?.resetsAt, formatter.date(from: "2026-10-03 10:00:00"))
+        XCTAssertNotEqual(window?.resetsAt, formatter.date(from: "2026-10-03 00:00:00"))
+        XCTAssertNotEqual(window?.resetsAt, formatter.date(from: "2026-11-03 10:00:00"))
+        XCTAssertNotEqual(window?.resetsAt, formatter.date(from: "2026-09-24 21:12:00"))
+        XCTAssertNotEqual(window?.resetsAt, formatter.date(from: "2099-01-01 00:00:00"))
+
+        let timed = CCSwitchQuotaParsers.parseZhipuSubscription(Data(
+            #"{"success":true,"data":[{"status":"VALID","inCurrentPeriod":true,"valid":"2026-10-03 10:00:00-2026-11-03 10:00:00","nextRenewTime":"2026-10-03 21:12:47"}]}"#.utf8
+        ))
+        XCTAssertEqual(timed?.resetsAt, formatter.date(from: "2026-10-03 21:12:47"))
+
+        let dateOnly = CCSwitchQuotaParsers.parseZhipuSubscription(Data(
+            #"{"success":true,"data":[{"status":"VALID","inCurrentPeriod":true,"nextRenewTime":"2026-10-03"}]}"#.utf8
+        ))
+        XCTAssertEqual(dateOnly?.resetsAt, formatter.date(from: "2026-10-03 00:00:00"))
+
+        let otherDay = CCSwitchQuotaParsers.parseZhipuSubscription(Data(
+            #"{"success":true,"data":[{"status":"VALID","inCurrentPeriod":true,"valid":"2026-09-03 21:12:47-2026-10-03 21:12:47","nextRenewTime":"2026-10-03"}]}"#.utf8
+        ))
+        XCTAssertEqual(otherDay?.resetsAt, formatter.date(from: "2026-10-03 00:00:00"))
+        XCTAssertNotEqual(otherDay?.resetsAt, formatter.date(from: "2026-10-03 21:12:47"))
+    }
+
+    func testZhipuPlanExpiryFallsBackToTheValidRangeEnd() {
+        let body = Data(#"""
+        {"success":true,"data":[
+          {"status":"VALID","inCurrentPeriod":true,"valid":"2026-10-03 10:00:00-2026-11-03 10:00:00","nextRenewTime":" "},
+          {"status":"VALID","inCurrentPeriod":true,"valid":"2099-01-01 00:00:00-2099-02-01 00:00:00","nextRenewTime":"2099-01-01"}
+        ]}
+        """#.utf8)
+        let window = CCSwitchQuotaParsers.parseZhipuSubscription(body)
+        XCTAssertEqual(window?.resetsAt, shanghaiFormatter().date(from: "2026-11-03 10:00:00"))
     }
 
     func testZhipuSubscriptionWithoutACurrentPeriodAddsNothing() {
-        XCTAssertNil(CCSwitchQuotaParsers.parseZhipuSubscription(Data(
-            #"{"success":true,"data":[{"status":"VALID","inCurrentPeriod":true,"nextRenewTime":"2026-10-03"}]}"#.utf8
-        )))
         XCTAssertNil(CCSwitchQuotaParsers.parseZhipuSubscription(Data(#"{"success":false}"#.utf8)))
         XCTAssertNil(CCSwitchQuotaParsers.parseZhipuSubscription(Data("not-json".utf8)))
         XCTAssertNil(CCSwitchQuotaParsers.parseZhipuSubscription(Data(
-            #"{"success":true,"data":[{"status":"VALID","inCurrentPeriod":false,"valid":"2026-10-03 10:00:00-2026-12-03 10:00:00"}]}"#.utf8
+            #"{"success":true,"data":[{"status":"VALID","inCurrentPeriod":false,"valid":"2026-10-03 10:00:00-2026-12-03 10:00:00","nextRenewTime":"2026-10-03"}]}"#.utf8
         )))
+    }
+
+    func testParsesOpenAIPlanExpiryOnlyFromTheMatchingAccount() {
+        let iso = Data(#"""
+        {"accounts":{
+          "other":{"entitlement":{"expires_at":"2026-01-01T00:00:00Z","renews_at":"2026-12-01T00:00:00Z"}},
+          "account-id":{"entitlement":{"expires_at":"2026-10-15T00:00:00Z","renews_at":"2026-09-15T00:00:00Z"}}
+        },"account_ordering":["other","account-id"]}
+        """#.utf8)
+        let window = CCSwitchQuotaParsers.parseOpenAIPlanExpiry(iso, accountID: "account-id")
+        XCTAssertEqual(window?.name, ParsedQuotaWindow.planExpiryName)
+        XCTAssertEqual(window?.utilization, 0)
+        XCTAssertEqual(window?.resetsAt, ISO8601DateFormatter().date(from: "2026-10-15T00:00:00Z"))
+        XCTAssertNotEqual(window?.resetsAt, ISO8601DateFormatter().date(from: "2026-09-15T00:00:00Z"))
+        XCTAssertNotEqual(window?.resetsAt, ISO8601DateFormatter().date(from: "2026-01-01T00:00:00Z"))
+
+        let millis = Data(#"""
+        {"accounts":{"account-id":{"entitlement":{"expires_at":1790000000000,"renews_at":1700000000}}}}
+        """#.utf8)
+        XCTAssertEqual(
+            CCSwitchQuotaParsers.parseOpenAIPlanExpiry(millis, accountID: "account-id")?.resetsAt,
+            Date(timeIntervalSince1970: 1_790_000_000)
+        )
+        XCTAssertNil(CCSwitchQuotaParsers.parseOpenAIPlanExpiry(iso, accountID: "missing"))
+        XCTAssertNil(CCSwitchQuotaParsers.parseOpenAIPlanExpiry(iso, accountID: "  "))
+        XCTAssertNil(CCSwitchQuotaParsers.parseOpenAIPlanExpiry(
+            Data(#"{"accounts":{"account-id":{"entitlement":{"renews_at":"2026-10-15T00:00:00Z"}}}}"#.utf8),
+            accountID: "account-id"
+        ))
+        XCTAssertNil(CCSwitchQuotaParsers.parseOpenAIPlanExpiry(Data("not-json".utf8), accountID: "account-id"))
     }
 }
 
@@ -704,10 +1020,17 @@ final class AccountQuotaClientTests: XCTestCase {
             let body: String
             switch request.url?.host {
             case "chatgpt.com":
-                XCTAssertEqual(request.url?.path, "/backend-api/wham/usage")
                 XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer official-token")
                 XCTAssertEqual(request.value(forHTTPHeaderField: "ChatGPT-Account-ID"), "account-id")
-                body = #"{"rate_limit":{"primary_window":{"used_percent":42,"limit_window_seconds":18000,"reset_at":1760000000},"secondary_window":{"used_percent":13,"limit_window_seconds":604800,"reset_at":1760500000}}}"#
+                switch request.url?.path {
+                case "/backend-api/wham/usage":
+                    body = #"{"rate_limit":{"primary_window":{"used_percent":42,"limit_window_seconds":18000,"reset_at":1760000000},"secondary_window":{"used_percent":13,"limit_window_seconds":604800,"reset_at":1760500000}}}"#
+                case "/backend-api/accounts/check/v4-2023-04-27":
+                    body = "{}"
+                default:
+                    XCTFail("unexpected official path \(request.url?.path ?? "")")
+                    body = "{}"
+                }
             case "api.kimi.com":
                 XCTAssertEqual(request.url?.path, "/coding/v1/usages")
                 XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer unit-test-key")
@@ -764,8 +1087,128 @@ final class AccountQuotaClientTests: XCTestCase {
             .balances([ParsedBalance(currency: "CNY", amount: 12.36)]),
         ])
         let hosts = transport.requests.compactMap { $0.url?.host }
-        XCTAssertEqual(hosts.sorted(), ["api.deepseek.com", "api.kimi.com", "chatgpt.com"])
+        XCTAssertEqual(hosts.sorted(), ["api.deepseek.com", "api.kimi.com", "chatgpt.com", "chatgpt.com"])
+        XCTAssertEqual(
+            transport.requests.compactMap { request -> String? in
+                guard request.url?.host == "chatgpt.com" else { return nil }
+                return request.url?.path
+            },
+            [
+                "/backend-api/wham/usage",
+                "/backend-api/accounts/check/v4-2023-04-27",
+            ]
+        )
         XCTAssertFalse(chips.contains { AccountQuotaFormatting.plainSummary(for: $0, now: Date()).contains("unit-test-key") })
+    }
+
+    func testOfficialPlanExpiryUsesTheMatchingAccountAndKeepsUsageIfCheckFails() async throws {
+        let usage = #"{"rate_limit":{"primary_window":{"used_percent":42,"limit_window_seconds":18000,"reset_at":1760000000},"secondary_window":{"used_percent":13,"limit_window_seconds":604800,"reset_at":1760500000}}}"#
+        let usageWindows = [
+            ParsedQuotaWindow(name: "five_hour", utilization: 42, resetsAt: Date(timeIntervalSince1970: 1_760_000_000)),
+            ParsedQuotaWindow(name: "weekly_limit", utilization: 13, resetsAt: Date(timeIntervalSince1970: 1_760_500_000)),
+        ]
+        let check = #"""
+        {"accounts":{
+          "other-account":{"entitlement":{"expires_at":"2026-01-01T00:00:00Z","renews_at":"2026-12-31T00:00:00Z"}},
+          "account-id":{"entitlement":{"expires_at":"2026-10-15T00:00:00Z","renews_at":"2026-09-15T00:00:00Z"}}
+        },"account_ordering":["other-account"]}
+        """#
+        let matched = ScriptedQuotaTransport { request in
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer official-token")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "ChatGPT-Account-ID"), "account-id")
+            let body = request.url?.path == "/backend-api/accounts/check/v4-2023-04-27" ? check : usage
+            return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(body.utf8))
+        }
+        let matchedChips = try await AccountQuotaClient(transport: matched).refresh(targets: [
+            quotaTarget(
+                id: "official",
+                name: "OpenAI",
+                kind: .officialNote,
+                key: "must-not-be-sent",
+                accessToken: "official-token",
+                accountID: "account-id"
+            ),
+        ])
+        XCTAssertEqual(matched.requests.map { $0.url?.path }, [
+            "/backend-api/wham/usage",
+            "/backend-api/accounts/check/v4-2023-04-27",
+        ])
+        XCTAssertEqual(matchedChips.map(\.status), [
+            .windows(usageWindows + [
+                ParsedQuotaWindow(
+                    name: ParsedQuotaWindow.planExpiryName,
+                    utilization: 0,
+                    resetsAt: ISO8601DateFormatter().date(from: "2026-10-15T00:00:00Z")
+                ),
+            ]),
+        ])
+        let summary = AccountQuotaFormatting.plainSummary(
+            for: matchedChips[0],
+            now: Date(timeIntervalSince1970: 1_758_600_000)
+        )
+        XCTAssertTrue(summary.contains("5小时 58%"))
+        XCTAssertTrue(summary.contains("7天 87%"))
+        XCTAssertLessThan(summary.range(of: "5小时")!.lowerBound, summary.range(of: "7天")!.lowerBound)
+        XCTAssertTrue(summary.contains("截至10月15日8时"))
+        XCTAssertFalse(summary.contains("总到期"))
+        XCTAssertFalse(summary.contains("后重置"))
+        XCTAssertFalse(summary.contains("must-not-be-sent"))
+        XCTAssertFalse(summary.contains("official-token"))
+
+        let timedOut = ScriptedQuotaTransport { request in
+            if request.url?.path == "/backend-api/accounts/check/v4-2023-04-27" {
+                throw URLError(.timedOut)
+            }
+            return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(usage.utf8))
+        }
+        let timedOutChips = try await AccountQuotaClient(transport: timedOut).refresh(targets: [
+            quotaTarget(id: "official", name: "OpenAI", kind: .officialNote, key: nil, accessToken: "official-token", accountID: "account-id"),
+        ])
+        XCTAssertEqual(timedOutChips.map(\.status), [.windows(usageWindows)])
+
+        let rejected = ScriptedQuotaTransport { request in
+            if request.url?.path == "/backend-api/accounts/check/v4-2023-04-27" {
+                return AccountQuotaHTTPResponse(statusCode: 401, headers: [:], body: Data(#"{"error":"no"}"#.utf8))
+            }
+            return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(usage.utf8))
+        }
+        let rejectedChips = try await AccountQuotaClient(transport: rejected).refresh(targets: [
+            quotaTarget(id: "official", name: "OpenAI", kind: .officialNote, key: nil, accessToken: "official-token", accountID: "account-id"),
+        ])
+        XCTAssertEqual(rejectedChips.map(\.status), [.windows(usageWindows)])
+
+        let mismatch = ScriptedQuotaTransport { request in
+            let body = request.url?.path == "/backend-api/accounts/check/v4-2023-04-27" ? check : usage
+            return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(body.utf8))
+        }
+        let mismatchChips = try await AccountQuotaClient(transport: mismatch).refresh(targets: [
+            quotaTarget(id: "official", name: "OpenAI", kind: .officialNote, key: nil, accessToken: "official-token", accountID: "missing-account"),
+        ])
+        XCTAssertEqual(mismatchChips.map(\.status), [.windows(usageWindows)])
+        XCTAssertFalse(
+            AccountQuotaFormatting.plainSummary(for: mismatchChips[0], now: Date()).contains("总到期")
+        )
+
+        let renewsOnly = #"{"accounts":{"account-id":{"entitlement":{"renews_at":"2026-10-15T00:00:00Z"}}}}"#
+        let renews = ScriptedQuotaTransport { request in
+            let body = request.url?.path == "/backend-api/accounts/check/v4-2023-04-27" ? renewsOnly : usage
+            return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(body.utf8))
+        }
+        let renewsChips = try await AccountQuotaClient(transport: renews).refresh(targets: [
+            quotaTarget(id: "official", name: "OpenAI", kind: .officialNote, key: nil, accessToken: "official-token", accountID: "account-id"),
+        ])
+        XCTAssertEqual(renewsChips.map(\.status), [.windows(usageWindows)])
+
+        let noAccount = ScriptedQuotaTransport { request in
+            XCTAssertEqual(request.url?.path, "/backend-api/wham/usage")
+            XCTAssertNil(request.value(forHTTPHeaderField: "ChatGPT-Account-ID"))
+            return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(usage.utf8))
+        }
+        let noAccountChips = try await AccountQuotaClient(transport: noAccount).refresh(targets: [
+            quotaTarget(id: "official", name: "OpenAI", kind: .officialNote, key: nil, accessToken: "official-token"),
+        ])
+        XCTAssertEqual(noAccount.requests.map { $0.url?.path }, ["/backend-api/wham/usage"])
+        XCTAssertEqual(noAccountChips.map(\.status), [.windows(usageWindows)])
     }
 
     func testBadKeyDoesNotKeepAStaleQuotaButNetworkLossDoes() async throws {
@@ -872,19 +1315,20 @@ final class AccountQuotaClientTests: XCTestCase {
                 ParsedQuotaWindow(
                     name: "weekly_limit",
                     utilization: 100,
-                    resetsAt: Date(timeIntervalSince1970: 1_790_255_529.998)
+                    resetsAt: Date(timeIntervalSince1970: TimeInterval(1_790_255_529_998) / 1000)
                 ),
                 ParsedQuotaWindow(
                     name: ParsedQuotaWindow.planExpiryName,
                     utilization: 0,
-                    resetsAt: formatter.date(from: "2026-11-03 10:00:00")
+                    resetsAt: formatter.date(from: "2026-10-03 10:00:00")
                 ),
             ]),
         ])
         let summary = AccountQuotaFormatting.plainSummary(for: chips[0], now: Date(timeIntervalSince1970: 1_758_600_000))
-        XCTAssertTrue(summary.hasPrefix("5小时: 0%  7天:"))
-        XCTAssertTrue(summary.contains("总到期:"))
-        XCTAssertFalse(summary.contains("1个月"))
+        XCTAssertTrue(summary.hasPrefix("5小时 100% · 7天 0%"))
+        XCTAssertTrue(summary.contains("截至10月3日10时"))
+        XCTAssertFalse(summary.contains("总到期"))
+        XCTAssertFalse(summary.contains("月度"))
         XCTAssertFalse(summary.contains("unit-test-key"))
     }
 
