@@ -18,8 +18,9 @@ final class AppState: ObservableObject {
     @Published private(set) var selectedCategory = LeaderboardCategory.general
     @Published private(set) var selectedGrouping = LeaderboardGrouping.model
     @Published private(set) var isQuitting = false
-    /// Codex account quotas from the local CC Switch database. These are not
-    /// leaderboard rows, so they stay off the table.
+    /// Provider quotas from the local CC Switch database. These are not
+    /// leaderboard rows, so they stay off the table. Missing CC Switch or Codex
+    /// installs are not errors.
     @Published private(set) var quotaChips: [AccountQuotaChip] = []
     @Published private(set) var quotaUpdatedAt: Date?
     @Published private(set) var quotaUnavailable = false
@@ -140,8 +141,9 @@ final class AppState: ObservableObject {
         refreshNow()
     }
 
-    /// Loads Codex providers from the local CC Switch database and refreshes
-    /// their quotas. Credential material stays inside the client request.
+    /// Loads providers from the local CC Switch database and refreshes their
+    /// quotas. Credential material stays inside the client request. Does not
+    /// read a Codex install.
     private func refreshQuotas(
         minimumInterval: TimeInterval,
         inactiveMinimumInterval: TimeInterval = 0

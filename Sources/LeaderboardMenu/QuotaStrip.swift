@@ -2,10 +2,12 @@ import AppKit
 import SwiftUI
 import LeaderboardCore
 
-/// Codex provider quotas from the local CC Switch database.
+/// Provider quotas from the local CC Switch database.
 ///
 /// These are account balances, not properties of a ranked model, so they sit
-/// above the table instead of becoming another score column.
+/// above the table instead of becoming another score column. A missing CC
+/// Switch install, or an official provider with no stored login, stays hidden.
+/// Codex does not need to be installed.
 struct QuotaStrip: View {
     let chips: [AccountQuotaChip]
     let updatedAt: Date?
@@ -64,7 +66,7 @@ struct QuotaStrip: View {
             .font(.system(size: 11, weight: .medium))
             .foregroundStyle(.secondary)
             .fixedSize()
-            .help("本机 CC Switch 里的 Codex 供应商余量。没安装或读不懂配置时不显示")
+            .help("来自本机 CC Switch 的供应商余量。没安装 CC Switch 或读不懂配置时不显示，也不需要安装 Codex。")
     }
 
     @ViewBuilder
