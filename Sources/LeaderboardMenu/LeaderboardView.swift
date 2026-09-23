@@ -281,7 +281,7 @@ struct LeaderboardView: View {
                 kind: selectedCategory.leftKind,
                 preferSourceUpdatedAt: false
             )) { row in
-                LeaderboardCell(model: row.left)
+                LeaderboardCell(model: row.left, onCopyName: nameCopyAction)
             }
             .width(min: 500, ideal: 560, max: 680)
 
@@ -296,7 +296,7 @@ struct LeaderboardView: View {
                 kind: selectedCategory.rightKind,
                 preferSourceUpdatedAt: true
             )) { row in
-                LeaderboardCell(model: row.right)
+                LeaderboardCell(model: row.right, onCopyName: nameCopyAction)
             }
             .width(min: 500, ideal: 560, max: 680)
 
@@ -396,6 +396,29 @@ struct LeaderboardView: View {
         showScreenshotNote("已复制到剪贴板")
     }
 
+    /// Placeholder rows are not real names. A click there must not copy them.
+    private var nameCopyAction: ((String) -> Bool)? {
+        guard !needsSkeleton else { return nil }
+        return { name in
+            copyDisplayedName(name)
+        }
+    }
+
+    /// Copies the text in the name column. Company mode copies the company
+    /// name, because that is what the column shows.
+    @discardableResult
+    private func copyDisplayedName(_ name: String) -> Bool {
+        guard !name.isEmpty, !screenshot.isCapturing, !state.isQuitting else { return false }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        guard pasteboard.setString(name, forType: .string) else {
+            showScreenshotNote("复制失败")
+            return false
+        }
+        showScreenshotNote("已复制 \(name)")
+        return true
+    }
+
     private func showScreenshotNote(_ text: String) {
         screenshot.noteID += 1
         let noteID = screenshot.noteID
@@ -450,6 +473,9 @@ struct LeaderboardView: View {
         Text(message)
             .font(.system(size: 12, weight: .medium))
             .foregroundStyle(.primary)
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .frame(maxWidth: 480)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(.background, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -747,6 +773,8 @@ private struct LeaderboardCell: View {
     @Environment(\.colorScheme) private var colorScheme
 
     let model: LeaderboardCellModel?
+    /// Nil for skeleton placeholders, which must not be copied.
+    let onCopyName: ((String) -> Bool)?
 
     private var entry: LeaderboardEntry? { model?.entry }
 
@@ -793,10 +821,17 @@ private struct LeaderboardCell: View {
 
     @ViewBuilder
     private func modelName(_ entry: LeaderboardEntry) -> some View {
-        let name = Text(entry.name)
-            .lineLimit(1)
-            .truncationMode(.middle)
-        if let help = nameHelpText {
+        if onCopyName != nil {
+            CopyableModelName(
+                name: entry.name,
+                help: copyHelpText,
+                accessibilityLabel: copyAccessibilityLabel(entry),
+                onCopy: { onCopyName?(entry.name) ?? false }
+            )
+        } else if let help = nameHelpText {
+            let name = Text(entry.name)
+                .lineLimit(1)
+                .truncationMode(.middle)
             if isDomestic {
                 name
                     .help(help)
@@ -805,8 +840,31 @@ private struct LeaderboardCell: View {
                 name.help(help)
             }
         } else {
-            name
+            Text(entry.name)
+                .lineLimit(1)
+                .truncationMode(.middle)
         }
+    }
+
+    /// Full name stays in the tooltip because the cell truncates the middle.
+    private var copyHelpText: String {
+        var lines: [String] = []
+        if let name = entry?.name, !name.isEmpty {
+            lines.append(name)
+        }
+        lines.append("点击复制")
+        if isDomestic {
+            lines.append(model?.isCompany == true ? "国产公司" : "国产模型")
+        }
+        if let scoreHelp = model?.scoreHelp {
+            lines.append(scoreHelp)
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private func copyAccessibilityLabel(_ entry: LeaderboardEntry) -> String {
+        let name = isDomestic ? domesticAccessibilityLabel(entry) : entry.name
+        return "\(name)，点击复制"
     }
 
     /// Company mode must not keep saying 国产模型. The border is unchanged;
@@ -1184,6 +1242,175 @@ private final class LinkMenuButton: NSButton {
 
     override func mouseDown(with event: NSEvent) {
         coordinator?.popMenu(from: self)
+    }
+
+    override func resetCursorRects() {
+        discardCursorRects()
+        addCursorRect(bounds, cursor: .pointingHand)
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(
+            rect: .zero,
+            options: [.mouseEnteredAndExited, .cursorUpdate, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        ))
+    }
+
+    override func cursorUpdate(with event: NSEvent) {
+        NSCursor.pointingHand.set()
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        NSCursor.pointingHand.set()
+    }
+}
+
+/// Command Line Tools do not ship the SwiftUI `@State` macro, so the brief
+/// copied flash cannot live in view state.
+@MainActor
+private final class NameCopyFlash: ObservableObject {
+    @Published var copied = false
+    private var token = 0
+
+    func note() {
+        token += 1
+        let token = token
+        copied = true
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(900))
+            guard self.token == token else { return }
+            copied = false
+        }
+    }
+}
+
+/// Visible name, with a first-mouse button behind it. A SwiftUI tap is swallowed
+/// by the NSTableView cell, and this popover is not key until the click.
+private struct CopyableModelName: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @StateObject private var flash = NameCopyFlash()
+
+    let name: String
+    let help: String
+    let accessibilityLabel: String
+    let onCopy: () -> Bool
+
+    var body: some View {
+        nameLabel
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .background {
+                CopyNameButton(
+                    help: help,
+                    accessibilityLabel: accessibilityLabel,
+                    onClick: copy
+                )
+            }
+            .animation(.easeOut(duration: 0.15), value: flash.copied)
+    }
+
+    @ViewBuilder
+    private var nameLabel: some View {
+        let label = Text(name)
+            .lineLimit(1)
+            .truncationMode(.middle)
+        if flash.copied {
+            label.foregroundStyle(copiedInk)
+        } else {
+            label
+        }
+    }
+
+    private var copiedInk: Color {
+        colorScheme == .dark
+            ? Color(red: 0.49, green: 0.84, blue: 0.55)
+            : Color(red: 0.10, green: 0.52, blue: 0.26)
+    }
+
+    private func copy() {
+        guard onCopy() else { return }
+        flash.note()
+    }
+}
+
+private struct CopyNameButton: NSViewRepresentable {
+    let help: String
+    let accessibilityLabel: String
+    let onClick: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onClick: onClick)
+    }
+
+    func makeNSView(context: Context) -> CopyNameButtonView {
+        let button = CopyNameButtonView()
+        button.isTransparent = true
+        button.isBordered = false
+        button.title = ""
+        button.focusRingType = .none
+        button.refusesFirstResponder = true
+        button.setAccessibilityElement(true)
+        button.setAccessibilityRole(.button)
+        configure(button, context: context)
+        return button
+    }
+
+    func updateNSView(_ button: CopyNameButtonView, context: Context) {
+        configure(button, context: context)
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: CopyNameButtonView, context: Context) -> CGSize? {
+        // An empty proposal must not collapse the hit target to 0×0. Nil lets
+        // SwiftUI use the label size; a real proposal fills that label.
+        guard let width = proposal.width, let height = proposal.height, width > 0, height > 0 else {
+            return nil
+        }
+        return CGSize(width: width, height: height)
+    }
+
+    private func configure(_ button: CopyNameButtonView, context: Context) {
+        context.coordinator.onClick = onClick
+        button.coordinator = context.coordinator
+        button.toolTip = help
+        button.setAccessibilityLabel(accessibilityLabel)
+        button.setAccessibilityHelp(help)
+    }
+
+    final class Coordinator: NSObject {
+        var onClick: () -> Void
+
+        init(onClick: @escaping () -> Void) {
+            self.onClick = onClick
+        }
+
+        func click() {
+            onClick()
+        }
+    }
+}
+
+private final class CopyNameButtonView: NSButton {
+    weak var coordinator: CopyNameButton.Coordinator?
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        bounds.contains(point) ? self : nil
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard isEnabled else { return }
+        coordinator?.click()
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        guard isEnabled else { return false }
+        coordinator?.click()
+        return true
     }
 
     override func resetCursorRects() {
