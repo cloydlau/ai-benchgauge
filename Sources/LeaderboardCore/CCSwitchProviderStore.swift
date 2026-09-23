@@ -55,7 +55,7 @@ public enum CCSwitchProviderStore {
         homeDirectory: URL? = nil
     ) -> CCSwitchInstall {
         let home = homeDirectory ?? FileManager.default.homeDirectoryForCurrentUser
-        let pathsURL = appPathsURL ?? appPathsURL(in: home)
+        let pathsURL = appPathsURL ?? Self.appPathsURL(in: home)
         let root = overriddenConfigDirectory(appPathsURL: pathsURL, homeDirectory: home)
             ?? home.appending(path: ".cc-switch", directoryHint: .isDirectory)
         return CCSwitchInstall(
