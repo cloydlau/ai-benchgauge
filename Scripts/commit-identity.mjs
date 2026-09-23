@@ -6,6 +6,16 @@ import { join } from 'node:path'
 // 头像 URL 写入 Model-Avatar trailer，通知里再挂上探测到的图标。
 const DEFAULT_CONFIG_PATH = join(homedir(), '.codex', 'config.toml')
 const ICONES_FALLBACK = 'https://api.iconify.design/mdi:robot-outline.svg'
+// GitHub associates these official coding-agent Bots with their numeric
+// noreply addresses. Keep the selected model name separate from the email so
+// a commit can still say `grok-4.7` while GitHub resolves the Bot avatar.
+const GROK_GITHUB_EMAIL = '304785771+grokkybara[bot]@users.noreply.github.com'
+const QWEN_GITHUB_EMAIL = '269191875+qwen-code-dev-bot@users.noreply.github.com'
+const GEMINI_GITHUB_EMAIL = '224641728+gemini-cli-robot@users.noreply.github.com'
+// OpenAI Codex's official commit-attribution implementation uses this address.
+const OPENAI_GITHUB_EMAIL = 'noreply@openai.com'
+// Public contact address listed on the official Xiaomi MiMo GitHub profile.
+const MIMO_EMAIL = 'mimo@xiaomi.com'
 const HUMAN = Object.freeze({
   name: 'Cloyd Lau',
   email: '31238760+cloydlau@users.noreply.github.com',
@@ -29,7 +39,7 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
   {
     key: 'openai',
     brands: ['gpt', 'openai', 'codex', 'o1', 'o3', 'o4'],
-    email: 'noreply@openai.com',
+    email: OPENAI_GITHUB_EMAIL,
     favicon: 'https://openai.com/favicon.ico',
     icon: 'https://api.iconify.design/logos:openai-icon.svg',
   },
@@ -50,7 +60,7 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
   {
     key: 'grok',
     brands: ['grok', 'xai'],
-    email: 'noreply@x.ai',
+    email: GROK_GITHUB_EMAIL,
     // grok.com/favicon.ico 已 404。不能回退成 X 的图标。
     favicon: 'https://grok.com/images/favicon.svg',
     icon: 'https://api.iconify.design/hugeicons:grok.svg',
@@ -58,14 +68,14 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
   {
     key: 'qwen',
     brands: ['qwen', 'tongyi'],
-    email: 'noreply@qwen.ai',
+    email: QWEN_GITHUB_EMAIL,
     favicon: 'https://qwen.ai/favicon.ico',
     icon: 'https://api.iconify.design/simple-icons:alibabacloud.svg',
   },
   {
     key: 'gemini',
     brands: ['gemini', 'google'],
-    email: 'noreply@google.com',
+    email: GEMINI_GITHUB_EMAIL,
     favicon: 'https://www.google.com/favicon.ico',
     icon: 'https://api.iconify.design/logos:google-icon.svg',
   },
@@ -77,18 +87,11 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
     icon: 'https://api.iconify.design/logos:meta-icon.svg',
   },
   {
-    key: 'minimax',
-    brands: ['minimax'],
-    email: 'noreply@minimax.io',
-    favicon: 'https://www.minimax.io/favicon.ico',
-    icon: 'https://api.iconify.design/simple-icons:minimax.svg',
-  },
-  {
-    key: 'mistral',
-    brands: ['mistral'],
-    email: 'noreply@mistral.ai',
-    favicon: 'https://mistral.ai/favicon.ico',
-    icon: 'https://api.iconify.design/simple-icons:mistralai.svg',
+    key: 'mimo',
+    brands: ['mimo', 'xiaomi'],
+    email: MIMO_EMAIL,
+    favicon: 'https://mimo.xiaomi.com/favicon.ico',
+    icon: 'https://api.iconify.design/simple-icons:xiaomi.svg',
   },
   {
     key: 'cursor',
