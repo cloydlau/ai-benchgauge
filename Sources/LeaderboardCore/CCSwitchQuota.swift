@@ -205,8 +205,7 @@ public enum AccountQuotaFormatting {
         switch name {
         case "five_hour": "5小时"
         case "weekly_limit", "seven_day": "7天"
-        case "monthly": "1个月"
-        case ParsedQuotaWindow.planExpiryName: "总到期"
+        case "monthly": "月度"
         case "credits": "额度"
         default: name
         }
@@ -242,6 +241,24 @@ public enum AccountQuotaFormatting {
         let formatter = shanghaiFormatter()
         formatter.dateFormat = "M'月'd'日' HH:mm"
         return formatter.string(from: resetsAt)
+    }
+
+    /// Plan end copy. No window label and no countdown: `截至9月29日14时37分`.
+    /// A zero minute is omitted: `截至9月24日2时`. Midnight drops the time:
+    /// `截至10月5日`. Nil once that instant has passed.
+    public static func planExpiryPhrase(until resetsAt: Date, now: Date) -> String? {
+        guard countdownParts(until: resetsAt, now: now) != nil else { return nil }
+        let formatter = shanghaiFormatter()
+        let hour = shanghaiCalendar.component(.hour, from: resetsAt)
+        let minute = shanghaiCalendar.component(.minute, from: resetsAt)
+        if hour == 0, minute == 0 {
+            formatter.dateFormat = "M'月'd'日'"
+        } else if minute == 0 {
+            formatter.dateFormat = "M'月'd'日'H'时'"
+        } else {
+            formatter.dateFormat = "M'月'd'日'H'时'm'分'"
+        }
+        return "截至\(formatter.string(from: resetsAt))"
     }
 
     /// Spoken countdown for the tooltip. Minutes stay through 24 hours
@@ -295,15 +312,6 @@ public enum AccountQuotaFormatting {
         return formatter
     }
 
-    /// Compact chip suffix: ` 4h37m · 14:37`. Nil when the reset has passed.
-    private static func countdownSuffix(until resetsAt: Date?, now: Date) -> String? {
-        guard let resetsAt, let countdown = countdown(until: resetsAt, now: now) else { return nil }
-        if let clock = resetClock(until: resetsAt, now: now) {
-            return " \(countdown) · \(clock)"
-        }
-        return " \(countdown)"
-    }
-
     public static func balanceAmountText(_ amount: Double) -> String {
         let formatter = NumberFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -329,13 +337,20 @@ public enum AccountQuotaFormatting {
             .map(\.element)
     }
 
-    /// Chip, tooltip, and alert order. Zhipu is fixed: 5小时, 7天, 总到期.
-    /// Other providers stay later-reset-first.
+    /// Alert subject order. Chip and tooltip copy use a fixed 5小时 / 7天 / 月度
+    /// order instead. Zhipu usage windows stay 5小时, 7天, then the plan expiry.
+    /// Other providers keep later-reset-first for usage windows, and always draw
+    /// the plan expiry last. Plan end is not a reset, so it does not jump ahead
+    /// of a nearer usage window.
     static func displayWindows(
         _ windows: [ParsedQuotaWindow],
         kind: CCSwitchQuotaKind
     ) -> [ParsedQuotaWindow] {
-        guard kind == .zhipu else { return sortedWindows(windows) }
+        guard kind == .zhipu else {
+            let usage = windows.filter { $0.name != ParsedQuotaWindow.planExpiryName }
+            let expiry = windows.filter { $0.name == ParsedQuotaWindow.planExpiryName }
+            return sortedWindows(usage) + expiry
+        }
         let order = ["five_hour", "weekly_limit", ParsedQuotaWindow.planExpiryName]
         var grouped: [String: [ParsedQuotaWindow]] = [:]
         var rest: [ParsedQuotaWindow] = []
@@ -349,14 +364,14 @@ public enum AccountQuotaFormatting {
         return order.flatMap { grouped[$0] ?? [] } + rest
     }
 
-    /// Providers whose quota expires soonest come first. A chip's expiry is its
-    /// latest usage-window reset. The Zhipu subscription end is not a reset and
-    /// does not move the card. Missing expiry sorts last, ties keep the stored
-    /// order, and the current provider is not pinned.
+    /// Providers expiring soonest come first. A chip sorts by the expiry its
+    /// card shows: the plan end when there is one, otherwise the latest usage
+    /// reset. Missing expiry sorts last, ties keep the stored order, and the
+    /// current provider is not pinned.
     public static func sortedChips(_ chips: [AccountQuotaChip]) -> [AccountQuotaChip] {
         chips.enumerated()
             .sorted { lhs, rhs in
-                if let ordered = expiresSooner(latestReset(lhs.element), than: latestReset(rhs.element)) {
+                if let ordered = compareExpiry(chipExpiry(lhs.element), chipExpiry(rhs.element), soonerFirst: true) {
                     return ordered
                 }
                 return lhs.offset < rhs.offset
@@ -364,13 +379,16 @@ public enum AccountQuotaFormatting {
             .map(\.element)
     }
 
-    private static func latestReset(_ chip: AccountQuotaChip) -> Date? {
+    /// The date the card shows after 截至. A plan end wins over usage resets,
+    /// even when it has passed and the card reads 已到期. Qwen plan and
+    /// website chips show their own reset as the expiry.
+    private static func chipExpiry(_ chip: AccountQuotaChip) -> Date? {
         switch chip.status {
         case let .windows(windows):
-            return windows
-                .filter { $0.name != ParsedQuotaWindow.planExpiryName }
-                .compactMap(\.resetsAt)
-                .max()
+            if let plan = windows.first(where: { $0.name == ParsedQuotaWindow.planExpiryName }) {
+                return plan.resetsAt
+            }
+            return windows.compactMap(\.resetsAt).max()
         case let .qwenPlan(plan):
             return plan.resetsAt
         case let .qwenWebsite(quota):
@@ -384,12 +402,6 @@ public enum AccountQuotaFormatting {
     /// `nil` means the dates do not decide.
     private static func expiresLater(_ lhs: Date?, than rhs: Date?) -> Bool? {
         compareExpiry(lhs, rhs, soonerFirst: false)
-    }
-
-    /// `true` when `lhs` should precede `rhs` because it expires sooner.
-    /// A dated value still precedes a missing date. `nil` means the dates do not decide.
-    private static func expiresSooner(_ lhs: Date?, than rhs: Date?) -> Bool? {
-        compareExpiry(lhs, rhs, soonerFirst: true)
     }
 
     private static func compareExpiry(_ lhs: Date?, _ rhs: Date?, soonerFirst: Bool) -> Bool? {
@@ -414,7 +426,7 @@ public enum AccountQuotaFormatting {
         case let .message(text):
             return [QuotaTextRun(text: text, tone: .orange)]
         case let .windows(windows):
-            let runs = windowRuns(displayWindows(windows, kind: chip.kind), now: now)
+            let runs = windowRuns(windows, now: now)
             if runs.isEmpty {
                 return [QuotaTextRun(text: AccountQuotaMessage.queryFailed, tone: .orange)]
             }
@@ -424,17 +436,7 @@ public enum AccountQuotaFormatting {
         case let .qwenPlan(plan):
             return qwenPlanRuns(plan, now: now)
         case let .qwenWebsite(quota):
-            var runs = [
-                QuotaTextRun(text: "\(quota.periodLabel): ", tone: .secondary),
-                QuotaTextRun(
-                    text: "\(creditText(quota.remainingPercent))%",
-                    tone: tone(forUtilization: 100 - quota.remainingPercent)
-                ),
-            ]
-            if let suffix = countdownSuffix(until: quota.resetsAt, now: now) {
-                runs.append(QuotaTextRun(text: suffix, tone: .secondary))
-            }
-            return runs
+            return qwenWebsiteRuns(quota, now: now)
         }
     }
 
@@ -475,7 +477,7 @@ public enum AccountQuotaFormatting {
     private static func detailLines(for chip: AccountQuotaChip, now: Date) -> [String] {
         switch chip.status {
         case let .windows(windows) where !windows.isEmpty:
-            return displayWindows(windows, kind: chip.kind).map { windowHelpLine($0, now: now) }
+            return windowDetailLines(windows, now: now)
         case let .qwenPlan(plan):
             return [qwenPlanHelp(plan, now: now)]
         case let .qwenWebsite(quota):
@@ -486,48 +488,87 @@ public enum AccountQuotaFormatting {
         }
     }
 
-    private static func windowHelpLine(_ window: ParsedQuotaWindow, now: Date) -> String {
-        let label = label(forWindowName: window.name)
-        if window.name == ParsedQuotaWindow.planExpiryName {
-            return planExpiryHelp(label: label, resetsAt: window.resetsAt, now: now)
+    /// Chip order is fixed: 5小时, 7天, 月度, then any other usage window.
+    /// A reset time is not its own 到期 label; one expiry phrase is appended.
+    private static let displaySlotOrder = ["five_hour", "seven_day", "weekly_limit", "monthly"]
+
+    private static func orderedUsageWindows(_ windows: [ParsedQuotaWindow]) -> [ParsedQuotaWindow] {
+        let usage = windows.filter { $0.name != ParsedQuotaWindow.planExpiryName }
+        var grouped: [String: [ParsedQuotaWindow]] = [:]
+        var rest: [ParsedQuotaWindow] = []
+        for window in usage {
+            if displaySlotOrder.contains(window.name) {
+                grouped[window.name, default: []].append(window)
+            } else {
+                rest.append(window)
+            }
         }
-        let percent = "\(roundedPercent(window.utilization))%"
-        guard let resetsAt = window.resetsAt,
-              let phrase = chineseCountdown(until: resetsAt, now: now),
-              let date = resetDateText(resetsAt, now: now) else {
-            return "\(label) \(percent)"
-        }
-        return "\(label) \(percent)，\(phrase)后重置，\(date)"
+        return displaySlotOrder.flatMap { grouped[$0] ?? [] } + rest
     }
 
-    /// Plan end is not usage and does not reset. No percentage.
-    private static func planExpiryHelp(label: String, resetsAt: Date?, now: Date) -> String {
-        guard let resetsAt,
-              let phrase = chineseCountdown(until: resetsAt, now: now),
-              let date = resetDateText(resetsAt, now: now) else {
-            return "\(label) 已到期"
+    /// Plan end wins. Otherwise the latest usage-window reset is the expiry,
+    /// and only while it is still in the future. A passed window reset is not
+    /// called 已到期.
+    private static func expiryPresentation(
+        _ windows: [ParsedQuotaWindow],
+        now: Date
+    ) -> (date: Date?, show: Bool) {
+        if let plan = windows.first(where: { $0.name == ParsedQuotaWindow.planExpiryName }) {
+            return (plan.resetsAt, true)
         }
-        return "\(label) \(phrase)后到期，\(date)"
+        guard let latest = windows
+            .filter({ $0.name != ParsedQuotaWindow.planExpiryName })
+            .compactMap(\.resetsAt)
+            .max(),
+              latest > now else {
+            return (nil, false)
+        }
+        return (latest, true)
+    }
+
+    private static func remainingPercent(utilization: Double) -> Int {
+        min(100, max(0, 100 - roundedPercent(utilization)))
+    }
+
+    private static func windowDetailLines(_ windows: [ParsedQuotaWindow], now: Date) -> [String] {
+        var lines = orderedUsageWindows(windows).map { window in
+            let label = label(forWindowName: window.name)
+            return "\(label) \(remainingPercent(utilization: window.utilization))%"
+        }
+        let expiry = expiryPresentation(windows, now: now)
+        if expiry.show {
+            lines.append(planExpiryHelp(resetsAt: expiry.date, now: now))
+        }
+        return lines
+    }
+
+    /// Plan end is not usage and does not reset. No percentage, no label.
+    private static func planExpiryHelp(resetsAt: Date?, now: Date) -> String {
+        guard let resetsAt, let phrase = planExpiryPhrase(until: resetsAt, now: now) else {
+            return "已到期"
+        }
+        return phrase
     }
 
     private static func qwenPlanHelp(_ plan: QwenPlanQuota, now: Date) -> String {
-        var text = "7天 \(roundedPercent(plan.usedPercent))%，剩余 \(creditText(plan.remainingCredits))/\(creditText(plan.totalCredits)) Credits"
-        if let resetsAt = plan.resetsAt,
-           let phrase = chineseCountdown(until: resetsAt, now: now),
-           let date = resetDateText(resetsAt, now: now) {
-            text += "，\(phrase)后重置，\(date)"
+        var lines = ["7天 \(qwenPlanRemainingPercent(plan))%"]
+        if plan.totalCredits > 0 {
+            lines.append(
+                "剩余 \(creditText(plan.remainingCredits))/\(creditText(plan.totalCredits)) Credits"
+            )
         }
-        return text
+        if plan.resetsAt != nil {
+            lines.append(planExpiryHelp(resetsAt: plan.resetsAt, now: now))
+        }
+        return lines.joined(separator: "\n")
     }
 
     private static func qwenWebsiteHelp(_ quota: QwenWebsiteQuota, now: Date) -> String {
-        var text = "\(quota.periodLabel) \(creditText(quota.remainingPercent))%"
-        if let resetsAt = quota.resetsAt,
-           let phrase = chineseCountdown(until: resetsAt, now: now),
-           let date = resetDateText(resetsAt, now: now) {
-            text += "，\(phrase)后重置，\(date)"
+        var lines = ["\(quota.periodLabel) \(creditText(quota.remainingPercent))%"]
+        if let resetsAt = quota.resetsAt, resetsAt > now {
+            lines.append(planExpiryHelp(resetsAt: resetsAt, now: now))
         }
-        return text
+        return lines.joined(separator: "\n")
     }
 
     private static func cachedDateText(_ date: Date) -> String {
@@ -540,37 +581,50 @@ public enum AccountQuotaFormatting {
 
     private static func windowRuns(_ windows: [ParsedQuotaWindow], now: Date) -> [QuotaTextRun] {
         var runs: [QuotaTextRun] = []
-        for (index, window) in windows.enumerated() {
-            if index > 0 {
-                runs.append(QuotaTextRun(text: "  ", tone: .secondary))
-            }
-            let label = label(forWindowName: window.name)
-            if window.name == ParsedQuotaWindow.planExpiryName {
-                runs.append(contentsOf: planExpiryRuns(label: label, resetsAt: window.resetsAt, now: now))
-                continue
-            }
-            runs.append(QuotaTextRun(text: "\(label): ", tone: .secondary))
-            runs.append(
-                QuotaTextRun(
-                    text: "\(roundedPercent(window.utilization))%",
-                    tone: tone(forUtilization: window.utilization)
-                )
-            )
-            if let suffix = countdownSuffix(until: window.resetsAt, now: now) {
-                runs.append(QuotaTextRun(text: suffix, tone: .secondary))
-            }
+        for window in orderedUsageWindows(windows) {
+            appendSeparator(&runs)
+            runs.append(contentsOf: remainingRuns(
+                label: label(forWindowName: window.name),
+                percentText: "\(remainingPercent(utilization: window.utilization))",
+                utilizationForTone: window.utilization
+            ))
+        }
+        let expiry = expiryPresentation(windows, now: now)
+        if expiry.show {
+            appendSeparator(&runs)
+            runs.append(contentsOf: planExpiryRuns(resetsAt: expiry.date, now: now))
         }
         return runs
     }
 
-    private static func planExpiryRuns(label: String, resetsAt: Date?, now: Date) -> [QuotaTextRun] {
-        if let suffix = countdownSuffix(until: resetsAt, now: now) {
-            return [
-                QuotaTextRun(text: "\(label):", tone: .secondary),
-                QuotaTextRun(text: suffix, tone: .secondary),
-            ]
+    private static func appendSeparator(_ runs: inout [QuotaTextRun]) {
+        if !runs.isEmpty {
+            runs.append(QuotaTextRun(text: " · ", tone: .secondary))
         }
-        return [QuotaTextRun(text: "\(label): 已到期", tone: .secondary)]
+    }
+
+    private static func remainingRuns(
+        label: String,
+        percentText: String,
+        utilizationForTone: Double
+    ) -> [QuotaTextRun] {
+        [
+            QuotaTextRun(text: "\(label) ", tone: .secondary),
+            QuotaTextRun(
+                text: "\(percentText)%",
+                tone: tone(forUtilization: utilizationForTone)
+            ),
+        ]
+    }
+
+    private static func planExpiryRuns(resetsAt: Date?, now: Date) -> [QuotaTextRun] {
+        let text: String
+        if let resetsAt, let phrase = planExpiryPhrase(until: resetsAt, now: now) {
+            text = phrase
+        } else {
+            text = "已到期"
+        }
+        return [QuotaTextRun(text: text, tone: .secondary)]
     }
 
     private static func balanceRuns(_ balances: [ParsedBalance]) -> [QuotaTextRun] {
@@ -581,7 +635,7 @@ public enum AccountQuotaFormatting {
         var runs: [QuotaTextRun] = []
         for (index, balance) in visible.enumerated() {
             if index > 0 {
-                runs.append(QuotaTextRun(text: "  ", tone: .secondary))
+                runs.append(QuotaTextRun(text: " · ", tone: .secondary))
             }
             runs.append(QuotaTextRun(text: "余额 ", tone: .secondary))
             runs.append(QuotaTextRun(text: balanceAmountText(balance.amount), tone: .green))
@@ -591,24 +645,49 @@ public enum AccountQuotaFormatting {
     }
 
     private static func qwenPlanRuns(_ plan: QwenPlanQuota, now: Date) -> [QuotaTextRun] {
-        var runs = [
-            QuotaTextRun(text: "7天: ", tone: .secondary),
-            QuotaTextRun(text: "\(roundedPercent(plan.usedPercent))%", tone: tone(forUtilization: plan.usedPercent)),
-            QuotaTextRun(
-                text: " · 剩余 \(creditText(plan.remainingCredits))/\(creditText(plan.totalCredits)) Credits",
-                tone: .secondary
-            ),
-        ]
-        if let suffix = countdownSuffix(until: plan.resetsAt, now: now) {
-            runs.append(QuotaTextRun(text: suffix, tone: .secondary))
+        let remaining = qwenPlanRemainingPercent(plan)
+        var runs = remainingRuns(
+            label: "7天",
+            percentText: "\(remaining)",
+            utilizationForTone: Double(100 - remaining)
+        )
+        if plan.resetsAt != nil {
+            appendSeparator(&runs)
+            runs.append(contentsOf: planExpiryRuns(resetsAt: plan.resetsAt, now: now))
         }
         return runs
+    }
+
+    private static func qwenWebsiteRuns(_ quota: QwenWebsiteQuota, now: Date) -> [QuotaTextRun] {
+        var runs = remainingRuns(
+            label: quota.periodLabel,
+            percentText: creditText(quota.remainingPercent),
+            utilizationForTone: 100 - quota.remainingPercent
+        )
+        if let resetsAt = quota.resetsAt, resetsAt > now {
+            appendSeparator(&runs)
+            runs.append(contentsOf: planExpiryRuns(resetsAt: resetsAt, now: now))
+        }
+        return runs
+    }
+
+    /// Credits are the remaining amount when the CLI reports them. Otherwise
+    /// fall back to the complement of used percent.
+    private static func qwenPlanRemainingPercent(_ plan: QwenPlanQuota) -> Int {
+        if plan.totalCredits > 0, plan.remainingCredits.isFinite, plan.totalCredits.isFinite {
+            let ratio = plan.remainingCredits / plan.totalCredits * 100
+            if ratio.isFinite {
+                return min(100, max(0, roundedPercent(ratio)))
+            }
+        }
+        return remainingPercent(utilization: plan.usedPercent)
     }
 
     private static func creditText(_ value: Double) -> String {
         let formatter = NumberFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = true
         formatter.maximumFractionDigits = 2
         return formatter.string(from: NSNumber(value: value)) ?? String(value)
     }

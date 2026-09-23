@@ -317,7 +317,7 @@ public actor AccountQuotaClient {
     }
 
     /// Quota success is enough to show the card. A subscription failure keeps
-    /// the 5-hour and 7-day windows and simply omits 总到期.
+    /// the 5-hour and 7-day windows and simply omits the plan expiry.
     private static func zhipuChip(
         _ target: CCSwitchQuotaTarget,
         apiKey: String,
@@ -369,15 +369,12 @@ public actor AccountQuotaClient {
         guard let accessToken = CCSwitchQuotaCatalog.usableOfficialAccessToken(target.accessToken) else {
             return nil
         }
-        guard let url = URL(string: "https://chatgpt.com/backend-api/wham/usage") else {
+        guard let request = officialRequest(
+            path: "/backend-api/wham/usage",
+            accessToken: accessToken,
+            accountID: target.accountID
+        ) else {
             return chip(target, .failed)
-        }
-        var request = URLRequest(url: url, timeoutInterval: 15)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        if let accountID = usableKey(target.accountID) {
-            request.setValue(accountID, forHTTPHeaderField: "ChatGPT-Account-ID")
         }
         let response: AccountQuotaHTTPResponse
         do {
@@ -395,9 +392,17 @@ public actor AccountQuotaClient {
         guard (200...299).contains(response.statusCode) else {
             return chip(target, .failed)
         }
-        guard case let .windows(windows) = CCSwitchQuotaParsers.parseOpenAI(response.body),
-              !windows.isEmpty else {
+        guard case let .windows(quotaWindows) = CCSwitchQuotaParsers.parseOpenAI(response.body),
+              !quotaWindows.isEmpty else {
             return chip(target, .failed)
+        }
+        var windows = quotaWindows
+        if let expiry = try await officialPlanExpiry(
+            accessToken: accessToken,
+            accountID: target.accountID,
+            transport: transport
+        ) {
+            windows.append(expiry)
         }
         return AccountQuotaChip(
             id: target.id,
@@ -407,6 +412,52 @@ public actor AccountQuotaClient {
             isCurrent: target.isCurrent,
             status: .windows(windows)
         )
+    }
+
+    /// Usage success is enough to show the card. A check failure, a missing
+    /// account, or a missing `expires_at` omits the plan expiry and does not fail usage.
+    /// `renews_at` is not read. No account id means the check is skipped,
+    /// because a different account's expiry must not be shown.
+    private static func officialPlanExpiry(
+        accessToken: String,
+        accountID: String?,
+        transport: any AccountQuotaTransport
+    ) async throws -> ParsedQuotaWindow? {
+        guard let accountID = usableKey(accountID) else { return nil }
+        guard let request = officialRequest(
+            path: "/backend-api/accounts/check/v4-2023-04-27",
+            accessToken: accessToken,
+            accountID: accountID
+        ) else {
+            return nil
+        }
+        let response: AccountQuotaHTTPResponse
+        do {
+            response = try await transport.data(for: request)
+        } catch {
+            if Self.isCancellation(error) { throw CancellationError() }
+            return nil
+        }
+        guard response.body.count <= 1_048_576, (200...299).contains(response.statusCode) else {
+            return nil
+        }
+        return CCSwitchQuotaParsers.parseOpenAIPlanExpiry(response.body, accountID: accountID)
+    }
+
+    private static func officialRequest(
+        path: String,
+        accessToken: String,
+        accountID: String?
+    ) -> URLRequest? {
+        guard let url = URL(string: "https://chatgpt.com\(path)") else { return nil }
+        var request = URLRequest(url: url, timeoutInterval: 15)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let accountID = usableKey(accountID) {
+            request.setValue(accountID, forHTTPHeaderField: "ChatGPT-Account-ID")
+        }
+        return request
     }
 
 

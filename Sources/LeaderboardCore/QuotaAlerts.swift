@@ -94,7 +94,7 @@ public enum QuotaAlerts {
         let remainingPercent: Double?
         let resetsAt: Date?
         let expiryEligible: Bool
-        /// Plan end uses 到期, not 重置. It also has no remaining percent.
+        /// Plan end uses 截至, not 重置. It also has no remaining percent.
         let expiresRatherThanResets: Bool
     }
 
@@ -116,7 +116,7 @@ public enum QuotaAlerts {
                 let isPlanExpiry = window.name == ParsedQuotaWindow.planExpiryName
                 return Subject(
                     sourceID: window.name,
-                    label: AccountQuotaFormatting.label(forWindowName: window.name),
+                    label: isPlanExpiry ? "" : AccountQuotaFormatting.label(forWindowName: window.name),
                     remainingPercent: isPlanExpiry ? nil : remainingPercent(utilization: window.utilization),
                     resetsAt: window.resetsAt,
                     expiryEligible: !isShortWindow(window.name),
@@ -124,16 +124,31 @@ public enum QuotaAlerts {
                 )
             }
         case let .qwenPlan(plan):
-            return [
+            // Credits are the 7-day window. resetDate, when present, is the
+            // subscription end and must not be announced as a window reset.
+            var subjects = [
                 Subject(
                     sourceID: "plan",
                     label: "7天",
                     remainingPercent: remainingPercent(plan),
-                    resetsAt: plan.resetsAt,
-                    expiryEligible: true,
+                    resetsAt: nil,
+                    expiryEligible: false,
                     expiresRatherThanResets: false
                 ),
             ]
+            if plan.resetsAt != nil {
+                subjects.append(
+                    Subject(
+                        sourceID: ParsedQuotaWindow.planExpiryName,
+                        label: "",
+                        remainingPercent: nil,
+                        resetsAt: plan.resetsAt,
+                        expiryEligible: true,
+                        expiresRatherThanResets: true
+                    )
+                )
+            }
+            return subjects
         case let .qwenWebsite(quota):
             return [
                 Subject(
@@ -178,7 +193,7 @@ public enum QuotaAlerts {
             reason: .highRemaining,
             title: chip.shortName,
             subtitle: "余量达到\(highRemainingPercent)%",
-            body: qualifying.map { "\($0.0.label)余量 \($0.1)%" }.joined(separator: "；"),
+            body: qualifying.map { "\($0.0.label) \($0.1)%" }.joined(separator: "；"),
             componentKeys: qualifying.map {
                 componentKey(
                     chipID: chip.id,
@@ -204,12 +219,18 @@ public enum QuotaAlerts {
         }
         guard !qualifying.isEmpty else { return nil }
         let body = qualifying.map { subject, phrase in
-            let verb = subject.expiresRatherThanResets ? "后到期" : "后重置"
+            if subject.expiresRatherThanResets {
+                if let resetsAt = subject.resetsAt,
+                   let expiry = AccountQuotaFormatting.planExpiryPhrase(until: resetsAt, now: now) {
+                    return expiry
+                }
+                return "已到期"
+            }
             guard let resetsAt = subject.resetsAt,
                   let date = AccountQuotaFormatting.resetDateText(resetsAt, now: now) else {
-                return "\(subject.label)额度 \(phrase)\(verb)"
+                return "\(subject.label)额度 \(phrase)后重置"
             }
-            return "\(subject.label)额度 \(phrase)\(verb)，\(date)"
+            return "\(subject.label)额度 \(phrase)后重置，\(date)"
         }.joined(separator: "；")
         let subtitle = qualifying.allSatisfy(\.0.expiresRatherThanResets) ? "2天内到期" : "2天内重置"
         return QuotaAlert(
