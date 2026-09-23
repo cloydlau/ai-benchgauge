@@ -77,13 +77,7 @@ struct LeaderboardView: View {
                 }
                 .max() ?? 0
         }.max() ?? 0
-        let headerFont = NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .medium)
-        let headerWidth = category.boardKinds.enumerated().map { index, kind in
-            let title = index == 0 ? category.leftColumnTitle : category.rightColumnTitle
-            let header = boardColumnTitle(title, kind: kind, state: state)
-            return (header as NSString).size(withAttributes: [.font: headerFont]).width + 40
-        }.max() ?? 0
-        let desired = max(minimumWidth, ceil(max(columnWidth, headerWidth) * 2 + tableChromeWidth))
+        let desired = max(minimumWidth, ceil(columnWidth * 2 + tableChromeWidth))
         return min(desired, maximumWidth)
     }
 
@@ -856,9 +850,9 @@ struct LeaderboardView: View {
 
 }
 
-/// SwiftUI's TableColumn labels cannot span score and country columns. Install
-/// a native two-tier table header so each full source title stays above its
-/// corresponding one-line explanation, inside the table's own scroll view.
+/// SwiftUI's TableColumn labels only support plain text. Install a native
+/// one-line header that uses the space within each board's name column for its
+/// full title and source explanation, without changing table column widths.
 private struct TableChrome: NSViewRepresentable {
     let left: SourceLensDescription
     let right: SourceLensDescription
@@ -964,8 +958,7 @@ private struct TableChrome: NSViewRepresentable {
 }
 
 private final class SourceTableHeaderView: NSTableHeaderView {
-    static let height: CGFloat = 46
-    private static let titleHeight: CGFloat = 23
+    static let height: CGFloat = 24
     private var left = SourceLensDescription(emphasis: "", detail: "")
     private var right = SourceLensDescription(emphasis: "", detail: "")
 
@@ -983,57 +976,89 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         NSColor.controlBackgroundColor.setFill()
         bounds.fill()
 
-        let titleY = isFlipped ? CGFloat(0) : bounds.height - Self.titleHeight
         for index in tableView.tableColumns.indices {
             let columnRect = headerRect(ofColumn: index)
-            let titleRect = NSRect(
-                x: columnRect.minX, y: titleY,
-                width: columnRect.width, height: Self.titleHeight
-            )
-            tableView.tableColumns[index].headerCell.draw(withFrame: titleRect, in: self)
+            switch index {
+            case 1:
+                drawBoardHeader(
+                    tableView.tableColumns[index].headerCell.stringValue,
+                    summary: left,
+                    tint: .systemBlue,
+                    in: columnRect
+                )
+            case 4:
+                drawBoardHeader(
+                    tableView.tableColumns[index].headerCell.stringValue,
+                    summary: right,
+                    tint: .systemPurple,
+                    in: columnRect
+                )
+            default:
+                tableView.tableColumns[index].headerCell.draw(withFrame: columnRect, in: self)
+            }
         }
 
-        let summaryY = isFlipped ? Self.titleHeight : CGFloat(0)
-        let summaryHeight = bounds.height - Self.titleHeight
-        let leftRect = (1...3).map { headerRect(ofColumn: $0) }.reduce(NSRect.null) { $0.union($1) }
-        let rightRect = (4...6).map { headerRect(ofColumn: $0) }.reduce(NSRect.null) { $0.union($1) }
-        drawSummary(left, tint: .systemBlue, in: NSRect(
-            x: leftRect.minX, y: summaryY, width: leftRect.width, height: summaryHeight
-        ))
-        drawSummary(right, tint: .systemPurple, in: NSRect(
-            x: rightRect.minX, y: summaryY, width: rightRect.width, height: summaryHeight
-        ))
-
         NSColor.separatorColor.setFill()
-        NSRect(x: 0, y: summaryY, width: bounds.width, height: 1).fill()
         NSRect(x: 0, y: isFlipped ? bounds.height - 1 : 0, width: bounds.width, height: 1).fill()
     }
 
-    private func drawSummary(_ summary: SourceLensDescription, tint: NSColor, in rect: NSRect) {
-        let emphasisFont = NSFont.systemFont(ofSize: 10, weight: .semibold)
-        let detailFont = NSFont.systemFont(ofSize: 10)
-        let emphasisAttributes: [NSAttributedString.Key: Any] = [
-            .font: emphasisFont, .foregroundColor: tint,
-        ]
-        let emphasisWidth = (summary.emphasis as NSString)
-            .size(withAttributes: emphasisAttributes).width
-        let textY = rect.minY + (rect.height - 13) / 2
-        (summary.emphasis as NSString).draw(
-            in: NSRect(x: rect.minX + 8, y: textY, width: emphasisWidth + 2, height: 13),
-            withAttributes: emphasisAttributes
-        )
-        let detailX = rect.minX + 8 + emphasisWidth + 8
+    private func drawBoardHeader(
+        _ title: String,
+        summary: SourceLensDescription,
+        tint: NSColor,
+        in rect: NSRect
+    ) {
+        let availableWidth = max(0, rect.width - 10)
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineBreakMode = .byTruncatingTail
-        let detailAttributes: [NSAttributedString.Key: Any] = [
-            .font: detailFont,
-            .foregroundColor: NSColor.secondaryLabelColor,
-            .paragraphStyle: paragraph,
+        let sizePairs: [(CGFloat, CGFloat)] = [
+            (11, 10), (11, 9), (11, 8),
+            (10.5, 8), (10, 8), (9.5, 8), (9, 8),
+            (8.5, 7.5),
         ]
-        (summary.detail as NSString).draw(
-            in: NSRect(x: detailX, y: textY, width: max(0, rect.maxX - detailX - 8), height: 13),
-            withAttributes: detailAttributes
-        )
+        var text = NSAttributedString()
+        for (titleSize, descriptionSize) in sizePairs {
+            let candidate = NSMutableAttributedString(
+                string: title,
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: titleSize, weight: .medium),
+                    .foregroundColor: NSColor.labelColor,
+                ]
+            )
+            candidate.append(NSAttributedString(
+                string: " · ",
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: descriptionSize),
+                    .foregroundColor: NSColor.tertiaryLabelColor,
+                ]
+            ))
+            candidate.append(NSAttributedString(
+                string: summary.emphasis,
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: descriptionSize, weight: .semibold),
+                    .foregroundColor: tint,
+                ]
+            ))
+            candidate.append(NSAttributedString(
+                string: " " + summary.detail,
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: descriptionSize),
+                    .foregroundColor: NSColor.secondaryLabelColor,
+                ]
+            ))
+            candidate.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(
+                location: 0, length: candidate.length
+            ))
+            text = candidate
+            if candidate.size().width <= availableWidth { break }
+        }
+        let textHeight = ceil(text.size().height)
+        text.draw(in: NSRect(
+            x: rect.minX + 5,
+            y: rect.minY + (rect.height - textHeight) / 2,
+            width: availableWidth,
+            height: textHeight
+        ))
     }
 }
 
