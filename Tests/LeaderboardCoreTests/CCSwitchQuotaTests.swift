@@ -309,6 +309,15 @@ final class CCSwitchQuotaParserTests: XCTestCase {
             quota?.resetsAt?.timeIntervalSince1970,
             ISO8601DateFormatter().date(from: "2026-10-04T16:00:00Z")?.timeIntervalSince1970
         )
+        let capturedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let persisted = quota.flatMap {
+            QwenWebsiteQuotaParser.persistedData(for: $0, capturedAt: capturedAt)
+        }
+        let cached = persisted.flatMap(QwenWebsiteQuotaParser.parse)
+        XCTAssertEqual(cached?.periodLabel, "1个月")
+        XCTAssertEqual(cached?.remainingPercent, 6.8)
+        XCTAssertEqual(cached?.capturedAt, capturedAt)
+        XCTAssertEqual(cached?.isCached, true)
     }
 
     func testParsesKimiZhipuAndDeepSeekBodiesWithoutKeepingRawText() {
