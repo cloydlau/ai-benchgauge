@@ -104,10 +104,12 @@ public enum OrganizationLogoCatalog {
     }
 
     /// Theme color for the row wash and 3px bar.
-    /// Colored marks use a hex from the bundled logo, or the company's published
-    /// theme when the mark is the black form of that color. Black and white
-    /// marks stay achromatic; dark menus flip those to white instead of
-    /// inventing a hue to keep the bar visible.
+    /// Colored marks use a hue on the bundled logo. When that hue sits in a
+    /// same-screen pile, the color is a second block on the mark instead.
+    /// OpenAI is the published green, because the bundled blossom is black.
+    /// Kimi is an official secondary, because the mark's blue matches Meta.
+    /// Black marks use a medium display tint, not a logo color, so dark menus
+    /// do not flip the row to white.
     public static func brandColorHex(forOrganization organization: String?, modelName: String? = nil) -> String? {
         guard let key = resolvedKey(organization: organization, modelName: modelName) else { return nil }
         return brandColors[key]
@@ -125,8 +127,9 @@ public enum OrganizationLogoCatalog {
         return max(r, g, b) - min(r, g, b) <= 24
     }
 
-    /// Light menus use the stored ink. Dark menus use white for achromatic
-    /// marks, the other color of a black logo.
+    /// Stored colors are used in both themes. A truly achromatic hex still
+    /// flips to white in dark menus. Display tints are chromatic on purpose,
+    /// so they do not take that path.
     public static func displayBrandColorHex(_ hex: String, isDark: Bool) -> String {
         isDark && isAchromaticHex(hex) ? "#FFFFFF" : hex
     }
@@ -138,38 +141,41 @@ public enum OrganizationLogoCatalog {
     }
 
     private static let brandColors: [String: String] = [
-        // Hex sampled from the bundled mark, or the published theme when noted.
+        // Hue on the bundled mark, unless the comment names a second block
+        // or a published color. Google, Meta, and ByteDance share a blue;
+        // the wash cannot split them. ByteDance keeps the domestic border.
         "anthropic": "#D97757",
         "openai": "#10A37F", // published green; the bundled blossom is black
         "qwen": "#623AE7",
-        "kimi": "#027AFF", // blue dot on the mark
+        "kimi": "#00F6FF", // official secondary; the mark's blue matches Meta
         "google": "#4285F4",
         "deepseek": "#4D6BFE",
-        "tencent": "#0055E9",
+        "tencent": "#00A0D8", // cyan swirl, not the navy half
         "meta": "#0081FB",
-        "minimax": "#E93163",
-        "mistral": "#EE792F",
+        "minimax": "#F21985", // magenta petal, off Fal red
+        "mistral": "#F5C63A", // yellow pixel, off Xiaomi
         "nvidia": "#76B900",
         "bytedance": "#3C8CFF",
         "xiaomi": "#FF6900",
-        "klingai": "#04A6F0",
-        "luma": "#00A2FF",
+        "klingai": "#0EFF7F", // green end of the ring, off Luma cyan
+        "luma": "#00C8E8", // cyan face, not the purple face
         "fal": "#EC0648",
-        "pixverse": "#9727EF",
-        "microsoftai": "#0D91E1",
-        // Black or gray ink. Do not substitute a hue.
-        "zai": "#2C2C2C",
-        "spacexai": "#000000",
-        "stepfun": "#111111",
-        "krea": "#0C0C0C",
-        "ideogram": "#232426",
-        "runway": "#000000",
-        "blackforestlabs": "#000000",
-        "opencode": "#131010",
-        "devin": "#000000",
-        "reve": "#000000",
-        "videorebirth": "#000000",
-        "thinkingmachines": "#1C1C1E"
+        "pixverse": "#A129FF", // violet on the mark, off Qwen
+        "microsoftai": "#E24B9A", // ribbon magenta, not the blue
+        // Display tints for black marks. Not logo colors. Chromatic so dark
+        // menus do not flip the row to white.
+        "zai": "#9A6E96",
+        "spacexai": "#C4A15A",
+        "stepfun": "#6E8F58",
+        "krea": "#7C9450",
+        "ideogram": "#C48A62",
+        "runway": "#A67A62",
+        "blackforestlabs": "#7A6890",
+        "opencode": "#5F8A62",
+        "devin": "#C47890",
+        "reve": "#8A7094",
+        "videorebirth": "#6A8F6E",
+        "thinkingmachines": "#B09868"
     ]
 
     private static let bundledKeys: Set<String> = [

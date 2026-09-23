@@ -160,43 +160,55 @@ final class OrganizationLogoCatalogTests: XCTestCase {
             "anthropic": "#D97757",
             "openai": "#10A37F",
             "qwen": "#623AE7",
-            "kimi": "#027AFF",
+            "kimi": "#00F6FF",
             "google": "#4285F4",
             "deepseek": "#4D6BFE",
-            "tencent": "#0055E9",
+            "tencent": "#00A0D8",
             "meta": "#0081FB",
-            "minimax": "#E93163",
-            "mistral": "#EE792F",
+            "minimax": "#F21985",
+            "mistral": "#F5C63A",
             "nvidia": "#76B900",
             "bytedance": "#3C8CFF",
             "xiaomi": "#FF6900",
-            "klingai": "#04A6F0",
-            "luma": "#00A2FF",
+            "klingai": "#0EFF7F",
+            "luma": "#00C8E8",
             "fal": "#EC0648",
-            "pixverse": "#9727EF",
-            "microsoftai": "#0D91E1",
-            "zai": "#2C2C2C",
-            "spacexai": "#000000",
-            "stepfun": "#111111",
-            "krea": "#0C0C0C",
-            "ideogram": "#232426",
-            "runway": "#000000",
-            "blackforestlabs": "#000000",
-            "opencode": "#131010",
-            "devin": "#000000",
-            "reve": "#000000",
-            "videorebirth": "#000000",
-            "thinkingmachines": "#1C1C1E"
+            "pixverse": "#A129FF",
+            "microsoftai": "#E24B9A",
+            "zai": "#9A6E96",
+            "spacexai": "#C4A15A",
+            "stepfun": "#6E8F58",
+            "krea": "#7C9450",
+            "ideogram": "#C48A62",
+            "runway": "#A67A62",
+            "blackforestlabs": "#7A6890",
+            "opencode": "#5F8A62",
+            "devin": "#C47890",
+            "reve": "#8A7094",
+            "videorebirth": "#6A8F6E",
+            "thinkingmachines": "#B09868"
         ]
+        XCTAssertEqual(Set(expected.values).count, expected.count)
         for (key, color) in expected {
             XCTAssertEqual(OrganizationLogoCatalog.brandColorHex(forOrganization: key), color, key)
             XCTAssertEqual(OrganizationLogoCatalog.bundledLogoKey(forOrganization: key), key)
+            XCTAssertFalse(OrganizationLogoCatalog.isAchromaticHex(color), key)
+            XCTAssertEqual(
+                OrganizationLogoCatalog.displayBrandColorHex(color, isDark: true),
+                color,
+                key
+            )
         }
 
         for name in ["xAI", "SpaceXAI", "x.ai"] {
             let color = OrganizationLogoCatalog.brandColorHex(forOrganization: name)
-            XCTAssertEqual(color, "#000000", name)
-            XCTAssertTrue(OrganizationLogoCatalog.isAchromaticHex(color ?? ""))
+            XCTAssertEqual(color, "#C4A15A", name)
+            XCTAssertFalse(OrganizationLogoCatalog.isAchromaticHex(color ?? ""))
+            XCTAssertEqual(
+                OrganizationLogoCatalog.displayBrandColorHex(color ?? "", isDark: true),
+                "#C4A15A",
+                name
+            )
         }
         XCTAssertFalse(OrganizationLogoCatalog.isAchromaticHex("#10A37F"))
         XCTAssertFalse(OrganizationLogoCatalog.isAchromaticHex("#F59E0B"))
