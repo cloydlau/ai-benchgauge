@@ -34,23 +34,24 @@ struct QuotaStrip: View {
                 }
             }
         } else {
-            HStack(spacing: 8) {
+            // Chips keep their full text. A horizontal scroller clipped the reset
+            // times and still drew a bar when macOS shows scroll bars always.
+            HStack(alignment: .top, spacing: 8) {
                 sectionLabel
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(chips) { chip in
-                            QuotaChipView(
-                                chip: chip,
-                                now: now,
-                                onConnectQwen: needsQwenConnection(chip) ? onConnectQwen : nil
-                            )
-                        }
+                    .padding(.top, 5)
+                QuotaFlowLayout(spacing: 6, lineSpacing: 6) {
+                    ForEach(chips) { chip in
+                        QuotaChipView(
+                            chip: chip,
+                            now: now,
+                            onConnectQwen: needsQwenConnection(chip) ? onConnectQwen : nil
+                        )
                     }
-                    .padding(.vertical, 1)
                 }
-                .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
-                .frame(height: 28)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
                 statusLabel(now: now)
+                    .padding(.top, 5)
             }
         }
     }
@@ -247,5 +248,80 @@ private struct QuotaRunsText: View {
                 ? Color(red: 1.0, green: 0.45, blue: 0.42)
                 : Color(red: 0.86, green: 0.16, blue: 0.16)
         }
+    }
+}
+
+/// Lays chips out left to right and starts a new line when the next chip does
+/// not fit. A missing or zero width is treated as one row so the first layout
+/// pass does not stack every chip.
+private struct QuotaFlowLayout: Layout {
+    var spacing: CGFloat = 6
+    var lineSpacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let arranged = arrange(maxWidth: wrappingWidth(proposal.width), subviews: subviews)
+        let width = proposal.width.flatMap { $0.isFinite && $0 > 1 ? $0 : nil } ?? arranged.width
+        return CGSize(width: width, height: arranged.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let arranged = arrange(maxWidth: wrappingWidth(bounds.width), subviews: subviews)
+        for row in arranged.rows {
+            for item in row.items {
+                subviews[item.index].place(
+                    at: CGPoint(x: bounds.minX + item.x, y: bounds.minY + row.y),
+                    proposal: ProposedViewSize(item.size)
+                )
+            }
+        }
+    }
+
+    private func wrappingWidth(_ width: CGFloat?) -> CGFloat? {
+        guard let width, width.isFinite, width > 1 else { return nil }
+        return width
+    }
+
+    private struct Item {
+        let index: Int
+        let size: CGSize
+        let x: CGFloat
+    }
+
+    private struct Row {
+        var y: CGFloat
+        var height: CGFloat
+        var items: [Item]
+    }
+
+    private struct Arrangement {
+        var rows: [Row]
+        var width: CGFloat
+        var height: CGFloat
+    }
+
+    private func arrange(maxWidth: CGFloat?, subviews: Subviews) -> Arrangement {
+        var rows: [Row] = []
+        var current = Row(y: 0, height: 0, items: [])
+        var x: CGFloat = 0
+        var usedWidth: CGFloat = 0
+
+        for (index, subview) in subviews.enumerated() {
+            let size = subview.sizeThatFits(.unspecified)
+            // `x` already includes the gap after the previous chip.
+            if let maxWidth, x > 0, x + size.width > maxWidth {
+                rows.append(current)
+                current = Row(y: current.y + current.height + lineSpacing, height: 0, items: [])
+                x = 0
+            }
+            current.items.append(Item(index: index, size: size, x: x))
+            current.height = max(current.height, size.height)
+            usedWidth = max(usedWidth, x + size.width)
+            x += size.width + spacing
+        }
+        if !current.items.isEmpty || rows.isEmpty {
+            rows.append(current)
+        }
+        let height = rows.last.map { $0.y + $0.height } ?? 0
+        return Arrangement(rows: rows, width: usedWidth, height: height)
     }
 }
