@@ -16,6 +16,7 @@ final class AppState: ObservableObject {
     @Published private(set) var schedule = UpdateSchedule.initial()
     @Published private(set) var lastAttemptAt: Date?
     @Published private(set) var selectedCategory = LeaderboardCategory.general
+    @Published private(set) var selectedGrouping = LeaderboardGrouping.model
     @Published private(set) var isQuitting = false
     /// Codex account quotas from the local CC Switch database. These are not
     /// leaderboard rows, so they stay off the table.
@@ -47,6 +48,7 @@ final class AppState: ObservableObject {
             snapshot = cached
         }
         selectedCategory = CategoryPreference.load()
+        selectedGrouping = GroupingPreference.load()
     }
 
     func start() {
@@ -105,6 +107,14 @@ final class AppState: ObservableObject {
         } else {
             refreshNow()
         }
+    }
+
+    /// Grouping is a local view of the cached boards. Company rows are derived
+    /// from models already on the board, so this must not refetch.
+    func selectGrouping(_ grouping: LeaderboardGrouping) {
+        guard grouping != selectedGrouping else { return }
+        selectedGrouping = grouping
+        GroupingPreference.save(grouping)
     }
 
     private func startTimer() {

@@ -117,6 +117,20 @@ public enum LeaderboardCategory: String, Codable, CaseIterable, Identifiable, Se
     }
 }
 
+public enum LeaderboardGrouping: String, Codable, CaseIterable, Identifiable, Sendable {
+    case model
+    case company
+
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .model: "模型"
+        case .company: "公司"
+        }
+    }
+}
+
 public struct LeaderboardEntry: Codable, Equatable, Identifiable, Sendable {
     public var id: Int { rank }
     public let rank: Int
