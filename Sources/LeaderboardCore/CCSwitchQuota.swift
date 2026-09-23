@@ -93,7 +93,8 @@ public enum AccountQuotaMessage {
     public static let officialSummary = "查询中"
     public static let officialHelp = "正在查询官方用量"
     public static let emptyBalance = "无可用余额"
-    public static let emptyUsage = "暂无本地用量"
+    public static let connectOfficial = "未连接"
+    public static let connectOfficialHelp = "只显示千问账号套餐剩余，多设备共用，不统计本机请求"
 }
 
 public struct ParsedQuotaWindow: Equatable, Sendable {
@@ -115,28 +116,6 @@ public struct ParsedBalance: Equatable, Sendable {
     public init(currency: String, amount: Double) {
         self.currency = currency
         self.amount = amount
-    }
-}
-
-public struct ParsedUsageWindow: Equatable, Sendable {
-    public let name: String
-    public let requests: Int
-    public let inputTokens: Int64
-    public let outputTokens: Int64
-    public let costUSD: Double
-
-    public init(
-        name: String,
-        requests: Int,
-        inputTokens: Int64,
-        outputTokens: Int64,
-        costUSD: Double
-    ) {
-        self.name = name
-        self.requests = requests
-        self.inputTokens = inputTokens
-        self.outputTokens = outputTokens
-        self.costUSD = costUSD
     }
 }
 
@@ -162,7 +141,6 @@ public struct AccountQuotaChip: Identifiable, Equatable, Sendable {
         case balances([ParsedBalance])
         case qwenPlan(QwenPlanQuota)
         case qwenWebsite(QwenWebsiteQuota)
-        case usage([ParsedUsageWindow])
         case message(String)
     }
 
@@ -398,8 +376,6 @@ public enum AccountQuotaFormatting {
                 runs.append(QuotaTextRun(text: suffix, tone: .secondary))
             }
             return runs
-        case let .usage(windows):
-            return usageRuns(windows)
         }
     }
 
@@ -426,8 +402,6 @@ public enum AccountQuotaFormatting {
                     } else {
                         lines.append("千问官网个人版用量（网页显示的剩余百分比；网页未提供精确 Credits）")
                     }
-                case .usage:
-                    lines.append("CC Switch 本地统计，非千问官网套餐额度；qianwen CLI 未返回个人版额度时，请在千问官网查看实时用量")
                 default:
                     break
                 }
@@ -553,39 +527,6 @@ public enum AccountQuotaFormatting {
         return formatter.string(from: NSNumber(value: value)) ?? String(value)
     }
 
-    private static func usageRuns(_ windows: [ParsedUsageWindow]) -> [QuotaTextRun] {
-        guard !windows.isEmpty else {
-            return [QuotaTextRun(text: AccountQuotaMessage.emptyUsage, tone: .secondary)]
-        }
-        var runs: [QuotaTextRun] = []
-        for (index, window) in windows.enumerated() {
-            if index > 0 {
-                runs.append(QuotaTextRun(text: "  ", tone: .secondary))
-            }
-            let tokens = compactTokenCount(window.inputTokens + window.outputTokens)
-            runs.append(QuotaTextRun(text: "本地\(window.name): ", tone: .secondary))
-            runs.append(QuotaTextRun(text: "\(tokens) tokens", tone: .green))
-            runs.append(QuotaTextRun(text: " · \(window.requests)次", tone: .secondary))
-            if window.costUSD > 0 {
-                runs.append(QuotaTextRun(text: " · $\(balanceAmountText(window.costUSD))", tone: .secondary))
-            }
-        }
-        return runs
-    }
-
-    private static func compactTokenCount(_ value: Int64) -> String {
-        let absolute = max(value, 0)
-        if absolute >= 1_000_000_000 {
-            return String(format: "%.1fB", locale: Locale(identifier: "en_US_POSIX"), Double(absolute) / 1_000_000_000)
-        }
-        if absolute >= 1_000_000 {
-            return String(format: "%.1fM", locale: Locale(identifier: "en_US_POSIX"), Double(absolute) / 1_000_000)
-        }
-        if absolute >= 1_000 {
-            return String(format: "%.1fK", locale: Locale(identifier: "en_US_POSIX"), Double(absolute) / 1_000)
-        }
-        return String(absolute)
-    }
 }
 
 public enum CCSwitchQuotaCatalog {
@@ -678,8 +619,8 @@ public enum CCSwitchQuotaCatalog {
         let script = meta?["usage_script"] as? [String: Any]
         // A disabled script is not a quota source. Do not trust its provider
         // label, and do not query a key the user turned off. A Qwen token-plan
-        // host is still shown from local usage or the Qwen login, which never
-        // sends that key.
+        // host is still shown so the account quota can be connected. That key
+        // is never sent.
         if (script?["enabled"] as? Bool) == false {
             return qwenHostKind(record)
         }

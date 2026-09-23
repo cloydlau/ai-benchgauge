@@ -197,11 +197,8 @@ final class QuotaAlertsTests: XCTestCase {
         XCTAssertTrue(cached.isEmpty)
     }
 
-    func testBalancesUsageAndFailuresDoNotAlert() {
+    func testBalancesAndFailuresDoNotAlert() {
         XCTAssertTrue(alerts(status: .balances([ParsedBalance(currency: "USD", amount: 20)])).isEmpty)
-        XCTAssertTrue(alerts(status: .usage([
-            ParsedUsageWindow(name: "今天", requests: 1, inputTokens: 1, outputTokens: 1, costUSD: 0),
-        ])).isEmpty)
         XCTAssertTrue(alerts(status: .pending).isEmpty)
         XCTAssertTrue(alerts(status: .message(AccountQuotaMessage.queryFailed)).isEmpty)
         XCTAssertTrue(alerts(status: .note(text: "未登录", help: "help")).isEmpty)

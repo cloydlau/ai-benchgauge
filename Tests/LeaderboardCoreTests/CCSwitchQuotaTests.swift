@@ -320,21 +320,14 @@ final class AccountQuotaFormattingTests: XCTestCase {
 
         let qwen = chip(
             kind: .qwen,
-            status: .usage([
-                ParsedUsageWindow(
-                    name: "24小时",
-                    requests: 12,
-                    inputTokens: 1_234_567,
-                    outputTokens: 765_433,
-                    costUSD: 1.25
-                ),
-            ])
+            status: .note(
+                text: AccountQuotaMessage.connectOfficial,
+                help: AccountQuotaMessage.connectOfficialHelp
+            )
         )
-        XCTAssertEqual(
-            AccountQuotaFormatting.plainSummary(for: qwen, now: now),
-            "本地24小时: 2.0M tokens · 12次 · $1.25"
-        )
-        XCTAssertTrue(AccountQuotaFormatting.help(for: qwen, now: now).contains("非千问官网套餐额度"))
+        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: qwen, now: now), "未连接")
+        XCTAssertTrue(AccountQuotaFormatting.help(for: qwen, now: now).contains("不统计本机请求"))
+        XCTAssertFalse(AccountQuotaFormatting.help(for: qwen, now: now).contains("本地"))
 
         let officialQwen = chip(
             kind: .qwen,
@@ -811,32 +804,12 @@ final class AccountQuotaClientTests: XCTestCase {
         XCTAssertFalse(transport.requests.contains { $0.url?.host == "grok.com" })
     }
 
-    func testQwenUsesRecordedLocalUsageWithoutSendingItsModelKeyToAnUnknownEndpoint() async throws {
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "qwen-usage-\(UUID().uuidString)", directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let databaseURL = directory.appending(path: "cc-switch.db")
-        try runSQLite(
-            """
-            CREATE TABLE proxy_request_logs (
-                provider_id TEXT NOT NULL,
-                app_type TEXT NOT NULL,
-                input_tokens INTEGER NOT NULL DEFAULT 0,
-                output_tokens INTEGER NOT NULL DEFAULT 0,
-                total_cost_usd TEXT NOT NULL DEFAULT '0',
-                created_at INTEGER NOT NULL
-            );
-            INSERT INTO proxy_request_logs VALUES ('qwen', 'codex', 1000, 250, '0.12', \(Int(Date().timeIntervalSince1970)));
-            """,
-            database: databaseURL
-        )
+    func testQwenWithoutOfficialQuotaAsksToConnectAndDoesNotQueryItsKey() async throws {
         let client = AccountQuotaClient(
             transport: ScriptedQuotaTransport { request in
                 XCTFail("unexpected request \(request.url?.absoluteString ?? "")")
                 return AccountQuotaHTTPResponse(statusCode: 500, headers: [:], body: Data())
             },
-            databaseURL: databaseURL,
             qwenQuotaSource: FixedQwenQuotaSource(data: nil),
             now: { Date() }
         )
@@ -851,26 +824,14 @@ final class AccountQuotaClientTests: XCTestCase {
         ])
         XCTAssertEqual(
             chips.first?.status,
-            .usage([
-                ParsedUsageWindow(
-                    name: "24小时",
-                    requests: 1,
-                    inputTokens: 1000,
-                    outputTokens: 250,
-                    costUSD: 0.12
-                ),
-                ParsedUsageWindow(
-                    name: "7天",
-                    requests: 1,
-                    inputTokens: 1000,
-                    outputTokens: 250,
-                    costUSD: 0.12
-                ),
-            ])
+            .note(
+                text: AccountQuotaMessage.connectOfficial,
+                help: AccountQuotaMessage.connectOfficialHelp
+            )
         )
     }
 
-    func testQwenPrefersOfficialPlanOverLocalUsage() async throws {
+    func testQwenUsesOfficialPlanWhenSummaryIsSubscribed() async throws {
         let summary = Data(#"""
         {"token_plan":{"subscribed":true,"totalCredits":25000,"remainingCredits":18000,"usedPct":28}}
         """#.utf8)

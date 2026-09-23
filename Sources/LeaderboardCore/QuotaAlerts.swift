@@ -98,7 +98,7 @@ public enum QuotaAlerts {
 
     private static func isConclusive(_ status: AccountQuotaChip.Status) -> Bool {
         switch status {
-        case .pending, .note, .message, .usage:
+        case .pending, .note, .message:
             return false
         case let .qwenWebsite(quota) where quota.isCached:
             return false
@@ -139,7 +139,7 @@ public enum QuotaAlerts {
                     expiryEligible: true
                 ),
             ]
-        case .pending, .note, .balances, .usage, .message:
+        case .pending, .note, .balances, .message:
             return []
         }
     }
