@@ -147,7 +147,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             button.toolTip = "AI Leaderboards"
             return
         }
-        let fullName = state.currentQuotaModelName ?? current.shortName
+        let fullName = current.shortName
         let compactName = fullName.count > 24 ? String(fullName.prefix(23)) + "…" : fullName
         button.title = "\(compactName) · \(quota)"
         button.toolTip = "AI Leaderboards · \(fullName) · \(quota)"
