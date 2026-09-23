@@ -1300,6 +1300,7 @@ final class AccountQuotaClientTests: XCTestCase {
         )
         XCTAssertEqual(kept.map(\.status), [previous.status])
         XCTAssertEqual(kept.first?.isCurrent, true)
+        XCTAssertEqual(kept.first?.isStale, true)
     }
 
     func testMissingXAILoginDoesNotCallTheNetwork() async throws {
