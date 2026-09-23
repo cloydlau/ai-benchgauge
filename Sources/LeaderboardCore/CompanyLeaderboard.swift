@@ -129,9 +129,7 @@ public enum CompanyLeaderboard {
             if lhs.rank != rhs.rank { return lhs.rank < rhs.rank }
             return lhs.name < rhs.name
         }
-        let score = components.reduce(0.0) { partial, component in
-            partial + component.score * component.weight
-        }
+        let score = weightedMean(components)
         let best = bestMember(members)
         return Aggregate(
             name: displayName(key: key, best: best),
@@ -140,6 +138,20 @@ public enum CompanyLeaderboard {
             logoURL: best?.logoURL,
             components: components
         )
+    }
+
+    /// Normalized `1/rank` weights do not sum to 1 in floating point. Summing
+    /// `score * weight` then ranks a longer listing of the same scores above a
+    /// shorter one. The mean of a constant is that constant, so count cannot
+    /// move it.
+    private static func weightedMean(_ components: [CompanyStandingComponent]) -> Double {
+        guard let first = components.first else { return 0 }
+        if components.allSatisfy({ $0.score == first.score }) {
+            return first.score
+        }
+        return components.reduce(0.0) { partial, component in
+            partial + component.score * component.weight
+        }
     }
 
     private static func bestMember(_ members: [LeaderboardEntry]) -> LeaderboardEntry? {
