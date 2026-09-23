@@ -20,9 +20,6 @@ struct LeaderboardView: View {
         language.text(english, chinese)
     }
 
-    // Native header plus 20 rows. The panel itself grows only when the quota
-    // strip wraps, so the table never paints empty stripes below rank 20.
-    private static let tableHeight: CGFloat = 24 + 20 * 32
     private static let minimumWidth: CGFloat = 850
     // macOS Table adds its own padding around fixed-width columns.
     private static let tableChromeBaseWidth: CGFloat = 288
@@ -105,7 +102,25 @@ struct LeaderboardView: View {
         let view = LeaderboardView(state: state, maximumWidth: maximumWidth)
         let header = NSHostingView(rootView: view.header.frame(width: width))
         let footer = NSHostingView(rootView: view.footer.frame(width: width))
-        return ceil(header.fittingSize.height + tableHeight + 1 + footer.fittingSize.height)
+        // Native header plus visible rows. A country filter can shorten the table.
+        return ceil(header.fittingSize.height
+            + 24 + CGFloat(visibleRowCount(for: state)) * 32
+            + 1 + footer.fittingSize.height)
+    }
+
+    private static func visibleRowCount(for state: AppState) -> Int {
+        let kinds = state.selectedCategory.boardKinds
+        let raw = kinds.map { state.snapshot.boards[$0]?.entries ?? [] }
+        if raw.allSatisfy(\.isEmpty) || kinds.allSatisfy({ state.countryFilters[$0] == nil }) {
+            return 20
+        }
+        let counts = zip(kinds, raw).map { kind, entries in
+            let filter = state.countryFilters[kind] ?? .all
+            let matching = entries.filter(filter.matches)
+            return state.selectedGrouping == .company
+                ? CompanyLeaderboard.rank(matching).count : matching.count
+        }
+        return min(20, max(1, counts.max() ?? 0))
     }
 
     private static func boardColumnTitle(
@@ -470,7 +485,17 @@ struct LeaderboardView: View {
             leftHelp: selectedCategory.leftColumnTitle + tr(". ", "。")
                 + sourceHeaderHelp(kind: selectedCategory.leftKind, description: lenses.aa),
             rightHelp: selectedCategory.rightColumnTitle + tr(". ", "。")
-                + sourceHeaderHelp(kind: selectedCategory.rightKind, description: lenses.arena)
+                + sourceHeaderHelp(kind: selectedCategory.rightKind, description: lenses.arena),
+            leftKind: selectedCategory.leftKind,
+            rightKind: selectedCategory.rightKind,
+            language: language,
+            leftFilter: state.countryFilters[selectedCategory.leftKind] ?? .all,
+            rightFilter: state.countryFilters[selectedCategory.rightKind] ?? .all,
+            leftCountryOptions: countryOptions(for: selectedCategory.leftKind),
+            rightCountryOptions: countryOptions(for: selectedCategory.rightKind),
+            onCountryFilter: { kind, filter in
+                state.selectCountryFilter(filter, for: kind)
+            }
         ))
         .id(contentWidth)
         .redacted(reason: needsSkeleton ? .placeholder : [])
@@ -791,7 +816,7 @@ struct LeaderboardView: View {
 
     private var rows: [LeaderboardRow] {
         if needsSkeleton {
-            return (0..<20).map { index in
+            return (0..<Self.visibleRowCount(for: state)).map { index in
                 LeaderboardRow(
                     rank: index + 1,
                     left: .placeholder(rank: index + 1),
@@ -804,7 +829,7 @@ struct LeaderboardView: View {
         let right = displayedEntries(kind: selectedCategory.rightKind)
         let organizationLogos = self.organizationLogos
 
-        return (0..<20).map { index in
+        return (0..<Self.visibleRowCount(for: state)).map { index in
             LeaderboardRow(
                 rank: index + 1,
                 left: cellModel(
@@ -822,7 +847,8 @@ struct LeaderboardView: View {
     /// Company rows are derived here, from models already on the board.
     /// Fewer than 20 companies keep the existing dash slots.
     private func displayedEntries(kind: LeaderboardKind) -> [DisplayedLeaderboardEntry] {
-        let entries = state.snapshot.boards[kind]?.entries ?? []
+        let filter = state.countryFilters[kind] ?? .all
+        let entries = (state.snapshot.boards[kind]?.entries ?? []).filter(filter.matches)
         guard state.selectedGrouping == .company else {
             return entries.map {
                 DisplayedLeaderboardEntry(entry: $0, scoreHelp: nil, isCompany: false)
@@ -835,6 +861,22 @@ struct LeaderboardView: View {
                 isCompany: true
             )
         }
+    }
+
+    private func countryOptions(for kind: LeaderboardKind) -> [CountryFilter] {
+        let entries = state.snapshot.boards[kind]?.entries ?? []
+        let countries = entries.map {
+            OrganizationRegion.country($0.organization, modelName: $0.name)
+        }
+        let codes = Set(countries.compactMap { $0?.rawValue })
+        var options: [CountryFilter] = [.all]
+        options += OrganizationCountry.allCases
+            .filter { codes.contains($0.rawValue) }
+            .map(CountryFilter.country)
+        if countries.contains(where: { $0 == nil }) {
+            options.append(.unknown)
+        }
+        return options
     }
 
     private func cellModel(
@@ -887,6 +929,29 @@ struct LeaderboardView: View {
 
 }
 
+enum CountryFilter: Equatable {
+    case all
+    case country(OrganizationCountry)
+    case unknown
+
+    func matches(_ entry: LeaderboardEntry) -> Bool {
+        let country = OrganizationRegion.country(entry.organization, modelName: entry.name)
+        switch self {
+        case .all: return true
+        case .country(let selected): return country == selected
+        case .unknown: return country == nil
+        }
+    }
+
+    func title(language: AppLanguage) -> String {
+        switch self {
+        case .all: return language.text("All countries", "全部国家")
+        case .country(let country): return "\(country.flagEmoji)  \(country.localizedName(language: language))"
+        case .unknown: return language.text("Unknown country", "国家未知")
+        }
+    }
+}
+
 /// SwiftUI's TableColumn labels only support plain text. Install a native
 /// one-line header that uses the space within each board's name column for its
 /// full title and source explanation, without changing table column widths.
@@ -895,15 +960,35 @@ private struct TableChrome: NSViewRepresentable {
     let right: SourceLensDescription
     let leftHelp: String
     let rightHelp: String
+    let leftKind: LeaderboardKind
+    let rightKind: LeaderboardKind
+    let language: AppLanguage
+    let leftFilter: CountryFilter
+    let rightFilter: CountryFilter
+    let leftCountryOptions: [CountryFilter]
+    let rightCountryOptions: [CountryFilter]
+    let onCountryFilter: (LeaderboardKind, CountryFilter) -> Void
 
     func makeNSView(context: Context) -> ProbeView {
         let view = ProbeView()
-        view.configure(left: left, right: right, leftHelp: leftHelp, rightHelp: rightHelp)
+        view.configure(
+            left: left, right: right, leftHelp: leftHelp, rightHelp: rightHelp,
+            leftKind: leftKind, rightKind: rightKind,
+            language: language, leftFilter: leftFilter, rightFilter: rightFilter,
+            leftCountryOptions: leftCountryOptions, rightCountryOptions: rightCountryOptions,
+            onCountryFilter: onCountryFilter
+        )
         return view
     }
 
     func updateNSView(_ view: ProbeView, context: Context) {
-        view.configure(left: left, right: right, leftHelp: leftHelp, rightHelp: rightHelp)
+        view.configure(
+            left: left, right: right, leftHelp: leftHelp, rightHelp: rightHelp,
+            leftKind: leftKind, rightKind: rightKind,
+            language: language, leftFilter: leftFilter, rightFilter: rightFilter,
+            leftCountryOptions: leftCountryOptions, rightCountryOptions: rightCountryOptions,
+            onCountryFilter: onCountryFilter
+        )
     }
 
     final class ProbeView: NSView {
@@ -911,17 +996,41 @@ private struct TableChrome: NSViewRepresentable {
         private var right = SourceLensDescription(emphasis: "", detail: "")
         private var leftHelp = ""
         private var rightHelp = ""
+        private var leftKind: LeaderboardKind?
+        private var rightKind: LeaderboardKind?
+        private var language = AppLanguage.english
+        private var leftFilter = CountryFilter.all
+        private var rightFilter = CountryFilter.all
+        private var leftCountryOptions: [CountryFilter] = []
+        private var rightCountryOptions: [CountryFilter] = []
+        private var onCountryFilter: ((LeaderboardKind, CountryFilter) -> Void)?
 
         func configure(
             left: SourceLensDescription,
             right: SourceLensDescription,
             leftHelp: String,
-            rightHelp: String
+            rightHelp: String,
+            leftKind: LeaderboardKind,
+            rightKind: LeaderboardKind,
+            language: AppLanguage,
+            leftFilter: CountryFilter,
+            rightFilter: CountryFilter,
+            leftCountryOptions: [CountryFilter],
+            rightCountryOptions: [CountryFilter],
+            onCountryFilter: @escaping (LeaderboardKind, CountryFilter) -> Void
         ) {
             self.left = left
             self.right = right
             self.leftHelp = leftHelp
             self.rightHelp = rightHelp
+            self.leftKind = leftKind
+            self.rightKind = rightKind
+            self.language = language
+            self.leftFilter = leftFilter
+            self.rightFilter = rightFilter
+            self.leftCountryOptions = leftCountryOptions
+            self.rightCountryOptions = rightCountryOptions
+            self.onCountryFilter = onCountryFilter
             updateTable()
         }
 
@@ -987,9 +1096,18 @@ private struct TableChrome: NSViewRepresentable {
                 tableView.headerView = header
                 scrollView.tile()
             }
-            header.configure(left: left, right: right)
+            header.configure(
+                left: left, right: right, language: language,
+                leftKind: leftKind, rightKind: rightKind,
+                leftFilter: leftFilter, rightFilter: rightFilter,
+                leftCountryOptions: leftCountryOptions, rightCountryOptions: rightCountryOptions,
+                onCountryFilter: onCountryFilter
+            )
             tableView.tableColumns[1].headerToolTip = leftHelp
             tableView.tableColumns[4].headerToolTip = rightHelp
+            let filterHelp = language.text("Filter by country", "按国家筛选")
+            tableView.tableColumns[3].headerToolTip = filterHelp
+            tableView.tableColumns[6].headerToolTip = filterHelp
         }
     }
 }
@@ -998,6 +1116,16 @@ private final class SourceTableHeaderView: NSTableHeaderView {
     static let height: CGFloat = 24
     private var left = SourceLensDescription(emphasis: "", detail: "")
     private var right = SourceLensDescription(emphasis: "", detail: "")
+    private var language = AppLanguage.english
+    private var leftKind: LeaderboardKind?
+    private var rightKind: LeaderboardKind?
+    private var leftFilter = CountryFilter.all
+    private var rightFilter = CountryFilter.all
+    private var leftCountryOptions: [CountryFilter] = []
+    private var rightCountryOptions: [CountryFilter] = []
+    private var onCountryFilter: ((LeaderboardKind, CountryFilter) -> Void)?
+    private var menuChoices: [CountryFilter] = []
+    private var menuKind: LeaderboardKind?
 
     static func requiredNameColumnWidth(title: String, summary: SourceLensDescription) -> CGFloat {
         ceil(headerText(
@@ -1006,10 +1134,64 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         ).size().width + 10)
     }
 
-    func configure(left: SourceLensDescription, right: SourceLensDescription) {
+    func configure(
+        left: SourceLensDescription,
+        right: SourceLensDescription,
+        language: AppLanguage,
+        leftKind: LeaderboardKind?,
+        rightKind: LeaderboardKind?,
+        leftFilter: CountryFilter,
+        rightFilter: CountryFilter,
+        leftCountryOptions: [CountryFilter],
+        rightCountryOptions: [CountryFilter],
+        onCountryFilter: ((LeaderboardKind, CountryFilter) -> Void)?
+    ) {
         self.left = left
         self.right = right
+        self.language = language
+        self.leftKind = leftKind
+        self.rightKind = rightKind
+        self.leftFilter = leftFilter
+        self.rightFilter = rightFilter
+        self.leftCountryOptions = leftCountryOptions
+        self.rightCountryOptions = rightCountryOptions
+        self.onCountryFilter = onCountryFilter
         needsDisplay = true
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let column = column(at: point)
+        guard column == 3 || column == 6 else {
+            super.mouseDown(with: event)
+            return
+        }
+        let kind = column == 3 ? leftKind : rightKind
+        guard let kind else { return }
+        let selected = column == 3 ? leftFilter : rightFilter
+        menuChoices = column == 3 ? leftCountryOptions : rightCountryOptions
+        menuKind = kind
+        let menu = NSMenu()
+        for (index, choice) in menuChoices.enumerated() {
+            let item = NSMenuItem(
+                title: choice.title(language: language),
+                action: #selector(selectCountry(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.tag = index
+            item.state = choice == selected ? .on : .off
+            menu.addItem(item)
+            if choice == .all && menuChoices.count > 1 {
+                menu.addItem(.separator())
+            }
+        }
+        NSMenu.popUpContextMenu(menu, with: event, for: self)
+    }
+
+    @objc private func selectCountry(_ sender: NSMenuItem) {
+        guard let menuKind, menuChoices.indices.contains(sender.tag) else { return }
+        onCountryFilter?(menuKind, menuChoices[sender.tag])
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -1037,6 +1219,11 @@ private final class SourceTableHeaderView: NSTableHeaderView {
                     tint: .systemPurple,
                     in: columnRect
                 )
+            case 3, 6:
+                drawCountryHeader(
+                    selected: index == 3 ? leftFilter : rightFilter,
+                    in: columnRect
+                )
             default:
                 tableView.tableColumns[index].headerCell.draw(withFrame: columnRect, in: self)
             }
@@ -1044,6 +1231,21 @@ private final class SourceTableHeaderView: NSTableHeaderView {
 
         NSColor.separatorColor.setFill()
         NSRect(x: 0, y: isFlipped ? bounds.height - 1 : 0, width: bounds.width, height: 1).fill()
+    }
+
+    private func drawCountryHeader(selected: CountryFilter, in rect: NSRect) {
+        let cell = NSTableHeaderCell(textCell: "")
+        cell.alignment = .center
+        let title = language.text("Country", "国家") + " ⌄"
+        cell.attributedStringValue = NSAttributedString(
+            string: title,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 11, weight: .medium),
+                .foregroundColor: selected == .all
+                    ? NSColor.labelColor : NSColor.controlAccentColor,
+            ]
+        )
+        cell.draw(withFrame: rect, in: self)
     }
 
     private func drawBoardHeader(
