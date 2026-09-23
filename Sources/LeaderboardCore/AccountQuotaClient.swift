@@ -133,7 +133,6 @@ extension XaiAuthFile {
 public actor AccountQuotaClient {
     private let transport: any AccountQuotaTransport
     private let authFileURL: URL
-    private let databaseURL: URL
     private let qwenQuotaSource: any QwenQuotaSource
     private let now: @Sendable () -> Date
     private let xaiTokens = XAIAccessTokens()
@@ -141,13 +140,11 @@ public actor AccountQuotaClient {
     public init(
         transport: any AccountQuotaTransport = URLSessionAccountQuotaTransport(),
         authFileURL: URL = XaiAuthFile.defaultURL,
-        databaseURL: URL = CCSwitchProviderStore.defaultDatabaseURL,
         qwenQuotaSource: any QwenQuotaSource = QwenCLIQuotaSource(),
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.transport = transport
         self.authFileURL = authFileURL
-        self.databaseURL = databaseURL
         self.qwenQuotaSource = qwenQuotaSource
         self.now = now
     }
@@ -155,12 +152,10 @@ public actor AccountQuotaClient {
     public func refresh(
         targets: [CCSwitchQuotaTarget],
         previous: [AccountQuotaChip] = [],
-        authFileURL: URL? = nil,
-        databaseURL: URL? = nil
+        authFileURL: URL? = nil
     ) async throws -> [AccountQuotaChip] {
         let transport = self.transport
         let authFileURL = authFileURL ?? self.authFileURL
-        let databaseURL = databaseURL ?? self.databaseURL
         let keyTargets = targets.filter { target in
             switch target.kind {
             case .kimi, .zhipu, .deepseek: true
@@ -201,12 +196,9 @@ public actor AccountQuotaClient {
                 kind: target.kind,
                 isCurrent: target.isCurrent,
                 status: resolvedQwenStatus
-                    ?? .usage(
-                        CCSwitchProviderStore.localUsage(
-                            providerID: target.id,
-                            databaseURL: databaseURL,
-                            now: now()
-                        )
+                    ?? .note(
+                        text: AccountQuotaMessage.connectOfficial,
+                        help: AccountQuotaMessage.connectOfficialHelp
                     )
             )
         }
@@ -486,7 +478,7 @@ public actor AccountQuotaClient {
                 isCurrent: chip.isCurrent,
                 status: prior.status
             )
-        case .pending, .note, .usage, .message:
+        case .pending, .note, .message:
             return chip
         }
     }
