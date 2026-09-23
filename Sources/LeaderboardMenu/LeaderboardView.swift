@@ -66,15 +66,8 @@ struct LeaderboardView: View {
     private var header: some View {
         // Gap lives on the chip row so the screenshot anchor includes it.
         // Cropping that frame closes the gap instead of leaving a hole.
-        // Status is a full-width line so a long failure caption is not trapped
-        // in the 346pt side column, and the tabs stay aligned with the title.
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 6) {
-                titleRow
-                TimelineView(.periodic(from: .now, by: 60)) { context in
-                    freshnessLine(now: context.date)
-                }
-            }
+            titleRow
             if showsQuotaStrip {
                 QuotaStrip(
                     chips: state.quotaChips,
@@ -97,8 +90,9 @@ struct LeaderboardView: View {
     }
 
     private var titleRow: some View {
-        // Equal side columns keep the tabs centered. Status is the line below,
-        // not a corner label and not a chip-row timestamp.
+        // Equal side columns keep the tabs centered. The whole freshness
+        // phrase sits in the trailing column, not under the title and not
+        // beside the chips.
         HStack(alignment: .center, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("AI Leaderboards")
@@ -115,9 +109,10 @@ struct LeaderboardView: View {
                 categoryPicker
             }
 
-            Color.clear
-                .frame(maxWidth: .infinity, maxHeight: 1)
-                .accessibilityHidden(true)
+            TimelineView(.periodic(from: .now, by: 60)) { context in
+                freshnessLine(now: context.date)
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .animation(nil, value: state.selectedCategory)
         .animation(nil, value: state.selectedGrouping)
@@ -149,15 +144,17 @@ struct LeaderboardView: View {
         state.selectedCategory
     }
 
-    /// One caption for every freshness fact. They used to sit in three places:
-    /// under the title, at the trailing edge, and beside the quota chips.
+    /// One caption for every freshness fact, pinned to the top-right.
+    /// The side column is about 346pt; a long failure phrase scales instead
+    /// of wrapping into the tabs or growing a second line.
     private func freshnessLine(now: Date) -> some View {
         freshnessText(now: now)
             .font(.system(size: 11))
             .monospacedDigit()
             .lineLimit(1)
-            .minimumScaleFactor(0.9)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .minimumScaleFactor(0.8)
+            .multilineTextAlignment(.trailing)
+            .frame(maxWidth: .infinity, alignment: .trailing)
             .help(freshnessHelp(now: now))
     }
 
