@@ -63,9 +63,10 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         // slide. That second slide is the down-left twitch after open.
         popover.animates = false
         popover.delegate = self
+        let initialWidth = LeaderboardView.preferredWidth(for: state, maximumWidth: initialMaximumWidth)
         let contentSize = NSSize(
-            width: LeaderboardView.preferredWidth(for: state, maximumWidth: initialMaximumWidth),
-            height: LeaderboardView.contentHeight
+            width: initialWidth,
+            height: LeaderboardView.preferredHeight(for: state, width: initialWidth, maximumWidth: initialMaximumWidth)
         )
         // Resize explicitly so AppKit cannot re-anchor the popover on each
         // SwiftUI layout pass.
@@ -231,21 +232,26 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             hosting.rootView = LeaderboardView(state: state, maximumWidth: limit)
         }
         let width = LeaderboardView.preferredWidth(for: state, maximumWidth: limit)
+        let height = LeaderboardView.preferredHeight(for: state, width: width, maximumWidth: limit)
         let oldWidth = popover.contentSize.width
-        guard abs(width - oldWidth) > 0.5 else { return }
+        let oldHeight = popover.contentSize.height
+        guard abs(width - oldWidth) > 0.5 || abs(height - oldHeight) > 0.5 else { return }
 
         let window = popover.isShown ? hosting.view.window : nil
         if let window {
             let delta = width - oldWidth
+            let heightDelta = height - oldHeight
             var frame = window.frame
             frame.origin.x -= delta // Keep the right edge near the menu item.
+            frame.origin.y -= heightDelta // Keep the top edge under the menu bar.
             frame.size.width += delta
+            frame.size.height += heightDelta
             settledPopoverFrame = frameInsetFromScreenEdges(frame, screen: window.screen)
             framePinAttempts = 0
             installFramePin(on: window)
         }
 
-        let size = NSSize(width: width, height: LeaderboardView.contentHeight)
+        let size = NSSize(width: width, height: height)
         hosting.preferredContentSize = size
         popover.contentSize = size
 
