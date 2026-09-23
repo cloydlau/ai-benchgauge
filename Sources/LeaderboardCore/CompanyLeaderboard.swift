@@ -52,14 +52,18 @@ public enum CompanyLeaderboard {
         }
     }
 
-    public static func scoreHelp(for standing: CompanyStanding) -> String {
+    public static func scoreHelp(
+        for standing: CompanyStanding,
+        language: AppLanguage = .chinese
+    ) -> String {
         let details = standing.components.enumerated().map { index, component in
-            let rank = "第\(component.rank)名"
+            let rank = language.text("#\(component.rank)", "第\(component.rank)名")
             let score = scoreText(component.score)
-            let marker = index == 0 ? " · 最强" : ""
+            let marker = index == 0 ? language.text(" · strongest", " · 最强") : ""
             return "\(component.name) · \(rank) · \(score)\(marker)"
         }
-        return ([scoreExplanation] + details).joined(separator: "\n")
+        return ([language.text("Score uses the strongest model", scoreExplanation)] + details)
+            .joined(separator: "\n")
     }
 
     /// Names that still resolve through the logo, purchase, and region catalogs.

@@ -205,7 +205,7 @@ public enum AccountQuotaFormatting {
         switch name {
         case "five_hour": "5小时"
         case "weekly_limit", "seven_day": "7天"
-        case "monthly": "月度"
+        case "monthly": "1个月"
         case "credits": "额度"
         default: name
         }
@@ -847,8 +847,8 @@ public enum CCSwitchQuotaCatalog {
         case .kimi: "Kimi"
         case .deepseek: "DeepSeek"
         case .xaiOAuth: "xAI"
-        case .zhipu: "智谱"
-        case .qwen: "千问"
+        case .zhipu: "GLM"
+        case .qwen: "Qwen"
         }
     }
 
