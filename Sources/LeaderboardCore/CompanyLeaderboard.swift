@@ -66,7 +66,7 @@ public enum CompanyLeaderboard {
     /// Logo key `qwen` is shown as Alibaba because purchase links live under
     /// `alibaba` and the Qwen mark is the logo alias. `microsoftai` must stay
     /// "Microsoft AI": "Microsoft" is a different purchase key and has no links.
-    /// Unknown keys keep the best-ranked model's organization when that string
+    /// Unknown keys keep the strongest model's organization when that string
     /// normalizes to the key. A harness name is never substituted for a
     /// hosted-model override, because that organization does not normalize to
     /// the model company's key.
