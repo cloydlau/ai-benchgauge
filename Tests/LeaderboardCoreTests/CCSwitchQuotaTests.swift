@@ -316,7 +316,7 @@ final class AccountQuotaFormattingTests: XCTestCase {
                 ParsedBalance(currency: "CNY", amount: 12.36),
             ])
         )
-        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: deepseek, now: now), "剩余 12.36 CNY")
+        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: deepseek, now: now), "余额 12.36 CNY")
 
         let qwen = chip(
             kind: .qwen,
