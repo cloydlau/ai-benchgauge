@@ -1,57 +1,86 @@
-# AI Leaderboard Menubar
+# AI Leaderboards
 
-A native macOS menu-bar app for comparing paired AI leaderboards across four categories:
+**English** | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
-- 综合：Artificial Analysis Intelligence Index / Arena | Text
-- 编程：Artificial Analysis Coding Agent Index / Code Arena | WebDev
-- 图片：Artificial Analysis 文生图 / Arena 文生图
-- 视频：Artificial Analysis 文生视频 / Arena 文生视频
+**Compare two leaderboards at a glance. Keep model rankings and account quotas in your macOS menu bar.**
 
-The app shows the top 20 rows from each leaderboard with separate score columns. A 模型 / 公司 switch defaults to models. Company rows are grouped from the models already on that board; each company's score is its strongest listed model, so a weaker model does not pull the company down and extra listings do not raise the score. Switching categories loads the corresponding pair from cache when available, otherwise it fetches both sources. The last selected category and grouping are remembered locally and restored the next time the app opens. Coding Plan and pay-as-you-go API purchase links appear inline next to each name; when a provider has both a mainland China site and an international site, the entry becomes a small menu. It refreshes when its menu-bar icon is clicked and updates itself daily. Failed daily updates retry hourly until local midnight.
+`macOS 14+` · `Swift 6` · `3 languages` · [MIT License](LICENSE)
 
-Codex provider quotas appear in a strip above the table only when this Mac has a readable CC Switch database with recognizable Codex providers. A missing install, a database this app does not understand, or no recognizable providers leaves the leaderboard unchanged. If that database is present but this read fails, the strip keeps the last quotas and marks them stale instead of showing an error. Those figures are account balances, not scores for a ranked model, so they are not another table column.
+![Illustration of paired AI leaderboards and CC Switch quotas](docs/overview.en.svg)
 
-For 千问 Token Plan, the app reads the authenticated official Token Plan page and shows its remaining percentage and reset time. When prompted, click the 千问 quota card and sign in once; the sign-in and cookies stay in the app's WebKit data store. The official `qianwen usage summary --format json` snapshot remains a fallback when it returns a subscribed plan. If neither official source yields a quota, the card says it is not connected. This Mac's CC Switch request totals are not shown: they only cover one device and are not the subscription's remaining Credits.
+*Interface illustration; it contains no live rankings or account data.*
 
-## Requirements
+Stop switching between leaderboard tabs. Open the menu bar to compare the Top 20 from Artificial Analysis and Arena side by side. If you use [CC Switch](https://github.com/farion1231/cc-switch), supported provider quotas and reset times appear above the rankings.
 
-- macOS 14 or later
-- Swift 6 and Command Line Tools
+> If this saves you a few trips to leaderboard and quota pages, consider giving the project a **Star ⭐**.
 
-## Build
+## What you get
+
+| Feature | What it does |
+| --- | --- |
+| **Paired rankings** | Compare separate Top 20 lists and scores across general, coding, image, and video categories. |
+| **Models or companies** | See individual models, or rank each company by its highest-scoring listed model. Extra or weaker listings do not change that score. |
+| **CC Switch quotas** | Read the local CC Switch database, query supported providers, and show account quota status above the table. Codex does not need to be installed. |
+| **Plan and API links** | Available plan and pay-as-you-go links appear only in company view. Simplified Chinese prefers mainland China sites; other interface languages prefer international sites. |
+| **Updates that stay out of the way** | Opening the panel checks for updates. Rankings update daily, retry hourly after a failed daily update, and remain available from the local cache when a source is temporarily down. |
+
+### How CC Switch quotas work
+
+The app identifies supported providers from the **local CC Switch database**, then asks their services for account quotas. Account quotas stay above the rankings; they are not model scores. With notification permission, the current provider can produce quota alerts when the alert conditions are met.
+
+- **No CC Switch?** Rankings still work, and the quota area offers an official installation link.
+- **No supported provider found?** The rankings still work without a quota strip.
+- **Database read fails?** Previously loaded quota values, if any, remain visible and are marked as stale.
+- **Sharing a screenshot?** The panel's copy-screenshot action replaces visible quotas with the same CC Switch setup guide shown when quotas are unavailable, keeping account balances out of the shared image.
+
+For Qwen Token Plan, the app reads the remaining percentage and reset time from the authenticated official page. Click the Qwen quota card to sign in the first time. The official `qianwen usage summary --format json` output is a fallback when it reports a subscribed plan. CC Switch request counts from this Mac are not treated as subscription credits.
+
+## Leaderboard sources
+
+| Category | Left | Right |
+| --- | --- | --- |
+| General | Artificial Analysis Intelligence Index | Arena · Text |
+| Coding | Artificial Analysis Coding Agent Index | Code Arena · WebDev |
+| Image | Artificial Analysis · 文生图 (text-to-image) | Arena · 文生图 (text-to-image) |
+| Video | Artificial Analysis · 文生视频 (text-to-video) | Arena · 文生视频 (text-to-video) |
+
+Image and video use their dedicated boards. Artificial Analysis does not expose a leaderboard update timestamp in its server-rendered pages, so the app shows its fetch time and an index version when available. Arena's vote cutoff is shown when available. Switching categories uses cached data first.
+
+## Quick start
+
+Running the app requires macOS 14 or later. Building from source requires Swift 6 and Command Line Tools:
 
 ```bash
 ./Scripts/make-app.sh
+open outputs/AI-Leaderboards.app
 ```
 
-The script creates an ad-hoc signed app bundle at:
+The build script produces an ad-hoc signed app at `outputs/AI-Leaderboards.app`. On first launch, the interface follows the first supported macOS preferred language: English, Simplified Chinese, or Traditional Chinese. You can also switch languages in the panel footer. The selected language, category, and model/company grouping are saved locally.
 
-```text
-outputs/AI-Leaderboards.app
-```
+## Local development
 
-## Notes
+<details>
+<summary>Local CI workflow</summary>
 
-- Artificial Analysis does not publish a leaderboard update timestamp in its server-rendered pages, so the app displays its index version when available and fetch time.
-- Arena leaderboards expose a vote cutoff timestamp, which the app displays when available.
-- For the image and video categories, the more specific 文生图 and 文生视频 boards are used instead of aggregate media rankings.
-- Leaderboard data is cached under Application Support and remains available when a source temporarily fails.
+<br>
 
-## Local CI
-
-本地流程只做四件事：按目的拆分提交并推送、识别当前模型名称和头像、桌面通知、改完代码后防抖节流自动重启。不跑测试，也不做 code review。
+The local workflow handles purpose-based atomic commits and pushes, current-model identity and avatar, desktop notifications, and a debounced rebuild and restart. It does not run tests or code review.
 
 ```bash
 ./dev.sh
 ```
 
-`./dev.sh` 监听 `Sources/`、`Package.swift` 和两个 `make-app.sh`，同时检查 git 里还有没有未提交改动和未推送提交。变更停止 1 分钟，并且距上次运行至少 1 分钟后，先按目的拆成原子提交并推送到上游，再在源码有变化时重建并重启。启动时如果只有未推送提交，会立刻推送。`WATCH_DEBOUNCE_MS` 和 `WATCH_THROTTLE_MS` 可改这两个间隔，`WATCH_AUTOCOMMIT=0` 关闭自动提交，`COMMIT_PUSH=0` 或 `WATCH_AUTOPUSH=0` 关闭自动推送。构建失败后，同一份源码签名不会空转重试；提交失败后，同一份 git 状态也不会空转重试；推送失败后，同一提交也不会空转重试。再保存一次，或重启 `./dev.sh`，才会重新调度。
+`./dev.sh` watches `Sources/`, `Package.swift`, and both `make-app.sh` scripts. It also checks for uncommitted changes and unpushed commits. After changes have stopped for one minute, and at least one minute has passed since the previous run, it commits and pushes first, then rebuilds and restarts if source files changed. On startup, existing unpushed commits are pushed immediately.
+
+`WATCH_DEBOUNCE_MS` and `WATCH_THROTTLE_MS` change those intervals. `WATCH_AUTOCOMMIT=0` disables automatic commits; `COMMIT_PUSH=0` or `WATCH_AUTOPUSH=0` disables automatic pushes. A failed build, commit, or push is not retried repeatedly for the same source or Git state. Save again or restart `./dev.sh` to schedule another attempt.
 
 ```bash
-Scripts/commit.sh                 # 立刻暂存全部改动并拆成原子提交
-Scripts/commit.sh --dry-run       # 只打印拆分计划
-Scripts/commit.sh --identity      # 查看模型名称、邮箱和头像
+Scripts/commit.sh                 # Stage changes and create purpose-based commits
+Scripts/commit.sh --dry-run       # Print the proposed commit plan
+Scripts/commit.sh --identity      # Show model name, email, and avatar
 Scripts/commit.sh -m "feat(menu): …"
 ```
 
-作者是 Codex 配置里的当前模型，邮箱按厂商填写，桌面通知会尽量带上模型图标。成功和失败通知都使用临时样式。`COMMIT_SPLIT=0` 合并成一个提交。`COMMIT_CODEX_MESSAGE=0` 不调用模型，按用途分组。`Scripts/commit.sh` 的 `COMMIT_PUSH` 仍默认关闭。`COMMIT_COAUTHOR=1` 才把本人恢复为 committer，并加上 `Co-authored-by`。`DESKTOP_NOTIFY=0` 关闭桌面通知。
+The commit author follows the current model in Codex configuration, with a vendor-specific email address. Desktop notifications try to include the model avatar and use temporary styling for success and failure. `COMMIT_SPLIT=0` creates one commit; `COMMIT_CODEX_MESSAGE=0` groups by purpose without calling a model. `Scripts/commit.sh` does not push by default. `COMMIT_COAUTHOR=1` restores the user as committer and adds a `Co-authored-by` line. `DESKTOP_NOTIFY=0` disables desktop notifications.
+
+</details>
