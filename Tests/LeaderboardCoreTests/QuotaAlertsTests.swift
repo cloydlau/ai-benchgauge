@@ -64,6 +64,17 @@ final class QuotaAlertsTests: XCTestCase {
         XCTAssertEqual(result[0].componentKeys.count, 1)
     }
 
+    func testHighRemainingMentionsTheLaterExpiryFirst() {
+        let soon = now.addingTimeInterval(3_600)
+        let later = now.addingTimeInterval(8 * 86_400)
+        let result = alerts(windows: [
+            ParsedQuotaWindow(name: "five_hour", utilization: 1, resetsAt: soon),
+            ParsedQuotaWindow(name: "weekly_limit", utilization: 2, resetsAt: later),
+        ])
+        XCTAssertEqual(result.map(\.reason), [.highRemaining])
+        XCTAssertEqual(result[0].body, "7天余量 98%；5小时余量 99%")
+    }
+
     func testHighRemainingKeyIgnoresPercentAndChangesWithReset() {
         let reset = now.addingTimeInterval(8 * 86_400)
         let lowUse = alerts(windows: [
