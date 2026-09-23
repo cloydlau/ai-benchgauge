@@ -1,12 +1,18 @@
 import Foundation
 
+public enum PurchaseLinkSite: Hashable, Sendable {
+    case mainlandChina, international, universal
+}
+
 public struct PurchaseLink: Identifiable, Hashable, Sendable {
     public let label: String
     public let url: URL
+    public let site: PurchaseLinkSite
 
-    public init(label: String, url: URL) {
+    public init(label: String, url: URL, site: PurchaseLinkSite = .universal) {
         self.label = label
         self.url = url
+        self.site = site
     }
 
     public var id: String { "\(label)|\(url.absoluteString)" }
@@ -27,6 +33,23 @@ public struct PurchaseLinks: Hashable, Sendable {
 }
 
 public enum PurchaseLinkCatalog {
+    /// Simplified Chinese prefers mainland sites. All other interface
+    /// languages prefer international sites; a sole .cn URL still opens.
+    public static func preferredLink(from links: [PurchaseLink], language: AppLanguage) -> PurchaseLink? {
+        guard !links.isEmpty else { return nil }
+        if language == .chinese {
+            return links.first { $0.site == .mainlandChina || isChineseDomain($0.url) }
+                ?? links.first
+        }
+        return links.first { $0.site == .international }
+            ?? links.first { $0.site == .universal && !isChineseDomain($0.url) }
+            ?? links.first
+    }
+
+    private static func isChineseDomain(_ url: URL) -> Bool {
+        url.host?.lowercased().hasSuffix(".cn") == true
+    }
+
     /// Resolves purchase pages for a leaderboard row.
     /// `modelName` is only used when the source omits `organization` (Devin).
     public static func links(forOrganization organization: String?, modelName: String? = nil) -> PurchaseLinks {
@@ -65,23 +88,23 @@ public enum PurchaseLinkCatalog {
         case "alibaba":
             return PurchaseLinks(
                 codingPlan: [
-                    link("中国大陆", "https://www.qianwenai.com/benefits/tokenplan"),
-                    link("国际站", "https://www.qwencloud.com/pricing/token-plan")
+                    mainlandLink("中国大陆", "https://www.qianwenai.com/benefits/tokenplan"),
+                    internationalLink("国际站", "https://www.qwencloud.com/pricing/token-plan")
                 ],
                 payAsYouGo: [
-                    link("中国大陆", "https://help.aliyun.com/zh/model-studio/model-pricing"),
-                    link("国际站", "https://www.alibabacloud.com/en/product/modelstudio")
+                    mainlandLink("中国大陆", "https://help.aliyun.com/zh/model-studio/model-pricing"),
+                    internationalLink("国际站", "https://www.alibabacloud.com/en/product/modelstudio")
                 ]
             )
         case "zai":
             return PurchaseLinks(
                 codingPlan: [
-                    link("中国大陆", "https://bigmodel.cn/glm-coding"),
-                    link("国际站", "https://z.ai/subscribe")
+                    mainlandLink("中国大陆", "https://bigmodel.cn/glm-coding"),
+                    internationalLink("国际站", "https://z.ai/subscribe")
                 ],
                 payAsYouGo: [
-                    link("中国大陆", "https://open.bigmodel.cn/pricing"),
-                    link("国际站", "https://z.ai/pricing")
+                    mainlandLink("中国大陆", "https://open.bigmodel.cn/pricing"),
+                    internationalLink("国际站", "https://z.ai/pricing")
                 ]
             )
         case "meta":
@@ -116,57 +139,57 @@ public enum PurchaseLinkCatalog {
         case "tencent":
             return PurchaseLinks(
                 codingPlan: [
-                    link("中国大陆 · 混元", "https://console.cloud.tencent.com/tokenhub/tokenplan/hy"),
-                    link("中国大陆 · 通用", "https://console.cloud.tencent.com/tokenhub/tokenplan/common"),
-                    link("国际站", "https://console.tencentcloud.com/tokenhub/tokenplan/common")
+                    mainlandLink("中国大陆 · 混元", "https://console.cloud.tencent.com/tokenhub/tokenplan/hy"),
+                    mainlandLink("中国大陆 · 通用", "https://console.cloud.tencent.com/tokenhub/tokenplan/common"),
+                    internationalLink("国际站", "https://console.tencentcloud.com/tokenhub/tokenplan/common")
                 ],
                 payAsYouGo: [
-                    link("中国大陆", "https://cloud.tencent.com/product/tclm"),
-                    link("国际站", "https://www.tencentcloud.com/products/hunyuan")
+                    mainlandLink("中国大陆", "https://cloud.tencent.com/product/tclm"),
+                    internationalLink("国际站", "https://www.tencentcloud.com/products/hunyuan")
                 ]
             )
         case "minimax":
             return PurchaseLinks(
                 codingPlan: [
-                    link("中国大陆", "https://hailuoai.com/subscribe"),
-                    link("国际站", "https://hailuoai.video/subscribe")
+                    mainlandLink("中国大陆", "https://hailuoai.com/subscribe"),
+                    internationalLink("国际站", "https://hailuoai.video/subscribe")
                 ],
                 payAsYouGo: [
-                    link("中国大陆", "https://platform.minimaxi.com/docs/guides/pricing"),
-                    link("国际站", "https://platform.minimax.io/docs/guides/pricing")
+                    mainlandLink("中国大陆", "https://platform.minimaxi.com/docs/guides/pricing"),
+                    internationalLink("国际站", "https://platform.minimax.io/docs/guides/pricing")
                 ]
             )
         case "klingai":
             return PurchaseLinks(
                 codingPlan: [
-                    link("中国大陆", "https://klingai.com/app/membership/membership-plan"),
-                    link("国际站", "https://app.klingai.com/global/membership/membership-plan")
+                    mainlandLink("中国大陆", "https://klingai.com/app/membership/membership-plan"),
+                    internationalLink("国际站", "https://app.klingai.com/global/membership/membership-plan")
                 ],
                 payAsYouGo: [
-                    link("中国大陆", "https://klingai.com/dev/pricing"),
-                    link("国际站", "https://klingai.com/global/dev/pricing")
+                    mainlandLink("中国大陆", "https://klingai.com/dev/pricing"),
+                    internationalLink("国际站", "https://klingai.com/global/dev/pricing")
                 ]
             )
         case "bytedance":
             return PurchaseLinks(
                 codingPlan: [
-                    link("中国大陆", "https://jimeng.jianying.com/ai-tool/home"),
-                    link("国际站", "https://dreamina.capcut.com/pricing/dreamina-price")
+                    mainlandLink("中国大陆", "https://jimeng.jianying.com/ai-tool/home"),
+                    internationalLink("国际站", "https://dreamina.capcut.com/pricing/dreamina-price")
                 ],
                 payAsYouGo: [
-                    link("中国大陆", "https://www.volcengine.com/docs/82379/1544106"),
-                    link("国际站", "https://docs.byteplus.com/en/docs/modelark/1544106")
+                    mainlandLink("中国大陆", "https://www.volcengine.com/docs/82379/1544106"),
+                    internationalLink("国际站", "https://docs.byteplus.com/en/docs/modelark/1544106")
                 ]
             )
         case "xiaomi":
             return PurchaseLinks(
                 codingPlan: [
-                    link("中国大陆", "https://mimo.mi.com/docs/zh-CN/price/token-plan"),
-                    link("国际站", "https://mimo.mi.com/docs/en-US/price/token-plan")
+                    mainlandLink("中国大陆", "https://mimo.mi.com/docs/zh-CN/price/token-plan"),
+                    internationalLink("国际站", "https://mimo.mi.com/docs/en-US/price/token-plan")
                 ],
                 payAsYouGo: [
-                    link("中国大陆", "https://mimo.mi.com/docs/zh-CN/price/pay-as-you-go"),
-                    link("国际站", "https://mimo.mi.com/docs/en-US/price/pay-as-you-go")
+                    mainlandLink("中国大陆", "https://mimo.mi.com/docs/zh-CN/price/pay-as-you-go"),
+                    internationalLink("国际站", "https://mimo.mi.com/docs/en-US/price/pay-as-you-go")
                 ]
             )
         case "krea":
@@ -221,11 +244,23 @@ public enum PurchaseLinkCatalog {
         }
     }
 
-    private static func link(_ label: String, _ urlString: String) -> PurchaseLink {
+    private static func mainlandLink(_ label: String, _ urlString: String) -> PurchaseLink {
+        link(label, urlString, site: .mainlandChina)
+    }
+
+    private static func internationalLink(_ label: String, _ urlString: String) -> PurchaseLink {
+        link(label, urlString, site: .international)
+    }
+
+    private static func link(
+        _ label: String,
+        _ urlString: String,
+        site: PurchaseLinkSite = .universal
+    ) -> PurchaseLink {
         guard let url = URL(string: urlString), urlString.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else {
             preconditionFailure("Invalid static purchase URL: \(urlString)")
         }
-        return PurchaseLink(label: label, url: url)
+        return PurchaseLink(label: label, url: url, site: site)
     }
 
     private static func normalizedOrganization(_ organization: String) -> String {
