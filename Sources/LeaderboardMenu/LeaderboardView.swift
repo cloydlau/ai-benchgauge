@@ -755,7 +755,7 @@ private struct ScoreCell: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .modifier(OptionalHelp(model?.scoreHelp))
+        .modifier(OptionalHelp(text: model?.scoreHelp))
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(.horizontal, 4)
         .padding(.vertical, 3)
