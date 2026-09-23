@@ -169,66 +169,66 @@ struct LeaderboardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// A two-line group header spans each board's model, score, and country
-    /// columns. The native Table header below it only names those data fields.
+    /// One compact line identifies both boards above the native data columns.
     private var leaderboardHeaders: some View {
         let lenses = selectedCategory.sourceLenses(language: language)
+        let sideWidth = (contentWidth - 64 - 14 - 1) / 2
         return HStack(spacing: 0) {
             Color.clear
-                .frame(width: 64)
+                .frame(width: 64, height: 1)
                 .accessibilityHidden(true)
             leaderboardHeader(
-                title: selectedCategory.leftColumnTitle,
+                title: "AA",
+                fullTitle: selectedCategory.leftColumnTitle,
                 kind: selectedCategory.leftKind,
                 description: lenses.aa,
                 tint: .blue
             )
+            .frame(width: sideWidth, alignment: .leading)
             Divider()
-                .frame(height: 28)
+                .frame(width: 1, height: 14)
             leaderboardHeader(
-                title: selectedCategory.rightColumnTitle,
+                title: "Arena",
+                fullTitle: selectedCategory.rightColumnTitle,
                 kind: selectedCategory.rightKind,
                 description: lenses.arena,
                 tint: .purple
             )
+            .frame(width: sideWidth, alignment: .leading)
         }
         .padding(.trailing, 14)
-        .padding(.vertical, 5)
+        .frame(height: 26)
         .background(Color(nsColor: .controlBackgroundColor))
         .overlay(alignment: .bottom) { Divider() }
     }
 
     private func leaderboardHeader(
         title: String,
+        fullTitle: String,
         kind: LeaderboardKind,
         description: SourceLensDescription,
         tint: Color
     ) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 6) {
-                Text(title)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                Text(description.emphasis)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(tint)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(tint.opacity(0.1), in: Capsule())
-                    .fixedSize(horizontal: true, vertical: false)
-            }
+        HStack(spacing: 6) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: true, vertical: false)
+            Text(description.emphasis)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(tint)
+                .fixedSize(horizontal: true, vertical: false)
             Text(description.detail)
-                .font(.system(size: 11))
+                .font(.system(size: 10))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 8)
-        .help(sourceHeaderHelp(kind: kind, description: description))
+        .padding(.horizontal, 6)
+        .help(fullTitle + tr(". ", "。") + sourceHeaderHelp(kind: kind, description: description))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel([title, description.emphasis, description.detail].joined(separator: tr(", ", "，")))
+        .accessibilityLabel([fullTitle, description.emphasis, description.detail].joined(separator: tr(", ", "，")))
     }
 
     private func sourceHeaderHelp(kind: LeaderboardKind, description: SourceLensDescription) -> String {
