@@ -103,7 +103,7 @@ public enum OrganizationLogoCatalog {
         return key
     }
 
-    /// Theme color for the row wash and 3px bar.
+    /// Theme color for the row wash.
     /// Colored marks use a hue on the bundled logo. When that hue sits in a
     /// same-screen pile, the color is a second block on the mark instead.
     /// OpenAI is the published green, because the bundled blossom is black.
