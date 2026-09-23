@@ -314,7 +314,7 @@ public enum AccountQuotaFormatting {
             var runs = [
                 QuotaTextRun(text: "\(quota.periodLabel)剩余: ", tone: .secondary),
                 QuotaTextRun(
-                    text: "\(balanceAmountText(quota.remainingPercent).replacingOccurrences(of: ".00", with: ""))%",
+                    text: "\(creditText(quota.remainingPercent))%",
                     tone: tone(forUtilization: 100 - quota.remainingPercent)
                 ),
             ]
