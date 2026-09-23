@@ -77,48 +77,14 @@ struct LeaderboardView: View {
                 }
                 .max() ?? 0
         }.max() ?? 0
-        let headerFont = NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .medium)
-        let headerWidth = category.boardKinds.enumerated().map { index, kind in
-            let title = index == 0 ? category.leftColumnTitle : category.rightColumnTitle
-            let header = columnTitle(
-                title,
-                kind: kind,
-                state: state
-            )
-            return (header as NSString).size(withAttributes: [.font: headerFont]).width + 40
-        }.max() ?? 0
-        let desired = max(minimumWidth, ceil(max(columnWidth, headerWidth) * 2
-                                            + tableChromeWidth))
+        let desired = max(minimumWidth, ceil(columnWidth * 2 + tableChromeWidth))
         return min(desired, maximumWidth)
-    }
-
-    private static func columnTitle(
-        _ title: String,
-        kind: LeaderboardKind,
-        state: AppState
-    ) -> String {
-        guard let board = state.snapshot.boards[kind] else { return title }
-        var parts = [title]
-        if let sourceDate = board.sourceUpdatedAt {
-            let formatter = DateFormatter()
-            formatter.locale = state.selectedLanguage.locale
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .short
-            let dateLabel = kind.sourcePrefix == "Arena"
-                ? state.selectedLanguage.text("Votes through", "投票截至")
-                : state.selectedLanguage.text("Updated", "更新于")
-            parts.append("\(dateLabel) \(formatter.string(from: sourceDate))")
-        }
-        if let note = board.sourceNote, !note.isEmpty {
-            parts.append(note)
-        }
-        return parts.joined(separator: " · ")
     }
 
     var body: some View {
         VStack(spacing: 0) {
             header
-            sourceExplanation
+            leaderboardHeaders
             table
             Divider()
             footer
@@ -203,32 +169,55 @@ struct LeaderboardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var sourceExplanation: some View {
+    /// A two-line group header spans each board's model, score, and country
+    /// columns. The native Table header below it only names those data fields.
+    private var leaderboardHeaders: some View {
         let lenses = selectedCategory.sourceLenses(language: language)
-        return HStack(spacing: 10) {
-            sourceLens(title: "Artificial Analysis", description: lenses.aa, tint: .blue)
-            sourceLens(title: "Arena", description: lenses.arena, tint: .purple)
+        return HStack(spacing: 0) {
+            Color.clear
+                .frame(width: 64)
+                .accessibilityHidden(true)
+            leaderboardHeader(
+                title: selectedCategory.leftColumnTitle,
+                kind: selectedCategory.leftKind,
+                description: lenses.aa,
+                tint: .blue
+            )
+            Divider()
+                .frame(height: 28)
+            leaderboardHeader(
+                title: selectedCategory.rightColumnTitle,
+                kind: selectedCategory.rightKind,
+                description: lenses.arena,
+                tint: .purple
+            )
         }
-        .padding(.horizontal, 18)
-        .padding(.bottom, 2)
+        .padding(.trailing, 14)
+        .padding(.vertical, 5)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .overlay(alignment: .bottom) { Divider() }
     }
 
-    private func sourceLens(
+    private func leaderboardHeader(
         title: String,
+        kind: LeaderboardKind,
         description: SourceLensDescription,
         tint: Color
     ) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 7) {
+            HStack(spacing: 6) {
                 Text(title)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
                 Text(description.emphasis)
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(tint)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(tint.opacity(0.1), in: Capsule())
+                    .fixedSize(horizontal: true, vertical: false)
             }
             Text(description.detail)
                 .font(.system(size: 11))
@@ -236,16 +225,33 @@ struct LeaderboardView: View {
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 4)
-        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
-        .overlay {
-            RoundedRectangle(cornerRadius: 9)
-                .strokeBorder(tint.opacity(0.18), lineWidth: 1)
-        }
-        .help(description.detail + tr(". Scores are not directly comparable across lists.", "。两榜分数不直接互比。"))
+        .padding(.horizontal, 8)
+        .help(sourceHeaderHelp(kind: kind, description: description))
         .accessibilityElement(children: .combine)
         .accessibilityLabel([title, description.emphasis, description.detail].joined(separator: tr(", ", "，")))
+    }
+
+    private func sourceHeaderHelp(kind: LeaderboardKind, description: SourceLensDescription) -> String {
+        var parts = [
+            description.detail,
+            tr("Scores are not directly comparable across lists", "两榜分数不直接互比"),
+        ]
+        if let board = state.snapshot.boards[kind] {
+            if let sourceDate = board.sourceUpdatedAt {
+                let formatter = DateFormatter()
+                formatter.locale = language.locale
+                formatter.dateStyle = .medium
+                formatter.timeStyle = .short
+                let label = kind.sourcePrefix == "Arena"
+                    ? tr("Votes through", "投票截至")
+                    : tr("Updated", "更新于")
+                parts.append("\(label) \(formatter.string(from: sourceDate))")
+            }
+            if let note = board.sourceNote, !note.isEmpty {
+                parts.append(note)
+            }
+        }
+        return parts.joined(separator: tr(". ", "。"))
     }
 
     @ViewBuilder
@@ -318,6 +324,10 @@ struct LeaderboardView: View {
 
     private var selectedCategory: LeaderboardCategory {
         state.selectedCategory
+    }
+
+    private var nameColumnTitle: String {
+        state.selectedGrouping == .company ? tr("Company", "公司") : tr("Model", "模型")
     }
 
     /// One heading identifies both timestamps; the hairline separates the
@@ -437,10 +447,7 @@ struct LeaderboardView: View {
             .width(48)
             .alignment(.center)
 
-            TableColumn(fittedColumnTitle(
-                selectedCategory.leftColumnTitle,
-                kind: selectedCategory.leftKind
-            )) { row in
+            TableColumn(nameColumnTitle) { row in
                 LeaderboardCell(model: row.left, language: language, onCopyName: nameCopyAction)
             }
             .width(nameColumnWidth)
@@ -457,10 +464,7 @@ struct LeaderboardView: View {
             .width(Self.countryColumnWidth)
             .alignment(.center)
 
-            TableColumn(fittedColumnTitle(
-                selectedCategory.rightColumnTitle,
-                kind: selectedCategory.rightKind
-            )) { row in
+            TableColumn(nameColumnTitle) { row in
                 LeaderboardCell(model: row.right, language: language, onCopyName: nameCopyAction)
             }
             .width(nameColumnWidth)
@@ -893,34 +897,6 @@ struct LeaderboardView: View {
         return logos
     }
 
-    /// Only source-provided dates appear in board headers. A local fetch time
-    /// belongs to the separate "last checked" caption above the table.
-    private func columnTitle(_ title: String, kind: LeaderboardKind) -> String {
-        Self.columnTitle(title, kind: kind, state: state)
-    }
-
-    private func fittedColumnTitle(_ title: String, kind: LeaderboardKind) -> String {
-        let full = columnTitle(title, kind: kind)
-        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .medium)
-        let attributes: [NSAttributedString.Key: Any] = [.font: font]
-        let available = nameColumnWidth - 40
-        if (full as NSString).size(withAttributes: attributes).width <= available {
-            return full
-        }
-        let characters = Array(full)
-        var low = 0
-        var high = characters.count
-        while low < high {
-            let middle = (low + high + 1) / 2
-            let candidate = String(characters.prefix(middle)) + "…"
-            if (candidate as NSString).size(withAttributes: attributes).width <= available {
-                low = middle
-            } else {
-                high = middle - 1
-            }
-        }
-        return String(characters.prefix(low)) + "…"
-    }
 }
 
 /// The fixed-height table still scrolls with a trackpad when needed, but its
