@@ -94,20 +94,9 @@ struct LeaderboardView: View {
                         .foregroundStyle(.tertiary)
                         .monospacedDigit()
                 }
-                HStack(spacing: 10) {
-                    updateStatus
-                    if let artificialAnalysis = state.snapshot.boards[selectedCategory.leftKind] {
-                        let note = artificialAnalysis.sourceNote.map { " (\($0))" } ?? ""
-                        Text("\(selectedCategory.leftKind.sourcePrefix) \(timestamp(artificialAnalysis.fetchedAt))\(note)")
-                    }
-                    if let arena = state.snapshot.boards[selectedCategory.rightKind] {
-                        Text("\(selectedCategory.rightKind.sourcePrefix) \(timestamp(arena.sourceUpdatedAt ?? arena.fetchedAt))")
-                    }
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-                .lineLimit(1)
+                updateStatus
+                    .font(.caption)
+                    .lineLimit(1)
             }
             .layoutPriority(1)
 
@@ -145,8 +134,10 @@ struct LeaderboardView: View {
     private var updateStatus: some View {
         if state.isRefreshing {
             Text("更新中")
+                .foregroundStyle(.secondary)
         } else if state.lastErrors.isEmpty {
             Text("已更新")
+                .foregroundStyle(.secondary)
         } else {
             Text("部分榜单更新失败，将按计划重试")
                 .foregroundStyle(.orange)
@@ -170,7 +161,11 @@ struct LeaderboardView: View {
             .width(min: 36, ideal: 42, max: 48)
             .alignment(.center)
 
-            TableColumn(selectedCategory.leftColumnTitle) { row in
+            TableColumn(columnTitle(
+                selectedCategory.leftColumnTitle,
+                kind: selectedCategory.leftKind,
+                preferSourceUpdatedAt: false
+            )) { row in
                 LeaderboardCell(model: row.left)
             }
             .width(min: 500, ideal: 560, max: 680)
@@ -181,7 +176,11 @@ struct LeaderboardView: View {
             .width(min: 48, ideal: 56, max: 64)
             .alignment(.center)
 
-            TableColumn(selectedCategory.rightColumnTitle) { row in
+            TableColumn(columnTitle(
+                selectedCategory.rightColumnTitle,
+                kind: selectedCategory.rightKind,
+                preferSourceUpdatedAt: true
+            )) { row in
                 LeaderboardCell(model: row.right)
             }
             .width(min: 500, ideal: 560, max: 680)
@@ -525,6 +524,16 @@ struct LeaderboardView: View {
             }
         }
         return logos
+    }
+
+    /// Update time follows the board name in that column's header. Artificial
+    /// Analysis has no source timestamp, so that side keeps the fetch time and
+    /// index version. Arena prefers the vote cutoff.
+    private func columnTitle(_ title: String, kind: LeaderboardKind, preferSourceUpdatedAt: Bool) -> String {
+        guard let board = state.snapshot.boards[kind] else { return title }
+        let date = preferSourceUpdatedAt ? (board.sourceUpdatedAt ?? board.fetchedAt) : board.fetchedAt
+        let note = board.sourceNote.map { " (\($0))" } ?? ""
+        return "\(title) · \(timestamp(date))\(note)"
     }
 
     private func timestamp(_ date: Date) -> String {
