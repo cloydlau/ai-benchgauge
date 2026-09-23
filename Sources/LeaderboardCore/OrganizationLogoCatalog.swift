@@ -27,6 +27,13 @@ public enum OrganizationLogoCatalog {
         return nil
     }
 
+    /// The developer of the lead model may differ from the organization
+    /// operating a coding harness (including Devin Fusion).
+    public static func developerKey(organization: String?, modelName: String? = nil) -> String? {
+        hostedModelKey(from: modelName)
+            ?? resolvedKey(organization: organization, modelName: modelName)
+    }
+
     /// Brand of the lead model in `Harness - Model`. Nil when the label is
     /// not that shape, or the model family has no bundled mark.
     /// Fusion names a sidekick after `+`; that half must not win.
@@ -108,21 +115,15 @@ public enum OrganizationLogoCatalog {
         return key
     }
 
-    /// Theme color for the row wash.
-    /// Colored marks use a hue on the bundled logo. When that hue sits in a
-    /// same-screen pile, the color is a second block on the mark instead.
-    /// OpenAI is the published green, because the bundled blossom is black.
-    /// Kimi is an official secondary, because the mark's blue matches Meta.
-    /// Black marks use a medium display tint, not a logo color, so dark menus
-    /// do not flip the row to white.
+    /// Theme color for the row wash. Colored marks use their brand hue;
+    /// similar blues and cyans vary in lightness instead of changing hue.
+    /// Monochrome marks use neutral shades. OpenAI keeps its brand green even
+    /// though the bundled blossom is black.
     /// A harness label follows the lead model, not the tool and not the
     /// sidekick after `+`. Devin Fusion therefore uses Claude or OpenAI ink
     /// while the mark stays Devin.
     public static func brandColorHex(forOrganization organization: String?, modelName: String? = nil) -> String? {
-        if let hosted = hostedModelKey(from: modelName), let color = brandColors[hosted] {
-            return color
-        }
-        guard let key = resolvedKey(organization: organization, modelName: modelName) else { return nil }
+        guard let key = developerKey(organization: organization, modelName: modelName) else { return nil }
         return brandColors[key]
     }
 
@@ -138,11 +139,45 @@ public enum OrganizationLogoCatalog {
         return max(r, g, b) - min(r, g, b) <= 24
     }
 
-    /// Stored colors are used in both themes. A truly achromatic hex still
-    /// flips to white in dark menus. Display tints are chromatic on purpose,
-    /// so they do not take that path.
-    public static func displayBrandColorHex(_ hex: String, isDark: Bool) -> String {
-        isDark && isAchromaticHex(hex) ? "#FFFFFF" : hex
+    /// Neutral ink becomes a corresponding light gray in dark mode. Models
+    /// sharing a brand get stable lightness variants of that same hue.
+    public static func displayBrandColorHex(
+        _ hex: String,
+        isDark: Bool,
+        modelName: String? = nil
+    ) -> String {
+        let value = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard value.count == 6, let rgb = UInt32(value, radix: 16) else { return hex }
+        var channels = [
+            Int((rgb >> 16) & 0xFF),
+            Int((rgb >> 8) & 0xFF),
+            Int(rgb & 0xFF),
+        ]
+        if isDark && isAchromaticHex(hex) {
+            let neutral = 255 - Int(Double(channels.reduce(0, +)) / 3 * 0.7)
+            channels = [neutral, neutral, neutral]
+        }
+        if let modelName {
+            let shade = modelShade(for: modelName)
+            channels = channels.map { channel in
+                shade < 0
+                    ? Int((Double(channel) * (1 + shade)).rounded())
+                    : Int((Double(channel) + Double(255 - channel) * shade).rounded())
+            }
+        }
+        return String(format: "#%02X%02X%02X", channels[0], channels[1], channels[2])
+    }
+
+    private static func modelShade(for name: String) -> Double {
+        // FNV-1a is stable across launches, unlike Swift's randomized Hashable.
+        // Ignore formatting so the same model keeps its shade across sources.
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        for scalar in name.lowercased().unicodeScalars where CharacterSet.alphanumerics.contains(scalar) {
+            for byte in String(scalar).utf8 {
+                hash = (hash ^ UInt64(byte)) &* 1_099_511_628_211
+            }
+        }
+        return [-0.24, -0.12, 0, 0.12, 0.24][Int(hash % 5)]
     }
 
     public static func logoURL(forOrganization organization: String?, modelName: String? = nil) -> URL? {
@@ -152,41 +187,40 @@ public enum OrganizationLogoCatalog {
     }
 
     private static let brandColors: [String: String] = [
-        // Hue on the bundled mark, unless the comment names a second block
-        // or a published color. Google, Meta, and ByteDance share a blue;
-        // the wash cannot split them. ByteDance keeps the domestic border.
+        // Hues follow the bundled marks or published brand colors. Nearby
+        // blues/cyans use lighter or darker values within the same hue family.
         "anthropic": "#D97757",
         "openai": "#10A37F", // published green; the bundled blossom is black
         "qwen": "#623AE7",
-        "kimi": "#00F6FF", // official secondary; the mark's blue matches Meta
+        "kimi": "#007CFF", // Kimi brand blue, not its mint/cyan secondary
         "google": "#4285F4",
         "deepseek": "#4D6BFE",
-        "tencent": "#00A0D8", // cyan swirl, not the navy half
-        "meta": "#0081FB",
+        "tencent": "#0052D9", // darker blue from the mark
+        "meta": "#0068D5", // darker shade of Meta blue beside Kimi
         "minimax": "#F21985", // magenta petal, off Fal red
-        "mistral": "#F5C63A", // yellow pixel, off Xiaomi
+        "mistral": "#F29D38", // orange from the pixel mark
         "nvidia": "#76B900",
         "bytedance": "#3C8CFF",
         "xiaomi": "#FF6900",
-        "klingai": "#0EFF7F", // green end of the ring, off Luma cyan
+        "klingai": "#009DCB", // deeper cyan from the ring
         "luma": "#00C8E8", // cyan face, not the purple face
         "fal": "#EC0648",
         "pixverse": "#A129FF", // violet on the mark, off Qwen
         "microsoftai": "#E24B9A", // ribbon magenta, not the blue
-        // Display tints for black marks. Not logo colors. Chromatic so dark
-        // menus do not flip the row to white.
-        "zai": "#9A6E96",
-        "spacexai": "#C4A15A",
-        "stepfun": "#6E8F58",
-        "krea": "#7C9450",
-        "ideogram": "#C48A62",
-        "runway": "#A67A62",
-        "blackforestlabs": "#7A6890",
-        "opencode": "#5F8A62",
-        "devin": "#C47890",
-        "reve": "#8A7094",
-        "videorebirth": "#6A8F6E",
-        "thinkingmachines": "#B09868"
+        // These bundled marks are monochrome. Distinguish them by shade.
+        "zai": "#3A3A3A",
+        "spacexai": "#242424",
+        "stepfun": "#505050",
+        "krea": "#666666",
+        "ideogram": "#404040",
+        "runway": "#2C2C2C",
+        "blackforestlabs": "#343434",
+        "opencode": "#5A5A5A",
+        "devin": "#202020",
+        "reve": "#484848",
+        "videorebirth": "#707070",
+        "thinkingmachines": "#606060",
+        "github": "#303030"
     ]
 
     private static let bundledKeys: Set<String> = [
@@ -195,7 +229,7 @@ public enum OrganizationLogoCatalog {
         "mistral", "nvidia", "bytedance", "xiaomi", "klingai", "krea",
         "ideogram", "runway", "luma", "blackforestlabs", "fal", "pixverse",
         "microsoftai", "opencode", "devin", "reve", "videorebirth",
-        "thinkingmachines"
+        "thinkingmachines", "github"
     ]
 
     /// Reachable from mainland China. Used only when the bundled PNG is missing.
@@ -228,6 +262,7 @@ public enum OrganizationLogoCatalog {
         "opencode": "https://opencode.ai/favicon.ico",
         "devin": "https://devin.ai/favicon.ico",
         "reve": "https://reve.com/favicon.ico",
-        "thinkingmachines": "https://thinkingmachines.ai/favicon.ico"
+        "thinkingmachines": "https://thinkingmachines.ai/favicon.ico",
+        "github": "https://github.com/favicon.ico"
     ]
 }
