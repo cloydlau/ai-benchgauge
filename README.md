@@ -11,6 +11,8 @@ The app shows the top 20 models from each leaderboard with separate score column
 
 Codex provider quotas appear in a strip above the table only when this Mac has a readable CC Switch database with recognizable Codex providers. A missing install, a database this app does not understand, or no recognizable providers leaves the leaderboard unchanged. If that database is present but this read fails, the strip keeps the last quotas and marks them stale instead of showing an error. Those figures are account balances, not scores for a ranked model, so they are not another table column.
 
+For 千问 Token Plan, the app reads the authenticated official Token Plan page and shows its remaining percentage and reset time. When prompted, click the 千问 quota card and sign in once; the sign-in and cookies stay in the app's WebKit data store. The official `qianwen usage summary --format json` snapshot remains a fallback when it returns a subscribed plan. If neither official source yields a quota, the strip shows CC Switch's local request totals labeled “本地”; those totals are not the subscription's remaining Credits.
+
 ## Requirements
 
 - macOS 14 or later
@@ -52,4 +54,4 @@ Scripts/commit.sh --identity      # 查看模型名称、邮箱和头像
 Scripts/commit.sh -m "feat(menu): …"
 ```
 
-作者是 Codex 配置里的当前模型，邮箱按厂商填写，头像 URL 写在 `Model-Avatar` trailer 里，桌面通知会尽量带上这个图标。`COMMIT_SPLIT=0` 合并成一个提交。`COMMIT_CODEX_MESSAGE=0` 不调用模型，按用途分组。`Scripts/commit.sh` 的 `COMMIT_PUSH` 仍默认关闭。`COMMIT_COAUTHOR=1` 才把本人恢复为 committer，并加上 `Co-authored-by`。`DESKTOP_NOTIFY=0` 关闭桌面通知。
+作者是 Codex 配置里的当前模型，邮箱按厂商填写，头像 URL 写在 `Model-Avatar` trailer 里，桌面通知会尽量带上这个图标。成功和失败通知都使用临时样式。`COMMIT_SPLIT=0` 合并成一个提交。`COMMIT_CODEX_MESSAGE=0` 不调用模型，按用途分组。`Scripts/commit.sh` 的 `COMMIT_PUSH` 仍默认关闭。`COMMIT_COAUTHOR=1` 才把本人恢复为 committer，并加上 `Co-authored-by`。`DESKTOP_NOTIFY=0` 关闭桌面通知。
