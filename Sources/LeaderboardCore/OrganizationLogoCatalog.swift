@@ -9,9 +9,9 @@ public enum OrganizationLogoCatalog {
     /// A present organization wins, unless the label is a coding-agent
     /// `Harness - Model` pair and the model belongs to another company.
     /// Otherwise Claude Code - Qwen3.8 Max is painted with Anthropic's mark.
-    /// An empty organization falls back to a Devin model-name prefix, which
-    /// is the only board that omits it. That fallback is not overridden:
-    /// Devin Fusion names a second model after the dash.
+    /// An empty organization falls back to a Devin name prefix, which is the
+    /// only board that omits it. Fusion still follows the lead model after
+    /// the dash. The sidekick after `+` does not own the mark or the wash.
     public static func resolvedKey(organization: String?, modelName: String? = nil) -> String? {
         let organizationKey = normalizedKey(organization ?? "")
         if !organizationKey.isEmpty {
@@ -20,6 +20,9 @@ public enum OrganizationLogoCatalog {
             }
             return organizationKey
         }
+        if let hosted = hostedModelKey(from: modelName) {
+            return hosted
+        }
         let inferred = normalizedKey(modelName ?? "")
         if inferred.hasPrefix("devin") {
             return "devin"
@@ -27,11 +30,16 @@ public enum OrganizationLogoCatalog {
         return nil
     }
 
-    /// Brand of the model half of `Harness - Model`. Nil when the label is
+    /// Brand of the lead model in `Harness - Model`. Nil when the label is
     /// not that shape, or the model family has no bundled mark.
+    /// Fusion names a sidekick after `+`; that half must not win.
     private static func hostedModelKey(from modelName: String?) -> String? {
         guard let modelName, let separator = modelName.range(of: " - ") else { return nil }
-        let tokens = modelName[separator.upperBound...]
+        var modelHalf = modelName[separator.upperBound...]
+        if let plus = modelHalf.range(of: " + ") {
+            modelHalf = modelHalf[..<plus.lowerBound]
+        }
+        let tokens = modelHalf
             .lowercased()
             .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
             .map(String.init)

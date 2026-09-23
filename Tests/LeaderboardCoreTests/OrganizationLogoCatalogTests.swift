@@ -37,7 +37,7 @@ final class OrganizationLogoCatalogTests: XCTestCase {
     }
 
     func testDevinFallsBackToModelNameWhenOrganizationIsMissing() {
-        let name = "Devin Fusion CLI - Claude Fable 5.1 XHigh + SWE-2 Medium"
+        let name = "Devin"
         XCTAssertEqual(
             OrganizationLogoCatalog.bundledLogoKey(forOrganization: nil, modelName: name),
             "devin"
@@ -117,13 +117,27 @@ final class OrganizationLogoCatalogTests: XCTestCase {
             ),
             "qwen"
         )
-        // Devin Fusion has no organization. Do not steal the mark from the model half.
+        // Fusion has no organization. The lead owns the mark; the sidekick does not.
         XCTAssertEqual(
             OrganizationLogoCatalog.bundledLogoKey(
                 forOrganization: nil,
                 modelName: "Devin Fusion CLI - Claude Fable 5.1 XHigh + SWE-2 Medium"
             ),
-            "devin"
+            "anthropic"
+        )
+        XCTAssertEqual(
+            OrganizationLogoCatalog.brandColorHex(
+                forOrganization: nil,
+                modelName: "Devin Fusion CLI - Claude Fable 5.1 XHigh + SWE-2 Medium"
+            ),
+            "#D97757"
+        )
+        XCTAssertEqual(
+            OrganizationLogoCatalog.resolvedKey(
+                organization: nil,
+                modelName: "Devin Fusion CLI - GPT-6 Astra XHigh + SWE-2 Medium"
+            ),
+            "openai"
         )
     }
 
