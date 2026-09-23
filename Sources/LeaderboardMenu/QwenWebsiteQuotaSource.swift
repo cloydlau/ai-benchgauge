@@ -132,7 +132,7 @@ final class QwenWebsiteQuotaSource: NSObject, WKNavigationDelegate, @unchecked S
         pending = nil
     }
 
-    private func cachedSummary(now: Date = Date()) -> Data? {
+    func cachedQuota(now: Date = Date()) -> QwenWebsiteQuota? {
         let defaults = UserDefaults.standard
         guard let data = defaults.data(forKey: Self.cachedQuotaKey),
               let quota = QwenWebsiteQuotaParser.parse(data),
@@ -143,7 +143,12 @@ final class QwenWebsiteQuotaSource: NSObject, WKNavigationDelegate, @unchecked S
             defaults.removeObject(forKey: Self.cachedQuotaKey)
             return nil
         }
-        return data
+        return quota
+    }
+
+    private func cachedSummary(now: Date = Date()) -> Data? {
+        guard cachedQuota(now: now) != nil else { return nil }
+        return UserDefaults.standard.data(forKey: Self.cachedQuotaKey)
     }
 }
 

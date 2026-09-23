@@ -187,7 +187,20 @@ final class AppState: ObservableObject {
                     self.lastQuotaAttemptAtByID = [:]
                     return
                 }
-                let previous = self.displayChips(for: targets)
+                var previous = self.displayChips(for: targets)
+                if let cachedQwen = self.qwenWebsiteSource.cachedQuota() {
+                    previous = previous.map { chip in
+                        guard chip.kind == .qwen, chip.status == .pending else { return chip }
+                        return AccountQuotaChip(
+                            id: chip.id,
+                            shortName: chip.shortName,
+                            websiteURL: chip.websiteURL,
+                            kind: chip.kind,
+                            isCurrent: chip.isCurrent,
+                            status: .qwenWebsite(cachedQwen)
+                        )
+                    }
+                }
                 self.quotaChips = previous
                 let now = Date()
                 let targetsToRefresh = targets.filter { target in
