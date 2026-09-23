@@ -10,50 +10,23 @@ import LeaderboardCore
 /// Codex does not need to be installed.
 struct QuotaStrip: View {
     let chips: [AccountQuotaChip]
-    let updatedAt: Date?
-    let unavailable: Bool
     let onConnectQwen: () -> Void
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
-            strip(now: context.date)
-        }
-    }
-
-    @ViewBuilder
-    private func strip(now: Date) -> some View {
-        if chips.isEmpty {
-            if unavailable {
-                HStack(spacing: 8) {
-                    sectionLabel
-                    Text("CC Switch 暂不可读")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .help("这次没读成本机 CC Switch 数据库")
-                    Spacer(minLength: 0)
+            // Chips keep their full text. Freshness lives in the header caption,
+            // so a timestamp cannot sit on this row and steal width from wrapping.
+            QuotaFlowLayout(spacing: 6, lineSpacing: 6) {
+                ForEach(chips) { chip in
+                    QuotaChipView(
+                        chip: chip,
+                        now: context.date,
+                        onConnectQwen: needsQwenConnection(chip) ? onConnectQwen : nil
+                    )
                 }
             }
-        } else {
-            // Chips keep their full text and the full row. The refresh time used
-            // to sit in a trailing column, so it floated beside the first chip
-            // row and stole width from wrapping. It belongs with the section label.
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    sectionLabel
-                    statusLabel(now: now)
-                }
-                QuotaFlowLayout(spacing: 6, lineSpacing: 6) {
-                    ForEach(chips) { chip in
-                        QuotaChipView(
-                            chip: chip,
-                            now: now,
-                            onConnectQwen: needsQwenConnection(chip) ? onConnectQwen : nil
-                        )
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -61,46 +34,6 @@ struct QuotaStrip: View {
         guard chip.kind == .qwen else { return false }
         if case .usage = chip.status { return true }
         return false
-    }
-
-    private var sectionLabel: some View {
-        Text("余量")
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(.secondary)
-            .fixedSize()
-            .help("来自本机 CC Switch 的供应商余量。没安装 CC Switch 或读不懂配置时不显示，也不需要安装 Codex。")
-    }
-
-    @ViewBuilder
-    private func statusLabel(now: Date) -> some View {
-        let text = statusText(now: now)
-        if !text.isEmpty {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("·")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.quaternary)
-                Text(text)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
-                    .monospacedDigit()
-                    .fixedSize()
-            }
-            .fixedSize()
-            .help(unavailable ? "数据库这次没有读成，显示的是上次余量" : "")
-        }
-    }
-
-    private func statusText(now: Date) -> String {
-        if unavailable { return "未刷新" }
-        guard let updatedAt else { return "" }
-        let seconds = now.timeIntervalSince(updatedAt)
-        if seconds < 45 { return "刚刚" }
-        let minutes = Int(seconds / 60)
-        if minutes < 60 { return "\(max(minutes, 1)) 分钟前" }
-        let formatter = DateFormatter()
-        formatter.dateStyle = .none
-        formatter.timeStyle = .short
-        return formatter.string(from: updatedAt)
     }
 }
 
