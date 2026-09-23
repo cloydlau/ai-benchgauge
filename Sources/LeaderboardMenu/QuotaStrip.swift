@@ -37,33 +37,26 @@ struct QuotaStrip: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(chips) { chip in
-                            QuotaChipView(chip: chip, now: now)
+                            QuotaChipView(
+                                chip: chip,
+                                now: now,
+                                onConnectQwen: needsQwenConnection(chip) ? onConnectQwen : nil
+                            )
                         }
                     }
                     .padding(.vertical, 1)
                 }
                 .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
                 .frame(height: 28)
-                if needsQwenConnection {
-                    Button("连接千问官网") {
-                        onConnectQwen()
-                    }
-                    .buttonStyle(.link)
-                    .font(.system(size: 11))
-                    .help("登录一次千问官网；应用之后直接读取官网显示的个人版剩余百分比")
-                    .fixedSize()
-                }
                 statusLabel(now: now)
             }
         }
     }
 
-    private var needsQwenConnection: Bool {
-        chips.contains { chip in
-            guard chip.kind == .qwen else { return false }
-            if case .usage = chip.status { return true }
-            return false
-        }
+    private func needsQwenConnection(_ chip: AccountQuotaChip) -> Bool {
+        guard chip.kind == .qwen else { return false }
+        if case .usage = chip.status { return true }
+        return false
     }
 
     private var sectionLabel: some View {
@@ -106,11 +99,16 @@ private struct QuotaChipView: View {
 
     let chip: AccountQuotaChip
     let now: Date
+    let onConnectQwen: (() -> Void)?
 
     var body: some View {
-        if let url = chip.websiteURL {
+        if onConnectQwen != nil || chip.websiteURL != nil {
             Button {
-                NSWorkspace.shared.open(url)
+                if let onConnectQwen {
+                    onConnectQwen()
+                } else if let url = chip.websiteURL {
+                    NSWorkspace.shared.open(url)
+                }
             } label: {
                 chipBody
             }
@@ -136,10 +134,16 @@ private struct QuotaChipView: View {
         .background(chipBackground)
         .overlay(chipStroke)
         .fixedSize()
-        .help(AccountQuotaFormatting.help(for: chip, now: now))
+        .help(helpText)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
-        .accessibilityAddTraits(chip.websiteURL == nil ? [] : .isButton)
+        .accessibilityAddTraits(onConnectQwen == nil && chip.websiteURL == nil ? [] : .isButton)
+    }
+
+    private var helpText: String {
+        let help = AccountQuotaFormatting.help(for: chip, now: now)
+        guard onConnectQwen != nil else { return help }
+        return [help, "点击连接千问官网用量"].filter { !$0.isEmpty }.joined(separator: "\n")
     }
 
     private var accessibilityLabel: String {
