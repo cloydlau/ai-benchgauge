@@ -60,8 +60,9 @@ struct LeaderboardView: View {
         }
     }
 
-    /// Hidden unless recognizable Codex quotas exist, or a present CC Switch
+    /// Hidden unless recognizable provider quotas exist, or a present CC Switch
     /// database could not be read this time. A missing install stays hidden.
+    /// Official usage with no stored login is omitted; Codex need not be installed.
     private var showsQuotaStrip: Bool {
         state.quotaUnavailable || !state.quotaChips.isEmpty
     }

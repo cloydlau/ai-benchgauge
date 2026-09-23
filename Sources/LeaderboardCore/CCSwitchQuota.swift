@@ -90,10 +90,8 @@ public enum AccountQuotaMessage {
     public static let notLoggedIn = "未登录"
     public static let notLoggedInHelp = "没有可用的 xAI 登录，未发起查询"
     public static let network = "网络错误"
-    public static let officialFollowsLogin = "随登录变化"
-    public static let officialFollowsLoginHelp = "账号会随 Codex CLI 当前登录变化；没有可用登录时不查询"
     public static let officialSummary = "查询中"
-    public static let officialHelp = "正在查询 Codex 官方用量"
+    public static let officialHelp = "正在查询官方用量"
     public static let emptyBalance = "无可用余额"
     public static let emptyUsage = "暂无本地用量"
 }
@@ -498,6 +496,13 @@ public enum CCSwitchQuotaCatalog {
         for record in ordered {
             guard let kind = kind(for: record) else { continue }
             let extracted = credentials(from: record.settingsConfigJSON)
+            // Official usage uses only the access token CC Switch already stored.
+            // Do not read ~/.codex, CODEX_HOME, or the codex binary. No stored
+            // login — including when Codex is not installed — is omitted, not
+            // shown as an error or a prompt to install Codex.
+            if kind == .officialNote, usableOfficialAccessToken(extracted.accessToken) == nil {
+                continue
+            }
             let baseURL = preferredBaseURL(extracted.baseURLs, kind: kind)
             built.append(
                 CCSwitchQuotaTarget(
@@ -511,7 +516,9 @@ public enum CCSwitchQuotaCatalog {
                     isCurrent: record.isCurrent,
                     apiKey: kind == .officialNote || kind == .xaiOAuth ? nil : extracted.apiKey,
                     baseURL: baseURL,
-                    accessToken: kind == .officialNote ? extracted.accessToken : nil,
+                    accessToken: kind == .officialNote
+                        ? usableOfficialAccessToken(extracted.accessToken)
+                        : nil,
                     accountID: kind == .officialNote ? extracted.accountID : nil
                 )
             )
@@ -687,6 +694,12 @@ public enum CCSwitchQuotaCatalog {
         guard let value else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    /// Same rule as the quota client: empty and `proxy-` placeholders are not logins.
+    static func usableOfficialAccessToken(_ value: String?) -> String? {
+        guard let trimmed = usableToken(value), !trimmed.hasPrefix("proxy-") else { return nil }
+        return trimmed
     }
 
     private static func tomlStringValue(named key: String, in config: String) -> String? {

@@ -126,8 +126,10 @@ extension XaiAuthFile {
     }
 }
 
-/// Fetches CC Switch Codex quotas. Credential material stays on the request
+/// Fetches CC Switch provider quotas. Credential material stays on the request
 /// and in this actor's access-token cache. It is not logged or returned.
+/// Official usage uses the access token already stored in CC Switch. It does
+/// not read ~/.codex, CODEX_HOME, or the codex binary.
 public actor AccountQuotaClient {
     private let transport: any AccountQuotaTransport
     private let authFileURL: URL
@@ -214,8 +216,17 @@ public actor AccountQuotaClient {
         for chip in keyChips + resolvedOfficial + resolvedXAI + qwenChips {
             byID[chip.id] = Self.keepingLastGood(chip, previous: previous)
         }
-        return targets.map { target in
-            return byID[target.id] ?? Self.chip(target, .failed)
+        return targets.compactMap { target in
+            if let chip = byID[target.id] {
+                return chip
+            }
+            // No stored official login. Hide it instead of failing or telling
+            // the user to install Codex.
+            if target.kind == .officialNote,
+               CCSwitchQuotaCatalog.usableOfficialAccessToken(target.accessToken) == nil {
+                return nil
+            }
+            return Self.chip(target, .failed)
         }
     }
 
@@ -223,7 +234,7 @@ public actor AccountQuotaClient {
         for targets: [CCSwitchQuotaTarget],
         previous: [AccountQuotaChip]
     ) async throws -> [AccountQuotaChip] {
-        try await withThrowingTaskGroup(of: AccountQuotaChip.self) { group in
+        try await withThrowingTaskGroup(of: AccountQuotaChip?.self) { group in
             for target in targets {
                 group.addTask {
                     try await Self.queryOfficial(target, transport: self.transport)
@@ -231,7 +242,9 @@ public actor AccountQuotaClient {
             }
             var chips: [AccountQuotaChip] = []
             for try await chip in group {
-                chips.append(Self.keepingLastGood(chip, previous: previous))
+                if let chip {
+                    chips.append(Self.keepingLastGood(chip, previous: previous))
+                }
             }
             return chips
         }
@@ -306,12 +319,14 @@ public actor AccountQuotaClient {
         return chip(target, parsed: parsed)
     }
 
+    /// Returns nil when CC Switch has no usable official login. That is not an
+    /// error, and it does not depend on a local Codex install.
     private static func queryOfficial(
         _ target: CCSwitchQuotaTarget,
         transport: any AccountQuotaTransport
-    ) async throws -> AccountQuotaChip {
-        guard let accessToken = usableKey(target.accessToken) else {
-            return officialFollowsLoginChip(target)
+    ) async throws -> AccountQuotaChip? {
+        guard let accessToken = CCSwitchQuotaCatalog.usableOfficialAccessToken(target.accessToken) else {
+            return nil
         }
         guard let url = URL(string: "https://chatgpt.com/backend-api/wham/usage") else {
             return chip(target, .failed)
@@ -353,20 +368,6 @@ public actor AccountQuotaClient {
         )
     }
 
-
-    private static func officialFollowsLoginChip(_ target: CCSwitchQuotaTarget) -> AccountQuotaChip {
-        AccountQuotaChip(
-            id: target.id,
-            shortName: target.shortName,
-            websiteURL: target.websiteURL,
-            kind: target.kind,
-            isCurrent: target.isCurrent,
-            status: .note(
-                text: AccountQuotaMessage.officialFollowsLogin,
-                help: AccountQuotaMessage.officialFollowsLoginHelp
-            )
-        )
-    }
 
     /// Empty and `proxy-` keys are local placeholders, not credentials to send.
     private static func usableKey(_ value: String?) -> String? {

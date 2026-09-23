@@ -20,7 +20,12 @@ final class CCSwitchQuotaCatalogTests: XCTestCase {
                 createdAt: 2,
                 isCurrent: true,
                 meta: #"{"usage_script":{"enabled":true,"templateType":"official_subscription"}}"#,
-                settings: settings(key: "official-key-must-not-leave", toml: "https://api.openai.com/v1")
+                settings: settings(
+                    key: "official-key-must-not-leave",
+                    toml: "https://api.openai.com/v1",
+                    accessToken: "stored-official-login",
+                    accountID: "acct-1"
+                )
             ),
             record(
                 id: "kimi",
@@ -62,6 +67,8 @@ final class CCSwitchQuotaCatalogTests: XCTestCase {
         XCTAssertEqual(targets.map(\.shortName), ["OpenAI", "Kimi", "DeepSeek", "xAI", "智谱"])
         XCTAssertEqual(targets.map(\.isCurrent), [false, false, false, true, false])
         XCTAssertNil(targets[0].apiKey)
+        XCTAssertEqual(targets[0].accessToken, "stored-official-login")
+        XCTAssertEqual(targets[0].accountID, "acct-1")
         XCTAssertEqual(targets[1].apiKey, "unit-test-key")
         XCTAssertEqual(targets[1].baseURL, "https://api.kimi.com/coding/v1")
         XCTAssertEqual(targets[2].baseURL, "https://api.deepseek.com")
@@ -71,6 +78,52 @@ final class CCSwitchQuotaCatalogTests: XCTestCase {
             CCSwitchQuotaCatalog.zhipuQuotaURL(baseURL: targets[4].baseURL).absoluteString,
             "https://open.bigmodel.cn/api/monitor/usage/quota/limit"
         )
+    }
+
+    func testOfficialWithoutStoredLoginIsOmittedAndDoesNotRequireCodex() {
+        let targets = CCSwitchQuotaCatalog.targets(
+            from: [
+                record(
+                    id: "codex-official",
+                    name: "OpenAI Official",
+                    website: "https://chatgpt.com/codex",
+                    isCurrent: true,
+                    meta: #"{"usage_script":{"enabled":true,"templateType":"official_subscription"}}"#,
+                    settings: settings(key: "must-not-be-sent", toml: "https://api.openai.com/v1")
+                ),
+                record(
+                    id: "blank-official",
+                    name: "OpenAI Official",
+                    meta: #"{"usage_script":{"templateType":"official_subscription"}}"#,
+                    settings: settings(
+                        key: nil,
+                        toml: "https://api.openai.com/v1",
+                        accessToken: "   "
+                    )
+                ),
+                record(
+                    id: "proxy-official",
+                    name: "OpenAI Official",
+                    meta: #"{"usage_script":{"templateType":"official_subscription"}}"#,
+                    settings: settings(
+                        key: nil,
+                        toml: "https://api.openai.com/v1",
+                        accessToken: "proxy-local"
+                    )
+                ),
+                record(
+                    id: "kimi",
+                    name: "Kimi",
+                    meta: #"{"usage_script":{"codingPlanProvider":"kimi"}}"#,
+                    settings: settings(key: "unit-test-key", toml: "https://api.kimi.com/coding/v1")
+                ),
+            ],
+            currentProviderID: "codex-official"
+        )
+
+        XCTAssertEqual(targets.map(\.id), ["kimi"])
+        XCTAssertFalse(targets[0].isCurrent)
+        XCTAssertNil(targets[0].accessToken)
     }
 
     func testHiddenCurrentProviderFallsBackToTheDatabaseFlag() {
@@ -537,26 +590,42 @@ final class AccountQuotaClientTests: XCTestCase {
         ])
     }
 
-    func testOfficialWithoutALoginDoesNotCallTheNetwork() async throws {
+    func testOfficialWithoutALoginDoesNotCallTheNetworkOrRequireCodex() async throws {
+        let missingCodexAuth = URL(fileURLWithPath: "/tmp/missing-codex-\(UUID().uuidString)/auth.json")
         let transport = ScriptedQuotaTransport { request in
             XCTFail("unexpected request \(request.url?.absoluteString ?? "")")
             return AccountQuotaHTTPResponse(statusCode: 500, headers: [:], body: Data())
         }
-        let client = AccountQuotaClient(transport: transport)
-        let chips = try await client.refresh(targets: [
-            quotaTarget(id: "official", name: "OpenAI", kind: .officialNote, key: "must-not-be-sent"),
-        ])
-        XCTAssertEqual(chips.map(\.status), [
-            .note(
-                text: AccountQuotaMessage.officialFollowsLogin,
-                help: AccountQuotaMessage.officialFollowsLoginHelp
-            ),
-        ])
-        XCTAssertEqual(
-            AccountQuotaFormatting.runs(for: chips[0], now: Date()).map(\.tone),
-            [.secondary]
+        let client = AccountQuotaClient(transport: transport, authFileURL: missingCodexAuth)
+        let chips = try await client.refresh(
+            targets: [
+                quotaTarget(id: "official", name: "OpenAI", kind: .officialNote, key: "must-not-be-sent"),
+                quotaTarget(
+                    id: "proxy",
+                    name: "OpenAI",
+                    kind: .officialNote,
+                    key: nil,
+                    accessToken: "proxy-placeholder"
+                ),
+                quotaTarget(
+                    id: "blank",
+                    name: "OpenAI",
+                    kind: .officialNote,
+                    key: nil,
+                    accessToken: "  "
+                ),
+            ],
+            authFileURL: missingCodexAuth
         )
+        XCTAssertTrue(chips.isEmpty)
         XCTAssertTrue(transport.requests.isEmpty)
+        let rendered = chips.map {
+            AccountQuotaFormatting.plainSummary(for: $0, now: Date())
+                + AccountQuotaFormatting.help(for: $0, now: Date())
+        }.joined()
+        XCTAssertFalse(rendered.localizedCaseInsensitiveContains("codex"))
+        XCTAssertFalse(rendered.contains("安装"))
+        XCTAssertFalse(rendered.contains("查询失败"))
     }
 
     func testMissingOrPlaceholderKeyDoesNotCallTheNetwork() async throws {
@@ -1062,14 +1131,38 @@ private func record(
     )
 }
 
-private func settings(key: String?, toml: String) -> String {
-    settings(key: key, config: "base_url = \"\(toml)\"")
+private func settings(
+    key: String?,
+    toml: String,
+    accessToken: String? = nil,
+    accountID: String? = nil
+) -> String {
+    settings(key: key, config: "base_url = \"\(toml)\"", accessToken: accessToken, accountID: accountID)
 }
 
-private func settings(key: String?, config: Any) -> String {
+private func settings(
+    key: String?,
+    config: Any,
+    accessToken: String? = nil,
+    accountID: String? = nil
+) -> String {
     var object: [String: Any] = ["config": config]
+    var auth: [String: Any] = [:]
     if let key {
-        object["auth"] = ["OPENAI_API_KEY": key]
+        auth["OPENAI_API_KEY"] = key
+    }
+    if accessToken != nil || accountID != nil {
+        var tokens: [String: Any] = [:]
+        if let accessToken {
+            tokens["access_token"] = accessToken
+        }
+        if let accountID {
+            tokens["account_id"] = accountID
+        }
+        auth["tokens"] = tokens
+    }
+    if !auth.isEmpty {
+        object["auth"] = auth
     }
     let data = try! JSONSerialization.data(withJSONObject: object)
     return String(decoding: data, as: UTF8.self)
