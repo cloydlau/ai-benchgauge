@@ -29,6 +29,7 @@ final class AppState: ObservableObject {
     private let cache: LeaderboardCache
     private let qwenWebsiteSource = QwenWebsiteQuotaSource()
     private var quotaClient: AccountQuotaClient!
+    private let quotaNotifier = QuotaNotifier()
     private var updateTimer: Timer?
     private var refreshTask: Task<Void, Never>?
     private var quotaTask: Task<Void, Never>?
@@ -236,8 +237,10 @@ final class AppState: ObservableObject {
                     )
                     guard !Task.isCancelled, !self.isQuitting, generation == self.quotaGeneration else { return }
                     let refreshedByID = Dictionary(uniqueKeysWithValues: chips.map { ($0.id, $0) })
+                    let refreshedAt = Date()
                     self.quotaChips = previous.map { refreshedByID[$0.id] ?? $0 }
-                    self.quotaUpdatedAt = Date()
+                    self.quotaUpdatedAt = refreshedAt
+                    self.quotaNotifier.consider(chips: chips, now: refreshedAt)
                 } catch is CancellationError {
                     return
                 } catch {
