@@ -7,7 +7,7 @@
 // git 不读 macOS 系统代理；未设置 https_proxy 时，推送改用 scutil 读到的代理。
 
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, lstatSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { avatarForModel, detectModelName } from './commit-identity.mjs'
@@ -121,6 +121,32 @@ function gitSync(args) {
   })
 }
 
+export function dirtyStatusSignature(status, fingerprintForPath) {
+  if (!status) return ''
+  const fingerprints = []
+  const entries = status.split('\0')
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index]
+    if (!entry) continue
+    const path = entry.slice(3)
+    fingerprints.push(`${path}:${fingerprintForPath(path)}`)
+    // rename/copy 在 -z 格式中多带一个旧路径记录。
+    if (/[RC]/.test(entry.slice(0, 2))) index += 1
+  }
+  fingerprints.push(`index:${fingerprintForPath('.git/index')}`)
+  return `${status}\u0001${fingerprints.join('\0')}`
+}
+
+function fileFingerprint(path) {
+  try {
+    const stat = lstatSync(join(root, path), { bigint: true, throwIfNoEntry: false })
+    return stat ? `${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}` : 'missing'
+  } catch (error) {
+    if (isAccessDenied(error)) return `unreadable:${error.code}`
+    throw error
+  }
+}
+
 function gitStatusSignature() {
   const result = gitSync(['status', '--porcelain', '-z', '--untracked-files=all'])
   if (result.error) {
@@ -131,7 +157,10 @@ function gitStatusSignature() {
     console.warn(`[watch] git 状态检查失败：${(result.stderr || '').trim() || `退出码 ${result.status}`}`)
     return null
   }
-  return result.stdout ?? ''
+  const status = result.stdout ?? ''
+  // porcelain 只包含文件名和状态；同一批文件继续编辑时，它不会变化。
+  // 失败后的重试判断还需要文件及暂存区的变化时间。
+  return dirtyStatusSignature(status, fileFingerprint)
 }
 
 export function parseAheadCount(stdout) {
