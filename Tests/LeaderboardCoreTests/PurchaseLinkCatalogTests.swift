@@ -1,7 +1,48 @@
+import Foundation
 import LeaderboardCore
 import XCTest
 
 final class PurchaseLinkCatalogTests: XCTestCase {
+    func testPurchaseLinksChooseSiteFromInterfaceLanguage() {
+        let pairedOrganizations = [
+            "Alibaba", "Z.ai", "Tencent", "MiniMax", "KlingAI", "ByteDance Seed", "Xiaomi"
+        ]
+        for organization in pairedOrganizations {
+            let links = PurchaseLinkCatalog.links(forOrganization: organization)
+            for choices in [links.codingPlan, links.payAsYouGo] {
+                XCTAssertEqual(
+                    PurchaseLinkCatalog.preferredLink(from: choices, language: .chinese)?.site,
+                    .mainlandChina,
+                    organization
+                )
+                XCTAssertEqual(
+                    PurchaseLinkCatalog.preferredLink(from: choices, language: .english)?.site,
+                    .international,
+                    organization
+                )
+                XCTAssertEqual(
+                    PurchaseLinkCatalog.preferredLink(from: choices, language: .traditionalChinese)?.site,
+                    .international,
+                    organization
+                )
+            }
+        }
+        let tencent = PurchaseLinkCatalog.links(forOrganization: "Tencent")
+        XCTAssertEqual(
+            PurchaseLinkCatalog.preferredLink(from: tencent.codingPlan, language: .chinese)?.url.absoluteString,
+            "https://console.cloud.tencent.com/tokenhub/tokenplan/hy"
+        )
+    }
+
+    func testChineseDomainAndSingleSiteFallback() {
+        let chinese = PurchaseLink(label: "CN", url: URL(string: "https://example.cn/pricing")!)
+        let global = PurchaseLink(label: "Global", url: URL(string: "https://example.com/pricing")!)
+        XCTAssertEqual(PurchaseLinkCatalog.preferredLink(from: [global, chinese], language: .chinese), chinese)
+        XCTAssertEqual(PurchaseLinkCatalog.preferredLink(from: [global, chinese], language: .english), global)
+        XCTAssertEqual(PurchaseLinkCatalog.preferredLink(from: [chinese], language: .traditionalChinese), chinese)
+        XCTAssertNil(PurchaseLinkCatalog.preferredLink(from: [], language: .english))
+    }
+
     func testAliasesShareOfficialLinks() {
         let xAI = PurchaseLinkCatalog.links(forOrganization: "xAI")
         let spaceX = PurchaseLinkCatalog.links(forOrganization: "SpaceXAI")
