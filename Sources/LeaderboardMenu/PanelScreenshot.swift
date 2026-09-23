@@ -50,6 +50,11 @@ enum PanelScreenshot {
         return band
     }
 
+    /// True when the balance-row anchor is still in the view tree.
+    static func containsQuotaStrip(in host: NSView) -> Bool {
+        descendant(of: host, identified: quotaStripIdentifier) != nil
+    }
+
     static func copyToPasteboard(image: NSImage, png: Data) -> Bool {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()

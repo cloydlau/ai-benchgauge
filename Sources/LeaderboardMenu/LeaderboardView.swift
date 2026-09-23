@@ -8,8 +8,8 @@ private final class ScreenshotUIState: ObservableObject {
     @Published var note: String?
     @Published var noteID = 0
     @Published var isCapturing = false
-    /// Used only when the quota row cannot be measured. The retry capture is
-    /// taken after SwiftUI has removed that row.
+    /// Hides the balance row while a screenshot is copied, so that row is not
+    /// in the shared image even if a pixel crop misses it.
     @Published var hidesQuotaStrip = false
 }
 
@@ -83,8 +83,7 @@ struct LeaderboardView: View {
         .animation(nil, value: screenshot.hidesQuotaStrip)
     }
 
-    /// Personal balance data. Screenshots crop this row out; the hide flag is
-    /// only the fallback when its frame cannot be measured.
+    /// Personal balance data. Screenshots hide this row before copying.
     private var showsQuotaStrip: Bool {
         !state.quotaChips.isEmpty && !screenshot.hidesQuotaStrip
     }
@@ -112,6 +111,9 @@ struct LeaderboardView: View {
             TimelineView(.periodic(from: .now, by: 60)) { context in
                 freshnessLine(now: context.date)
             }
+            // Recreate on capture. A periodic timeline can keep the 余量
+            // caption until the next tick, which would leave it in the image.
+            .id(omitsQuotaClause)
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .animation(nil, value: state.selectedCategory)
@@ -366,62 +368,77 @@ struct LeaderboardView: View {
         }
     }
 
-    /// Wait out the button highlight, the 余量 caption, and any toast fade.
+    /// Hide the balance row, wait out the button highlight and the 余量
+    /// caption, then copy. Crop is only a backup if the row is still on screen.
     private func captureScreenshot() {
         guard !state.isQuitting, !screenshot.isCapturing else { return }
         screenshot.isCapturing = true
-        screenshot.hidesQuotaStrip = false
         let settle = screenshot.note == nil ? 120 : 240
-        // Invalidate a pending dismiss so it cannot clear the result toast.
         screenshot.noteID += 1
         screenshot.note = nil
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            screenshot.hidesQuotaStrip = true
+        }
         Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(settle))
-            if performScreenshotCapture(allowFallback: true) == false {
-                var transaction = Transaction()
-                transaction.disablesAnimations = true
-                withTransaction(transaction) {
-                    screenshot.hidesQuotaStrip = true
-                }
-                try? await Task.sleep(for: .milliseconds(160))
-                _ = performScreenshotCapture(allowFallback: false)
+            defer {
                 var restore = Transaction()
                 restore.disablesAnimations = true
                 withTransaction(restore) {
                     screenshot.hidesQuotaStrip = false
                 }
+                screenshot.isCapturing = false
             }
-            screenshot.isCapturing = false
+            try? await Task.sleep(for: .milliseconds(settle))
+            await waitUntilQuotaStripHidden()
+            performScreenshotCapture()
         }
     }
 
-    /// False means the quota row was still in the bitmap and should be hidden
-    /// for a retry. A hard failure already showed a note and must not retry.
-    private func performScreenshotCapture(allowFallback: Bool) -> Bool {
-        guard !state.isQuitting else { return true }
+    /// The chip anchor stays until SwiftUI commits the hide. A bitmap taken
+    /// before that still contains the balance row.
+    private func waitUntilQuotaStripHidden() async {
+        guard !state.quotaChips.isEmpty else { return }
+        for _ in 0..<8 {
+            guard let view = panelContentView() else { return }
+            view.layoutSubtreeIfNeeded()
+            if !PanelScreenshot.containsQuotaStrip(in: view) {
+                view.window?.displayIfNeeded()
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(40))
+        }
+    }
+
+    private func performScreenshotCapture() {
+        guard !state.isQuitting else { return }
         guard let view = panelContentView() else {
             showScreenshotNote("截图失败")
-            return true
+            return
         }
         // A panel flush with the screen edge clips its top-right corner, and
         // that clipped region is blank in the bitmap.
         keepPanelInsideScreen(view)
         view.layoutSubtreeIfNeeded()
-        let band = screenshot.hidesQuotaStrip ? nil : PanelScreenshot.quotaStripBand(in: view)
-        let wantsOmit = !state.quotaChips.isEmpty && !screenshot.hidesQuotaStrip
+        let band = PanelScreenshot.quotaStripBand(in: view)
         guard let shot = PanelScreenshot.capture(view: view, omittingTopBand: band) else {
             showScreenshotNote("截图失败")
-            return true
+            return
         }
-        if allowFallback, wantsOmit, !shot.omittedBand {
-            return false
+        // Hide is the real omission. Crop covers a row SwiftUI has not removed yet.
+        // Do not copy an image that still contains that row.
+        if !state.quotaChips.isEmpty,
+           PanelScreenshot.containsQuotaStrip(in: view),
+           !shot.omittedBand {
+            showScreenshotNote("截图失败")
+            return
         }
         guard PanelScreenshot.copyToPasteboard(image: shot.image, png: shot.png) else {
             showScreenshotNote("截图失败")
-            return true
+            return
         }
         showScreenshotNote("已复制到剪贴板")
-        return true
     }
 
     private func showScreenshotNote(_ text: String) {
