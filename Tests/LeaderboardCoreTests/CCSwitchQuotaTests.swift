@@ -91,6 +91,79 @@ final class CCSwitchQuotaCatalogTests: XCTestCase {
         XCTAssertTrue(targets[0].isCurrent)
     }
 
+    func testRecognizesQwenTokenPlanProvider() {
+        let targets = CCSwitchQuotaCatalog.targets(
+            from: [
+                record(
+                    id: "qwen",
+                    name: "通义千问 Token Plan",
+                    meta: #"{"usage_script":{"enabled":true,"codingPlanProvider":"qwen"}}"#,
+                    settings: settings(
+                        key: "qwen-key",
+                        toml: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+                    )
+                ),
+            ],
+            currentProviderID: nil
+        )
+
+        XCTAssertEqual(targets.map(\.kind), [.qwen])
+        XCTAssertEqual(targets.first?.shortName, "千问")
+        XCTAssertEqual(targets.first?.apiKey, "qwen-key")
+    }
+
+    func testDisabledMislabeledScriptStillShowsQwenHostWithoutSendingItsKey() {
+        let targets = CCSwitchQuotaCatalog.targets(
+            from: [
+                record(
+                    id: "qwen",
+                    name: "千问",
+                    meta: #"{"usage_script":{"enabled":false,"templateType":"general","codingPlanProvider":"kimi"}}"#,
+                    settings: settings(
+                        key: "must-not-become-a-kimi-key",
+                        toml: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+                    )
+                ),
+                record(
+                    id: "off",
+                    name: "DeepSeek off",
+                    meta: #"{"usage_script":{"enabled":false,"templateType":"balance"}}"#,
+                    settings: settings(key: "should-stay-hidden", toml: "https://api.deepseek.com")
+                ),
+            ],
+            currentProviderID: nil
+        )
+
+        XCTAssertEqual(targets.map(\.id), ["qwen"])
+        XCTAssertEqual(targets.map(\.kind), [.qwen])
+        XCTAssertEqual(targets.first?.apiKey, "must-not-become-a-kimi-key")
+    }
+
+    func testReadsKimiBearerTokenFromCodexConfig() {
+        let targets = CCSwitchQuotaCatalog.targets(
+            from: [
+                record(
+                    id: "kimi",
+                    name: "Kimi For Coding",
+                    meta: #"{"usage_script":{"enabled":true,"codingPlanProvider":"kimi"}}"#,
+                    settings: settings(
+                        key: nil,
+                        toml: """
+                        model_provider = "custom"
+                        [model_providers.custom]
+                        base_url = "https://api.kimi.com/coding/v1"
+                        experimental_bearer_token = "kimi-bearer"
+                        """
+                    )
+                ),
+            ],
+            currentProviderID: nil
+        )
+
+        XCTAssertEqual(targets.first?.kind, .kimi)
+        XCTAssertEqual(targets.first?.apiKey, "kimi-bearer")
+    }
+
     func testDropsProxyKeysLoopbackURLsAndDisambiguatesDuplicateNames() {
         let records = [
             record(
@@ -179,6 +252,39 @@ final class AccountQuotaFormattingTests: XCTestCase {
             ])
         )
         XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: deepseek, now: now), "剩余 12.36 CNY")
+
+        let qwen = chip(
+            kind: .qwen,
+            status: .usage([
+                ParsedUsageWindow(
+                    name: "24小时",
+                    requests: 12,
+                    inputTokens: 1_234_567,
+                    outputTokens: 765_433,
+                    costUSD: 1.25
+                ),
+            ])
+        )
+        XCTAssertEqual(
+            AccountQuotaFormatting.plainSummary(for: qwen, now: now),
+            "本地24小时: 2.0M tokens · 12次 · $1.25"
+        )
+        XCTAssertTrue(AccountQuotaFormatting.help(for: qwen, now: now).contains("非千问官网套餐额度"))
+
+        let officialQwen = chip(
+            kind: .qwen,
+            status: .qwenPlan(QwenPlanQuota(
+                usedPercent: 28,
+                remainingCredits: 18_000,
+                totalCredits: 25_000,
+                resetsAt: now.addingTimeInterval(2 * 86_400)
+            ))
+        )
+        XCTAssertEqual(
+            AccountQuotaFormatting.plainSummary(for: officialQwen, now: now),
+            "7天: 28% · 剩余 18,000/25,000 Credits 2d0h"
+        )
+        XCTAssertTrue(AccountQuotaFormatting.help(for: officialQwen, now: now).contains("千问官网套餐额度"))
     }
 
     func testCountdownBoundariesAndUtilizationTones() {
@@ -205,6 +311,42 @@ final class AccountQuotaFormattingTests: XCTestCase {
 }
 
 final class CCSwitchQuotaParserTests: XCTestCase {
+    func testParsesOfficialQwenPlanCredits() {
+        let data = Data(#"""
+        {"token_plan":{"subscribed":true,"totalCredits":25000,"remainingCredits":18000,"usedPct":28,"resetDate":"2026-08-01T00:00:00.000Z"}}
+        """#.utf8)
+        XCTAssertEqual(
+            QwenPlanQuotaParser.parse(data),
+            QwenPlanQuota(
+                usedPercent: 28,
+                remainingCredits: 18_000,
+                totalCredits: 25_000,
+                resetsAt: ISO8601DateFormatter().date(from: "2026-08-01T00:00:00Z")
+            )
+        )
+        XCTAssertNil(QwenPlanQuotaParser.parse(Data(#"{"token_plan":{"subscribed":false}}"#.utf8)))
+    }
+
+    func testParsesQwenWebsiteQuotaText() {
+        let data = Data("个人版 Pro 套餐\n月额度 剩余量 6.8 %\n重置时间 2026-10-05 00:00:00".utf8)
+        let quota = QwenWebsiteQuotaParser.parse(data)
+        XCTAssertEqual(quota?.periodLabel, "1个月")
+        XCTAssertEqual(quota?.remainingPercent, 6.8)
+        XCTAssertEqual(
+            quota?.resetsAt?.timeIntervalSince1970,
+            ISO8601DateFormatter().date(from: "2026-10-04T16:00:00Z")?.timeIntervalSince1970
+        )
+        let capturedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let persisted = quota.flatMap {
+            QwenWebsiteQuotaParser.persistedData(for: $0, capturedAt: capturedAt)
+        }
+        let cached = persisted.flatMap(QwenWebsiteQuotaParser.parse)
+        XCTAssertEqual(cached?.periodLabel, "1个月")
+        XCTAssertEqual(cached?.remainingPercent, 6.8)
+        XCTAssertEqual(cached?.capturedAt, capturedAt)
+        XCTAssertEqual(cached?.isCached, true)
+    }
+
     func testParsesKimiZhipuAndDeepSeekBodiesWithoutKeepingRawText() {
         let kimi = CCSwitchQuotaParsers.parseKimi(Data(#"""
         {"limits":[{"detail":{"limit":100,"remaining":100,"resetTime":"2026-09-22T08:37:00Z"}}],"usage":{"limit":200,"remaining":50,"resetTime":1760000000}}
@@ -251,6 +393,11 @@ final class AccountQuotaClientTests: XCTestCase {
         let transport = ScriptedQuotaTransport { request in
             let body: String
             switch request.url?.host {
+            case "chatgpt.com":
+                XCTAssertEqual(request.url?.path, "/backend-api/wham/usage")
+                XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer official-token")
+                XCTAssertEqual(request.value(forHTTPHeaderField: "ChatGPT-Account-ID"), "account-id")
+                body = #"{"rate_limit":{"primary_window":{"used_percent":42,"limit_window_seconds":18000,"reset_at":1760000000},"secondary_window":{"used_percent":13,"limit_window_seconds":604800,"reset_at":1760500000}}}"#
             case "api.kimi.com":
                 XCTAssertEqual(request.url?.path, "/coding/v1/usages")
                 XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer unit-test-key")
@@ -269,7 +416,14 @@ final class AccountQuotaClientTests: XCTestCase {
             authFileURL: URL(fileURLWithPath: "/tmp/missing-xai-auth-\(UUID().uuidString).json")
         )
         let targets = [
-            quotaTarget(id: "official", name: "OpenAI", kind: .officialNote, key: "must-not-be-sent"),
+            quotaTarget(
+                id: "official",
+                name: "OpenAI",
+                kind: .officialNote,
+                key: "must-not-be-sent",
+                accessToken: "official-token",
+                accountID: "account-id"
+            ),
             quotaTarget(id: "kimi", name: "Kimi", kind: .kimi, key: "unit-test-key"),
             quotaTarget(id: "deepseek", name: "DeepSeek", kind: .deepseek, key: "unit-test-key", baseURL: "https://api.deepseek.com"),
         ]
@@ -278,7 +432,18 @@ final class AccountQuotaClientTests: XCTestCase {
 
         XCTAssertEqual(chips.map(\.id), ["official", "kimi", "deepseek"])
         XCTAssertEqual(chips.map(\.status), [
-            .note(text: AccountQuotaMessage.officialSummary, help: AccountQuotaMessage.officialHelp),
+            .windows([
+                ParsedQuotaWindow(
+                    name: "five_hour",
+                    utilization: 42,
+                    resetsAt: Date(timeIntervalSince1970: 1_760_000_000)
+                ),
+                ParsedQuotaWindow(
+                    name: "weekly_limit",
+                    utilization: 13,
+                    resetsAt: Date(timeIntervalSince1970: 1_760_500_000)
+                ),
+            ]),
             .windows([
                 ParsedQuotaWindow(
                     name: "five_hour",
@@ -289,7 +454,7 @@ final class AccountQuotaClientTests: XCTestCase {
             .balances([ParsedBalance(currency: "CNY", amount: 12.36)]),
         ])
         let hosts = transport.requests.compactMap { $0.url?.host }
-        XCTAssertEqual(hosts.sorted(), ["api.deepseek.com", "api.kimi.com"])
+        XCTAssertEqual(hosts.sorted(), ["api.deepseek.com", "api.kimi.com", "chatgpt.com"])
         XCTAssertFalse(chips.contains { AccountQuotaFormatting.plainSummary(for: $0, now: Date()).contains("unit-test-key") })
     }
 
@@ -370,6 +535,28 @@ final class AccountQuotaClientTests: XCTestCase {
                 baseURL: "https://open.bigmodel.cn/api/paas/v4"
             ),
         ])
+    }
+
+    func testOfficialWithoutALoginDoesNotCallTheNetwork() async throws {
+        let transport = ScriptedQuotaTransport { request in
+            XCTFail("unexpected request \(request.url?.absoluteString ?? "")")
+            return AccountQuotaHTTPResponse(statusCode: 500, headers: [:], body: Data())
+        }
+        let client = AccountQuotaClient(transport: transport)
+        let chips = try await client.refresh(targets: [
+            quotaTarget(id: "official", name: "OpenAI", kind: .officialNote, key: "must-not-be-sent"),
+        ])
+        XCTAssertEqual(chips.map(\.status), [
+            .note(
+                text: AccountQuotaMessage.officialFollowsLogin,
+                help: AccountQuotaMessage.officialFollowsLoginHelp
+            ),
+        ])
+        XCTAssertEqual(
+            AccountQuotaFormatting.runs(for: chips[0], now: Date()).map(\.tone),
+            [.secondary]
+        )
+        XCTAssertTrue(transport.requests.isEmpty)
     }
 
     func testMissingOrPlaceholderKeyDoesNotCallTheNetwork() async throws {
@@ -483,6 +670,86 @@ final class AccountQuotaClientTests: XCTestCase {
             [.orange]
         )
         XCTAssertFalse(transport.requests.contains { $0.url?.host == "grok.com" })
+    }
+
+    func testQwenUsesRecordedLocalUsageWithoutSendingItsModelKeyToAnUnknownEndpoint() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "qwen-usage-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let databaseURL = directory.appending(path: "cc-switch.db")
+        try runSQLite(
+            """
+            CREATE TABLE proxy_request_logs (
+                provider_id TEXT NOT NULL,
+                app_type TEXT NOT NULL,
+                input_tokens INTEGER NOT NULL DEFAULT 0,
+                output_tokens INTEGER NOT NULL DEFAULT 0,
+                total_cost_usd TEXT NOT NULL DEFAULT '0',
+                created_at INTEGER NOT NULL
+            );
+            INSERT INTO proxy_request_logs VALUES ('qwen', 'codex', 1000, 250, '0.12', \(Int(Date().timeIntervalSince1970)));
+            """,
+            database: databaseURL
+        )
+        let client = AccountQuotaClient(
+            transport: ScriptedQuotaTransport { request in
+                XCTFail("unexpected request \(request.url?.absoluteString ?? "")")
+                return AccountQuotaHTTPResponse(statusCode: 500, headers: [:], body: Data())
+            },
+            databaseURL: databaseURL,
+            qwenQuotaSource: FixedQwenQuotaSource(data: nil),
+            now: { Date() }
+        )
+        let chips = try await client.refresh(targets: [
+            quotaTarget(
+                id: "qwen",
+                name: "千问",
+                kind: .qwen,
+                key: "qwen-key",
+                baseURL: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+            ),
+        ])
+        XCTAssertEqual(
+            chips.first?.status,
+            .usage([
+                ParsedUsageWindow(
+                    name: "24小时",
+                    requests: 1,
+                    inputTokens: 1000,
+                    outputTokens: 250,
+                    costUSD: 0.12
+                ),
+                ParsedUsageWindow(
+                    name: "7天",
+                    requests: 1,
+                    inputTokens: 1000,
+                    outputTokens: 250,
+                    costUSD: 0.12
+                ),
+            ])
+        )
+    }
+
+    func testQwenPrefersOfficialPlanOverLocalUsage() async throws {
+        let summary = Data(#"""
+        {"token_plan":{"subscribed":true,"totalCredits":25000,"remainingCredits":18000,"usedPct":28}}
+        """#.utf8)
+        let client = AccountQuotaClient(
+            qwenQuotaSource: FixedQwenQuotaSource(data: summary)
+        )
+        let chips = try await client.refresh(targets: [
+            quotaTarget(id: "qwen", name: "千问", kind: .qwen, key: "model-key"),
+        ])
+        XCTAssertEqual(
+            chips.first?.status,
+            .qwenPlan(QwenPlanQuota(
+                usedPercent: 28,
+                remainingCredits: 18_000,
+                totalCredits: 25_000,
+                resetsAt: nil
+            ))
+        )
     }
 }
 
@@ -767,6 +1034,12 @@ private final class ScriptedQuotaTransport: AccountQuotaTransport, @unchecked Se
     }
 }
 
+private struct FixedQwenQuotaSource: QwenQuotaSource {
+    let data: Data?
+
+    func loadSummary() async -> Data? { data }
+}
+
 private func record(
     id: String,
     name: String,
@@ -827,7 +1100,9 @@ private func quotaTarget(
     kind: CCSwitchQuotaKind,
     key: String?,
     baseURL: String? = nil,
-    current: Bool = false
+    current: Bool = false,
+    accessToken: String? = nil,
+    accountID: String? = nil
 ) -> CCSwitchQuotaTarget {
     CCSwitchQuotaTarget(
         id: id,
@@ -836,7 +1111,9 @@ private func quotaTarget(
         kind: kind,
         isCurrent: current,
         apiKey: key,
-        baseURL: baseURL
+        baseURL: baseURL,
+        accessToken: accessToken,
+        accountID: accountID
     )
 }
 
@@ -847,6 +1124,7 @@ private extension CCSwitchQuotaKind {
         case .kimi: "kimi"
         case .zhipu: "zhipu"
         case .deepseek: "deepseek"
+        case .qwen: "qwen"
         case .xaiOAuth: "xai"
         }
     }
