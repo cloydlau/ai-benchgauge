@@ -27,7 +27,9 @@ env CLANG_MODULE_CACHE_PATH="$ROOT/work/clang-modules" \
     --package-path "$ROOT" \
     --cache-path "$ROOT/work/swiftpm-cache" \
     --manifest-cache local \
-    --disable-build-manifest-caching
+    --disable-build-manifest-caching \
+    --disable-sandbox \
+    -debug-info-format none
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$ROOT/Sources/LeaderboardMenu/Resources/Info.plist" "$APP/Contents/Info.plist"
 cp "$BIN" "$APP/Contents/MacOS/leaderboard-menu"
