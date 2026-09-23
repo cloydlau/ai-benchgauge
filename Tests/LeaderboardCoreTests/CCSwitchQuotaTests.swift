@@ -261,10 +261,14 @@ final class AccountQuotaFormattingTests: XCTestCase {
                 ),
             ])
         )
-        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: kimi, now: now), "5小时: 0% 4h37m")
+        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: kimi, now: now), "5小时: 0% 4h37m · 10:50")
         XCTAssertEqual(
             AccountQuotaFormatting.runs(for: kimi, now: now).map(\.tone),
             [.secondary, .green, .secondary]
+        )
+        XCTAssertTrue(
+            AccountQuotaFormatting.help(for: kimi, now: now)
+                .contains("5小时 0%，4小时37分后重置，11月15日 10:50")
         )
 
         let xai = chip(
@@ -278,8 +282,12 @@ final class AccountQuotaFormattingTests: XCTestCase {
                 ),
             ])
         )
-        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: xai, now: now), "7天: 13% 6d2h")
+        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: xai, now: now), "7天: 13% 6d2h · 11月21日 08:13")
         XCTAssertTrue(AccountQuotaFormatting.help(for: xai, now: now).contains("当前供应商"))
+        XCTAssertTrue(
+            AccountQuotaFormatting.help(for: xai, now: now)
+                .contains("7天 13%，6天2小时后重置，11月21日 08:13")
+        )
 
         let zhipu = chip(
             kind: .zhipu,
@@ -290,12 +298,16 @@ final class AccountQuotaFormattingTests: XCTestCase {
         )
         XCTAssertEqual(
             AccountQuotaFormatting.plainSummary(for: zhipu, now: now),
-            "5小时: 0%  7天: 100% 2d3h"
+            "5小时: 0%  7天: 100% 2d3h · 11月17日 09:13"
         )
         XCTAssertEqual(
             AccountQuotaFormatting.runs(for: zhipu, now: now).map(\.tone),
             [.secondary, .green, .secondary, .secondary, .red, .secondary]
         )
+        let zhipuHelp = AccountQuotaFormatting.help(for: zhipu, now: now)
+        XCTAssertTrue(zhipuHelp.contains("5小时 0%"))
+        XCTAssertTrue(zhipuHelp.contains("7天 100%，2天3小时后重置，11月17日 09:13"))
+        XCTAssertFalse(zhipuHelp.contains("5小时 0%，"))
 
         let deepseek = chip(
             kind: .deepseek,
@@ -335,9 +347,32 @@ final class AccountQuotaFormattingTests: XCTestCase {
         )
         XCTAssertEqual(
             AccountQuotaFormatting.plainSummary(for: officialQwen, now: now),
-            "7天: 28% · 剩余 18,000/25,000 Credits 2d0h"
+            "7天: 28% · 剩余 18,000/25,000 Credits 2d0h · 11月17日 06:13"
         )
         XCTAssertTrue(AccountQuotaFormatting.help(for: officialQwen, now: now).contains("千问官网套餐额度"))
+        XCTAssertTrue(
+            AccountQuotaFormatting.help(for: officialQwen, now: now)
+                .contains("7天 28%，剩余 18,000/25,000 Credits，2天后重置，11月17日 06:13")
+        )
+
+        let websiteQwen = chip(
+            kind: .qwen,
+            status: .qwenWebsite(QwenWebsiteQuota(
+                periodLabel: "1个月",
+                remainingPercent: 6.8,
+                resetsAt: now.addingTimeInterval(45 * 60)
+            ))
+        )
+        XCTAssertEqual(
+            AccountQuotaFormatting.plainSummary(for: websiteQwen, now: now),
+            "1个月: 6.8% 45m · 06:58"
+        )
+        XCTAssertTrue(
+            AccountQuotaFormatting.help(for: websiteQwen, now: now)
+                .contains("1个月 6.8%，45分钟后重置，11月15日 06:58")
+        )
+        XCTAssertFalse(AccountQuotaFormatting.help(for: deepseek, now: now).contains("后重置"))
+        XCTAssertFalse(AccountQuotaFormatting.help(for: qwen, now: now).contains("后重置"))
     }
 
     func testCountdownBoundariesAndUtilizationTones() {
@@ -348,6 +383,41 @@ final class AccountQuotaFormattingTests: XCTestCase {
         XCTAssertEqual(AccountQuotaFormatting.countdown(until: now.addingTimeInterval(90 * 60), now: now), "1h30m")
         XCTAssertEqual(AccountQuotaFormatting.countdown(until: now.addingTimeInterval(24 * 3600), now: now), "24h0m")
         XCTAssertEqual(AccountQuotaFormatting.countdown(until: now.addingTimeInterval(25 * 3600), now: now), "1d1h")
+        XCTAssertNil(AccountQuotaFormatting.resetClock(until: now, now: now))
+        XCTAssertNil(AccountQuotaFormatting.resetDateText(now.addingTimeInterval(-1), now: now))
+        XCTAssertNil(AccountQuotaFormatting.chineseCountdown(until: now, now: now))
+        XCTAssertEqual(AccountQuotaFormatting.resetClock(until: now.addingTimeInterval(45 * 60), now: now), "06:58")
+        XCTAssertEqual(
+            AccountQuotaFormatting.resetDateText(now.addingTimeInterval(45 * 60), now: now),
+            "11月15日 06:58"
+        )
+        XCTAssertEqual(AccountQuotaFormatting.chineseCountdown(until: now.addingTimeInterval(45 * 60), now: now), "45分钟")
+        XCTAssertEqual(AccountQuotaFormatting.chineseCountdown(until: now.addingTimeInterval(90 * 60), now: now), "1小时30分")
+        XCTAssertEqual(AccountQuotaFormatting.chineseCountdown(until: now.addingTimeInterval(24 * 3600), now: now), "24小时0分")
+        XCTAssertEqual(
+            AccountQuotaFormatting.resetClock(until: now.addingTimeInterval(24 * 3600), now: now),
+            "11月16日 06:13"
+        )
+        XCTAssertEqual(AccountQuotaFormatting.chineseCountdown(until: now.addingTimeInterval(25 * 3600), now: now), "1天1小时")
+        XCTAssertEqual(AccountQuotaFormatting.chineseCountdown(until: now.addingTimeInterval(48 * 3600), now: now), "2天")
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Shanghai")!
+        let evening = calendar.date(from: DateComponents(year: 2026, month: 9, day: 23, hour: 22, minute: 0))!
+        let overnight = calendar.date(from: DateComponents(year: 2026, month: 9, day: 24, hour: 2, minute: 0))!
+        XCTAssertEqual(AccountQuotaFormatting.resetClock(until: overnight, now: evening), "9月24日 02:00")
+        XCTAssertEqual(AccountQuotaFormatting.resetDateText(overnight, now: evening), "9月24日 02:00")
+        XCTAssertEqual(AccountQuotaFormatting.chineseCountdown(until: overnight, now: evening), "4小时0分")
+        XCTAssertNil(AccountQuotaFormatting.resetClock(until: evening, now: overnight))
+
+        let expired = chip(
+            kind: .kimi,
+            status: .windows([
+                ParsedQuotaWindow(name: "five_hour", utilization: 12, resetsAt: now.addingTimeInterval(-60)),
+            ])
+        )
+        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: expired, now: now), "5小时: 12%")
+        XCTAssertFalse(AccountQuotaFormatting.help(for: expired, now: now).contains("后重置"))
 
         XCTAssertEqual(AccountQuotaFormatting.tone(forUtilization: 69.4), .green)
         XCTAssertEqual(AccountQuotaFormatting.tone(forUtilization: 69.5), .orange)
