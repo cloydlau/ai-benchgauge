@@ -517,7 +517,7 @@ public enum AccountQuotaFormatting {
             if index > 0 {
                 runs.append(QuotaTextRun(text: "  ", tone: .secondary))
             }
-            runs.append(QuotaTextRun(text: "剩余 ", tone: .secondary))
+            runs.append(QuotaTextRun(text: "余额 ", tone: .secondary))
             runs.append(QuotaTextRun(text: balanceAmountText(balance.amount), tone: .green))
             runs.append(QuotaTextRun(text: " \(balance.currency)", tone: .secondary))
         }
