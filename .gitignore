@@ -12,3 +12,7 @@ DerivedData/
 # Build artifacts
 work/
 outputs/
+
+# Python (logo tooling)
+__pycache__/
+*.pyc
