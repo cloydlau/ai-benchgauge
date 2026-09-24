@@ -444,18 +444,19 @@ struct LeaderboardView: View {
             parts.append(tr("Quota unavailable; CC Switch database could not be read", "余量暂不可读，这次没读成本机 CC Switch 数据库"))
         } else if state.quotaUnavailable {
             parts.append(tr("Quota refresh failed; showing previous values", "余量数据库这次没有读成，显示的是上次余量"))
-        } else if quotaClause(now: now) != nil {
+        } else if quotaClause(now: now, format: .relative) != nil {
             parts.append(tr("Quota comes from this Mac's CC Switch data", "余量来自本机 CC Switch。没安装或读不懂配置时不显示，也不需要安装 Codex"))
         }
         return parts.joined(separator: tr(". ", "。"))
     }
 
-    private func quotaClause(now: Date) -> String? {
+    private func quotaClause(now: Date, format: FreshnessFormat) -> String? {
         if state.quotaChips.isEmpty {
             return state.quotaUnavailable ? tr("Quota unavailable", "余量暂不可读") : nil
         }
         guard let updatedAt = state.quotaUpdatedAt else { return tr("Quota pending", "余量待更新") }
-        return tr("Quota \(updateAge(updatedAt, now: now))", "余量 \(updateAge(updatedAt, now: now))")
+        let value = freshnessValue(updatedAt, now: now, format: format)
+        return tr("Quota \(value)", "余量 \(value)")
     }
 
     // Both name columns grow with the longest visible name. The country and
