@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="200" viewBox="0 0 780 200" role="img" aria-label="AI BenchGauge — two leaderboards and your quotas, in the menu bar">
+  <defs>
+    <linearGradient id="tile" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0d1734"/>
+      <stop offset="0.52" stop-color="#182451"/>
+      <stop offset="1" stop-color="#2b4686"/>
+    </linearGradient>
+    <linearGradient id="accent" gradientUnits="userSpaceOnUse" x1="248" y1="414" x2="776" y2="414">
+      <stop offset="0" stop-color="#74e2cd"/>
+      <stop offset="0.52" stop-color="#7fd3e8"/>
+      <stop offset="1" stop-color="#8ba9ff"/>
+    </linearGradient>
+    <radialGradient id="glowA" gradientUnits="userSpaceOnUse" cx="184" cy="12" r="124">
+      <stop offset="0" stop-color="#7f8eff" stop-opacity="0.243"/>
+      <stop offset="0.35" stop-color="#7f8eff" stop-opacity="0.124"/>
+      <stop offset="0.7" stop-color="#7f8eff" stop-opacity="0.038"/>
+      <stop offset="1" stop-color="#7f8eff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" gradientUnits="userSpaceOnUse" cx="8" cy="196" r="132">
+      <stop offset="0" stop-color="#4fd6c0" stop-opacity="0.18"/>
+      <stop offset="0.35" stop-color="#4fd6c0" stop-opacity="0.092"/>
+      <stop offset="0.7" stop-color="#4fd6c0" stop-opacity="0.028"/>
+      <stop offset="1" stop-color="#4fd6c0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="200" height="200" rx="45" fill="url(#tile)"/>
+  <rect x="0" y="0" width="200" height="200" rx="45" fill="url(#glowA)"/>
+  <rect x="0" y="0" width="200" height="200" rx="45" fill="url(#glowB)"/>
+  <rect x="0.75" y="0.75" width="198.5" height="198.5" rx="44.3" fill="none" stroke="#ffffff" stroke-opacity="0.157" stroke-width="1.5"/>
+    <g transform="translate(-26.06 -1.93) scale(0.246212)">
+    <path d="M291.33 517.16 A238 238 0 1 1 732.67 517.16" fill="none" stroke="url(#accent)" stroke-width="52" stroke-linecap="butt"/>
+    <line x1="325.59" y1="367.43" x2="350.32" y2="375.47" stroke="#f7faff" stroke-width="14" stroke-linecap="round" opacity="0.47"/>
+    <line x1="512" y1="232" x2="512" y2="258" stroke="#f7faff" stroke-width="14" stroke-linecap="round" opacity="0.47"/>
+    <line x1="698.41" y1="367.43" x2="673.68" y2="375.47" stroke="#f7faff" stroke-width="14" stroke-linecap="round" opacity="0.47"/>
+    <line x1="506.37" y1="438.6" x2="594.63" y2="272.6" stroke="#f7faff" stroke-width="24" stroke-linecap="round"/>
+    <circle cx="512" cy="428" r="30" fill="url(#accent)"/>
+    <path d="M384 664 L384 540 A28 28 0 0 1 412 512 L456 512 A28 28 0 0 1 484 540 L484 664 Z" fill="url(#accent)" opacity="0.627"/>
+    <path d="M528 664 L528 480 A28 28 0 0 1 556 452 L600 452 A28 28 0 0 1 628 480 L628 664 Z" fill="#f7faff"/>
+    </g>
+  <text x="234" y="112" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', 'Helvetica Neue', 'PingFang SC', Arial, sans-serif" font-size="76" font-weight="700" letter-spacing="-1.5" fill="#17224b">AI BenchGauge</text>
+  <text x="236" y="158" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', 'Helvetica Neue', 'PingFang SC', Arial, sans-serif" font-size="29" fill="#5c6b8f">Two leaderboards and your quotas, in the menu bar.</text>
+</svg>
