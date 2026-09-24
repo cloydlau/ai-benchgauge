@@ -165,7 +165,7 @@ final class CCSwitchQuotaCatalogTests: XCTestCase {
         )
 
         XCTAssertEqual(targets.map(\.kind), [.qwen])
-        XCTAssertEqual(targets.first?.shortName, "千问")
+        XCTAssertEqual(targets.first?.shortName, "Qwen")
         XCTAssertEqual(targets.first?.apiKey, "qwen-key")
     }
 
@@ -314,14 +314,14 @@ final class AccountQuotaFormattingTests: XCTestCase {
         )!
         XCTAssertEqual(
             AccountQuotaFormatting.plainSummary(for: kimi, now: now),
-            "5小时 100% · \(kimiExpiry)"
+            "5h 100% · \(kimiExpiry)"
         )
         XCTAssertEqual(
             AccountQuotaFormatting.runs(for: kimi, now: now).map(\.tone),
             [.secondary, .green, .secondary, .secondary]
         )
         let kimiHelp = AccountQuotaFormatting.help(for: kimi, now: now)
-        XCTAssertTrue(kimiHelp.contains("5小时 100%"))
+        XCTAssertTrue(kimiHelp.contains("5h 100%"))
         XCTAssertTrue(kimiHelp.contains(kimiExpiry))
         XCTAssertFalse(kimiHelp.contains("后重置"))
         XCTAssertFalse(kimiHelp.contains("总到期"))
@@ -344,11 +344,11 @@ final class AccountQuotaFormattingTests: XCTestCase {
         )!
         XCTAssertEqual(
             AccountQuotaFormatting.plainSummary(for: xai, now: now),
-            "7天 87% · \(xaiExpiry)"
+            "7d 87% · \(xaiExpiry)"
         )
         XCTAssertTrue(AccountQuotaFormatting.help(for: xai, now: now).contains("当前供应商"))
         let xaiHelp = AccountQuotaFormatting.help(for: xai, now: now)
-        XCTAssertTrue(xaiHelp.contains("7天 87%"))
+        XCTAssertTrue(xaiHelp.contains("7d 87%"))
         XCTAssertTrue(xaiHelp.contains(xaiExpiry))
         XCTAssertFalse(xaiHelp.contains("后重置"))
         XCTAssertFalse(xaiHelp.contains("总到期"))
@@ -366,7 +366,7 @@ final class AccountQuotaFormattingTests: XCTestCase {
         let planText = AccountQuotaFormatting.planExpiryPhrase(until: planEnd, now: now)!
         XCTAssertEqual(
             AccountQuotaFormatting.plainSummary(for: zhipu, now: now),
-            "5小时 100% · 7天 0% · \(planText)"
+            "5h 100% · 7d 0% · \(planText)"
         )
         XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: zhipu, now: now).contains("总到期"))
         XCTAssertEqual(
@@ -374,19 +374,24 @@ final class AccountQuotaFormattingTests: XCTestCase {
             [.secondary, .green, .secondary, .secondary, .red, .secondary, .secondary]
         )
         let zhipuHelp = AccountQuotaFormatting.help(for: zhipu, now: now)
-        XCTAssertTrue(zhipuHelp.contains("5小时 100%"))
-        XCTAssertTrue(zhipuHelp.contains("7天 0%"))
+        XCTAssertTrue(zhipuHelp.contains("5h 100%"))
+        XCTAssertTrue(zhipuHelp.contains("7d 0%"))
         XCTAssertFalse(zhipuHelp.contains("后重置"))
-        XCTAssertFalse(zhipuHelp.contains("5小时 100%，"))
+        XCTAssertFalse(zhipuHelp.contains("5h 100%，"))
         XCTAssertTrue(zhipuHelp.contains(planText))
         XCTAssertFalse(zhipuHelp.contains("总到期"))
         XCTAssertFalse(zhipuHelp.contains("后到期"))
+<<<<<<< Updated upstream
         XCTAssertFalse(zhipuHelp.contains("1个月"))
         XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: zhipu, now: now).contains("1个月"))
+=======
+        XCTAssertFalse(zhipuHelp.contains("1mo"))
+        XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: zhipu, now: now).contains("1mo"))
+>>>>>>> Stashed changes
         XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: zhipu, now: now).contains("2d3h"))
         XCTAssertFalse(zhipuHelp.contains("2天3小时后重置"))
-        let five = zhipuHelp.range(of: "5小时")!
-        let week = zhipuHelp.range(of: "7天")!
+        let five = zhipuHelp.range(of: "5h")!
+        let week = zhipuHelp.range(of: "7d")!
         let plan = zhipuHelp.range(of: planText)!
         XCTAssertLessThan(five.lowerBound, week.lowerBound)
         XCTAssertLessThan(week.lowerBound, plan.lowerBound)
@@ -405,12 +410,21 @@ final class AccountQuotaFormattingTests: XCTestCase {
         let mixedExpiry = AccountQuotaFormatting.planExpiryPhrase(until: laterReset, now: now)!
         XCTAssertEqual(
             AccountQuotaFormatting.plainSummary(for: mixed, now: now),
+<<<<<<< Updated upstream
             "5小时 90% · 7天 80% · 1个月 60% · 额度 70% · \(mixedExpiry)"
         )
         let mixedHelp = AccountQuotaFormatting.help(for: mixed, now: now)
         XCTAssertLessThan(mixedHelp.range(of: "5小时")!.lowerBound, mixedHelp.range(of: "7天")!.lowerBound)
         XCTAssertLessThan(mixedHelp.range(of: "7天")!.lowerBound, mixedHelp.range(of: "1个月")!.lowerBound)
         XCTAssertLessThan(mixedHelp.range(of: "1个月")!.lowerBound, mixedHelp.range(of: mixedExpiry)!.lowerBound)
+=======
+            "5h 90% · 7d 80% · 1mo 60% · 额度 70% · \(mixedExpiry)"
+        )
+        let mixedHelp = AccountQuotaFormatting.help(for: mixed, now: now)
+        XCTAssertLessThan(mixedHelp.range(of: "5h")!.lowerBound, mixedHelp.range(of: "7d")!.lowerBound)
+        XCTAssertLessThan(mixedHelp.range(of: "7d")!.lowerBound, mixedHelp.range(of: "1mo")!.lowerBound)
+        XCTAssertLessThan(mixedHelp.range(of: "1mo")!.lowerBound, mixedHelp.range(of: mixedExpiry)!.lowerBound)
+>>>>>>> Stashed changes
 
         let expiredPlan = chip(
             kind: .zhipu,
@@ -459,11 +473,11 @@ final class AccountQuotaFormattingTests: XCTestCase {
         let qwenText = AccountQuotaFormatting.planExpiryPhrase(until: qwenPlanEnd, now: now)!
         XCTAssertEqual(
             AccountQuotaFormatting.plainSummary(for: officialQwen, now: now),
-            "7天 72% · \(qwenText)"
+            "7d 72% · \(qwenText)"
         )
         XCTAssertTrue(AccountQuotaFormatting.help(for: officialQwen, now: now).contains("千问官网套餐额度"))
         let qwenHelp = AccountQuotaFormatting.help(for: officialQwen, now: now)
-        XCTAssertTrue(qwenHelp.contains("7天 72%"))
+        XCTAssertTrue(qwenHelp.contains("7d 72%"))
         XCTAssertTrue(qwenHelp.contains("剩余 18,000/25,000 Credits"))
         XCTAssertTrue(qwenHelp.contains(qwenText))
         XCTAssertFalse(qwenHelp.contains("总到期"))
@@ -473,7 +487,11 @@ final class AccountQuotaFormattingTests: XCTestCase {
         let websiteQwen = chip(
             kind: .qwen,
             status: .qwenWebsite(QwenWebsiteQuota(
+<<<<<<< Updated upstream
                 periodLabel: "1个月",
+=======
+                periodLabel: "1mo",
+>>>>>>> Stashed changes
                 remainingPercent: 6.8,
                 resetsAt: now.addingTimeInterval(45 * 60)
             ))
@@ -484,10 +502,17 @@ final class AccountQuotaFormattingTests: XCTestCase {
         )!
         XCTAssertEqual(
             AccountQuotaFormatting.plainSummary(for: websiteQwen, now: now),
+<<<<<<< Updated upstream
             "1个月 6.8% · \(websiteExpiry)"
         )
         let websiteHelp = AccountQuotaFormatting.help(for: websiteQwen, now: now)
         XCTAssertTrue(websiteHelp.contains("1个月 6.8%"))
+=======
+            "1mo 6.8% · \(websiteExpiry)"
+        )
+        let websiteHelp = AccountQuotaFormatting.help(for: websiteQwen, now: now)
+        XCTAssertTrue(websiteHelp.contains("1mo 6.8%"))
+>>>>>>> Stashed changes
         XCTAssertTrue(websiteHelp.contains(websiteExpiry))
         XCTAssertFalse(websiteHelp.contains("后重置"))
         XCTAssertFalse(websiteHelp.contains("总到期"))
@@ -506,7 +531,7 @@ final class AccountQuotaFormattingTests: XCTestCase {
         )
         XCTAssertEqual(
             AccountQuotaFormatting.plainSummary(for: qwenWithoutEnd, now: now),
-            "7天 72%"
+            "7d 72%"
         )
         XCTAssertFalse(AccountQuotaFormatting.help(for: qwenWithoutEnd, now: now).contains("总到期"))
     }
@@ -545,14 +570,24 @@ final class AccountQuotaFormattingTests: XCTestCase {
         XCTAssertEqual(AccountQuotaFormatting.resetDateText(overnight, now: evening), "9月24日 02:00")
         XCTAssertEqual(AccountQuotaFormatting.chineseCountdown(until: overnight, now: evening), "4小时0分")
         XCTAssertNil(AccountQuotaFormatting.resetClock(until: evening, now: overnight))
+        let sameHour = calendar.date(from: DateComponents(year: 2026, month: 9, day: 23, hour: 23, minute: 0))!
+        XCTAssertEqual(
+            AccountQuotaFormatting.planExpiryPhrase(until: sameHour, now: evening),
+            "截至9月23日23时"
+        )
+        let sameDayWithMinutes = calendar.date(from: DateComponents(year: 2026, month: 9, day: 23, hour: 23, minute: 37))!
+        XCTAssertEqual(
+            AccountQuotaFormatting.planExpiryPhrase(until: sameDayWithMinutes, now: evening),
+            "截至9月23日23时37分"
+        )
         XCTAssertEqual(
             AccountQuotaFormatting.planExpiryPhrase(until: overnight, now: evening),
-            "截至9月24日2时"
+            "截至9月24日"
         )
         let withMinutes = calendar.date(from: DateComponents(year: 2026, month: 9, day: 24, hour: 2, minute: 7))!
         XCTAssertEqual(
             AccountQuotaFormatting.planExpiryPhrase(until: withMinutes, now: evening),
-            "截至9月24日2时7分"
+            "截至9月24日"
         )
         let midnight = calendar.date(from: DateComponents(year: 2026, month: 9, day: 24, hour: 0, minute: 0))!
         XCTAssertEqual(
@@ -567,7 +602,7 @@ final class AccountQuotaFormattingTests: XCTestCase {
                 ParsedQuotaWindow(name: "five_hour", utilization: 12, resetsAt: now.addingTimeInterval(-60)),
             ])
         )
-        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: expired, now: now), "5小时 88%")
+        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: expired, now: now), "5h 88%")
         XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: expired, now: now).contains("已到期"))
         XCTAssertFalse(AccountQuotaFormatting.help(for: expired, now: now).contains("后重置"))
         XCTAssertFalse(AccountQuotaFormatting.help(for: expired, now: now).contains("已到期"))
@@ -583,6 +618,71 @@ final class AccountQuotaFormattingTests: XCTestCase {
             AccountQuotaFormatting.plainSummary(for: chip(kind: .kimi, status: .windows([])), now: now),
             AccountQuotaMessage.queryFailed
         )
+    }
+
+    func testExhaustedWhenAnyUsageWindowHasNoRemaining() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let exhaustedWeekly = chip(
+            kind: .zhipu,
+            status: .windows([
+                ParsedQuotaWindow(name: "five_hour", utilization: 0, resetsAt: nil),
+                ParsedQuotaWindow(name: "weekly_limit", utilization: 100, resetsAt: now.addingTimeInterval(86_400)),
+            ])
+        )
+        XCTAssertTrue(AccountQuotaFormatting.isExhausted(exhaustedWeekly))
+
+        let overdrawn = chip(
+            kind: .kimi,
+            status: .windows([
+                ParsedQuotaWindow(name: "monthly", utilization: 140, resetsAt: nil),
+            ])
+        )
+        XCTAssertTrue(AccountQuotaFormatting.isExhausted(overdrawn))
+
+        let usable = chip(
+            kind: .kimi,
+            status: .windows([
+                ParsedQuotaWindow(name: "five_hour", utilization: 12, resetsAt: nil),
+                ParsedQuotaWindow(name: "weekly_limit", utilization: 99, resetsAt: nil),
+            ])
+        )
+        XCTAssertFalse(AccountQuotaFormatting.isExhausted(usable))
+
+        // Plan expiry is a date, not usage: a lapsed plan alone does not mark
+        // the provider exhausted, and a live plan does not rescue an empty window.
+        let lapsedPlanOnly = chip(
+            kind: .zhipu,
+            status: .windows([
+                ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: now.addingTimeInterval(-60)),
+            ])
+        )
+        XCTAssertFalse(AccountQuotaFormatting.isExhausted(lapsedPlanOnly))
+
+        let exhaustedPlan = chip(
+            kind: .qwen,
+            status: .qwenPlan(QwenPlanQuota(usedPercent: 100, remainingCredits: 0, totalCredits: 100, resetsAt: nil))
+        )
+        XCTAssertTrue(AccountQuotaFormatting.isExhausted(exhaustedPlan))
+        let usablePlan = chip(
+            kind: .qwen,
+            status: .qwenPlan(QwenPlanQuota(usedPercent: 10, remainingCredits: 90, totalCredits: 100, resetsAt: nil))
+        )
+        XCTAssertFalse(AccountQuotaFormatting.isExhausted(usablePlan))
+
+        let exhaustedWebsite = chip(
+            kind: .qwen,
+            status: .qwenWebsite(QwenWebsiteQuota(periodLabel: "1mo", remainingPercent: 0, resetsAt: nil))
+        )
+        XCTAssertTrue(AccountQuotaFormatting.isExhausted(exhaustedWebsite))
+
+        XCTAssertTrue(AccountQuotaFormatting.isExhausted(chip(kind: .deepseek, status: .balances([
+            ParsedBalance(currency: "CNY", amount: 0),
+        ]))))
+        XCTAssertFalse(AccountQuotaFormatting.isExhausted(chip(kind: .deepseek, status: .balances([
+            ParsedBalance(currency: "CNY", amount: 0.5),
+        ]))))
+        XCTAssertFalse(AccountQuotaFormatting.isExhausted(chip(kind: .kimi, status: .windows([]))))
+        XCTAssertFalse(AccountQuotaFormatting.isExhausted(chip(kind: .kimi, status: .message(AccountQuotaMessage.queryFailed))))
     }
 
     func testSortsWindowsByLatestResetFirst() {
@@ -645,7 +745,7 @@ final class AccountQuotaFormattingTests: XCTestCase {
                 id: "website",
                 kind: .officialNote,
                 status: .qwenWebsite(QwenWebsiteQuota(
-                    periodLabel: "7天",
+                    periodLabel: "7d",
                     remainingPercent: 50,
                     resetsAt: soon
                 ))
@@ -735,7 +835,11 @@ final class CCSwitchQuotaParserTests: XCTestCase {
     func testParsesQwenWebsiteQuotaText() {
         let data = Data("个人版 Pro 套餐\n月额度 剩余量 6.8 %\n重置时间 2026-10-05 00:00:00".utf8)
         let quota = QwenWebsiteQuotaParser.parse(data)
+<<<<<<< Updated upstream
         XCTAssertEqual(quota?.periodLabel, "1个月")
+=======
+        XCTAssertEqual(quota?.periodLabel, "1mo")
+>>>>>>> Stashed changes
         XCTAssertEqual(quota?.remainingPercent, 6.8)
         XCTAssertEqual(
             quota?.resetsAt?.timeIntervalSince1970,
@@ -746,7 +850,11 @@ final class CCSwitchQuotaParserTests: XCTestCase {
             QwenWebsiteQuotaParser.persistedData(for: $0, capturedAt: capturedAt)
         }
         let cached = persisted.flatMap(QwenWebsiteQuotaParser.parse)
+<<<<<<< Updated upstream
         XCTAssertEqual(cached?.periodLabel, "1个月")
+=======
+        XCTAssertEqual(cached?.periodLabel, "1mo")
+>>>>>>> Stashed changes
         XCTAssertEqual(cached?.remainingPercent, 6.8)
         XCTAssertEqual(cached?.capturedAt, capturedAt)
         XCTAssertEqual(cached?.isCached, true)
@@ -1185,10 +1293,10 @@ final class AccountQuotaClientTests: XCTestCase {
             for: matchedChips[0],
             now: Date(timeIntervalSince1970: 1_758_600_000)
         )
-        XCTAssertTrue(summary.contains("5小时 58%"))
-        XCTAssertTrue(summary.contains("7天 87%"))
-        XCTAssertLessThan(summary.range(of: "5小时")!.lowerBound, summary.range(of: "7天")!.lowerBound)
-        XCTAssertTrue(summary.contains("截至10月15日8时"))
+        XCTAssertTrue(summary.contains("5h 58%"))
+        XCTAssertTrue(summary.contains("7d 87%"))
+        XCTAssertLessThan(summary.range(of: "5h")!.lowerBound, summary.range(of: "7d")!.lowerBound)
+        XCTAssertTrue(summary.contains("截至10月15日"))
         XCTAssertFalse(summary.contains("总到期"))
         XCTAssertFalse(summary.contains("后重置"))
         XCTAssertFalse(summary.contains("must-not-be-sent"))
@@ -1365,10 +1473,14 @@ final class AccountQuotaClientTests: XCTestCase {
             ]),
         ])
         let summary = AccountQuotaFormatting.plainSummary(for: chips[0], now: Date(timeIntervalSince1970: 1_758_600_000))
-        XCTAssertTrue(summary.hasPrefix("5小时 100% · 7天 0%"))
-        XCTAssertTrue(summary.contains("截至10月3日10时"))
+        XCTAssertTrue(summary.hasPrefix("5h 100% · 7d 0%"))
+        XCTAssertTrue(summary.contains("截至10月3日"))
         XCTAssertFalse(summary.contains("总到期"))
+<<<<<<< Updated upstream
         XCTAssertFalse(summary.contains("1个月"))
+=======
+        XCTAssertFalse(summary.contains("1mo"))
+>>>>>>> Stashed changes
         XCTAssertFalse(summary.contains("unit-test-key"))
     }
 
