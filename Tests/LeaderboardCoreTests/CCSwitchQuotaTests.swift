@@ -265,13 +265,12 @@ final class AccountQuotaFormattingTests: XCTestCase {
         ]
         func summary(_ windows: [ParsedQuotaWindow]) -> String? {
             AccountQuotaFormatting.compactMenuBarQuota(
-                for: chip(kind: .officialNote, isCurrent: true, status: .windows(windows)),
-                language: .chinese
+                for: chip(kind: .officialNote, isCurrent: true, status: .windows(windows))
             )
         }
-        XCTAssertEqual(summary(windows), "5小时 87%")
-        XCTAssertEqual(summary(Array(windows.prefix(2))), "7天 80%")
-        XCTAssertEqual(summary(Array(windows.prefix(1))), "1个月 60%")
+        XCTAssertEqual(summary(windows), "5h 87%")
+        XCTAssertEqual(summary(Array(windows.prefix(2))), "7d 80%")
+        XCTAssertEqual(summary(Array(windows.prefix(1))), "1mo 60%")
         XCTAssertNil(summary([ParsedQuotaWindow(
             name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: nil
         )]))
@@ -279,21 +278,21 @@ final class AccountQuotaFormattingTests: XCTestCase {
 
     func testMenuBarHidesUnqueriedAndStaleQuota() {
         let pending = chip(kind: .officialNote, status: .pending)
-        XCTAssertNil(AccountQuotaFormatting.compactMenuBarQuota(for: pending, language: .chinese))
+        XCTAssertNil(AccountQuotaFormatting.compactMenuBarQuota(for: pending))
         let stale = AccountQuotaChip(
             id: "current", shortName: "OpenAI", websiteURL: nil,
             kind: .officialNote, isCurrent: true,
             status: .windows([ParsedQuotaWindow(name: "five_hour", utilization: 25, resetsAt: nil)]),
             isStale: true
         )
-        XCTAssertNil(AccountQuotaFormatting.compactMenuBarQuota(for: stale, language: .chinese))
+        XCTAssertNil(AccountQuotaFormatting.compactMenuBarQuota(for: stale))
         let cachedQwen = chip(
             kind: .qwen,
             status: .qwenWebsite(QwenWebsiteQuota(
-                periodLabel: "7天", remainingPercent: 88, resetsAt: nil, isCached: true
+                periodLabel: "7d", remainingPercent: 88, resetsAt: nil, isCached: true
             ))
         )
-        XCTAssertNil(AccountQuotaFormatting.compactMenuBarQuota(for: cachedQwen, language: .chinese))
+        XCTAssertNil(AccountQuotaFormatting.compactMenuBarQuota(for: cachedQwen))
     }
 
     func testFormatsQuotasTheWayCCSwitchShowsThem() {
@@ -381,13 +380,8 @@ final class AccountQuotaFormattingTests: XCTestCase {
         XCTAssertTrue(zhipuHelp.contains(planText))
         XCTAssertFalse(zhipuHelp.contains("总到期"))
         XCTAssertFalse(zhipuHelp.contains("后到期"))
-<<<<<<< Updated upstream
-        XCTAssertFalse(zhipuHelp.contains("1个月"))
-        XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: zhipu, now: now).contains("1个月"))
-=======
         XCTAssertFalse(zhipuHelp.contains("1mo"))
         XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: zhipu, now: now).contains("1mo"))
->>>>>>> Stashed changes
         XCTAssertFalse(AccountQuotaFormatting.plainSummary(for: zhipu, now: now).contains("2d3h"))
         XCTAssertFalse(zhipuHelp.contains("2天3小时后重置"))
         let five = zhipuHelp.range(of: "5h")!
@@ -410,21 +404,12 @@ final class AccountQuotaFormattingTests: XCTestCase {
         let mixedExpiry = AccountQuotaFormatting.planExpiryPhrase(until: laterReset, now: now)!
         XCTAssertEqual(
             AccountQuotaFormatting.plainSummary(for: mixed, now: now),
-<<<<<<< Updated upstream
-            "5小时 90% · 7天 80% · 1个月 60% · 额度 70% · \(mixedExpiry)"
-        )
-        let mixedHelp = AccountQuotaFormatting.help(for: mixed, now: now)
-        XCTAssertLessThan(mixedHelp.range(of: "5小时")!.lowerBound, mixedHelp.range(of: "7天")!.lowerBound)
-        XCTAssertLessThan(mixedHelp.range(of: "7天")!.lowerBound, mixedHelp.range(of: "1个月")!.lowerBound)
-        XCTAssertLessThan(mixedHelp.range(of: "1个月")!.lowerBound, mixedHelp.range(of: mixedExpiry)!.lowerBound)
-=======
             "5h 90% · 7d 80% · 1mo 60% · 额度 70% · \(mixedExpiry)"
         )
         let mixedHelp = AccountQuotaFormatting.help(for: mixed, now: now)
         XCTAssertLessThan(mixedHelp.range(of: "5h")!.lowerBound, mixedHelp.range(of: "7d")!.lowerBound)
         XCTAssertLessThan(mixedHelp.range(of: "7d")!.lowerBound, mixedHelp.range(of: "1mo")!.lowerBound)
         XCTAssertLessThan(mixedHelp.range(of: "1mo")!.lowerBound, mixedHelp.range(of: mixedExpiry)!.lowerBound)
->>>>>>> Stashed changes
 
         let expiredPlan = chip(
             kind: .zhipu,
@@ -487,11 +472,7 @@ final class AccountQuotaFormattingTests: XCTestCase {
         let websiteQwen = chip(
             kind: .qwen,
             status: .qwenWebsite(QwenWebsiteQuota(
-<<<<<<< Updated upstream
-                periodLabel: "1个月",
-=======
                 periodLabel: "1mo",
->>>>>>> Stashed changes
                 remainingPercent: 6.8,
                 resetsAt: now.addingTimeInterval(45 * 60)
             ))
@@ -502,17 +483,10 @@ final class AccountQuotaFormattingTests: XCTestCase {
         )!
         XCTAssertEqual(
             AccountQuotaFormatting.plainSummary(for: websiteQwen, now: now),
-<<<<<<< Updated upstream
-            "1个月 6.8% · \(websiteExpiry)"
-        )
-        let websiteHelp = AccountQuotaFormatting.help(for: websiteQwen, now: now)
-        XCTAssertTrue(websiteHelp.contains("1个月 6.8%"))
-=======
             "1mo 6.8% · \(websiteExpiry)"
         )
         let websiteHelp = AccountQuotaFormatting.help(for: websiteQwen, now: now)
         XCTAssertTrue(websiteHelp.contains("1mo 6.8%"))
->>>>>>> Stashed changes
         XCTAssertTrue(websiteHelp.contains(websiteExpiry))
         XCTAssertFalse(websiteHelp.contains("后重置"))
         XCTAssertFalse(websiteHelp.contains("总到期"))
@@ -835,11 +809,7 @@ final class CCSwitchQuotaParserTests: XCTestCase {
     func testParsesQwenWebsiteQuotaText() {
         let data = Data("个人版 Pro 套餐\n月额度 剩余量 6.8 %\n重置时间 2026-10-05 00:00:00".utf8)
         let quota = QwenWebsiteQuotaParser.parse(data)
-<<<<<<< Updated upstream
-        XCTAssertEqual(quota?.periodLabel, "1个月")
-=======
         XCTAssertEqual(quota?.periodLabel, "1mo")
->>>>>>> Stashed changes
         XCTAssertEqual(quota?.remainingPercent, 6.8)
         XCTAssertEqual(
             quota?.resetsAt?.timeIntervalSince1970,
@@ -850,11 +820,7 @@ final class CCSwitchQuotaParserTests: XCTestCase {
             QwenWebsiteQuotaParser.persistedData(for: $0, capturedAt: capturedAt)
         }
         let cached = persisted.flatMap(QwenWebsiteQuotaParser.parse)
-<<<<<<< Updated upstream
-        XCTAssertEqual(cached?.periodLabel, "1个月")
-=======
         XCTAssertEqual(cached?.periodLabel, "1mo")
->>>>>>> Stashed changes
         XCTAssertEqual(cached?.remainingPercent, 6.8)
         XCTAssertEqual(cached?.capturedAt, capturedAt)
         XCTAssertEqual(cached?.isCached, true)
@@ -1476,11 +1442,7 @@ final class AccountQuotaClientTests: XCTestCase {
         XCTAssertTrue(summary.hasPrefix("5h 100% · 7d 0%"))
         XCTAssertTrue(summary.contains("截至10月3日"))
         XCTAssertFalse(summary.contains("总到期"))
-<<<<<<< Updated upstream
-        XCTAssertFalse(summary.contains("1个月"))
-=======
         XCTAssertFalse(summary.contains("1mo"))
->>>>>>> Stashed changes
         XCTAssertFalse(summary.contains("unit-test-key"))
     }
 
