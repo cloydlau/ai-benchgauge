@@ -112,8 +112,44 @@ final class HTMLLeaderboardParserTests: XCTestCase {
         )
     }
 
+    func testParsesArtificialAnalysisDataTimestamp() throws {
+        let records = (1...22).map { index in
+            #"{"slug":"model-\#(index)","name":"Model \#(index)","creator":{"name":"Maker"},"intelligenceIndex":\#(100-index),"intelligenceIndexIsEstimated":false,"grading":{"materializedAt":"2026-09-23T06:01:07.399143+00:00"}}"#
+        }
+        let html = rscHTML(payload: "[\(records.joined(separator: ","))]")
+
+        let leaderboard = try HTMLLeaderboardParser.artificialAnalysis(fromHTML: html)
+
+        XCTAssertEqual(leaderboard.sourceUpdatedAt, try expectedDate("2026-09-23T06:01:07.399Z"))
+    }
+
+    func testParsesNewestArtificialAnalysisCodingAgentTimestamp() throws {
+        let stale = "2026-09-20T01:02:03.123456+00:00"
+        let newest = "2026-09-23T06:01:07.399143+00:00"
+        let records = (1...12).map { index -> String in
+            let stamp = index == 7 ? newest : stale
+            return #"{"displayLabel":"Agent \#(index)","hostModelSlug":"model-\#(index)","display":{"creator":{"agent":"Maker"}},"indexScore":0.5,"grading":{"materializedAt":"\#(stamp)"}}"#
+        }
+        let html = rscHTML(payload: "[\(records.joined(separator: ","))]")
+
+        let leaderboard = try HTMLLeaderboardParser.artificialAnalysisCodingAgent(fromHTML: html)
+
+        XCTAssertEqual(leaderboard.sourceUpdatedAt, try expectedDate("2026-09-23T06:01:07.399Z"))
+    }
+
+    func testParsesArtificialAnalysisMediaBoardDataTimestamp() throws {
+        let records = (1...22).map { index in
+            #"{"formatted":{"rank":\#(index)},"values":{"id":"image-\#(index)","name":"Image Model \#(index)","elo":\#(1200-index),"creator":{"name":"Maker"}},"grading":{"materializedAt":"2026-09-22T08:09:10.111222+00:00"}}"#
+        }
+        let html = rscHTML(payload: "[\(records.joined(separator: ","))]")
+
+        let leaderboard = try HTMLLeaderboardParser.artificialAnalysisTextToImage(fromHTML: html)
+
+        XCTAssertEqual(leaderboard.sourceUpdatedAt, try expectedDate("2026-09-22T08:09:10.111Z"))
+        XCTAssertEqual(leaderboard.entries.count, 20)
+    }
+
     func testParsesSavedArtificialAnalysisPage() throws {
-        let path = fixtureURL("artificial-analysis.html")
         let path = fixtureURL("artificial-analysis.html")
         try XCTSkipUnless(FileManager.default.fileExists(atPath: path))
         let html = try String(contentsOfFile: path, encoding: .utf8)
@@ -153,5 +189,11 @@ final class HTMLLeaderboardParserTests: XCTestCase {
             .replacingOccurrences(of: "\"", with: "\\\"")
         let titleTag = title.map { "<title>\($0)</title>" } ?? ""
         return #"<html>\#(titleTag)<script>self.__next_f.push([1,"\#(escaped)"])</script></html>"#
+    }
+
+    private func expectedDate(_ value: String) throws -> Date {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return try XCTUnwrap(formatter.date(from: value))
     }
 }
