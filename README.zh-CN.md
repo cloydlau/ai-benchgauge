@@ -1,6 +1,6 @@
 # AI BenchGauge
 
-*Who's on top. How much you've got left.*
+*AI Benchmarks & Quotas — who's on top, how much you've got left.*
 
 [English](README.md) | **简体中文** | [繁體中文](README.zh-Hant.md)
 
