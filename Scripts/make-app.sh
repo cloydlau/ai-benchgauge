@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT=${0:A:h:h}
-APP="$ROOT/outputs/AI-Leaderboards.app"
+APP="$ROOT/outputs/AI-BenchGauge.app"
 BIN="$ROOT/.build/release/leaderboard-menu"
 
 notify() {
@@ -38,4 +38,4 @@ cp -R "$ROOT/Sources/LeaderboardMenu/Resources/logos" "$APP/Contents/Resources/l
 codesign --force --sign - "$APP"
 
 printf 'Built %s\n' "$APP"
-notify success "构建成功" "已生成 outputs/AI-Leaderboards.app"
+notify success "构建成功" "已生成 outputs/AI-BenchGauge.app"

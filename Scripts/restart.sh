@@ -5,7 +5,7 @@
 set -euo pipefail
 
 ROOT=${0:A:h:h}
-APP="$ROOT/outputs/AI-Leaderboards.app"
+APP="$ROOT/outputs/AI-BenchGauge.app"
 BIN="$APP/Contents/MacOS/leaderboard-menu"
 
 notify() {

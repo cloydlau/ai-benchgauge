@@ -7,11 +7,11 @@
     <key>CFBundleExecutable</key>
     <string>leaderboard-menu</string>
     <key>CFBundleIdentifier</key>
-    <string>com.cloyd.ai-leaderboards</string>
+    <string>com.cloyd.ai-benchgauge</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>AI Leaderboards</string>
+    <string>AI BenchGauge</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

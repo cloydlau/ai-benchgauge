@@ -20,7 +20,7 @@ public struct LeaderboardCache {
             create: true
         )
         let directory = support.appending(
-            path: "AI Leaderboards",
+            path: "AI BenchGauge",
             directoryHint: .isDirectory
         )
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

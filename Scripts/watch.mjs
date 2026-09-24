@@ -15,7 +15,7 @@ import { materializeAvatar, notifyDesktop } from './desktop-notify.mjs'
 import { gitProxyArgs, gitProxyValue } from './git-network.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const appPath = join(root, 'outputs', 'AI-Leaderboards.app')
+const appPath = join(root, 'outputs', 'AI-BenchGauge.app')
 
 export function nextWaitMs({ now, lastChangeAt, lastRunAt = null, debounceMs, throttleMs }) {
   const sinceChange = Number(lastChangeAt)

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="570" viewBox="0 0 1200 570" role="img" aria-label="AI Leaderboards 介面示意：雙榜比較與 CC Switch 額度">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="570" viewBox="0 0 1200 570" role="img" aria-label="AI BenchGauge 介面示意：雙榜比較與 CC Switch 額度">
   <defs>
     <linearGradient id="backdrop" x1="0" y1="0" x2="1" y2="1">
       <stop stop-color="#101a3d"/>
@@ -18,7 +18,7 @@
   <circle cx="1070" cy="50" r="210" fill="#7f8eff" opacity="0.12"/>
   <circle cx="65" cy="540" r="230" fill="#55d5c3" opacity="0.09"/>
 
-  <text x="64" y="73" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="38" font-weight="700">AI Leaderboards</text>
+  <text x="64" y="73" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="38" font-weight="700">AI BenchGauge</text>
   <text x="65" y="105" fill="#c6d3f9" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="17">兩張榜單，一眼比較。模型排行與帳戶額度，常駐選單列。</text>
   <rect x="909" y="47" width="226" height="35" rx="17" fill="#ffffff" opacity="0.12"/>
   <text x="933" y="70" fill="#e9f2ff" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="15" font-weight="600">macOS 14+ · Swift 6</text>
@@ -31,7 +31,7 @@
   <circle cx="91" cy="161" r="5" fill="#f19f9f"/>
   <circle cx="107" cy="161" r="5" fill="#f3cd75"/>
   <circle cx="123" cy="161" r="5" fill="#89d3a5"/>
-  <text x="148" y="168" fill="#202c4d" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="17" font-weight="700">AI Leaderboards</text>
+  <text x="148" y="168" fill="#202c4d" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="17" font-weight="700">AI BenchGauge</text>
 
   <rect x="486" y="151" width="85" height="29" rx="9" fill="#273f7a"/>
   <text x="514" y="171" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif" font-size="14" font-weight="600">模型</text>

@@ -1,4 +1,4 @@
-# AI Leaderboards
+# AI BenchGauge
 
 *Who's on top. How much you've got left.*
 
@@ -8,7 +8,7 @@
 
 `macOS 14+` · `Swift 6` · `English / 简中 / 繁中` · [MIT 许可证](LICENSE)
 
-![AI Leaderboards 界面示意：双榜对照与 CC Switch 余量](docs/overview.svg)
+![AI BenchGauge 界面示意：双榜对照与 CC Switch 余量](docs/overview.svg)
 
 *界面示意图，不展示真实排名或账户余量。*
 
@@ -54,10 +54,10 @@
 
 ```bash
 ./Scripts/make-app.sh
-open outputs/AI-Leaderboards.app
+open outputs/AI-BenchGauge.app
 ```
 
-脚本会生成临时签名的 `outputs/AI-Leaderboards.app`。首次启动按 macOS 首选语言选择英文、简体中文或繁体中文；也可以在弹窗底部切换。分类、模型 / 公司分组和语言选择会保存在本机。
+脚本会生成临时签名的 `outputs/AI-BenchGauge.app`。首次启动按 macOS 首选语言选择英文、简体中文或繁体中文；也可以在弹窗底部切换。分类、模型 / 公司分组和语言选择会保存在本机。
 
 ## 本地开发
 
