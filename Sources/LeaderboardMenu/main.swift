@@ -140,9 +140,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         guard !state.quotaNeedsCCSwitch, !state.quotaUnavailable,
               state.quotaUpdatedAt != nil,
               let current = state.quotaChips.first(where: \.isCurrent),
-              let quota = AccountQuotaFormatting.compactMenuBarQuota(
-                for: current, language: state.selectedLanguage
-              ) else {
+              let quota = AccountQuotaFormatting.compactMenuBarQuota(for: current) else {
             button.title = ""
             button.toolTip = "AI Leaderboards"
             return
