@@ -81,13 +81,9 @@ private struct QuotaChipView: View {
         }
         return HStack(spacing: 5) {
             logo
-<<<<<<< Updated upstream
-            Text(language.providerName(chip.kind) + providerSuffix)
-=======
                 .saturation(isExhausted ? 0 : 1)
                 .opacity(isExhausted ? 0.55 : 1)
-            Text(chip.shortName)
->>>>>>> Stashed changes
+            Text(language.providerName(chip.kind) + providerSuffix)
                 .font(.system(size: 11, weight: chip.isCurrent ? .semibold : .medium))
                 .foregroundStyle(isExhausted ? .secondary : .primary)
                 .strikethrough(isExhausted, color: exhaustedAccent)
@@ -107,18 +103,14 @@ private struct QuotaChipView: View {
 
     private var helpText: String {
         let help = AccountQuotaFormatting.help(for: chip, now: now)
-<<<<<<< Updated upstream
             .components(separatedBy: "\n")
             .map(language.quotaText)
             .joined(separator: "\n")
-        guard onConnectQwen != nil else { return help }
-        return [help, language.text("Click to connect Qwen usage", "点击连接千问官网用量")]
-            .filter { !$0.isEmpty }.joined(separator: "\n")
-=======
-        let exhaustedHelp = isExhausted ? ["额度已用尽，暂不可用", help].joined(separator: "\n") : help
+        let exhaustedNotice = language.text("Quota exhausted; temporarily unavailable", "额度已用尽，暂不可用")
+        let exhaustedHelp = isExhausted ? [exhaustedNotice, help].joined(separator: "\n") : help
         guard onConnectQwen != nil else { return exhaustedHelp }
-        return [exhaustedHelp, "点击连接千问官网用量"].filter { !$0.isEmpty }.joined(separator: "\n")
->>>>>>> Stashed changes
+        return [exhaustedHelp, language.text("Click to connect Qwen usage", "点击连接千问官网用量")]
+            .filter { !$0.isEmpty }.joined(separator: "\n")
     }
 
     private var accessibilityLabel: String {
@@ -127,7 +119,7 @@ private struct QuotaChipView: View {
             parts.append(language.text("Current provider", "当前供应商"))
         }
         if isExhausted {
-            parts.append("额度已用尽，不可用")
+            parts.append(language.text("Quota exhausted; unavailable", "额度已用尽，不可用"))
         }
         let summary = AccountQuotaFormatting.plainSummary(for: chip, now: now)
         if !summary.isEmpty {
