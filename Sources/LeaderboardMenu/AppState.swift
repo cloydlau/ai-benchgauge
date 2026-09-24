@@ -28,6 +28,13 @@ final class AppState: ObservableObject {
     @Published private(set) var quotaUnavailable = false
     @Published private(set) var quotaNeedsCCSwitch = false
 
+    /// The status item is a projection of the same chips the panel renders, so
+    /// a refresh triggered inside the panel moves the menu bar at the same
+    /// moment instead of waiting for the slower background cadence.
+    var menuBarQuota: AccountQuotaMenuBarText? {
+        AccountQuotaFormatting.menuBarText(forChips: quotaChips)
+    }
+
     private let fetcher = LeaderboardFetcher()
     private let cache: LeaderboardCache
     private let qwenWebsiteSource = QwenWebsiteQuotaSource()

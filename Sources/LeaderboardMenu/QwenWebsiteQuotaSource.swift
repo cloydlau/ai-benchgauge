@@ -78,7 +78,8 @@ final class QwenWebsiteQuotaSource: NSObject, WKNavigationDelegate, @unchecked S
     }
 
     private func makeLoadingOverlay() -> NSStackView {
-        let spinner = NSProgressIndicator(style: .spinning)
+        let spinner = NSProgressIndicator(frame: NSRect(x: 0, y: 0, width: 32, height: 32))
+        spinner.style = .spinning
         spinner.controlSize = .large
         spinner.isDisplayedWhenStopped = false
         let label = NSTextField(labelWithString: AppLanguage.load().text("Loading…", "加载中…"))

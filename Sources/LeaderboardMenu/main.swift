@@ -132,20 +132,17 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         }
     }
 
+    /// Reads the projection instead of re-deriving one, so the item can never
+    /// hold an amount older than the chip the panel is showing.
     private func updateStatusItem() {
         guard let button = statusItem.button else { return }
-        guard !state.quotaNeedsCCSwitch, !state.quotaUnavailable,
-              state.quotaUpdatedAt != nil,
-              let current = state.quotaChips.first(where: \.isCurrent),
-              let quota = AccountQuotaFormatting.compactMenuBarQuota(for: current) else {
+        guard let quota = state.menuBarQuota else {
             button.toolTip = "AI BenchGauge"
             setStatusItemLabel(button, label: nil)
             return
         }
-        let fullName = current.shortName
-        let compactName = fullName.count > 24 ? String(fullName.prefix(23)) + "…" : fullName
-        setStatusItemLabel(button, label: "\(compactName) · \(quota)")
-        button.toolTip = "AI BenchGauge · \(fullName) · \(quota)"
+        setStatusItemLabel(button, label: "\(quota.name) · \(quota.quota)")
+        button.toolTip = "AI BenchGauge · \(quota.fullName) · \(quota.quota)"
     }
 
     /// AppKit centers `button.image` in the status item but lays the title out on
