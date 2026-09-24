@@ -367,7 +367,9 @@ struct LeaderboardView: View {
             .fixedSize(horizontal: true, vertical: false)
             .padding(.horizontal, 8)
             .padding(.vertical, 2.5)
-            .frame(width: language == .english ? 124 : 92)
+            // Left-aligned so `榜单` / `Rankings` stay pinned too; the width
+            // difference then lands in the pill's trailing padding.
+            .frame(width: language == .english ? 124 : 92, alignment: .leading)
             .background(
                 Capsule().fill(failed ? Color.orange.opacity(0.12) : Color.secondary.opacity(0.10))
             )
