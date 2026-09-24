@@ -46,7 +46,7 @@ For Qwen Token Plan, the app reads the remaining percentage and reset time from 
 | Image | Artificial Analysis · 文生图 (text-to-image) | Arena · 文生图 (text-to-image) |
 | Video | Artificial Analysis · 文生视频 (text-to-video) | Arena · 文生视频 (text-to-video) |
 
-Image and video use their dedicated boards. Artificial Analysis does not expose a leaderboard update timestamp in its server-rendered pages, so the app shows its fetch time and an index version when available. Arena's vote cutoff is shown when available. Switching categories uses cached data first.
+Image and video use their dedicated boards. Artificial Analysis embeds a `materializedAt` stamp in its evaluation payload, so each Artificial Analysis column shows that source data time beside an index version when available. A page without the stamp falls back to the fetch time in the panel heading. Arena's vote cutoff is shown when available. Switching categories uses cached data first.
 
 ## Quick start
 
