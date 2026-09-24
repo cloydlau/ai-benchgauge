@@ -196,17 +196,6 @@ final class QuotaAlertsTests: XCTestCase {
     func testQwenWebsiteUsesItsRemainingPercentAndSkipsCache() {
         let resetsAt = now.addingTimeInterval(86_400)
         let fresh = alerts(status: .qwenWebsite(QwenWebsiteQuota(
-<<<<<<< Updated upstream
-            periodLabel: "1个月",
-            remainingPercent: 95.4,
-            resetsAt: resetsAt
-        )))
-        XCTAssertEqual(fresh.map(\.reason), [.highRemaining, .expiring])
-        XCTAssertEqual(fresh[0].body, "1个月 95%")
-
-        let cached = alerts(status: .qwenWebsite(QwenWebsiteQuota(
-            periodLabel: "1个月",
-=======
             periodLabel: "1mo",
             remainingPercent: 4.6,
             resetsAt: resetsAt
@@ -216,7 +205,6 @@ final class QuotaAlertsTests: XCTestCase {
 
         let cached = alerts(status: .qwenWebsite(QwenWebsiteQuota(
             periodLabel: "1mo",
->>>>>>> Stashed changes
             remainingPercent: 100,
             resetsAt: resetsAt,
             isCached: true,
