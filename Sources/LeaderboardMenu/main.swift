@@ -27,6 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 @MainActor
 final class StatusBarController: NSObject, NSPopoverDelegate {
     @IBOutlet private var button: NSStatusBarButton?
+    private static let statusItemSymbolName = "brain.head.profile"
     private let popover = NSPopover()
     private let state: AppState
     private let statusItem: NSStatusItem
@@ -78,10 +79,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         popover.contentSize = contentSize
 
         if let button = statusItem.button {
-            button.image = NSImage(
-                systemSymbolName: "brain.head.profile",
-                accessibilityDescription: "AI BenchGauge"
-            )
             button.imagePosition = .imageLeading
             button.target = self
             button.action = #selector(togglePopover)
@@ -141,14 +138,57 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
               state.quotaUpdatedAt != nil,
               let current = state.quotaChips.first(where: \.isCurrent),
               let quota = AccountQuotaFormatting.compactMenuBarQuota(for: current) else {
-            button.title = ""
             button.toolTip = "AI BenchGauge"
+            setStatusItemLabel(button, label: nil)
             return
         }
         let fullName = current.shortName
         let compactName = fullName.count > 24 ? String(fullName.prefix(23)) + "…" : fullName
-        button.title = "\(compactName) · \(quota)"
+        setStatusItemLabel(button, label: "\(compactName) · \(quota)")
         button.toolTip = "AI BenchGauge · \(fullName) · \(quota)"
+    }
+
+    /// AppKit centers `button.image` in the status item but lays the title out on
+    /// its own, so an image beside a title does not share the text's baseline and
+    /// reads as vertically off. Drawing the symbol as a text attachment keeps it
+    /// on the label's baseline. The icon-only state keeps the native image, which
+    /// AppKit already centers in the item.
+    private func setStatusItemLabel(_ button: NSStatusBarButton, label: String?) {
+        guard let label, !label.isEmpty else {
+            button.attributedTitle = NSAttributedString(string: "")
+            button.image = statusItemSymbol(for: button)
+            return
+        }
+        let font = button.font ?? NSFont.menuBarFont(ofSize: 0)
+        guard let symbol = statusItemSymbol(for: button) else {
+            button.image = nil
+            button.title = label
+            return
+        }
+        let attachment = NSTextAttachment()
+        attachment.image = symbol
+        // A symbol's alignment rect bottom is its baseline, so this drops the
+        // icon onto the label's baseline instead of floating above or below it.
+        attachment.bounds = CGRect(
+            x: 0,
+            y: -symbol.alignmentRect.minY,
+            width: symbol.size.width,
+            height: symbol.size.height
+        )
+        let title = NSMutableAttributedString(attachment: attachment)
+        title.append(NSAttributedString(string: " \(label)", attributes: [.font: font]))
+        button.image = nil
+        button.attributedTitle = title
+    }
+
+    private func statusItemSymbol(for button: NSStatusBarButton) -> NSImage? {
+        let font = button.font ?? NSFont.menuBarFont(ofSize: 0)
+        let symbol = NSImage(
+            systemSymbolName: Self.statusItemSymbolName,
+            accessibilityDescription: "AI BenchGauge"
+        )
+        let configuration = NSImage.SymbolConfiguration(pointSize: font.pointSize, weight: .regular)
+        return symbol?.withSymbolConfiguration(configuration) ?? symbol
     }
 
     /// A status-item popover is a child of the menu-bar window, so it inherits
