@@ -46,7 +46,7 @@ For Qwen Token Plan, the app reads the remaining percentage and reset time from 
 | Image | Artificial Analysis · 文生图 (text-to-image) | Arena · 文生图 (text-to-image) |
 | Video | Artificial Analysis · 文生视频 (text-to-video) | Arena · 文生视频 (text-to-video) |
 
-Image and video use their dedicated boards. Artificial Analysis embeds a `materializedAt` stamp in its evaluation payload, so each Artificial Analysis column shows that source data time beside an index version when available. A page without the stamp falls back to the fetch time in the panel heading. Arena's vote cutoff is shown when available. Switching categories uses cached data first.
+Image and video use their dedicated boards. The Artificial Analysis Coding Agent Index embeds a `materializedAt` batch stamp in its payload, and the app shows that source data time beside the index version. The other Artificial Analysis boards expose no data timestamp, so their columns show no date and the panel heading keeps this Mac's fetch time. Arena's vote cutoff is shown when available. Switching categories uses cached data first.
 
 ## Quick start
 

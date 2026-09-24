@@ -447,6 +447,8 @@ public enum HTMLLeaderboardParser {
     /// Artificial Analysis stamps each grading batch with `materializedAt`. Every
     /// row on a board repeats the same value, so the newest one marks when the
     /// source regenerated this leaderboard's data, not when this Mac fetched it.
+    /// Only the Coding Agent Index ships that stamp today; the intelligence,
+    /// image, and video boards expose no batch time, so they stay `nil`.
     private static func artificialAnalysisDataUpdatedAt(fromHTML html: String) -> Date? {
         jsonStringValues(in: html, afterKey: "materializedAt").compactMap(iso8601Date).max()
     }
