@@ -31,7 +31,7 @@ public enum QwenWebsiteQuotaParser {
            stored.remainingPercent.isFinite,
            (0...100).contains(stored.remainingPercent) {
             return QwenWebsiteQuota(
-                periodLabel: stored.periodLabel == "月度" ? "1个月" : stored.periodLabel,
+                periodLabel: currentPeriodLabel(stored.periodLabel),
                 remainingPercent: stored.remainingPercent,
                 resetsAt: stored.resetsAt,
                 isCached: true,
@@ -46,11 +46,7 @@ public enum QwenWebsiteQuotaParser {
               let percentRange = Range(match.range(at: 2), in: text),
               let percent = Double(text[percentRange]),
               percent.isFinite, (0...100).contains(percent) else { return nil }
-<<<<<<< Updated upstream
-        let periodLabel = text[labelRange].contains("月") ? "1个月" : "7天"
-=======
         let periodLabel = text[labelRange].contains("月") ? "1mo" : "7d"
->>>>>>> Stashed changes
         let resetPattern = #"重置时间\s*([0-9]{4}-[0-9]{2}-[0-9]{2}\s+[0-9]{2}:[0-9]{2}:[0-9]{2})"#
         var resetsAt: Date?
         if let resetExpression = try? NSRegularExpression(pattern: resetPattern),
@@ -84,6 +80,16 @@ public enum QwenWebsiteQuotaParser {
                 capturedAt: capturedAt
             )
         )
+    }
+
+    /// Saved quotas may predate the short labels, so older Chinese period
+    /// names are mapped onto the current ones before they reach the UI.
+    private static func currentPeriodLabel(_ stored: String) -> String {
+        switch stored {
+        case "月度", "1个月": "1mo"
+        case "7天": "7d"
+        default: stored
+        }
     }
 
     private struct StoredQuota: Codable {
