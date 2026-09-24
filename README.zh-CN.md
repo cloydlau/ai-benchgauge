@@ -2,7 +2,7 @@
 
 *Who's on top. How much you've got left.*
 
-[English](README.md) | **简体中文** | [繁體中文](README.zh-TW.md)
+[English](README.md) | **简体中文** | [繁體中文](README.zh-Hant.md)
 
 **两张榜单，一眼对照。模型排名与账户余量，常驻 macOS 菜单栏。**
 

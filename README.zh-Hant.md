@@ -8,7 +8,7 @@
 
 `macOS 14+` · `Swift 6` · `English / 簡中 / 繁中` · [MIT 授權條款](LICENSE)
 
-![AI Leaderboards 介面示意：雙榜比較與 CC Switch 額度](docs/overview.zh-TW.svg)
+![AI Leaderboards 介面示意：雙榜比較與 CC Switch 額度](docs/overview.zh-Hant.svg)
 
 *介面示意圖，不顯示真實排名或帳戶額度。*
 
