@@ -252,11 +252,39 @@ public enum AccountQuotaFormatting {
 
     public static func label(forWindowName name: String) -> String {
         switch name {
+<<<<<<< Updated upstream
         case "five_hour": "5小时"
         case "weekly_limit", "seven_day": "7天"
         case "monthly": "1个月"
+=======
+        case "five_hour": "5h"
+        case "weekly_limit", "seven_day": "7d"
+        case "monthly": "1mo"
+>>>>>>> Stashed changes
         case "credits": "额度"
         default: name
+        }
+    }
+
+    /// Any usage window at zero remaining makes the provider unusable, no
+    /// matter which window ran out. Plan expiry is a date, not usage, so it
+    /// never counts. A balance chip is exhausted only when no positive
+    /// balance remains.
+    public static func isExhausted(_ chip: AccountQuotaChip) -> Bool {
+        switch chip.status {
+        case let .windows(windows):
+            return windows.contains { window in
+                window.name != ParsedQuotaWindow.planExpiryName
+                    && remainingPercent(utilization: window.utilization) <= 0
+            }
+        case let .qwenPlan(plan):
+            return qwenPlanRemainingPercent(plan) <= 0
+        case let .qwenWebsite(quota):
+            return quota.remainingPercent <= 0
+        case let .balances(balances):
+            return !balances.contains { $0.amount > 0 }
+        case .pending, .note, .message:
+            return false
         }
     }
 
@@ -292,12 +320,17 @@ public enum AccountQuotaFormatting {
         return formatter.string(from: resetsAt)
     }
 
-    /// Plan end copy. No window label and no countdown: `截至9月29日14时37分`.
-    /// A zero minute is omitted: `截至9月24日2时`. Midnight drops the time:
-    /// `截至10月5日`. Nil once that instant has passed.
+    /// Plan end copy. No window label and no countdown. A plan ending today
+    /// keeps the clock time: `截至9月23日14时37分`; a zero minute is omitted:
+    /// `截至9月23日14时`. Any other day shows the date only: `截至9月29日`.
+    /// Nil once that instant has passed.
     public static func planExpiryPhrase(until resetsAt: Date, now: Date) -> String? {
         guard countdownParts(until: resetsAt, now: now) != nil else { return nil }
         let formatter = shanghaiFormatter()
+        guard shanghaiCalendar.isDate(resetsAt, inSameDayAs: now) else {
+            formatter.dateFormat = "M'月'd'日'"
+            return "截至\(formatter.string(from: resetsAt))"
+        }
         let hour = shanghaiCalendar.component(.hour, from: resetsAt)
         let minute = shanghaiCalendar.component(.minute, from: resetsAt)
         if hour == 0, minute == 0 {
@@ -386,8 +419,8 @@ public enum AccountQuotaFormatting {
             .map(\.element)
     }
 
-    /// Alert subject order. Chip and tooltip copy use a fixed 5小时 / 7天 / 月度
-    /// order instead. Zhipu usage windows stay 5小时, 7天, then the plan expiry.
+    /// Alert subject order. Chip and tooltip copy use a fixed 5h / 7d / 1mo
+    /// order instead. Zhipu usage windows stay 5h, 7d, then the plan expiry.
     /// Other providers keep later-reset-first for usage windows, and always draw
     /// the plan expiry last. Plan end is not a reset, so it does not jump ahead
     /// of a nearer usage window.
@@ -537,7 +570,7 @@ public enum AccountQuotaFormatting {
         }
     }
 
-    /// Chip order is fixed: 5小时, 7天, 月度, then any other usage window.
+    /// Chip order is fixed: 5h, 7d, 1mo, then any other usage window.
     /// A reset time is not its own 到期 label; one expiry phrase is appended.
     private static let displaySlotOrder = ["five_hour", "seven_day", "weekly_limit", "monthly"]
 
@@ -600,7 +633,7 @@ public enum AccountQuotaFormatting {
     }
 
     private static func qwenPlanHelp(_ plan: QwenPlanQuota, now: Date) -> String {
-        var lines = ["7天 \(qwenPlanRemainingPercent(plan))%"]
+        var lines = ["7d \(qwenPlanRemainingPercent(plan))%"]
         if plan.totalCredits > 0 {
             lines.append(
                 "剩余 \(creditText(plan.remainingCredits))/\(creditText(plan.totalCredits)) Credits"
@@ -696,7 +729,7 @@ public enum AccountQuotaFormatting {
     private static func qwenPlanRuns(_ plan: QwenPlanQuota, now: Date) -> [QuotaTextRun] {
         let remaining = qwenPlanRemainingPercent(plan)
         var runs = remainingRuns(
-            label: "7天",
+            label: "7d",
             percentText: "\(remaining)",
             utilizationForTone: Double(100 - remaining)
         )
