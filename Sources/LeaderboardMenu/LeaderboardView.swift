@@ -24,6 +24,12 @@ struct LeaderboardView: View {
     // macOS Table adds its own padding around fixed-width columns.
     private static let tableChromeBaseWidth: CGFloat = 288
     private static let countryColumnWidth: CGFloat = 68
+    /// Row height SwiftUI settles on for these cells. The panel height has to
+    /// match the rows exactly, or the table becomes scrollable.
+    private static let tableRowHeight: CGFloat = 32
+    /// `.tableStyle(.bordered)` insets the clip view by 1pt top and bottom, so
+    /// the rows need 2pt more than the table frame hands them.
+    private static let tableBorderHeight: CGFloat = 2
 
     let maximumWidth: CGFloat
 
@@ -102,10 +108,11 @@ struct LeaderboardView: View {
         let view = LeaderboardView(state: state, maximumWidth: maximumWidth)
         let header = NSHostingView(rootView: view.header.frame(width: width))
         let footer = NSHostingView(rootView: view.footer.frame(width: width))
-        // Native header plus visible rows. A country filter can shorten the table.
-        return ceil(header.fittingSize.height
-            + 24 + CGFloat(visibleRowCount(for: state)) * 32
-            + 1 + footer.fittingSize.height)
+        // Native header plus visible rows plus the bordered style's insets.
+        // A country filter can shorten the table.
+        return ceil(header.fittingSize.height + SourceTableHeaderView.height
+            + CGFloat(visibleRowCount(for: state)) * tableRowHeight
+            + tableBorderHeight + 1 + footer.fittingSize.height)
     }
 
     private static func visibleRowCount(for state: AppState) -> Int {
