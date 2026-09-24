@@ -468,7 +468,7 @@ final class AccountQuotaFormattingTests: XCTestCase {
                 ParsedBalance(currency: "CNY", amount: 12.36),
             ])
         )
-        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: deepseek, now: now), "余额 12.36 CNY")
+        XCTAssertEqual(AccountQuotaFormatting.plainSummary(for: deepseek, now: now), "余额 ¥12.36")
 
         let qwen = chip(
             kind: .qwen,
@@ -544,6 +544,35 @@ final class AccountQuotaFormattingTests: XCTestCase {
             "7d 72%"
         )
         XCTAssertFalse(AccountQuotaFormatting.help(for: qwenWithoutEnd, now: now).contains("总到期"))
+    }
+
+    /// The currency is whatever the provider reports, so a US account reads $.
+    /// A mapped code becomes its symbol; an unmapped one keeps the ISO code
+    /// behind the amount rather than losing the unit.
+    func testBalanceCurrencyRendersAsItsSymbol() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        func summary(_ currency: String, _ amount: Double) -> String {
+            AccountQuotaFormatting.plainSummary(
+                for: chip(
+                    kind: .deepseek,
+                    status: .balances([ParsedBalance(currency: currency, amount: amount)])
+                ),
+                now: now
+            )
+        }
+        XCTAssertEqual(summary("CNY", 12.36), "余额 ¥12.36")
+        XCTAssertEqual(summary("USD", 12.36), "余额 $12.36")
+        XCTAssertEqual(summary("CHF", 12.36), "余额 12.36 CHF")
+        XCTAssertEqual(
+            AccountQuotaFormatting.compactMenuBarQuota(
+                for: chip(
+                    kind: .deepseek,
+                    isCurrent: true,
+                    status: .balances([ParsedBalance(currency: "USD", amount: 4.2)])
+                )
+            ),
+            "$4.20"
+        )
     }
 
     func testCountdownBoundariesAndUtilizationTones() {

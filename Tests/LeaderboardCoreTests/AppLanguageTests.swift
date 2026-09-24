@@ -30,6 +30,8 @@ final class AppLanguageTests: XCTestCase {
         XCTAssertEqual(AppLanguage.english.quotaText("7天 72% · 截至9月24日2时"), "7d 72% · Until Sep 24, 02:00")
         XCTAssertEqual(AppLanguage.english.quotaText("7天额度 2天后重置，9月24日 02:00"), "7d quota resets in 2d, Sep 24 02:00")
         XCTAssertEqual(AppLanguage.chinese.quotaText("1个月 6.8%"), "1个月 6.8%")
+        XCTAssertEqual(AppLanguage.english.quotaText("余额 ¥12.36"), "Balance ¥12.36")
+        XCTAssertEqual(AppLanguage.traditionalChinese.quotaText("余额 ¥12.36"), "餘額 ¥12.36")
         XCTAssertEqual(AppLanguage.traditionalChinese.providerName(.zhipu), "GLM")
         XCTAssertEqual(AppLanguage.traditionalChinese.text("Screenshot", "截图"), "截圖")
         XCTAssertEqual(AppLanguage.traditionalChinese.quotaText("7天 72% · 截至9月24日2时"), "7天 72% · 截至9月24日2時")
