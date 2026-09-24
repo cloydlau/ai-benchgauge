@@ -13,6 +13,8 @@ enum BundleIdentifierMigration {
         "com.cloyd.ai-leaderboards",
     ]
     private static let doneKey = "bundleIdentifierMigrationDone"
+    /// The cookie jar sits beside the identifier, outside the website data.
+    private static let cookieSuffix = ".binarycookies"
 
     /// Must run before any web view or `URLSession` is created, or the current
     /// identifier claims empty stores first and there is nothing to adopt into.
@@ -26,7 +28,7 @@ enum BundleIdentifierMigration {
         adoptWebsiteData(into: current, fileManager: fileManager)
         adoptCookies(into: current, fileManager: fileManager)
         adoptPreferences(into: defaults)
-        discardLegacyState(defaults: defaults, fileManager: fileManager)
+        discardLegacyState(into: current, defaults: defaults, fileManager: fileManager)
         defaults.set(true, forKey: doneKey)
     }
 
@@ -42,7 +44,7 @@ enum BundleIdentifierMigration {
             .appending(path: "WebKit", directoryHint: .isDirectory)
         let destination = root.appending(path: current, directoryHint: .isDirectory)
         guard !hasWebsiteData(destination, fileManager: fileManager) else { return }
-        guard let source = legacyStores(in: root, fileManager: fileManager)
+        guard let source = legacyURLs(in: root)
             .first(where: { hasWebsiteData($0, fileManager: fileManager) }) else { return }
         if fileManager.fileExists(atPath: destination.path) {
             // A launch that quit before migrating can leave an empty store behind.
@@ -56,18 +58,17 @@ enum BundleIdentifierMigration {
     private static func adoptCookies(into current: String, fileManager: FileManager) {
         let root = libraryDirectory(fileManager)
             .appending(path: "HTTPStorages", directoryHint: .isDirectory)
-        let destination = root.appending(path: "\(current).binarycookies", directoryHint: .notDirectory)
+        let destination = root.appending(
+            path: current + cookieSuffix,
+            directoryHint: .notDirectory
+        )
         guard !fileManager.fileExists(atPath: destination.path) else { return }
-        guard let source = legacyStores(in: root, fileManager: fileManager, suffix: ".binarycookies")
+        guard let source = legacyURLs(in: root, suffix: cookieSuffix)
             .first(where: { fileManager.fileExists(atPath: $0.path) }) else { return }
         try? fileManager.moveItem(at: source, to: destination)
     }
 
-    private static func legacyStores(
-        in root: URL,
-        fileManager: FileManager,
-        suffix: String = ""
-    ) -> [URL] {
+    private static func legacyURLs(in root: URL, suffix: String = "") -> [URL] {
         legacyIdentifiers.map {
             root.appending(path: $0 + suffix, directoryHint: .isDirectory)
         }
@@ -85,7 +86,7 @@ enum BundleIdentifierMigration {
     /// the global domain in and bloat the migrated preferences.
     private static func adoptPreferences(into defaults: UserDefaults) {
         for identifier in legacyIdentifiers {
-            guard let stored = UserDefaults.persistentDomain(forName: identifier) else { continue }
+            guard let stored = defaults.persistentDomain(forName: identifier) else { continue }
             for (key, value) in stored where defaults.object(forKey: key) == nil {
                 defaults.set(value, forKey: key)
             }
@@ -93,25 +94,45 @@ enum BundleIdentifierMigration {
     }
 
     private static func discardLegacyState(
+        into current: String,
         defaults: UserDefaults,
         fileManager: FileManager
     ) {
         let library = libraryDirectory(fileManager)
+        let webKit = library.appending(path: "WebKit", directoryHint: .isDirectory)
+        let storages = library.appending(path: "HTTPStorages", directoryHint: .isDirectory)
+        // A move can still fail on a locked or foreign volume; never delete the
+        // only copy of a signed-in session.
+        let migratedStore = webKit.appending(path: current, directoryHint: .isDirectory)
+        let hasMigratedStore = hasWebsiteData(migratedStore, fileManager: fileManager)
+        let hasMigratedCookies = fileManager.fileExists(
+            atPath: storages.appending(
+                path: current + cookieSuffix,
+                directoryHint: .notDirectory
+            ).path
+        )
         for identifier in legacyIdentifiers {
-            for subdirectory in ["WebKit", "Caches"] {
-                try? fileManager.removeItem(
-                    at: library
-                        .appending(path: subdirectory, directoryHint: .isDirectory)
-                        .appending(path: identifier, directoryHint: .isDirectory)
-                )
+            let legacyStore = webKit.appending(path: identifier, directoryHint: .isDirectory)
+            if hasMigratedStore || !hasWebsiteData(legacyStore, fileManager: fileManager) {
+                try? fileManager.removeItem(at: legacyStore)
             }
-            let storages = library
-                .appending(path: "HTTPStorages", directoryHint: .isDirectory)
-            for suffix in ["", ".binarycookies", ".snapshot", ".snapshot.binarycookies"] {
+            try? fileManager.removeItem(
+                at: library
+                    .appending(path: "Caches", directoryHint: .isDirectory)
+                    .appending(path: identifier, directoryHint: .isDirectory)
+            )
+            let legacyCookies = storages.appending(
+                path: identifier + cookieSuffix,
+                directoryHint: .notDirectory
+            )
+            if hasMigratedCookies || !fileManager.fileExists(atPath: legacyCookies.path) {
+                try? fileManager.removeItem(at: legacyCookies)
+            }
+            for suffix in ["", ".snapshot", ".snapshot" + cookieSuffix] {
                 try? fileManager.removeItem(
                     at: storages.appending(
                         path: identifier + suffix,
-                        directoryHint: .inferFromPath
+                        directoryHint: .isDirectory
                     )
                 )
             }
