@@ -332,11 +332,13 @@ struct LeaderboardView: View {
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: true, vertical: false)
-            Text(rankingClause(now: now))
+            // Shrinking would break the equal-width guarantee, so both values
+            // keep their natural size.
+            Text(rankingClause(now: now, format: .stamp))
                 .foregroundStyle(rankingFailed ? Color.orange : Color.secondary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            if let quota = quotaClause(now: now) {
+                .fixedSize(horizontal: true, vertical: false)
+            if let quota = quotaClause(now: now, format: .stamp) {
                 Rectangle()
                     .fill(.quaternary)
                     .frame(width: 1, height: 9)
@@ -355,15 +357,45 @@ struct LeaderboardView: View {
         .help(freshnessHelp(now: now))
     }
 
-    private func rankingClause(now: Date) -> String {
+    /// The group is right-aligned, so any change in the value's width pushes
+    /// the "更新时间" heading sideways. Reserving a frame instead would leave a
+    /// hole whenever the copy is short. A fixed-shape timestamp avoids both:
+    /// `HH:mm` in tabular digits measures the same for every value, so the
+    /// heading stays put and nothing is reserved. `.relative` keeps the
+    /// friendlier phrasing for the tooltip and VoiceOver, where width is free.
+    private enum FreshnessFormat {
+        case stamp
+        case relative
+    }
+
+    private func freshnessValue(_ date: Date, now: Date, format: FreshnessFormat) -> String {
+        switch format {
+        case .stamp: clockStamp(date, now: now)
+        case .relative: updateAge(date, now: now)
+        }
+    }
+
+    /// Same-day data shows the clock time; an older fetch adds the date so a
+    /// stale panel cannot read as today's. Matches `resetClock` and the board
+    /// column titles.
+    private func clockStamp(_ date: Date, now: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = language.locale
+        formatter.dateFormat = Calendar.current.isDate(date, inSameDayAs: now)
+            ? "HH:mm"
+            : "M/d HH:mm"
+        return formatter.string(from: date)
+    }
+
+    private func rankingClause(now: Date, format: FreshnessFormat) -> String {
         // Use the oldest visible board so a partially refreshed category does
         // not appear newer than all of its data.
         let fetchedAt = state.selectedCategory.boardKinds
             .compactMap { state.snapshot.boards[$0]?.fetchedAt }
             .min()
         guard let fetchedAt else { return tr("Rankings pending", "榜单待更新") }
-        let age = updateAge(fetchedAt, now: now)
-        return tr("Rankings \(age)", "榜单 \(age)")
+        let value = freshnessValue(fetchedAt, now: now, format: format)
+        return tr("Rankings \(value)", "榜单 \(value)")
     }
 
     private func updateAge(_ date: Date, now: Date) -> String {
@@ -382,8 +414,9 @@ struct LeaderboardView: View {
     }
 
     private func freshnessSummary(now: Date) -> String {
-        var summary = tr("Last updated: ", "更新时间：") + rankingClause(now: now)
-        if let quota = quotaClause(now: now) {
+        var summary = tr("Last updated: ", "更新时间：")
+            + rankingClause(now: now, format: .relative)
+        if let quota = quotaClause(now: now, format: .relative) {
             summary += tr("; ", "；") + quota
         }
         return summary
@@ -1251,19 +1284,52 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         NSRect(x: 0, y: isFlipped ? bounds.height - 1 : 0, width: bounds.width, height: 1).fill()
     }
 
+    /// The label stays on the column centre shared with the flags below, and
+    /// the filter caret is stroked separately on the label's midline: an
+    /// inline "⌄" rides the text baseline and reads as too low.
     private func drawCountryHeader(selected: CountryFilter, in rect: NSRect) {
+        let font = NSFont.systemFont(ofSize: 11, weight: .medium)
+        let tint = selected == .all ? NSColor.labelColor : NSColor.controlAccentColor
+        let title = language.text("Country", "国家")
+        // Header cells ignore `alignment` once an attributed string is set, so
+        // the centring has to live in the string's paragraph style.
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
         let cell = NSTableHeaderCell(textCell: "")
-        cell.alignment = .center
-        let title = language.text("Country", "国家") + " ⌄"
         cell.attributedStringValue = NSAttributedString(
             string: title,
             attributes: [
-                .font: NSFont.systemFont(ofSize: 11, weight: .medium),
-                .foregroundColor: selected == .all
-                    ? NSColor.labelColor : NSColor.controlAccentColor,
+                .font: font,
+                .foregroundColor: tint,
+                .paragraphStyle: paragraph,
             ]
         )
         cell.draw(withFrame: rect, in: self)
+        drawCountryFilterCaret(after: title, font: font, tint: tint, in: rect)
+    }
+
+    private func drawCountryFilterCaret(
+        after title: String,
+        font: NSFont,
+        tint: NSColor,
+        in rect: NSRect
+    ) {
+        let titleWidth = (title as NSString).size(withAttributes: [.font: font]).width
+        let halfWidth: CGFloat = 3
+        let halfHeight: CGFloat = 1.6
+        let gap: CGFloat = 3
+        let centerX = rect.midX + titleWidth / 2 + gap + halfWidth
+        let centerY = rect.midY
+        let up: CGFloat = isFlipped ? -1 : 1
+        let path = NSBezierPath()
+        path.move(to: NSPoint(x: centerX - halfWidth, y: centerY + up * halfHeight))
+        path.line(to: NSPoint(x: centerX, y: centerY - up * halfHeight))
+        path.line(to: NSPoint(x: centerX + halfWidth, y: centerY + up * halfHeight))
+        path.lineWidth = 1.1
+        path.lineCapStyle = .round
+        path.lineJoinStyle = .round
+        tint.setStroke()
+        path.stroke()
     }
 
     private func drawBoardHeader(
@@ -2188,7 +2254,8 @@ final class PointingHandCursorRegistry {
     }
 
     private func containsMouse(_ view: NSView) -> Bool {
-        guard let window = view.window, window.isVisible, view.isVisible else { return false }
+        guard let window = view.window, window.isVisible,
+              !view.isHiddenOrHasHiddenAncestor else { return false }
         return view.bounds.contains(view.convert(window.mouseLocationOutsideOfEventStream, from: nil))
     }
 }
