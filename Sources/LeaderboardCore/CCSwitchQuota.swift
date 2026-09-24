@@ -257,7 +257,7 @@ public enum AccountQuotaFormatting {
                 $0.amount.isFinite && $0.amount >= 0 && !$0.currency.isEmpty
             }
             guard let balance = available.first(where: { $0.amount > 0 }) ?? available.first else { return nil }
-            return "\(balanceAmountText(balance.amount)) \(balance.currency)"
+            return balanceText(amount: balance.amount, currency: balance.currency)
         case .pending, .note, .message:
             return nil
         }
@@ -423,6 +423,33 @@ public enum AccountQuotaFormatting {
         formatter.usesGroupingSeparator = false
         return formatter.string(from: NSNumber(value: amount))
             ?? String(format: "%0.2f", locale: Locale(identifier: "en_US_POSIX"), amount)
+    }
+
+    /// The symbol for a balance currency, or nil when the code has to stay
+    /// visible instead. Currency comes from the provider response rather than
+    /// the system locale, so only codes with an unambiguous symbol are mapped;
+    /// everything else keeps its ISO form and nothing is silently dropped.
+    public static func currencySymbol(for currency: String) -> String? {
+        switch currency.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() {
+        case "CNY", "RMB": return "¥"
+        case "USD": return "$"
+        case "EUR": return "€"
+        case "GBP": return "£"
+        case "HKD": return "HK$"
+        case "TWD": return "NT$"
+        case "KRW": return "₩"
+        case "INR": return "₹"
+        default: return nil
+        }
+    }
+
+    /// One balance as a single string: ¥12.36 when the currency has a symbol,
+    /// 12.36 XYZ when it does not.
+    public static func balanceText(amount: Double, currency: String) -> String {
+        guard let symbol = currencySymbol(for: currency) else {
+            return "\(balanceAmountText(amount)) \(currency)"
+        }
+        return "\(symbol)\(balanceAmountText(amount))"
     }
 
     /// Later reset first. A missing reset is not an expiry, so it sorts last.
@@ -739,8 +766,10 @@ public enum AccountQuotaFormatting {
                 runs.append(QuotaTextRun(text: " · ", tone: .secondary))
             }
             runs.append(QuotaTextRun(text: "余额 ", tone: .secondary))
-            runs.append(QuotaTextRun(text: balanceAmountText(balance.amount), tone: .green))
-            runs.append(QuotaTextRun(text: " \(balance.currency)", tone: .secondary))
+            runs.append(QuotaTextRun(
+                text: balanceText(amount: balance.amount, currency: balance.currency),
+                tone: .green
+            ))
         }
         return runs
     }
