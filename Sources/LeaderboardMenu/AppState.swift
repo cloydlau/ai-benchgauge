@@ -74,7 +74,9 @@ final class AppState: ObservableObject {
     /// own intervals because they read different sources.
     private static let minimumLeaderboardRefreshInterval: TimeInterval = 30 * 60
     private static let inactiveQuotaRefreshInterval: TimeInterval = 60
-    /// Refresh the persistent menu bar quota every 30 minutes.
+    /// Refresh the persistent menu bar quota every 30 minutes. The status item
+    /// shows only the current provider, so a background pass queries only that
+    /// one; the panel's other chips are refreshed when the panel is opened.
     private static let backgroundQuotaRefreshInterval: TimeInterval = 30 * 60
 
     func refreshFromMenuClick() {
@@ -155,7 +157,10 @@ final class AppState: ObservableObject {
 
     private func tick() {
         guard !isQuitting else { return }
-        refreshQuotas(minimumInterval: Self.backgroundQuotaRefreshInterval)
+        refreshQuotas(
+            minimumInterval: Self.backgroundQuotaRefreshInterval,
+            inactiveMinimumInterval: nil
+        )
         if Date() >= schedule.giveUpAt {
             schedule = schedule.givingUp()
             return
@@ -166,11 +171,14 @@ final class AppState: ObservableObject {
     }
 
     /// Loads providers from the local CC Switch database and refreshes their
-    /// quotas. Credential material stays inside the client request. Does not
-    /// read a Codex install.
+    /// quotas. `inactiveMinimumInterval` throttles the providers the status
+    /// item does not show; `nil` leaves them out of the pass entirely, so they
+    /// keep their last values instead of being re-queried in the background.
+    /// Credential material stays inside the client request. Does not read a
+    /// Codex install.
     private func refreshQuotas(
         minimumInterval: TimeInterval,
-        inactiveMinimumInterval: TimeInterval = 0
+        inactiveMinimumInterval: TimeInterval? = 0
     ) {
         guard !isQuitting else { return }
         if let lastQuotaAttemptAt,
@@ -245,6 +253,7 @@ final class AppState: ObservableObject {
                 let now = Date()
                 let targetsToRefresh = targets.filter { target in
                     if target.isCurrent { return true }
+                    guard let inactiveMinimumInterval else { return false }
                     guard let lastAttempt = self.lastQuotaAttemptAtByID[target.id] else {
                         return true
                     }
