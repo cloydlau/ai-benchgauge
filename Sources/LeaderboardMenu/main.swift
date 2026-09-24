@@ -332,6 +332,8 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         removeFramePin()
         settledPopoverFrame = nil
         revealAfterSettle = false
+        // A control that was hovered at close never reports its exit.
+        PointingHandCursorRegistry.shared.reset()
     }
 
     private func revealPopoverIfNeeded() {

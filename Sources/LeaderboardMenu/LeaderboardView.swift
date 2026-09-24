@@ -739,7 +739,7 @@ struct LeaderboardView: View {
                 }
             }
             .buttonStyle(.plain)
-            .pointingHandCursor()
+            .pointingHandCursor(isEnabled: !state.isQuitting && !screenshot.isCapturing)
             .allowsHitTesting(!state.isQuitting && !screenshot.isCapturing)
             .help(tr("Copy a screenshot with the CC Switch quota guide", "复制显示 CC Switch 余量引导的截图"))
 
@@ -793,7 +793,7 @@ struct LeaderboardView: View {
                 }
             }
             .buttonStyle(.plain)
-            .pointingHandCursor()
+            .pointingHandCursor(isEnabled: !state.isQuitting)
             .allowsHitTesting(!state.isQuitting)
             .help(state.isQuitting ? tr("Quitting AI Leaderboards", "正在退出 AI Leaderboards") : tr("Quit AI Leaderboards", "退出 AI Leaderboards"))
         }
@@ -1998,11 +1998,15 @@ private final class CopyNameButtonView: NSButton {
     }
 
     override func cursorUpdate(with event: NSEvent) {
-        NSCursor.pointingHand.set()
+        PointingHandCursorRegistry.shared.enter(self)
     }
 
     override func mouseEntered(with event: NSEvent) {
-        NSCursor.pointingHand.set()
+        PointingHandCursorRegistry.shared.enter(self)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        PointingHandCursorRegistry.shared.exit(self)
     }
 }
 
@@ -2063,21 +2067,135 @@ private struct ModelLogoView: View {
     }
 }
 
+/// Pointing hand from an AppKit tracking area, never from `NSCursor` push/pop.
+///
+/// Hover cannot keep that stack balanced: SwiftUI can deliver the next
+/// control's enter before this control's exit, rebuilding the footer on a
+/// language switch drops a hovered view without an exit, and closing the
+/// popover swallows it. Every miss left a stray hand on the stack, so the next
+/// AppKit pop landed on that hand instead of the arrow and the whole footer
+/// wore the pointer.
 private struct PointingHandCursor: ViewModifier {
+    let isEnabled: Bool
+
     func body(content: Content) -> some View {
-        content.onHover { hovering in
-            if hovering {
-                NSCursor.pointingHand.push()
-            } else {
-                NSCursor.pop()
+        content.background(
+            PointingHandCursorTracker(isEnabled: isEnabled)
+                .allowsHitTesting(false)
+        )
+    }
+}
+
+private struct PointingHandCursorTracker: NSViewRepresentable {
+    let isEnabled: Bool
+
+    func makeNSView(context: Context) -> PointingHandCursorTrackerView {
+        let view = PointingHandCursorTrackerView()
+        view.isCursorHintEnabled = isEnabled
+        return view
+    }
+
+    func updateNSView(_ nsView: PointingHandCursorTrackerView, context: Context) {
+        nsView.isCursorHintEnabled = isEnabled
+    }
+}
+
+private final class PointingHandCursorTrackerView: NSView {
+    var isCursorHintEnabled = true {
+        didSet {
+            guard isCursorHintEnabled != oldValue else { return }
+            if !isCursorHintEnabled {
+                PointingHandCursorRegistry.shared.exit(self)
             }
+            updateTrackingAreas()
+        }
+    }
+
+    /// A cursor hint must not take the click from the control it decorates.
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        guard isCursorHintEnabled else { return }
+        // The popover is not key until the first click, so the hint has to stay
+        // live in an inactive window.
+        addTrackingArea(NSTrackingArea(
+            rect: .zero,
+            options: [.mouseEnteredAndExited, .cursorUpdate, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        ))
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        PointingHandCursorRegistry.shared.enter(self)
+    }
+
+    override func cursorUpdate(with event: NSEvent) {
+        PointingHandCursorRegistry.shared.enter(self)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        PointingHandCursorRegistry.shared.exit(self)
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil {
+            PointingHandCursorRegistry.shared.exit(self)
         }
     }
 }
 
+/// Single owner of the panel's pointing hand.
+///
+/// `set()` leaves AppKit's cursor stack alone, and the arrow returns only once
+/// no hint still holds the mouse, so overlapping enter/exit deliveries cannot
+/// pin the pointer over inert controls.
+@MainActor
+final class PointingHandCursorRegistry {
+    static let shared = PointingHandCursorRegistry()
+
+    private let hovered = NSHashTable<NSView>.weakObjects()
+
+    func enter(_ view: NSView) {
+        hovered.add(view)
+        NSCursor.pointingHand.set()
+    }
+
+    func exit(_ view: NSView) {
+        hovered.remove(view)
+        dropViewsThatLostTheMouse()
+        if hovered.allObjects.isEmpty {
+            NSCursor.arrow.set()
+        }
+    }
+
+    /// Closing the popover can swallow the exit of a hovered control. Give the
+    /// hand back with the window instead of carrying it into the next open.
+    func reset() {
+        hovered.removeAllObjects()
+        NSCursor.arrow.set()
+    }
+
+    /// A view torn down while hovered never reports its exit, and a stale entry
+    /// would hold the hand over the whole panel. Trust geometry, not delivery.
+    private func dropViewsThatLostTheMouse() {
+        for view in hovered.allObjects where !containsMouse(view) {
+            hovered.remove(view)
+        }
+    }
+
+    private func containsMouse(_ view: NSView) -> Bool {
+        guard let window = view.window, window.isVisible, view.isVisible else { return false }
+        return view.bounds.contains(view.convert(window.mouseLocationOutsideOfEventStream, from: nil))
+    }
+}
+
 extension View {
-    func pointingHandCursor() -> some View {
-        modifier(PointingHandCursor())
+    func pointingHandCursor(isEnabled: Bool = true) -> some View {
+        modifier(PointingHandCursor(isEnabled: isEnabled))
     }
 }
 
