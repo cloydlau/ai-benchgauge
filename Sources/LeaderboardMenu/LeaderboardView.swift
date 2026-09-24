@@ -200,6 +200,7 @@ struct LeaderboardView: View {
         .padding(.vertical, 10)
     }
 
+<<<<<<< Updated upstream
     private var quotaSetupPrompt: some View {
         HStack(spacing: 8) {
             Image(systemName: "chart.bar.xaxis")
@@ -290,6 +291,35 @@ struct LeaderboardView: View {
     private var freshness: some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             freshnessLine(now: context.date)
+=======
+    private var titleRow: some View {
+        // Equal side columns keep the tabs centered. The whole freshness
+        // phrase sits in the trailing column, not under the title and not
+        // beside the chips.
+        HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("AI Leaderboards")
+                    // Snell Roundhand ships with macOS, so referencing it by
+                    // name needs no font bundling or license.
+                    .font(.custom("SnellRoundhand-Bold", size: 21))
+                    .lineLimit(1)
+                Text("v\(appVersion)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .monospacedDigit()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: 8) {
+                groupingPicker
+                categoryPicker
+            }
+
+            TimelineView(.periodic(from: .now, by: 60)) { context in
+                freshnessLine(now: context.date)
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+>>>>>>> Stashed changes
         }
     }
 
