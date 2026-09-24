@@ -9,38 +9,38 @@ final class QuotaAlertsTests: XCTestCase {
         let chip = chip(
             isCurrent: false,
             status: .windows([
-                ParsedQuotaWindow(name: "weekly_limit", utilization: 0, resetsAt: now.addingTimeInterval(86_400)),
+                ParsedQuotaWindow(name: "weekly_limit", utilization: 100, resetsAt: now.addingTimeInterval(86_400)),
             ])
         )
         XCTAssertTrue(QuotaAlerts.alerts(for: chip, now: now).isEmpty)
     }
 
-    func testHighRemainingUsesRemainingNotUtilization() {
-        let full = alerts(windows: [
-            ParsedQuotaWindow(name: "five_hour", utilization: 4, resetsAt: nil),
+    func testLowRemainingUsesRemainingNotUtilization() {
+        let nearlyEmpty = alerts(windows: [
+            ParsedQuotaWindow(name: "five_hour", utilization: 96, resetsAt: nil),
         ])
-        XCTAssertEqual(full.map(\.reason), [.highRemaining])
-        XCTAssertEqual(full[0].title, "千问")
-        XCTAssertEqual(full[0].subtitle, "余量达到95%")
-        XCTAssertEqual(full[0].body, "5小时 96%")
+        XCTAssertEqual(nearlyEmpty.map(\.reason), [.lowRemaining])
+        XCTAssertEqual(nearlyEmpty[0].title, "Qwen")
+        XCTAssertEqual(nearlyEmpty[0].subtitle, "余量不足10%")
+        XCTAssertEqual(nearlyEmpty[0].body, "5h 4%")
 
-        let below = alerts(windows: [
-            ParsedQuotaWindow(name: "five_hour", utilization: 6, resetsAt: nil),
+        let above = alerts(windows: [
+            ParsedQuotaWindow(name: "five_hour", utilization: 89, resetsAt: nil),
         ])
-        XCTAssertTrue(below.isEmpty)
+        XCTAssertTrue(above.isEmpty)
     }
 
     func testRoundsRemainingTheSameWayAsTheChip() {
         XCTAssertEqual(
-            alerts(windows: [ParsedQuotaWindow(name: "five_hour", utilization: 5.4, resetsAt: nil)]).map(\.reason),
-            [.highRemaining]
+            alerts(windows: [ParsedQuotaWindow(name: "five_hour", utilization: 89.6, resetsAt: nil)]).map(\.reason),
+            [.lowRemaining]
         )
         XCTAssertTrue(
-            alerts(windows: [ParsedQuotaWindow(name: "five_hour", utilization: 5.6, resetsAt: nil)]).isEmpty
+            alerts(windows: [ParsedQuotaWindow(name: "five_hour", utilization: 89.4, resetsAt: nil)]).isEmpty
         )
         XCTAssertEqual(
-            alerts(windows: [ParsedQuotaWindow(name: "five_hour", utilization: 5, resetsAt: nil)])[0].body,
-            "5小时 95%"
+            alerts(windows: [ParsedQuotaWindow(name: "five_hour", utilization: 90, resetsAt: nil)])[0].body,
+            "5h 10%"
         )
     }
 
@@ -56,39 +56,39 @@ final class QuotaAlertsTests: XCTestCase {
     func testMentionsOnlyWindowsThatReachTheThresholdInChipOrder() {
         let later = now.addingTimeInterval(8 * 86_400)
         let result = alerts(windows: [
-            ParsedQuotaWindow(name: "weekly_limit", utilization: 1, resetsAt: later),
+            ParsedQuotaWindow(name: "weekly_limit", utilization: 99, resetsAt: later),
             ParsedQuotaWindow(name: "five_hour", utilization: 40, resetsAt: nil),
         ])
-        XCTAssertEqual(result.map(\.reason), [.highRemaining])
-        XCTAssertEqual(result[0].body, "7天 99%")
+        XCTAssertEqual(result.map(\.reason), [.lowRemaining])
+        XCTAssertEqual(result[0].body, "7d 1%")
         XCTAssertEqual(result[0].componentKeys.count, 1)
     }
 
-    func testHighRemainingMentionsTheLaterExpiryFirst() {
+    func testLowRemainingMentionsTheLaterExpiryFirst() {
         let soon = now.addingTimeInterval(3_600)
         let later = now.addingTimeInterval(8 * 86_400)
         let result = alerts(windows: [
-            ParsedQuotaWindow(name: "five_hour", utilization: 1, resetsAt: soon),
-            ParsedQuotaWindow(name: "weekly_limit", utilization: 2, resetsAt: later),
+            ParsedQuotaWindow(name: "five_hour", utilization: 99, resetsAt: soon),
+            ParsedQuotaWindow(name: "weekly_limit", utilization: 98, resetsAt: later),
         ])
-        XCTAssertEqual(result.map(\.reason), [.highRemaining])
-        XCTAssertEqual(result[0].body, "7天 98%；5小时 99%")
+        XCTAssertEqual(result.map(\.reason), [.lowRemaining])
+        XCTAssertEqual(result[0].body, "7d 2%；5h 1%")
     }
 
-    func testHighRemainingKeyIgnoresPercentAndChangesWithReset() {
+    func testLowRemainingKeyIgnoresPercentAndChangesWithReset() {
         let reset = now.addingTimeInterval(8 * 86_400)
-        let lowUse = alerts(windows: [
-            ParsedQuotaWindow(name: "weekly_limit", utilization: 1, resetsAt: reset),
+        let emptier = alerts(windows: [
+            ParsedQuotaWindow(name: "weekly_limit", utilization: 99, resetsAt: reset),
         ])
-        let higherUse = alerts(windows: [
-            ParsedQuotaWindow(name: "weekly_limit", utilization: 4, resetsAt: reset),
+        let fuller = alerts(windows: [
+            ParsedQuotaWindow(name: "weekly_limit", utilization: 96, resetsAt: reset),
         ])
-        XCTAssertEqual(lowUse[0].componentKeys, higherUse[0].componentKeys)
+        XCTAssertEqual(emptier[0].componentKeys, fuller[0].componentKeys)
 
         let nextCycle = alerts(windows: [
-            ParsedQuotaWindow(name: "weekly_limit", utilization: 1, resetsAt: reset.addingTimeInterval(86_400)),
+            ParsedQuotaWindow(name: "weekly_limit", utilization: 99, resetsAt: reset.addingTimeInterval(86_400)),
         ])
-        XCTAssertNotEqual(lowUse[0].componentKeys, nextCycle[0].componentKeys)
+        XCTAssertNotEqual(emptier[0].componentKeys, nextCycle[0].componentKeys)
     }
 
     func testShortWindowsAreNotTreatedAsExpiring() {
@@ -122,7 +122,7 @@ final class QuotaAlertsTests: XCTestCase {
         let exactly = weekly(QuotaAlerts.expiringInterval)
         XCTAssertEqual(exactly.map(\.reason), [.expiring])
         XCTAssertEqual(exactly[0].subtitle, "2天内重置")
-        XCTAssertTrue(exactly[0].body.hasPrefix("7天额度 2天后重置，"))
+        XCTAssertTrue(exactly[0].body.hasPrefix("7d额度 2天后重置，"))
 
         XCTAssertTrue(weekly(QuotaAlerts.expiringInterval + 1).isEmpty)
         XCTAssertTrue(weekly(0).isEmpty)
@@ -137,13 +137,13 @@ final class QuotaAlertsTests: XCTestCase {
     func testBothConditionsSendIndependentAlerts() {
         let resetsAt = now.addingTimeInterval(36 * 3_600)
         let result = alerts(windows: [
-            ParsedQuotaWindow(name: "weekly_limit", utilization: 2, resetsAt: resetsAt),
+            ParsedQuotaWindow(name: "weekly_limit", utilization: 95, resetsAt: resetsAt),
         ])
-        XCTAssertEqual(result.map(\.reason), [.highRemaining, .expiring])
-        XCTAssertEqual(result[0].body, "7天 98%")
+        XCTAssertEqual(result.map(\.reason), [.lowRemaining, .expiring])
+        XCTAssertEqual(result[0].body, "7d 5%")
         let phrase = AccountQuotaFormatting.chineseCountdown(until: resetsAt, now: now)
         let date = AccountQuotaFormatting.resetDateText(resetsAt, now: now)
-        XCTAssertEqual(result[1].body, "7天额度 \(phrase!)后重置，\(date!)")
+        XCTAssertEqual(result[1].body, "7d额度 \(phrase!)后重置，\(date!)")
         XCTAssertNotEqual(result[0].componentKeys, result[1].componentKeys)
     }
 
@@ -164,8 +164,7 @@ final class QuotaAlertsTests: XCTestCase {
             totalCredits: 100,
             resetsAt: resetsAt
         )))
-        XCTAssertEqual(highCredits.map(\.reason), [.highRemaining])
-        XCTAssertEqual(highCredits[0].body, "7天 96%")
+        XCTAssertTrue(highCredits.isEmpty)
 
         let lowCredits = alerts(status: .qwenPlan(QwenPlanQuota(
             usedPercent: 0,
@@ -173,19 +172,20 @@ final class QuotaAlertsTests: XCTestCase {
             totalCredits: 100,
             resetsAt: resetsAt
         )))
-        XCTAssertTrue(lowCredits.isEmpty)
+        XCTAssertEqual(lowCredits.map(\.reason), [.lowRemaining])
+        XCTAssertEqual(lowCredits[0].body, "7d 10%")
     }
 
     func testQwenPlanFallsBackWhenCreditsAreMissingAndStillExpires() {
         let resetsAt = now.addingTimeInterval(86_400)
         let result = alerts(status: .qwenPlan(QwenPlanQuota(
-            usedPercent: 1,
+            usedPercent: 95,
             remainingCredits: .nan,
             totalCredits: 0,
             resetsAt: resetsAt
         )))
-        XCTAssertEqual(result.map(\.reason), [.highRemaining, .expiring])
-        XCTAssertEqual(result[0].body, "7天 99%")
+        XCTAssertEqual(result.map(\.reason), [.lowRemaining, .expiring])
+        XCTAssertEqual(result[0].body, "7d 5%")
         XCTAssertEqual(result[1].subtitle, "2天内到期")
         XCTAssertEqual(result[1].body, AccountQuotaFormatting.planExpiryPhrase(until: resetsAt, now: now))
         XCTAssertFalse(result[1].body.contains("总到期"))
@@ -196,6 +196,7 @@ final class QuotaAlertsTests: XCTestCase {
     func testQwenWebsiteUsesItsRemainingPercentAndSkipsCache() {
         let resetsAt = now.addingTimeInterval(86_400)
         let fresh = alerts(status: .qwenWebsite(QwenWebsiteQuota(
+<<<<<<< Updated upstream
             periodLabel: "1个月",
             remainingPercent: 95.4,
             resetsAt: resetsAt
@@ -205,6 +206,17 @@ final class QuotaAlertsTests: XCTestCase {
 
         let cached = alerts(status: .qwenWebsite(QwenWebsiteQuota(
             periodLabel: "1个月",
+=======
+            periodLabel: "1mo",
+            remainingPercent: 4.6,
+            resetsAt: resetsAt
+        )))
+        XCTAssertEqual(fresh.map(\.reason), [.lowRemaining, .expiring])
+        XCTAssertEqual(fresh[0].body, "1mo 5%")
+
+        let cached = alerts(status: .qwenWebsite(QwenWebsiteQuota(
+            periodLabel: "1mo",
+>>>>>>> Stashed changes
             remainingPercent: 100,
             resetsAt: resetsAt,
             isCached: true,
@@ -222,13 +234,13 @@ final class QuotaAlertsTests: XCTestCase {
 
     func testRetainedKeysClearOnlyWhenTheCurrentReadingDropsTheCondition() {
         let reset = now.addingTimeInterval(86_400)
-        let high = chip(status: .windows([
-            ParsedQuotaWindow(name: "weekly_limit", utilization: 1, resetsAt: reset),
+        let low = chip(status: .windows([
+            ParsedQuotaWindow(name: "weekly_limit", utilization: 99, resetsAt: reset),
         ]))
-        let keys = Set(QuotaAlerts.alerts(for: high, now: now).flatMap(\.componentKeys))
+        let keys = Set(QuotaAlerts.alerts(for: low, now: now).flatMap(\.componentKeys))
         XCTAssertFalse(keys.isEmpty)
         XCTAssertEqual(
-            QuotaAlerts.retainedKeys(keys, evaluatedChips: [high], activeKeys: keys),
+            QuotaAlerts.retainedKeys(keys, evaluatedChips: [low], activeKeys: keys),
             keys
         )
 
@@ -244,7 +256,7 @@ final class QuotaAlertsTests: XCTestCase {
         )
 
         let cached = chip(status: .qwenWebsite(QwenWebsiteQuota(
-            periodLabel: "7天",
+            periodLabel: "7d",
             remainingPercent: 1,
             resetsAt: reset,
             isCached: true,
@@ -282,7 +294,7 @@ final class QuotaAlertsTests: XCTestCase {
         let subject = chip(
             id: "a|b",
             status: .windows([
-                ParsedQuotaWindow(name: "weekly_limit", utilization: 0, resetsAt: now.addingTimeInterval(86_400)),
+                ParsedQuotaWindow(name: "weekly_limit", utilization: 100, resetsAt: now.addingTimeInterval(86_400)),
             ])
         )
         let keys = Set(QuotaAlerts.alerts(for: subject, now: now).flatMap(\.componentKeys))
@@ -296,10 +308,10 @@ final class QuotaAlertsTests: XCTestCase {
     func testPendingAlertsWaitForAnUndeliveredKey() {
         let alert = QuotaAlert(
             chipID: "current",
-            reason: .highRemaining,
-            title: "千问",
-            subtitle: "余量达到95%",
-            body: "7天 99%",
+            reason: .lowRemaining,
+            title: "Qwen",
+            subtitle: "余量不足10%",
+            body: "7d 1%",
             componentKeys: ["k1", "k2"]
         )
         XCTAssertEqual(QuotaAlerts.pendingAlerts([alert], delivered: ["k1"]).map(\.chipID), ["current"])
@@ -315,11 +327,11 @@ final class QuotaAlertsTests: XCTestCase {
         let soon = now.addingTimeInterval(3_600)
         let later = now.addingTimeInterval(6 * 86_400)
         let result = zhipuAlerts(windows: [
-            ParsedQuotaWindow(name: "weekly_limit", utilization: 1, resetsAt: later),
-            ParsedQuotaWindow(name: "five_hour", utilization: 2, resetsAt: soon),
+            ParsedQuotaWindow(name: "weekly_limit", utilization: 98, resetsAt: later),
+            ParsedQuotaWindow(name: "five_hour", utilization: 99, resetsAt: soon),
         ])
-        XCTAssertEqual(result.map(\.reason), [.highRemaining])
-        XCTAssertEqual(result[0].body, "5小时 98%；7天 99%")
+        XCTAssertEqual(result.map(\.reason), [.lowRemaining])
+        XCTAssertEqual(result[0].body, "5h 1%；7d 2%")
     }
 
     func testZhipuPlanExpirySkipsRemainingAndDoesNotSayReset() {
@@ -329,8 +341,8 @@ final class QuotaAlertsTests: XCTestCase {
             ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: planEnd),
             ParsedQuotaWindow(name: "five_hour", utilization: 0, resetsAt: nil),
         ])
-        XCTAssertEqual(result.map(\.reason), [.highRemaining, .expiring])
-        XCTAssertEqual(result[0].body, "5小时 100%")
+        XCTAssertEqual(result.map(\.reason), [.lowRemaining, .expiring])
+        XCTAssertEqual(result[0].body, "7d 0%")
         XCTAssertFalse(result[0].body.contains("总到期"))
         XCTAssertEqual(result[1].subtitle, "2天内到期")
         XCTAssertFalse(result[1].subtitle.contains("重置"))
@@ -352,19 +364,19 @@ final class QuotaAlertsTests: XCTestCase {
         XCTAssertEqual(result[0].subtitle, "2天内重置")
         let body = result[0].body
         let expiry = AccountQuotaFormatting.planExpiryPhrase(until: planEnd, now: now)!
-        XCTAssertTrue(body.contains("7天额度"))
+        XCTAssertTrue(body.contains("7d额度"))
         XCTAssertTrue(body.contains("后重置"))
         XCTAssertTrue(body.contains(expiry))
         XCTAssertFalse(body.contains("总到期"))
         XCTAssertFalse(body.contains("后到期"))
-        XCTAssertLessThan(body.range(of: "7天额度")!.lowerBound, body.range(of: expiry)!.lowerBound)
+        XCTAssertLessThan(body.range(of: "7d额度")!.lowerBound, body.range(of: expiry)!.lowerBound)
     }
 
     private func zhipuAlerts(windows: [ParsedQuotaWindow]) -> [QuotaAlert] {
         QuotaAlerts.alerts(
             for: AccountQuotaChip(
                 id: "zhipu",
-                shortName: "智谱",
+                shortName: "GLM",
                 websiteURL: nil,
                 kind: .zhipu,
                 isCurrent: true,
@@ -384,7 +396,7 @@ final class QuotaAlertsTests: XCTestCase {
 
     private func chip(
         id: String = "current",
-        name: String = "千问",
+        name: String = "Qwen",
         isCurrent: Bool = true,
         status: AccountQuotaChip.Status
     ) -> AccountQuotaChip {
