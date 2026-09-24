@@ -114,6 +114,7 @@ final class HTMLLeaderboardParserTests: XCTestCase {
 
     func testParsesSavedArtificialAnalysisPage() throws {
         let path = fixtureURL("artificial-analysis.html")
+        let path = fixtureURL("artificial-analysis.html")
         try XCTSkipUnless(FileManager.default.fileExists(atPath: path))
         let html = try String(contentsOfFile: path, encoding: .utf8)
 
