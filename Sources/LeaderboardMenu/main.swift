@@ -7,6 +7,7 @@ import LeaderboardCore
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var stateController: StatusBarController?
     func applicationDidFinishLaunching(_ notification: Notification) {
+        BundleIdentifierMigration.runOnce()
         let cache: LeaderboardCache
         do {
             cache = LeaderboardCache(fileURL: try LeaderboardCache.defaultFileURL())

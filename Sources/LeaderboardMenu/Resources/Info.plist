@@ -7,7 +7,7 @@
     <key>CFBundleExecutable</key>
     <string>leaderboard-menu</string>
     <key>CFBundleIdentifier</key>
-    <string>com.cloyd.ai-benchgauge</string>
+    <string>com.cloydlau.ai-benchgauge</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
