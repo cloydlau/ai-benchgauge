@@ -276,23 +276,59 @@ final class AccountQuotaFormattingTests: XCTestCase {
         )]))
     }
 
-    func testMenuBarHidesUnqueriedAndStaleQuota() {
-        let pending = chip(kind: .officialNote, status: .pending)
-        XCTAssertNil(AccountQuotaFormatting.compactMenuBarQuota(for: pending))
+    /// The panel keeps the last good amount when a refresh fails and the
+    /// persisted website result when the live Qwen page read misses. Hiding
+    /// either one would leave the menu bar behind the number the panel shows.
+    func testMenuBarKeepsTheAmountThePanelStillShows() {
+        XCTAssertNil(AccountQuotaFormatting.compactMenuBarQuota(
+            for: chip(kind: .officialNote, status: .pending)
+        ))
+        XCTAssertNil(AccountQuotaFormatting.compactMenuBarQuota(
+            for: chip(kind: .officialNote, status: .message(AccountQuotaMessage.queryFailed))
+        ))
+
         let stale = AccountQuotaChip(
             id: "current", shortName: "OpenAI", websiteURL: nil,
             kind: .officialNote, isCurrent: true,
             status: .windows([ParsedQuotaWindow(name: "five_hour", utilization: 25, resetsAt: nil)]),
             isStale: true
         )
-        XCTAssertNil(AccountQuotaFormatting.compactMenuBarQuota(for: stale))
+        XCTAssertEqual(AccountQuotaFormatting.compactMenuBarQuota(for: stale), "5h 75%")
+
         let cachedQwen = chip(
             kind: .qwen,
             status: .qwenWebsite(QwenWebsiteQuota(
                 periodLabel: "7d", remainingPercent: 88, resetsAt: nil, isCached: true
             ))
         )
-        XCTAssertNil(AccountQuotaFormatting.compactMenuBarQuota(for: cachedQwen))
+        XCTAssertEqual(AccountQuotaFormatting.compactMenuBarQuota(for: cachedQwen), "7d 88%")
+    }
+
+    func testMenuBarTextProjectsTheCurrentChip() {
+        let pending = chip(kind: .kimi, status: .pending)
+        let current = AccountQuotaChip(
+            id: "qwen", shortName: "千问", websiteURL: nil, kind: .qwen, isCurrent: true,
+            status: .qwenWebsite(QwenWebsiteQuota(
+                periodLabel: "1mo", remainingPercent: 42, resetsAt: nil
+            ))
+        )
+        XCTAssertEqual(
+            AccountQuotaFormatting.menuBarText(forChips: [pending, current]),
+            AccountQuotaMenuBarText(name: "千问", fullName: "千问", quota: "1mo 42%")
+        )
+        XCTAssertNil(AccountQuotaFormatting.menuBarText(forChips: [pending]))
+        XCTAssertNil(AccountQuotaFormatting.menuBarText(forChips: []))
+
+        let longName = String(repeating: "a", count: 30)
+        let long = AccountQuotaChip(
+            id: "long", shortName: longName, websiteURL: nil,
+            kind: .kimi, isCurrent: true,
+            status: .windows([ParsedQuotaWindow(name: "seven_day", utilization: 10, resetsAt: nil)])
+        )
+        let text = AccountQuotaFormatting.menuBarText(forChips: [long])
+        XCTAssertEqual(text?.name, String(repeating: "a", count: 23) + "…")
+        XCTAssertEqual(text?.fullName, longName)
+        XCTAssertEqual(text?.quota, "7d 90%")
     }
 
     func testFormatsQuotasTheWayCCSwitchShowsThem() {
