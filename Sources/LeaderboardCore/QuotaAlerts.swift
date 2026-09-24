@@ -3,6 +3,7 @@ import Foundation
 /// Desktop notifications for the provider that is currently in use.
 ///
 /// 余量 is remaining quota, not the utilization percentage some chips draw.
+/// The low-remaining alert fires at 10% or below.
 /// A window's remaining percent is `100 - utilization`. Qwen plan remaining
 /// comes from credits, and the Qwen website figure is already remaining.
 ///
@@ -11,7 +12,7 @@ import Foundation
 /// notify on every cycle.
 public struct QuotaAlert: Equatable, Sendable {
     public enum Reason: String, Equatable, Sendable {
-        case highRemaining
+        case lowRemaining
         case expiring
     }
 
@@ -42,14 +43,14 @@ public struct QuotaAlert: Equatable, Sendable {
 }
 
 public enum QuotaAlerts {
-    public static let highRemainingPercent = 95
+    public static let lowRemainingPercent = 10
     public static let expiringInterval: TimeInterval = 2 * 24 * 60 * 60
 
     public static func alerts(for chip: AccountQuotaChip, now: Date) -> [QuotaAlert] {
         guard chip.isCurrent, isConclusive(chip.status) else { return [] }
         let subjects = subjects(for: chip)
         var alerts: [QuotaAlert] = []
-        if let alert = highRemainingAlert(chip: chip, subjects: subjects) {
+        if let alert = lowRemainingAlert(chip: chip, subjects: subjects) {
             alerts.append(alert)
         }
         if let alert = expiringAlert(chip: chip, subjects: subjects, now: now) {
@@ -129,7 +130,7 @@ public enum QuotaAlerts {
             var subjects = [
                 Subject(
                     sourceID: "plan",
-                    label: "7天",
+                    label: "7d",
                     remainingPercent: remainingPercent(plan),
                     resetsAt: nil,
                     expiryEligible: false,
@@ -180,24 +181,24 @@ public enum QuotaAlerts {
         return 100 - plan.usedPercent
     }
 
-    private static func highRemainingAlert(chip: AccountQuotaChip, subjects: [Subject]) -> QuotaAlert? {
+    private static func lowRemainingAlert(chip: AccountQuotaChip, subjects: [Subject]) -> QuotaAlert? {
         let qualifying = subjects.compactMap { subject -> (Subject, Int)? in
             guard let remaining = subject.remainingPercent, remaining.isFinite else { return nil }
             let rounded = AccountQuotaFormatting.roundedPercent(remaining)
-            guard rounded >= highRemainingPercent else { return nil }
+            guard rounded <= lowRemainingPercent else { return nil }
             return (subject, rounded)
         }
         guard !qualifying.isEmpty else { return nil }
         return QuotaAlert(
             chipID: chip.id,
-            reason: .highRemaining,
+            reason: .lowRemaining,
             title: chip.shortName,
-            subtitle: "余量达到\(highRemainingPercent)%",
+            subtitle: "余量不足\(lowRemainingPercent)%",
             body: qualifying.map { "\($0.0.label) \($0.1)%" }.joined(separator: "；"),
             componentKeys: qualifying.map {
                 componentKey(
                     chipID: chip.id,
-                    reason: .highRemaining,
+                    reason: .lowRemaining,
                     sourceID: $0.0.sourceID,
                     resetsAt: $0.0.resetsAt
                 )
