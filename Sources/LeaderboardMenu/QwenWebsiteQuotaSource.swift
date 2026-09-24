@@ -16,6 +16,9 @@ final class QwenWebsiteQuotaSource: NSObject, WKNavigationDelegate, @unchecked S
 
     private let webView: WKWebView
     private var loginWindow: NSWindow?
+    private var loadingStack: NSStackView?
+    private var loadingSpinner: NSProgressIndicator?
+    private var loadingLabel: NSTextField?
     private var activeNavigation: WKNavigation?
     private var pending: CheckedContinuation<Data?, Never>?
     private var pollTask: Task<Void, Never>?
@@ -48,15 +51,56 @@ final class QwenWebsiteQuotaSource: NSObject, WKNavigationDelegate, @unchecked S
                 defer: false
             )
             window.title = AppLanguage.load().text("Connect Qwen usage", "连接千问官网用量")
-            window.contentView = webView
+            let container = NSView(frame: NSRect(x: 0, y: 0, width: 1080, height: 740))
+            webView.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(webView)
+            let overlay = makeLoadingOverlay()
+            container.addSubview(overlay)
+            NSLayoutConstraint.activate([
+                webView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                webView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+                webView.topAnchor.constraint(equalTo: container.topAnchor),
+                webView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+                overlay.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+                overlay.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            ])
+            window.contentView = container
             window.center()
             loginWindow = window
         }
         loginWindow?.title = AppLanguage.load().text("Connect Qwen usage", "连接千问官网用量")
+        loadingLabel?.stringValue = AppLanguage.load().text("Loading…", "加载中…")
         loginWindow?.makeKeyAndOrderFront(nil)
         loginWindow?.orderFrontRegardless()
         NSApp.activate(ignoringOtherApps: true)
+        setLoadingVisible(true)
         activeNavigation = webView.load(URLRequest(url: Self.usageURL))
+    }
+
+    private func makeLoadingOverlay() -> NSStackView {
+        let spinner = NSProgressIndicator(style: .spinning)
+        spinner.controlSize = .large
+        spinner.isDisplayedWhenStopped = false
+        let label = NSTextField(labelWithString: AppLanguage.load().text("Loading…", "加载中…"))
+        label.font = .systemFont(ofSize: 13)
+        label.textColor = .secondaryLabelColor
+        let stack = NSStackView(views: [spinner, label])
+        stack.orientation = .vertical
+        stack.spacing = 12
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        loadingStack = stack
+        loadingSpinner = spinner
+        loadingLabel = label
+        return stack
+    }
+
+    private func setLoadingVisible(_ visible: Bool) {
+        loadingStack?.isHidden = !visible
+        if visible {
+            loadingSpinner?.startAnimation(nil)
+        } else {
+            loadingSpinner?.stopAnimation(nil)
+        }
     }
 
     func loadSummary() async -> Data? {
@@ -77,20 +121,24 @@ final class QwenWebsiteQuotaSource: NSObject, WKNavigationDelegate, @unchecked S
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         activeNavigation = navigation
+        setLoadingVisible(true)
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard navigation === activeNavigation else { return }
+        setLoadingVisible(false)
         startPolling()
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         guard navigation === activeNavigation else { return }
+        setLoadingVisible(false)
         finish(cachedSummary())
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         guard navigation === activeNavigation else { return }
+        setLoadingVisible(false)
         finish(cachedSummary())
     }
 
