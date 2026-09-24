@@ -192,11 +192,49 @@ public struct QuotaTextRun: Equatable, Sendable {
     }
 }
 
+/// The status item's projection of the quota snapshot: the provider the panel
+/// marks as current, plus the compact amount it shows.
+public struct AccountQuotaMenuBarText: Equatable, Sendable {
+    /// Provider name shortened to fit the menu bar.
+    public let name: String
+    /// Untruncated provider name, for the tooltip.
+    public let fullName: String
+    public let quota: String
+
+    public init(name: String, fullName: String, quota: String) {
+        self.name = name
+        self.fullName = fullName
+        self.quota = quota
+    }
+}
+
 public enum AccountQuotaFormatting {
-    /// One successfully queried quota for the menu bar, in shortest-window order.
+    /// The status item text derived from the same chips the panel renders.
+    /// Both surfaces read one snapshot, so a refresh that reaches the panel
+    /// reaches the menu bar in the same instant instead of waiting for the
+    /// slower background cadence. Nil only when the current chip has no amount
+    /// to show, which is also when the panel's chip has none.
+    public static func menuBarText(
+        forChips chips: [AccountQuotaChip],
+        maximumNameLength: Int = 24
+    ) -> AccountQuotaMenuBarText? {
+        guard let current = chips.first(where: \.isCurrent),
+              let quota = compactMenuBarQuota(for: current) else { return nil }
+        let fullName = current.shortName
+        let name = fullName.count > maximumNameLength
+            ? String(fullName.prefix(maximumNameLength - 1)) + "…"
+            : fullName
+        return AccountQuotaMenuBarText(name: name, fullName: fullName, quota: quota)
+    }
+
+    /// The amount the menu bar shows for one chip, in shortest-window order.
     /// Window labels keep their short form in every language.
+    ///
+    /// Deliberately free of freshness gates: the panel keeps showing the last
+    /// good amount when a refresh fails, and the persisted Qwen website result
+    /// when the live page read does not land. Dropping those here would leave
+    /// the menu bar empty or behind the number the panel already shows.
     public static func compactMenuBarQuota(for chip: AccountQuotaChip) -> String? {
-        guard !chip.isStale else { return nil }
         switch chip.status {
         case let .windows(windows):
             for name in ["five_hour", "seven_day", "weekly_limit", "monthly"] {
@@ -210,7 +248,7 @@ public enum AccountQuotaFormatting {
         case let .qwenPlan(plan):
             return "7d \(qwenPlanRemainingPercent(plan))%"
         case let .qwenWebsite(quota):
-            guard !quota.isCached, quota.remainingPercent.isFinite,
+            guard quota.remainingPercent.isFinite,
                   (0...100).contains(quota.remainingPercent),
                   ["7d", "1mo"].contains(quota.periodLabel) else { return nil }
             return "\(quota.periodLabel) \(roundedPercent(quota.remainingPercent))%"
