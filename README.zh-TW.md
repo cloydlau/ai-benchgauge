@@ -1,5 +1,7 @@
 # AI Leaderboards
 
+*Who's on top. How much you've got left.*
+
 [English](README.md) | [简体中文](README.zh-CN.md) | **繁體中文**
 
 **兩張榜單，一眼比較。模型排行與帳戶額度，常駐 macOS 選單列。**
