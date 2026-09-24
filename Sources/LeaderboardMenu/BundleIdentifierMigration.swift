@@ -19,6 +19,9 @@ enum BundleIdentifierMigration {
     ]
     /// The cookie jar sits beside the identifier, outside the website data.
     private static let cookieSuffix = ".binarycookies"
+    /// Written by the first, one-shot cut of this migration. Retiring it keeps
+    /// the retry honest, and the key itself is now dead weight in preferences.
+    private static let retiredDoneKey = "bundleIdentifierMigrationDone"
 
     /// Must run before any web view or `URLSession` is created, or the current
     /// identifier claims empty stores first and there is nothing to adopt into.
@@ -28,6 +31,7 @@ enum BundleIdentifierMigration {
     ) {
         guard let current = Bundle.main.bundleIdentifier,
               !legacyIdentifiers.contains(current) else { return }
+        defaults.removeObject(forKey: retiredDoneKey)
         adoptWebsiteData(into: current, fileManager: fileManager)
         adoptCookies(into: current, fileManager: fileManager)
         adoptPreferences(into: defaults)
