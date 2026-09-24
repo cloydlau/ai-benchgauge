@@ -417,7 +417,8 @@ struct LeaderboardView: View {
         let fetchedAt = state.selectedCategory.boardKinds
             .compactMap { state.snapshot.boards[$0]?.fetchedAt }
             .min()
-        guard let fetchedAt else { return tr("Rankings pending", "榜单待更新") }
+        // Keep the space so the value column lines up with `榜单 23 分钟前`.
+        guard let fetchedAt else { return tr("Rankings pending", "榜单 待更新") }
         let value = freshnessValue(fetchedAt, now: now, format: format)
         return tr("Rankings \(value)", "榜单 \(value)")
     }
@@ -476,9 +477,9 @@ struct LeaderboardView: View {
 
     private func quotaClause(now: Date, format: FreshnessFormat) -> String? {
         if state.quotaChips.isEmpty {
-            return state.quotaUnavailable ? tr("Quota unavailable", "余量暂不可读") : nil
+            return state.quotaUnavailable ? tr("Quota unavailable", "余量 暂不可读") : nil
         }
-        guard let updatedAt = state.quotaUpdatedAt else { return tr("Quota pending", "余量待更新") }
+        guard let updatedAt = state.quotaUpdatedAt else { return tr("Quota pending", "余量 待更新") }
         let value = freshnessValue(updatedAt, now: now, format: format)
         return tr("Quota \(value)", "余量 \(value)")
     }
