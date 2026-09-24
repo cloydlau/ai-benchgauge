@@ -52,9 +52,11 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
   {
     key: 'kimi',
     brands: ['kimi', 'moonshot'],
-    email: 'noreply@kimi.com',
-    favicon: 'https://www.kimi.com/favicon.ico',
-    icon: 'https://api.iconify.design/simple-icons:moonshot.svg',
+    // kimi.com 域名邮箱不绑定任何 GitHub 账号，头像无法解析。留空走
+    // <model>@users.noreply.github.com 回退，GitHub 会关联到 Kimi-K3 账号。
+    favicon: 'https://kimi.moonshot.cn/favicon.ico',
+    // simple-icons 没有 moonshot，月形图标用 moonrepo。
+    icon: 'https://api.iconify.design/simple-icons:moonrepo.svg',
   },
   {
     key: 'grok',
@@ -80,7 +82,8 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
   },
   {
     key: 'meta',
-    brands: ['llama', 'meta'],
+    // llama 按未知模型处理，不归到 Meta 身份。
+    brands: ['meta'],
     email: 'noreply@meta.com',
     favicon: 'https://about.meta.com/favicon.ico',
     icon: 'https://api.iconify.design/logos:meta-icon.svg',
@@ -168,7 +171,7 @@ export async function resolveModelAvatar(model, { fetchBudgetMs = 2000 } = {}) {
       source: url === avatar.favicon ? 'official-favicon' : 'icones',
     }
   }
-  return { ...avatar, probed: false }
+  return { ...avatar, url: avatar.fallback, source: 'icones', probed: false }
 }
 
 export function detectModelName({ configPath = DEFAULT_CONFIG_PATH, env = process.env } = {}) {
@@ -182,7 +185,7 @@ export function detectModelName({ configPath = DEFAULT_CONFIG_PATH, env = proces
 
 export function emailForModel(model) {
   const provider = providerForModel(model)
-  if (provider) return provider.email
+  if (provider?.email) return provider.email
   const name = String(model || 'codex').trim().toLowerCase()
   return `${name}@users.noreply.github.com`
 }
