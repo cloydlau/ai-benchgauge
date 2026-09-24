@@ -56,7 +56,7 @@ public enum HTMLLeaderboardParser {
         return Leaderboard(
             kind: .artificialAnalysis,
             title: "Artificial Analysis Intelligence Index",
-            sourceUpdatedAt: nil,
+            sourceUpdatedAt: artificialAnalysisDataUpdatedAt(fromHTML: html),
             sourceNote: artificialAnalysisVersion(fromHTML: html),
             entries: entries,
             organizationLogoURLs: organizationLogoURLs
@@ -109,6 +109,7 @@ public enum HTMLLeaderboardParser {
         return Leaderboard(
             kind: .artificialAnalysisCodingAgent,
             title: "Artificial Analysis Coding Agent Index",
+            sourceUpdatedAt: artificialAnalysisDataUpdatedAt(fromHTML: html),
             sourceNote: artificialAnalysisCodingAgentVersion(fromHTML: html),
             entries: entries
         )
@@ -209,6 +210,7 @@ public enum HTMLLeaderboardParser {
         return Leaderboard(
             kind: kind,
             title: title,
+            sourceUpdatedAt: artificialAnalysisDataUpdatedAt(fromHTML: html),
             entries: entries,
             organizationLogoURLs: organizationLogoURLs
         )
@@ -437,29 +439,59 @@ public enum HTMLLeaderboardParser {
 
     private static func arenaVoteCutoff(fromHTML html: String) -> Date? {
         guard
-            let marker = html.range(of: "voteCutoffISOString"),
-            let colon = html.range(of: ":", range: marker.upperBound..<html.endIndex),
-            let openingQuote = html.range(
-                of: "\"",
-                range: colon.upperBound..<html.endIndex
-            )
+            let value = jsonStringValues(in: html, afterKey: "voteCutoffISOString").first
         else { return nil }
+        return iso8601Date(value)
+    }
 
-        guard
-            let closingQuote = html.range(
-                of: "\"",
-                range: openingQuote.upperBound..<html.endIndex
-            )
-        else { return nil }
+    /// Artificial Analysis stamps each grading batch with `materializedAt`. Every
+    /// row on a board repeats the same value, so the newest one marks when the
+    /// source regenerated this leaderboard's data, not when this Mac fetched it.
+    private static func artificialAnalysisDataUpdatedAt(fromHTML html: String) -> Date? {
+        jsonStringValues(in: html, afterKey: "materializedAt").compactMap(iso8601Date).max()
+    }
 
-        var value = String(html[openingQuote.upperBound..<closingQuote.lowerBound])
-        value = value.replacingOccurrences(of: "\\", with: "")
+    /// Reads escaped JSON strings straight out of the server payload, so a value
+    /// nested below the leaderboard rows stays reachable.
+    private static func jsonStringValues(in html: String, afterKey key: String) -> [String] {
+        var values: [String] = []
+        var searchStart = html.startIndex
 
+        while let keyRange = html.range(of: key, range: searchStart..<html.endIndex) {
+            searchStart = keyRange.upperBound
+            guard
+                let colon = html.range(of: ":", range: keyRange.upperBound..<html.endIndex),
+                let openingQuote = html.range(of: "\"", range: colon.upperBound..<html.endIndex),
+                let closingQuote = html.range(
+                    of: "\"",
+                    range: openingQuote.upperBound..<html.endIndex
+                )
+            else { continue }
+
+            let value = String(html[openingQuote.upperBound..<closingQuote.lowerBound])
+            values.append(value.replacingOccurrences(of: "\\", with: ""))
+        }
+
+        return values
+    }
+
+    private static func iso8601Date(_ value: String) -> Date? {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         if let date = formatter.date(from: value) { return date }
 
         formatter.formatOptions = [.withInternetDateTime]
-        return formatter.date(from: value)
+        if let date = formatter.date(from: value) { return date }
+
+        // Source timestamps can carry six fractional digits, which the formatter
+        // only accepts once they are trimmed down to milliseconds.
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.date(
+            from: value.replacingOccurrences(
+                of: "(\\.\\d{3})\\d+",
+                with: "$1",
+                options: .regularExpression
+            )
+        )
     }
 }
