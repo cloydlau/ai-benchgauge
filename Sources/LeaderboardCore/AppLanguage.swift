@@ -46,7 +46,7 @@ public enum AppLanguage: String, CaseIterable, Sendable {
         switch self {
         case .english: Locale(identifier: "en_US")
         case .chinese: Locale(identifier: "zh_CN")
-        case .traditionalChinese: Locale(identifier: "zh_TW")
+        case .traditionalChinese: Locale(identifier: "zh_Hant")
         }
     }
 
