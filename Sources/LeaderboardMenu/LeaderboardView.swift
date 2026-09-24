@@ -281,7 +281,7 @@ struct LeaderboardView: View {
 
     private var appTitle: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("AI Leaderboards")
+            Text("AI BenchGauge")
                 // Snell Roundhand ships with macOS, so referencing it by
                 // name needs no font bundling or license.
                 .font(.custom("SnellRoundhand-Bold", size: 21))
@@ -854,7 +854,7 @@ struct LeaderboardView: View {
             .buttonStyle(.plain)
             .pointingHandCursor(isEnabled: !state.isQuitting)
             .allowsHitTesting(!state.isQuitting)
-            .help(state.isQuitting ? tr("Quitting AI Leaderboards", "正在退出 AI Leaderboards") : tr("Quit AI Leaderboards", "退出 AI Leaderboards"))
+            .help(state.isQuitting ? tr("Quitting AI BenchGauge", "正在退出 AI BenchGauge") : tr("Quit AI BenchGauge", "退出 AI BenchGauge"))
         }
         .font(.caption)
         .foregroundStyle(.secondary)

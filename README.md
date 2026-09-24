@@ -1,4 +1,4 @@
-# AI Leaderboards
+# AI BenchGauge
 
 *Who's on top. How much you've got left.*
 
@@ -54,10 +54,10 @@ Running the app requires macOS 14 or later. Building from source requires Swift 
 
 ```bash
 ./Scripts/make-app.sh
-open outputs/AI-Leaderboards.app
+open outputs/AI-BenchGauge.app
 ```
 
-The build script produces an ad-hoc signed app at `outputs/AI-Leaderboards.app`. On first launch, the interface follows the first supported macOS preferred language: English, Simplified Chinese, or Traditional Chinese. You can also switch languages in the panel footer. The selected language, category, and model/company grouping are saved locally.
+The build script produces an ad-hoc signed app at `outputs/AI-BenchGauge.app`. On first launch, the interface follows the first supported macOS preferred language: English, Simplified Chinese, or Traditional Chinese. You can also switch languages in the panel footer. The selected language, category, and model/company grouping are saved locally.
 
 ## Local development
 

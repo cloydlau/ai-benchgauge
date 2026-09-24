@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export function projectName() {
-  return 'AI-Leaderboards'
+  return 'AI-BenchGauge'
 }
 
 export function notifyDesktop(root, title, message, {
@@ -86,7 +86,7 @@ export function materializeAvatar(avatar) {
   const downloaded = join(directory, 'avatar')
   const png = join(directory, 'avatar.png')
   for (const url of urls) {
-    const curl = spawnSync('/usr/bin/curl', ['-fsSL', '--max-time', '3', '-A', 'AI-Leaderboards', '-o', downloaded, url], { stdio: 'ignore' })
+    const curl = spawnSync('/usr/bin/curl', ['-fsSL', '--max-time', '3', '-A', 'AI-BenchGauge', '-o', downloaded, url], { stdio: 'ignore' })
     if (curl.status !== 0 || !existsSync(downloaded)) continue
     if (rasterizeAvatar(downloaded, png)) return png
   }

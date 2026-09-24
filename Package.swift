@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "AI-Leaderboards",
+    name: "AI-BenchGauge",
     platforms: [.macOS(.v14)],
     targets: [
         .target(

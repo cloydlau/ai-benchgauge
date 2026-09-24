@@ -20,7 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func temporaryCacheURL() -> URL {
         FileManager.default.temporaryDirectory
-            .appending(path: "ai-leaderboards.json", directoryHint: .inferFromPath)
+            .appending(path: "ai-benchgauge.json", directoryHint: .inferFromPath)
     }
 }
 
@@ -80,7 +80,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         if let button = statusItem.button {
             button.image = NSImage(
                 systemSymbolName: "brain.head.profile",
-                accessibilityDescription: "AI Leaderboards"
+                accessibilityDescription: "AI BenchGauge"
             )
             button.imagePosition = .imageLeading
             button.target = self
@@ -142,13 +142,13 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
               let current = state.quotaChips.first(where: \.isCurrent),
               let quota = AccountQuotaFormatting.compactMenuBarQuota(for: current) else {
             button.title = ""
-            button.toolTip = "AI Leaderboards"
+            button.toolTip = "AI BenchGauge"
             return
         }
         let fullName = current.shortName
         let compactName = fullName.count > 24 ? String(fullName.prefix(23)) + "…" : fullName
         button.title = "\(compactName) · \(quota)"
-        button.toolTip = "AI Leaderboards · \(fullName) · \(quota)"
+        button.toolTip = "AI BenchGauge · \(fullName) · \(quota)"
     }
 
     /// A status-item popover is a child of the menu-bar window, so it inherits
