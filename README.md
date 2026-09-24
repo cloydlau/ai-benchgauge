@@ -8,7 +8,7 @@
 
 `macOS 14+` · `Swift 6` · `3 languages` · [MIT License](LICENSE)
 
-![Illustration of paired AI leaderboards and CC Switch quotas](docs/overview.en.svg)
+![AI BenchGauge illustration: paired rankings and CC Switch quotas](docs/overview.en.svg)
 
 *Interface illustration; it contains no live rankings or account data.*
 
