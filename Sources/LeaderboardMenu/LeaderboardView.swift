@@ -331,8 +331,8 @@ struct LeaderboardView: View {
         state.selectedCategory
     }
 
-    /// One heading identifies both timestamps; the hairline separates the
-    /// leaderboard data from this Mac's quota data.
+    /// One heading identifies both timestamps; each value sits in its own pill
+    /// so the ranking data and this Mac's quota data stay distinguishable.
     private func freshnessLine(now: Date) -> some View {
         HStack(spacing: 8) {
             Text(tr("UPDATED", "更新时间"))
@@ -341,19 +341,9 @@ struct LeaderboardView: View {
                 .fixedSize(horizontal: true, vertical: false)
             // Shrinking would break the equal-width guarantee, so both values
             // keep their natural size.
-            Text(rankingClause(now: now, format: .stamp))
-                .foregroundStyle(rankingFailed ? Color.orange : Color.secondary)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-            if let quota = quotaClause(now: now, format: .stamp) {
-                Rectangle()
-                    .fill(.quaternary)
-                    .frame(width: 1, height: 9)
-                    .accessibilityHidden(true)
-                Text(quota)
-                    .foregroundStyle(state.quotaUnavailable ? Color.orange : Color.secondary)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
+            freshnessPill(rankingClause(now: now, format: .relative), failed: rankingFailed)
+            if let quota = quotaClause(now: now, format: .relative) {
+                freshnessPill(quota, failed: state.quotaUnavailable)
             }
         }
         .font(.system(size: 11))
@@ -364,12 +354,28 @@ struct LeaderboardView: View {
         .help(freshnessHelp(now: now))
     }
 
-    /// The group is right-aligned, so any change in the value's width pushes
-    /// the "更新时间" heading sideways. Reserving a frame instead would leave a
-    /// hole whenever the copy is short. A fixed-shape timestamp avoids both:
-    /// `HH:mm` in tabular digits measures the same for every value, so the
-    /// heading stays put and nothing is reserved. `.relative` keeps the
-    /// friendlier phrasing for the tooltip and VoiceOver, where width is free.
+    /// The copy stays relative because that is what reads at a glance, but
+    /// `刚刚` and `23 分钟前` differ by ~28pt, and in a right-aligned row that
+    /// width would shove the heading sideways every minute. A fixed-width pill
+    /// absorbs the difference as its own padding, so the heading never moves
+    /// and no hole opens in the header. The slot fits the longest template per
+    /// language (`榜单 59 分钟前` / `Rankings 59 min ago`) plus the padding.
+    private func freshnessPill(_ text: String, failed: Bool) -> some View {
+        Text(text)
+            .foregroundStyle(failed ? Color.orange : Color.secondary)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 2.5)
+            .frame(width: language == .english ? 124 : 92)
+            .background(
+                Capsule().fill(failed ? Color.orange.opacity(0.12) : Color.secondary.opacity(0.10))
+            )
+    }
+
+    /// How a timestamp is spelled. The panel shows `.relative` because age is
+    /// what matters at a glance; the tooltip and VoiceOver use `.both` so the
+    /// exact clock time stays one hover away.
     private enum FreshnessFormat {
         case stamp
         case relative
