@@ -366,13 +366,22 @@ struct LeaderboardView: View {
     private enum FreshnessFormat {
         case stamp
         case relative
+        /// Tooltip form: the clock time plus the relative age, so a panel that
+        /// only shows `HH:mm` never has to be converted by hand.
+        case both
     }
 
     private func freshnessValue(_ date: Date, now: Date, format: FreshnessFormat) -> String {
         switch format {
         case .stamp: clockStamp(date, now: now)
         case .relative: updateAge(date, now: now)
+        case .both: stampWithAge(date, now: now)
         }
+    }
+
+    private func stampWithAge(_ date: Date, now: Date) -> String {
+        let age = updateAge(date, now: now)
+        return clockStamp(date, now: now) + tr(" (\(age))", "（\(age)）")
     }
 
     /// Same-day data shows the clock time; an older fetch adds the date so a
@@ -415,8 +424,8 @@ struct LeaderboardView: View {
 
     private func freshnessSummary(now: Date) -> String {
         var summary = tr("Last updated: ", "更新时间：")
-            + rankingClause(now: now, format: .relative)
-        if let quota = quotaClause(now: now, format: .relative) {
+            + rankingClause(now: now, format: .both)
+        if let quota = quotaClause(now: now, format: .both) {
             summary += tr("; ", "；") + quota
         }
         return summary
