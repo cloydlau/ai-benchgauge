@@ -4,32 +4,34 @@ import Foundation
 /// `UserDefaults`) to the bundle identifier. This app shipped as
 /// `com.cloyd.ai-leaderboards`, then `com.cloyd.ai-benchgauge`, and now
 /// `com.cloydlau.ai-benchgauge`. Every rename would otherwise look like a
-/// signed-out, reset app, so carry the newest legacy state across once and
-/// drop whatever the retired identifiers left behind.
+/// signed-out, reset app, so carry the newest legacy state across and drop
+/// whatever the retired identifiers left behind.
+///
+/// Every step is guarded and idempotent, so this runs on each launch: an
+/// interrupted first pass retries instead of stranding the legacy state, and
+/// the empty plist `cfprefsd` writes back for a removed domain only lets go on
+/// a later pass.
 enum BundleIdentifierMigration {
     /// Retired identifiers, newest first, so the freshest state wins a conflict.
     private static let legacyIdentifiers = [
         "com.cloyd.ai-benchgauge",
         "com.cloyd.ai-leaderboards",
     ]
-    private static let doneKey = "bundleIdentifierMigrationDone"
     /// The cookie jar sits beside the identifier, outside the website data.
     private static let cookieSuffix = ".binarycookies"
 
     /// Must run before any web view or `URLSession` is created, or the current
     /// identifier claims empty stores first and there is nothing to adopt into.
-    static func runOnce(
+    static func run(
         defaults: UserDefaults = .standard,
         fileManager: FileManager = .default
     ) {
-        guard defaults.object(forKey: doneKey) == nil,
-              let current = Bundle.main.bundleIdentifier,
+        guard let current = Bundle.main.bundleIdentifier,
               !legacyIdentifiers.contains(current) else { return }
         adoptWebsiteData(into: current, fileManager: fileManager)
         adoptCookies(into: current, fileManager: fileManager)
         adoptPreferences(into: defaults)
         discardLegacyState(into: current, defaults: defaults, fileManager: fileManager)
-        defaults.set(true, forKey: doneKey)
     }
 
     private static func libraryDirectory(_ fileManager: FileManager) -> URL {
@@ -101,10 +103,13 @@ enum BundleIdentifierMigration {
         let library = libraryDirectory(fileManager)
         let webKit = library.appending(path: "WebKit", directoryHint: .isDirectory)
         let storages = library.appending(path: "HTTPStorages", directoryHint: .isDirectory)
-        // A move can still fail on a locked or foreign volume; never delete the
-        // only copy of a signed-in session.
-        let migratedStore = webKit.appending(path: current, directoryHint: .isDirectory)
-        let hasMigratedStore = hasWebsiteData(migratedStore, fileManager: fileManager)
+        let preferences = library.appending(path: "Preferences", directoryHint: .isDirectory)
+        // A move can fail on a locked or foreign volume; never delete the only
+        // copy of a signed-in session, so the next launch can retry.
+        let hasMigratedStore = hasWebsiteData(
+            webKit.appending(path: current, directoryHint: .isDirectory),
+            fileManager: fileManager
+        )
         let hasMigratedCookies = fileManager.fileExists(
             atPath: storages.appending(
                 path: current + cookieSuffix,
@@ -139,6 +144,14 @@ enum BundleIdentifierMigration {
             // Goes through cfprefsd; deleting the plist directly lets it write
             // the cached domain straight back out.
             defaults.removePersistentDomain(forName: identifier)
+            if defaults.persistentDomain(forName: identifier)?.isEmpty ?? true {
+                try? fileManager.removeItem(
+                    at: preferences.appending(
+                        path: "\(identifier).plist",
+                        directoryHint: .notDirectory
+                    )
+                )
+            }
         }
     }
 }
