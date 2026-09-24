@@ -194,39 +194,26 @@ public struct QuotaTextRun: Equatable, Sendable {
 
 public enum AccountQuotaFormatting {
     /// One successfully queried quota for the menu bar, in shortest-window order.
-    public static func compactMenuBarQuota(
-        for chip: AccountQuotaChip,
-        language: AppLanguage
-    ) -> String? {
+    /// Window labels keep their short form in every language.
+    public static func compactMenuBarQuota(for chip: AccountQuotaChip) -> String? {
         guard !chip.isStale else { return nil }
         switch chip.status {
         case let .windows(windows):
-            let slots: [(String, String)] = [
-                ("five_hour", language.text("5h", "5小时")),
-                ("seven_day", language.text("7d", "7天")),
-                ("weekly_limit", language.text("7d", "7天")),
-                ("monthly", language.text("1mo", "1个月")),
-            ]
-            for (name, label) in slots {
+            for name in ["five_hour", "seven_day", "weekly_limit", "monthly"] {
                 if let window = windows.first(where: {
                     $0.name == name && $0.utilization.isFinite && (0...100).contains($0.utilization)
                 }) {
-                    return "\(label) \(remainingPercent(utilization: window.utilization))%"
+                    return "\(label(forWindowName: name)) \(remainingPercent(utilization: window.utilization))%"
                 }
             }
             return nil
         case let .qwenPlan(plan):
-            return "\(language.text("7d", "7天")) \(qwenPlanRemainingPercent(plan))%"
+            return "7d \(qwenPlanRemainingPercent(plan))%"
         case let .qwenWebsite(quota):
             guard !quota.isCached, quota.remainingPercent.isFinite,
-                  (0...100).contains(quota.remainingPercent) else { return nil }
-            let label: String
-            switch quota.periodLabel {
-            case "7天": label = language.text("7d", "7天")
-            case "1个月", "月度": label = language.text("1mo", "1个月")
-            default: return nil
-            }
-            return "\(label) \(roundedPercent(quota.remainingPercent))%"
+                  (0...100).contains(quota.remainingPercent),
+                  ["7d", "1mo"].contains(quota.periodLabel) else { return nil }
+            return "\(quota.periodLabel) \(roundedPercent(quota.remainingPercent))%"
         case let .balances(balances):
             let available = balances.filter {
                 $0.amount.isFinite && $0.amount >= 0 && !$0.currency.isEmpty
@@ -252,15 +239,9 @@ public enum AccountQuotaFormatting {
 
     public static func label(forWindowName name: String) -> String {
         switch name {
-<<<<<<< Updated upstream
-        case "five_hour": "5小时"
-        case "weekly_limit", "seven_day": "7天"
-        case "monthly": "1个月"
-=======
         case "five_hour": "5h"
         case "weekly_limit", "seven_day": "7d"
         case "monthly": "1mo"
->>>>>>> Stashed changes
         case "credits": "额度"
         default: name
         }
