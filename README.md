@@ -1,5 +1,7 @@
 # AI Leaderboards
 
+*Who's on top. How much you've got left.*
+
 **English** | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
 **Compare two leaderboards at a glance. Keep model rankings and account quotas in your macOS menu bar.**
