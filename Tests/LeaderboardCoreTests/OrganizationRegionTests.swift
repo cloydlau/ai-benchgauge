@@ -1,7 +1,9 @@
+import Foundation
 import LeaderboardCore
-import XCTest
+import Testing
 
-final class OrganizationRegionTests: XCTestCase {
+struct OrganizationRegionTests {
+    @Test
     func testCountryLabelsCoverEveryBundledOrganization() {
         let examples: [(String, OrganizationCountry)] = [
             ("Alibaba", .china), ("Z.ai", .china), ("StepFun", .china),
@@ -21,33 +23,29 @@ final class OrganizationRegionTests: XCTestCase {
             ("Video Rebirth", .singapore),
         ]
         for (organization, expected) in examples {
-            XCTAssertEqual(OrganizationRegion.country(organization), expected, organization)
+            #expect((OrganizationRegion.country(organization)) == (expected), Comment(rawValue: organization))
         }
-        XCTAssertNil(OrganizationRegion.country("Unlisted Organization"))
+        #expect((OrganizationRegion.country("Unlisted Organization")) == nil)
     }
 
+    @Test
     func testCodingHarnessUsesLeadModelDeveloper() {
-        XCTAssertEqual(
-            OrganizationRegion.country("OpenAI", modelName: "Codex - DeepSeek V4 Pro"),
-            .china
-        )
-        XCTAssertEqual(
-            OrganizationRegion.country("Opencode", modelName: "Opencode - GPT-6 Astra"),
-            .unitedStates
-        )
-        XCTAssertEqual(
-            OrganizationRegion.country(nil, modelName: "Devin Fusion - Claude Opus + Qwen3"),
-            .unitedStates
-        )
+        #expect((OrganizationRegion.country("OpenAI", modelName: "Codex - DeepSeek V4 Pro")) == (.china))
+        #expect((OrganizationRegion.country("Opencode", modelName: "Opencode - GPT-6 Astra")) == (.unitedStates))
+        #expect((OrganizationRegion.country(nil, modelName: "Devin Fusion - Claude Opus + Qwen3")) == (.unitedStates))
     }
 
+    @Test
     func testCountryFlagsAndSystemLocalizedNames() {
-        XCTAssertEqual(OrganizationCountry.china.flagEmoji, "🇨🇳")
-        XCTAssertEqual(OrganizationCountry.unitedStates.flagEmoji, "🇺🇸")
-        XCTAssertEqual(OrganizationCountry.canada.flagEmoji, "🇨🇦")
-        XCTAssertEqual(OrganizationCountry.france.flagEmoji, "🇫🇷")
-        XCTAssertEqual(OrganizationCountry.germany.flagEmoji, "🇩🇪")
-        XCTAssertEqual(OrganizationCountry.singapore.flagEmoji, "🇸🇬")
-        XCTAssertEqual(OrganizationCountry.unitedStates.localizedName(language: .english), "United States")
+        #expect((OrganizationCountry.china.flagEmoji) == ("🇨🇳"))
+        #expect((OrganizationCountry.unitedStates.flagEmoji) == ("🇺🇸"))
+        #expect((OrganizationCountry.canada.flagEmoji) == ("🇨🇦"))
+        #expect((OrganizationCountry.france.flagEmoji) == ("🇫🇷"))
+        #expect((OrganizationCountry.germany.flagEmoji) == ("🇩🇪"))
+        #expect((OrganizationCountry.singapore.flagEmoji) == ("🇸🇬"))
+        #expect((OrganizationCountry.unitedStates.localizedName(language: .english)) == ("United States"))
+        #expect(OrganizationCountry.china.localizedName(language: .chinese) == "中国")
+        #expect(OrganizationCountry.china.localizedName(language: .traditionalChinese) == "中國")
+        #expect(OrganizationCountry.china.localizedName(language: .english) == "China")
     }
 }
