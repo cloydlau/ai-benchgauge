@@ -1,0 +1,100 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+concurrency:
+  group: stable-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      DESKTOP_NOTIFY: '0'
+      TEST_AUTO_REPAIR: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate tag, update configuration, and increasing version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          git merge-base --is-ancestor HEAD origin/main
+          mkdir -p work
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName,isDraft,isPrerelease > work/prior-releases.json
+          node --input-type=module <<'JS'
+          import { readFileSync } from 'node:fs'
+          import { execFileSync } from 'node:child_process'
+          import { validateRelease } from './Scripts/release-lib.mjs'
+          const info = JSON.parse(execFileSync('plutil', ['-convert', 'json', '-o', '-', 'Sources/LeaderboardMenu/Resources/Info.plist'], { encoding: 'utf8' }))
+          validateRelease(process.env.RELEASE_TAG, info, JSON.parse(readFileSync('work/prior-releases.json', 'utf8')))
+          JS
+      - name: Resolve locked dependencies
+        run: swift package resolve --disable-sandbox
+      - name: Optional Developer ID certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE" ]; then exit 0; fi
+          test -n "$APPLE_SIGNING_IDENTITY"
+          keychain="$RUNNER_TEMP/release.keychain-db"
+          certificate="$RUNNER_TEMP/release.p12"
+          password="$(openssl rand -base64 32)"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$certificate"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$certificate" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain"
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          printf 'APP_SIGNING_IDENTITY=%s\n' "$APPLE_SIGNING_IDENTITY" >> "$GITHUB_ENV"
+          rm -f "$certificate"
+      - name: Tests and universal application
+        run: node Scripts/ci-checks.mjs
+        env:
+          APP_UNIVERSAL: '1'
+      - name: Optional notarization
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -z "$APPLE_ID" ]; then exit 0; fi
+          test -n "$APP_SIGNING_IDENTITY"
+          test -n "$APPLE_TEAM_ID"
+          test -n "$APPLE_APP_PASSWORD"
+          ditto -c -k --sequesterRsrc --keepParent outputs/AI-BenchGauge.app "$RUNNER_TEMP/notarization.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/notarization.zip" --apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
+          xcrun stapler staple outputs/AI-BenchGauge.app
+      - name: Generate release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh api --method POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$RELEASE_TAG" --jq .body > work/release-notes.md
+      - name: Sign and verify release archive and feed
+        run: node Scripts/package-release.mjs
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          RELEASE_NOTES_FILE: work/release-notes.md
+      - name: Publish complete stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" outputs/release/*.zip outputs/release/appcast.xml outputs/release/SHA256SUMS.txt --verify-tag --draft --title "AI BenchGauge $RELEASE_TAG" --notes-file outputs/release/release-notes.md
+          gh release edit "$RELEASE_TAG" --draft=false --latest
+      - name: Clean up signing keychain
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/release.keychain-db" ]; then security delete-keychain "$RUNNER_TEMP/release.keychain-db"; fi
