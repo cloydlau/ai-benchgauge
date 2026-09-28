@@ -1948,7 +1948,7 @@ private struct CategorySegmentedControl: NSViewRepresentable {
         LeaderboardCategory.allCases.firstIndex(of: selection) ?? 0
     }
 
-    final class Coordinator: NSObject {
+    @MainActor final class Coordinator: NSObject {
         var selection: Binding<LeaderboardCategory>
 
         init(selection: Binding<LeaderboardCategory>) {
@@ -2036,7 +2036,7 @@ private struct GroupingSegmentedControl: NSViewRepresentable {
         LeaderboardGrouping.allCases.firstIndex(of: selection) ?? 0
     }
 
-    final class Coordinator: NSObject {
+    @MainActor final class Coordinator: NSObject {
         var selection: Binding<LeaderboardGrouping>
 
         init(selection: Binding<LeaderboardGrouping>) {
