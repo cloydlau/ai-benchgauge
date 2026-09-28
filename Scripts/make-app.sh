@@ -21,6 +21,8 @@ on_err() {
 }
 trap on_err ERR
 
+node "$ROOT/Scripts/test.mjs" --gate
+
 env CLANG_MODULE_CACHE_PATH="$ROOT/work/clang-modules" \
   swift build \
     -c release \
@@ -35,6 +37,10 @@ cp "$ROOT/Sources/LeaderboardMenu/Resources/Info.plist" "$APP/Contents/Info.plis
 cp "$BIN" "$APP/Contents/MacOS/leaderboard-menu"
 rm -rf "$APP/Contents/Resources/logos"
 cp -R "$ROOT/Sources/LeaderboardMenu/Resources/logos" "$APP/Contents/Resources/logos"
+rm -rf "$APP/Contents/Resources/Licenses"
+cp -R "$ROOT/Sources/LeaderboardMenu/Resources/Licenses" "$APP/Contents/Resources/Licenses"
+# Keep the application notice identical to the repository's license.
+cp "$ROOT/LICENSE" "$APP/Contents/Resources/Licenses/AI-BenchGauge.txt"
 codesign --force --sign - "$APP"
 
 printf 'Built %s\n' "$APP"
