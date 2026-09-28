@@ -73,6 +73,14 @@ try {
     Invoke-Checked $nodeExecutable @('Scripts/engine-smoke.mjs', $engine)
 } finally { $env:PATH = $originalPath }
 if ($Installer) {
+    $prerequisites = Join-Path $root 'outputs/windows/app/prerequisites'
+    New-Item -ItemType Directory -Force $prerequisites | Out-Null
+    $webviewSetup = Join-Path $prerequisites 'MicrosoftEdgeWebview2Setup.exe'
+    Invoke-WebRequest 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile $webviewSetup
+    $signature = Get-AuthenticodeSignature $webviewSetup
+    if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
+        throw 'WebView2 bootstrapper does not have a valid Microsoft signature'
+    }
     $config = Get-Content 'config/app.json' -Raw | ConvertFrom-Json
     $outputDirectory = Join-Path $root 'outputs/release'
     New-Item -ItemType Directory -Force $outputDirectory | Out-Null
