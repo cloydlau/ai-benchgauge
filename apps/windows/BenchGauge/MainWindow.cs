@@ -90,6 +90,7 @@ sealed class MainWindow : Window
             Left = Math.Max(SystemParameters.WorkArea.Left, SystemParameters.WorkArea.Right - Width - 12);
             Top = Math.Max(SystemParameters.WorkArea.Top, SystemParameters.WorkArea.Bottom - Height - 12);
         }
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Show(); Activate();
     }
     void SaveFrame()
