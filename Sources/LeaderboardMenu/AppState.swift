@@ -17,7 +17,8 @@ final class AppState: ObservableObject {
     @Published private(set) var selectedCategory = LeaderboardCategory.general
     @Published private(set) var selectedGrouping = LeaderboardGrouping.model
     @Published private(set) var selectedLanguage = AppLanguage.load()
-    @Published private(set) var closesOnFocusLoss = UserDefaults.standard.bool(forKey: "AIBenchGauge.closesOnFocusLoss")
+    @Published private(set) var panelMode: PanelMode
+    var closesOnFocusLoss: Bool { panelMode.closesOnFocusLoss }
     @Published private(set) var countryFilters: [LeaderboardKind: CountryFilter] = [:]
     @Published private(set) var isQuitting = false
     /// Provider quotas from the local CC Switch database. These are not
@@ -27,6 +28,7 @@ final class AppState: ObservableObject {
     @Published private(set) var quotaUpdatedAt: Date?
     @Published private(set) var quotaUnavailable = false
     @Published private(set) var quotaNeedsCCSwitch = false
+    @Published private(set) var connectingOpenAIProviderID: String?
 
     /// The status item is a projection of the same chips the panel renders, so
     /// a refresh triggered inside the panel moves the menu bar at the same
@@ -37,7 +39,10 @@ final class AppState: ObservableObject {
 
     private let fetcher = LeaderboardFetcher()
     private let cache: LeaderboardCache
+    private let defaults: UserDefaults
     private let qwenWebsiteSource = QwenWebsiteQuotaSource()
+    private let openAIConnection = OpenAIAccountConnection()
+    private var quotaTargetsByID: [String: CCSwitchQuotaTarget] = [:]
     private var quotaClient: AccountQuotaClient!
     private let quotaNotifier = QuotaNotifier()
     private var updateTimer: Timer?
@@ -49,13 +54,22 @@ final class AppState: ObservableObject {
     private var lastQuotaAttemptAtByID: [String: Date] = [:]
     private var quotaGeneration = 0
 
-    init(cache: LeaderboardCache) {
+    init(cache: LeaderboardCache, defaults: UserDefaults = .standard) {
         self.cache = cache
+        self.defaults = defaults
+        panelMode = PanelModePreference.load(from: defaults)
         quotaClient = AccountQuotaClient(
-            qwenQuotaSource: QwenPreferredQuotaSource(website: qwenWebsiteSource)
+            qwenQuotaSource: QwenPreferredQuotaSource(website: qwenWebsiteSource),
+            officialQuotaSource: openAIConnection.source
         )
         qwenWebsiteSource.onConnected = { [weak self] in
             self?.refreshQuotas(minimumInterval: 0)
+        }
+        openAIConnection.onConnected = { [weak self] in
+            self?.refreshQuotas(minimumInterval: 0)
+        }
+        openAIConnection.onConnectingChanged = { [weak self] id in
+            self?.connectingOpenAIProviderID = id
         }
         if let cached = cache.load() {
             snapshot = cached
@@ -91,12 +105,21 @@ final class AppState: ObservableObject {
         qwenWebsiteSource.connect()
     }
 
+    func connectOpenAI(_ chip: AccountQuotaChip) {
+        guard !isQuitting, let target = quotaTargetsByID[chip.id], target.kind == .officialNote else { return }
+        let previousTask = quotaTask
+        previousTask?.cancel()
+        quotaGeneration += 1
+        openAIConnection.connect(target, language: selectedLanguage, after: previousTask)
+    }
+
     /// Show the quitting state, then drop the timer and in-flight fetch so
     /// terminate is not held open by them. Returns false if quit already started.
     @discardableResult
     func beginQuitting() -> Bool {
         guard !isQuitting else { return false }
         isQuitting = true
+        openAIConnection.cancel()
         refreshPending = false
         updateTimer?.invalidate()
         updateTimer = nil
@@ -138,10 +161,10 @@ final class AppState: ObservableObject {
         language.save()
     }
 
-    func setClosesOnFocusLoss(_ enabled: Bool) {
-        guard enabled != closesOnFocusLoss else { return }
-        closesOnFocusLoss = enabled
-        UserDefaults.standard.set(enabled, forKey: "AIBenchGauge.closesOnFocusLoss")
+    func selectPanelMode(_ mode: PanelMode) {
+        guard mode != panelMode else { return }
+        panelMode = mode
+        PanelModePreference.save(mode, to: defaults)
     }
 
     private func startTimer() {
@@ -180,7 +203,7 @@ final class AppState: ObservableObject {
         minimumInterval: TimeInterval,
         inactiveMinimumInterval: TimeInterval? = 0
     ) {
-        guard !isQuitting else { return }
+        guard !isQuitting, connectingOpenAIProviderID == nil else { return }
         if let lastQuotaAttemptAt,
            Date().timeIntervalSince(lastQuotaAttemptAt) < minimumInterval {
             return
@@ -228,6 +251,7 @@ final class AppState: ObservableObject {
                     from: records,
                     currentProviderID: loaded.currentProviderID
                 )
+                self.quotaTargetsByID = Dictionary(uniqueKeysWithValues: targets.map { ($0.id, $0) })
                 guard !targets.isEmpty else {
                     self.quotaChips = []
                     self.quotaUpdatedAt = nil

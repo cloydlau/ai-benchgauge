@@ -1,5 +1,6 @@
 import AppKit
 import QuartzCore
+import SwiftUI
 
 /// Captures the on-screen leaderboard panel without screen-recording permission.
 /// `cacheDisplay` redraws AppKit cells; `layer.render` keeps SwiftUI layers that
@@ -11,17 +12,30 @@ enum PanelScreenshot {
     /// inserted. A failed replacement must never produce a shareable image.
     static func capture(
         view: NSView,
-        replacingTopBandWith replacement: (band: CGRect, prompt: CGImage)? = nil
+        replacingTopBandWith replacement: (band: CGRect, prompt: CGImage)? = nil,
+        replacingFooterBandWith footerReplacement: (band: CGRect, prompt: CGImage)? = nil
     ) -> (image: NSImage, png: Data, replacedBand: Bool)? {
         view.layoutSubtreeIfNeeded()
         view.window?.displayIfNeeded()
         CATransaction.flush()
 
         guard let rep = bestRepresentation(of: view) else { return nil }
-        return flattenedCapture(from: rep, view: view, replacingTopBandWith: replacement)
+        return flattenedCapture(from: rep, view: view, replacingTopBandWith: replacement,
+                                replacingFooterBandWith: footerReplacement)
     }
 
     static let quotaStripIdentifier = NSUserInterfaceItemIdentifier("ai-leaderboard.quota-strip")
+    static let footerIdentifier = NSUserInterfaceItemIdentifier("ai-benchgauge.screenshot-footer")
+
+    /// Full-width footer band in the same top-left coordinates as the quota row.
+    static func footerBand(in host: NSView) -> CGRect? {
+        guard let anchor = descendant(of: host, identified: footerIdentifier) else { return nil }
+        let frame = topDownRect(anchor.convert(anchor.bounds, to: host), in: host)
+        guard frame.height >= 20, frame.height <= 80,
+              frame.minY >= max(0, host.bounds.height - 100),
+              abs(frame.maxY - host.bounds.height) <= 2 else { return nil }
+        return CGRect(x: 0, y: frame.minY, width: host.bounds.width, height: frame.height)
+    }
 
     /// Full-width band covering the quota chip row, in top-left view points.
     /// Nil when the row is absent or the measured frame is not a header band.
@@ -179,7 +193,8 @@ enum PanelScreenshot {
     private static func flattenedCapture(
         from rep: NSBitmapImageRep,
         view: NSView,
-        replacingTopBandWith replacement: (band: CGRect, prompt: CGImage)?
+        replacingTopBandWith replacement: (band: CGRect, prompt: CGImage)?,
+        replacingFooterBandWith footerReplacement: (band: CGRect, prompt: CGImage)?
     ) -> (image: NSImage, png: Data, replacedBand: Bool)? {
         guard let source = rep.cgImage, source.width > 1, source.height > 1 else { return nil }
         let pixelsWide = source.width
@@ -218,6 +233,11 @@ enum PanelScreenshot {
             output = replaced
             replacedBand = true
         }
+        if let footerReplacement {
+            guard let replaced = replacingHorizontalBand(output, band: footerReplacement.band,
+                prompt: footerReplacement.prompt, view: view, bleed: 0) else { return nil }
+            output = replaced
+        }
 
         let bitmap = NSBitmapImageRep(cgImage: output)
         bitmap.size = pointSize
@@ -227,17 +247,18 @@ enum PanelScreenshot {
         return (image, png, replacedBand)
     }
 
-    /// Overwrites the entire source band, then draws an image of the same
-    /// CC Switch guide used in the live empty state.
+    /// Covers the source band and its edge pixels, then centers the replacement
+    /// at its original aspect ratio. The extra fill must not stretch the text.
     private static func replacingHorizontalBand(
         _ image: CGImage,
         band: CGRect,
         prompt: CGImage,
-        view: NSView
+        view: NSView,
+        bleed: CGFloat = 2
     ) -> CGImage? {
         let viewSize = view.bounds.size
-        guard viewSize.width > 1, viewSize.height > 1, image.width > 1, image.height > 1 else { return nil }
-        let bleed: CGFloat = 2
+        guard viewSize.width > 1, viewSize.height > 1, image.width > 1, image.height > 1,
+              prompt.width > 0, prompt.height > 0 else { return nil }
         var top = band.minY - bleed
         var bottom = band.maxY + bleed
         if top < 0 { top = 0 }
@@ -272,7 +293,15 @@ enum PanelScreenshot {
             .usingColorSpace(.sRGB)?.cgColor
         context.setFillColor(marginColor ?? opaqueBackground(for: view))
         context.fill(replacementRect)
-        context.draw(prompt, in: replacementRect)
+        let promptScale = CGFloat(width) / CGFloat(prompt.width)
+        let promptHeight = CGFloat(prompt.height) * promptScale
+        let promptRect = CGRect(x: 0,
+            y: CGFloat(height) - band.midY * scaleY - promptHeight / 2,
+            width: CGFloat(width), height: promptHeight)
+        context.saveGState()
+        context.clip(to: replacementRect)
+        context.draw(prompt, in: promptRect)
+        context.restoreGState()
         return context.makeImage()
     }
 
@@ -329,4 +358,24 @@ enum PanelScreenshot {
         }
         return (resolved.usingColorSpace(.sRGB) ?? resolved).cgColor
     }
+}
+
+/// A noninteractive geometry marker; the live footer keeps its regular layout.
+struct ScreenshotFooterAnchor: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = ScreenshotFooterAnchorView()
+        view.identifier = PanelScreenshot.footerIdentifier
+        return view
+    }
+    func updateNSView(_ view: NSView, context: Context) {
+        view.identifier = PanelScreenshot.footerIdentifier
+    }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSView, context: Context) -> CGSize? {
+        guard let width = proposal.width, let height = proposal.height else { return nil }
+        return CGSize(width: width, height: height)
+    }
+}
+
+private final class ScreenshotFooterAnchorView: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }

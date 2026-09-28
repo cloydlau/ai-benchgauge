@@ -7,11 +7,14 @@ import LeaderboardCore
 /// These are account balances, not properties of a ranked model, so they sit
 /// above the table instead of becoming another score column. A missing CC
 /// Switch install, or an official provider with no stored login, stays hidden.
-/// Codex does not need to be installed.
+/// Reading stored quotas does not require Codex. Direct OpenAI reauthorization
+/// uses its official account service through the app's connection controller.
 struct QuotaStrip: View {
     let chips: [AccountQuotaChip]
     let language: AppLanguage
     let onConnectQwen: () -> Void
+    let onConnectOpenAI: (AccountQuotaChip) -> Void
+    let connectingOpenAIProviderID: String?
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
@@ -24,7 +27,9 @@ struct QuotaStrip: View {
                         chip: chip,
                         now: context.date,
                         language: language,
-                        onConnectQwen: needsQwenConnection(chip) ? onConnectQwen : nil
+                        onConnectQwen: needsQwenConnection(chip) ? onConnectQwen : nil,
+                        onConnectOpenAI: { onConnectOpenAI(chip) },
+                        isConnectingOpenAI: connectingOpenAIProviderID == chip.id
                     )
                 }
             }
@@ -49,11 +54,15 @@ private struct QuotaChipView: View {
     let now: Date
     let language: AppLanguage
     let onConnectQwen: (() -> Void)?
+    let onConnectOpenAI: () -> Void
+    let isConnectingOpenAI: Bool
 
     var body: some View {
-        if onConnectQwen != nil || chip.websiteURL != nil {
+        if requiresOpenAISignIn || onConnectQwen != nil || chip.websiteURL != nil {
             Button {
-                if let onConnectQwen {
+                if requiresOpenAISignIn {
+                    onConnectOpenAI()
+                } else if let onConnectQwen {
                     onConnectQwen()
                 } else if let url = chip.websiteURL {
                     NSWorkspace.shared.open(url)
@@ -63,13 +72,18 @@ private struct QuotaChipView: View {
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
+            .disabled(isConnectingOpenAI)
         } else {
             chipBody
         }
     }
 
+    private var requiresOpenAISignIn: Bool {
+        chip.kind == .officialNote && (isConnectingOpenAI || chip.status == .message(AccountQuotaMessage.reauthRequired))
+    }
+
     /// Any window at zero remaining makes the whole provider unusable, so
-    /// the chip wears the failure, not just the 0% run: red wash and stroke,
+    /// the chip wears the failure, not just the 0% run: red wash,
     /// struck-through name, and a dimmed monochrome logo.
     private var isExhausted: Bool {
         AccountQuotaFormatting.isExhausted(chip)
@@ -88,7 +102,13 @@ private struct QuotaChipView: View {
                 .foregroundStyle(isExhausted ? .secondary : .primary)
                 .strikethrough(isExhausted, color: exhaustedAccent)
                 .lineLimit(1)
-            QuotaRunsText(runs: runs)
+            if isConnectingOpenAI {
+                Text(language.text("Waiting for authorization", "等待授权"))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            } else {
+                QuotaRunsText(runs: runs)
+            }
         }
         .padding(.horizontal, 7)
         .padding(.vertical, 3)
@@ -98,19 +118,43 @@ private struct QuotaChipView: View {
         .help(helpText)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
-        .accessibilityAddTraits(onConnectQwen == nil && chip.websiteURL == nil ? [] : .isButton)
+        .accessibilityAddTraits(requiresOpenAISignIn || onConnectQwen != nil || chip.websiteURL != nil ? .isButton : [])
     }
 
     private var helpText: String {
+        if requiresOpenAISignIn {
+            return language.text(
+                "Click to authorize OpenAI in your browser. Your quota refreshes automatically when sign-in finishes.",
+                "点击在浏览器中授权 OpenAI；登录成功后，余量会自动刷新。"
+            )
+        }
         let help = AccountQuotaFormatting.help(for: chip, now: now)
             .components(separatedBy: "\n")
             .map(language.quotaText)
             .joined(separator: "\n")
         let exhaustedNotice = language.text("Quota exhausted; temporarily unavailable", "额度已用尽，暂不可用")
-        let exhaustedHelp = isExhausted ? [exhaustedNotice, help].joined(separator: "\n") : help
+        let balanceHelp = balanceColorHelp
+        let detailedHelp = [help, balanceHelp].filter { !$0.isEmpty }.joined(separator: "\n")
+        let exhaustedHelp = isExhausted ? [exhaustedNotice, detailedHelp].joined(separator: "\n") : detailedHelp
         guard onConnectQwen != nil else { return exhaustedHelp }
         return [exhaustedHelp, language.text("Click to connect Qwen usage", "点击连接千问官网用量")]
             .filter { !$0.isEmpty }.joined(separator: "\n")
+    }
+
+    private var balanceColorHelp: String {
+        guard case let .balances(balances) = chip.status else { return "" }
+        var seen = Set<String>()
+        return balances.compactMap { balance -> String? in
+            guard let reference = QuotaColorScale.balanceReference(currency: balance.currency) else { return nil }
+            let amount: (Double) -> String = {
+                AccountQuotaFormatting.balanceText(amount: $0, currency: balance.currency)
+            }
+            let text = language.text(
+                "Color reference: \(amount(0)) red, \(amount(reference.orange)) orange, \(amount(reference.yellow)) yellow, \(amount(reference.green))+ green; continuous transitions in between.",
+                "金额颜色参考：\(amount(0)) 红、\(amount(reference.orange)) 橙、\(amount(reference.yellow)) 黄、\(amount(reference.green)) 及以上绿；中间连续过渡。"
+            )
+            return seen.insert(text).inserted ? text : nil
+        }.joined(separator: "\n")
     }
 
     private var accessibilityLabel: String {
@@ -166,11 +210,14 @@ private struct QuotaChipView: View {
             : Color(red: 0.13, green: 0.58, blue: 0.34)
     }
 
-    /// Matches the red run tone so the chip frame and the 0% text agree.
+    private var quotaAccent: Color? {
+        AccountQuotaFormatting.colorLevel(for: chip).map {
+            remainingQuotaColor($0, dark: colorScheme == .dark)
+        }
+    }
+
     private var exhaustedAccent: Color {
-        colorScheme == .dark
-            ? Color(red: 1.0, green: 0.45, blue: 0.42)
-            : Color(red: 0.86, green: 0.16, blue: 0.16)
+        remainingQuotaColor(0, dark: colorScheme == .dark)
     }
 
     private var organizationName: String {
@@ -186,7 +233,11 @@ private struct QuotaChipView: View {
 
     private var chipBackground: some View {
         let fill: Color
-        if isExhausted {
+        if let quotaAccent {
+            fill = quotaAccent.opacity(chip.isCurrent
+                ? (colorScheme == .dark ? 0.20 : 0.12)
+                : (colorScheme == .dark ? 0.12 : 0.06))
+        } else if isExhausted {
             fill = exhaustedAccent.opacity(colorScheme == .dark ? 0.22 : 0.12)
         } else {
             fill = chip.isCurrent
@@ -197,18 +248,19 @@ private struct QuotaChipView: View {
             .fill(fill)
     }
 
+    @ViewBuilder
     private var chipStroke: some View {
-        let isEmphasized = isExhausted || chip.isCurrent
-        let color: Color
-        if isExhausted {
-            color = exhaustedAccent.opacity(colorScheme == .dark ? 0.95 : 0.80)
-        } else {
-            color = chip.isCurrent
-                ? currentAccent.opacity(colorScheme == .dark ? 0.90 : 0.72)
-                : Color.primary.opacity(0.08)
+        if chip.isCurrent {
+            let color = if let quotaAccent {
+                quotaAccent.opacity(colorScheme == .dark ? 0.90 : 0.72)
+            } else if isExhausted {
+                exhaustedAccent.opacity(colorScheme == .dark ? 0.95 : 0.80)
+            } else {
+                currentAccent.opacity(colorScheme == .dark ? 0.90 : 0.72)
+            }
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .strokeBorder(color, lineWidth: 1)
         }
-        return RoundedRectangle(cornerRadius: 6, style: .continuous)
-            .strokeBorder(color, lineWidth: isEmphasized ? 1 : 0.5)
     }
 }
 
@@ -231,17 +283,23 @@ private struct QuotaRunsText: View {
         case .secondary:
             return .secondary
         case .green:
-            return colorScheme == .dark
-                ? Color(red: 0.49, green: 0.84, blue: 0.55)
-                : Color(red: 0.10, green: 0.52, blue: 0.26)
+            return remainingQuotaColor(100, dark: colorScheme == .dark)
         case .orange:
             return .orange
         case .red:
-            return colorScheme == .dark
-                ? Color(red: 1.0, green: 0.45, blue: 0.42)
-                : Color(red: 0.86, green: 0.16, blue: 0.16)
+            return remainingQuotaColor(0, dark: colorScheme == .dark)
+        case let .remaining(percent):
+            return remainingQuotaColor(percent, dark: colorScheme == .dark)
+        case let .balance(amount, currency):
+            guard let level = QuotaColorScale.balanceLevel(amount: amount, currency: currency) else { return .secondary }
+            return remainingQuotaColor(level, dark: colorScheme == .dark)
         }
     }
+}
+
+private func remainingQuotaColor(_ percent: Double, dark: Bool) -> Color {
+    let rgb = QuotaColorScale.color(remainingPercent: percent, dark: dark)
+    return Color(red: rgb.red, green: rgb.green, blue: rgb.blue)
 }
 
 /// Lays chips out left to right and starts a new line when the next chip does

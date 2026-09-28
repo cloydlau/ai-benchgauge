@@ -26,7 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @MainActor
-final class StatusBarController: NSObject, NSPopoverDelegate {
+final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
     @IBOutlet private var button: NSStatusBarButton?
     private static let statusItemSymbolName = "brain.head.profile"
     private let popover = NSPopover()
@@ -34,6 +34,9 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private let statusItem: NSStatusItem
     private let hosting: NSHostingController<LeaderboardView>
     private var stateObservation: AnyCancellable?
+    private var presentedMode: PanelMode
+    private var leaderboardWindow: NSWindow?
+    private var lastLeaderboardWindowFrame: NSRect?
     private var outsideClickMonitor: Any?
     private var appActivationObserver: NSObjectProtocol?
     /// Real clicks stay transparent until the post-show frame pin lands.
@@ -54,6 +57,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 
     init(state: AppState) {
         self.state = state
+        presentedMode = state.panelMode
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         let initialMaximumWidth = max(600, floor((NSScreen.main?.visibleFrame.width ?? 1136) - 16))
         hosting = NSHostingController(rootView: LeaderboardView(state: state, maximumWidth: initialMaximumWidth))
@@ -67,11 +71,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         // slide. That second slide is the down-left twitch after open.
         popover.animates = false
         popover.delegate = self
-        let initialWidth = LeaderboardView.preferredWidth(for: state, maximumWidth: initialMaximumWidth)
-        let contentSize = NSSize(
-            width: initialWidth,
-            height: LeaderboardView.preferredHeight(for: state, width: initialWidth, maximumWidth: initialMaximumWidth)
-        )
+        let contentSize = LeaderboardView.preferredSize(for: state, maximumWidth: initialMaximumWidth)
         // Resize explicitly so AppKit cannot re-anchor the popover on each
         // SwiftUI layout pass.
         hosting.sizingOptions = []
@@ -89,6 +89,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         stateObservation = state.objectWillChange.sink { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.updateStatusItem()
+                self?.updatePresentationMode()
                 self?.updatePanelWidth()
                 self?.updateDismissMonitor()
             }
@@ -121,7 +122,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }
 
     private func prewarmPopover() {
-        guard !popover.isShown, let button = statusItem.button else { return }
+        guard state.panelMode != .window, !popover.isShown, let button = statusItem.button else { return }
         updatePanelWidth()
         revealAfterSettle = false
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
@@ -190,9 +191,9 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }
 
     /// A status-item popover is a child of the menu-bar window, so it inherits
-    /// status-bar level and nothing else can cover it. Detach that relationship
-    /// after show and drop to the normal window level. It still comes forward
-    /// when opened; later clicks on other windows can then cover it.
+    /// status-bar level. Detach that relationship after show, keeping that
+    /// level only for Always on top. Other modes use the normal window level
+    /// so later clicks on other windows can cover them.
     ///
     /// Detaching and the level change make AppKit re-anchor the panel. On a
     /// right-side status item that re-anchor shifts the window down and left.
@@ -211,12 +212,15 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             panel.isFloatingPanel = false
             panel.hidesOnDeactivate = false
         }
-        window.level = .normal
+        // Stay above application windows while allowing pop-up menus to open
+        // above this panel, including the menu used to leave this mode.
+        window.level = state.panelMode.staysOnTop ? .statusBar : .normal
         window.animationBehavior = .none
         applySettledFrame(to: window)
     }
 
     private func applySettledFrame(to window: NSWindow) {
+        guard window !== leaderboardWindow, window === hosting.view.window else { return }
         guard let settled = settledPopoverFrame, !isApplyingSettledFrame else { return }
         guard !framesMatch(window.frame, settled) else { return }
         guard framePinAttempts < 8 else { return }
@@ -299,12 +303,14 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }
 
     private func updatePanelWidth() {
+        guard state.panelMode != .window else { return }
         let limit = maximumWidth
         if hosting.rootView.maximumWidth != limit {
             hosting.rootView = LeaderboardView(state: state, maximumWidth: limit)
         }
-        let width = LeaderboardView.preferredWidth(for: state, maximumWidth: limit)
-        let height = LeaderboardView.preferredHeight(for: state, width: width, maximumWidth: limit)
+        let size = LeaderboardView.preferredSize(for: state, maximumWidth: limit)
+        let width = size.width
+        let height = size.height
         let oldWidth = popover.contentSize.width
         let oldHeight = popover.contentSize.height
         guard abs(width - oldWidth) > 0.5 || abs(height - oldHeight) > 0.5 else { return }
@@ -323,7 +329,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             installFramePin(on: window)
         }
 
-        let size = NSSize(width: width, height: height)
         hosting.preferredContentSize = size
         popover.contentSize = size
 
@@ -335,7 +340,8 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 
     /// AppKit re-anchors after the level drop. Snap back before that frame paints.
     @objc private func popoverWindowDidMove(_ notification: Notification) {
-        guard let window = notification.object as? NSWindow else { return }
+        guard popover.isShown, let window = notification.object as? NSWindow,
+              window === hosting.view.window, window !== leaderboardWindow else { return }
         applySettledFrame(to: window)
     }
 
@@ -385,6 +391,11 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }
 
     @objc private func togglePopover() {
+        if state.panelMode == .window {
+            showLeaderboardWindow()
+            state.refreshFromMenuClick()
+            return
+        }
         if popover.isShown {
             closePopover()
             return
@@ -405,6 +416,114 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private func closePopover() {
         removeDismissMonitor()
         popover.performClose(nil)
+    }
+
+    private func updatePresentationMode() {
+        guard presentedMode != state.panelMode else { return }
+        let wasVisible = popover.isShown || leaderboardWindow?.isVisible == true || leaderboardWindow?.isMiniaturized == true
+        presentedMode = state.panelMode
+        if presentedMode == .window {
+            closePopover()
+            if wasVisible { showLeaderboardWindow() }
+        } else if let window = leaderboardWindow {
+            // Leave native full-screen/Split View before moving back to a
+            // menu-bar popover, rather than reparenting a full-screen window.
+            if window.styleMask.contains(.fullScreen) {
+                reopenPopoverAfterFullScreen = wasVisible
+                window.toggleFullScreen(nil)
+            } else {
+                lastLeaderboardWindowFrame = window.frame
+                window.orderOut(nil)
+                if wasVisible { showPopover() }
+            }
+        }
+        // Popover-to-popover changes reuse the visible panel. Apply the new
+        // level immediately and keep its anchor stable while AppKit settles.
+        if popover.isShown, let window = hosting.view.window {
+            settledPopoverFrame = window.frame
+            framePinAttempts = 0
+            installFramePin(on: window)
+            settlePopoverWindow()
+            removeFramePinAfterSettling()
+        }
+    }
+
+    private var reopenPopoverAfterFullScreen = false
+
+    func windowDidExitFullScreen(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window === leaderboardWindow,
+              state.panelMode != .window else { return }
+        lastLeaderboardWindowFrame = window.frame
+        window.orderOut(nil)
+        if reopenPopoverAfterFullScreen {
+            reopenPopoverAfterFullScreen = false
+            showPopover()
+        }
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        if let window = notification.object as? NSWindow, window === leaderboardWindow,
+           !window.styleMask.contains(.fullScreen) {
+            lastLeaderboardWindowFrame = window.frame
+        }
+        PointingHandCursorRegistry.shared.reset()
+    }
+
+    private func showPopover() {
+        guard let button = statusItem.button, !popover.isShown else { return }
+        updatePanelWidth()
+        revealAfterSettle = true
+        popover.contentViewController?.view.window?.alphaValue = 0
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+    }
+
+    private func showLeaderboardWindow() {
+        var initialFrame: NSRect?
+        if leaderboardWindow == nil {
+            let screen = statusItem.button?.window?.screen ?? NSScreen.main
+            let contentSize = LeaderboardView.preferredSize(for: state, maximumWidth: maximumWidth)
+            let window = NSWindow(contentRect: NSRect(origin: .zero, size: contentSize),
+                                  styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                                  backing: .buffered, defer: false)
+            window.title = "AI BenchGauge"
+            window.identifier = NSUserInterfaceItemIdentifier("ai-benchgauge.leaderboard-window")
+            window.isReleasedWhenClosed = false
+            window.delegate = self
+            window.level = .normal
+            window.hidesOnDeactivate = false
+            window.collectionBehavior = [.fullScreenPrimary, .fullScreenAllowsTiling]
+            window.contentMinSize = NSSize(width: 600, height: 380)
+            let controller = NSHostingController(rootView: LeaderboardWindowView(state: state))
+            controller.sizingOptions = []
+            window.contentViewController = controller
+            // Installing a GeometryReader host reduces the window to its
+            // minimum size. Restore the shared panel size after mounting.
+            window.setContentSize(contentSize)
+            if let screen = screen ?? window.screen {
+                let visible = screen.visibleFrame
+                var frame = window.frame
+                frame.origin = NSPoint(x: visible.midX - frame.width / 2,
+                                       y: visible.midY - frame.height / 2)
+                window.setFrame(frame, display: false)
+            }
+            initialFrame = window.frame
+            leaderboardWindow = window
+        }
+        guard let window = leaderboardWindow else { return }
+        let frame = lastLeaderboardWindowFrame ?? initialFrame
+        lastLeaderboardWindowFrame = nil
+        if window.isMiniaturized { window.deminiaturize(nil) }
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        // Hosting layout can recenter a previously hidden window when it is
+        // shown again. Restore the user's frame once after that layout pass.
+        // Subsequent moves/resizes are entirely owned by the user and macOS.
+        guard let frame else { return }
+        DispatchQueue.main.async { [weak self, weak window] in
+            guard let self, let window, self.state.panelMode == .window,
+                  window.isVisible, !window.styleMask.contains(.fullScreen) else { return }
+            window.setFrame(frame, display: true, animate: false)
+        }
     }
 
     private func closeIfUnfocused() {
