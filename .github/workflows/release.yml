@@ -70,7 +70,13 @@ jobs:
           printf 'APP_SIGNING_IDENTITY=%s\n' "$APPLE_SIGNING_IDENTITY" >> "$GITHUB_ENV"
           rm -f "$certificate"
       - name: Tests and universal application
-        run: node Scripts/ci-checks.mjs
+        run: |
+          mkdir -p work
+          set -o pipefail
+          if ! node Scripts/ci-checks.mjs 2>&1 | tee work/macos-build.log; then
+            node Scripts/report-ci-failure.mjs work/macos-build.log
+            exit 1
+          fi
         env:
           APP_UNIVERSAL: '1'
       - name: Optional notarization
