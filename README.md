@@ -22,8 +22,10 @@ Stop switching between leaderboard tabs. Open the menu bar to compare the Top 20
 | --- | --- |
 | **Paired rankings** | Compare separate Top 20 lists and scores across general, coding, image, and video categories. |
 | **Models or companies** | See individual models, or rank each company by its highest-scoring listed model. Extra or weaker listings do not change that score. |
-| **CC Switch quotas** | Read the local CC Switch database, query supported providers, and show account quota status above the table. Codex does not need to be installed. |
+| **Four display modes** | Choose Keep open, Always on top, Close on blur, or Window from the footer menu. Keep open stays visible when you click elsewhere; click the menu bar icon again to close. Always on top also keeps the panel above other application windows. The window first opens centered on the menu bar icon's screen at the same content size as the popover. It can be moved, resized, or tiled in macOS Split View, and retains your adjustments when switching modes. |
+| **CC Switch quotas** | Read the local CC Switch database, query supported providers, and show account quota status above the table. Percentage and monetary balance colors gradually change from green to red as the quota decreases. Monetary references are ¥0/10/30/100 and $0/2/5/20 for red/orange/yellow/green, with continuous transitions; hover for the currency's reference amounts. Codex does not need to be installed. |
 | **Plan and API links** | Available plan and pay-as-you-go links appear only in company view. Simplified Chinese prefers mainland China sites; other interface languages prefer international sites. |
+| **License notices** | Footer links open a scrollable sheet for the app's MIT license and third-party notices, with full license text available offline. See the [notice inventory](docs/third-party-notices.md) for the current audit status. |
 | **Updates that stay out of the way** | Opening the panel checks for updates. Rankings update daily, retry hourly after a failed daily update, and remain available from the local cache when a source is temporarily down. |
 
 ### How CC Switch quotas work
@@ -33,9 +35,13 @@ The app identifies supported providers from the **local CC Switch database**, th
 - **No CC Switch?** Rankings still work, and the quota area offers an official installation link.
 - **No supported provider found?** The rankings still work without a quota strip.
 - **Database read fails?** Previously loaded quota values, if any, remain visible and are marked as stale.
-- **Sharing a screenshot?** The panel's copy-screenshot action replaces visible quotas with the same CC Switch setup guide shown when quotas are unavailable, keeping account balances out of the shared image.
+- **Sharing a screenshot?** The copy-screenshot action replaces visible quotas with the CC Switch setup guide and displays `github.com/cloydlau/ai-benchgauge` in the single-row footer, so viewers can find the project from the image.
 
 For Qwen Token Plan, the app reads the remaining percentage and reset time from the authenticated official page. Click the Qwen quota card to sign in the first time. The official `qianwen usage summary --format json` output is a fallback when it reports a subscribed plan. CC Switch request counts from this Mac are not treated as subscription credits.
+
+Card dates consistently say “to” for the boundary reported by the provider. The app does not infer renewal or cancellation, and a passed date alone does not mean access has expired. Hourly and weekly quota reset times appear in tooltips; a missing plan or monthly date is never replaced by a short-window reset.
+
+If OpenAI shows **Sign in again**, clicking the card opens the official authorization flow. Authorize the same account and the quota refreshes automatically; later queries renew the login, with reauthorization needed only if renewal fails. Direct authorization requires an installed Codex CLI or ChatGPT/Codex desktop app. Reading an existing CC Switch login still works without Codex. The new login is saved in a separate local AI BenchGauge profile and requires no manual CC Switch sync.
 
 ## Leaderboard sources
 
@@ -66,15 +72,29 @@ The build script produces an ad-hoc signed app at `outputs/AI-BenchGauge.app`. O
 
 <br>
 
-The local workflow handles purpose-based atomic commits and pushes, current-model identity and avatar, desktop notifications, and a debounced rebuild and restart. It does not run tests or code review.
+The local workflow runs the complete Swift and Node.js test suites before purpose-based atomic commits, pushes, builds, and restarts. It also handles current-model identity, avatars, desktop notifications, debounce, and throttle.
 
 ```bash
 ./dev.sh
 ```
 
-`./dev.sh` watches `Sources/`, `Package.swift`, and both `make-app.sh` scripts. It also checks for uncommitted changes and unpushed commits. After changes have stopped for one minute, and at least one minute has passed since the previous run, it commits and pushes first, then rebuilds and restarts if source files changed. On startup, existing unpushed commits are pushed immediately.
+`./dev.sh` runs tests on startup, then reopens the latest app, building first if the executable is missing or older than the source. The debounce and throttle intervals below apply to subsequent changes. A test failure stops subsequent actions; the watcher stays active and retries after a new save.
+
+`./dev.sh` watches `Sources/`, `Tests/`, `Scripts/`, and the root build/development scripts. It also checks for uncommitted changes and unpushed commits. After changes have stopped for one minute, and at least one minute has passed since the previous run, it runs tests, commits and pushes, then rebuilds and restarts when watched files changed. Existing unpushed commits also require passing tests. Child commit/build processes reuse a pass only while all test inputs remain identical.
 
 `WATCH_DEBOUNCE_MS` and `WATCH_THROTTLE_MS` change those intervals. `WATCH_AUTOCOMMIT=0` disables automatic commits; `COMMIT_PUSH=0` or `WATCH_AUTOPUSH=0` disables automatic pushes. A failed build, commit, or push is not retried repeatedly for the same source or Git state. Save again or restart `./dev.sh` to schedule another attempt.
+
+```bash
+./test.sh                         # Complete offline tests
+./test.sh --core                  # Swift core only
+./test.sh --scripts               # Node.js scripts only
+./test.sh --coverage              # Swift and Node.js coverage
+DESKTOP_NOTIFY=0 node Scripts/ci-checks.mjs  # Syntax, tests, release app build
+```
+
+Standalone `Scripts/commit.sh` and `./make-app.sh` also require passing tests. On a gate failure, Codex may attempt one source repair, followed by the complete real test suite; an AI report cannot bypass tests. Incomplete reports, unresolved decisions, changed test/config files, and repeated failures stop the workflow. `TEST_AUTO_REPAIR=0` disables repair; `TEST_REPAIR_CODEX` selects the CLI and `TEST_REPAIR_TIMEOUT_MS` changes the default 10-minute limit. Offline sandboxes and known environment failures skip AI repair. Logs and repair state remain in ignored `work/test-results/`; a restart does not reset the repair budget for identical code. Manual `./test.sh` only runs tests.
+
+See [Testing](docs/testing.md) for test scope and optional saved-page fixtures. Restart an already running `./dev.sh` once after updating workflow scripts.
 
 ```bash
 Scripts/commit.sh                 # Stage changes and create purpose-based commits
