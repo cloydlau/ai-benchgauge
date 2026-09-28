@@ -19,7 +19,9 @@ Invoke-Checked dotnet @('restore', 'apps/windows/BenchGauge.Tests', '--locked-mo
 Invoke-Checked node @('Scripts/windows-tests.mjs')
 Invoke-Checked dotnet @('restore', 'apps/windows/BenchGauge', '-r', 'win-x64', '--locked-mode')
 Invoke-Checked dotnet @('publish', 'apps/windows/BenchGauge', '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true', '--no-restore', '-o', 'outputs/windows/app')
-Invoke-Checked swift @('build', '-c', 'release', '--product', 'benchgauge-engine', '--scratch-path', 'work/swift-windows-release')
+# Swift 6.4's Windows whole-module optimizer crashes on Foundation types.
+# Keep release optimization, but compile individual files rather than WMO.
+Invoke-Checked swift @('build', '-c', 'release', '--product', 'benchgauge-engine', '--scratch-path', 'work/swift-windows-release', '-Xswiftc', '-no-whole-module-optimization')
 $binaryDirectory = (& swift build -c release --product benchgauge-engine --scratch-path work/swift-windows-release --show-bin-path).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Could not resolve Swift output directory' }
 $engineDirectory = Join-Path $root 'outputs/windows/app/engine'

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 const lines = readFileSync(process.argv[2], 'utf8').replace(/\u001b\[[0-9;]*m/g, '').split('\n')
 const focused = new Set()
 for (let i = 0; i < lines.length; i++) {
-  if (/error:|fatal error|error [A-Z]+\d+|Exception|AssertionError|ERR_|failed|✘|✖|not ok/i.test(lines[i])) {
+  if (/error:|fatal error|error [A-Z]+\d+|Exception|AssertionError|ERR_|failed|Stack dump|While |Pass Manager|✘|✖|not ok/i.test(lines[i])) {
     for (let j = Math.max(0, i - 1); j <= Math.min(lines.length - 1, i + 3); j++) focused.add(j)
   }
 }
