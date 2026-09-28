@@ -6,8 +6,12 @@ notices. Complete notices are bundled locally and are selectable and scrollable.
 
 ## Current software inventory
 
-- `Package.swift` declares no external package dependencies. `LeaderboardCore`
-  and `leaderboard-menu` are this repository's own targets.
+- `Package.swift` pins Sparkle **2.10.0**, resolved at
+  `eef1a539a373c1f1a320624b1130fc5de7b2e100` in `Package.resolved`.
+  Packaging embeds its universal macOS framework and updater helpers.
+  The complete upstream distribution `LICENSE`, including its component notices,
+  is bundled as `Resources/Licenses/Sparkle.txt` and listed in `ThirdParty.json`.
+- `LeaderboardCore` and `leaderboard-menu` are this repository's own targets.
 - The application license is the repository's `LICENSE`, MIT, copyright
   2026 Cloyd Lau. Packaging copies it into `Resources/Licenses/AI-BenchGauge.txt`.
 - The executable dynamically links the macOS system frameworks, Swift runtime,
@@ -16,7 +20,7 @@ notices. Complete notices are bundled locally and are selectable and scrollable.
 - CC Switch, Codex CLI, and qianwen CLI are external integrations, not bundled
   dependencies. Their source code and executables are not distributed in this app.
 
-`ThirdParty.json` is currently empty for the software inventory above. This is
+The Sparkle notice above covers the newly bundled update framework. This is
 **not a completed provenance audit of the bundled brand images**.
 
 ## Brand image provenance still needs confirmation

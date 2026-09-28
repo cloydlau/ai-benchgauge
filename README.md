@@ -54,6 +54,10 @@ If OpenAI shows **Sign in again**, clicking the card opens the official authoriz
 
 Image and video use their dedicated boards. The Artificial Analysis Coding Agent Index embeds a `materializedAt` batch stamp in its payload, and the app shows that source data time beside the index version. The other Artificial Analysis boards expose no data timestamp, so their columns show no date and the panel heading keeps this Mac's fetch time. Arena's vote cutoff is shown when available. Switching categories uses cached data first.
 
+Application updates use Sparkle: check for stable GitHub Releases hourly, then download,
+verify, install, and relaunch after the user's Install click. Click the version beside
+the title to check immediately. See [release setup and signing](docs/releasing.md).
+
 ## Quick start
 
 Running the app requires macOS 14 or later. Building from source requires Swift 6 and Command Line Tools:
