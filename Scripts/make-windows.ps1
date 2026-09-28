@@ -79,7 +79,10 @@ $nodeExecutable = (Get-Command node).Source
 try {
     $env:PATH = "$engineDirectory;$env:SystemRoot/System32;$env:SystemRoot"
     $smoke = Start-Process -FilePath (Join-Path $root 'outputs/windows/app/AI-BenchGauge.exe') -ArgumentList '--smoke-test' -Wait -PassThru
-    if ($smoke.ExitCode -ne 0) { throw 'Native UI smoke test failed' }
+    if ($smoke.ExitCode -ne 0) {
+        if (Test-Path 'work/windows-ui-smoke/failed.txt') { Get-Content 'work/windows-ui-smoke/failed.txt' | Write-Output }
+        throw 'Native UI smoke test failed'
+    }
     Invoke-Checked $nodeExecutable @('Scripts/engine-smoke.mjs', $engine)
 } finally { $env:PATH = $originalPath }
 }
