@@ -28,6 +28,14 @@ Copy-Item (Join-Path $binaryDirectory 'benchgauge-engine.exe') $engine -Force
 $swiftBin = Split-Path (Get-Command swift).Source -Parent
 $swiftRoot = (Get-Item $swiftBin).Parent.Parent.Parent.Parent.FullName
 $runtimeFiles = Get-ChildItem $swiftRoot -Recurse -Filter '*.dll' -File
+# The CI image already has the VC runtime in System32, but a user's PC may not.
+# Resolve its redistributable DLLs before falling back to operating-system DLLs.
+$vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
+$visualStudio = (& $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath).Trim()
+if (!$visualStudio) { throw 'Visual C++ redistributable directory not found' }
+$redistDirectories = Get-ChildItem (Join-Path $visualStudio 'VC/Redist/MSVC') -Directory | Sort-Object Name -Descending
+if (!$redistDirectories) { throw 'Visual C++ redistributable directory not found' }
+$runtimeFiles += Get-ChildItem (Join-Path $redistDirectories[0].FullName 'x64/Microsoft.VC143.CRT') -Filter '*.dll' -File
 $lookup = @{}
 foreach ($file in ($runtimeFiles | Sort-Object { if ($_.FullName -match '[\\/]Runtimes[\\/]') { 0 } else { 1 } })) {
     $key = $file.Name.ToLowerInvariant()
