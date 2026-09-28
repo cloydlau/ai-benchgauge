@@ -15,7 +15,7 @@ static class SmokeTests
         Directory.CreateDirectory(directory);
         var entries = Enumerable.Range(1, 20).Select(i => new Entry(i, "Synthetic model " + i, 100 - i, "OpenAI", "unitedStates", "openai", null, null, null)).ToArray();
         var state = new DisplayState([new("artificialAnalysis", "Artificial Analysis", "https://artificialanalysis.ai", "2026-09-29T00:00:00Z", null, entries), new("arenaText", "Arena", "https://arena.ai", null, null, entries)],
-            [new("fixture", "Synthetic provider", true, false, "fixture", null, false, [new("Balance 12345.67", "#198542", "#7CD68C")])], false, false, null, []);
+            [new("fixture", "Synthetic provider", true, false, "fixture", null, false, null, [new("Balance 12345.67", "#198542", "#7CD68C")])], false, false, null, []);
         foreach (var mode in new[] { "clickToClose", "alwaysOnTop", "closeOnBlur", "window" })
         {
             var window = new MainWindow(null, new Preferences { PanelMode = mode, Language = "en" });

@@ -34,14 +34,14 @@ public sealed class EngineClient : IDisposable
         catch (Exception e) when (e is IOException or JsonException or InvalidOperationException) { }
         finally { foreach (var entry in pending) if (pending.TryRemove(entry.Key, out var task)) task.TrySetException(new IOException("Data engine disconnected")); }
     }
-    public async Task<EngineResponse> Request(string command, Preferences prefs, string? providerID = null, string? loginID = null, string? authorizationURL = null)
+    public async Task<EngineResponse> Request(string command, Preferences prefs, string? providerID = null, string? loginID = null, string? authorizationURL = null, string? pageText = null)
     {
         var id = Interlocked.Increment(ref nextId);
         var completion = new TaskCompletionSource<EngineResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
         pending[id] = completion;
         try
         {
-            var json = JsonSerializer.Serialize(new { id, command, prefs.Category, prefs.Grouping, prefs.Language, providerID, loginID, authorizationURL }, AppConfig.Json);
+            var json = JsonSerializer.Serialize(new { id, command, prefs.Category, prefs.Grouping, prefs.Language, providerID, loginID, authorizationURL, pageText }, AppConfig.Json);
             await writeLock.WaitAsync();
             try { await process.StandardInput.WriteLineAsync(json); await process.StandardInput.FlushAsync(); }
             finally { writeLock.Release(); }

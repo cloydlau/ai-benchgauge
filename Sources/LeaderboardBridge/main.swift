@@ -12,6 +12,7 @@ struct Request: Decodable, Sendable {
     var providerID: String?
     var loginID: String?
     var authorizationURL: String?
+    var pageText: String?
 }
 struct Response: Encodable {
     var id: Int
@@ -39,7 +40,7 @@ struct Entry: Encodable {
 }
 struct Quota: Encodable {
     var id: String; var name: String; var isCurrent: Bool; var isStale: Bool
-    var help: String; var url: String?; var canConnect: Bool; var runs: [Run]
+    var help: String; var url: String?; var canConnect: Bool; var connection: String?; var runs: [Run]
 }
 struct Run: Encodable { var text: String; var light: String; var dark: String }
 struct Alert: Encodable { var title: String; var body: String }
@@ -61,10 +62,17 @@ actor Engine {
     private var lastInactiveRefresh: Date?
     private var activeBoardRefreshes = Set<LeaderboardCategory>()
     private var refreshingQuotas = false
+    private var qwenWebsite: QwenWebsiteQuota?
+    private var qwenCapturedAt: Date?
+    private let qwenCacheFile = PlatformPaths.applicationSupport.appending(path: "qwen-website-quota.json")
 
     init(cacheFile: URL? = nil) throws {
         cache = LeaderboardCache(fileURL: try cacheFile ?? LeaderboardCache.defaultFileURL())
         snapshot = cache.load() ?? LeaderboardSnapshot()
+        if let saved = try? Data(contentsOf: qwenCacheFile), let quota = QwenWebsiteQuotaParser.parse(saved),
+           let captured = quota.capturedAt, Date().timeIntervalSince(captured) < 86400 {
+            qwenWebsite = quota; qwenCapturedAt = captured
+        }
     }
     func handle(_ request: Request) async -> Response {
         let category = LeaderboardCategory(rawValue: request.category ?? "general") ?? .general
@@ -72,6 +80,19 @@ actor Engine {
         do {
             switch request.command {
             case "state": break
+            case "captureQwen":
+                guard let text = request.pageText, text.utf8.count <= 50000,
+                      let quota = QwenWebsiteQuotaParser.parse(Data(text.utf8)) else {
+                    return Response(id: request.id, error: "No quota found")
+                }
+                qwenWebsite = quota; qwenCapturedAt = Date()
+                if let stored = QwenWebsiteQuotaParser.persistedData(for: quota) {
+                    try FileManager.default.createDirectory(at: qwenCacheFile.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try stored.write(to: qwenCacheFile, options: .atomic)
+                    #if !os(Windows)
+                    try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: qwenCacheFile.path)
+                    #endif
+                }
             case "refreshBoards": await refreshBoards(category)
             case "refreshQuotas", "refreshCurrentQuota":
                 try await refreshQuotas(onlyCurrent: request.command == "refreshCurrentQuota")
@@ -168,21 +189,31 @@ actor Engine {
                              help: standings.first { $0.entry.rank == entry.rank }.map { CompanyLeaderboard.scoreHelp(for: $0, language: language) })
             })
         }
-        let quotas = AccountQuotaFormatting.sortedChips(chips).map { chip in
+        let displayChips = chips.map { chip -> AccountQuotaChip in
+            guard chip.kind == .qwen, let website = qwenWebsite, let captured = qwenCapturedAt,
+                  now.timeIntervalSince(captured) < 86400 else { return chip }
+            let quota = QwenWebsiteQuota(periodLabel: website.periodLabel, remainingPercent: website.remainingPercent,
+                                         resetsAt: website.resetsAt, expiresAt: website.expiresAt,
+                                         isCached: now.timeIntervalSince(captured) > 60, capturedAt: captured)
+            return AccountQuotaChip(id: chip.id, shortName: chip.shortName, websiteURL: chip.websiteURL,
+                                    kind: chip.kind, isCurrent: chip.isCurrent, status: .qwenWebsite(quota))
+        }
+        let quotas = AccountQuotaFormatting.sortedChips(displayChips).map { chip in
             Quota(id: chip.id, name: chip.shortName, isCurrent: chip.isCurrent, isStale: chip.isStale,
                   help: language.quotaText(AccountQuotaFormatting.help(for: chip, now: now)),
-                  url: chip.websiteURL?.absoluteString, canConnect: chip.kind == .officialNote,
+                  url: chip.websiteURL?.absoluteString, canConnect: chip.kind == .officialNote || chip.kind == .qwen,
+                  connection: chip.kind == .officialNote ? "openai" : (chip.kind == .qwen ? "qwen" : nil),
                   runs: AccountQuotaFormatting.runs(for: chip, now: now).map { run in
                 Run(text: language.quotaText(run.text), light: color(run.tone, dark: false), dark: color(run.tone, dark: true))
             })
         }
-        let alerts = chips.flatMap { QuotaAlerts.alerts(for: $0, now: now) }
+        let alerts = displayChips.flatMap { QuotaAlerts.alerts(for: $0, now: now) }
         let activeKeys = Set(alerts.flatMap(\.componentKeys))
-        delivered = QuotaAlerts.retainedKeys(delivered, evaluatedChips: chips, activeKeys: activeKeys)
+        delivered = QuotaAlerts.retainedKeys(delivered, evaluatedChips: displayChips, activeKeys: activeKeys)
         let pending = QuotaAlerts.pendingAlerts(alerts, delivered: delivered)
         for alert in pending { delivered.formUnion(alert.componentKeys) }
         return State(boards: boards, quotas: quotas, quotaNeedsCCSwitch: needsCCSwitch, quotaUnavailable: unavailable,
-                     trayText: AccountQuotaFormatting.menuBarText(forChips: chips).map { "\($0.name) · \(language.quotaText($0.quota))" },
+                     trayText: AccountQuotaFormatting.menuBarText(forChips: displayChips).map { "\($0.name) · \(language.quotaText($0.quota))" },
                      alerts: pending.map { Alert(title: language.quotaText($0.subtitle), body: language.quotaText($0.body)) })
     }
     private func color(_ tone: QuotaTone, dark: Bool) -> String {

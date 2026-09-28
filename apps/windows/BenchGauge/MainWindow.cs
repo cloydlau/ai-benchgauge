@@ -29,6 +29,7 @@ sealed class MainWindow : Window
     readonly DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromHours(1) };
     readonly List<ComboBox> dropdowns = [];
     DisplayState? state;
+    QwenWebsiteWindow? qwenWindow;
     DockPanel? footer;
     Button? updateButton;
     bool rendering, modalOpen, closing, refreshing, checkingUpdate;
@@ -105,6 +106,11 @@ sealed class MainWindow : Window
         if (engine is null) return;
         try
         {
+            if ((command == "refreshQuotas" || command == "refreshCurrentQuota") && prefs.QwenWebsiteConnected)
+            {
+                qwenWindow ??= new QwenWebsiteWindow(engine, prefs, SetState);
+                try { await qwenWindow.Refresh(); } catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
+            }
             var view = (prefs.Category, prefs.Grouping, prefs.Language);
             var response = await engine.Request(command, prefs);
             if (view != (prefs.Category, prefs.Grouping, prefs.Language)) return;
@@ -220,6 +226,14 @@ sealed class MainWindow : Window
     async Task Connect(Quota quota)
     {
         if (engine is null) return;
+        if (quota.Connection == "qwen")
+        {
+            qwenWindow ??= new QwenWebsiteWindow(engine, prefs, SetState);
+            try { await qwenWindow.Connect(); }
+            catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException or System.ComponentModel.Win32Exception)
+            { status.Text = Tr("Qwen sign-in could not open. Try again.", "千问登录暂不可用，请重试。"); }
+            return;
+        }
         modalOpen = true;
         try
         {
