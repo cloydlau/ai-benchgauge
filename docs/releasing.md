@@ -4,16 +4,19 @@
 两端共用 `config/app.json` 的版本号和更新公钥。只有两边的构建都成功，
 汇总任务才创建草稿 Release 并公开，避免用户收到缺少某个平台的版本。
 
-Windows 每小时读取签名清单 `windows-update.json` 及 `windows-update.json.sig`。
+Windows 每 24 小时读取签名清单 `windows-update.json` 及 `windows-update.json.sig`。
 使用与 Sparkle 相同的 Ed25519 公钥验证清单后，才接受递增版本；下载地址必须属于
 本仓库对应的版本标签。安装前核对清单中的字节数及 SHA256，用户确认后
 下载、等待旧进程退出、原位安装并重启。程序按当前用户安装，不请求管理员权限。
 
 macOS 使用 [Sparkle 2.10.0](https://sparkle-project.org/documentation/)
-检查、下载、验证、安装和重新启动。应用运行期间默认每小时检查一次；
+检查、下载、验证、安装和重新启动。应用运行期间默认每 24 小时检查一次；
 发现新版本后提示用户，点击 **Install Update / 安装更新** 后继续下载、安装并重启。
 下载途中可以取消，网络失败或校验失败会保留当前应用。
 点击应用标题旁的版本号可立即检查更新。
+
+自动检查间隔与 [Clash Verge Rev v2.5.6](https://github.com/clash-verge-rev/clash-verge-rev/blob/v2.5.6/src/hooks/use-update.ts#L31-L40)
+对齐为 24 小时；其源码里的 1 小时是查询缓存有效期。
 
 GitHub Release 同时承载安装包和更新清单。更新源固定为：
 

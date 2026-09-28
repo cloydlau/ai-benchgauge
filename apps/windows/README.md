@@ -1,7 +1,7 @@
 # Windows 原生客户端
 
 Windows 10/11 x64，WPF + 共享 Swift 核心。支持托盘、四种窗口模式、
-四类双榜、公司分组、国家筛选、三种界面语言、余量渐变、隐私截图与每小时更新。
+四类双榜、公司分组、国家筛选、三种界面语言、余量渐变、隐私截图与每 24 小时检查应用更新。
 千问登录采用 WebView2 独立浏览器配置；OpenAI 授权沿用共享核心的独立 Codex 配置。
 
 用户从同一 GitHub Release 下载 `AI-BenchGauge-<版本>-windows-x64-setup.exe`。

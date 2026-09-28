@@ -54,7 +54,7 @@ If OpenAI shows **Sign in again**, clicking the card opens the official authoriz
 
 Image and video use their dedicated boards. The Artificial Analysis Coding Agent Index embeds a `materializedAt` batch stamp in its payload, and the app shows that source data time beside the index version. The other Artificial Analysis boards expose no data timestamp, so their columns show no date and the panel heading keeps this Mac's fetch time. Arena's vote cutoff is shown when available. Switching categories uses cached data first.
 
-Application updates use Sparkle: check for stable GitHub Releases hourly, then download,
+Application updates use Sparkle: check for stable GitHub Releases every 24 hours, then download,
 verify, install, and relaunch after the user's Install click. Click the version beside
 the title to check immediately. See [release setup and signing](docs/releasing.md).
 
@@ -115,6 +115,6 @@ The commit author follows the current model in Codex configuration, with a vendo
 
 Windows uses a native WPF tray/window client and the same Swift business logic as macOS.
 Download the `.dmg` (Apple silicon + Intel) or Windows x64 `-setup.exe` from the same [GitHub Release](https://github.com/cloydlau/ai-benchgauge/releases).
-Both apps share versions, quota rules and signed hourly update checks. Windows includes Swift/.NET runtimes and supports Qwen sign-in through WebView2.
+Both apps share versions, quota rules and signed update checks every 24 hours. Windows includes Swift/.NET runtimes and supports Qwen sign-in through WebView2.
 See [Windows build instructions](apps/windows/README.md), [project structure](docs/architecture.md) and [release setup](docs/releasing.md).
 Local full tests now require .NET 10 SDK; `BENCHGAUGE_DOTNET` can select its executable.

@@ -54,7 +54,7 @@ OpenAI 顯示「需要重新登入」時，點擊卡片會直接開啟官方授�
 
 圖片和視頻使用對應的專項榜單。Artificial Analysis 只有編程智能體榜的資料帶有批次產生時間 `materializedAt`，應用程式會在該欄位標題顯示這個來源資料時間與版本號；綜合、文生圖、文生視頻三塊沒有公開資料時間，欄位標題不顯示日期，面板上方仍顯示本機擷取時間。Arena 提供投票截止時間時則會顯示該時間。切換分類會優先讀取快取，不必每次都等待網路。
 
-應用每小時檢查 GitHub 穩定版，發現新版後提示安裝；點擊後下載、驗證簽章、
+應用每 24 小時檢查 GitHub 穩定版，發現新版後提示安裝；點擊後下載、驗證簽章、
 更新並重新啟動。點擊標題旁的版本號可立即檢查。[發版設定](docs/releasing.md)。
 
 ## 快速開始
@@ -113,7 +113,7 @@ Scripts/commit.sh -m "feat(menu): …"
 ## Windows 與平台結構
 
 Mac 與 Windows 共用 Swift 業務邏輯與版本號。每次 [GitHub Release](https://github.com/cloydlau/ai-benchgauge/releases)
-同時提供 Mac 通用 `.dmg` 與 Windows x64 `-setup.exe`，兩端每小時檢查簽名更新。
+同時提供 Mac 通用 `.dmg` 與 Windows x64 `-setup.exe`，兩端每 24 小時檢查簽名更新。
 Windows 安裝包包含 Swift / .NET 執行環境，千問登入使用 WebView2。
 詳見 [Windows 建置](apps/windows/README.md)、[目錄結構](docs/architecture.md)及[發版設定](docs/releasing.md)。
 完整本機測試另需 .NET 10 SDK；可用 `BENCHGAUGE_DOTNET` 指定執行檔。
