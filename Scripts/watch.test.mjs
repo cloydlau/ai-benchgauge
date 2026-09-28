@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { spawn } from 'node:child_process'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { dirtyStatusSignature } from './watch.mjs'
 
 test('saving the same dirty file changes the commit retry signature', () => {
@@ -14,4 +19,169 @@ test('staging a new version changes the commit retry signature', () => {
   const before = dirtyStatusSignature(status, (path) => path === '.git/index' ? 'index-1' : 'file-1')
   const after = dirtyStatusSignature(status, (path) => path === '.git/index' ? 'index-2' : 'file-1')
   assert.notEqual(before, after)
+})
+
+// Run the real watcher in an isolated project. The build/restart scripts only
+// record calls; these tests never launch the user's app or use its accounts.
+function watcherFixture(t, { binary = 'fresh', restartFails = false, testsFail = false, gitWork = false, env = {} } = {}) {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'benchgauge-watch-test-')))
+  const scripts = join(root, 'Scripts')
+  const app = join(root, 'outputs', 'AI-BenchGauge.app')
+  mkdirSync(scripts)
+  mkdirSync(join(root, 'Sources'))
+  mkdirSync(join(root, 'Tests'))
+  mkdirSync(join(app, 'Contents', 'MacOS'), { recursive: true })
+  const original = dirname(fileURLToPath(import.meta.url))
+  for (const name of ['watch.mjs', 'commit-identity.mjs', 'desktop-notify.mjs', 'git-network.mjs']) {
+    copyFileSync(join(original, name), join(scripts, name))
+  }
+  const source = join(root, 'Sources', 'example.swift')
+  const testFile = join(root, 'Tests', 'example.swift')
+  writeFileSync(testFile, testsFail ? 'fail' : 'pass')
+  writeFileSync(join(scripts, 'test-repair.mjs'), `import { appendFileSync, readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+const root = fileURLToPath(new URL('../', import.meta.url))
+export async function runTestGate() {
+  appendFileSync(root + 'events', 'test\\n')
+  return { status: readFileSync(root + 'Tests/example.swift', 'utf8') === 'fail' ? 1 : 0, signature: 'mock-pass', logPath: 'mock.log' }
+}
+`)
+  writeFileSync(source, '// initial\n')
+  writeFileSync(join(scripts, 'make-app.sh'), `#!/bin/sh
+cd "$(dirname "$0")/.."
+echo build >> events
+touch outputs/AI-BenchGauge.app/Contents/MacOS/leaderboard-menu
+`, { mode: 0o755 })
+  writeFileSync(join(scripts, 'restart.sh'), `#!/bin/sh
+cd "$(dirname "$0")/.."
+echo restart >> events
+exit ${restartFails ? 1 : 0}
+`, { mode: 0o755 })
+  if (gitWork) {
+    mkdirSync(join(root, 'bin'))
+    writeFileSync(join(root, 'bin', 'git'), `#!/bin/sh
+case "$1" in
+  status) test -f commit.done || printf ' M Sources/example.swift\\0';;
+  rev-list) if test -f push.done; then echo '0 0'; else echo '0 1'; fi;;
+  rev-parse) echo fixture-head;;
+  *) for arg in "$@"; do if test "$arg" = push; then echo push >> events; touch push.done; fi; done;;
+esac
+exit 0
+`, { mode: 0o755 })
+    writeFileSync(join(scripts, 'commit.mjs'), `import { appendFileSync, writeFileSync } from 'node:fs'; appendFileSync('events', 'commit\\n'); writeFileSync('commit.done', 'done')`)
+  }
+  const executable = join(app, 'Contents', 'MacOS', 'leaderboard-menu')
+  if (binary !== 'missing') {
+    writeFileSync(executable, '')
+    const date = new Date(Date.now() + (binary === 'fresh' ? 60_000 : -60_000))
+    utimesSync(executable, date, date)
+  }
+  // Deliberately disagree with the executable's date to catch bundle-mtime bugs.
+  const bundleDate = new Date(Date.now() + (binary === 'fresh' ? -120_000 : 120_000))
+  utimesSync(app, bundleDate, bundleDate)
+  const child = spawn(process.execPath, [join(scripts, 'watch.mjs')], {
+    cwd: root,
+    env: { ...process.env, WATCH_AUTOCOMMIT: gitWork ? '1' : '0', DESKTOP_NOTIFY: '0', ...env,
+      ...(gitWork ? { PATH: join(root, 'bin') + ':' + process.env.PATH } : {}) },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  let output = ''
+  child.stdout.setEncoding('utf8')
+  child.stderr.setEncoding('utf8')
+  child.stdout.on('data', (data) => { output += data })
+  child.stderr.on('data', (data) => { output += data })
+  const exited = new Promise((resolve) => child.once('exit', (code) => resolve(code)))
+  t.after(async () => {
+    if (child.exitCode == null) child.kill('SIGTERM')
+    await exited
+    rmSync(root, { recursive: true, force: true })
+  })
+  return {
+    source, testFile, root, exited,
+    output: () => output,
+    events: () => existsSync(join(root, 'events')) ? readFileSync(join(root, 'events'), 'utf8').trim().split('\n') : [],
+  }
+}
+
+async function waitUntil(fixture, predicate) {
+  const deadline = Date.now() + 8_000
+  while (!predicate()) {
+    assert.ok(Date.now() < deadline, `watcher timed out:\n${fixture.output()}`)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  }
+}
+
+test('startup launches a current executable immediately despite an old bundle directory', async (t) => {
+  const fixture = watcherFixture(t)
+  await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
+  assert.deepEqual(fixture.events(), ['test', 'restart'])
+})
+
+test('startup rebuilds a stale executable even when the bundle directory looks newer', async (t) => {
+  const fixture = watcherFixture(t, { binary: 'stale' })
+  await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
+  assert.deepEqual(fixture.events(), ['test', 'build', 'restart'])
+})
+
+test('startup builds and launches when the executable is missing', async (t) => {
+  const fixture = watcherFixture(t, { binary: 'missing' })
+  await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
+  assert.deepEqual(fixture.events(), ['test', 'build', 'restart'])
+})
+
+test('startup reports a restart failure instead of claiming the application is running', async (t) => {
+  const fixture = watcherFixture(t, { restartFails: true })
+  const code = await fixture.exited
+  assert.equal(code, 1)
+  assert.match(fixture.output(), /重启失败/)
+  assert.doesNotMatch(fixture.output(), /应用已启动，等待源码变更/)
+})
+
+test('saving source after startup rebuilds and restarts through the running watcher', async (t) => {
+  const fixture = watcherFixture(t, { env: { WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' } })
+  await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
+  writeFileSync(fixture.source, '// changed\n')
+  await waitUntil(fixture, () => fixture.events().length === 5)
+  assert.deepEqual(fixture.events(), ['test', 'restart', 'test', 'build', 'restart'])
+})
+
+test('failed tests stop startup and saving a test file recovers without restarting the watcher', async (t) => {
+  const fixture = watcherFixture(t, { testsFail: true, binary: 'missing', env: { WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' } })
+  await waitUntil(fixture, () => fixture.output().includes('等待测试相关文件变更'))
+  assert.deepEqual(fixture.events(), ['test'])
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  assert.deepEqual(fixture.events(), ['test'])
+  writeFileSync(fixture.testFile, 'pass')
+  await waitUntil(fixture, () => fixture.events().length === 4)
+  assert.deepEqual(fixture.events(), ['test', 'test', 'build', 'restart'])
+})
+
+test('a test failure after startup blocks rebuilding and does not loop on the same input', async (t) => {
+  const fixture = watcherFixture(t, { env: { WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' } })
+  await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
+  writeFileSync(fixture.testFile, 'fail')
+  await waitUntil(fixture, () => fixture.output().includes('测试失败，已停止提交、推送和重建'))
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  assert.deepEqual(fixture.events(), ['test', 'restart', 'test'])
+  writeFileSync(fixture.testFile, 'pass')
+  await waitUntil(fixture, () => fixture.events().length === 6)
+  assert.deepEqual(fixture.events(), ['test', 'restart', 'test', 'test', 'build', 'restart'])
+})
+
+test('saving a workflow script triggers tests before rebuild', async (t) => {
+  const fixture = watcherFixture(t, { env: { WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' } })
+  await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
+  writeFileSync(join(fixture.root, 'Scripts', 'example.mjs'), '// changed')
+  await waitUntil(fixture, () => fixture.events().length === 5)
+  assert.deepEqual(fixture.events(), ['test', 'restart', 'test', 'build', 'restart'])
+})
+
+test('failed tests prevent commits and pushes; recovery runs tests before every mutation', async (t) => {
+  const fixture = watcherFixture(t, { testsFail: true, gitWork: true, env: { WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200', WATCH_AUTOPUSH: '1', COMMIT_PUSH: '1' } })
+  await waitUntil(fixture, () => fixture.output().includes('等待测试相关文件变更'))
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  assert.deepEqual(fixture.events(), ['test'])
+  writeFileSync(fixture.testFile, 'pass')
+  await waitUntil(fixture, () => fixture.events().includes('restart'))
+  assert.deepEqual(fixture.events(), ['test', 'test', 'commit', 'push', 'build', 'restart'])
 })
