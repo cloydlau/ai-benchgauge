@@ -10,7 +10,7 @@ const ICONES_FALLBACK = 'https://api.iconify.design/mdi:robot-outline.svg'
 // 断网、无系统代理也能出图；下面的 favicon 与 iconify 候选只在没有内置图标时
 // 才会去下载。
 const BUNDLED_LOGO_DIRECTORY = fileURLToPath(
-  new URL('../Sources/LeaderboardMenu/Resources/logos/', import.meta.url),
+  new URL('../assets/logos/', import.meta.url),
 )
 // GitHub associates these official coding-agent Bots with their numeric
 // noreply addresses. Keep the selected model name separate from the email so
