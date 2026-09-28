@@ -53,6 +53,9 @@ function readDuration(name, fallback) {
 function watchTargets() {
   return [
     join(root, 'Sources'),
+    join(root, 'apps'),
+    join(root, 'assets'),
+    join(root, 'config'),
     join(root, 'Tests'),
     join(root, 'Scripts'),
     join(root, '.github'),
@@ -96,7 +99,7 @@ function collect(path, files) {
     throw error
   }
   for (const name of names) {
-    if (name.startsWith('.')) continue
+    if (name.startsWith('.') || ['bin', 'obj', 'node_modules'].includes(name)) continue
     collect(join(path, name), files)
   }
 }
