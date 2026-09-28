@@ -24,7 +24,7 @@ export function testInputSignature(root = testRoot, env = process.env, { include
       hash.update(relative(root, path)); hash.update('\0'); hash.update(readFileSync(path)); hash.update('\0')
     }
   }
-  for (const path of [...(includeSources ? ['Sources'] : []), 'Tests', 'Scripts', 'Package.swift', 'test.sh', 'make-app.sh', 'dev.sh', 'LICENSE']) collect(join(root, path))
+  for (const path of [...(includeSources ? ['Sources'] : []), 'Tests', 'Scripts', '.github', 'Package.swift', 'Package.resolved', 'test.sh', 'make-app.sh', 'dev.sh', 'LICENSE']) collect(join(root, path))
   return hash.digest('hex')
 }
 
