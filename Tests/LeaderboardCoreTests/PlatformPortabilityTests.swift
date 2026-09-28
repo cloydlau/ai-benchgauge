@@ -15,7 +15,9 @@ struct PlatformPortabilityTests {
         let file = FileManager.default.temporaryDirectory.appending(path: "benchgauge-sharing-\(UUID().uuidString).db")
         try Data("SQLite format 3\0".utf8).write(to: file)
         defer { try? FileManager.default.removeItem(at: file) }
-        let handle = try #require(bg_lock_file(file.path))
+        let path = PlatformPaths.fileSystemPath(file)
+        #expect(bg_file_status(path) == 1)
+        let handle = try #require(bg_lock_file(path))
         #expect(CCSwitchProviderStore.loadCodexProviders(databaseURL: file) == .unavailable)
         bg_unlock_file(handle)
         #expect(CCSwitchProviderStore.loadCodexProviders(databaseURL: file) == .absent)
