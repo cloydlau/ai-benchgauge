@@ -1,7 +1,9 @@
+import Foundation
 import LeaderboardCore
-import XCTest
+import Testing
 
-final class HTMLLeaderboardParserTests: XCTestCase {
+struct HTMLLeaderboardParserTests {
+    @Test
     func testParsesArtificialAnalysisTopTwenty() throws {
         let records = (1...22).map { index in
             #"{"slug":"model-\#(index)","name":"Model \#(index)","deprecated":false,"creator":{"name":"Maker","logo":"/img/logos/maker.svg"},"intelligenceIndex":\#(100-index),"intelligenceIndexIsEstimated":false}"#
@@ -13,22 +15,19 @@ final class HTMLLeaderboardParserTests: XCTestCase {
 
         let leaderboard = try HTMLLeaderboardParser.artificialAnalysis(fromHTML: html)
 
-        XCTAssertEqual(leaderboard.sourceNote, "v4.3.2")
-        XCTAssertNil(leaderboard.sourceUpdatedAt)
-        XCTAssertEqual(leaderboard.entries.count, 20)
-        XCTAssertEqual(leaderboard.entries.first?.name, "Model 1")
-        XCTAssertEqual(leaderboard.entries.first?.score, 99)
-        XCTAssertEqual(leaderboard.entries.first?.modelID, "model-1")
-        XCTAssertEqual(leaderboard.entries.first?.organization, "Maker")
-        XCTAssertEqual(
-            leaderboard.entries.first?.logoURL?.absoluteString,
-            "https://artificialanalysis.ai/img/logos/maker.svg"
-        )
-        XCTAssertEqual(leaderboard.organizationLogoURLs?["Maker"]?.absoluteString,
-                       "https://artificialanalysis.ai/img/logos/maker.svg")
-        XCTAssertEqual(leaderboard.entries.last?.name, "Model 20")
+        #expect((leaderboard.sourceNote) == ("v4.3.2"))
+        #expect((leaderboard.sourceUpdatedAt) == nil)
+        #expect((leaderboard.entries.count) == (20))
+        #expect((leaderboard.entries.first?.name) == ("Model 1"))
+        #expect((leaderboard.entries.first?.score) == (99))
+        #expect((leaderboard.entries.first?.modelID) == ("model-1"))
+        #expect((leaderboard.entries.first?.organization) == ("Maker"))
+        #expect((leaderboard.entries.first?.logoURL?.absoluteString) == ("https://artificialanalysis.ai/img/logos/maker.svg"))
+        #expect((leaderboard.organizationLogoURLs?["Maker"]?.absoluteString) == ("https://artificialanalysis.ai/img/logos/maker.svg"))
+        #expect((leaderboard.entries.last?.name) == ("Model 20"))
     }
 
+    @Test
     func testParsesArtificialAnalysisCodingAgentIndex() throws {
         let records = (1...12).map { index in
             #"{"displayLabel":"Agent \#(index) - Model \#(index)","hostModelSlug":"model-\#(index)","display":{"creator":{"agent":"Maker"}},"indexScore":\#(Double(100 - index) / 100)}"#
@@ -40,16 +39,17 @@ final class HTMLLeaderboardParserTests: XCTestCase {
 
         let leaderboard = try HTMLLeaderboardParser.artificialAnalysisCodingAgent(fromHTML: html)
 
-        XCTAssertEqual(leaderboard.kind, .artificialAnalysisCodingAgent)
-        XCTAssertEqual(leaderboard.entries.count, 12)
-        XCTAssertEqual(leaderboard.entries.first?.name, "Agent 1 - Model 1")
-        XCTAssertEqual(leaderboard.entries.first?.score, 99)
-        XCTAssertEqual(leaderboard.entries.first?.modelID, "model-1")
-        XCTAssertEqual(leaderboard.entries.first?.organization, "Maker")
-        XCTAssertEqual(leaderboard.sourceNote, "v1.5")
-        XCTAssertNil(leaderboard.sourceUpdatedAt)
+        #expect((leaderboard.kind) == (.artificialAnalysisCodingAgent))
+        #expect((leaderboard.entries.count) == (12))
+        #expect((leaderboard.entries.first?.name) == ("Agent 1 - Model 1"))
+        #expect((leaderboard.entries.first?.score) == (99))
+        #expect((leaderboard.entries.first?.modelID) == ("model-1"))
+        #expect((leaderboard.entries.first?.organization) == ("Maker"))
+        #expect((leaderboard.sourceNote) == ("v1.5"))
+        #expect((leaderboard.sourceUpdatedAt) == nil)
     }
 
+    @Test
     func testParsesArenaTopTwentyAndCutoff() throws {
         let records = (1...22).map { index in
             #"{"rank":\#(index),"modelKey":"arena-model-\#(index)","modelDisplayName":"Arena Model \#(index)","modelOrganization":"Maker","rating":\#(2000-index)}"#
@@ -61,16 +61,17 @@ final class HTMLLeaderboardParserTests: XCTestCase {
         let leaderboard = try HTMLLeaderboardParser.arenaWebDev(fromHTML: html)
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let expected = try XCTUnwrap(formatter.date(from: "2026-09-11T19:00:00.000Z"))
+        let expected = try #require(formatter.date(from: "2026-09-11T19:00:00.000Z"))
 
-        XCTAssertEqual(leaderboard.sourceUpdatedAt, expected)
-        XCTAssertEqual(leaderboard.entries.count, 20)
-        XCTAssertEqual(leaderboard.entries.first?.name, "Arena Model 1")
-        XCTAssertEqual(leaderboard.entries.first?.score, 1999)
-        XCTAssertEqual(leaderboard.entries.first?.modelID, "arena-model-1")
-        XCTAssertEqual(leaderboard.entries.first?.organization, "Maker")
+        #expect((leaderboard.sourceUpdatedAt) == (expected))
+        #expect((leaderboard.entries.count) == (20))
+        #expect((leaderboard.entries.first?.name) == ("Arena Model 1"))
+        #expect((leaderboard.entries.first?.score) == (1999))
+        #expect((leaderboard.entries.first?.modelID) == ("arena-model-1"))
+        #expect((leaderboard.entries.first?.organization) == ("Maker"))
     }
 
+    @Test
     func testParsesArenaTextToImageWithSharedParser() throws {
         let records = (1...22).map { index in
             #"{"rank":\#(index),"modelKey":"image-model-\#(index)","modelDisplayName":"Image Model \#(index)","modelOrganization":"Maker","rating":\#(1300-index)}"#
@@ -81,13 +82,14 @@ final class HTMLLeaderboardParserTests: XCTestCase {
 
         let leaderboard = try HTMLLeaderboardParser.arenaTextToImage(fromHTML: html)
 
-        XCTAssertEqual(leaderboard.kind, .arenaTextToImage)
-        XCTAssertEqual(leaderboard.title, "Arena | 文生图")
-        XCTAssertEqual(leaderboard.entries.count, 20)
-        XCTAssertEqual(leaderboard.entries.first?.name, "Image Model 1")
-        XCTAssertEqual(leaderboard.entries.first?.score, 1299)
+        #expect((leaderboard.kind) == (.arenaTextToImage))
+        #expect((leaderboard.title) == ("Arena | 文生图"))
+        #expect((leaderboard.entries.count) == (20))
+        #expect((leaderboard.entries.first?.name) == ("Image Model 1"))
+        #expect((leaderboard.entries.first?.score) == (1299))
     }
 
+    @Test
     func testParsesArtificialAnalysisMediaBoardAndKeepsPrimaryOccurrence() throws {
         let primary = (1...22).map { index in
             #"{"formatted":{"rank":\#(index)},"values":{"id":"image-\#(index)","name":"Image Model \#(index)","elo":\#(1200-index),"creator":{"name":"Maker","logo":"/img/logos/maker.svg"}}}"#
@@ -100,18 +102,16 @@ final class HTMLLeaderboardParserTests: XCTestCase {
 
         let leaderboard = try HTMLLeaderboardParser.artificialAnalysisTextToImage(fromHTML: html)
 
-        XCTAssertEqual(leaderboard.kind, .artificialAnalysisTextToImage)
-        XCTAssertEqual(leaderboard.title, "Artificial Analysis | 文生图")
-        XCTAssertNil(leaderboard.sourceUpdatedAt)
-        XCTAssertEqual(leaderboard.entries.count, 20)
-        XCTAssertEqual(leaderboard.entries.first?.name, "Image Model 1")
-        XCTAssertEqual(leaderboard.entries.first?.score, 1199)
-        XCTAssertEqual(
-            leaderboard.entries.first?.logoURL?.absoluteString,
-            "https://artificialanalysis.ai/img/logos/maker.svg"
-        )
+        #expect((leaderboard.kind) == (.artificialAnalysisTextToImage))
+        #expect((leaderboard.title) == ("Artificial Analysis | 文生图"))
+        #expect((leaderboard.sourceUpdatedAt) == nil)
+        #expect((leaderboard.entries.count) == (20))
+        #expect((leaderboard.entries.first?.name) == ("Image Model 1"))
+        #expect((leaderboard.entries.first?.score) == (1199))
+        #expect((leaderboard.entries.first?.logoURL?.absoluteString) == ("https://artificialanalysis.ai/img/logos/maker.svg"))
     }
 
+    @Test
     func testParsesArtificialAnalysisDataTimestamp() throws {
         let records = (1...22).map { index in
             #"{"slug":"model-\#(index)","name":"Model \#(index)","creator":{"name":"Maker"},"intelligenceIndex":\#(100-index),"intelligenceIndexIsEstimated":false,"grading":{"materializedAt":"2026-09-23T06:01:07.399143+00:00"}}"#
@@ -120,9 +120,10 @@ final class HTMLLeaderboardParserTests: XCTestCase {
 
         let leaderboard = try HTMLLeaderboardParser.artificialAnalysis(fromHTML: html)
 
-        XCTAssertEqual(leaderboard.sourceUpdatedAt, try expectedDate("2026-09-23T06:01:07.399Z"))
+        #expect((leaderboard.sourceUpdatedAt) == (try expectedDate("2026-09-23T06:01:07.399Z")))
     }
 
+    @Test
     func testParsesNewestArtificialAnalysisCodingAgentTimestamp() throws {
         let stale = "2026-09-20T01:02:03.123456+00:00"
         let newest = "2026-09-23T06:01:07.399143+00:00"
@@ -134,9 +135,10 @@ final class HTMLLeaderboardParserTests: XCTestCase {
 
         let leaderboard = try HTMLLeaderboardParser.artificialAnalysisCodingAgent(fromHTML: html)
 
-        XCTAssertEqual(leaderboard.sourceUpdatedAt, try expectedDate("2026-09-23T06:01:07.399Z"))
+        #expect((leaderboard.sourceUpdatedAt) == (try expectedDate("2026-09-23T06:01:07.399Z")))
     }
 
+    @Test
     func testParsesArtificialAnalysisMediaBoardDataTimestamp() throws {
         let records = (1...22).map { index in
             #"{"formatted":{"rank":\#(index)},"values":{"id":"image-\#(index)","name":"Image Model \#(index)","elo":\#(1200-index),"creator":{"name":"Maker"}},"grading":{"materializedAt":"2026-09-22T08:09:10.111222+00:00"}}"#
@@ -145,42 +147,38 @@ final class HTMLLeaderboardParserTests: XCTestCase {
 
         let leaderboard = try HTMLLeaderboardParser.artificialAnalysisTextToImage(fromHTML: html)
 
-        XCTAssertEqual(leaderboard.sourceUpdatedAt, try expectedDate("2026-09-22T08:09:10.111Z"))
-        XCTAssertEqual(leaderboard.entries.count, 20)
+        #expect((leaderboard.sourceUpdatedAt) == (try expectedDate("2026-09-22T08:09:10.111Z")))
+        #expect((leaderboard.entries.count) == (20))
     }
 
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: savedLeaderboardFixtureURL("artificial-analysis.html")), "Optional saved HTML snapshot"))
     func testParsesSavedArtificialAnalysisPage() throws {
         let path = fixtureURL("artificial-analysis.html")
-        try XCTSkipUnless(FileManager.default.fileExists(atPath: path))
+        try #require(FileManager.default.fileExists(atPath: path))
         let html = try String(contentsOfFile: path, encoding: .utf8)
 
         let leaderboard = try HTMLLeaderboardParser.artificialAnalysis(fromHTML: html)
 
-        XCTAssertEqual(leaderboard.entries.count, 20)
-        XCTAssertTrue(leaderboard.entries.first!.score > leaderboard.entries.last!.score)
-        XCTAssertNotNil(leaderboard.sourceNote)
+        #expect((leaderboard.entries.count) == (20))
+        #expect(leaderboard.entries.first!.score > leaderboard.entries.last!.score)
+        #expect((leaderboard.sourceNote) != nil)
     }
 
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: savedLeaderboardFixtureURL("arena-webdev.html")), "Optional saved HTML snapshot"))
     func testParsesSavedArenaPage() throws {
         let path = fixtureURL("arena-webdev.html")
-        try XCTSkipUnless(FileManager.default.fileExists(atPath: path))
+        try #require(FileManager.default.fileExists(atPath: path))
         let html = try String(contentsOfFile: path, encoding: .utf8)
 
         let leaderboard = try HTMLLeaderboardParser.arenaWebDev(fromHTML: html)
 
-        XCTAssertEqual(leaderboard.entries.count, 20)
-        XCTAssertTrue(leaderboard.entries.first!.score > leaderboard.entries.last!.score)
-        XCTAssertNotNil(leaderboard.sourceUpdatedAt)
+        #expect((leaderboard.entries.count) == (20))
+        #expect(leaderboard.entries.first!.score > leaderboard.entries.last!.score)
+        #expect((leaderboard.sourceUpdatedAt) != nil)
     }
 
     private func fixtureURL(_ fileName: String) -> String {
-        let testsDirectory = URL(fileURLWithPath: #filePath, isDirectory: false)
-            .deletingLastPathComponent()
-        return testsDirectory
-            .deletingLastPathComponent()
-            .appending(path: "work", directoryHint: .isDirectory)
-            .appending(path: fileName, directoryHint: .inferFromPath)
-            .path
+        savedLeaderboardFixtureURL(fileName)
     }
 
     private func rscHTML(payload: String, title: String? = nil) -> String {
@@ -194,6 +192,15 @@ final class HTMLLeaderboardParserTests: XCTestCase {
     private func expectedDate(_ value: String) throws -> Date {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return try XCTUnwrap(formatter.date(from: value))
+        return try #require(formatter.date(from: value))
     }
+}
+
+private func savedLeaderboardFixtureURL(_ fileName: String) -> String {
+    URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .appending(path: "work", directoryHint: .isDirectory)
+        .appending(path: fileName)
+        .path
 }
