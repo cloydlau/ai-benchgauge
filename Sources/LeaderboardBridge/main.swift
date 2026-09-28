@@ -63,13 +63,15 @@ actor Engine {
     private var activeBoardRefreshes = Set<LeaderboardCategory>()
     private var refreshingQuotas = false
     private var qwenWebsite: QwenWebsiteQuota?
+    private let allowsAccountAccess: Bool
     private var qwenCapturedAt: Date?
     private let qwenCacheFile = PlatformPaths.applicationSupport.appending(path: "qwen-website-quota.json")
 
     init(cacheFile: URL? = nil) throws {
+        allowsAccountAccess = cacheFile == nil
         cache = LeaderboardCache(fileURL: try cacheFile ?? LeaderboardCache.defaultFileURL())
         snapshot = cache.load() ?? LeaderboardSnapshot()
-        if let saved = try? Data(contentsOf: qwenCacheFile), let quota = QwenWebsiteQuotaParser.parse(saved),
+        if cacheFile == nil, let saved = try? Data(contentsOf: qwenCacheFile), let quota = QwenWebsiteQuotaParser.parse(saved),
            let captured = quota.capturedAt, Date().timeIntervalSince(captured) < 86400 {
             qwenWebsite = quota; qwenCapturedAt = captured
         }
@@ -78,6 +80,9 @@ actor Engine {
         let category = LeaderboardCategory(rawValue: request.category ?? "general") ?? .general
         let language = AppLanguage(rawValue: request.language ?? "en") ?? .english
         do {
+            guard allowsAccountAccess || ["state", "refreshBoards"].contains(request.command) else {
+                return Response(id: request.id, error: "Account access disabled for offline fixtures")
+            }
             switch request.command {
             case "state": break
             case "captureQwen":

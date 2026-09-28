@@ -23,8 +23,8 @@ jobs:
           dotnet-version: '10.0.401'
       - uses: compnerd/gha-setup-swift@bbae8ce86bac5a3449f3992b3d88bc4ca25f2057
         with:
-          swift-version: swift-6.4-release
-          swift-build: 6.4-RELEASE
+          swift-version: swift-6.4.0-release
+          swift-build: 6.4.0-RELEASE
       - name: Install NSIS
         if: inputs.installer
         shell: pwsh

@@ -54,7 +54,8 @@ sealed class QwenWebsiteWindow : Window
         loading = true;
         try
         {
-            if (!initialized) { Opacity = 0; ShowActivated = false; ShowInTaskbar = false; Show(); await Initialize(); }
+            Opacity = 0; ShowActivated = false; ShowInTaskbar = false; Show();
+            await Initialize();
             browser.CoreWebView2.Navigate(UsageURL);
             for (var i = 0; i < 12; i++) { await Task.Delay(1500); if (await Capture()) break; }
             Hide();
