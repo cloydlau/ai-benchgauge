@@ -50,6 +50,15 @@ foreach ($directory in $crtDirectories) {
 }
 if ($crtFiles.Count -eq 0) { throw 'Visual C++ x64 redistributable DLLs not found' }
 $runtimeFiles += $crtFiles
+$dumpbin = (Get-Command dumpbin -ErrorAction SilentlyContinue).Source
+if (!$dumpbin) {
+    $tools = Get-ChildItem (Join-Path $visualStudio 'VC/Tools/MSVC') -Directory | Sort-Object Name -Descending
+    foreach ($tool in $tools) {
+        $candidate = Join-Path $tool.FullName 'bin/Hostx64/x64/dumpbin.exe'
+        if (Test-Path $candidate) { $dumpbin = $candidate; break }
+    }
+}
+if (!$dumpbin) { throw 'Visual C++ x64 dependency inspection tool not found' }
 $lookup = @{}
 foreach ($file in ($runtimeFiles | Sort-Object { if ($_.FullName -match '[\\/]Runtimes[\\/]') { 0 } else { 1 } })) {
     $key = $file.Name.ToLowerInvariant()
@@ -60,7 +69,7 @@ $pending.Enqueue($engine)
 $copied = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 while ($pending.Count -gt 0) {
     $file = $pending.Dequeue()
-    $dependencies = & dumpbin /nologo /dependents $file
+    $dependencies = & $dumpbin /nologo /dependents $file
     if ($LASTEXITCODE -ne 0) { throw "Could not read dependencies of $file" }
     foreach ($line in $dependencies) {
         if ($line -match '^\s+([A-Za-z0-9_.-]+\.dll)\s*$') {
