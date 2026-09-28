@@ -98,7 +98,8 @@ public enum AccountQuotaMessage {
 }
 
 public struct ParsedQuotaWindow: Equatable, Sendable {
-    /// Zhipu coding-plan end. Not a usage window, and not a monthly reset.
+    /// Plan, entitlement, or billing-period boundary, without renewal status.
+    /// Not a usage percentage or evidence that access will stop on this date.
     public static let planExpiryName = "plan_expiry"
 
     public let name: String
@@ -180,6 +181,8 @@ public enum QuotaTone: Equatable, Sendable {
     case green
     case orange
     case red
+    case remaining(Double)
+    case balance(amount: Double, currency: String)
 }
 
 public struct QuotaTextRun: Equatable, Sendable {
@@ -246,7 +249,7 @@ public enum AccountQuotaFormatting {
             }
             return nil
         case let .qwenPlan(plan):
-            return "7d \(qwenPlanRemainingPercent(plan))%"
+            return "额度 \(qwenPlanRemainingPercent(plan))%"
         case let .qwenWebsite(quota):
             guard quota.remainingPercent.isFinite,
                   (0...100).contains(quota.remainingPercent),
@@ -269,10 +272,39 @@ public enum AccountQuotaFormatting {
     }
 
     public static func tone(forUtilization value: Double) -> QuotaTone {
-        let rounded = roundedPercent(value)
-        if rounded >= 90 { return .red }
-        if rounded >= 70 { return .orange }
-        return .green
+        guard value.isFinite else { return .secondary }
+        return .remaining(min(100, max(0, 100 - value)))
+    }
+
+    /// The most restrictive usage pool determines the whole card's color.
+    /// Monetary balances have no percentage baseline; dates are not quotas.
+    public static func lowestRemainingPercent(for chip: AccountQuotaChip) -> Double? {
+        switch chip.status {
+        case let .windows(windows):
+            return windows.filter {
+                $0.name != ParsedQuotaWindow.planExpiryName && $0.utilization.isFinite
+            }.map { min(100, max(0, 100 - $0.utilization)) }.min()
+        case let .qwenPlan(plan):
+            return Double(qwenPlanRemainingPercent(plan))
+        case let .qwenWebsite(quota):
+            return quota.remainingPercent.isFinite ? min(100, max(0, quota.remainingPercent)) : nil
+        case .pending, .note, .message, .balances:
+            return nil
+        }
+    }
+
+    /// Usage pools constrain one another; monetary wallets are alternatives.
+    /// Use the healthiest funded wallet, excluding empty wallets when another
+    /// has money. Individual displayed balances retain their own color.
+    public static func colorLevel(for chip: AccountQuotaChip) -> Double? {
+        guard case let .balances(balances) = chip.status else {
+            return lowestRemainingPercent(for: chip)
+        }
+        let valid = balances.filter { $0.amount.isFinite }
+        let funded = valid.filter { $0.amount > 0 }
+        return (funded.isEmpty ? valid : funded).compactMap {
+            QuotaColorScale.balanceLevel(amount: $0.amount, currency: $0.currency)
+        }.max()
     }
 
     public static func label(forWindowName name: String) -> String {
@@ -339,16 +371,14 @@ public enum AccountQuotaFormatting {
         return formatter.string(from: resetsAt)
     }
 
-    /// Plan end copy. No window label and no countdown. A plan ending today
-    /// keeps the clock time: `截至9月23日14时37分`; a zero minute is omitted:
-    /// `截至9月23日14时`. Any other day shows the date only: `截至9月29日`.
-    /// Nil once that instant has passed.
-    public static func planExpiryPhrase(until resetsAt: Date, now: Date) -> String? {
-        guard countdownParts(until: resetsAt, now: now) != nil else { return nil }
+    /// Neutral period boundary. A date alone cannot establish renewal,
+    /// cancellation, or expired access, including when the date has passed.
+    /// Keep the clock for the current Shanghai day; otherwise show the date.
+    public static func periodEndPhrase(until resetsAt: Date, now: Date) -> String {
         let formatter = shanghaiFormatter()
         guard shanghaiCalendar.isDate(resetsAt, inSameDayAs: now) else {
             formatter.dateFormat = "M'月'd'日'"
-            return "截至\(formatter.string(from: resetsAt))"
+            return "至\(formatter.string(from: resetsAt))"
         }
         let hour = shanghaiCalendar.component(.hour, from: resetsAt)
         let minute = shanghaiCalendar.component(.minute, from: resetsAt)
@@ -359,7 +389,16 @@ public enum AccountQuotaFormatting {
         } else {
             formatter.dateFormat = "M'月'd'日'H'时'm'分'"
         }
-        return "截至\(formatter.string(from: resetsAt))"
+        return "至\(formatter.string(from: resetsAt))"
+    }
+
+    /// Retained for callers; all card dates use the same neutral phrasing.
+    public static func planExpiryPhrase(until resetsAt: Date, now: Date) -> String? {
+        periodEndPhrase(until: resetsAt, now: now)
+    }
+
+    public static func monthlyResetPhrase(until resetsAt: Date, now: Date) -> String? {
+        periodEndPhrase(until: resetsAt, now: now)
     }
 
     /// Spoken countdown for the tooltip. Minutes stay through 24 hours
@@ -493,8 +532,9 @@ public enum AccountQuotaFormatting {
     }
 
     /// Providers expiring soonest come first. A chip sorts by the expiry its
-    /// card shows: the plan end when there is one, otherwise the latest usage
-    /// reset. Missing expiry sorts last, ties keep the stored order, and the
+    /// card shows: the plan end when there is one, otherwise a monthly quota
+    /// reset. Shorter usage resets are not subscription deadlines. Missing
+    /// expiry sorts last, ties keep the stored order, and the
     /// current provider is not pinned.
     public static func sortedChips(_ chips: [AccountQuotaChip]) -> [AccountQuotaChip] {
         chips.enumerated()
@@ -507,20 +547,19 @@ public enum AccountQuotaFormatting {
             .map(\.element)
     }
 
-    /// The date the card shows after 截至. A plan end wins over usage resets,
-    /// even when it has passed and the card reads 已到期. Qwen plan and
-    /// website chips show their own reset as the expiry.
+    /// The boundary shown after 至. A plan boundary wins over monthly
+    /// usage resets. Neither boundary establishes renewal or canceled access.
     private static func chipExpiry(_ chip: AccountQuotaChip) -> Date? {
         switch chip.status {
         case let .windows(windows):
             if let plan = windows.first(where: { $0.name == ParsedQuotaWindow.planExpiryName }) {
                 return plan.resetsAt
             }
-            return windows.compactMap(\.resetsAt).max()
+            return windows.first { $0.name == "monthly" }?.resetsAt
         case let .qwenPlan(plan):
-            return plan.resetsAt
+            return plan.expiresAt
         case let .qwenWebsite(quota):
-            return quota.resetsAt
+            return quota.expiresAt ?? (quota.periodLabel == "1mo" ? quota.resetsAt : nil)
         case .pending, .note, .balances, .message:
             return nil
         }
@@ -634,24 +673,8 @@ public enum AccountQuotaFormatting {
         return displaySlotOrder.flatMap { grouped[$0] ?? [] } + rest
     }
 
-    /// Plan end wins. Otherwise the latest usage-window reset is the expiry,
-    /// and only while it is still in the future. A passed window reset is not
-    /// called 已到期.
-    private static func expiryPresentation(
-        _ windows: [ParsedQuotaWindow],
-        now: Date
-    ) -> (date: Date?, show: Bool) {
-        if let plan = windows.first(where: { $0.name == ParsedQuotaWindow.planExpiryName }) {
-            return (plan.resetsAt, true)
-        }
-        guard let latest = windows
-            .filter({ $0.name != ParsedQuotaWindow.planExpiryName })
-            .compactMap(\.resetsAt)
-            .max(),
-              latest > now else {
-            return (nil, false)
-        }
-        return (latest, true)
+    private static func planPeriodEnd(_ windows: [ParsedQuotaWindow]) -> Date? {
+        windows.first(where: { $0.name == ParsedQuotaWindow.planExpiryName })?.resetsAt
     }
 
     private static func remainingPercent(utilization: Double) -> Int {
@@ -663,38 +686,40 @@ public enum AccountQuotaFormatting {
             let label = label(forWindowName: window.name)
             return "\(label) \(remainingPercent(utilization: window.utilization))%"
         }
-        let expiry = expiryPresentation(windows, now: now)
-        if expiry.show {
-            lines.append(planExpiryHelp(resetsAt: expiry.date, now: now))
+        for window in orderedUsageWindows(windows) {
+            if let reset = window.resetsAt, let date = resetDateText(reset, now: now) {
+                lines.append("\(label(forWindowName: window.name))重置\(date)")
+            }
+        }
+        if let end = planPeriodEnd(windows) {
+            lines.append(periodEndPhrase(until: end, now: now))
         }
         return lines
     }
 
-    /// Plan end is not usage and does not reset. No percentage, no label.
-    private static func planExpiryHelp(resetsAt: Date?, now: Date) -> String {
-        guard let resetsAt, let phrase = planExpiryPhrase(until: resetsAt, now: now) else {
-            return "已到期"
-        }
-        return phrase
-    }
-
     private static func qwenPlanHelp(_ plan: QwenPlanQuota, now: Date) -> String {
-        var lines = ["7d \(qwenPlanRemainingPercent(plan))%"]
+        var lines = ["额度 \(qwenPlanRemainingPercent(plan))%"]
         if plan.totalCredits > 0 {
             lines.append(
                 "剩余 \(creditText(plan.remainingCredits))/\(creditText(plan.totalCredits)) Credits"
             )
         }
-        if plan.resetsAt != nil {
-            lines.append(planExpiryHelp(resetsAt: plan.resetsAt, now: now))
+        if let reset = plan.resetsAt, let date = resetDateText(reset, now: now) {
+            lines.append("额度重置\(date)")
+        }
+        if let expiry = plan.expiresAt {
+            lines.append(periodEndPhrase(until: expiry, now: now))
         }
         return lines.joined(separator: "\n")
     }
 
     private static func qwenWebsiteHelp(_ quota: QwenWebsiteQuota, now: Date) -> String {
         var lines = ["\(quota.periodLabel) \(creditText(quota.remainingPercent))%"]
-        if let resetsAt = quota.resetsAt, resetsAt > now {
-            lines.append(planExpiryHelp(resetsAt: resetsAt, now: now))
+        if let reset = quota.resetsAt, let date = resetDateText(reset, now: now) {
+            lines.append("\(quota.periodLabel)重置\(date)")
+        }
+        if let expiry = quota.expiresAt {
+            lines.append(periodEndPhrase(until: expiry, now: now))
         }
         return lines.joined(separator: "\n")
     }
@@ -717,10 +742,9 @@ public enum AccountQuotaFormatting {
                 utilizationForTone: window.utilization
             ))
         }
-        let expiry = expiryPresentation(windows, now: now)
-        if expiry.show {
+        if let end = planPeriodEnd(windows) ?? windows.first(where: { $0.name == "monthly" })?.resetsAt {
             appendSeparator(&runs)
-            runs.append(contentsOf: planExpiryRuns(resetsAt: expiry.date, now: now))
+            runs.append(contentsOf: periodEndRuns(until: end, now: now))
         }
         return runs
     }
@@ -745,30 +769,24 @@ public enum AccountQuotaFormatting {
         ]
     }
 
-    private static func planExpiryRuns(resetsAt: Date?, now: Date) -> [QuotaTextRun] {
-        let text: String
-        if let resetsAt, let phrase = planExpiryPhrase(until: resetsAt, now: now) {
-            text = phrase
-        } else {
-            text = "已到期"
-        }
-        return [QuotaTextRun(text: text, tone: .secondary)]
+    private static func periodEndRuns(until end: Date, now: Date) -> [QuotaTextRun] {
+        [QuotaTextRun(text: periodEndPhrase(until: end, now: now), tone: .secondary)]
     }
 
     private static func balanceRuns(_ balances: [ParsedBalance]) -> [QuotaTextRun] {
-        let visible = balances.filter { $0.amount > 0 }
+        let visible = balances.filter { $0.amount.isFinite && $0.amount > 0 }
         guard !visible.isEmpty else {
-            return [QuotaTextRun(text: AccountQuotaMessage.emptyBalance, tone: .secondary)]
+            return [QuotaTextRun(text: AccountQuotaMessage.emptyBalance, tone: .red)]
         }
         var runs: [QuotaTextRun] = []
         for (index, balance) in visible.enumerated() {
             if index > 0 {
                 runs.append(QuotaTextRun(text: " · ", tone: .secondary))
             }
-            runs.append(QuotaTextRun(text: "余额 ", tone: .secondary))
+            runs.append(QuotaTextRun(text: "余 ", tone: .secondary))
             runs.append(QuotaTextRun(
                 text: balanceText(amount: balance.amount, currency: balance.currency),
-                tone: .green
+                tone: .balance(amount: balance.amount, currency: balance.currency)
             ))
         }
         return runs
@@ -777,13 +795,13 @@ public enum AccountQuotaFormatting {
     private static func qwenPlanRuns(_ plan: QwenPlanQuota, now: Date) -> [QuotaTextRun] {
         let remaining = qwenPlanRemainingPercent(plan)
         var runs = remainingRuns(
-            label: "7d",
+            label: "额度",
             percentText: "\(remaining)",
             utilizationForTone: Double(100 - remaining)
         )
-        if plan.resetsAt != nil {
+        if let expiry = plan.expiresAt {
             appendSeparator(&runs)
-            runs.append(contentsOf: planExpiryRuns(resetsAt: plan.resetsAt, now: now))
+            runs.append(contentsOf: periodEndRuns(until: expiry, now: now))
         }
         return runs
     }
@@ -794,9 +812,9 @@ public enum AccountQuotaFormatting {
             percentText: creditText(quota.remainingPercent),
             utilizationForTone: 100 - quota.remainingPercent
         )
-        if let resetsAt = quota.resetsAt, resetsAt > now {
+        if let end = quota.expiresAt ?? (quota.periodLabel == "1mo" ? quota.resetsAt : nil) {
             appendSeparator(&runs)
-            runs.append(contentsOf: planExpiryRuns(resetsAt: resetsAt, now: now))
+            runs.append(contentsOf: periodEndRuns(until: end, now: now))
         }
         return runs
     }
@@ -1176,6 +1194,7 @@ public enum XaiEndpointValidator {
     public static let discoveryURL = URL(string: "https://auth.x.ai/.well-known/openid-configuration")!
     public static let clientID = "b1a00492-073a-47ea-816f-4c329264a828"
     public static let scope = "openid profile email offline_access grok-cli:access api:access"
+    public static let subscriptionsURL = URL(string: "https://grok.com/rest/subscriptions")!
     public static let billingURL = URL(string: "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig")!
 
     public static func isTrustedIssuer(_ value: String) -> Bool {

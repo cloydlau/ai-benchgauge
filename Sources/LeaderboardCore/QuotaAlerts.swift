@@ -95,7 +95,7 @@ public enum QuotaAlerts {
         let remainingPercent: Double?
         let resetsAt: Date?
         let expiryEligible: Bool
-        /// Plan end uses 截至, not 重置. It also has no remaining percent.
+        /// A plan boundary has no remaining percent. Renewal is unknown.
         let expiresRatherThanResets: Bool
     }
 
@@ -125,25 +125,26 @@ public enum QuotaAlerts {
                 )
             }
         case let .qwenPlan(plan):
-            // Credits are the 7-day window. resetDate, when present, is the
-            // subscription end and must not be announced as a window reset.
+            // The CLI does not identify this pool's duration. resetDate is
+            // its quota refresh; expiresAt is a separate reported plan boundary.
+            // Neither supplies renewal or cancellation status.
             var subjects = [
                 Subject(
                     sourceID: "plan",
-                    label: "7d",
+                    label: "额度",
                     remainingPercent: remainingPercent(plan),
-                    resetsAt: nil,
-                    expiryEligible: false,
+                    resetsAt: plan.resetsAt,
+                    expiryEligible: true,
                     expiresRatherThanResets: false
                 ),
             ]
-            if plan.resetsAt != nil {
+            if plan.expiresAt != nil {
                 subjects.append(
                     Subject(
                         sourceID: ParsedQuotaWindow.planExpiryName,
                         label: "",
                         remainingPercent: nil,
-                        resetsAt: plan.resetsAt,
+                        resetsAt: plan.expiresAt,
                         expiryEligible: true,
                         expiresRatherThanResets: true
                     )
@@ -151,7 +152,7 @@ public enum QuotaAlerts {
             }
             return subjects
         case let .qwenWebsite(quota):
-            return [
+            var subjects = [
                 Subject(
                     sourceID: "website",
                     label: quota.periodLabel,
@@ -161,6 +162,12 @@ public enum QuotaAlerts {
                     expiresRatherThanResets: false
                 ),
             ]
+            if let expiry = quota.expiresAt {
+                subjects.append(Subject(sourceID: ParsedQuotaWindow.planExpiryName, label: "",
+                    remainingPercent: nil, resetsAt: expiry, expiryEligible: true,
+                    expiresRatherThanResets: true))
+            }
+            return subjects
         case .pending, .note, .balances, .message:
             return []
         }
@@ -221,24 +228,23 @@ public enum QuotaAlerts {
         guard !qualifying.isEmpty else { return nil }
         let body = qualifying.map { subject, phrase in
             if subject.expiresRatherThanResets {
-                if let resetsAt = subject.resetsAt,
-                   let expiry = AccountQuotaFormatting.planExpiryPhrase(until: resetsAt, now: now) {
-                    return expiry
+                if let end = subject.resetsAt {
+                    return AccountQuotaFormatting.periodEndPhrase(until: end, now: now)
                 }
-                return "已到期"
+                return ""
             }
+            let quotaLabel = subject.label == "额度" ? "额度" : "\(subject.label)额度"
             guard let resetsAt = subject.resetsAt,
                   let date = AccountQuotaFormatting.resetDateText(resetsAt, now: now) else {
-                return "\(subject.label)额度 \(phrase)后重置"
+                return "\(quotaLabel) \(phrase)后重置"
             }
-            return "\(subject.label)额度 \(phrase)后重置，\(date)"
+            return "\(quotaLabel) \(phrase)后重置，\(date)"
         }.joined(separator: "；")
-        let subtitle = qualifying.allSatisfy(\.0.expiresRatherThanResets) ? "2天内到期" : "2天内重置"
         return QuotaAlert(
             chipID: chip.id,
             reason: .expiring,
             title: chip.shortName,
-            subtitle: subtitle,
+            subtitle: "本期将在2天内结束",
             body: body,
             componentKeys: qualifying.map {
                 componentKey(

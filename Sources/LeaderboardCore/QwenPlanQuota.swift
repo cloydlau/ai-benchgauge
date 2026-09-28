@@ -4,16 +4,17 @@ public struct QwenPlanQuota: Equatable, Sendable {
     public let usedPercent: Double
     public let remainingCredits: Double
     public let totalCredits: Double
-    /// Old `qianwen usage summary` `token_plan.resetDate`. That value was the
-    /// subscription instance end (`EndTime`), not a usage-window reset. Current
-    /// CLI builds may omit it; then the plan expiry is hidden rather than invented.
+    /// CLI `token_plan.resetDate`, derived from NextCycleFlushTime.
+    /// This is a quota reset, not the subscription's EndTime.
     public let resetsAt: Date?
+    public let expiresAt: Date?
 
-    public init(usedPercent: Double, remainingCredits: Double, totalCredits: Double, resetsAt: Date?) {
+    public init(usedPercent: Double, remainingCredits: Double, totalCredits: Double, resetsAt: Date?, expiresAt: Date? = nil) {
         self.usedPercent = usedPercent
         self.remainingCredits = remainingCredits
         self.totalCredits = totalCredits
         self.resetsAt = resetsAt
+        self.expiresAt = expiresAt
     }
 }
 
@@ -29,17 +30,16 @@ public enum QwenPlanQuotaParser {
         }
         let used = number(plan["usedPct"]) ?? (1 - remaining / total) * 100
         guard used.isFinite else { return nil }
-        // Historical CLI field. Do not treat a missing value as a window reset.
-        let reset = (plan["resetDate"] as? String).flatMap { value in
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            return formatter.date(from: value) ?? ISO8601DateFormatter().date(from: value)
-        }
+        let reset = (plan["resetDate"] as? String).flatMap(CCSwitchJSON.isoDate)
+        // Current CLI summaries omit subscription expiry. Never substitute
+        // resetDate; only an explicitly supplied expiry field can provide it.
+        let expiry = (plan["expiresAt"] as? String).flatMap(CCSwitchJSON.isoDate)
         return QwenPlanQuota(
             usedPercent: min(max(used, 0), 100),
             remainingCredits: max(remaining, 0),
             totalCredits: total,
-            resetsAt: reset
+            resetsAt: reset,
+            expiresAt: expiry
         )
     }
 

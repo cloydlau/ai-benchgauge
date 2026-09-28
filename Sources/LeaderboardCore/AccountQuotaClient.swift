@@ -128,12 +128,13 @@ extension XaiAuthFile {
 
 /// Fetches CC Switch provider quotas. Credential material stays on the request
 /// and in this actor's access-token cache. It is not logged or returned.
-/// Official usage uses the access token already stored in CC Switch. It does
-/// not read ~/.codex, CODEX_HOME, or the codex binary.
+/// Official usage prefers an app-managed login when one exists, otherwise
+/// uses CC Switch's stored access token. The fallback never reads Codex files.
 public actor AccountQuotaClient {
     private let transport: any AccountQuotaTransport
     private let authFileURL: URL
     private let qwenQuotaSource: any QwenQuotaSource
+    private let officialQuotaSource: (any OfficialAccountQuotaSource)?
     private let now: @Sendable () -> Date
     private let xaiTokens = XAIAccessTokens()
 
@@ -141,11 +142,13 @@ public actor AccountQuotaClient {
         transport: any AccountQuotaTransport = URLSessionAccountQuotaTransport(),
         authFileURL: URL = XaiAuthFile.defaultURL,
         qwenQuotaSource: any QwenQuotaSource = QwenCLIQuotaSource(),
+        officialQuotaSource: (any OfficialAccountQuotaSource)? = nil,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.transport = transport
         self.authFileURL = authFileURL
         self.qwenQuotaSource = qwenQuotaSource
+        self.officialQuotaSource = officialQuotaSource
         self.now = now
     }
 
@@ -229,7 +232,10 @@ public actor AccountQuotaClient {
         try await withThrowingTaskGroup(of: AccountQuotaChip?.self) { group in
             for target in targets {
                 group.addTask {
-                    try await Self.queryOfficial(target, transport: self.transport)
+                    if let managed = try await self.officialQuotaSource?.loadQuota(for: target) {
+                        return managed
+                    }
+                    return try await Self.queryOfficial(target, transport: self.transport)
                 }
             }
             var chips: [AccountQuotaChip] = []
@@ -418,7 +424,7 @@ public actor AccountQuotaClient {
     /// account, or a missing `expires_at` omits the plan expiry and does not fail usage.
     /// `renews_at` is not read. No account id means the check is skipped,
     /// because a different account's expiry must not be shown.
-    private static func officialPlanExpiry(
+    static func officialPlanExpiry(
         accessToken: String,
         accountID: String?,
         transport: any AccountQuotaTransport
@@ -647,7 +653,25 @@ private actor XAIAccessTokens {
             if AccountQuotaClient.isCancellation(error) { throw CancellationError() }
             return .failure(.network)
         }
-        return interpretBilling(response, now: now)
+        let billing = interpretBilling(response, now: now)
+        guard case let .windows(usage) = billing else { return billing }
+        var subscriptionRequest = URLRequest(url: XaiEndpointValidator.subscriptionsURL, timeoutInterval: 8)
+        subscriptionRequest.setValue("Bearer \(access)", forHTTPHeaderField: "Authorization")
+        subscriptionRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+        subscriptionRequest.setValue("https://grok.com", forHTTPHeaderField: "Origin")
+        subscriptionRequest.setValue("ai-benchgauge", forHTTPHeaderField: "User-Agent")
+        do {
+            let subscription = try await transport.data(for: subscriptionRequest)
+            if (200...299).contains(subscription.statusCode), subscription.body.count <= 1_048_576,
+               let expiry = GrokBillingParser.parseSubscriptionExpiry(subscription.body) {
+                return .windows(usage + [expiry])
+            }
+        } catch {
+            if AccountQuotaClient.isCancellation(error) { throw CancellationError() }
+        }
+        // An optional subscription failure must not erase the usage result or
+        // mislabel its weekly reset as the monthly subscription deadline.
+        return billing
     }
 
     private func accessToken(
@@ -804,7 +828,7 @@ private actor XAIAccessTokens {
         let resetsAt = snapshot.resetsAt
         return .windows([
             ParsedQuotaWindow(
-                name: GrokBillingParser.tierName(resetsAt: resetsAt, now: now),
+                name: snapshot.windowName,
                 utilization: snapshot.usedPercent,
                 resetsAt: resetsAt
             ),

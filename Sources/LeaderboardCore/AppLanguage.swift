@@ -69,13 +69,19 @@ public enum AppLanguage: String, CaseIterable, Sendable {
     /// produces a few fixed Chinese phrases. Convert only that known UI copy.
     /// Model and company names never pass through this function.
     public func quotaText(_ value: String) -> String {
-        if self == .traditionalChinese { return Self.traditional(value) }
+        if self == .traditionalChinese {
+            // A lone “余” is ambiguous to ICU; this label means remaining balance.
+            let copy = value.hasPrefix("余 ") ? "餘 " + value.dropFirst(2) : value
+            return Self.traditional(copy)
+        }
         guard self == .english else { return value }
         let exact: [String: String] = [
             "查询中": "Checking", "查询失败": "Check failed",
             "需要重新登录": "Sign in again", "未配置": "Not configured",
             "未登录": "Not signed in", "网络错误": "Network error",
             "无可用余额": "No balance", "未连接": "Connect",
+            "等待授权": "Waiting for authorization",
+            "请在浏览器中完成 OpenAI 授权": "Complete OpenAI authorization in your browser",
             "正在查询官方用量": "Checking official usage",
             "没有可用的 API Key 或供应商令牌，未发起查询": "No API key or provider token; no query sent",
             "没有可用的 xAI 登录，未发起查询": "No xAI sign-in; no query sent",
@@ -83,14 +89,12 @@ public enum AppLanguage: String, CaseIterable, Sendable {
             "当前供应商": "Current provider",
             "千问官网套餐额度（qianwen CLI 当前登录账号）": "Qwen plan quota (current qianwen CLI account)",
             "千问官网个人版用量（网页显示的剩余百分比；网页未提供精确 Credits）": "Qwen personal plan remaining percentage; exact credits are unavailable",
-            "已到期": "Expired",
+            "本期将在2天内结束": "Current period ends within 2 days",
         ]
         if let translated = exact[value] { return translated }
         if value.hasPrefix("余量达到") {
             return value.replacingOccurrences(of: "余量达到", with: "Remaining quota reached ")
         }
-        if value == "2天内到期" { return "Expires within 2 days" }
-        if value == "2天内重置" { return "Resets within 2 days" }
         if value.contains("额度 "), value.contains("后重置") {
             return value.components(separatedBy: "；").map { part in
                 guard let quota = part.range(of: "额度 "),
@@ -110,9 +114,10 @@ public enum AppLanguage: String, CaseIterable, Sendable {
         var result = value
         let replacements = [
             ("5小时", "5h"), ("7天", "7d"), ("1个月", "1 month"), ("月度", "1 month"),
+            ("后重置", " until reset"), ("重置", " resets "),
             ("额度", "credits"), ("余额 ", "Balance "),
-            ("剩余 ", "Remaining "), ("截至", "Until "),
-            ("；", "; "), ("，", ", "), ("后重置", " until reset"),
+            ("剩余 ", "Remaining "), ("余 ", "Balance "), ("截至", "Until "), ("至", "to "),
+            ("；", "; "), ("，", ", "),
         ]
         for (source, target) in replacements {
             result = result.replacingOccurrences(of: source, with: target)

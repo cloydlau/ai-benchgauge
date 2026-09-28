@@ -5,6 +5,26 @@ import Foundation
 /// These functions never see credentials. Callers map `.rejected` to the
 /// fixed "查询失败" string and must not surface raw response text.
 public enum CCSwitchQuotaParsers {
+    /// Account-only app-server response. Select the Codex bucket explicitly;
+    /// other metered limits must not replace the account's coding quota.
+    public static func parseOpenAIAppServer(_ data: Data) -> ProviderQuotaParseResult {
+        guard let body = jsonObject(data) else { return .rejected }
+        let byID = body["rateLimitsByLimitId"] as? [String: Any]
+        let limit = (byID?["codex"] as? [String: Any]) ?? (body["rateLimits"] as? [String: Any])
+        guard let limit, (limit["limitId"] as? String).map({ $0 == "codex" }) ?? true else { return .rejected }
+        let windows = ["primary", "secondary"].compactMap { key -> ParsedQuotaWindow? in
+            guard let window = limit[key] as? [String: Any],
+                  let used = jsonDouble(window["usedPercent"]), used.isFinite else { return nil }
+            let minutes = jsonInt(window["windowDurationMins"]) ?? 0
+            guard minutes >= 0, minutes <= Int64.max / 60 else { return nil }
+            return ParsedQuotaWindow(
+                name: windowName(seconds: minutes * 60, fallback: key == "primary" ? "five_hour" : "weekly_limit"),
+                utilization: min(max(used, 0), 100), resetsAt: resetDate(window["resetsAt"])
+            )
+        }
+        return .windows(windows)
+    }
+
     /// Parses the Codex official `backend-api/wham/usage` response.
     public static func parseOpenAI(_ data: Data) -> ProviderQuotaParseResult {
         guard let body = jsonObject(data),
@@ -39,9 +59,10 @@ public enum CCSwitchQuotaParsers {
         )
     }
 
-    /// Subscription end from `GET /backend-api/accounts/check/v4-2023-04-27`.
+    /// Entitlement boundary from `GET /backend-api/accounts/check/v4-2023-04-27`.
     /// Only `entitlement.expires_at` on the account whose key matches
-    /// `accountID`. `renews_at` is a billing date, not the plan end. Nil when
+    /// `accountID`. Neither date establishes cancellation or renewal status.
+    /// `renews_at` is a billing date, not this entitlement boundary. Nil when
     /// the account does not match or the field is missing, so the usage card
     /// still succeeds.
     public static func parseOpenAIPlanExpiry(_ data: Data, accountID: String) -> ParsedQuotaWindow? {
@@ -100,8 +121,8 @@ public enum CCSwitchQuotaParsers {
                 let stats = reliableUsedCount(detail)
                 windows.append(
                     KimiCountWindow(
-                        role: .session,
-                        name: minutes == 10_080 ? "weekly_limit" : "five_hour",
+                        role: minutes == 300 ? .session : (minutes == 10_080 ? .weekly : .other),
+                        name: minutes == 300 ? "five_hour" : (minutes == 10_080 ? "weekly_limit" : (minutes == 43_200 ? "monthly" : "credits")),
                         matchMinutes: minutes,
                         utilization: countUtilization(detail),
                         resetsAt: kimiResetDate(detail),
@@ -191,6 +212,7 @@ public enum CCSwitchQuotaParsers {
         case "TIME_UNIT_DAY": multiplier = 24 * 60
         default: return nil
         }
+        guard duration <= Int.max / multiplier else { return nil }
         let minutes = duration * multiplier
         return minutes > 0 ? minutes : nil
     }
@@ -236,7 +258,7 @@ public enum CCSwitchQuotaParsers {
         counts: [KimiCountWindow]
     ) -> [ParsedQuotaWindow] {
         let sessions = counts.filter { $0.role == .session }
-        let weeklyCount = counts.first { $0.role == .weekly }
+        let weeklyCount = counts.last { $0.role == .weekly }
         let weeklyReliable = weeklyCount?.reliable == true
         var windows: [ParsedQuotaWindow] = []
         if let session = ratios.session {
@@ -269,6 +291,9 @@ public enum CCSwitchQuotaParsers {
         } else if let weeklyCount {
             windows.append(weeklyCount.window)
         }
+        windows.append(contentsOf: counts.filter {
+            $0.role == .other && ($0.name != "monthly" || ratios.monthly == nil)
+        }.map(\.window))
         if let monthly = ratios.monthly {
             windows.append(monthly)
         }
@@ -304,7 +329,7 @@ public enum CCSwitchQuotaParsers {
     }
 
     private struct KimiCountWindow {
-        enum Role { case session, weekly }
+        enum Role { case session, weekly, other }
         var role: Role
         var name: String
         var matchMinutes: Int?
@@ -335,7 +360,7 @@ public enum CCSwitchQuotaParsers {
         return .windows(zhipuWindows(payload))
     }
 
-    /// Coding-plan end from `subscription/list`. The overview page shows
+    /// Coding-plan period boundary from `subscription/list`. The overview page shows
     /// 「有效期至」 from the first current plan's `nextRenewTime`
     /// (`yyyy-MM-dd` or `yyyy-MM-dd HH:mm:ss`, Asia/Shanghai). `valid`'s end
     /// is only the fallback when that field is missing; it is the next
@@ -443,28 +468,8 @@ public enum CCSwitchQuotaParsers {
             }
         }
 
-        // Missing `unit` only. A present unit must not be reordered: the weekly
-        // bucket can reset sooner than the 5-hour bucket.
-        unclassified.sort { lhs, rhs in
-            switch (lhs.resetMilliseconds, rhs.resetMilliseconds) {
-            case (nil, nil):
-                return false
-            case (nil, .some):
-                return true
-            case (.some, nil):
-                return false
-            case let (left?, right?):
-                return left < right
-            }
-        }
-        for entry in unclassified {
-            if fiveHour == nil {
-                fiveHour = entry
-            } else if weekly == nil {
-                weekly = entry
-            }
-        }
-
+        // Missing or unknown period metadata stays unclassified; reset order
+        // cannot establish whether this is an hourly, weekly or monthly pool.
         var windows: [ParsedQuotaWindow] = []
         if let fiveHour {
             windows.append(fiveHour.window(named: "five_hour"))
@@ -472,6 +477,7 @@ public enum CCSwitchQuotaParsers {
         if let weekly {
             windows.append(weekly.window(named: "weekly_limit"))
         }
+        windows.append(contentsOf: unclassified.map { $0.window(named: "credits") })
         return windows
     }
 
@@ -569,13 +575,13 @@ public enum CCSwitchQuotaParsers {
         return formatter.date(from: text)
     }
 
-    /// `unit` 3 is the 5-hour window. `unit` 6 is weekly. Anything else falls
-    /// through to the reset-time heuristic.
+    /// Explicit known period metadata only. Unknown units are never inferred
+    /// from reset dates, nor assigned to an hourly/weekly slot.
     private static func zhipuWindow(_ item: [String: Any]) -> ZhipuWindow? {
         guard let unit = jsonInt(item["unit"]) else { return nil }
         switch unit {
-        case 3: return .fiveHour
-        case 6: return .weekly
+        case 3 where item["number"] == nil || jsonInt(item["number"]) == 5: return .fiveHour
+        case 6 where item["number"] == nil || jsonInt(item["number"]) == 1: return .weekly
         default: return nil
         }
     }
@@ -585,10 +591,12 @@ public enum GrokBillingParser {
     public struct Snapshot: Equatable, Sendable {
         public let usedPercent: Double
         public let resetsAt: Date?
+        public let windowName: String
 
-        public init(usedPercent: Double, resetsAt: Date?) {
+        public init(usedPercent: Double, resetsAt: Date?, windowName: String = "credits") {
             self.usedPercent = usedPercent
             self.resetsAt = resetsAt
+            self.windowName = windowName
         }
     }
 
@@ -605,47 +613,47 @@ public enum GrokBillingParser {
             scanProtobuf(payload, depth: 0, path: [], order: 0, scan: &scan)
         }
 
-        let parsedPercent = scan.fixed32
-            .filter { field in
-                field.path.last == 1
-                    && field.value.isFinite
-                    && field.value >= 0
-                    && field.value <= 100
-            }
-            .min { lhs, rhs in
-                if lhs.path.count != rhs.path.count {
-                    return lhs.path.count < rhs.path.count
-                }
-                return lhs.order < rhs.order
-            }
-            .map { Double($0.value) }
-
-        let nowSeconds = Int64(now.timeIntervalSince1970)
-        let resetCandidates = scan.varints.compactMap { field -> (path: [UInt64], timestamp: Int64)? in
-            guard (1_700_000_000...2_100_000_000).contains(field.value) else { return nil }
-            let timestamp = Int64(field.value)
-            guard timestamp > nowSeconds else { return nil }
-            return (field.path, timestamp)
+        // GrokCreditsConfig.credit_usage_percent is field 1. Product usage
+        // and history percentages belong to different pools.
+        let parsedPercent = scan.fixed32.first { $0.path == [1, 1] }?.value
+        guard parsedPercent.map({ $0.isFinite && (0...100).contains($0) }) ?? true else { return nil }
+        let periodType = scan.varints.first { $0.path == [1, 8, 1] }?.value
+        let name: String
+        switch periodType {
+        case 1: name = "monthly"
+        case 2: name = "weekly_limit"
+        default: name = "credits"
         }
-        let exactReset = resetCandidates
-            .filter { $0.path == [1, 5, 1] }
-            .map(\.timestamp)
-            .min()
-        let reset = exactReset ?? resetCandidates.map(\.timestamp).min()
-
-        let hasUsagePeriod = scan.varints.contains { field in
-            field.path.starts(with: [1, 6])
-                || (field.path == [1, 8, 1] && (field.value == 1 || field.value == 2))
+        // current_period.end is authoritative for usage; the legacy billing
+        // end can also be weekly. Neither is the subscription's expiry.
+        func timestamp(at path: [UInt64]) -> Date? {
+            guard let seconds = scan.varints.first(where: { $0.path == path })?.value,
+                  seconds > 0, seconds <= 253_402_300_799 else { return nil }
+            return Date(timeIntervalSince1970: TimeInterval(seconds))
         }
-        let noUsageYet = parsedPercent == nil
-            && scan.fixed32.isEmpty
-            && reset != nil
-            && hasUsagePeriod
-        guard let usedPercent = parsedPercent ?? (noUsageYet ? 0 : nil) else { return nil }
-        return Snapshot(
-            usedPercent: min(max(usedPercent, 0), 100),
-            resetsAt: reset.map { Date(timeIntervalSince1970: TimeInterval($0)) }
-        )
+        let reset = timestamp(at: [1, 8, 3, 1]) ?? timestamp(at: [1, 5, 1])
+        // Proto3 omits a zero percentage. A typed current period establishes
+        // a valid zero-usage config, without borrowing history or product usage.
+        guard parsedPercent != nil || (reset != nil && (periodType == 1 || periodType == 2)) else { return nil }
+        return Snapshot(usedPercent: Double(parsedPercent ?? 0), resetsAt: reset, windowName: name)
+    }
+
+    /// `GET https://grok.com/rest/subscriptions`: billingPeriodEnd on an
+    /// active Grok subscription is its monthly/annual billing-period boundary.
+    /// Active status does not establish whether the next period will renew.
+    /// Inactive history and usage reset timestamps must not supply this date.
+    public static func parseSubscriptionExpiry(_ data: Data) -> ParsedQuotaWindow? {
+        guard let body = CCSwitchJSON.object(data),
+              let subscriptions = body["subscriptions"] as? [[String: Any]] else { return nil }
+        let ends = subscriptions.compactMap { subscription -> Date? in
+            guard subscription["status"] as? String == "SUBSCRIPTION_STATUS_ACTIVE",
+                  let tier = subscription["tier"] as? String,
+                  tier.hasPrefix("SUBSCRIPTION_TIER_GROK_") || tier.hasPrefix("SUBSCRIPTION_TIER_SUPER_GROK_"),
+                  let end = subscription["billingPeriodEnd"] as? String else { return nil }
+            return CCSwitchJSON.isoDate(end)
+        }
+        guard let end = ends.max() else { return nil }
+        return ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: end)
     }
 
     /// Classifies an HTTP status and optional grpc-status before the body is trusted.
@@ -667,15 +675,6 @@ public enum GrokBillingParser {
             return .failed
         }
         return .ok
-    }
-
-    public static func tierName(resetsAt: Date?, now: Date) -> String {
-        guard let resetsAt else { return "credits" }
-        let days = ((resetsAt.timeIntervalSince(now)) / 86_400).rounded()
-        let wholeDays = Int(days)
-        if (4...12).contains(wholeDays) { return "weekly_limit" }
-        if (20...45).contains(wholeDays) { return "monthly" }
-        return "credits"
     }
 
     public static func trailerFields(_ data: Data) -> [String: String] {
