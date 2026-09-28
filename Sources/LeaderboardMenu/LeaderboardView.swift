@@ -14,6 +14,7 @@ private final class ScreenshotUIState: ObservableObject {
 struct LeaderboardView: View {
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var state: AppState
+    @ObservedObject private var appUpdater = AppUpdater.shared
     @StateObject private var screenshot = ScreenshotUIState()
 
     private var language: AppLanguage { state.selectedLanguage }
@@ -309,10 +310,15 @@ struct LeaderboardView: View {
                 // name needs no font bundling or license.
                 .font(.custom("SnellRoundhand-Bold", size: 21))
                 .lineLimit(1)
-            Text("v\(appVersion)")
+            Button("v\(appVersion)") { appUpdater.checkForUpdates() }
+                .buttonStyle(.plain)
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .monospacedDigit()
+                .disabled(!appUpdater.canCheckForUpdates)
+                .help(tr("Check for app updates", "检查应用更新"))
+                .accessibilityLabel(tr("Check for app updates", "检查应用更新"))
+                .accessibilityIdentifier("check-app-updates")
         }
     }
 
