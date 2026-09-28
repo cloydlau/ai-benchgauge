@@ -6,7 +6,7 @@
 
 **Compare two leaderboards at a glance. Keep model rankings and account quotas in your macOS menu bar.**
 
-`macOS 14+` · `Swift 6` · `3 languages` · [MIT License](LICENSE)
+`macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `3 languages` · [MIT License](LICENSE)
 
 ![AI BenchGauge illustration: paired rankings and CC Switch quotas](docs/overview.en.svg)
 
@@ -110,3 +110,11 @@ Scripts/commit.sh -m "feat(menu): …"
 The commit author follows the current model in Codex configuration, with a vendor-specific email address. Desktop notifications try to include the model avatar and use temporary styling for success and failure. `COMMIT_SPLIT=0` creates one commit; `COMMIT_CODEX_MESSAGE=0` groups by purpose without calling a model. `Scripts/commit.sh` does not push by default. `COMMIT_COAUTHOR=1` restores the user as committer and adds a `Co-authored-by` line. `DESKTOP_NOTIFY=0` disables desktop notifications.
 
 </details>
+
+## Windows and platform layout
+
+Windows uses a native WPF tray/window client and the same Swift business logic as macOS.
+Download the `.dmg` (Apple silicon + Intel) or Windows x64 `-setup.exe` from the same [GitHub Release](https://github.com/cloydlau/ai-benchgauge/releases).
+Both apps share versions, quota rules and signed hourly update checks. Windows includes Swift/.NET runtimes and supports Qwen sign-in through WebView2.
+See [Windows build instructions](apps/windows/README.md), [project structure](docs/architecture.md) and [release setup](docs/releasing.md).
+Local full tests now require .NET 10 SDK; `BENCHGAUGE_DOTNET` can select its executable.

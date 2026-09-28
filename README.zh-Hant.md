@@ -6,7 +6,7 @@
 
 **兩張榜單，一眼比較。模型排行與帳戶額度，常駐 macOS 選單列。**
 
-`macOS 14+` · `Swift 6` · `English / 簡中 / 繁中` · [MIT 授權條款](LICENSE)
+`macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `English / 簡中 / 繁中` · [MIT 授權條款](LICENSE)
 
 ![AI BenchGauge 介面示意：雙榜比較與 CC Switch 額度](docs/overview.zh-Hant.svg)
 
@@ -109,3 +109,11 @@ Scripts/commit.sh -m "feat(menu): …"
 提交作者採用 Codex 設定中的目前模型，電子郵件依供應商設定。桌面通知會盡量附上模型頭像，成功與失敗通知都使用暫時顯示的樣式。`COMMIT_SPLIT=0` 將變更合併為單一提交；`COMMIT_CODEX_MESSAGE=0` 不呼叫模型，而是依用途分組。`Scripts/commit.sh` 的 `COMMIT_PUSH` 預設仍為關閉。`COMMIT_COAUTHOR=1` 才會將使用者恢復為 committer，並加入 `Co-authored-by`。`DESKTOP_NOTIFY=0` 關閉桌面通知。
 
 </details>
+
+## Windows 與平台結構
+
+Mac 與 Windows 共用 Swift 業務邏輯與版本號。每次 [GitHub Release](https://github.com/cloydlau/ai-benchgauge/releases)
+同時提供 Mac 通用 `.dmg` 與 Windows x64 `-setup.exe`，兩端每小時檢查簽名更新。
+Windows 安裝包包含 Swift / .NET 執行環境，千問登入使用 WebView2。
+詳見 [Windows 建置](apps/windows/README.md)、[目錄結構](docs/architecture.md)及[發版設定](docs/releasing.md)。
+完整本機測試另需 .NET 10 SDK；可用 `BENCHGAUGE_DOTNET` 指定執行檔。

@@ -4,9 +4,9 @@
 
 [English](README.md) | **简体中文** | [繁體中文](README.zh-Hant.md)
 
-**两张榜单，一眼对照。模型排名与账户余量，常驻 macOS 菜单栏。**
+**两张榜单，一眼对照。模型排名与账户余量，常驻 macOS 菜单栏与 Windows 托盘。**
 
-`macOS 14+` · `Swift 6` · `English / 简中 / 繁中` · [MIT 许可证](LICENSE)
+`macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `English / 简中 / 繁中` · [MIT 许可证](LICENSE)
 
 ![AI BenchGauge 界面示意：双榜对照与 CC Switch 余量](docs/overview.svg)
 
@@ -57,7 +57,11 @@ OpenAI 显示“需要重新登录”时，点击卡片会直接打开官方授�
 
 ## 快速开始
 
-运行需要 macOS 14 或更新版本。源码构建需要 Swift 6 和 Command Line Tools：
+从 [GitHub Releases](https://github.com/cloydlau/ai-benchgauge/releases) 下载对应安装包：
+Mac 使用 `.dmg`（Apple 芯片 / Intel 通用），Windows 使用 `-setup.exe`（x64）。
+Windows 按当前用户安装，不需要单独安装 Swift 或 .NET；[源码构建说明](apps/windows/README.md)。
+
+Mac 源码构建需要 Swift 6、.NET 10 SDK（运行 Windows 更新测试）和 Command Line Tools：
 
 ```bash
 ./Scripts/make-app.sh
@@ -81,7 +85,7 @@ open outputs/AI-BenchGauge.app
 
 `./dev.sh` 启动时先运行测试，再重新打开最新应用；如果可执行文件缺失或源码较新，会先构建再启动。后续保存按下面的防抖和节流间隔处理。测试失败会阻断后续动作，监听器继续等待，保存修复后重新验证。
 
-`./dev.sh` 监听 `Sources/`、`Tests/`、`Scripts/` 和根目录的构建、开发脚本，同时检查未提交改动和未推送提交。变更停止 1 分钟，并且距上次运行至少 1 分钟后，先测试，再按目的提交和推送，监听文件有变化时重建重启。已有的未推送提交也须先通过测试。子提交、构建进程只在测试输入完全一致时复用本次通过的结果。
+`./dev.sh` 监听 `Sources/`、`apps/`、`assets/`、`config/`、`Tests/`、`Scripts/` 和根目录的构建、开发脚本，同时检查未提交改动和未推送提交。变更停止 1 分钟，并且距上次运行至少 1 分钟后，先测试，再按目的提交和推送，监听文件有变化时重建重启。已有的未推送提交也须先通过测试。子提交、构建进程只在测试输入完全一致时复用本次通过的结果。
 
 `WATCH_DEBOUNCE_MS` 和 `WATCH_THROTTLE_MS` 可改这两个间隔，`WATCH_AUTOCOMMIT=0` 关闭自动提交，`COMMIT_PUSH=0` 或 `WATCH_AUTOPUSH=0` 关闭自动推送。构建失败后，同一份源码签名不会空转重试；提交失败后，同一份 git 状态也不会空转重试；推送失败后，同一提交也不会空转重试。再保存一次，或重启 `./dev.sh`，才会重新调度。
 
@@ -107,3 +111,5 @@ Scripts/commit.sh -m "feat(menu): …"
 作者是 Codex 配置里的当前模型，邮箱按厂商填写，桌面通知会尽量带上模型图标。成功和失败通知都使用临时样式。`COMMIT_SPLIT=0` 合并成一个提交。`COMMIT_CODEX_MESSAGE=0` 不调用模型，按用途分组。`Scripts/commit.sh` 的 `COMMIT_PUSH` 仍默认关闭。`COMMIT_COAUTHOR=1` 才把本人恢复为 committer，并加上 `Co-authored-by`。`DESKTOP_NOTIFY=0` 关闭桌面通知。
 
 </details>
+
+两端目录和共享业务层见 [结构说明](docs/architecture.md)，统一发版见 [发版说明](docs/releasing.md)。
