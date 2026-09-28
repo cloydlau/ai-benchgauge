@@ -15,7 +15,8 @@ let package = Package(
             name: "leaderboard-menu",
             dependencies: ["LeaderboardCore"],
             path: "Sources/LeaderboardMenu",
-            exclude: ["Resources/Info.plist", "Resources/logos"]
+            exclude: ["Resources/Info.plist", "Resources/logos"],
+            resources: [.copy("Resources/Licenses")]
         ),
         .testTarget(
             name: "LeaderboardCoreTests",
