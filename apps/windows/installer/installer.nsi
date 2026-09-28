@@ -3,6 +3,7 @@ Unicode true
 !include "FileFunc.nsh"
 !include "LogicLib.nsh"
 !include "x64.nsh"
+!include "WinVer.nsh"
 !ifndef VERSION
 !error "VERSION is required"
 !endif
@@ -31,6 +32,7 @@ Var WaitPID
 Var Parameters
 Function .onInit
     ${IfNot} ${RunningX64}
+    ${OrIfNot} ${AtLeastWin10}
         MessageBox MB_ICONSTOP "AI BenchGauge requires 64-bit Windows 10 or newer."
         Abort
     ${EndIf}
@@ -96,6 +98,15 @@ SectionEnd
 Function .onInstSuccess
     ${If} $UpdateMode == "yes"
         Exec '$\"$INSTDIR\AI-BenchGauge.exe$\"'
+    ${EndIf}
+FunctionEnd
+Function un.onInit
+    checkRunning:
+    System::Call 'kernel32::OpenMutexW(i 0x00100000, i 0, w "Local\AI-BenchGauge") p.r0'
+    ${If} $0 != 0
+        System::Call 'kernel32::CloseHandle(p r0)'
+        MessageBox MB_RETRYCANCEL "Please quit AI BenchGauge before uninstalling." IDRETRY checkRunning
+        Abort
     ${EndIf}
 FunctionEnd
 Section "Uninstall"

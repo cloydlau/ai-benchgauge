@@ -4,6 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <BenchGaugeConfigJson>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)../../config/app.json'))</BenchGaugeConfigJson>
     <Version>$([System.Text.RegularExpressions.Regex]::Match($(BenchGaugeConfigJson), '&quot;version&quot;\s*:\s*&quot;([^&quot;]+)&quot;').Groups[1].Value)</Version>
     <Company>cloydlau</Company>

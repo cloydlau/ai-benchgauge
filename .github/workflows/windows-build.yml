@@ -32,8 +32,17 @@ jobs:
       - name: Tests, runtime closure and native UI
         shell: pwsh
         run: |
-          if ('${{ inputs.installer }}' -eq 'true') { ./Scripts/make-windows.ps1 -Installer }
-          else { ./Scripts/make-windows.ps1 }
+          New-Item -ItemType Directory -Force work | Out-Null
+          try {
+            if ('${{ inputs.installer }}' -eq 'true') { ./Scripts/make-windows.ps1 -Installer *>&1 | Tee-Object work/windows-build.log }
+            else { ./Scripts/make-windows.ps1 *>&1 | Tee-Object work/windows-build.log }
+          } catch {
+            $details = ((Get-Content work/windows-build.log -Tail 100) -join "`n")
+            if ($details.Length -gt 12000) { $details = $details.Substring($details.Length - 12000) }
+            $details = $details.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::error title=Windows build failed::$details"
+            throw
+          }
       - uses: actions/upload-artifact@v7.0.1
         if: inputs.installer
         with:
