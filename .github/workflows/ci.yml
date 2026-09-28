@@ -26,3 +26,5 @@ jobs:
           TEST_AUTO_REPAIR: '0'
   windows:
     uses: ./.github/workflows/windows-build.yml
+    with:
+      installer: true

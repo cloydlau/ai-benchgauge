@@ -154,6 +154,7 @@ actor Engine {
             chips = []; targets = [:]; unavailable = false
             needsCCSwitch = !FileManager.default.fileExists(atPath: install.databaseURL.path)
         case .unavailable: unavailable = true
+            chips = chips.map { AccountQuotaChip(id: $0.id, shortName: $0.shortName, websiteURL: $0.websiteURL, kind: $0.kind, isCurrent: $0.isCurrent, status: $0.status, isStale: true) }
         case .records(let records):
             unavailable = false; needsCCSwitch = false
             let list = CCSwitchQuotaCatalog.targets(from: records, currentProviderID: CCSwitchProviderStore.currentCodexProviderID(settingsURL: install.settingsURL))

@@ -71,6 +71,19 @@ Section "Install"
     SetShellVarContext current
     SetOutPath "$INSTDIR"
     File /r "${PAYLOAD}\*"
+    ; Only install Evergreen WebView2 if missing. The core app works offline.
+    ReadRegStr $0 HKCU "Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
+    SetRegView 32
+    ReadRegStr $1 HKLM "Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
+    SetRegView 64
+    ${If} $0 == ""
+    ${OrIf} $0 == "0.0.0.0"
+        ${If} $1 == ""
+        ${OrIf} $1 == "0.0.0.0"
+            DetailPrint "Installing Microsoft WebView2 Runtime..."
+            ExecWait '$\"$INSTDIR\prerequisites\MicrosoftEdgeWebview2Setup.exe$\" /silent /install' $2
+        ${EndIf}
+    ${EndIf}
     WriteUninstaller "$INSTDIR\Uninstall.exe"
     CreateShortcut "$SMPROGRAMS\AI BenchGauge.lnk" "$INSTDIR\AI-BenchGauge.exe"
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AI-BenchGauge" "DisplayName" "AI BenchGauge"
