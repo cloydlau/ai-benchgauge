@@ -22,7 +22,7 @@ export function inferScope(files) {
   const scopes = new Set()
   for (const file of files) {
     if (file.startsWith('Sources/LeaderboardCore/')) scopes.add('core')
-    else if (file.startsWith('Sources/LeaderboardMenu/')) scopes.add('menu')
+    else if (file.startsWith('apps/macos/Sources/')) scopes.add('menu')
     else if (file.startsWith('Tests/')) scopes.add('tests')
     else if (file.startsWith('Scripts/') || file === 'dev.sh') scopes.add('scripts')
     else if (file.endsWith('.md') || file === 'LICENSE') scopes.add('docs')

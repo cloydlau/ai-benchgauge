@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { decodePublicKey } from './release-lib.mjs'
@@ -21,10 +21,14 @@ try {
   run(generator, ['--account', account])
   const publicKey = run(generator, ['--account', account, '-p'])
   decodePublicKey(publicKey)
-  const plist = join(root, 'Sources', 'LeaderboardMenu', 'Resources', 'Info.plist')
+  const plist = join(root, 'apps', 'macos', 'Sources', 'Resources', 'Info.plist')
   const existing = JSON.parse(run('plutil', ['-convert', 'json', '-o', '-', plist])).SUPublicEDKey
   if (existing && existing !== publicKey) throw new Error('The existing public key differs. Import the original signing key into Keychain; do not rotate it automatically.')
   run('plutil', ['-replace', 'SUPublicEDKey', '-string', publicKey, plist])
+  const configFile = join(root, 'config', 'app.json')
+  const config = JSON.parse(readFileSync(configFile, 'utf8'))
+  if (config.updatePublicKey && config.updatePublicKey !== publicKey) throw new Error('Shared public key differs; do not rotate it automatically')
+  writeFileSync(configFile, JSON.stringify({ ...config, updatePublicKey: publicKey }, null, 2) + '\n')
   console.log('Update public key configured. The private key stays in your login Keychain.')
   if (process.argv[2] === '--export-key') {
     const directory = join(root, 'work', 'update-signing')

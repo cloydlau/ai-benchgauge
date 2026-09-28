@@ -18,13 +18,13 @@ export function testInputSignature(root = testRoot, env = process.env, { include
     const stat = statSync(path)
     if (stat.isDirectory()) {
       for (const name of readdirSync(path).sort()) {
-        if (!name.startsWith('.')) collect(join(path, name))
+        if (!name.startsWith('.') && !['bin', 'obj', 'node_modules'].includes(name)) collect(join(path, name))
       }
     } else if (stat.isFile()) {
       hash.update(relative(root, path)); hash.update('\0'); hash.update(readFileSync(path)); hash.update('\0')
     }
   }
-  for (const path of [...(includeSources ? ['Sources'] : []), 'Tests', 'Scripts', '.github', 'Package.swift', 'Package.resolved', 'test.sh', 'make-app.sh', 'dev.sh', 'LICENSE']) collect(join(root, path))
+  for (const path of [...(includeSources ? ['Sources', 'apps/macos/Sources', 'apps/windows/BenchGauge', 'apps/windows/BenchGauge.Shared'] : []), 'Tests', 'apps/windows/BenchGauge.Tests', 'apps/windows/Directory.Build.props', 'apps/windows/BenchGauge/BenchGauge.csproj', 'apps/windows/BenchGauge/packages.lock.json', 'apps/windows/BenchGauge.Shared/BenchGauge.Shared.csproj', 'apps/windows/BenchGauge.Shared/packages.lock.json', 'apps/windows/installer', 'apps/windows/Licenses', 'assets', 'config', 'Scripts', '.github', 'Package.swift', 'Package.resolved', 'test.sh', 'make-app.sh', 'dev.sh', 'LICENSE']) collect(join(root, path))
   return hash.digest('hex')
 }
 
@@ -48,6 +48,9 @@ export function testCommands(root = testRoot, { coreOnly = false, scriptsOnly = 
       if (existsSync(plugins)) args.push('-Xswiftc', '-plugin-path', '-Xswiftc', plugins)
     }
     commands.push(['swift', args])
+  }
+  if (!coreOnly && existsSync(join(root, 'apps/windows/BenchGauge.Tests/BenchGauge.Tests.csproj'))) {
+    commands.push([process.execPath, [join(root, 'Scripts/windows-tests.mjs')]])
   }
   return commands
 }

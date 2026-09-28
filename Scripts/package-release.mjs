@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { validateAppConfig } from './app-config.mjs'
 import { renderAppcast, sha256, signArchive, signingKey, validateRelease } from './release-lib.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -19,6 +20,8 @@ try {
   const app = join(root, 'outputs', 'AI-BenchGauge.app')
   const info = JSON.parse(run('plutil', ['-convert', 'json', '-o', '-', join(app, 'Contents', 'Info.plist')]))
   const version = validateRelease(tag, info)
+  const config = validateAppConfig(root, tag)
+  if (info.SUPublicEDKey !== config.updatePublicKey) throw new Error('Packaged update key differs from shared configuration')
   const seed = process.env.SPARKLE_PRIVATE_KEY?.trim()
   if (!seed) throw new Error('SPARKLE_PRIVATE_KEY is required to package a signed update')
   const key = signingKey(seed, info.SUPublicEDKey)
@@ -29,9 +32,13 @@ try {
   if (!architectures.includes('arm64') || !architectures.includes('x86_64')) throw new Error('Release must include both arm64 and x86_64')
   const directory = join(root, 'outputs', 'release')
   mkdirSync(directory, { recursive: true })
-  const archiveName = `AI-BenchGauge-${version}-macos-universal.zip`
+  const archiveName = `AI-BenchGauge-${version}-macos-universal.dmg`
   const archive = join(directory, archiveName)
-  run('ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', app, archive])
+  const staging = join(root, 'work', 'dmg-staging')
+  run('mkdir', ['-p', staging])
+  run('ditto', [app, join(staging, 'AI-BenchGauge.app')])
+  run('ln', ['-sfn', '/Applications', join(staging, 'Applications')])
+  run('hdiutil', ['create', '-volname', 'AI BenchGauge', '-srcfolder', staging, '-ov', '-format', 'UDZO', archive])
   const bytes = readFileSync(archive)
   const signature = signArchive(bytes, key)
   const notes = process.env.RELEASE_NOTES_FILE ? readFileSync(process.env.RELEASE_NOTES_FILE, 'utf8') : `AI BenchGauge ${version}\n\nSee the GitHub Release for changes.`

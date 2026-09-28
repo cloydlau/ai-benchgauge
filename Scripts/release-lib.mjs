@@ -65,7 +65,7 @@ export function escapeXML(text) {
 
 export function renderAppcast({ version, archiveName, signature, length, notes, date = new Date() }) {
   version = releaseVersion(version)
-  if (archiveName !== `AI-BenchGauge-${version}-macos-universal.zip`
+  if (![ `AI-BenchGauge-${version}-macos-universal.zip`, `AI-BenchGauge-${version}-macos-universal.dmg` ].includes(archiveName)
       || Buffer.from(signature ?? '', 'base64').length !== 64 || !Number.isSafeInteger(length) || length <= 0) {
     throw new Error('Invalid update archive metadata')
   }
