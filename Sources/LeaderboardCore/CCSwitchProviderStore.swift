@@ -1,5 +1,8 @@
 import Foundation
 import CSQLite
+#if os(Windows)
+import CPlatformSupport
+#endif
 
 public enum CCSwitchProviderLoadResult: Equatable, Sendable {
     /// No install, or the file is not a CC Switch provider database we understand.
@@ -70,6 +73,17 @@ public enum CCSwitchProviderStore {
         databaseURL: URL = defaultDatabaseURL
     ) -> CCSwitchProviderLoadResult {
         let path = databaseURL.path(percentEncoded: false)
+        #if os(Windows)
+        // Foundation's existence check opens the file on Windows and reports
+        // false under an exclusive lock. Metadata lookup preserves unavailable
+        // versus missing without opening the database or disturbing its writer.
+        switch bg_file_status(path) {
+        case 0: return .absent
+        case 1: break
+        case 2: return .absent
+        default: return .unavailable
+        }
+        #else
         guard FileManager.default.fileExists(atPath: path) else {
             return .absent
         }
@@ -79,6 +93,7 @@ public enum CCSwitchProviderStore {
         guard kind == .typeRegular else {
             return .absent
         }
+        #endif
         guard let header = readPrefix(path, count: sqliteMagic.count) else {
             return .unavailable
         }
