@@ -37,9 +37,19 @@ $runtimeFiles = Get-ChildItem $swiftRoot -Recurse -Filter '*.dll' -File
 $vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
 $visualStudio = (& $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath).Trim()
 if (!$visualStudio) { throw 'Visual C++ redistributable directory not found' }
-$redistDirectories = Get-ChildItem (Join-Path $visualStudio 'VC/Redist/MSVC') -Directory | Sort-Object Name -Descending
-if (!$redistDirectories) { throw 'Visual C++ redistributable directory not found' }
-$runtimeFiles += Get-ChildItem (Join-Path $redistDirectories[0].FullName 'x64/Microsoft.VC143.CRT') -Filter '*.dll' -File
+# Visual Studio can add aliases such as v143 alongside numbered directories.
+# Discover actual x64 CRT payloads rather than assuming the first directory is
+# a version or hard-coding a toolset number.
+$crtDirectories = Get-ChildItem (Join-Path $visualStudio 'VC/Redist/MSVC') -Directory -Recurse |
+    Where-Object { $_.Name -match '^Microsoft\.VC\d+\.CRT$' -and $_.Parent.Name -eq 'x64' } |
+    Sort-Object FullName -Descending
+$crtFiles = @()
+foreach ($directory in $crtDirectories) {
+    $crtFiles = @(Get-ChildItem $directory.FullName -Filter '*.dll' -File)
+    if ($crtFiles.Count -gt 0) { break }
+}
+if ($crtFiles.Count -eq 0) { throw 'Visual C++ x64 redistributable DLLs not found' }
+$runtimeFiles += $crtFiles
 $lookup = @{}
 foreach ($file in ($runtimeFiles | Sort-Object { if ($_.FullName -match '[\\/]Runtimes[\\/]') { 0 } else { 1 } })) {
     $key = $file.Name.ToLowerInvariant()
