@@ -20,6 +20,9 @@ const QWEN_GITHUB_EMAIL = '269191875+qwen-code-dev-bot@users.noreply.github.com'
 const GEMINI_GITHUB_EMAIL = '224641728+gemini-cli-robot@users.noreply.github.com'
 // OpenAI Codex's official commit-attribution implementation uses this address.
 const OPENAI_GITHUB_EMAIL = 'noreply@openai.com'
+// 已核验公开 Z.ai Bot 提交在 GitHub 关联到 zai-bot 并返回头像。
+// https://github.com/sujitbhai7710/hrm6021-study-hub/commit/7b417547055b6d93d4940dca88dfa8f2bddf7ca3
+const ZAI_GITHUB_EMAIL = 'zai-bot@users.noreply.github.com'
 // Public contact address listed on the official Xiaomi MiMo GitHub profile.
 const MIMO_EMAIL = 'mimo@xiaomi.com'
 const HUMAN = Object.freeze({
@@ -31,7 +34,7 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
   {
     key: 'glm',
     brands: ['glm', 'zhipu', 'zai'],
-    email: 'noreply@z.ai',
+    email: ZAI_GITHUB_EMAIL,
     logo: 'zai.png',
     favicon: 'https://open.bigmodel.cn/favicon.ico',
     icon: 'https://api.iconify.design/simple-icons:zhipuai.svg',

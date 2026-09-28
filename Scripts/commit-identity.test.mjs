@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict'
-import { existsSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import test from 'node:test'
 
 import {
   avatarForModel,
   commitArgs,
+  commitIdentityEnv,
   emailForModel,
   resolveCommitIdentity,
   resolveModelAvatar,
@@ -101,4 +105,40 @@ test('每家有内置图标的模型都指向仓库里真实存在的 PNG', () =
     assert.ok(existsSync(avatar.bundled), `${model} -> ${avatar.bundled}`)
     assert.equal(avatar.url, avatar.bundled, model)
   }
+})
+
+test('GLM 各别名使用已关联的 Z.ai Bot 邮箱，模型署名保持不变', () => {
+  for (const model of ['GLM-5.3', 'glm-5.3-flash', 'zhipu', 'zai']) {
+    assert.equal(emailForModel(model), 'zai-bot@users.noreply.github.com')
+    const identity = resolveCommitIdentity({ env: { MODEL_NAME: model } })
+    assert.deepEqual(identity.author, { name: model, email: 'zai-bot@users.noreply.github.com' })
+    assert.deepEqual(identity.committer, identity.author)
+  }
+})
+
+test('真实 Git 提交写入 GLM 模型署名与可关联头像的邮箱', (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'benchgauge-commit-identity-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  const identity = resolveCommitIdentity({ env: { MODEL_NAME: 'glm-5.3' } })
+  const env = {
+    ...process.env,
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: '/dev/null',
+    ...commitIdentityEnv(identity),
+  }
+  const run = (args) => {
+    const result = spawnSync('git', args, { cwd: root, env, encoding: 'utf8' })
+    assert.equal(result.status, 0, result.stderr)
+    return result.stdout.trim()
+  }
+
+  run(['init', '-q'])
+  writeFileSync(join(root, 'note.txt'), 'example\n')
+  run(['add', 'note.txt'])
+  run(commitArgs('test: GLM identity', identity))
+
+  const message = run(['show', '-s', '--format=%an <%ae>%n%cn <%ce>%n%B', 'HEAD'])
+  assert.equal(message.split('\n')[0], 'glm-5.3 <zai-bot@users.noreply.github.com>')
+  assert.equal(message.split('\n')[1], 'glm-5.3 <zai-bot@users.noreply.github.com>')
+  assert.doesNotMatch(message, /Co-authored-by/)
 })
