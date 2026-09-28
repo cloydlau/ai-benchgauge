@@ -1,8 +1,9 @@
 import Foundation
 import LeaderboardCore
-import XCTest
+import Testing
 
-final class PurchaseLinkCatalogTests: XCTestCase {
+struct PurchaseLinkCatalogTests {
+    @Test
     func testPurchaseLinksChooseSiteFromInterfaceLanguage() {
         let pairedOrganizations = [
             "Alibaba", "Z.ai", "Tencent", "MiniMax", "KlingAI", "ByteDance Seed", "Xiaomi"
@@ -10,99 +11,87 @@ final class PurchaseLinkCatalogTests: XCTestCase {
         for organization in pairedOrganizations {
             let links = PurchaseLinkCatalog.links(forOrganization: organization)
             for choices in [links.codingPlan, links.payAsYouGo] {
-                XCTAssertEqual(
-                    PurchaseLinkCatalog.preferredLink(from: choices, language: .chinese)?.site,
-                    .mainlandChina,
-                    organization
-                )
-                XCTAssertEqual(
-                    PurchaseLinkCatalog.preferredLink(from: choices, language: .english)?.site,
-                    .international,
-                    organization
-                )
-                XCTAssertEqual(
-                    PurchaseLinkCatalog.preferredLink(from: choices, language: .traditionalChinese)?.site,
-                    .international,
-                    organization
-                )
+                #expect((PurchaseLinkCatalog.preferredLink(from: choices, language: .chinese)?.site) == (.mainlandChina), Comment(rawValue: organization))
+                #expect((PurchaseLinkCatalog.preferredLink(from: choices, language: .english)?.site) == (.international), Comment(rawValue: organization))
+                #expect((PurchaseLinkCatalog.preferredLink(from: choices, language: .traditionalChinese)?.site) == (.international), Comment(rawValue: organization))
             }
         }
         let tencent = PurchaseLinkCatalog.links(forOrganization: "Tencent")
-        XCTAssertEqual(
-            PurchaseLinkCatalog.preferredLink(from: tencent.codingPlan, language: .chinese)?.url.absoluteString,
-            "https://console.cloud.tencent.com/tokenhub/tokenplan/hy"
-        )
+        #expect((PurchaseLinkCatalog.preferredLink(from: tencent.codingPlan, language: .chinese)?.url.absoluteString) == ("https://console.cloud.tencent.com/tokenhub/tokenplan/hy"))
     }
 
+    @Test
     func testChineseDomainAndSingleSiteFallback() {
         let chinese = PurchaseLink(label: "CN", url: URL(string: "https://example.cn/pricing")!)
         let global = PurchaseLink(label: "Global", url: URL(string: "https://example.com/pricing")!)
-        XCTAssertEqual(PurchaseLinkCatalog.preferredLink(from: [global, chinese], language: .chinese), chinese)
-        XCTAssertEqual(PurchaseLinkCatalog.preferredLink(from: [global, chinese], language: .english), global)
-        XCTAssertEqual(PurchaseLinkCatalog.preferredLink(from: [chinese], language: .traditionalChinese), chinese)
-        XCTAssertNil(PurchaseLinkCatalog.preferredLink(from: [], language: .english))
+        #expect((PurchaseLinkCatalog.preferredLink(from: [global, chinese], language: .chinese)) == (chinese))
+        #expect((PurchaseLinkCatalog.preferredLink(from: [global, chinese], language: .english)) == (global))
+        #expect((PurchaseLinkCatalog.preferredLink(from: [chinese], language: .traditionalChinese)) == (chinese))
+        #expect((PurchaseLinkCatalog.preferredLink(from: [], language: .english)) == nil)
     }
 
+    @Test
     func testAliasesShareOfficialLinks() {
         let xAI = PurchaseLinkCatalog.links(forOrganization: "xAI")
         let spaceX = PurchaseLinkCatalog.links(forOrganization: "SpaceXAI")
-        XCTAssertEqual(xAI, spaceX)
-        XCTAssertEqual(xAI.codingPlan.map(\.url.absoluteString), ["https://grok.com/plans"])
-        XCTAssertFalse(xAI.payAsYouGo.isEmpty)
+        #expect((xAI) == (spaceX))
+        #expect((xAI.codingPlan.map(\.url.absoluteString)) == (["https://grok.com/plans"]))
+        #expect(!(xAI.payAsYouGo.isEmpty))
 
         let moonshotAI = PurchaseLinkCatalog.links(forOrganization: "Moonshot AI")
         let kimi = PurchaseLinkCatalog.links(forOrganization: "Kimi")
-        XCTAssertEqual(moonshotAI, kimi)
-        XCTAssertFalse(moonshotAI.codingPlan.isEmpty)
+        #expect((moonshotAI) == (kimi))
+        #expect(!(moonshotAI.codingPlan.isEmpty))
 
         let happyHorse = PurchaseLinkCatalog.links(forOrganization: "Alibaba-ATH")
         let alibaba = PurchaseLinkCatalog.links(forOrganization: "Alibaba")
-        XCTAssertEqual(happyHorse, alibaba)
+        #expect((happyHorse) == (alibaba))
 
         let seed = PurchaseLinkCatalog.links(forOrganization: "ByteDance Seed")
         let bytedance = PurchaseLinkCatalog.links(forOrganization: "Bytedance")
-        XCTAssertEqual(seed, bytedance)
-        XCTAssertEqual(
-            seed.codingPlan.map(\.url.absoluteString),
-            [
+        #expect((seed) == (bytedance))
+        #expect((seed.codingPlan.map(\.url.absoluteString)) == ([
                 "https://jimeng.jianying.com/ai-tool/home",
                 "https://dreamina.capcut.com/pricing/dreamina-price"
-            ]
-        )
+            ]))
 
         let lumaLabs = PurchaseLinkCatalog.links(forOrganization: "Luma Labs")
         let lumaAI = PurchaseLinkCatalog.links(forOrganization: "Luma AI")
-        XCTAssertEqual(lumaLabs, lumaAI)
-        XCTAssertFalse(lumaLabs.codingPlan.isEmpty)
-        XCTAssertFalse(lumaLabs.payAsYouGo.isEmpty)
+        #expect((lumaLabs) == (lumaAI))
+        #expect(!(lumaLabs.codingPlan.isEmpty))
+        #expect(!(lumaLabs.payAsYouGo.isEmpty))
     }
 
+    @Test
     func testDevinFallsBackToModelNameWhenOrganizationIsMissing() {
         let links = PurchaseLinkCatalog.links(
             forOrganization: nil,
             modelName: "Devin Fusion CLI - Claude Fable 5.1 XHigh + SWE-2 Medium"
         )
-        XCTAssertEqual(links.codingPlan.map(\.url.absoluteString), ["https://devin.ai/pricing"])
-        XCTAssertEqual(links.payAsYouGo.map(\.url.absoluteString), ["https://app.devin.ai/settings/plans"])
+        #expect((links.codingPlan.map(\.url.absoluteString)) == (["https://devin.ai/pricing"]))
+        #expect((links.payAsYouGo.map(\.url.absoluteString)) == (["https://app.devin.ai/settings/plans"]))
 
         let unrelated = PurchaseLinkCatalog.links(forOrganization: nil, modelName: "Some Other Model")
-        XCTAssertTrue(unrelated.isEmpty)
+        #expect(unrelated.isEmpty)
     }
 
+    @Test
     func testVendorsWithoutAnOfficialPlanOnlyExposePayAsYouGo() {
         let payAsYouGoOnly = ["Black Forest Labs", "Fal", "Opencode", "Microsoft AI", "DeepSeek"]
         for organization in payAsYouGoOnly {
             let links = PurchaseLinkCatalog.links(forOrganization: organization)
-            XCTAssertTrue(links.codingPlan.isEmpty, organization)
-            XCTAssertFalse(links.payAsYouGo.isEmpty, organization)
+            #expect(links.codingPlan.isEmpty, Comment(rawValue: organization))
+            #expect(!(links.payAsYouGo.isEmpty), Comment(rawValue: organization))
         }
     }
 
+    @Test
     func testDiscontinuedOrUnconfirmedVendorsStayEmpty() {
-        XCTAssertTrue(PurchaseLinkCatalog.links(forOrganization: "Reve").isEmpty)
-        XCTAssertTrue(PurchaseLinkCatalog.links(forOrganization: "Video Rebirth").isEmpty)
+        #expect(PurchaseLinkCatalog.links(forOrganization: "Reve").isEmpty)
+        #expect(PurchaseLinkCatalog.links(forOrganization: "Video Rebirth").isEmpty)
     }
 
+    @Test
     func testCachedLeaderboardOrganizationsAreCovered() {
         let covered = [
             "Google", "OpenAI", "Anthropic", "Alibaba", "Meta", "Microsoft AI", "SpaceXAI",
@@ -112,13 +101,11 @@ final class PurchaseLinkCatalogTests: XCTestCase {
             "Runway", "StepFun", "Tencent"
         ]
         for organization in covered {
-            XCTAssertFalse(
-                PurchaseLinkCatalog.links(forOrganization: organization).isEmpty,
-                organization
-            )
+            #expect(!(PurchaseLinkCatalog.links(forOrganization: organization).isEmpty), Comment(rawValue: organization))
         }
     }
 
+    @Test
     func testPurchaseURLsHaveNoWhitespace() {
         let organizations = [
             "Anthropic", "OpenAI", "Alibaba", "Z.ai", "Meta", "SpaceXAI", "StepFun", "Kimi",
@@ -129,54 +116,46 @@ final class PurchaseLinkCatalogTests: XCTestCase {
         for organization in organizations {
             let links = PurchaseLinkCatalog.links(forOrganization: organization)
             for link in links.codingPlan + links.payAsYouGo {
-                XCTAssertNil(link.url.absoluteString.rangeOfCharacter(from: .whitespacesAndNewlines))
-                XCTAssertEqual(link.url.scheme, "https")
+                #expect((link.url.absoluteString.rangeOfCharacter(from: .whitespacesAndNewlines)) == nil)
+                #expect((link.url.scheme) == ("https"))
             }
         }
     }
 
+    @Test
     func testChineseBadgeIncludesNewlyLinkedDomesticVendors() {
-        XCTAssertTrue(OrganizationRegion.isChinese("Xiaomi"))
-        XCTAssertTrue(OrganizationRegion.isChinese("ByteDance Seed"))
-        XCTAssertTrue(OrganizationRegion.isChinese("Bytedance"))
-        XCTAssertTrue(OrganizationRegion.isChinese("KlingAI"))
-        XCTAssertTrue(OrganizationRegion.isChinese("Alibaba-ATH"))
-        XCTAssertTrue(OrganizationRegion.isChinese("Moonshot AI"))
-        XCTAssertTrue(OrganizationRegion.isChinese("Z.ai"))
-        XCTAssertTrue(OrganizationRegion.isChinese("Z AI"))
-        XCTAssertFalse(OrganizationRegion.isChinese("Fal"))
-        XCTAssertFalse(OrganizationRegion.isChinese("Video Rebirth"))
-        XCTAssertFalse(OrganizationRegion.isChinese("Opencode"))
+        #expect(OrganizationRegion.isChinese("Xiaomi"))
+        #expect(OrganizationRegion.isChinese("ByteDance Seed"))
+        #expect(OrganizationRegion.isChinese("Bytedance"))
+        #expect(OrganizationRegion.isChinese("KlingAI"))
+        #expect(OrganizationRegion.isChinese("Alibaba-ATH"))
+        #expect(OrganizationRegion.isChinese("Moonshot AI"))
+        #expect(OrganizationRegion.isChinese("Z.ai"))
+        #expect(OrganizationRegion.isChinese("Z AI"))
+        #expect(!(OrganizationRegion.isChinese("Fal")))
+        #expect(!(OrganizationRegion.isChinese("Video Rebirth")))
+        #expect(!(OrganizationRegion.isChinese("Opencode")))
     }
 
+    @Test
     func testChineseBadgeFollowsHostedModelWhenOrganizationIsTheHarness() {
-        XCTAssertTrue(
-            OrganizationRegion.isChinese("Opencode", modelName: "Opencode - GLM-5.3")
-        )
-        XCTAssertTrue(
-            OrganizationRegion.isChinese(
+        #expect(OrganizationRegion.isChinese("Opencode", modelName: "Opencode - GLM-5.3"))
+        #expect(OrganizationRegion.isChinese(
                 "Anthropic",
                 modelName: "Claude Code - Qwen3.8 Max"
-            )
-        )
-        XCTAssertTrue(
-            OrganizationRegion.isChinese(
+            ))
+        #expect(OrganizationRegion.isChinese(
                 "OpenAI",
                 modelName: "Codex - DeepSeek V4 Pro 0813 (max)"
-            )
-        )
-        XCTAssertFalse(
-            OrganizationRegion.isChinese(
+            ))
+        #expect(!(OrganizationRegion.isChinese(
                 "Opencode",
                 modelName: "Opencode - GPT-6 Astra (max)"
-            )
-        )
-        XCTAssertFalse(
-            OrganizationRegion.isChinese(
+            )))
+        #expect(!(OrganizationRegion.isChinese(
                 "Anthropic",
                 modelName: "Claude Code - Fable 5.1 (max)"
-            )
-        )
-        XCTAssertFalse(OrganizationRegion.isChinese(nil, modelName: "Some Other Model"))
+            )))
+        #expect(!(OrganizationRegion.isChinese(nil, modelName: "Some Other Model")))
     }
 }
