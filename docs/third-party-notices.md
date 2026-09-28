@@ -25,7 +25,7 @@ The Sparkle notice above covers the newly bundled update framework. This is
 
 ## Brand image provenance still needs confirmation
 
-The 31 PNGs in `Resources/logos` have no original download URLs, package versions,
+The 31 PNGs in `assets/logos` have no original download URLs, package versions,
 or license records. Their introduction in commit
 `9341a69f55c4c8515e92c456f86c7218c3aef51c` describes official favicons and
 Iconify, but does not identify the source of each file. Similarity to a brand
@@ -72,5 +72,5 @@ Windows 使用 .NET / WPF / WinForms、Swift / Foundation / libdispatch、Bouncy
 完整许可保存在 `apps/windows/Licenses/`，包含运行时上游第三方声明；构建时还复制 Swift 分发自带的 LICENSE / NOTICE。
 这些文本随安装包分发，可从底部声明弹窗离线查看。
 NSIS 3.11 LZMA 模块使用 CPL 1.0 及其链接例外，未修改源码来自 https://github.com/kichik/nsis/tree/v311。
-WebView2 Evergreen Runtime 由微软独立安装和更新，其条款与 SDK 声明一并提供。
+WebView2 Evergreen Runtime 由微软独立安装和更新，运行时条款由微软安装程序提供；SDK 的完整声明随本应用分发。
 SQLite 使用系统库，不打包第三方 SQLite 二进制。
