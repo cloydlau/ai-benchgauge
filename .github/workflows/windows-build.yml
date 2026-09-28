@@ -32,6 +32,7 @@ jobs:
           try {
             ./Scripts/make-windows.ps1 *>&1 | Tee-Object work/windows-build.log
           } catch {
+            Add-Content work/windows-build.log ("Exception: " + $_.Exception.Message + "`n" + $_.InvocationInfo.PositionMessage + "`n" + $_.ScriptStackTrace)
             node Scripts/report-ci-failure.mjs work/windows-build.log
             throw
           }
@@ -44,13 +45,13 @@ jobs:
         shell: pwsh
         run: |
           try { ./Scripts/make-windows.ps1 -Installer -PackageOnly *>&1 | Tee-Object work/windows-package.log }
-          catch { node Scripts/report-ci-failure.mjs work/windows-package.log; throw }
+          catch { Add-Content work/windows-package.log ("Exception: " + $_.Exception.Message + "`n" + $_.InvocationInfo.PositionMessage); node Scripts/report-ci-failure.mjs work/windows-package.log; throw }
       - name: Install and uninstall with synthetic user data
         if: inputs.installer
         shell: pwsh
         run: |
           try { ./Scripts/installer-smoke.ps1 *>&1 | Tee-Object work/windows-installer-smoke.log }
-          catch { node Scripts/report-ci-failure.mjs work/windows-installer-smoke.log; throw }
+          catch { Add-Content work/windows-installer-smoke.log ("Exception: " + $_.Exception.Message + "`n" + $_.InvocationInfo.PositionMessage); node Scripts/report-ci-failure.mjs work/windows-installer-smoke.log; throw }
       - uses: actions/upload-artifact@v7.0.1
         if: inputs.installer
         with:
