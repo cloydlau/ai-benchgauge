@@ -138,7 +138,7 @@ sealed class MainWindow : Window
         rendering = true;
         try
         {
-            footer?.Children.Remove(status);
+            (status.Parent as Panel)?.Children.Remove(status);
             dropdowns.Clear(); content.Children.Clear(); content.RowDefinitions.Clear();
             for (var i = 0; i < 4; i++) content.RowDefinitions.Add(new RowDefinition { Height = i == 2 ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
             var header = new DockPanel { Margin = new Thickness(0, 0, 0, 12), LastChildFill = false };
@@ -176,14 +176,16 @@ sealed class MainWindow : Window
             if (displayed.Length == 0) boards.Children.Add(new TextBlock { Text = Tr("Loading leaderboards…", "正在加载排行榜…"), Margin = new Thickness(12) });
             Place(boards, 2);
             footer = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 10, 0, 0), Height = 28 };
-            footer.Children.Add(LinkButton("GitHub", "https://github.com/" + config.Repository));
-            footer.Children.Add(Button("MIT", () => ShowLicenses(false)));
-            footer.Children.Add(Button(Tr("Notices","声明","聲明"), () => ShowLicenses(true)));
+            var left = new StackPanel { Orientation = Orientation.Horizontal };
+            left.Children.Add(LinkButton("GitHub", "https://github.com/" + config.Repository));
+            left.Children.Add(Button("MIT", () => ShowLicenses(false)));
+            left.Children.Add(Button(Tr("Notices","声明","聲明"), () => ShowLicenses(true)));
+            left.Children.Add(status);
             var right = new StackPanel { Orientation = Orientation.Horizontal }; DockPanel.SetDock(right, Dock.Right);
             right.Children.Add(Button(Tr("Copy", "截图", "截圖"), Capture));
             right.Children.Add(Button(Tr("Refresh", "刷新"), async () => { if (refreshing) return; refreshing = true; try { await Task.WhenAll(Refresh("refreshBoards"), Refresh("refreshQuotas")); } finally { refreshing = false; } }));
             updateButton = Button("v" + config.Version + (availableUpdate is null ? "" : " ↑"), async () => await CheckUpdates(true)); right.Children.Add(updateButton);
-            footer.Children.Add(right); footer.Children.Add(status); Place(footer, 3);
+            footer.Children.Add(right); footer.Children.Add(left); Place(footer, 3);
         }
         finally { rendering = false; }
     }
@@ -294,7 +296,11 @@ sealed class MainWindow : Window
     }
     public BitmapSource RenderScreenshot()
     {
-        var original = footer; var text = new TextBlock { Text = "github.com/" + config.Repository + "  ·  © cloydlau  ·  MIT", FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Height = 28, Margin = new Thickness(0, 10, 0, 0) };
+        var original = footer;
+        var text = new DockPanel { Height = 28, Margin = new Thickness(0, 10, 0, 0), LastChildFill = true };
+        var attribution = new TextBlock { Text = "© cloydlau · MIT", FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
+        DockPanel.SetDock(attribution, Dock.Right); text.Children.Add(attribution);
+        text.Children.Add(new TextBlock { Text = "github.com/" + config.Repository, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
         quotaPanel.Visibility = Visibility.Collapsed; privatePrompt.Text = Tr("View your remaining AI quotas with AI BenchGauge · CC Switch", "使用 AI BenchGauge · CC Switch 查看 AI 余量", "使用 AI BenchGauge · CC Switch 查看 AI 餘量"); privatePrompt.Visibility = Visibility.Visible;
         if (original is not null) content.Children.Remove(original); Place(text, 3);
         try
