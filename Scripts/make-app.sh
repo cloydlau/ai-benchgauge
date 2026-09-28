@@ -28,15 +28,15 @@ if [[ "${APP_UNIVERSAL:-0}" == "1" ]]; then
   build_args+=(--arch arm64 --arch x86_64)
 fi
 export CLANG_MODULE_CACHE_PATH="$ROOT/work/clang-modules"
-swift build "${build_args[@]}"
+swift build "${build_args[@]}" --product leaderboard-menu
 BIN="$(swift build "${build_args[@]}" --show-bin-path)/leaderboard-menu"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$ROOT/Sources/LeaderboardMenu/Resources/Info.plist" "$APP/Contents/Info.plist"
+cp "$ROOT/apps/macos/Sources/Resources/Info.plist" "$APP/Contents/Info.plist"
 cp "$BIN" "$APP/Contents/MacOS/leaderboard-menu"
 rm -rf "$APP/Contents/Resources/logos"
-cp -R "$ROOT/Sources/LeaderboardMenu/Resources/logos" "$APP/Contents/Resources/logos"
+cp -R "$ROOT/assets/logos" "$APP/Contents/Resources/logos"
 rm -rf "$APP/Contents/Resources/Licenses"
-cp -R "$ROOT/Sources/LeaderboardMenu/Resources/Licenses" "$APP/Contents/Resources/Licenses"
+cp -R "$ROOT/apps/macos/Sources/Resources/Licenses" "$APP/Contents/Resources/Licenses"
 # Keep the application notice identical to the repository's license.
 cp "$ROOT/LICENSE" "$APP/Contents/Resources/Licenses/AI-BenchGauge.txt"
 FRAMEWORK="$APP/Contents/Frameworks/Sparkle.framework"
