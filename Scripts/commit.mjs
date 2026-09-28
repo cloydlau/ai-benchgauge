@@ -26,6 +26,8 @@ import {
 } from './commit-split.mjs'
 import { materializeAvatar, notifyDesktop } from './desktop-notify.mjs'
 import { gitProxyArgs, gitProxyValue } from './git-network.mjs'
+import { testInputSignature } from './test.mjs'
+import { runTestGate } from './test-repair.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const lockPath = join(root, '.git', 'commit.lock')
@@ -385,11 +387,21 @@ async function main() {
   }
   onExit(lock.release)
 
+  let tested = null
+  if (!parsed.dryRun) {
+    tested = await runTestGate()
+    if (tested.status !== 0) throw new Error(`测试未通过，提交已停止；日志：${tested.logPath}`)
+  }
+  function requireTestedInputs() {
+    if (tested && testInputSignature(root) !== tested.signature) throw new Error('测试后代码发生变化，提交已停止，请重新运行检查')
+  }
+
   if (parsed.mode === 'passthrough') {
     if (parsed.dryRun) {
       console.log(`[commit] dry-run，将以 ${formatCommitIdentity(identity)} 执行 git commit ${parsed.args.join(' ')}`)
       return
     }
+    requireTestedInputs()
     const result = git(['-c', 'gc.auto=0', '-c', `user.name=${identity.committer.name}`, '-c', `user.email=${identity.committer.email}`, 'commit', ...parsed.args, '--author', `${identity.author.name} <${identity.author.email}>`], {
       inherit: true,
       env: privateIndexEnv(commitIdentityEnv(identity)),
@@ -430,6 +442,7 @@ async function main() {
       console.log('[commit] dry-run，未创建提交')
       return
     }
+    requireTestedInputs()
     commitOne(message, identity)
     alignSharedIndex()
     await notifyResult(true, '提交完成', `${identity.model}\n${message}`, avatar)
@@ -445,6 +458,7 @@ async function main() {
     return
   }
 
+  requireTestedInputs()
   if (plan.commits.length === 1) {
     commitOne(plan.commits[0].message, identity)
   } else {
