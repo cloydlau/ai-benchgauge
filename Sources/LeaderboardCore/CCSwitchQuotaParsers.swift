@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(CoreFoundation)
 import CoreFoundation
+#endif
 
 /// Response-body parsers for CC Switch Codex quota providers.
 ///
@@ -896,7 +898,14 @@ enum CCSwitchJSON {
     /// through NSNumber bridging, so that check drops real zeros and ones.
     static func isBoolean(_ value: Any) -> Bool {
         guard let number = value as? NSNumber else { return false }
+        #if canImport(CoreFoundation)
         return CFGetTypeID(number) == CFBooleanGetTypeID()
+        #else
+        // Windows Foundation does not export CoreFoundation. JSON numbers use
+        // integer/floating encodings; JSON booleans use the boolean encoding.
+        let encoding = String(cString: number.objCType)
+        return encoding == "c" || encoding == "B"
+        #endif
     }
 
     static func double(_ value: Any?) -> Double? {
