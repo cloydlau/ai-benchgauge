@@ -3,7 +3,6 @@ set -euo pipefail
 
 ROOT=${0:A:h:h}
 APP="$ROOT/outputs/AI-BenchGauge.app"
-BIN="$ROOT/.build/release/leaderboard-menu"
 
 notify() {
   if [[ -n "${LOCAL_CI_NOTIFY_OWNER:-}" || "${DESKTOP_NOTIFY:-}" == "0" ]]; then
@@ -23,15 +22,14 @@ trap on_err ERR
 
 node "$ROOT/Scripts/test.mjs" --gate
 
-env CLANG_MODULE_CACHE_PATH="$ROOT/work/clang-modules" \
-  swift build \
-    -c release \
-    --package-path "$ROOT" \
-    --cache-path "$ROOT/work/swiftpm-cache" \
-    --manifest-cache local \
-    --disable-build-manifest-caching \
-    --disable-sandbox \
-    -debug-info-format none
+build_args=(-c release --package-path "$ROOT" --cache-path "$ROOT/work/swiftpm-cache"
+  --manifest-cache local --disable-build-manifest-caching --disable-sandbox -debug-info-format none)
+if [[ "${APP_UNIVERSAL:-0}" == "1" ]]; then
+  build_args+=(--arch arm64 --arch x86_64)
+fi
+export CLANG_MODULE_CACHE_PATH="$ROOT/work/clang-modules"
+swift build "${build_args[@]}"
+BIN="$(swift build "${build_args[@]}" --show-bin-path)/leaderboard-menu"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$ROOT/Sources/LeaderboardMenu/Resources/Info.plist" "$APP/Contents/Info.plist"
 cp "$BIN" "$APP/Contents/MacOS/leaderboard-menu"
@@ -41,7 +39,22 @@ rm -rf "$APP/Contents/Resources/Licenses"
 cp -R "$ROOT/Sources/LeaderboardMenu/Resources/Licenses" "$APP/Contents/Resources/Licenses"
 # Keep the application notice identical to the repository's license.
 cp "$ROOT/LICENSE" "$APP/Contents/Resources/Licenses/AI-BenchGauge.txt"
-codesign --force --sign - "$APP"
+FRAMEWORK="$APP/Contents/Frameworks/Sparkle.framework"
+mkdir -p "$APP/Contents/Frameworks"
+rm -rf "$FRAMEWORK"
+ditto "$ROOT/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework" "$FRAMEWORK"
+# Preserve Sparkle helper entitlements and sign from the innermost components out.
+sign_args=(--force --sign "${APP_SIGNING_IDENTITY:--}" --preserve-metadata=identifier,entitlements,flags)
+if [[ "${APP_SIGNING_IDENTITY:--}" != "-" ]]; then
+  sign_args+=(--timestamp --options runtime)
+fi
+codesign "${sign_args[@]}" "$FRAMEWORK/Versions/B/Autoupdate"
+for component in "$FRAMEWORK/Versions/B/XPCServices/"*.xpc "$FRAMEWORK/Versions/B/Updater.app"; do
+  codesign "${sign_args[@]}" "$component"
+done
+codesign "${sign_args[@]}" "$FRAMEWORK"
+codesign "${sign_args[@]}" "$APP"
+codesign --verify --deep --strict "$APP"
 
 printf 'Built %s\n' "$APP"
 notify success "构建成功" "已生成 outputs/AI-BenchGauge.app"
