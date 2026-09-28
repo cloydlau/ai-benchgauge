@@ -53,7 +53,7 @@ sealed class MainWindow : Window
         Closing += (_, e) => { if (!closing) { e.Cancel = true; Hide(); SaveFrame(); } };
         Deactivated += (_, _) => Dispatcher.BeginInvoke(() =>
         {
-            if (prefs.PanelMode == "closeOnBlur" && !IsActive && !modalOpen && !dropdowns.Any(box => box.IsDropDownOpen)) Hide();
+            if (!closing && IsVisible && prefs.PanelMode == "closeOnBlur" && !IsActive && !modalOpen && !dropdowns.Any(box => box.IsDropDownOpen)) Hide();
         }, DispatcherPriority.Background);
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && !modalOpen) Hide(); };
         boardTimer.Tick += async (_, _) => { await Refresh("refreshBoards"); await Refresh("refreshCurrentQuota"); };
@@ -249,8 +249,8 @@ sealed class MainWindow : Window
             var result = await engine.Request("finishOpenAI", prefs, quota.Id, id, url);
             if (result.Result is { } refreshed) SetState(refreshed);
         }
-        catch (Exception e) when (e is IOException or TimeoutException)
-        { status.Text = Tr("Sign-in failed. Try again.", "授权未完成，请重试。"); try { await engine.Request("cancelOpenAI", prefs, providerID: quota.Id); } catch (IOException) { } }
+        catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException)
+        { status.Text = Tr("Sign-in failed. Try again.", "授权未完成，请重试。"); try { await engine.Request("cancelOpenAI", prefs, providerID: quota.Id); } catch (Exception cancelError) when (cancelError is IOException or TimeoutException or InvalidOperationException) { } }
         finally { modalOpen = false; }
     }
     public async Task CheckUpdates(bool manual)
