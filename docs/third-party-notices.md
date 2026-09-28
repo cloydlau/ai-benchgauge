@@ -55,7 +55,7 @@ complete. Open-source license notices also do not grant rights in brand trademar
 ## Adding a required notice
 
 Place its unabridged upstream copyright/license text in
-`Sources/LeaderboardMenu/Resources/Licenses/`, then add an entry to
+`apps/macos/Sources/Resources/Licenses/`, then add an entry to
 `ThirdParty.json` with `id`, `name`, `license`, `source` (an HTTPS project URL),
 `englishDescription`, `chineseDescription`, and `file` (the local notice filename).
 The sheet lists all entries; each retains its own full text and source link.
