@@ -43,7 +43,7 @@
 	<key>SURequireSignedFeed</key>
 	<true/>
 	<key>SUScheduledCheckInterval</key>
-	<integer>3600</integer>
+	<integer>86400</integer>
 	<key>SUSignedFeedFailureExpirationInterval</key>
 	<integer>0</integer>
 	<key>SUVerifyUpdateBeforeExtraction</key>
