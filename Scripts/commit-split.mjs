@@ -161,7 +161,7 @@ function normalizeSelections(commits, inventory, expected) {
 function bucketFor(path) {
   if (path.includes('/Resources/logos/')) return 'logos'
   if (path.startsWith('Sources/LeaderboardCore/')) return 'core'
-  if (path.startsWith('Sources/LeaderboardMenu/')) return 'menu'
+  if (path.startsWith('apps/macos/Sources/')) return 'menu'
   if (path.startsWith('Tests/')) return 'tests'
   if (path.endsWith('.md') || path === 'LICENSE') return 'docs'
   if (
@@ -289,7 +289,7 @@ export function buildCommitPlanPrompt({ stat, diff, inventory, split }) {
 4. Resources/logos 下的图标是资源。若同一 diff 里还有功能改动，把图标并入使用它们的功能提交，不要单独提交图标。只有整个 diff 都是图标时才单独提交。
 5. 每个提交一条 Conventional Commits 英文信息，风格与本仓库现有提交一致：格式 <type>(<scope>): <subject>，单行，无 body，无句号。subject 用英文，不超过 72 个字符。
 6. type 从 feat / fix / docs / style / refactor / perf / test / build / ci / chore / revert 中选择。
-7. scope：Sources/LeaderboardCore → core，Sources/LeaderboardMenu → menu，Scripts 或 dev.sh → scripts，Tests → tests，README 或 docs → docs；跨目录则省略 scope。
+7. scope：Sources/LeaderboardCore → core，apps/macos/Sources → menu，Scripts 或 dev.sh → scripts，Tests → tests，README 或 docs → docs；跨目录则省略 scope。
 8. subject 不超过 72 个字符，必须描述该组 diff 实际做了什么；禁止只列文件数量，禁止复述本 prompt。
 注意：生成所需的全部信息都在下面，不要运行任何命令，不要读取或修改任何文件，直接输出。
 最终回复只输出 JSON 本身，不要用 markdown 代码块包裹，不要附加任何其他文字。
