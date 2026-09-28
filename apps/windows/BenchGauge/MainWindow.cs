@@ -32,6 +32,7 @@ sealed class MainWindow : Window
     QwenWebsiteWindow? qwenWindow;
     DockPanel? footer;
     Button? updateButton;
+    TextBlock? headerTitle;
     bool rendering, modalOpen, closing, refreshing, checkingUpdate;
     WindowsUpdate? availableUpdate;
     string? notifiedVersion;
@@ -46,6 +47,7 @@ sealed class MainWindow : Window
         Background = new SolidColorBrush(Color.FromRgb(247, 248, 250));
         Content = new Border { Padding = new Thickness(16), Child = content };
         ApplyMode(); Render();
+        SizeChanged += (_, _) => { if (headerTitle is not null) headerTitle.Visibility = ActualWidth < 740 ? Visibility.Collapsed : Visibility.Visible; };
         Closing += (_, e) => { if (!closing) { e.Cancel = true; Hide(); SaveFrame(); } };
         Deactivated += (_, _) => Dispatcher.BeginInvoke(() =>
         {
@@ -136,7 +138,8 @@ sealed class MainWindow : Window
             dropdowns.Clear(); content.Children.Clear(); content.RowDefinitions.Clear();
             for (var i = 0; i < 4; i++) content.RowDefinitions.Add(new RowDefinition { Height = i == 2 ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
             var header = new DockPanel { Margin = new Thickness(0, 0, 0, 12), LastChildFill = false };
-            header.Children.Add(new TextBlock { Text = "AI BenchGauge", FontWeight = FontWeights.SemiBold, FontSize = 17, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) });
+            headerTitle = new TextBlock { Text = "AI BenchGauge", FontWeight = FontWeights.SemiBold, FontSize = 17, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0), Visibility = Width < 740 ? Visibility.Collapsed : Visibility.Visible };
+            header.Children.Add(headerTitle);
             header.Children.Add(Select([("general",Tr("General","综合")),("coding",Tr("Coding","编程","編程")),("image",Tr("Image","图片","圖片")),("video",Tr("Video","视频","視頻"))], prefs.Category, async value => { prefs.Category = value; SaveFrame(); await Refresh("state"); await Refresh("refreshBoards"); }));
             header.Children.Add(Select([("model",Tr("Models","模型")),("company",Tr("Companies","公司"))], prefs.Grouping, async value => { prefs.Grouping = value; SaveFrame(); await Refresh("state"); }));
             var mode = Select([("clickToClose",Tr("Keep open","保持打开","保持打開")),("alwaysOnTop",Tr("Always on top","保持置顶","保持置頂")),("closeOnBlur",Tr("Close on blur","失焦关闭","失焦關閉")),("window",Tr("Window","独立窗口","獨立視窗"))], prefs.PanelMode, value => { SaveFrame(); prefs.PanelMode = value; ApplyMode(); SaveFrame(); Reveal(); return Task.CompletedTask; });
