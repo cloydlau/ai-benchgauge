@@ -1,0 +1,48 @@
+name: Windows build
+on:
+  workflow_call:
+    inputs:
+      installer:
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+      - uses: actions/setup-dotnet@v6.0.0
+        with:
+          dotnet-version: '10.0.401'
+      - uses: compnerd/gha-setup-swift@bbae8ce86bac5a3449f3992b3d88bc4ca25f2057
+        with:
+          swift-version: swift-6.4-release
+          swift-build: 6.4-RELEASE
+      - name: Install NSIS
+        if: inputs.installer
+        shell: pwsh
+        run: choco install nsis --version=3.11 -y --no-progress
+      - name: Tests, runtime closure and native UI
+        shell: pwsh
+        run: |
+          if ('${{ inputs.installer }}' -eq 'true') { ./Scripts/make-windows.ps1 -Installer }
+          else { ./Scripts/make-windows.ps1 }
+      - uses: actions/upload-artifact@v7.0.1
+        if: inputs.installer
+        with:
+          name: windows-release
+          path: outputs/release/*.exe
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7.0.1
+        if: always()
+        with:
+          name: windows-ui-smoke
+          path: work/windows-ui-smoke/
+          if-no-files-found: ignore

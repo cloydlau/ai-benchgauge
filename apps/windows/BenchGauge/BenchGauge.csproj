@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF><UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AssemblyName>AI-BenchGauge</AssemblyName><ApplicationManifest>app.manifest</ApplicationManifest>
+    <StartupObject>BenchGauge.Program</StartupObject>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../BenchGauge.Shared/BenchGauge.Shared.csproj" />
+    <Content Include="../../../assets/logos/*.png" Link="logos/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../Licenses/*" Link="Licenses/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../../LICENSE" Link="Licenses/AI-BenchGauge.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

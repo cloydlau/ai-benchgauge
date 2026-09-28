@@ -16,8 +16,13 @@ jobs:
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: '24'
+      - uses: actions/setup-dotnet@v6.0.0
+        with:
+          dotnet-version: '10.0.401'
       - name: Tests and packaged application
         run: node Scripts/ci-checks.mjs
         env:
           DESKTOP_NOTIFY: '0'
           TEST_AUTO_REPAIR: '0'
+  windows:
+    uses: ./.github/workflows/windows-build.yml

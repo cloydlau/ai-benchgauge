@@ -15,3 +15,7 @@ outputs/
 # Python (logo tooling)
 __pycache__/
 *.pyc
+
+# .NET build output
+**/bin/
+**/obj/
