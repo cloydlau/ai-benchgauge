@@ -43,7 +43,7 @@ sealed class MainWindow : Window
     {
         this.engine = engine; this.prefs = prefs; updater = new UpdateClient(config);
         Title = "AI BenchGauge"; Width = 900; Height = 720; MinWidth = 600; MinHeight = 600;
-        WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        WindowStartupLocation = WindowStartupLocation.Manual;
         FontFamily = new FontFamily("Segoe UI, Microsoft YaHei UI"); FontSize = 12;
         Background = new SolidColorBrush(Color.FromRgb(247, 248, 250));
         Content = new Border { Padding = new Thickness(16), Child = content };
@@ -114,7 +114,7 @@ sealed class MainWindow : Window
             if ((command == "refreshQuotas" || command == "refreshCurrentQuota") && prefs.QwenWebsiteConnected)
             {
                 qwenWindow ??= new QwenWebsiteWindow(engine, prefs, SetState);
-                try { await qwenWindow.Refresh(); } catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
+                try { await qwenWindow.Refresh(); } catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException or System.ComponentModel.Win32Exception or Microsoft.Web.WebView2.Core.WebView2RuntimeNotFoundException) { }
             }
             var view = (prefs.Category, prefs.Grouping, prefs.Language);
             var response = await engine.Request(command, prefs);
@@ -237,7 +237,7 @@ sealed class MainWindow : Window
         {
             qwenWindow ??= new QwenWebsiteWindow(engine, prefs, SetState);
             try { await qwenWindow.Connect(); }
-            catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException or System.ComponentModel.Win32Exception)
+            catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException or System.ComponentModel.Win32Exception or Microsoft.Web.WebView2.Core.WebView2RuntimeNotFoundException)
             { status.Text = Tr("Qwen sign-in could not open. Try again.", "千问登录暂不可用，请重试。"); }
             return;
         }

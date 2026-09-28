@@ -30,8 +30,9 @@ sealed class QwenWebsiteWindow : Window
     }
     public async Task Connect()
     {
-        Opacity = 1; ShowInTaskbar = true; Show(); Activate();
-        await Initialize(); browser.CoreWebView2.Navigate(UsageURL); poll.Start();
+        Opacity = 1; ShowActivated = true; ShowInTaskbar = true; Show(); Activate();
+        try { await Initialize(); browser.CoreWebView2.Navigate(UsageURL); poll.Start(); }
+        catch { Hide(); throw; }
     }
     async Task Initialize()
     {
@@ -60,7 +61,7 @@ sealed class QwenWebsiteWindow : Window
             for (var i = 0; i < 12; i++) { await Task.Delay(1500); if (await Capture()) break; }
             Hide();
         }
-        finally { loading = false; }
+        finally { if (Opacity == 0) Hide(); loading = false; }
     }
     async Task<bool> Capture()
     {
@@ -78,7 +79,7 @@ sealed class QwenWebsiteWindow : Window
             if (IsVisible && Opacity == 1) { poll.Stop(); Hide(); }
             return true;
         }
-        catch (Exception e) when (e is IOException or InvalidOperationException or TimeoutException or JsonException) { return false; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException or TimeoutException or JsonException or System.Runtime.InteropServices.COMException) { return false; }
         finally { busy = false; }
     }
 }

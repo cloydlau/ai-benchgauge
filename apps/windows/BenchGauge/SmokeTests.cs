@@ -26,13 +26,22 @@ static class SmokeTests
             // retain one parent while quota and footer content are rebuilt.
             window.SetState(state); window.UpdateLayout();
             if (window.Topmost != (mode == "alwaysOnTop") || window.ShowInTaskbar != (mode == "window")) throw new Exception("Incorrect window mode");
+            var workArea = SystemParameters.WorkArea;
+            var expectedLeft = mode == "window" ? workArea.Left + (workArea.Width - width) / 2 : Math.Max(workArea.Left, workArea.Right - width - 12);
+            var expectedTop = mode == "window" ? workArea.Top + (workArea.Height - window.Height) / 2 : Math.Max(workArea.Top, workArea.Bottom - window.Height - 12);
+            if (Math.Abs(window.Left - expectedLeft) > 1 || Math.Abs(window.Top - expectedTop) > 1) throw new Exception("Incorrect initial window position");
+            if (mode == "window")
+            {
+                window.WindowState = WindowState.Minimized; window.Reveal(); window.UpdateLayout();
+                if (window.WindowState != WindowState.Normal) throw new Exception("Could not restore minimized window");
+            }
             var bitmap = window.RenderScreenshot();
             if (bitmap.PixelWidth < 500 || bitmap.PixelHeight < 500) throw new Exception("Screenshot too small");
             var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
             using (var file = File.Create(Path.Combine(directory, $"{mode}-{language}-{width}.png"))) encoder.Save(file);
             window.Stop(); window.Close();
         }
-        File.WriteAllText(Path.Combine(directory, "passed.txt"), "PASS: four modes, three languages, two widths, repeated refresh and private screenshots\n");
+        File.WriteAllText(Path.Combine(directory, "passed.txt"), "PASS: four modes, three languages, two widths, positioning, restoring, repeated refresh and private screenshots\n");
         app.Shutdown();
     }
 }
