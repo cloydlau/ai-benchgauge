@@ -165,24 +165,32 @@ public actor OpenAIAppServer: OpenAIAccountRPC {
     }
 
     private func sendRequest(_ method: String, params: Data) async throws -> Data {
-        let object = try JSONSerialization.jsonObject(with: params)
         nextID += 1
         let id = nextID
         return try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { continuation in
-                pending[id] = continuation
-                do { try send(["id": id, "method": method, "params": object]) }
-                catch {
-                    pending.removeValue(forKey: id)?.resume(throwing: error)
-                    return
-                }
-                Task { [weak self] in
-                    try? await Task.sleep(for: .seconds(30))
-                    await self?.expireRequest(id)
-                }
-            }
+            try await waitForResponse(method, id: id, params: params)
         } onCancel: {
             Task { await self.cancelRequest(id) }
+        }
+    }
+
+    // Keep the untyped JSON object and continuation registration inside the
+    // actor, rather than capturing them in a nested cancellation closure.
+    // This also avoids Swift 6.4's Windows IR generation failure for that form.
+    private func waitForResponse(_ method: String, id: Int, params: Data) async throws -> Data {
+        try Task.checkCancellation()
+        let object = try JSONSerialization.jsonObject(with: params)
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
+            pending[id] = continuation
+            do { try send(["id": id, "method": method, "params": object]) }
+            catch {
+                pending.removeValue(forKey: id)?.resume(throwing: error)
+                return
+            }
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(30))
+                await self?.expireRequest(id)
+            }
         }
     }
 
