@@ -13,7 +13,7 @@ var targets: [Target] = [
         .linkedLibrary("winsqlite3", .when(platforms: [.windows])),
     ]),
     .executableTarget(name: "benchgauge-engine", dependencies: ["LeaderboardCore"], path: "Sources/LeaderboardBridge"),
-    .testTarget(name: "LeaderboardCoreTests", dependencies: ["LeaderboardCore", "CSQLite"]),
+    .testTarget(name: "LeaderboardCoreTests", dependencies: ["LeaderboardCore", "CSQLite", .target(name: "CPlatformSupport", condition: .when(platforms: [.windows]))]),
 ]
 #if os(macOS)
 dependencies.append(.package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0"))
