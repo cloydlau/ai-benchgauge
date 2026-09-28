@@ -80,6 +80,9 @@ function rasterizeAvatar(source, png) {
 }
 
 export function materializeAvatar(avatar) {
+  // 内置头像直接当附件用：不下载、不转码，也不落在 worker 事后会清理的
+  // leaderboard-avatar-* 临时目录里，通知横幅显示的图标因此不依赖网络。
+  if (avatar?.bundled && existsSync(avatar.bundled)) return avatar.bundled
   const urls = avatar?.candidates?.length ? avatar.candidates : avatar?.url ? [avatar.url] : []
   if (urls.length === 0) return ''
   const directory = mkdtempSync(join(tmpdir(), 'leaderboard-avatar-'))
