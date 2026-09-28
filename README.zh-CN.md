@@ -77,7 +77,7 @@ open outputs/AI-BenchGauge.app
 
 <br>
 
-本地流程先执行完整的 Swift 核心测试和 Node.js 脚本测试，通过后再按目的拆分提交、推送、构建和重启，同时保留模型署名、头像、桌面通知及防抖节流。
+本地流程先执行完整的 Swift 核心、Node.js 脚本和 Windows 更新测试，通过后再按目的拆分提交、推送、构建和重启，同时保留模型署名、头像、桌面通知及防抖节流。
 
 ```bash
 ./dev.sh
@@ -92,7 +92,7 @@ open outputs/AI-BenchGauge.app
 ```bash
 ./test.sh                         # 完整离线测试
 ./test.sh --core                  # 仅 Swift 核心
-./test.sh --scripts               # 仅 Node.js 脚本
+./test.sh --scripts               # 脚本和 Windows 更新测试
 ./test.sh --coverage              # Swift 和 Node.js 覆盖率
 DESKTOP_NOTIFY=0 node Scripts/ci-checks.mjs  # 语法、测试、正式应用构建
 ```

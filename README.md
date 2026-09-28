@@ -60,7 +60,7 @@ the title to check immediately. See [release setup and signing](docs/releasing.m
 
 ## Quick start
 
-Running the app requires macOS 14 or later. Building from source requires Swift 6 and Command Line Tools:
+The Mac app requires macOS 14 or later. Mac source builds require Swift 6, Command Line Tools and .NET 10 SDK for the Windows update tests:
 
 ```bash
 ./Scripts/make-app.sh
@@ -76,7 +76,7 @@ The build script produces an ad-hoc signed app at `outputs/AI-BenchGauge.app`. O
 
 <br>
 
-The local workflow runs the complete Swift and Node.js test suites before purpose-based atomic commits, pushes, builds, and restarts. It also handles current-model identity, avatars, desktop notifications, debounce, and throttle.
+The local workflow runs the Swift, Node.js and Windows update test suites before purpose-based atomic commits, pushes, builds, and restarts. It also handles current-model identity, avatars, desktop notifications, debounce, and throttle.
 
 ```bash
 ./dev.sh
@@ -84,14 +84,14 @@ The local workflow runs the complete Swift and Node.js test suites before purpos
 
 `./dev.sh` runs tests on startup, then reopens the latest app, building first if the executable is missing or older than the source. The debounce and throttle intervals below apply to subsequent changes. A test failure stops subsequent actions; the watcher stays active and retries after a new save.
 
-`./dev.sh` watches `Sources/`, `Tests/`, `Scripts/`, and the root build/development scripts. It also checks for uncommitted changes and unpushed commits. After changes have stopped for one minute, and at least one minute has passed since the previous run, it runs tests, commits and pushes, then rebuilds and restarts when watched files changed. Existing unpushed commits also require passing tests. Child commit/build processes reuse a pass only while all test inputs remain identical.
+`./dev.sh` watches `Sources/`, `apps/`, `assets/`, `config/`, `Tests/`, `Scripts/`, and the root build/development scripts. It also checks for uncommitted changes and unpushed commits. After changes have stopped for one minute, and at least one minute has passed since the previous run, it runs tests, commits and pushes, then rebuilds and restarts when watched files changed. Existing unpushed commits also require passing tests. Child commit/build processes reuse a pass only while all test inputs remain identical.
 
 `WATCH_DEBOUNCE_MS` and `WATCH_THROTTLE_MS` change those intervals. `WATCH_AUTOCOMMIT=0` disables automatic commits; `COMMIT_PUSH=0` or `WATCH_AUTOPUSH=0` disables automatic pushes. A failed build, commit, or push is not retried repeatedly for the same source or Git state. Save again or restart `./dev.sh` to schedule another attempt.
 
 ```bash
 ./test.sh                         # Complete offline tests
 ./test.sh --core                  # Swift core only
-./test.sh --scripts               # Node.js scripts only
+./test.sh --scripts               # Scripts and Windows update tests
 ./test.sh --coverage              # Swift and Node.js coverage
 DESKTOP_NOTIFY=0 node Scripts/ci-checks.mjs  # Syntax, tests, release app build
 ```

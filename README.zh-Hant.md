@@ -59,7 +59,7 @@ OpenAI 顯示「需要重新登入」時，點擊卡片會直接開啟官方授�
 
 ## 快速開始
 
-執行需要 macOS 14 或更新版本。從原始碼建置需要 Swift 6 和 Command Line Tools：
+Mac 版執行需要 macOS 14 或更新版本。Mac 原始碼建置需要 Swift 6、Command Line Tools 與 .NET 10 SDK（執行 Windows 更新測試）：
 
 ```bash
 ./Scripts/make-app.sh
@@ -75,7 +75,7 @@ open outputs/AI-BenchGauge.app
 
 <br>
 
-本機流程先執行完整的 Swift 核心測試與 Node.js 腳本測試，通過後再依用途提交、推送、建置及重啟，同時保留模型署名、頭像、桌面通知及防抖節流。
+本機流程先執行完整的 Swift 核心、Node.js 腳本與 Windows 更新測試，通過後再依用途提交、推送、建置及重啟，同時保留模型署名、頭像、桌面通知及防抖節流。
 
 ```bash
 ./dev.sh
@@ -83,14 +83,14 @@ open outputs/AI-BenchGauge.app
 
 `./dev.sh` 啟動時先執行測試，再重新開啟最新應用；如果執行檔缺失或原始碼較新，會先建置再啟動。後續儲存依照下列防抖與節流間隔處理。測試失敗會阻擋後續動作，監看程式持續等待，儲存修復後重新驗證。
 
-`./dev.sh` 監看 `Sources/`、`Tests/`、`Scripts/` 與根目錄的建置、開發腳本，同時檢查未提交變更與未推送提交。變更停止一分鐘，且距離上次執行至少一分鐘後，先測試，再提交及推送，監看檔案有變更時重新建置重啟。既有的未推送提交也必須先通過測試。子提交、建置程序只在測試輸入完全相同時沿用本次通過的結果。
+`./dev.sh` 監看 `Sources/`、`apps/`、`assets/`、`config/`、`Tests/`、`Scripts/` 與根目錄的建置、開發腳本，同時檢查未提交變更與未推送提交。變更停止一分鐘，且距離上次執行至少一分鐘後，先測試，再提交及推送，監看檔案有變更時重新建置重啟。既有的未推送提交也必須先通過測試。子提交、建置程序只在測試輸入完全相同時沿用本次通過的結果。
 
 `WATCH_DEBOUNCE_MS` 與 `WATCH_THROTTLE_MS` 可調整這兩段間隔。`WATCH_AUTOCOMMIT=0` 關閉自動提交；`COMMIT_PUSH=0` 或 `WATCH_AUTOPUSH=0` 關閉自動推送。建置、提交或推送失敗後，相同的原始碼或 Git 狀態不會無限重試。再次儲存檔案或重啟 `./dev.sh`，才會重新排程。
 
 ```bash
 ./test.sh                         # 完整離線測試
 ./test.sh --core                  # 僅 Swift 核心
-./test.sh --scripts               # 僅 Node.js 腳本
+./test.sh --scripts               # 腳本與 Windows 更新測試
 ./test.sh --coverage              # Swift 與 Node.js 覆蓋率
 DESKTOP_NOTIFY=0 node Scripts/ci-checks.mjs  # 語法、測試、正式應用建置
 ```
