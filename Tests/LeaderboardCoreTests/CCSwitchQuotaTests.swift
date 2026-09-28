@@ -1,4 +1,8 @@
 import Foundation
+import CSQLite
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import LeaderboardCore
 import Testing
 
@@ -1747,7 +1751,11 @@ struct CCSwitchProviderStoreTests {
         #expect((CCSwitchProviderStore.loadCodexProviders(databaseURL: noCodex)) == (.records([])))
     }
 
+    #if os(Windows)
+    @Test(.disabled("POSIX permission modes do not apply to Windows; file sharing is tested separately"))
+    #else
     @Test
+    #endif
     func testUnreadableDatabaseIsUnavailable() throws {
         let url = FileManager.default.temporaryDirectory
             .appending(path: "unreadable-cc-switch-\(UUID().uuidString).db")
@@ -2087,20 +2095,15 @@ private func sqlLiteral(_ value: String) -> String {
 }
 
 private func runSQLite(_ sql: String, database: URL) throws {
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
-    process.arguments = [database.path(percentEncoded: false)]
-    let input = Pipe()
-    let output = Pipe()
-    process.standardInput = input
-    process.standardOutput = output
-    process.standardError = output
-    try process.run()
-    input.fileHandleForWriting.write(Data(sql.utf8))
-    try input.fileHandleForWriting.close()
-    process.waitUntilExit()
-    if process.terminationStatus != 0 {
-        let text = String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        recordFailure("sqlite3 exited \(process.terminationStatus): \(text)")
+    var connection: OpaquePointer?
+    guard sqlite3_open(database.path(percentEncoded: false), &connection) == SQLITE_OK,
+          let connection else { throw CocoaError(.fileWriteUnknown) }
+    defer { sqlite3_close(connection) }
+    var error: UnsafeMutablePointer<CChar>?
+    let result = sqlite3_exec(connection, sql, nil, nil, &error)
+    defer { sqlite3_free(error) }
+    guard result == SQLITE_OK else {
+        recordFailure("sqlite3 fixture failed: \(error.map { String(cString: $0) } ?? "unknown error")")
+        throw CocoaError(.fileWriteUnknown)
     }
 }
