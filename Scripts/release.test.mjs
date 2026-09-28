@@ -17,7 +17,7 @@ function keys() {
 }
 function info(publicKey) {
   return { CFBundleIdentifier: 'com.cloydlau.ai-benchgauge', CFBundleShortVersionString: '1.2.3', CFBundleVersion: '1.2.3',
-    LSMinimumSystemVersion: '14.0', SUPublicEDKey: publicKey, SUFeedURL: feedURL, SUScheduledCheckInterval: 3600,
+    LSMinimumSystemVersion: '14.0', SUPublicEDKey: publicKey, SUFeedURL: feedURL, SUScheduledCheckInterval: 86400,
     SUEnableAutomaticChecks: true, SUAutomaticallyUpdate: false, SUAllowsAutomaticUpdates: false,
     SURequireSignedFeed: true, SUVerifyUpdateBeforeExtraction: true }
 }
@@ -38,7 +38,7 @@ test('release validation prevents rollback, version drift, missing keys, and uns
   assert.equal(validateRelease('v1.2.3', valid, [{ tagName: 'v2.0.0-rc.1', isPrerelease: true }]), '1.2.3')
   for (const tagName of ['v1.2.3', 'v1.10.0', 'v2.0.0']) assert.throws(() => validateRelease('v1.2.3', valid, [{ tagName }]))
   for (const changes of [{ CFBundleVersion: '1.2.2' }, { SUPublicEDKey: '' }, { SUFeedURL: 'http://example.com/feed' },
-    { SUScheduledCheckInterval: 60 }, { SUAutomaticallyUpdate: true }, { SUAllowsAutomaticUpdates: true },
+    { SUScheduledCheckInterval: 60 }, { SUScheduledCheckInterval: 3600 }, { SUAutomaticallyUpdate: true }, { SUAllowsAutomaticUpdates: true },
     { SURequireSignedFeed: false }, { SUVerifyUpdateBeforeExtraction: false }, { CFBundleIdentifier: 'different.app' }]) {
     assert.throws(() => validateRelease('v1.2.3', { ...valid, ...changes }))
   }

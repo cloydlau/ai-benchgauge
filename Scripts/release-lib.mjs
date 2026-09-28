@@ -24,10 +24,10 @@ export function validateRelease(tag, info, published = []) {
   if (info.CFBundleIdentifier !== 'com.cloydlau.ai-benchgauge' || info.LSMinimumSystemVersion !== '14.0') {
     throw new Error('Unexpected bundle identifier or deployment target')
   }
-  if (info.SUFeedURL !== feedURL || info.SUScheduledCheckInterval !== 3600 || info.SUEnableAutomaticChecks !== true
+  if (info.SUFeedURL !== feedURL || info.SUScheduledCheckInterval !== 86400 || info.SUEnableAutomaticChecks !== true
       || info.SUAutomaticallyUpdate !== false || info.SUAllowsAutomaticUpdates !== false
       || info.SURequireSignedFeed !== true || info.SUVerifyUpdateBeforeExtraction !== true) {
-    throw new Error('The release must use the signed hourly update feed and require an Install click')
+    throw new Error('The release must use the signed 24-hour update feed and require an Install click')
   }
   decodePublicKey(info.SUPublicEDKey)
   for (const prior of published.filter((item) => !item.isDraft && !item.isPrerelease)) {
