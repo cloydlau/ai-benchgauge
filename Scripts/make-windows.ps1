@@ -1,4 +1,4 @@
-param([switch]$Installer)
+param([switch]$Installer, [switch]$PackageOnly)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 Set-Location $root
@@ -12,6 +12,8 @@ function Invoke-Checked($program, [string[]]$arguments) {
     if ($LASTEXITCODE -ne 0) { throw "$program failed with exit code $LASTEXITCODE" }
 }
 Invoke-Checked node @('Scripts/validate-app-config.mjs')
+if ($PackageOnly -and !$Installer) { throw '-PackageOnly requires -Installer' }
+if (!$PackageOnly) {
 Invoke-Checked swift @('test', '--disable-xctest', '--scratch-path', 'work/swift-windows-tests')
 Invoke-Checked dotnet @('restore', 'apps/windows/BenchGauge.Tests', '--locked-mode')
 Invoke-Checked node @('Scripts/windows-tests.mjs')
@@ -80,7 +82,11 @@ try {
     if ($smoke.ExitCode -ne 0) { throw 'Native UI smoke test failed' }
     Invoke-Checked $nodeExecutable @('Scripts/engine-smoke.mjs', $engine)
 } finally { $env:PATH = $originalPath }
+}
 if ($Installer) {
+    if (!(Test-Path 'outputs/windows/app/AI-BenchGauge.exe') -or !(Test-Path 'outputs/windows/app/engine/benchgauge-engine.exe')) {
+        throw 'Build the application and engine before packaging'
+    }
     $prerequisites = Join-Path $root 'outputs/windows/app/prerequisites'
     New-Item -ItemType Directory -Force $prerequisites | Out-Null
     $webviewSetup = Join-Path $prerequisites 'MicrosoftEdgeWebview2Setup.exe'
