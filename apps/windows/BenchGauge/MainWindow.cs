@@ -27,7 +27,7 @@ sealed class MainWindow : Window
     readonly TextBlock privatePrompt = new() { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 12), TextWrapping = TextWrapping.Wrap };
     readonly TextBlock status = new() { FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(4) };
     readonly DispatcherTimer boardTimer = new() { Interval = TimeSpan.FromMinutes(30) };
-    readonly DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromHours(1) };
+    readonly DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromHours(24) };
     readonly List<ComboBox> dropdowns = [];
     DisplayState? state;
     QwenWebsiteWindow? qwenWindow;
