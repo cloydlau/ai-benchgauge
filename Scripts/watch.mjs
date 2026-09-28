@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// 轮询 Sources/、Package.swift、两个 make-app.sh，以及 git 未提交改动。
+// 轮询 Sources/、Tests/、Scripts/ 和构建配置，以及 git 未提交改动。
 // 变更停止 WATCH_DEBOUNCE_MS（默认 60 秒），且距上次运行至少 WATCH_THROTTLE_MS（默认 60 秒）后，
-// 先按目的拆成原子提交并推送到上游，再在源码变化时重建并重启。
-// 构建、提交或推送失败后，同一签名不再空转。WATCH_AUTOCOMMIT=0 关闭自动提交。
+// 先运行完整测试，再按目的提交并推送，最后在源码变化时重建并重启。
+// 测试失败阻断后续动作；同一签名不空转。WATCH_AUTOCOMMIT=0 关闭自动提交。
 // COMMIT_PUSH=0 或 WATCH_AUTOPUSH=0 关闭自动推送。
 // git 不读 macOS 系统代理；未设置 https_proxy 时，推送改用 scutil 读到的代理。
 
@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url'
 import { avatarForModel, detectModelName } from './commit-identity.mjs'
 import { materializeAvatar, notifyDesktop } from './desktop-notify.mjs'
 import { gitProxyArgs, gitProxyValue } from './git-network.mjs'
+import { runTestGate } from './test-repair.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const appPath = join(root, 'outputs', 'AI-BenchGauge.app')
@@ -52,9 +53,12 @@ function readDuration(name, fallback) {
 function watchTargets() {
   return [
     join(root, 'Sources'),
+    join(root, 'Tests'),
+    join(root, 'Scripts'),
     join(root, 'Package.swift'),
     join(root, 'make-app.sh'),
-    join(root, 'Scripts', 'make-app.sh'),
+    join(root, 'test.sh'),
+    join(root, 'dev.sh'),
   ].filter((path) => existsSync(path))
 }
 
@@ -108,9 +112,10 @@ function signature(files) {
     .join('\0')
 }
 
-function currentAppMtime() {
-  const stat = statSync(appPath, { throwIfNoEntry: false })
-  return stat ? stat.mtimeMs : null
+export function currentAppMtime(app = appPath) {
+  // Updating Contents does not update the bundle directory's modification time.
+  const stat = statSync(join(app, 'Contents', 'MacOS', 'leaderboard-menu'), { throwIfNoEntry: false })
+  return stat?.isFile() ? stat.mtimeMs : null
 }
 
 function gitSync(args) {
@@ -191,11 +196,11 @@ function unpushedState() {
   return { state: 'ahead', signature: (head.stdout || '').trim(), count: ahead }
 }
 
-function run(script) {
+function run(script, extraEnv = {}) {
   return new Promise((resolvePromise) => {
     const child = spawn(script, [], {
       cwd: root,
-      env: { ...process.env, LOCAL_CI_NOTIFY_OWNER: 'watch' },
+      env: { ...process.env, ...extraEnv, LOCAL_CI_NOTIFY_OWNER: 'watch' },
       stdio: 'inherit',
     })
     child.on('error', (error) => resolvePromise({ status: 1, error }))
@@ -250,15 +255,19 @@ async function notify(ok, title, message) {
   }
 }
 
-async function rebuild() {
+async function rebuild(testSignature) {
   console.log('[watch] 开始重建…')
-  const built = await run(join(root, 'Scripts', 'make-app.sh'))
+  const built = await run(join(root, 'Scripts', 'make-app.sh'), testSignature ? { BENCHGAUGE_TEST_PASS: testSignature } : {})
   if (built.status !== 0) {
     const detail = built.error ? built.error.message : `make-app.sh 退出码 ${built.status}`
     console.error(`[watch] 构建失败：${detail}`)
     await notify(false, '构建失败', detail)
     return false
   }
+  return restartApp()
+}
+
+async function restartApp() {
   console.log('[watch] 开始重启…')
   const restarted = await run(join(root, 'Scripts', 'restart.sh'))
   if (restarted.status !== 0) {
@@ -267,12 +276,12 @@ async function rebuild() {
     await notify(false, '重启失败', detail)
     return false
   }
-  console.log('[watch] 已重建并重启')
+  console.log('[watch] 已启动最新应用')
   await notify(true, '已重启', `${detectModelName()}\n菜单栏应用已使用最新代码重新打开。`)
   return true
 }
 
-function main() {
+async function main() {
   let debounceMs
   let throttleMs
   let pollMs
@@ -292,6 +301,8 @@ function main() {
   let lastChangeAt = 0
   let lastRunAt = null
   let failedSignature = null
+  let failedTestSignature = null
+  let lastTestPass = null
   let failedCommitSignature = null
   let failedPushSignature = null
   let lastAheadSignature = ''
@@ -341,9 +352,37 @@ function main() {
     let rebuiltOk = true
     let attemptedRebuild = false
     try {
+      const testSignature = `${builtSignature}\n${gitSignature}`
+      if (testSignature === failedTestSignature) {
+        busy = false
+        console.log('[watch] 这一版测试已失败，等待下次保存')
+        return
+      }
+      console.log('[watch] 开始单元测试…')
+      const tested = await runTestGate({ env: { ...process.env, BENCHGAUGE_TEST_PASS: lastTestPass } })
+      if (tested.status !== 0) {
+        busy = false
+        lastSignature = signature(snapshot())
+        lastGitSignature = gitStatusSignature()
+        if (tested.status === 75) {
+          schedule('测试期间有新变更，重新验证', Date.now())
+        } else {
+          failedTestSignature = `${lastSignature}\n${lastGitSignature}`
+          console.error('[watch] 测试失败，已停止提交、推送和重建；等待下次保存')
+          await notify(false, '测试失败', `后续任务已停止。日志：${tested.logPath}`)
+        }
+        return
+      }
+      failedTestSignature = null
+      lastTestPass = tested.signature
+      if (signature(snapshot()) !== builtSignature || gitStatusSignature() !== gitSignature) {
+        busy = false
+        schedule('检查期间有新变更，重新验证', Date.now())
+        return
+      }
       if (commitEnabled && gitSignature && gitSignature !== failedCommitSignature) {
         console.log('[watch] 开始原子提交…')
-        const commitEnv = { COMMIT_REQUIRE_LOCK: '1' }
+        const commitEnv = { COMMIT_REQUIRE_LOCK: '1', BENCHGAUGE_TEST_PASS: tested.signature }
         if (pushEnabled) commitEnv.COMMIT_PUSH = '0'
         const committed = await runNode(join(root, 'Scripts', 'commit.mjs'), commitEnv)
         commitStatus = committed.status
@@ -406,7 +445,7 @@ function main() {
         console.log('[watch] 这一版已经构建失败，等待下次保存')
         rebuiltOk = false
       } else if (attemptedRebuild) {
-        rebuiltOk = await rebuild()
+        rebuiltOk = await rebuild(tested.signature)
         if (rebuiltOk) lastRebuiltSignature = builtSignature
         failedSignature = rebuiltOk ? null : builtSignature
       } else {
@@ -442,8 +481,36 @@ function main() {
   const initialSignature = signature(initial)
   lastSignature = initialSignature
   lastRebuiltSignature = sourceNewerThanApp(initial, currentAppMtime()) ? null : initialSignature
-  const dirty = commitEnabled && Boolean(lastGitSignature)
+  // Startup must also replace an old process or launch a stopped app, even
+  // when an external build has already produced the current executable.
+  // Do this immediately, before commit/push and their debounce interval.
+  busy = true
   const staleApp = lastRebuiltSignature == null
+  console.log(staleApp
+    ? '[watch] 启动时应用缺失或源码较新，立即重建并启动'
+    : '[watch] 启动时构建已是最新，立即重新打开应用')
+  const initialTest = await runTestGate()
+  lastTestPass = initialTest.signature
+  const testedInitial = snapshot()
+  const testedInitialSignature = signature(testedInitial)
+  const needsInitialBuild = sourceNewerThanApp(testedInitial, currentAppMtime())
+  lastSignature = testedInitialSignature
+  lastGitSignature = gitStatusSignature()
+  const started = initialTest.status === 0 && (needsInitialBuild ? await rebuild(initialTest.signature) : await restartApp())
+  busy = false
+  if (!started) {
+    if (initialTest.status === 0) {
+      console.error('[watch] 启动失败，修复错误后重新运行 ./dev.sh')
+      process.exitCode = 1
+      return
+    }
+    console.error('[watch] 测试失败，已停止提交、推送和启动；保存修改后重新验证')
+    failedTestSignature = `${testedInitialSignature}\n${lastGitSignature}`
+    await notify(false, '测试失败', `后续任务已停止。日志：${initialTest.logPath}`)
+  }
+  if (started) lastRebuiltSignature = testedInitialSignature
+  if (needsInitialBuild) lastRunAt = Date.now()
+  const dirty = commitEnabled && Boolean(lastGitSignature)
   const initialAhead = pushEnabled ? unpushedState() : { state: 'synced', signature: '', count: 0 }
   lastAheadSignature = initialAhead.signature
   if (initialAhead.state === 'no-upstream') {
@@ -451,21 +518,19 @@ function main() {
     warnedNoUpstream = true
   }
   const ahead = initialAhead.state === 'ahead'
-  if (dirty || staleApp) {
-    const reason = dirty && staleApp
-      ? '启动时检测到未提交改动，且源码新于已构建应用'
-      : dirty
-        ? '启动时检测到未提交改动'
-        : '源码新于已构建应用'
+  if (!started) {
+    console.log('[watch] 等待测试相关文件变更')
+  } else if (dirty) {
+    const reason = '启动时检测到未提交改动'
     schedule(ahead ? `${reason}，且有未推送提交` : reason, Date.now())
   } else if (ahead) {
     schedule('启动时检测到未推送提交', Date.now() - debounceMs)
   } else {
-    console.log('[watch] 应用已是最新，等待源码变更')
+    console.log('[watch] 应用已启动，等待源码变更')
   }
   console.log(commitEnabled
-    ? `[watch] 监听 Sources/、Package.swift、make-app.sh，并自动原子提交${pushEnabled ? '、推送' : ''}；Ctrl-C 停止。`
-    : '[watch] 监听 Sources/、Package.swift、make-app.sh；Ctrl-C 停止。不自动提交。')
+    ? `[watch] 监听 Sources/、Tests/、Scripts/ 和构建配置；测试通过后自动原子提交${pushEnabled ? '、推送' : ''}；Ctrl-C 停止。`
+    : '[watch] 监听 Sources/、Tests/、Scripts/ 和构建配置；测试通过后重建重启；Ctrl-C 停止。不自动提交。')
 
   const poll = setInterval(() => {
     let next
@@ -502,4 +567,9 @@ function main() {
   process.on('SIGTERM', stop)
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main()
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(`[watch] 启动失败：${error.message}`)
+    process.exitCode = 1
+  })
+}
