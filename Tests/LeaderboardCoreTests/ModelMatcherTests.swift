@@ -1,7 +1,9 @@
+import Foundation
 import LeaderboardCore
-import XCTest
+import Testing
 
-final class ModelMatcherTests: XCTestCase {
+struct ModelMatcherTests {
+    @Test
     func testMatchesEquivalentModelVariantsAcrossLeaderboards() {
         let pairs = [
             (
@@ -23,21 +25,13 @@ final class ModelMatcherTests: XCTestCase {
         ]
 
         for pair in pairs {
-            XCTAssertEqual(
-                ModelMatcher.canonicalModelID(from: pair.0),
-                ModelMatcher.canonicalModelID(from: pair.1)
-            )
+            #expect((ModelMatcher.canonicalModelID(from: pair.0)) == (ModelMatcher.canonicalModelID(from: pair.1)))
         }
     }
 
+    @Test
     func testDoesNotMergeDifferentModelVersionsOrEfforts() {
-        XCTAssertNotEqual(
-            ModelMatcher.canonicalModelID(from: "Gemini 3.8 Flash (high)"),
-            ModelMatcher.canonicalModelID(from: "gemini-3.7-flash-high")
-        )
-        XCTAssertNotEqual(
-            ModelMatcher.canonicalModelID(from: "GPT-6 Astra (max)"),
-            ModelMatcher.canonicalModelID(from: "gpt-6-astra-high")
-        )
+        #expect((ModelMatcher.canonicalModelID(from: "Gemini 3.8 Flash (high)")) != (ModelMatcher.canonicalModelID(from: "gemini-3.7-flash-high")))
+        #expect((ModelMatcher.canonicalModelID(from: "GPT-6 Astra (max)")) != (ModelMatcher.canonicalModelID(from: "gpt-6-astra-high")))
     }
 }

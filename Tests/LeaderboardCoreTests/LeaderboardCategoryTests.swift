@@ -1,55 +1,46 @@
+import Foundation
 import LeaderboardCore
-import XCTest
+import Testing
 
-final class LeaderboardCategoryTests: XCTestCase {
+struct LeaderboardCategoryTests {
+    @Test
     func testCategoriesMapToTheirLeftAndRightBoards() {
-        XCTAssertEqual(LeaderboardCategory.general.boardKinds, [.artificialAnalysis, .arenaText])
-        XCTAssertEqual(LeaderboardCategory.coding.boardKinds, [.artificialAnalysisCodingAgent, .codeArenaWebDev])
-        XCTAssertEqual(LeaderboardCategory.image.boardKinds, [.artificialAnalysisTextToImage, .arenaTextToImage])
-        XCTAssertEqual(LeaderboardCategory.video.boardKinds, [.artificialAnalysisTextToVideo, .arenaTextToVideo])
+        #expect((LeaderboardCategory.general.boardKinds) == ([.artificialAnalysis, .arenaText]))
+        #expect((LeaderboardCategory.coding.boardKinds) == ([.artificialAnalysisCodingAgent, .codeArenaWebDev]))
+        #expect((LeaderboardCategory.image.boardKinds) == ([.artificialAnalysisTextToImage, .arenaTextToImage]))
+        #expect((LeaderboardCategory.video.boardKinds) == ([.artificialAnalysisTextToVideo, .arenaTextToVideo]))
     }
 
+    @Test
     func testMediaCategoriesUseTextToImageAndTextToVideoSources() {
-        XCTAssertEqual(
-            LeaderboardKind.artificialAnalysisTextToImage.sourceURL.absoluteString,
-            "https://artificialanalysis.ai/image/leaderboard/text-to-image"
-        )
-        XCTAssertEqual(
-            LeaderboardKind.arenaTextToImage.sourceURL.absoluteString,
-            "https://arena.ai/leaderboard/text-to-image"
-        )
-        XCTAssertEqual(
-            LeaderboardKind.artificialAnalysisTextToVideo.sourceURL.absoluteString,
-            "https://artificialanalysis.ai/video/leaderboard/text-to-video"
-        )
-        XCTAssertEqual(
-            LeaderboardKind.arenaTextToVideo.sourceURL.absoluteString,
-            "https://arena.ai/leaderboard/text-to-video"
-        )
+        #expect((LeaderboardKind.artificialAnalysisTextToImage.sourceURL.absoluteString) == ("https://artificialanalysis.ai/image/leaderboard/text-to-image"))
+        #expect((LeaderboardKind.arenaTextToImage.sourceURL.absoluteString) == ("https://arena.ai/leaderboard/text-to-image"))
+        #expect((LeaderboardKind.artificialAnalysisTextToVideo.sourceURL.absoluteString) == ("https://artificialanalysis.ai/video/leaderboard/text-to-video"))
+        #expect((LeaderboardKind.arenaTextToVideo.sourceURL.absoluteString) == ("https://arena.ai/leaderboard/text-to-video"))
     }
 
+    @Test
     func testCodingCategoryUsesDedicatedArtificialAnalysisSource() {
-        XCTAssertEqual(
-            LeaderboardKind.artificialAnalysisCodingAgent.sourceURL.absoluteString,
-            "https://artificialanalysis.ai/agents/coding-agents"
-        )
+        #expect((LeaderboardKind.artificialAnalysisCodingAgent.sourceURL.absoluteString) == ("https://artificialanalysis.ai/agents/coding-agents"))
     }
 
+    @Test
     func testCategoryPreferenceRestoresLastSelectionAndFallsBack() {
         let suite = "CategoryPreferenceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
 
-        XCTAssertEqual(CategoryPreference.load(from: defaults), .general)
+        #expect((CategoryPreference.load(from: defaults)) == (.general))
 
         CategoryPreference.save(.video, to: defaults)
-        XCTAssertEqual(CategoryPreference.load(from: defaults), .video)
+        #expect((CategoryPreference.load(from: defaults)) == (.video))
 
         defaults.set("not-a-category", forKey: CategoryPreference.userDefaultsKey)
-        XCTAssertEqual(CategoryPreference.load(from: defaults), .general)
-        XCTAssertNil(defaults.string(forKey: CategoryPreference.userDefaultsKey))
+        #expect((CategoryPreference.load(from: defaults)) == (.general))
+        #expect((defaults.string(forKey: CategoryPreference.userDefaultsKey)) == nil)
     }
 
+    @Test
     func testArtificialAnalysisLabelsUseTheFullName() {
         let kinds: [LeaderboardKind] = [
             .artificialAnalysis,
@@ -58,12 +49,13 @@ final class LeaderboardCategoryTests: XCTestCase {
             .artificialAnalysisTextToVideo,
         ]
         for kind in kinds {
-            XCTAssertEqual(kind.sourcePrefix, "Artificial Analysis")
-            XCTAssertFalse(kind.sourceLinkTitle.contains("AA"))
-            XCTAssertTrue(kind.sourceLinkTitle.hasPrefix("Artificial Analysis"))
+            #expect((kind.sourcePrefix) == ("Artificial Analysis"))
+            #expect(!(kind.sourceLinkTitle.contains("AA")))
+            #expect(kind.sourceLinkTitle.hasPrefix("Artificial Analysis"))
         }
     }
 
+    @Test
     func testLegacyAbbreviatedCacheKeysStillDecode() throws {
         let json = """
         {
@@ -94,24 +86,21 @@ final class LeaderboardCategoryTests: XCTestCase {
         decoder.dateDecodingStrategy = .iso8601
         let snapshot = try decoder.decode(LeaderboardSnapshot.self, from: json)
 
-        XCTAssertEqual(
-            Set(snapshot.boards.keys),
-            [
+        #expect((Set(snapshot.boards.keys)) == ([
                 .artificialAnalysisCodingAgent,
                 .artificialAnalysisTextToImage,
                 .artificialAnalysisTextToVideo,
-            ]
-        )
+            ]))
 
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         let data = try encoder.encode(snapshot)
-        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        let boards = try XCTUnwrap(object["boards"] as? [String: Any])
-        XCTAssertNil(boards["aaCodingAgent"])
-        XCTAssertNotNil(boards["artificialAnalysisCodingAgent"])
-        XCTAssertNotNil(boards["artificialAnalysisTextToImage"])
-        XCTAssertNotNil(boards["artificialAnalysisTextToVideo"])
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let boards = try #require(object["boards"] as? [String: Any])
+        #expect((boards["aaCodingAgent"]) == nil)
+        #expect((boards["artificialAnalysisCodingAgent"]) != nil)
+        #expect((boards["artificialAnalysisTextToImage"]) != nil)
+        #expect((boards["artificialAnalysisTextToVideo"]) != nil)
     }
 }
 
