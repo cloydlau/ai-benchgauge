@@ -1,10 +1,17 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 // 每次提交前重新读取 Codex 当前模型。头像只给桌面通知用，不写入提交说明。
 const DEFAULT_CONFIG_PATH = join(homedir(), '.codex', 'config.toml')
 const ICONES_FALLBACK = 'https://api.iconify.design/mdi:robot-outline.svg'
+// 头像优先用应用内置的那批组织图标（榜单里画的是同一批 PNG）。它们随仓库走，
+// 断网、无系统代理也能出图；下面的 favicon 与 iconify 候选只在没有内置图标时
+// 才会去下载。
+const BUNDLED_LOGO_DIRECTORY = fileURLToPath(
+  new URL('../Sources/LeaderboardMenu/Resources/logos/', import.meta.url),
+)
 // GitHub associates these official coding-agent Bots with their numeric
 // noreply addresses. Keep the selected model name separate from the email so
 // a commit can still say `grok-4.7` while GitHub resolves the Bot avatar.
@@ -25,6 +32,7 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
     key: 'glm',
     brands: ['glm', 'zhipu', 'zai'],
     email: 'noreply@z.ai',
+    logo: 'zai.png',
     favicon: 'https://open.bigmodel.cn/favicon.ico',
     icon: 'https://api.iconify.design/simple-icons:zhipuai.svg',
   },
@@ -32,6 +40,7 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
     key: 'deepseek',
     brands: ['deepseek'],
     email: 'noreply@deepseek.com',
+    logo: 'deepseek.png',
     favicon: 'https://www.deepseek.com/favicon.ico',
     icon: 'https://api.iconify.design/simple-icons:deepseek.svg',
   },
@@ -39,6 +48,7 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
     key: 'openai',
     brands: ['gpt', 'openai', 'codex', 'o1', 'o3', 'o4'],
     email: OPENAI_GITHUB_EMAIL,
+    logo: 'openai.png',
     favicon: 'https://openai.com/favicon.ico',
     icon: 'https://api.iconify.design/logos:openai-icon.svg',
   },
@@ -46,6 +56,7 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
     key: 'claude',
     brands: ['claude', 'anthropic', 'fable'],
     email: 'noreply@anthropic.com',
+    logo: 'anthropic.png',
     favicon: 'https://www.anthropic.com/favicon.ico',
     icon: 'https://api.iconify.design/simple-icons:anthropic.svg',
   },
@@ -54,6 +65,7 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
     brands: ['kimi', 'moonshot'],
     // kimi.com 域名邮箱不绑定任何 GitHub 账号，头像无法解析。留空走
     // <model>@users.noreply.github.com 回退，GitHub 会关联到 Kimi-K3 账号。
+    logo: 'kimi.png',
     favicon: 'https://kimi.moonshot.cn/favicon.ico',
     // simple-icons 没有 moonshot，月形图标用 moonrepo。
     icon: 'https://api.iconify.design/simple-icons:moonrepo.svg',
@@ -62,6 +74,7 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
     key: 'grok',
     brands: ['grok', 'xai'],
     email: GROK_GITHUB_EMAIL,
+    logo: 'spacexai.png',
     // grok.com/favicon.ico 已 404。不能回退成 X 的图标。
     favicon: 'https://grok.com/images/favicon.svg',
     icon: 'https://api.iconify.design/hugeicons:grok.svg',
@@ -70,6 +83,7 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
     key: 'qwen',
     brands: ['qwen', 'tongyi'],
     email: QWEN_GITHUB_EMAIL,
+    logo: 'qwen.png',
     favicon: 'https://qwen.ai/favicon.ico',
     icon: 'https://api.iconify.design/simple-icons:alibabacloud.svg',
   },
@@ -77,6 +91,7 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
     key: 'gemini',
     brands: ['gemini', 'google'],
     email: GEMINI_GITHUB_EMAIL,
+    logo: 'google.png',
     favicon: 'https://www.google.com/favicon.ico',
     icon: 'https://api.iconify.design/logos:google-icon.svg',
   },
@@ -85,6 +100,7 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
     // llama 按未知模型处理，不归到 Meta 身份。
     brands: ['meta'],
     email: 'noreply@meta.com',
+    logo: 'meta.png',
     favicon: 'https://about.meta.com/favicon.ico',
     icon: 'https://api.iconify.design/logos:meta-icon.svg',
   },
@@ -92,6 +108,7 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
     key: 'mimo',
     brands: ['mimo', 'xiaomi'],
     email: MIMO_EMAIL,
+    logo: 'xiaomi.png',
     favicon: 'https://mimo.xiaomi.com/favicon.ico',
     icon: 'https://api.iconify.design/simple-icons:xiaomi.svg',
   },
@@ -99,6 +116,7 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
     key: 'cursor',
     brands: ['cursor'],
     email: 'cursoragent@cursor.com',
+    // 仓库里没有 Cursor 的内置图标，这一家仍然只能走远程候选。
     favicon: 'https://cursor.com/favicon.ico',
     icon: 'https://api.iconify.design/simple-icons:cursor.svg',
   },
@@ -106,6 +124,7 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
     key: 'devin',
     brands: ['devin'],
     email: 'noreply@cognition.ai',
+    logo: 'devin.png',
     favicon: 'https://devin.ai/favicon.ico',
     icon: 'https://api.iconify.design/simple-icons:devin.svg',
   },
@@ -114,6 +133,13 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
 function providerForModel(model) {
   const name = String(model || '').trim().toLowerCase()
   return MODEL_AVATAR_PROVIDERS.find(({ brands }) => brands.some((brand) => name.includes(brand))) || null
+}
+
+// 内置图标的绝对路径；文件名缺失或资源被删时返回空串，让调用方回退到网络候选。
+function bundledLogoPath(fileName) {
+  if (!fileName) return ''
+  const path = join(BUNDLED_LOGO_DIRECTORY, fileName)
+  return existsSync(path) ? path : ''
 }
 
 export function avatarForModel(model) {
@@ -128,17 +154,20 @@ export function avatarForModel(model) {
       favicon: '',
       icon,
       fallback: ICONES_FALLBACK,
+      bundled: '',
       url: icon,
     }
   }
+  const bundled = bundledLogoPath(provider.logo)
   return {
     provider: provider.key,
-    source: 'official-favicon',
+    source: bundled ? 'bundled' : 'official-favicon',
     candidates: [provider.favicon, provider.icon, ICONES_FALLBACK],
     favicon: provider.favicon,
     icon: provider.icon,
     fallback: ICONES_FALLBACK,
-    url: provider.favicon,
+    bundled,
+    url: bundled || provider.favicon,
   }
 }
 
@@ -158,6 +187,8 @@ async function probeUrl(url, timeoutMs) {
 /** 提交不等待图标服务；探测失败时仍返回确定性候选，不中断提交。 */
 export async function resolveModelAvatar(model, { fetchBudgetMs = 2000 } = {}) {
   const avatar = avatarForModel(model)
+  // 本地图标无需探测，也不受网络与代理影响。probed 表示“已确认可用”。
+  if (avatar.bundled) return { ...avatar, probed: true }
   const deadline = Date.now() + fetchBudgetMs
   for (const url of avatar.candidates) {
     const remaining = deadline - Date.now()

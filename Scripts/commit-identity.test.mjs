@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { existsSync } from 'node:fs'
 import test from 'node:test'
 
 import {
@@ -56,15 +57,48 @@ test('llama 按未知模型处理，不归到 Meta 身份', () => {
   assert.equal(emailForModel('llama-4'), 'llama-4@users.noreply.github.com')
 })
 
-test('探测全部失败时回退到通用机器人图标，而不是坏掉的 favicon', async () => {
+test('内置头像优先，断网也直接给出仓库里的 PNG', async () => {
   const originalFetch = globalThis.fetch
-  globalThis.fetch = async () => { throw new Error('offline') }
+  let probed = 0
+  globalThis.fetch = async () => { probed += 1; throw new Error('offline') }
   try {
     const avatar = await resolveModelAvatar('kimi-k3', { fetchBudgetMs: 1000 })
+    assert.equal(avatar.source, 'bundled')
+    assert.equal(avatar.probed, true)
+    assert.equal(avatar.url, avatar.bundled)
+    assert.equal(avatar.favicon, 'https://kimi.moonshot.cn/favicon.ico')
+    assert.ok(existsSync(avatar.bundled))
+    assert.equal(probed, 0)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('没有内置头像时才探测网络，全部失败回退到通用机器人图标', async () => {
+  const originalFetch = globalThis.fetch
+  let probed = 0
+  globalThis.fetch = async () => { probed += 1; throw new Error('offline') }
+  try {
+    const avatar = await resolveModelAvatar('cursor-agent', { fetchBudgetMs: 1000 })
+    assert.equal(avatar.bundled, '')
     assert.equal(avatar.url, avatar.fallback)
     assert.equal(avatar.source, 'icones')
     assert.equal(avatar.probed, false)
+    assert.ok(probed > 0)
   } finally {
     globalThis.fetch = originalFetch
+  }
+})
+
+test('每家有内置图标的模型都指向仓库里真实存在的 PNG', () => {
+  const models = [
+    'glm-4.6', 'deepseek-v3.2', 'gpt-6-sol', 'claude-opus-5.5', 'kimi-k3', 'grok-4.7',
+    'qwen3-coder', 'gemini-2.5-pro', 'meta-ai', 'MiMo-V2.5-Pro', 'devin-1.2',
+  ]
+  for (const model of models) {
+    const avatar = avatarForModel(model)
+    assert.ok(avatar.bundled, model)
+    assert.ok(existsSync(avatar.bundled), `${model} -> ${avatar.bundled}`)
+    assert.equal(avatar.url, avatar.bundled, model)
   }
 })
