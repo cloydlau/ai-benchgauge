@@ -8,6 +8,7 @@ private final class ScreenshotUIState: ObservableObject {
     @Published var note: String?
     @Published var noteID = 0
     @Published var isCapturing = false
+    @Published var licenseSection: LicenseSection?
 }
 
 struct LeaderboardView: View {
@@ -32,13 +33,14 @@ struct LeaderboardView: View {
     private static let tableBorderHeight: CGFloat = 2
 
     let maximumWidth: CGFloat
+    var viewportSize: CGSize? = nil
 
     private var contentWidth: CGFloat {
-        Self.preferredWidth(for: state, maximumWidth: maximumWidth)
+        viewportSize?.width ?? Self.preferredWidth(for: state, maximumWidth: maximumWidth)
     }
 
     private var contentHeight: CGFloat {
-        Self.preferredHeight(for: state, width: contentWidth, maximumWidth: maximumWidth)
+        viewportSize?.height ?? Self.preferredHeight(for: state, width: contentWidth, maximumWidth: maximumWidth)
     }
 
     private var nameColumnWidth: CGFloat {
@@ -104,6 +106,11 @@ struct LeaderboardView: View {
         return min(desired, maximumWidth)
     }
 
+    static func preferredSize(for state: AppState, maximumWidth: CGFloat) -> NSSize {
+        let width = preferredWidth(for: state, maximumWidth: maximumWidth)
+        return NSSize(width: width, height: preferredHeight(for: state, width: width, maximumWidth: maximumWidth))
+    }
+
     static func preferredHeight(for state: AppState, width: CGFloat, maximumWidth: CGFloat) -> CGFloat {
         let view = LeaderboardView(state: state, maximumWidth: maximumWidth)
         let header = NSHostingView(rootView: view.header.frame(width: width))
@@ -151,6 +158,9 @@ struct LeaderboardView: View {
         }
         .frame(width: contentWidth, height: contentHeight)
         .background(.background)
+        .sheet(item: $screenshot.licenseSection) { section in
+            LicenseNoticesView(section: section, language: language)
+        }
         .overlay(alignment: .bottom) {
             if let note = screenshot.note, !state.isQuitting {
                 screenshotToast(note)
@@ -194,7 +204,9 @@ struct LeaderboardView: View {
                 QuotaStrip(
                     chips: state.quotaChips,
                     language: language,
-                    onConnectQwen: state.connectQwenWebsite
+                    onConnectQwen: state.connectQwenWebsite,
+                    onConnectOpenAI: state.connectOpenAI,
+                    connectingOpenAIProviderID: state.connectingOpenAIProviderID
                 )
                 .padding(.top, 10)
                 .background(QuotaStripAnchor())
@@ -208,6 +220,10 @@ struct LeaderboardView: View {
     }
 
     private var quotaSetupPrompt: some View {
+        quotaSetupPrompt(isScreenshot: false)
+    }
+
+    private func quotaSetupPrompt(isScreenshot: Bool) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "chart.bar.xaxis")
                 .foregroundStyle(.secondary)
@@ -219,12 +235,19 @@ struct LeaderboardView: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
             Spacer(minLength: 8)
-            Link(
-                tr("Download CC Switch", "下载 CC Switch"),
-                destination: URL(string: "https://github.com/farion1231/cc-switch/releases/latest")!
-            )
-            .font(.system(size: 11, weight: .medium))
-            .pointingHandCursor()
+            if isScreenshot {
+                // ImageRenderer cannot draw AppKit-backed Link controls.
+                Text(tr("Download CC Switch", "下载 CC Switch"))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Color.accentColor)
+            } else {
+                Link(
+                    tr("Download CC Switch", "下载 CC Switch"),
+                    destination: URL(string: "https://github.com/farion1231/cc-switch/releases/latest")!
+                )
+                .font(.system(size: 11, weight: .medium))
+                .pointingHandCursor()
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -591,7 +614,7 @@ struct LeaderboardView: View {
         .help(url)
     }
 
-    private let repositoryURL = "https://github.com/cloydlau/ai-leaderboard-menubar"
+    private let repositoryURL = "https://github.com/cloydlau/ai-benchgauge"
 
     private func quit() {
         guard state.beginQuitting() else { return }
@@ -636,7 +659,7 @@ struct LeaderboardView: View {
         }
         var replacement: (band: CGRect, prompt: CGImage)?
         if let band {
-            let content = quotaSetupPrompt
+            let content = quotaSetupPrompt(isScreenshot: true)
                 .padding(.horizontal, 18)
                 .frame(width: band.width, height: band.height)
                 .environment(\.colorScheme, colorScheme)
@@ -648,7 +671,17 @@ struct LeaderboardView: View {
             }
             replacement = (band, prompt)
         }
-        guard let shot = PanelScreenshot.capture(view: view, replacingTopBandWith: replacement) else {
+        guard let footerBand = PanelScreenshot.footerBand(in: view) else {
+            showScreenshotNote(tr("Screenshot failed", "截图失败"))
+            return
+        }
+        let footerRenderer = ImageRenderer(content: screenshotFooter
+            .frame(width: footerBand.width, height: footerBand.height)
+            .environment(\.colorScheme, colorScheme))
+        footerRenderer.scale = view.window?.backingScaleFactor ?? 2
+        guard let footerImage = footerRenderer.cgImage,
+              let shot = PanelScreenshot.capture(view: view, replacingTopBandWith: replacement,
+                                                 replacingFooterBandWith: (footerBand, footerImage)) else {
             showScreenshotNote(tr("Screenshot failed", "截图失败"))
             return
         }
@@ -702,6 +735,7 @@ struct LeaderboardView: View {
     }
 
     private func keepPanelInsideScreen(_ view: NSView) {
+        guard viewportSize == nil else { return }
         guard let window = view.window,
               let screen = window.screen ?? NSScreen.main else { return }
         let visible = screen.visibleFrame
@@ -720,6 +754,10 @@ struct LeaderboardView: View {
     }
 
     private func panelContentView() -> NSView? {
+        if viewportSize != nil,
+           let window = NSApp.windows.first(where: { $0.isVisible && $0.identifier?.rawValue == "ai-benchgauge.leaderboard-window" }) {
+            return window.contentViewController?.view
+        }
         let ordered = NSApp.windows.filter(\.isVisible) + NSApp.windows.filter { !$0.isVisible }
         for window in ordered {
             if let view = window.contentViewController?.view as? NSHostingView<LeaderboardView> {
@@ -757,7 +795,89 @@ struct LeaderboardView: View {
     }
 
     private var footer: some View {
+        ViewThatFits(in: .horizontal) {
+            footerRow(compact: false, showsSourceLinks: true)
+            footerRow(compact: false, showsSourceLinks: false)
+            footerRow(compact: true, showsSourceLinks: false)
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 11)
+        .background(ScreenshotFooterAnchor())
+        .accessibilityIdentifier("leaderboard-footer")
+    }
+
+    /// A shared image needs a readable project address in place of controls.
+    /// Keep the same single-row footer and canvas size as the live panel.
+    private var screenshotFooter: some View {
+        ViewThatFits(in: .horizontal) {
+            screenshotFooterRow(showsSources: true)
+            screenshotFooterRow(showsSources: false)
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+        .padding(.horizontal, 18)
+    }
+
+    private func screenshotFooterRow(showsSources: Bool) -> some View {
         HStack(spacing: 7) {
+            githubMark
+            Text(repositoryURL.replacingOccurrences(of: "https://", with: ""))
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundStyle(.primary)
+                .fixedSize()
+            Spacer(minLength: 8)
+            if showsSources {
+                HStack(spacing: 7) {
+                    Text(selectedCategory.leftKind.sourceLinkTitle)
+                    Text("·")
+                    Text(selectedCategory.rightKind.sourceLinkTitle)
+                }
+                .fixedSize()
+                Spacer(minLength: 8)
+            }
+            Text("Cloyd Lau · MIT License")
+                .fixedSize()
+        }
+    }
+
+    private func footerRow(compact: Bool, showsSourceLinks: Bool) -> some View {
+        HStack(spacing: compact ? 4 : 7) {
+            footerAttribution(compact: compact)
+            Text("·")
+            Button(tr(compact ? "Notices" : "Open-source notices", "开源声明")) {
+                screenshot.licenseSection = .thirdParty
+            }
+            .buttonStyle(.plain)
+            .pointingHandCursor()
+            .help(tr("View third-party licenses and copyright notices", "查看第三方许可证和版权声明"))
+            .accessibilityLabel(tr("Open-source notices", "开源声明"))
+            .accessibilityIdentifier("open-source-notices")
+            .fixedSize()
+            Spacer(minLength: 8)
+            if showsSourceLinks {
+                footerSources
+            } else {
+                Menu(tr("Sources", "数据来源")) {
+                    sourceLink(title: selectedCategory.leftKind.sourceLinkTitle,
+                               url: selectedCategory.leftKind.sourceURL.absoluteString)
+                    sourceLink(title: selectedCategory.rightKind.sourceLinkTitle,
+                               url: selectedCategory.rightKind.sourceURL.absoluteString)
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .help(tr("Leaderboard data sources", "榜单数据来源"))
+            }
+            Spacer(minLength: 8)
+            footerControls(compact: compact)
+        }
+    }
+
+    private func footerAttribution(compact: Bool) -> some View {
+        HStack(spacing: compact ? 4 : 7) {
             Button {
                 if let url = URL(string: repositoryURL) {
                     NSWorkspace.shared.open(url)
@@ -771,10 +891,19 @@ struct LeaderboardView: View {
 
             Text("Cloyd Lau")
             Text("·")
-            Text("MIT License")
+            Button(compact ? "MIT" : "MIT License") {
+                screenshot.licenseSection = .application
+            }
+            .buttonStyle(.plain)
+            .pointingHandCursor()
+            .help(tr("View the AI BenchGauge license", "查看 AI BenchGauge 的许可证"))
+            .accessibilityIdentifier("application-license")
+        }
+        .fixedSize(horizontal: true, vertical: false)
+    }
 
-            Spacer()
-
+    private var footerSources: some View {
+        HStack(spacing: 7) {
             Text(tr("Sources", "数据来源"))
             sourceLink(
                 title: selectedCategory.leftKind.sourceLinkTitle,
@@ -785,37 +914,35 @@ struct LeaderboardView: View {
                 title: selectedCategory.rightKind.sourceLinkTitle,
                 url: selectedCategory.rightKind.sourceURL.absoluteString
             )
+        }
+        .fixedSize(horizontal: true, vertical: false)
+    }
 
-            Text("·")
-
+    private func footerControls(compact: Bool) -> some View {
+        HStack(spacing: compact ? 4 : 7) {
             Button {
                 captureScreenshot()
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "camera")
                         .imageScale(.small)
-                    Text(tr("Screenshot", "截图"))
+                    if !compact { Text(tr("Screenshot", "截图")) }
                 }
             }
             .buttonStyle(.plain)
             .pointingHandCursor(isEnabled: !state.isQuitting && !screenshot.isCapturing)
             .allowsHitTesting(!state.isQuitting && !screenshot.isCapturing)
             .help(tr("Copy a screenshot with the CC Switch quota guide", "复制显示 CC Switch 余量引导的截图"))
+            .accessibilityLabel(tr("Screenshot", "截图"))
+            .accessibilityIdentifier("copy-panel-screenshot")
 
             Text("·")
 
-            Toggle(tr("Close on blur", "失焦关闭"), isOn: Binding(
-                get: { state.closesOnFocusLoss },
-                set: { state.setClosesOnFocusLoss($0) }
+            PanelModePicker(language: language, selection: Binding(
+                get: { state.panelMode },
+                set: { state.selectPanelMode($0) }
             ))
-            .toggleStyle(.switch)
-            .controlSize(.mini)
-            .font(.system(size: 11))
             .fixedSize()
-            .help(tr(
-                "Close the panel when clicking outside or switching apps.",
-                "点击弹窗外或切换应用时关闭弹窗。"
-            ))
 
             Text("·")
 
@@ -829,7 +956,7 @@ struct LeaderboardView: View {
             }
             .labelsHidden()
             .pickerStyle(.segmented)
-            .frame(width: 150)
+            .frame(width: compact ? 120 : 150)
             .help(tr("Interface language", "界面语言"))
 
             Text("·")
@@ -843,11 +970,11 @@ struct LeaderboardView: View {
                             .controlSize(.small)
                             .scaleEffect(0.55)
                             .frame(width: 12, height: 12)
-                        Text(tr("Quitting", "退出中"))
+                        if !compact { Text(tr("Quitting", "退出中")) }
                     } else {
                         Image(systemName: "power")
                             .imageScale(.small)
-                        Text(tr("Quit", "退出"))
+                        if !compact { Text(tr("Quit", "退出")) }
                     }
                 }
             }
@@ -855,13 +982,10 @@ struct LeaderboardView: View {
             .pointingHandCursor(isEnabled: !state.isQuitting)
             .allowsHitTesting(!state.isQuitting)
             .help(state.isQuitting ? tr("Quitting AI BenchGauge", "正在退出 AI BenchGauge") : tr("Quit AI BenchGauge", "退出 AI BenchGauge"))
+            .accessibilityLabel(tr("Quit", "退出"))
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 18)
-        .padding(.vertical, 11)
+        .fixedSize(horizontal: true, vertical: false)
     }
-
     @ViewBuilder
     private var githubMark: some View {
         if let mark = Self.bundledGitHubMark {
