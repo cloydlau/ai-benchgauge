@@ -65,3 +65,12 @@ SwiftPM copies this directory for `swift run`. `Scripts/make-app.sh` copies it
 into the signed `.app`, overriding the application notice with the current
 repository `LICENSE`. Check that every manifest entry has a nonempty local
 notice before release.
+
+## Windows 分发
+
+Windows 使用 .NET / WPF / WinForms、Swift / Foundation / libdispatch、Bouncy Castle、微软 WebView2 SDK 与 NSIS 安装器。
+完整许可保存在 `apps/windows/Licenses/`，包含运行时上游第三方声明；构建时还复制 Swift 分发自带的 LICENSE / NOTICE。
+这些文本随安装包分发，可从底部声明弹窗离线查看。
+NSIS 3.11 LZMA 模块使用 CPL 1.0 及其链接例外，未修改源码来自 https://github.com/kichik/nsis/tree/v311。
+WebView2 Evergreen Runtime 由微软独立安装和更新，其条款与 SDK 声明一并提供。
+SQLite 使用系统库，不打包第三方 SQLite 二进制。

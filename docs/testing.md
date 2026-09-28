@@ -1,6 +1,6 @@
 # 单元测试
 
-运行 `./test.sh` 执行 Swift Testing 核心测试和 Node.js 内置测试。Swift 6 工具链自带 Swift Testing，不依赖 XCTest 或额外下载测试库。脚本自动设置本项目的模块缓存，并为需要的工具链补充 TestingMacros 搜索路径。日期测试使用 `Asia/Shanghai` 时区。
+本地安装 .NET 10 SDK（或 `BENCHGAUGE_DOTNET` 指定路径）后，运行 `./test.sh` 执行 Swift Testing 核心测试、Node.js 内置测试和 Windows 更新验签测试。Swift 6 工具链自带 Swift Testing，不依赖 XCTest 或额外下载测试库。脚本自动设置本项目的模块缓存，并为需要的工具链补充 TestingMacros 搜索路径。日期测试使用 `Asia/Shanghai` 时区。
 
 核心测试覆盖榜单解析、公司聚合和排名、模型匹配、地区及语言、购买链接、CC Switch 配置及数据库、额度解析和格式化、截止日期、提醒、颜色过渡、面板模式偏好，以及模拟的账号授权、刷新和错误恢复。账号相关用例使用临时目录、模拟 RPC 和 HTTP 传输，不读取真实账号，不连接生产服务。
 
@@ -11,3 +11,8 @@
 `./test.sh --coverage` 开启两种语言的覆盖率输出。Node.js 在终端显示覆盖报告，Swift 的报告保存在 `work/unit-test-build/` 下；不设未经基线评估的覆盖率门槛，也不将模型报告或用例数量作为覆盖率。`DESKTOP_NOTIFY=0 node Scripts/ci-checks.mjs` 依次检查脚本语法、完整测试、正式应用构建和签名，不打开应用。
 
 开发监听、独立提交及打包入口均有测试门禁。通过结果只能在本次流程内且源码、测试、脚本、构建配置和相关环境一致时复用；测试期间发生修改，结果作废并重新验证。失败日志、状态和一次修复的记录在 `work/test-results/`，不会进入版本库。自动修复只允许修改源码，测试或流程配置变化会阻断复检；只有完整测试通过且没有待决策项才能继续。
+
+Windows 更新测试覆盖合法签名、清单篡改、错误密钥、签名长度、下载地址、稳定版格式、安装包长度与哈希。
+`Scripts/make-windows.ps1` 在 Windows 上运行全部共享核心测试、更新测试、打包引擎通信和四种原生窗口的截图检查。
+POSIX 权限专用用例在 Windows 明确跳过；Windows 数据库并发和不可读场景通过平台文件共享检查。
+两端源码、资源、配置及锁文件都进入本地测试签名，`bin/` / `obj/` 不进入监听或测试输入。
