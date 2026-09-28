@@ -72,7 +72,7 @@ public enum CCSwitchProviderStore {
     public static func loadCodexProviders(
         databaseURL: URL = defaultDatabaseURL
     ) -> CCSwitchProviderLoadResult {
-        let path = databaseURL.path(percentEncoded: false)
+        let path = PlatformPaths.fileSystemPath(databaseURL)
         #if os(Windows)
         // Foundation's existence check opens the file on Windows and reports
         // false under an exclusive lock. Metadata lookup preserves unavailable

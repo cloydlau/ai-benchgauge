@@ -1,5 +1,14 @@
 import Foundation
 public enum PlatformPaths {
+    public static func fileSystemPath(_ url: URL) -> String {
+        #if os(Windows)
+        return url.withUnsafeFileSystemRepresentation { pointer in
+            pointer.map { String(cString: $0) } ?? url.path
+        }
+        #else
+        return url.path(percentEncoded: false)
+        #endif
+    }
     public static var applicationSupport: URL {
         #if os(Windows)
         let root = ProcessInfo.processInfo.environment["LOCALAPPDATA"].map { URL(fileURLWithPath: $0) }
