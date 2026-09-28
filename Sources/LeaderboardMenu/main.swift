@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let state = AppState(cache: cache)
         stateController = StatusBarController(state: state)
         state.start()
+        AppUpdater.shared.start()
     }
 
     private func temporaryCacheURL() -> URL {
@@ -112,6 +113,8 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
             name: NSApplication.didChangeScreenParametersNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(self, selector: #selector(prepareForAppUpdate),
+            name: AppUpdater.willPresentUpdate, object: nil)
 
         // Pre-warm: create the popover window and run the first SwiftUI
         // layout pass at launch (invisibly), so the first click opens
@@ -119,6 +122,11 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
             self?.prewarmPopover()
         }
+    }
+
+    @objc private func prepareForAppUpdate() {
+        popover.performClose(nil)
+        leaderboardWindow?.orderBack(nil)
     }
 
     private func prewarmPopover() {
