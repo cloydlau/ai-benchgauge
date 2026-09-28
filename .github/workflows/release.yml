@@ -26,7 +26,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
+          SIGNING_KEY_PRESENT: ${{ secrets.SPARKLE_PRIVATE_KEY != '' }}
         run: |
+          if [ "$SIGNING_KEY_PRESENT" != "true" ]; then echo 'Configure GitHub Secret SPARKLE_PRIVATE_KEY first.' >&2; exit 1; fi
           git merge-base --is-ancestor HEAD origin/main
           mkdir -p work
           gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName,isDraft,isPrerelease > work/prior-releases.json
