@@ -1,5 +1,12 @@
+#if canImport(Darwin)
 import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public struct AccountQuotaHTTPResponse: Equatable, Sendable {
     public var statusCode: Int
@@ -93,6 +100,14 @@ extension XaiAuthFile {
         let tempURL = url.deletingLastPathComponent()
             .appending(path: ".\(url.lastPathComponent).\(UUID().uuidString).tmp")
         let tempPath = tempURL.path(percentEncoded: false)
+        #if os(Windows)
+        do {
+            try updated.write(to: tempURL, options: .withoutOverwriting)
+            defer { try? FileManager.default.removeItem(at: tempURL) }
+            _ = try FileManager.default.replaceItemAt(url, withItemAt: tempURL)
+            return true
+        } catch { return false }
+        #else
         let fd = open(tempPath, O_CREAT | O_EXCL | O_WRONLY, 0o600)
         guard fd >= 0 else { return false }
 
@@ -123,6 +138,7 @@ extension XaiAuthFile {
             unlink(tempPath)
             return false
         }
+        #endif
     }
 }
 

@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(Darwin)
 import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
 
 public enum OpenAIConnectionError: Error, Equatable, Sendable {
     case helperMissing, serviceFailed, timedOut, cancelled, signInFailed, accountMismatch, invalidResponse, reauthRequired
@@ -33,6 +37,17 @@ public actor OpenAIAppServer: OpenAIAccountRPC {
     }
 
     public static func installedExecutable(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL? {
+        #if os(Windows)
+        let local = environment["LOCALAPPDATA"] ?? ""
+        let roaming = environment["APPDATA"] ?? ""
+        let path = environment.first { $0.key.lowercased() == "path" }?.value ?? ""
+        let candidates = path.split(separator: ";").map { "\($0)/codex.exe" } + [
+            "\(local)/Programs/Codex/resources/codex.exe",
+            "\(roaming)/npm/node_modules/@openai/codex/vendor/x86_64-pc-windows-msvc/codex/codex.exe",
+            "\(roaming)/npm/node_modules/@openai/codex/node_modules/@openai/codex-win32-x64/vendor/x86_64-pc-windows-msvc/codex/codex.exe",
+        ]
+        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }.map { URL(fileURLWithPath: $0) }
+        #else
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let bundledPaths = [
             "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
@@ -45,6 +60,7 @@ public actor OpenAIAppServer: OpenAIAccountRPC {
         return (bundledPaths + searchPaths).first {
             FileManager.default.isExecutableFile(atPath: $0)
         }.map { URL(fileURLWithPath: $0) }
+        #endif
     }
 
     public func request(_ method: String, params: Data) async throws -> Data {
@@ -83,9 +99,13 @@ public actor OpenAIAppServer: OpenAIAccountRPC {
         guard let executable = executableURL ?? Self.installedExecutable() else {
             throw OpenAIConnectionError.helperMissing
         }
+        #if os(Windows)
+        try FileManager.default.createDirectory(at: profileURL, withIntermediateDirectories: true)
+        #else
         try FileManager.default.createDirectory(at: profileURL, withIntermediateDirectories: true,
                                                attributes: [.posixPermissions: 0o700])
-        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: profileURL.path)
+        #endif
+        try PlatformPaths.restrictFile(profileURL, permissions: 0o700)
         let child = Process()
         let stdin = Pipe()
         let stdout = Pipe()
@@ -111,14 +131,20 @@ public actor OpenAIAppServer: OpenAIAccountRPC {
             var buffer = Data()
             var bytes = [UInt8](repeating: 0, count: 4096)
             while !Task.isCancelled {
+                #if os(Windows)
+                let chunk = output.availableData
+                guard !chunk.isEmpty else { break }
+                buffer.append(chunk)
+                #else
                 // read(upToCount:) may wait to fill the requested count on a
                 // pipe. POSIX read returns the currently available response.
                 let count = bytes.withUnsafeMutableBytes {
-                    Darwin.read(output.fileDescriptor, $0.baseAddress, $0.count)
+                    read(output.fileDescriptor, $0.baseAddress, $0.count)
                 }
                 if count < 0 && errno == EINTR { continue }
                 guard count > 0 else { break }
                 buffer.append(contentsOf: bytes.prefix(count))
+                #endif
                 while let newline = buffer.firstIndex(of: 10) {
                     let line = Data(buffer[..<newline])
                     buffer.removeSubrange(...newline)
@@ -224,7 +250,13 @@ public actor OpenAIAppServer: OpenAIAccountRPC {
             guard let child, child.isRunning else { return }
             try? await Task.sleep(for: .milliseconds(25))
         }
-        if let child, child.isRunning { Darwin.kill(child.processIdentifier, SIGKILL) }
+        if let child, child.isRunning {
+            #if os(Windows)
+            child.terminate()
+            #else
+            kill(child.processIdentifier, SIGKILL)
+            #endif
+        }
     }
 
     @discardableResult

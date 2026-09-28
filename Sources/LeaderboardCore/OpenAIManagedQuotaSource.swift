@@ -1,5 +1,12 @@
+#if canImport(CryptoKit)
 import CryptoKit
+#elseif os(Windows)
+import CPlatformSupport
+#endif
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public protocol OfficialAccountQuotaSource: Sendable {
     /// Nil means this provider has never been connected here. An expired app
@@ -10,6 +17,10 @@ public protocol OfficialAccountQuotaSource: Sendable {
 public struct OpenAILoginAttempt: Sendable {
     public let id: String
     public let authorizationURL: URL
+    public init(id: String, authorizationURL: URL) {
+        self.id = id
+        self.authorizationURL = authorizationURL
+    }
 }
 
 public actor OpenAIManagedQuotaSource: OfficialAccountQuotaSource {
@@ -30,14 +41,21 @@ public actor OpenAIManagedQuotaSource: OfficialAccountQuotaSource {
     public init(rootURL: URL? = nil,
                 transport: any AccountQuotaTransport = URLSessionAccountQuotaTransport(),
                 sessionFactory: @escaping @Sendable (URL) -> any OpenAIAccountRPC = { OpenAIAppServer(profileURL: $0) }) {
-        self.rootURL = rootURL ?? FileManager.default.homeDirectoryForCurrentUser
-            .appending(path: "Library/Application Support/AI-BenchGauge/openai", directoryHint: .isDirectory)
+        self.rootURL = rootURL ?? PlatformPaths.applicationSupport.appending(path: "openai", directoryHint: .isDirectory)
         self.transport = transport
         self.sessionFactory = sessionFactory
     }
 
     public func profileURL(for providerID: String) -> URL {
+        #if os(Windows)
+        let data = Data(providerID.utf8)
+        var digest = [UInt8](repeating: 0, count: 32)
+        let ok = data.withUnsafeBytes { bg_sha256($0.bindMemory(to: UInt8.self).baseAddress, Int32(data.count), &digest) }
+        precondition(ok != 0, "Windows SHA256 unavailable")
+        let key = digest.map { String(format: "%02x", $0) }.joined()
+        #else
         let key = SHA256.hash(data: Data(providerID.utf8)).map { String(format: "%02x", $0) }.joined()
+        #endif
         return rootURL.appending(path: key, directoryHint: .isDirectory)
     }
 
@@ -113,7 +131,7 @@ public actor OpenAIManagedQuotaSource: OfficialAccountQuotaSource {
             }
             let bindingURL = profileURL(for: target.id).appending(path: "binding.json")
             try JSONEncoder().encode(Binding(accountID: accountID)).write(to: bindingURL, options: .atomic)
-            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: bindingURL.path)
+            try PlatformPaths.restrictFile(bindingURL, permissions: 0o600)
             lastRefresh.removeValue(forKey: target.id)
             activeLogins.removeValue(forKey: target.id)
             await server.stop()

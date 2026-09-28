@@ -13,6 +13,11 @@ public struct LeaderboardCache {
     }
 
     public static func defaultFileURL() throws -> URL {
+        #if os(Windows)
+        let directory = PlatformPaths.applicationSupport
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory.appending(path: "leaderboards.json")
+        #else
         let support = try FileManager.default.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,
@@ -25,6 +30,7 @@ public struct LeaderboardCache {
         )
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory.appending(path: "leaderboards.json", directoryHint: .inferFromPath)
+        #endif
     }
 
     public func load() -> LeaderboardSnapshot? {
@@ -34,6 +40,11 @@ public struct LeaderboardCache {
 
     public func save(_ snapshot: LeaderboardSnapshot) {
         guard let data = try? encoder.encode(snapshot) else { return }
+        try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        #if os(Windows)
+        try? data.write(to: fileURL, options: .atomic)
+        #else
         try? data.write(to: fileURL, options: [.atomic, .completeFileProtection])
+        #endif
     }
 }

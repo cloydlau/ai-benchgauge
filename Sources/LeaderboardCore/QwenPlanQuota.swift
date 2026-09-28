@@ -77,15 +77,30 @@ public struct QwenCLIQuotaSource: QwenQuotaSource {
         guard let executable = executableURL() else { return nil }
         let process = Process()
         let output = Pipe()
+        #if os(Windows)
+        if executable.pathExtension.lowercased() == "cmd" {
+            process.executableURL = URL(fileURLWithPath: ProcessInfo.processInfo.environment["COMSPEC"] ?? "C:/Windows/System32/cmd.exe")
+            process.arguments = ["/d", "/s", "/c", "\"\"\(executable.path)\" usage summary --format json\""]
+        } else {
+            process.executableURL = executable
+            process.arguments = ["usage", "summary", "--format", "json"]
+        }
+        #else
         process.executableURL = executable
         process.arguments = ["usage", "summary", "--format", "json"]
+        #endif
         var environment = ProcessInfo.processInfo.environment
+        #if os(Windows)
+        let pathKey = environment.keys.first { $0.lowercased() == "path" } ?? "PATH"
+        environment[pathKey] = executable.deletingLastPathComponent().path + ";" + (environment[pathKey] ?? "")
+        #else
         environment["PATH"] = [
             executable.deletingLastPathComponent().path,
             "/opt/homebrew/bin",
             "/usr/local/bin",
             environment["PATH"] ?? "/usr/bin:/bin",
         ].joined(separator: ":")
+        #endif
         process.environment = environment
         process.standardOutput = output
         process.standardError = FileHandle.nullDevice
@@ -114,6 +129,20 @@ public struct QwenCLIQuotaSource: QwenQuotaSource {
 
     private static func executableURL() -> URL? {
         let environment = ProcessInfo.processInfo.environment
+        #if os(Windows)
+        let path = environment.first { $0.key.lowercased() == "path" }?.value ?? ""
+        let roaming = environment["APPDATA"] ?? ""
+        if let configured = environment["QIANWEN_CLI_PATH"], FileManager.default.isExecutableFile(atPath: configured) {
+            return URL(fileURLWithPath: configured)
+        }
+        for directory in path.split(separator: ";").map(String.init) + ["\(roaming)/npm"] {
+            for name in ["qianwen.exe", "qianwen.cmd"] {
+                let url = URL(fileURLWithPath: directory).appending(path: name)
+                if FileManager.default.isExecutableFile(atPath: url.path) { return url }
+            }
+        }
+        return nil
+        #else
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         var directories = (environment["PATH"] ?? "").split(separator: ":").map(String.init)
         directories += [
@@ -140,6 +169,7 @@ public struct QwenCLIQuotaSource: QwenQuotaSource {
             if FileManager.default.isExecutableFile(atPath: url.path) { return url }
         }
         return nil
+        #endif
     }
 }
 

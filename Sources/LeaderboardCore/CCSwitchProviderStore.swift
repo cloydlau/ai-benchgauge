@@ -1,5 +1,5 @@
 import Foundation
-import SQLite3
+import CSQLite
 
 public enum CCSwitchProviderLoadResult: Equatable, Sendable {
     /// No install, or the file is not a CC Switch provider database we understand.
@@ -161,10 +161,16 @@ public enum CCSwitchProviderStore {
     }
 
     private static func defaultAppPathsURL(in home: URL) -> URL {
-        home.appending(
+        #if os(Windows)
+        let roaming = ProcessInfo.processInfo.environment["APPDATA"].map { URL(fileURLWithPath: $0) }
+            ?? home.appending(path: "AppData/Roaming")
+        return roaming.appending(path: "com.ccswitch.desktop/app_paths.json")
+        #else
+        return home.appending(
             path: "Library/Application Support/com.ccswitch.desktop/app_paths.json",
             directoryHint: .notDirectory
         )
+        #endif
     }
 
     /// `nil` means "fall back". A non-nil URL exists and must not be replaced

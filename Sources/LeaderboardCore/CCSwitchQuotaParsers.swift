@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 
 /// Response-body parsers for CC Switch Codex quota providers.
 ///
