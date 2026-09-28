@@ -14,7 +14,18 @@ static class Program
     [STAThread]
     static void Main(string[] args)
     {
-        if (Array.IndexOf(args, "--smoke-test") >= 0) { SmokeTests.Run(); return; }
+        if (Array.IndexOf(args, "--smoke-test") >= 0)
+        {
+            try { SmokeTests.Run(); }
+            catch (Exception error)
+            {
+                var directory = Path.Combine(Environment.CurrentDirectory, "work", "windows-ui-smoke");
+                Directory.CreateDirectory(directory);
+                File.WriteAllText(Path.Combine(directory, "failed.txt"), error.ToString());
+                Environment.ExitCode = 1;
+            }
+            return;
+        }
         using var mutex = new Mutex(true, @"Local\AI-BenchGauge", out var first);
         if (!first)
         {

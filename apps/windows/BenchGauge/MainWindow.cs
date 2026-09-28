@@ -22,6 +22,7 @@ sealed class MainWindow : Window
     readonly AppConfig config = AppConfig.Load();
     readonly UpdateClient updater;
     readonly Grid content = new();
+    readonly Grid quotaArea = new();
     readonly WrapPanel quotaPanel = new() { Margin = new Thickness(0, 0, 0, 12) };
     readonly TextBlock privatePrompt = new() { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 12), TextWrapping = TextWrapping.Wrap };
     readonly TextBlock status = new() { FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(4) };
@@ -46,6 +47,7 @@ sealed class MainWindow : Window
         FontFamily = new FontFamily("Segoe UI, Microsoft YaHei UI"); FontSize = 12;
         Background = new SolidColorBrush(Color.FromRgb(247, 248, 250));
         Content = new Border { Padding = new Thickness(16), Child = content };
+        quotaArea.Children.Add(quotaPanel); quotaArea.Children.Add(privatePrompt);
         ApplyMode(); Render();
         SizeChanged += (_, _) => { if (headerTitle is not null) headerTitle.Visibility = ActualWidth < 740 ? Visibility.Collapsed : Visibility.Visible; };
         Closing += (_, e) => { if (!closing) { e.Cancel = true; Hide(); SaveFrame(); } };
@@ -135,6 +137,7 @@ sealed class MainWindow : Window
         rendering = true;
         try
         {
+            footer?.Children.Remove(status);
             dropdowns.Clear(); content.Children.Clear(); content.RowDefinitions.Clear();
             for (var i = 0; i < 4; i++) content.RowDefinitions.Add(new RowDefinition { Height = i == 2 ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
             var header = new DockPanel { Margin = new Thickness(0, 0, 0, 12), LastChildFill = false };
@@ -147,7 +150,7 @@ sealed class MainWindow : Window
             var language = Select([("zh","简体中文"),("zh-Hant","繁體中文"),("en","English")], prefs.Language, async value => { prefs.Language = value; SaveFrame(); Render(); await Refresh("state"); });
             DockPanel.SetDock(language, Dock.Right); header.Children.Add(language);
             Place(header, 0);
-            var quotas = new Grid(); quotas.Children.Add(quotaPanel); quotas.Children.Add(privatePrompt); quotaPanel.Children.Clear();
+            quotaPanel.Children.Clear();
             if (state?.QuotaNeedsCCSwitch == true)
                 quotaPanel.Children.Add(LinkButton(Tr("Install CC Switch to view remaining quotas", "安装 CC Switch 查看余量", "安裝 CC Switch 查看餘量"), "https://github.com/farion1231/cc-switch"));
             foreach (var quota in state?.Quotas ?? [])
@@ -162,7 +165,7 @@ sealed class MainWindow : Window
                 quotaPanel.Children.Add(card);
             }
             if (state?.QuotaUnavailable == true) quotaPanel.Children.Add(new TextBlock { Text = Tr("CC Switch data unavailable", "CC Switch 数据暂不可用"), Foreground = Brushes.DarkOrange });
-            Place(quotas, 1);
+            Place(quotaArea, 1);
             var boards = new Grid(); boards.ColumnDefinitions.Add(new ColumnDefinition()); boards.ColumnDefinitions.Add(new ColumnDefinition());
             var displayed = state?.Boards ?? [];
             for (var i = 0; i < displayed.Length && i < 2; i++)

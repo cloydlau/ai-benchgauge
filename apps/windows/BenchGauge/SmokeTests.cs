@@ -17,17 +17,22 @@ static class SmokeTests
         var state = new DisplayState([new("artificialAnalysis", "Artificial Analysis", "https://artificialanalysis.ai", "2026-09-29T00:00:00Z", null, entries), new("arenaText", "Arena", "https://arena.ai", null, null, entries)],
             [new("fixture", "Synthetic provider", true, false, "fixture", null, false, null, [new("Balance 12345.67", "#198542", "#7CD68C")])], false, false, null, []);
         foreach (var mode in new[] { "clickToClose", "alwaysOnTop", "closeOnBlur", "window" })
+        foreach (var language in new[] { "en", "zh", "zh-Hant" })
+        foreach (var width in new[] { 600, 900 })
         {
-            var window = new MainWindow(null, new Preferences { PanelMode = mode, Language = "en" });
+            var window = new MainWindow(null, new Preferences { PanelMode = mode, Language = language }) { Width = width };
             window.SetState(state); window.Reveal(); window.UpdateLayout();
+            // Refresh an already visible window too: reused WPF elements must
+            // retain one parent while quota and footer content are rebuilt.
+            window.SetState(state); window.UpdateLayout();
             if (window.Topmost != (mode == "alwaysOnTop") || window.ShowInTaskbar != (mode == "window")) throw new Exception("Incorrect window mode");
             var bitmap = window.RenderScreenshot();
-            if (bitmap.PixelWidth < 600 || bitmap.PixelHeight < 600) throw new Exception("Screenshot too small");
+            if (bitmap.PixelWidth < 500 || bitmap.PixelHeight < 500) throw new Exception("Screenshot too small");
             var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-            using (var file = File.Create(Path.Combine(directory, mode + ".png"))) encoder.Save(file);
+            using (var file = File.Create(Path.Combine(directory, $"{mode}-{language}-{width}.png"))) encoder.Save(file);
             window.Stop(); window.Close();
         }
-        File.WriteAllText(Path.Combine(directory, "passed.txt"), "PASS: four native window modes and private screenshots\n");
+        File.WriteAllText(Path.Combine(directory, "passed.txt"), "PASS: four modes, three languages, two widths, repeated refresh and private screenshots\n");
         app.Shutdown();
     }
 }
