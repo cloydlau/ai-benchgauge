@@ -22,9 +22,11 @@ public enum OrganizationCountry: String, CaseIterable, Sendable {
         return String(String.UnicodeScalarView(scalars))
     }
 
-    /// System locale data supplies the hover and accessibility name.
+    /// Use the app's China label consistently in filters, hover text, and
+    /// accessibility; other country names come from system locale data.
     public func localizedName(language: AppLanguage) -> String {
-        language.locale.localizedString(forRegionCode: regionCode) ?? regionCode
+        if self == .china { return language.text("China", "中国") }
+        return language.locale.localizedString(forRegionCode: regionCode) ?? regionCode
     }
 }
 
