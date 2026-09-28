@@ -836,49 +836,52 @@ struct LeaderboardView: View {
                 .foregroundStyle(.primary)
                 .fixedSize()
             Spacer(minLength: 8)
-            if showsSources {
-                HStack(spacing: 7) {
+            HStack(spacing: 7) {
+                if showsSources {
                     Text(selectedCategory.leftKind.sourceLinkTitle)
                     Text("·")
                     Text(selectedCategory.rightKind.sourceLinkTitle)
+                    Text("·")
                 }
-                .fixedSize()
-                Spacer(minLength: 8)
+                Text("Cloyd Lau · MIT License")
             }
-            Text("Cloyd Lau · MIT License")
-                .fixedSize()
+            .fixedSize()
         }
     }
 
     private func footerRow(compact: Bool, showsSourceLinks: Bool) -> some View {
         HStack(spacing: compact ? 4 : 7) {
-            footerAttribution(compact: compact)
-            Text("·")
-            Button(tr(compact ? "Notices" : "Open-source notices", "开源声明")) {
-                screenshot.licenseSection = .thirdParty
-            }
-            .buttonStyle(.plain)
-            .pointingHandCursor()
-            .help(tr("View third-party licenses and copyright notices", "查看第三方许可证和版权声明"))
-            .accessibilityLabel(tr("Open-source notices", "开源声明"))
-            .accessibilityIdentifier("open-source-notices")
-            .fixedSize()
-            Spacer(minLength: 8)
-            if showsSourceLinks {
-                footerSources
-            } else {
-                Menu(tr("Sources", "数据来源")) {
-                    sourceLink(title: selectedCategory.leftKind.sourceLinkTitle,
-                               url: selectedCategory.leftKind.sourceURL.absoluteString)
-                    sourceLink(title: selectedCategory.rightKind.sourceLinkTitle,
-                               url: selectedCategory.rightKind.sourceURL.absoluteString)
+            HStack(spacing: compact ? 4 : 7) {
+                footerAttribution(compact: compact)
+                Text("·")
+                Button(tr(compact ? "Notices" : "Open-source notices", "开源声明")) {
+                    screenshot.licenseSection = .thirdParty
                 }
-                .menuStyle(.borderlessButton)
+                .buttonStyle(.plain)
+                .pointingHandCursor()
+                .help(tr("View third-party licenses and copyright notices", "查看第三方许可证和版权声明"))
+                .accessibilityLabel(tr("Open-source notices", "开源声明"))
+                .accessibilityIdentifier("open-source-notices")
                 .fixedSize()
-                .help(tr("Leaderboard data sources", "榜单数据来源"))
             }
             Spacer(minLength: 8)
-            footerControls(compact: compact)
+            HStack(spacing: compact ? 4 : 7) {
+                if showsSourceLinks {
+                    footerSources
+                } else {
+                    Menu(tr("Sources", "数据来源")) {
+                        sourceLink(title: selectedCategory.leftKind.sourceLinkTitle,
+                                   url: selectedCategory.leftKind.sourceURL.absoluteString)
+                        sourceLink(title: selectedCategory.rightKind.sourceLinkTitle,
+                                   url: selectedCategory.rightKind.sourceURL.absoluteString)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help(tr("Leaderboard data sources", "榜单数据来源"))
+                }
+                Text("·")
+                footerControls(compact: compact)
+            }
         }
     }
 
