@@ -14,6 +14,7 @@ struct QuotaStrip: View {
     let language: AppLanguage
     let onConnectQwen: () -> Void
     let onConnectOpenAI: (AccountQuotaChip) -> Void
+    let onOpenCCSwitch: (AccountQuotaChip) -> Void
     let connectingOpenAIProviderID: String?
 
     var body: some View {
@@ -29,6 +30,7 @@ struct QuotaStrip: View {
                         language: language,
                         onConnectQwen: needsQwenConnection(chip) ? onConnectQwen : nil,
                         onConnectOpenAI: { onConnectOpenAI(chip) },
+                        onOpenCCSwitch: { onOpenCCSwitch(chip) },
                         isConnectingOpenAI: connectingOpenAIProviderID == chip.id
                     )
                 }
@@ -55,13 +57,16 @@ private struct QuotaChipView: View {
     let language: AppLanguage
     let onConnectQwen: (() -> Void)?
     let onConnectOpenAI: () -> Void
+    let onOpenCCSwitch: () -> Void
     let isConnectingOpenAI: Bool
 
     var body: some View {
-        if requiresOpenAISignIn || onConnectQwen != nil || chip.websiteURL != nil {
+        if isClickable {
             Button {
                 if requiresOpenAISignIn {
                     onConnectOpenAI()
+                } else if requiresCCSwitchSignIn {
+                    onOpenCCSwitch()
                 } else if let onConnectQwen {
                     onConnectQwen()
                 } else if let url = chip.websiteURL {
@@ -78,8 +83,18 @@ private struct QuotaChipView: View {
         }
     }
 
+    private var isClickable: Bool {
+        requiresOpenAISignIn || requiresCCSwitchSignIn || onConnectQwen != nil || chip.websiteURL != nil
+    }
+
     private var requiresOpenAISignIn: Bool {
         chip.kind == .officialNote && (isConnectingOpenAI || chip.status == .message(AccountQuotaMessage.reauthRequired))
+    }
+
+    /// CC Switch owns the Grok login, so this chip goes there instead of to the
+    /// provider website, which has no sign-in entry.
+    private var requiresCCSwitchSignIn: Bool {
+        AccountQuotaFormatting.requiresCCSwitchSignIn(chip)
     }
 
     /// Any window at zero remaining makes the whole provider unusable, so
@@ -118,7 +133,7 @@ private struct QuotaChipView: View {
         .help(helpText)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
-        .accessibilityAddTraits(requiresOpenAISignIn || onConnectQwen != nil || chip.websiteURL != nil ? .isButton : [])
+        .accessibilityAddTraits(isClickable ? .isButton : [])
     }
 
     private var helpText: String {
@@ -126,6 +141,12 @@ private struct QuotaChipView: View {
             return language.text(
                 "Click to authorize OpenAI in your browser. Your quota refreshes automatically when sign-in finishes.",
                 "点击在浏览器中授权 OpenAI；登录成功后，余量会自动刷新。"
+            )
+        }
+        if requiresCCSwitchSignIn {
+            return language.text(
+                "Click to open CC Switch and sign in to Grok. The quota refreshes when this panel is reopened.",
+                "点击打开 CC Switch 登录 Grok；重新打开本面板时会刷新余量。"
             )
         }
         let help = AccountQuotaFormatting.help(for: chip, now: now)

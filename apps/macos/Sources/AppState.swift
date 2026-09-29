@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import LeaderboardCore
 
@@ -111,6 +112,21 @@ final class AppState: ObservableObject {
         previousTask?.cancel()
         quotaGeneration += 1
         openAIConnection.connect(target, language: selectedLanguage, after: previousTask)
+    }
+
+    /// A Grok sign-in can only happen inside CC Switch, which owns the auth
+    /// file this quota reads. The provider's stored website is a product page
+    /// with no sign-in entry, so the chip opens CC Switch instead. The chip
+    /// recovers on the next refresh, which re-reads that file.
+    func openCCSwitchSignIn(_ chip: AccountQuotaChip) {
+        guard !isQuitting, chip.kind == .xaiOAuth else { return }
+        if let appURL = NSWorkspace.shared.urlForApplication(
+            withBundleIdentifier: CCSwitchProviderStore.bundleID
+        ) {
+            NSWorkspace.shared.openApplication(at: appURL, configuration: .init()) { _, _ in }
+            return
+        }
+        NSWorkspace.shared.open(CCSwitchProviderStore.downloadURL)
     }
 
     /// Show the quitting state, then drop the timer and in-flight fetch so
