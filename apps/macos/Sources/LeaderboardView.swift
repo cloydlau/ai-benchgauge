@@ -207,6 +207,7 @@ struct LeaderboardView: View {
                     language: language,
                     onConnectQwen: state.connectQwenWebsite,
                     onConnectOpenAI: state.connectOpenAI,
+                    onOpenCCSwitch: state.openCCSwitchSignIn,
                     connectingOpenAIProviderID: state.connectingOpenAIProviderID
                 )
                 .padding(.top, 10)
@@ -244,7 +245,7 @@ struct LeaderboardView: View {
             } else {
                 Link(
                     tr("Download CC Switch", "下载 CC Switch"),
-                    destination: URL(string: "https://github.com/farion1231/cc-switch/releases/latest")!
+                    destination: CCSwitchProviderStore.downloadURL
                 )
                 .font(.system(size: 11, weight: .medium))
                 .pointingHandCursor()
