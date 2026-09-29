@@ -23,6 +23,8 @@ test('uses official GitHub Bot emails for model identities', () => {
   assert.equal(emailForModel('minimax-m2'), 'minimax-m2@users.noreply.github.com')
   assert.equal(emailForModel('mistral-large'), 'mistral-large@users.noreply.github.com')
   assert.equal(emailForModel('kimi-k3'), 'kimi-k3@users.noreply.github.com')
+  assert.equal(emailForModel('deepseek-v3.2'), '148330874+deepseek-ai@users.noreply.github.com')
+  assert.equal(emailForModel('devin-1.2'), '158243242+devin-ai-integration[bot]@users.noreply.github.com')
 })
 
 test('keeps the model username while changing only its GitHub identity email', () => {

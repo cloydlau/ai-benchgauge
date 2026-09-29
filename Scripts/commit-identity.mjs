@@ -23,6 +23,12 @@ const OPENAI_GITHUB_EMAIL = 'noreply@openai.com'
 // Public Z.ai Bot commits use the login form; GitHub does not resolve the
 // numeric form for this account.
 const ZAI_GITHUB_EMAIL = 'zai-bot@users.noreply.github.com'
+// DeepSeek 没有官方 coding-agent Bot。Organization 的 noreply 地址在头像端点会
+// 返回官方鲸鱼 logo，但组织账号没有 noreply 邮箱，提交归因 author=null
+// （公网 138 个真实提交实测）。若要语义准确可改回 noreply@deepseek.com（灰默认图）。
+const DEEPSEEK_GITHUB_EMAIL = '148330874+deepseek-ai@users.noreply.github.com'
+// Cognition 官方 Devin 集成 Bot。search commits 实测 author=devin-ai-integration[bot]。
+const DEVIN_GITHUB_EMAIL = '158243242+devin-ai-integration[bot]@users.noreply.github.com'
 // Public contact address listed on the official Xiaomi MiMo GitHub profile.
 const MIMO_EMAIL = 'mimo@xiaomi.com'
 const HUMAN = Object.freeze({
@@ -42,7 +48,7 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
   {
     key: 'deepseek',
     brands: ['deepseek'],
-    email: 'noreply@deepseek.com',
+    email: DEEPSEEK_GITHUB_EMAIL,
     logo: 'deepseek.png',
     favicon: 'https://www.deepseek.com/favicon.ico',
     icon: 'https://api.iconify.design/simple-icons:deepseek.svg',
@@ -66,8 +72,10 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
   {
     key: 'kimi',
     brands: ['kimi', 'moonshot'],
-    // kimi.com 域名邮箱不绑定任何 GitHub 账号，头像无法解析。留空走
-    // <model>@users.noreply.github.com 回退，GitHub 会关联到 Kimi-K3 账号。
+    // kimi.com 域名邮箱只会得到灰色默认图。kimi-k3@users.noreply.github.com
+    // 能渲染出 Kimi 官方 K 标，但 /users/kimi-k3 为 404（非重定向）、提交归因
+    // author=null：只出图，不关联任何账号。
+    email: 'kimi-k3@users.noreply.github.com',
     logo: 'kimi.png',
     favicon: 'https://kimi.moonshot.cn/favicon.ico',
     // simple-icons 没有 moonshot，月形图标用 moonrepo。
@@ -126,7 +134,7 @@ const MODEL_AVATAR_PROVIDERS = Object.freeze([
   {
     key: 'devin',
     brands: ['devin'],
-    email: 'noreply@cognition.ai',
+    email: DEVIN_GITHUB_EMAIL,
     logo: 'devin.png',
     favicon: 'https://devin.ai/favicon.ico',
     icon: 'https://api.iconify.design/simple-icons:devin.svg',
