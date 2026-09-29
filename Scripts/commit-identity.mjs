@@ -31,7 +31,8 @@ const DEEPSEEK_GITHUB_EMAIL = '148330874+deepseek-ai@users.noreply.github.com'
 const DEVIN_GITHUB_EMAIL = '158243242+devin-ai-integration[bot]@users.noreply.github.com'
 // Public contact address listed on the official Xiaomi MiMo GitHub profile.
 const MIMO_EMAIL = 'mimo@xiaomi.com'
-const HUMAN = Object.freeze({
+// 本人身份。截图/录屏门禁（Scripts/media-gate.mjs）用它判断是否已经人工审核。
+export const HUMAN = Object.freeze({
   name: 'Cloyd Lau',
   email: '31238760+cloydlau@users.noreply.github.com',
 })
