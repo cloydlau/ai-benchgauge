@@ -136,6 +136,8 @@ Scripts/commit.sh -m "feat(menu): …"
 
 提交作者採用 Codex 設定中的目前模型，電子郵件依供應商設定。桌面通知會盡量附上模型頭像，成功與失敗通知都使用暫時顯示的樣式。`COMMIT_SPLIT=0` 將變更合併為單一提交；`COMMIT_CODEX_MESSAGE=0` 不呼叫模型，而是依用途分組。`Scripts/commit.sh` 的 `COMMIT_PUSH` 預設仍為關閉。`COMMIT_COAUTHOR=1` 才會將使用者恢復為 committer，並加入 `Co-authored-by`。`DESKTOP_NOTIFY=0` 關閉桌面通知。
 
+截圖與錄影一律不允許模型直接提交。暫存區新增或修改錄影（`.gif`、`.mov`、`.mp4` 等）、截圖目錄或檔名（`docs/screenshots/`、`截屏…`、`frame-0001.png`），或 `assets/logos/`、`docs/logo/` 以外的點陣圖時，`Scripts/commit.mjs` 會在寫入歷史前直接中止。本人逐格確認畫面後加上 `COMMIT_MEDIA_REVIEWED=1` 重跑，或用 `COMMIT_COAUTHOR=1` 以本人身分提交；兩種方式都會在提交訊息裡留下 `Media-Reviewed-By` 審核記錄。刪除畫面不受限制。CI 用 `node Scripts/media-gate-ci.mjs <base> <head>` 複查推送範圍內的每個提交，繞過 `Scripts/commit.sh` 的直接 `git commit` 也會被擋下。
+
 </details>
 
 ## Windows 與平台結構

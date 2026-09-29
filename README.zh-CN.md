@@ -137,6 +137,8 @@ Scripts/commit.sh -m "feat(menu): …"
 
 作者是 Codex 配置里的当前模型，邮箱按厂商填写，桌面通知会尽量带上模型图标。成功和失败通知都使用临时样式。`COMMIT_SPLIT=0` 合并成一个提交。`COMMIT_CODEX_MESSAGE=0` 不调用模型，按用途分组。`Scripts/commit.sh` 的 `COMMIT_PUSH` 仍默认关闭。`COMMIT_COAUTHOR=1` 才把本人恢复为 committer，并加上 `Co-authored-by`。`DESKTOP_NOTIFY=0` 关闭桌面通知。
 
+截图和录屏一律不允许模型直接提交。暂存区新增或修改录屏（`.gif`、`.mov`、`.mp4` 等）、截图目录或文件名（`docs/screenshots/`、`截屏…`、`frame-0001.png`），或 `assets/logos/`、`docs/logo/` 之外的位图时，`Scripts/commit.mjs` 在写入历史前直接中止。本人逐帧确认画面后加 `COMMIT_MEDIA_REVIEWED=1` 重跑，或用 `COMMIT_COAUTHOR=1` 以本人身份提交；两种方式都会在提交信息里留下 `Media-Reviewed-By` 审核记录。删除画面不受限制。CI 用 `node Scripts/media-gate-ci.mjs <base> <head>` 复查推送范围内的每个提交，绕过 `Scripts/commit.sh` 的裸 `git commit` 也会被拦下。
+
 </details>
 
 两端目录和共享业务层见 [结构说明](docs/architecture.md)，统一发版见 [发版说明](docs/releasing.md)。

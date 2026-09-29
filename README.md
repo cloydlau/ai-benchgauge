@@ -137,6 +137,8 @@ Scripts/commit.sh -m "feat(menu): …"
 
 The commit author follows the current model in Codex configuration, with a vendor-specific email address. Desktop notifications try to include the model avatar and use temporary styling for success and failure. `COMMIT_SPLIT=0` creates one commit; `COMMIT_CODEX_MESSAGE=0` groups by purpose without calling a model. `Scripts/commit.sh` does not push by default. `COMMIT_COAUTHOR=1` restores the user as committer and adds a `Co-authored-by` line. `DESKTOP_NOTIFY=0` disables desktop notifications.
 
+Screenshots and screen recordings may never be committed by a model. Adding or changing a recording (`.gif`, `.mov`, `.mp4`, …), a capture directory or name (`docs/screenshots/`, `截屏…`, `frame-0001.png`), or any bitmap outside `assets/logos/` and `docs/logo/` stops `Scripts/commit.mjs` before anything is staged in history. The user reviews the frames and re-runs with `COMMIT_MEDIA_REVIEWED=1`, or commits as themselves with `COMMIT_COAUTHOR=1`; either way the commit records a `Media-Reviewed-By:` trailer. Deleting captures stays unrestricted. `node Scripts/media-gate-ci.mjs <base> <head>` re-checks every pushed commit in CI, so a raw `git commit` cannot bypass the rule.
+
 </details>
 
 ## Windows and platform layout
