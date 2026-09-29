@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 // 轮询 Sources/、Tests/、Scripts/ 和构建配置，以及 git 未提交改动。
 // 变更停止 WATCH_DEBOUNCE_MS（默认 60 秒），且距上次运行至少 WATCH_THROTTLE_MS（默认 60 秒）后，
-// 先运行完整测试，再按目的提交并推送，最后在源码变化时重建并重启。
+// 先运行完整测试，再按目的提交并推送，最后部署（重建并重启应用）。
+// 部署与小程序 FC watcher 同一套语义：回执记录上次部署提交，只对已提交的应用
+// 变更补部署；APP_AUTODEPLOY=0 关闭部署，其余监听照常。
 // 测试失败阻断后续动作；同一签名不空转。WATCH_AUTOCOMMIT=0 关闭自动提交。
 // COMMIT_PUSH=0 或 WATCH_AUTOPUSH=0 关闭自动推送。
 // git 不读 macOS 系统代理；未设置 https_proxy 时，推送改用 scutil 读到的代理。
 
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, lstatSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { avatarForModel, detectModelName } from './commit-identity.mjs'
@@ -40,6 +42,10 @@ export function autocommitEnabled(env = process.env) {
 export function autopushEnabled(env = process.env) {
   if (!autocommitEnabled(env)) return false
   return env.COMMIT_PUSH !== '0' && env.WATCH_AUTOPUSH !== '0'
+}
+
+export function autodeployEnabled(env = process.env) {
+  return env.APP_AUTODEPLOY !== '0'
 }
 
 function readDuration(name, fallback) {
@@ -173,6 +179,50 @@ function gitStatusSignature() {
   return dirtyStatusSignature(status, fileFingerprint)
 }
 
+// 部署回执放在 work/（已忽略）：记录的是本机最后运行的提交，不随仓库分发。
+const deployReceiptPath = join(root, 'work', '.last-app-deploy')
+// 只影响应用产物的路径才触发“已提交变更补部署”；测试和文档提交不重启应用。
+const appDeployPaths = [
+  'Sources', 'apps', 'assets', 'config', 'Package.swift', 'Package.resolved',
+  'make-app.sh', 'Scripts/make-app.sh',
+]
+
+function gitText(args) {
+  const result = gitSync(args)
+  if (result.error || result.status !== 0) return null
+  return (result.stdout || '').trim()
+}
+
+function currentHead() {
+  return gitText(['rev-parse', 'HEAD'])
+}
+
+function commitExists(commit) {
+  if (!commit) return false
+  return gitSync(['cat-file', '-e', `${commit}^{commit}`]).status === 0
+}
+
+function readDeployedCommit() {
+  try {
+    const receipt = JSON.parse(readFileSync(deployReceiptPath, 'utf8'))
+    const commit = receipt?.commit
+    return commitExists(commit) ? commit : null
+  } catch {
+    return null
+  }
+}
+
+function writeDeployReceipt(commit) {
+  if (!commit) return
+  mkdirSync(dirname(deployReceiptPath), { recursive: true })
+  writeFileSync(deployReceiptPath, `${JSON.stringify({ commit, deployedAt: new Date().toISOString() })}\n`)
+}
+
+function appChangedBetween(from, to) {
+  if (!from || !to || from === to) return false
+  return Boolean(gitText(['diff', '--name-only', `${from}..${to}`, '--', ...appDeployPaths]))
+}
+
 export function parseAheadCount(stdout) {
   const parts = String(stdout || '').trim().split(/\s+/)
   if (parts.length < 2) return null
@@ -301,6 +351,7 @@ async function main() {
 
   const commitEnabled = autocommitEnabled()
   const pushEnabled = autopushEnabled()
+  const deployEnabled = autodeployEnabled()
   let timer = null
   let busy = false
   let lastChangeAt = 0
@@ -315,6 +366,17 @@ async function main() {
   let lastSignature = ''
   let lastGitSignature = gitStatusSignature()
   let lastRebuiltSignature = null
+  const startupHead = currentHead()
+  let deployedHead = readDeployedCommit()
+  let lastHead = startupHead
+
+  const undeployedAppCommit = () => {
+    if (!deployEnabled) return null
+    const head = currentHead()
+    const baseline = deployedHead ?? startupHead
+    if (!head || head === baseline || !appChangedBetween(baseline, head)) return null
+    return head
+  }
 
   function clearTimer() {
     if (!timer) return
@@ -445,13 +507,25 @@ async function main() {
         }
       }
 
-      attemptedRebuild = builtSignature !== lastRebuiltSignature && builtSignature !== failedSignature
-      if (builtSignature === failedSignature) {
+      const undeployedCommit = undeployedAppCommit()
+      attemptedRebuild = deployEnabled
+        && builtSignature !== failedSignature
+        && (builtSignature !== lastRebuiltSignature || Boolean(undeployedCommit))
+      if (!deployEnabled) {
+        console.log('[watch] 自动部署已关闭，跳过重建重启')
+      } else if (builtSignature === failedSignature) {
         console.log('[watch] 这一版已经构建失败，等待下次保存')
         rebuiltOk = false
       } else if (attemptedRebuild) {
         rebuiltOk = await rebuild(tested.signature)
-        if (rebuiltOk) lastRebuiltSignature = builtSignature
+        if (rebuiltOk) {
+          lastRebuiltSignature = builtSignature
+          const head = currentHead()
+          if (head) {
+            writeDeployReceipt(head)
+            deployedHead = head
+          }
+        }
         failedSignature = rebuiltOk ? null : builtSignature
       } else {
         console.log('[watch] 源码未变，跳过重建')
@@ -462,6 +536,8 @@ async function main() {
       rebuiltOk = false
     }
     busy = false
+    const latestHead = currentHead()
+    if (latestHead) lastHead = latestHead
     const latest = signature(snapshot())
     const latestGit = gitStatusSignature()
     lastSignature = latest
@@ -491,17 +567,40 @@ async function main() {
   // Do this immediately, before commit/push and their debounce interval.
   busy = true
   const staleApp = lastRebuiltSignature == null
-  console.log(staleApp
-    ? '[watch] 启动时应用缺失或源码较新，立即重建并启动'
-    : '[watch] 启动时构建已是最新，立即重新打开应用')
+  const undeployedStartup = undeployedAppCommit()
+  if (deployEnabled) {
+    if (deployedHead) {
+      console.log(`[watch] 上次已部署提交：${deployedHead.slice(0, 12)}`)
+    } else if (startupHead) {
+      console.log(`[watch] 没有可识别的部署回执，以当前 HEAD 为基线：${startupHead.slice(0, 12)}`)
+    }
+    console.log(undeployedStartup
+      ? '[watch] 检测到未部署的已提交应用变更，启动时立即重建并启动'
+      : staleApp
+        ? '[watch] 启动时应用缺失或源码较新，立即重建并启动'
+        : '[watch] 启动时构建已是最新，立即重新打开应用')
+  }
   const initialTest = await runTestGate()
   lastTestPass = initialTest.signature
   const testedInitial = snapshot()
   const testedInitialSignature = signature(testedInitial)
   const needsInitialBuild = sourceNewerThanApp(testedInitial, currentAppMtime())
+    || Boolean(undeployedAppCommit())
   lastSignature = testedInitialSignature
   lastGitSignature = gitStatusSignature()
-  const started = initialTest.status === 0 && (needsInitialBuild ? await rebuild(initialTest.signature) : await restartApp())
+  let started = initialTest.status === 0
+  if (started && deployEnabled) {
+    started = needsInitialBuild ? await rebuild(initialTest.signature) : await restartApp()
+    if (started) {
+      const head = currentHead()
+      if (head) {
+        writeDeployReceipt(head)
+        deployedHead = head
+      }
+    }
+  } else if (started) {
+    console.log('[watch] 自动部署已关闭，跳过构建与重启')
+  }
   busy = false
   if (!started) {
     if (initialTest.status === 0) {
@@ -525,6 +624,8 @@ async function main() {
   const ahead = initialAhead.state === 'ahead'
   if (!started) {
     console.log('[watch] 等待测试相关文件变更')
+  } else if (!deployEnabled) {
+    console.log('[watch] 自动部署已关闭，等待源码变更')
   } else if (dirty) {
     const reason = '启动时检测到未提交改动'
     schedule(ahead ? `${reason}，且有未推送提交` : reason, Date.now())
@@ -547,6 +648,10 @@ async function main() {
     }
     const nextGit = gitStatusSignature()
     const nextAhead = pushEnabled ? unpushedState() : null
+    const nextHead = deployEnabled ? currentHead() : null
+    const headMoved = Boolean(nextHead && nextHead !== lastHead)
+    const appCommitChanged = headMoved && Boolean(undeployedAppCommit())
+    if (headMoved) lastHead = nextHead
     const sourceChanged = next !== lastSignature && next !== failedSignature
     const gitChanged = commitEnabled && nextGit && nextGit !== lastGitSignature && nextGit !== failedCommitSignature
     const aheadChanged = nextAhead?.state === 'ahead'
@@ -554,11 +659,17 @@ async function main() {
       && nextAhead.signature !== lastAheadSignature
       && nextAhead.signature !== failedPushSignature
     if (nextAhead && nextAhead.state !== 'ahead') lastAheadSignature = ''
-    if (!sourceChanged && !gitChanged && !aheadChanged) return
+    if (!sourceChanged && !gitChanged && !aheadChanged && !appCommitChanged) return
     if (sourceChanged) lastSignature = next
     if (nextGit != null && nextGit !== failedCommitSignature) lastGitSignature = nextGit
     if (aheadChanged) lastAheadSignature = nextAhead.signature
-    const reason = sourceChanged ? '检测到源码变更' : gitChanged ? '检测到未提交改动' : '检测到未推送提交'
+    const reason = sourceChanged
+      ? '检测到源码变更'
+      : gitChanged
+        ? '检测到未提交改动'
+        : appCommitChanged
+          ? '检测到已提交的应用变更'
+          : '检测到未推送提交'
     schedule(reason, Date.now(), { retryPush: sourceChanged || gitChanged })
   }, pollMs)
 
