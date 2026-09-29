@@ -63,18 +63,25 @@ public enum CCSwitchQuotaParsers {
     }
 
     /// Entitlement boundary from `GET /backend-api/accounts/check/v4-2023-04-27`.
-    /// Only `entitlement.expires_at` on the account whose key matches
-    /// `accountID`. Neither date establishes cancellation or renewal status.
-    /// `renews_at` is a billing date, not this entitlement boundary. Nil when
-    /// the account does not match or the field is missing, so the usage card
-    /// still succeeds.
+    /// Only `entitlement.expires_at` of the account the request was made for,
+    /// which ChatGPT keys `default` rather than by its id. Neither date
+    /// establishes cancellation or renewal status. `renews_at` is a billing
+    /// date, not this entitlement boundary. A plan without an active
+    /// subscription reports a far-future placeholder instead of a boundary.
+    /// Nil when the account does not match or the field is missing, so the
+    /// usage card still succeeds.
     public static func parseOpenAIPlanExpiry(_ data: Data, accountID: String) -> ParsedQuotaWindow? {
         let accountID = accountID.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !accountID.isEmpty,
               let body = jsonObject(data),
               let accounts = body["accounts"] as? [String: Any],
-              let account = accounts[accountID] as? [String: Any],
+              let account = openAIAccount(
+                  in: accounts,
+                  accountID: accountID,
+                  selectedKey: accountIdentifier(body["last_account_id"])
+              ),
               let entitlement = account["entitlement"] as? [String: Any],
+              entitlement["has_active_subscription"] as? Bool != false,
               let expiresAt = resetDate(entitlement["expires_at"]) else {
             return nil
         }
@@ -83,6 +90,34 @@ public enum CCSwitchQuotaParsers {
             utilization: 0,
             resetsAt: expiresAt
         )
+    }
+
+    /// The entry that belongs to `accountID`. A real response keys the signed
+    /// in account `default` and repeats that key in `last_account_id`, so an
+    /// entry qualifies by the id it names, by its own id key, or by a self key.
+    /// An entry naming a different id is never used, so another account's date
+    /// cannot be shown.
+    private static func openAIAccount(
+        in accounts: [String: Any],
+        accountID: String,
+        selectedKey: String?
+    ) -> [String: Any]? {
+        let entries = accounts.compactMap { key, value -> (key: String, id: String?, account: [String: Any])? in
+            guard let account = value as? [String: Any] else { return nil }
+            return (key, accountIdentifier(account["account_id"]), account)
+        }.filter { $0.id == nil || $0.id == accountID }
+        if let named = entries.first(where: { $0.id == accountID }) { return named.account }
+        for key in [accountID, selectedKey, "default"].compactMap({ $0 }) {
+            let keyed = entries.filter { $0.key == key }
+            if keyed.count == 1 { return keyed[0].account }
+        }
+        return nil
+    }
+
+    private static func accountIdentifier(_ value: Any?) -> String? {
+        guard let text = value as? String else { return nil }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     /// Kimi Code `GET /coding/v1/usages`, the CLI `quota.usages` body, and the

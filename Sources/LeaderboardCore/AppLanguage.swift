@@ -85,6 +85,7 @@ public enum AppLanguage: String, CaseIterable, Sendable {
             "正在查询官方用量": "Checking official usage",
             "没有可用的 API Key 或供应商令牌，未发起查询": "No API key or provider token; no query sent",
             "没有可用的 xAI 登录，未发起查询": "No xAI sign-in; no query sent",
+            "Grok 登录在 CC Switch 中完成，请在 CC Switch 中登录": "Grok sign-in is completed in CC Switch; sign in there",
             "只显示千问账号套餐剩余，多设备共用，不统计本机请求": "Shows the Qwen account plan balance shared across devices",
             "当前供应商": "Current provider",
             "千问官网套餐额度（qianwen CLI 当前登录账号）": "Qwen plan quota (current qianwen CLI account)",

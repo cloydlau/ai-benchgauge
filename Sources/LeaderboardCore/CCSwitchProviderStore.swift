@@ -38,6 +38,14 @@ public enum CCSwitchProviderStore {
         "created_at", "sort_index", "meta", "is_current",
     ]
 
+    /// CC Switch bundle id, used by the macOS client to open the app that owns
+    /// the Grok login when a chip asks for a sign-in.
+    public static let bundleID = "com.ccswitch.desktop"
+
+    /// Install entry point, used when a sign-in is needed but CC Switch cannot
+    /// be opened.
+    public static let downloadURL = URL(string: "https://github.com/farion1231/cc-switch/releases/latest")!
+
     public static var defaultDatabaseURL: URL {
         resolveInstall().databaseURL
     }

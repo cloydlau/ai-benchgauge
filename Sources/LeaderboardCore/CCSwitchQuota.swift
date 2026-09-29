@@ -89,6 +89,9 @@ public enum AccountQuotaMessage {
     public static let notConfiguredHelp = "没有可用的 API Key 或供应商令牌，未发起查询"
     public static let notLoggedIn = "未登录"
     public static let notLoggedInHelp = "没有可用的 xAI 登录，未发起查询"
+    /// CC Switch owns the Grok login, so neither `requires_reauth` nor a
+    /// missing auth file can be cleared from a web page.
+    public static let xaiSignInHelp = "Grok 登录在 CC Switch 中完成，请在 CC Switch 中登录"
     public static let network = "网络错误"
     public static let officialSummary = "查询中"
     public static let officialHelp = "正在查询官方用量"
@@ -335,6 +338,21 @@ public enum AccountQuotaFormatting {
         case let .balances(balances):
             return !balances.contains { $0.amount > 0 }
         case .pending, .note, .message:
+            return false
+        }
+    }
+
+    /// CC Switch owns the Grok login, so `requires_reauth` and a missing auth
+    /// file are cleared only by signing in there again. Both surfaces send such
+    /// a chip to CC Switch instead of to the provider's product page.
+    public static func requiresCCSwitchSignIn(_ chip: AccountQuotaChip) -> Bool {
+        guard chip.kind == .xaiOAuth else { return false }
+        switch chip.status {
+        case .message(let text):
+            return text == AccountQuotaMessage.reauthRequired
+        case .note(let text, _):
+            return text == AccountQuotaMessage.notLoggedIn
+        case .pending, .windows, .balances, .qwenPlan, .qwenWebsite:
             return false
         }
     }
@@ -635,7 +653,11 @@ public enum AccountQuotaFormatting {
                 }
             }
         }
-        if let websiteURL = chip.websiteURL {
+        // A login-required xAI chip must not advertise the stored provider
+        // website: that product page has no sign-in entry.
+        if requiresCCSwitchSignIn(chip) {
+            lines.append(AccountQuotaMessage.xaiSignInHelp)
+        } else if let websiteURL = chip.websiteURL {
             lines.append(websiteURL.absoluteString)
         }
         return lines.joined(separator: "\n")
