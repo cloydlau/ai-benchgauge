@@ -186,6 +186,7 @@ public enum QuotaTone: Equatable, Sendable {
     case red
     case remaining(Double)
     case balance(amount: Double, currency: String)
+    case deadline(Double)
 }
 
 public struct QuotaTextRun: Equatable, Sendable {
@@ -279,8 +280,8 @@ public enum AccountQuotaFormatting {
         return .remaining(min(100, max(0, 100 - value)))
     }
 
-    /// The most restrictive usage pool determines the whole card's color.
-    /// Monetary balances have no percentage baseline; dates are not quotas.
+    /// The most restrictive usage pool determines the quota color level.
+    /// Monetary balances and dates are not quota percentages.
     public static func lowestRemainingPercent(for chip: AccountQuotaChip) -> Double? {
         switch chip.status {
         case let .windows(windows):
@@ -309,6 +310,18 @@ public enum AccountQuotaFormatting {
             QuotaColorScale.balanceLevel(amount: $0.amount, currency: $0.currency)
         }.max()
     }
+
+    public static func deadlineColorLevel(for chip: AccountQuotaChip, now: Date) -> Double? {
+        chipExpiry(chip).flatMap { QuotaColorScale.deadlineLevel(until: $0, now: now) }
+    }
+
+    /// Only the background combines urgency. Amount and date runs keep their
+    /// own levels so a near boundary never recolors a healthy quota value.
+    public static func cardColorLevel(for chip: AccountQuotaChip, now: Date) -> Double? {
+        [colorLevel(for: chip), deadlineColorLevel(for: chip, now: now)].compactMap { $0 }.min()
+    }
+
+    public static let deadlineColorReference = "日期颜色参考：剩余14天及以上绿、7天黄、2天橙、0天红；中间连续过渡。日期仅表示本期边界。"
 
     public static func label(forWindowName name: String) -> String {
         switch name {
@@ -570,10 +583,7 @@ public enum AccountQuotaFormatting {
     private static func chipExpiry(_ chip: AccountQuotaChip) -> Date? {
         switch chip.status {
         case let .windows(windows):
-            if let plan = windows.first(where: { $0.name == ParsedQuotaWindow.planExpiryName }) {
-                return plan.resetsAt
-            }
-            return windows.first { $0.name == "monthly" }?.resetsAt
+            return windowPeriodEnd(windows)
         case let .qwenPlan(plan):
             return plan.expiresAt
         case let .qwenWebsite(quota):
@@ -653,6 +663,9 @@ public enum AccountQuotaFormatting {
                 }
             }
         }
+        if deadlineColorLevel(for: chip, now: now) != nil {
+            lines.append(deadlineColorReference)
+        }
         // A login-required xAI chip must not advertise the stored provider
         // website: that product page has no sign-in entry.
         if requiresCCSwitchSignIn(chip) {
@@ -697,6 +710,10 @@ public enum AccountQuotaFormatting {
 
     private static func planPeriodEnd(_ windows: [ParsedQuotaWindow]) -> Date? {
         windows.first(where: { $0.name == ParsedQuotaWindow.planExpiryName })?.resetsAt
+    }
+
+    private static func windowPeriodEnd(_ windows: [ParsedQuotaWindow]) -> Date? {
+        planPeriodEnd(windows) ?? windows.first(where: { $0.name == "monthly" })?.resetsAt
     }
 
     private static func remainingPercent(utilization: Double) -> Int {
@@ -764,7 +781,7 @@ public enum AccountQuotaFormatting {
                 utilizationForTone: window.utilization
             ))
         }
-        if let end = planPeriodEnd(windows) ?? windows.first(where: { $0.name == "monthly" })?.resetsAt {
+        if let end = windowPeriodEnd(windows) {
             appendSeparator(&runs)
             runs.append(contentsOf: periodEndRuns(until: end, now: now))
         }
@@ -792,7 +809,8 @@ public enum AccountQuotaFormatting {
     }
 
     private static func periodEndRuns(until end: Date, now: Date) -> [QuotaTextRun] {
-        [QuotaTextRun(text: periodEndPhrase(until: end, now: now), tone: .secondary)]
+        let tone = QuotaColorScale.deadlineLevel(until: end, now: now).map { QuotaTone.deadline($0) } ?? .secondary
+        return [QuotaTextRun(text: periodEndPhrase(until: end, now: now), tone: tone)]
     }
 
     private static func balanceRuns(_ balances: [ParsedBalance]) -> [QuotaTextRun] {

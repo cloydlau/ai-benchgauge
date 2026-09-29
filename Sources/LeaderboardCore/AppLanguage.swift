@@ -91,6 +91,7 @@ public enum AppLanguage: String, CaseIterable, Sendable {
             "千问官网套餐额度（qianwen CLI 当前登录账号）": "Qwen plan quota (current qianwen CLI account)",
             "千问官网个人版用量（网页显示的剩余百分比；网页未提供精确 Credits）": "Qwen personal plan remaining percentage; exact credits are unavailable",
             "本期将在2天内结束": "Current period ends within 2 days",
+            AccountQuotaFormatting.deadlineColorReference: "Date colors: 14+ days remaining green, 7 days yellow, 2 days orange, 0 days red; continuous transitions. The date only marks the current period boundary.",
         ]
         if let translated = exact[value] { return translated }
         if value.hasPrefix("余量达到") {

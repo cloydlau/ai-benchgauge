@@ -53,6 +53,19 @@ public enum QuotaColorScale {
         return 100
     }
 
+    /// Maps time remaining to the same color levels as quotas, without
+    /// implying that a passed period boundary means access has expired.
+    public static func deadlineLevel(until end: Date, now: Date) -> Double? {
+        let days = end.timeIntervalSince(now) / 86_400
+        guard days.isFinite else { return nil }
+        let remaining = max(0, days)
+        let stops = [(0.0, 0.0), (2.0, 25.0), (7.0, 50.0), (14.0, 100.0)]
+        for (lower, upper) in zip(stops, stops.dropFirst()) where remaining <= upper.0 {
+            return lower.1 + (upper.1 - lower.1) * (remaining - lower.0) / (upper.0 - lower.0)
+        }
+        return 100
+    }
+
     public static func color(remainingPercent: Double, dark: Bool) -> QuotaRGB {
         let percent = remainingPercent.isFinite ? min(100, max(0, remainingPercent)) : 0
         let stops: [(Double, QuotaRGB)] = dark ? [
