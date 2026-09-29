@@ -4,6 +4,10 @@ Windows 10/11 x64，WPF + 共享 Swift 核心。支持托盘、四种窗口模�
 四类双榜、公司分组、国家筛选、三种界面语言、余量渐变、隐私截图与每 24 小时检查应用更新。
 千问登录采用 WebView2 独立浏览器配置；OpenAI 授权沿用共享核心的独立 Codex 配置。
 
+不支持 Windows 7 / 8 / 8.1 或 32 位 Windows，不提供原生 ARM64 安装包。
+Windows 10 为兼容目标，.NET 10 官方维护范围限 LTSC / Enterprise；Home / Pro 尚未实机验证。
+系统版本与 CI 验证范围见[系统兼容说明](../../docs/compatibility.md#windows)。
+
 用户从同一 GitHub Release 下载 `AI-BenchGauge-<版本>-windows-x64-setup.exe`。
 程序按当前用户安装，不需要自行安装 Swift 或 .NET。
 

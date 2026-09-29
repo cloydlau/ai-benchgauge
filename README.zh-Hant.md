@@ -16,6 +16,21 @@
 
 > 如果它幫你省下反覆查榜單、查額度的時間，歡迎點擊右上角的 **Star ⭐**。
 
+## 系統相容性
+
+| 系統 | 處理器 | 支援情況 |
+| --- | --- | --- |
+| Windows 11 | 64 位元 Intel / AMD（`x64`） | 支援 |
+| Windows 10 | 64 位元 Intel / AMD（`x64`） | 相容目標；.NET 10 官方支援仍受維護的 LTSC / Enterprise 版本，Home / Pro 尚未驗證 |
+| Windows 7 / 8 / 8.1 | 任意 | 不支援 |
+| macOS 14 Sonoma 或更新版本 | Apple 晶片（`arm64`，M1 / M2 及後續晶片） | 支援 |
+| macOS 14 / 15 / 26，且機型支援對應系統 | Intel（`x86_64`） | 支援 |
+| macOS 13 Ventura 或更早版本 | 任意 | 不支援 |
+
+Mac 的 `.dmg` 包含 **Apple 晶片與 Intel 原生通用應用程式**，兩種晶片使用同一個安裝包，無需 Rosetta。
+Windows 提供 `x64` 的 `-setup.exe`，內含 Swift 與 .NET；不提供 32 位元或原生 ARM64 安裝包，ARM64 模擬執行尚未驗證。
+版本限制、已驗證範圍及 Intel 支援評估見[系統相容說明](docs/compatibility.md)。
+
 ## 你會得到什麼
 
 | 功能 | 使用時會看到什麼 |
@@ -59,12 +74,15 @@ OpenAI 顯示「需要重新登入」時，點擊卡片會直接開啟官方授�
 
 ## 快速開始
 
-Mac 版執行需要 macOS 14 或更新版本。Mac 原始碼建置需要 Swift 6、Command Line Tools 與 .NET 10 SDK（執行 Windows 更新測試）：
+從 [GitHub Releases](https://github.com/cloydlau/ai-benchgauge/releases) 下載 Mac 通用 `.dmg` 或 Windows x64 `-setup.exe`，依上方相容性表選擇。
+Mac 原始碼建置需要 Swift 6、Command Line Tools 與 .NET 10 SDK（執行 Windows 更新測試）：
 
 ```bash
 ./Scripts/make-app.sh
 open outputs/AI-BenchGauge.app
 ```
+
+本機預設只建置目前 Mac 的架構；`APP_UNIVERSAL=1 ./make-app.sh` 同時建置 Apple 晶片與 Intel，CI 與正式發版均使用此選項。
 
 腳本會產生臨時簽署的 `outputs/AI-BenchGauge.app`。首次啟動時，介面會依照 macOS 偏好的語言選擇英文、簡體中文或繁體中文；你也可以在彈出視窗底部切換。分類、模型 / 公司分組與語言選擇會儲存在本機。
 

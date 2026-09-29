@@ -4,7 +4,7 @@
 
 **English** | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-Hant.md)
 
-**Compare two leaderboards at a glance. Keep model rankings and account quotas in your macOS menu bar.**
+**Compare two leaderboards at a glance. Keep model rankings and account quotas in your macOS menu bar or Windows tray.**
 
 `macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `3 languages` · [MIT License](LICENSE)
 
@@ -15,6 +15,21 @@
 Stop switching between leaderboard tabs. Open the menu bar to compare the Top 20 from Artificial Analysis and Arena side by side. If you use [CC Switch](https://github.com/farion1231/cc-switch), supported provider quotas and reset times appear above the rankings.
 
 > If this saves you a few trips to leaderboard and quota pages, consider giving the project a **Star ⭐**.
+
+## System compatibility
+
+| System | Processor | Support |
+| --- | --- | --- |
+| Windows 11 | 64-bit Intel / AMD (`x64`) | Supported |
+| Windows 10 | 64-bit Intel / AMD (`x64`) | Compatibility target; .NET 10 officially supports maintained LTSC / Enterprise releases. Home / Pro editions are not yet verified. |
+| Windows 7 / 8 / 8.1 | Any | Not supported |
+| macOS 14 Sonoma or later | Apple silicon (`arm64`, M1 / M2 and later) | Supported |
+| macOS 14 / 15 / 26, on a compatible Mac | Intel (`x86_64`) | Supported |
+| macOS 13 Ventura or earlier | Any | Not supported |
+
+The Mac `.dmg` contains one **Universal app with native Apple silicon and Intel binaries**; no Rosetta is needed.
+Windows ships an `x64` `-setup.exe` with Swift and .NET included. There is no Windows 32-bit or native ARM64 package; ARM64 emulation is not verified.
+See [compatibility details, validation scope, and the Intel support assessment](docs/compatibility.md).
 
 ## What you get
 
@@ -60,12 +75,15 @@ the title to check immediately. See [release setup and signing](docs/releasing.m
 
 ## Quick start
 
-The Mac app requires macOS 14 or later. Mac source builds require Swift 6, Command Line Tools and .NET 10 SDK for the Windows update tests:
+Download the Universal Mac `.dmg` or Windows x64 `-setup.exe` from [GitHub Releases](https://github.com/cloydlau/ai-benchgauge/releases), using the compatibility table above.
+Mac source builds require Swift 6, Command Line Tools and .NET 10 SDK for the Windows update tests:
 
 ```bash
 ./Scripts/make-app.sh
 open outputs/AI-BenchGauge.app
 ```
+
+Local builds target the current Mac's architecture by default. Use `APP_UNIVERSAL=1 ./make-app.sh` to build for both Apple silicon and Intel; CI and Release use this option.
 
 The build script produces an ad-hoc signed app at `outputs/AI-BenchGauge.app`. On first launch, the interface follows the first supported macOS preferred language: English, Simplified Chinese, or Traditional Chinese. You can also switch languages in the panel footer. The selected language, category, and model/company grouping are saved locally.
 
