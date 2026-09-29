@@ -69,6 +69,8 @@ Windows 提供 `x64` 的 `-setup.exe`，内含 Swift 和 .NET；不提供 32 位
 
 OpenAI 显示“需要重新登录”时，点击卡片会直接打开官方授权页。完成同一账号的授权后，卡片自动刷新；后续查询会自动续期，只有续期失败才需要再次授权。直接授权需要本机安装 Codex CLI 或 ChatGPT/Codex 桌面应用；已有 CC Switch 登录的余量查询仍无需安装 Codex。新授权保存在 AI BenchGauge 的独立本机配置中，不需要手动同步 CC Switch。
 
+xAI 显示“需要重新登录”或“未登录”时，点击卡片会打开 CC Switch：余量读取的 Grok 登录由 CC Switch 管理，供应商官网没有登录入口。在 CC Switch 中完成登录后，重新打开面板即会刷新余量。
+
 ## 榜单来源
 
 | 分类 | 左侧 | 右侧 |

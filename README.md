@@ -68,6 +68,8 @@ Card dates consistently say “to” for the boundary reported by the provider. 
 
 If OpenAI shows **Sign in again**, clicking the card opens the official authorization flow. Authorize the same account and the quota refreshes automatically; later queries renew the login, with reauthorization needed only if renewal fails. Direct authorization requires an installed Codex CLI or ChatGPT/Codex desktop app. Reading an existing CC Switch login still works without Codex. The new login is saved in a separate local AI BenchGauge profile and requires no manual CC Switch sync.
 
+If xAI shows **Sign in again** or **Not signed in**, clicking the card opens CC Switch, because CC Switch owns the Grok login that this quota reads; the provider's own site has no sign-in entry. Sign in there, then reopen the panel to refresh the quota.
+
 ## Leaderboard sources
 
 | Category | Left | Right |
