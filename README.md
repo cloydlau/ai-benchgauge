@@ -66,6 +66,8 @@ For Qwen Token Plan, the app reads the remaining percentage and reset time from 
 
 Card dates consistently say “to” for the boundary reported by the provider. The app does not infer renewal or cancellation, and a passed date alone does not mean access has expired. Hourly and weekly quota reset times appear in tooltips; a missing plan or monthly date is never replaced by a short-window reset.
 
+Quota values and dates use independent colors on the same continuous green-to-red scale. Dates are green at 14+ days remaining, yellow at 7 days, orange at 2 days, and red at the reported boundary. The card background follows the more urgent value; a date warning does not recolor the quota text. Hover for the date color reference.
+
 If OpenAI shows **Sign in again**, clicking the card opens the official authorization flow. Authorize the same account and the quota refreshes automatically; later queries renew the login, with reauthorization needed only if renewal fails. Direct authorization requires an installed Codex CLI or ChatGPT/Codex desktop app. Reading an existing CC Switch login still works without Codex. The new login is saved in a separate local AI BenchGauge profile and requires no manual CC Switch sync.
 
 If xAI shows **Sign in again** or **Not signed in**, clicking the card opens CC Switch, because CC Switch owns the Grok login that this quota reads; the provider's own site has no sign-in entry. Sign in there, then reopen the panel to refresh the quota.
