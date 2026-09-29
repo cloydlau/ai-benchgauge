@@ -8,9 +8,19 @@
 
 `macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `3 languages` · [MIT License](LICENSE)
 
-![AI BenchGauge illustration: paired rankings and CC Switch quotas](docs/overview.en.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/leaderboard-model-dark.png">
+  <img src="docs/screenshots/leaderboard-model-light.png" alt="AI BenchGauge model view with paired rankings and provider quotas in light mode" width="850">
+</picture>
 
-*Interface illustration; it contains no live rankings or account data.*
+*Real model view: two Top 20 leaderboards side by side, with the CC Switch quota strip above them.*
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/leaderboard-company-dark.png">
+  <img src="docs/screenshots/leaderboard-company-light.png" alt="AI BenchGauge company view ranked by each organization's strongest model in light mode" width="850">
+</picture>
+
+*Real company view: each organization is ranked by its strongest listed model.*
 
 Stop switching between leaderboard tabs. Open the menu bar to compare the Top 20 from Artificial Analysis and Arena side by side. If you use [CC Switch](https://github.com/farion1231/cc-switch), supported provider quotas and reset times appear above the rankings.
 

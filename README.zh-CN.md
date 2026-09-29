@@ -8,9 +8,19 @@
 
 `macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `English / 简中 / 繁中` · [MIT 许可证](LICENSE)
 
-![AI BenchGauge 界面示意：双榜对照与 CC Switch 余量](docs/overview.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/leaderboard-model-dark.png">
+  <img src="docs/screenshots/leaderboard-model-light.png" alt="AI BenchGauge 浅色模式模型视图，展示双榜与供应商余量" width="850">
+</picture>
 
-*界面示意图，不展示真实排名或账户余量。*
+*真实模型视图：并排查看两份 Top 20 榜单，上方显示 CC Switch 余量条。*
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/leaderboard-company-dark.png">
+  <img src="docs/screenshots/leaderboard-company-light.png" alt="AI BenchGauge 浅色模式公司榜，按各公司最强模型排名" width="850">
+</picture>
+
+*真实公司视图：每家公司按其上榜的最强模型排名。*
 
 不用在多个榜单网页之间来回切换：打开菜单栏，就能并排查看 Artificial Analysis 与 Arena 的 Top 20。装有 [CC Switch](https://github.com/farion1231/cc-switch) 时，还能在榜单上方查看支持的提供商余量和重置时间。
 
