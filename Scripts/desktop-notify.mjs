@@ -3,6 +3,7 @@ import { copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { nodeExecutable } from './node-executable.mjs'
 
 export function projectName() {
   return 'AI-BenchGauge'
@@ -23,7 +24,7 @@ export function notifyDesktop(root, title, message, {
     LOCAL_CI_NOTIFY_DIR: env.LOCAL_CI_NOTIFY_DIR || join(root, 'work', 'notify-apps'),
   }
   if (wait) {
-    const result = spawnSync(process.execPath, args, {
+    const result = spawnSync(nodeExecutable({ env, platform }), args, {
       cwd: root,
       env: childEnv,
       stdio: 'inherit',
@@ -32,7 +33,7 @@ export function notifyDesktop(root, title, message, {
     return !result.error && result.status === 0
   }
   try {
-    const child = spawn(process.execPath, args, {
+    const child = spawn(nodeExecutable({ env, platform }), args, {
       cwd: root,
       env: childEnv,
       stdio: 'ignore',
