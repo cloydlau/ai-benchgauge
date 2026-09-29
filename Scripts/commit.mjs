@@ -6,6 +6,7 @@
 //   Scripts/commit.sh --dry-run            只打印拆分计划，不创建提交
 // COMMIT_SPLIT=0 关闭拆分。COMMIT_CODEX_MESSAGE=0 不用模型生成计划。
 // COMMIT_PUSH=1 才会推送。COMMIT_COAUTHOR=1 恢复本人为 committer 并联合署名。
+// 涉及截图/录屏的改动一律先拦下，需本人审核：COMMIT_MEDIA_REVIEWED=1 或 COMMIT_COAUTHOR=1。
 // 模型不可用或计划不合规时，退回按目录和用途分组，不中止提交。
 
 import { spawnSync } from 'node:child_process'
@@ -26,6 +27,9 @@ import {
 } from './commit-split.mjs'
 import { materializeAvatar, notifyDesktop } from './desktop-notify.mjs'
 import { gitProxyArgs, gitProxyValue } from './git-network.mjs'
+import {
+  assertMediaReviewed, describeMedia, introducedPaths, mediaApproved, mediaPaths, parseNameStatus, withMediaReview,
+} from './media-gate.mjs'
 import { testInputSignature } from './test.mjs'
 import { runTestGate } from './test-repair.mjs'
 
@@ -221,6 +225,37 @@ function assertNoSecrets(diff) {
   if (hits.length) throw new Error(`暂存区含私钥，已中止：${[...new Set(hits)].join('、')}`)
 }
 
+function nameStatusPaths(args) {
+  const result = git(['-c', 'core.quotePath=false', ...args])
+  return result.status === 0 ? introducedPaths(parseNameStatus(result.stdout ?? '')) : []
+}
+
+// 透传 git 参数时，除暂存区外还可能带上工作区改动（-a）或被修改的那个提交（--amend）。
+function passthroughIntroducedPaths(args) {
+  const paths = new Set(nameStatusPaths(['diff', '--cached', '--name-status', '-z', '--no-renames']))
+  if (args.includes('-a') || args.includes('--all')) {
+    for (const path of nameStatusPaths(['diff', '--name-status', '-z', '--no-renames', 'HEAD'])) paths.add(path)
+  }
+  if (args.includes('--amend')) {
+    for (const path of nameStatusPaths(['diff-tree', '-r', '--root', '--no-commit-id', '--name-status', '-z', '--no-renames', 'HEAD'])) paths.add(path)
+  }
+  return [...paths]
+}
+
+// 截图/录屏门禁：未经本人审核就中止提交，审核过才允许写入历史。
+function reviewMedia(paths, identity, { dryRun = false, identityOnly = false } = {}) {
+  const media = mediaPaths(paths)
+  if (media.length === 0) return []
+  const listed = describeMedia(media).join('、')
+  if (!mediaApproved({ identity, identityOnly })) {
+    if (!dryRun) assertMediaReviewed({ paths: media, identity, identityOnly })
+    console.log(`[commit] dry-run：以下截图/录屏需人工审核，直接提交会被拒绝：${listed}`)
+    return media
+  }
+  console.log(`[commit] 截图/录屏已人工审核：${listed}`)
+  return media
+}
+
 function applyCachedPatch(patch, label) {
   const check = git(['apply', '--cached', '--check', '--whitespace=nowarn', '-'], { input: patch })
   if (check.status !== 0) throw new Error(`${label}：${(check.stderr || '').trim() || 'git apply --check 失败'}`)
@@ -397,6 +432,7 @@ async function main() {
   }
 
   if (parsed.mode === 'passthrough') {
+    reviewMedia(passthroughIntroducedPaths(parsed.args), identity, { dryRun: parsed.dryRun, identityOnly: true })
     if (parsed.dryRun) {
       console.log(`[commit] dry-run，将以 ${formatCommitIdentity(identity)} 执行 git commit ${parsed.args.join(' ')}`)
       return
@@ -413,11 +449,17 @@ async function main() {
   setupPrivateIndex()
   if (!privateIndex) throw new Error('私有 index 未就绪，拒绝改动暂存区')
   gitOk(['add', '-A'])
-  const names = gitOk(['diff', '--cached', '--name-only', '-z']).split('\0').filter(Boolean)
+  const stagedEntries = parseNameStatus(gitOk(['-c', 'core.quotePath=false', 'diff', '--cached', '--name-status', '-z', '--no-renames']))
+  const names = stagedEntries.map((entry) => entry.path).filter(Boolean)
   if (names.length === 0) {
     console.log('[commit] 没有新改动')
     return
   }
+  const introduced = introducedPaths(stagedEntries)
+  const introducedSet = new Set(introduced)
+  reviewMedia(introduced, identity, { dryRun: parsed.dryRun })
+  // 拆分后只给真正带入新画面的那个提交补审核记录。
+  const introducedIn = (commit) => (commit.files ?? []).map((file) => file.path).filter((path) => introducedSet.has(path))
   const expectedTree = gitOk(['write-tree']).trim()
   const split = parsed.mode === 'auto' && process.env.COMMIT_SPLIT !== '0'
   console.log(`[commit] 署名：${formatCommitIdentity(identity)}`)
@@ -443,7 +485,7 @@ async function main() {
       return
     }
     requireTestedInputs()
-    commitOne(message, identity)
+    commitOne(withMediaReview(message, introduced), identity)
     alignSharedIndex()
     await notifyResult(true, '提交完成', `${identity.model}\n${message}`, avatar)
     if (process.env.COMMIT_PUSH === '1') pushUpstream()
@@ -460,13 +502,13 @@ async function main() {
 
   requireTestedInputs()
   if (plan.commits.length === 1) {
-    commitOne(plan.commits[0].message, identity)
+    commitOne(withMediaReview(plan.commits[0].message, introducedIn(plan.commits[0])), identity)
   } else {
     gitOk(['read-tree', 'HEAD'])
     let completed = 0
     try {
       for (const commit of plan.commits) {
-        commitOne(commit.message, identity, { replayPatch: commit.patch })
+        commitOne(withMediaReview(commit.message, introducedIn(commit)), identity, { replayPatch: commit.patch })
         completed += 1
       }
     } catch (error) {
