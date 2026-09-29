@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 
 const HUMAN_EMAIL = '31238760+cloydlau@users.noreply.github.com'
-const COMMIT_SCRIPTS = ['commit.mjs', 'commit-lock.mjs', 'commit-message.mjs', 'commit-split.mjs', 'desktop-notify.mjs', 'git-network.mjs', 'media-gate.mjs']
+const COMMIT_SCRIPTS = ['commit.mjs', 'commit-lock.mjs', 'commit-message.mjs', 'commit-split.mjs', 'desktop-notify.mjs', 'git-network.mjs', 'media-gate.mjs', 'node-executable.mjs']
 // 与真实的 commit-identity.mjs 行为一致，但不读配置、不联网、不取头像。
 const IDENTITY_STUB = `
 export const HUMAN = Object.freeze({ name: 'Cloyd Lau', email: '${HUMAN_EMAIL}' })

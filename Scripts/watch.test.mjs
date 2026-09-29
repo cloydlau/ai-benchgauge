@@ -32,7 +32,7 @@ function watcherFixture(t, { binary = 'fresh', restartFails = false, testsFail =
   mkdirSync(join(root, 'Tests'))
   mkdirSync(join(app, 'Contents', 'MacOS'), { recursive: true })
   const original = dirname(fileURLToPath(import.meta.url))
-  for (const name of ['watch.mjs', 'commit-identity.mjs', 'desktop-notify.mjs', 'git-network.mjs']) {
+  for (const name of ['watch.mjs', 'commit-identity.mjs', 'desktop-notify.mjs', 'git-network.mjs', 'node-executable.mjs']) {
     copyFileSync(join(original, name), join(scripts, name))
   }
   const source = join(root, 'Sources', 'example.swift')

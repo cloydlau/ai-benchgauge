@@ -5,13 +5,14 @@ import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, read
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { acquireCommitLock } from './commit-lock.mjs'
+import { nodeExecutable } from './node-executable.mjs'
 
 export const testRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 // Only a pass for the exact inputs may be reused by child commit/build processes.
 export function testInputSignature(root = testRoot, env = process.env, { includeSources = true } = {}) {
   const hash = createHash('sha256')
-  hash.update(JSON.stringify([process.version, process.execPath, env.PATH, env.DEVELOPER_DIR, env.TOOLCHAINS, env.SDKROOT, env.TZ,
+  hash.update(JSON.stringify([process.version, nodeExecutable({ env }), env.PATH, env.DEVELOPER_DIR, env.TOOLCHAINS, env.SDKROOT, env.TZ,
     env.SWIFT_EXEC, env.SWIFT_DRIVER_SWIFT_FRONTEND_EXEC, env.NODE_OPTIONS, env.LANG, env.LC_ALL]))
   function collect(path) {
     if (!existsSync(path)) return
@@ -28,12 +29,12 @@ export function testInputSignature(root = testRoot, env = process.env, { include
   return hash.digest('hex')
 }
 
-export function testCommands(root = testRoot, { coreOnly = false, scriptsOnly = false, coverage = false, swiftcPath } = {}) {
+export function testCommands(root = testRoot, { coreOnly = false, scriptsOnly = false, coverage = false, swiftcPath, node = nodeExecutable() } = {}) {
   const commands = []
   if (!coreOnly) {
     const files = readdirSync(join(root, 'Scripts')).filter((name) => name.endsWith('.test.mjs')).sort().map((name) => join(root, 'Scripts', name))
     if (!files.length) throw new Error('未找到脚本测试，拒绝报告通过')
-    commands.push([process.execPath, ['--test', ...(coverage ? ['--experimental-test-coverage',
+    commands.push([node, ['--test', ...(coverage ? ['--experimental-test-coverage',
       `--test-coverage-include=${join(root, 'Scripts', '*.mjs')}`, '--test-coverage-exclude=**/*.test.mjs'] : []), ...files]])
   }
   if (!scriptsOnly) {
@@ -50,7 +51,7 @@ export function testCommands(root = testRoot, { coreOnly = false, scriptsOnly = 
     commands.push(['swift', args])
   }
   if (!coreOnly && existsSync(join(root, 'apps/windows/BenchGauge.Tests/BenchGauge.Tests.csproj'))) {
-    commands.push([process.execPath, [join(root, 'Scripts/windows-tests.mjs')]])
+    commands.push([node, [join(root, 'Scripts/windows-tests.mjs')]])
   }
   return commands
 }
