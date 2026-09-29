@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url'
 import { avatarForModel, detectModelName } from './commit-identity.mjs'
 import { materializeAvatar, notifyDesktop } from './desktop-notify.mjs'
 import { gitProxyArgs, gitProxyValue } from './git-network.mjs'
+import { nodeExecutable } from './node-executable.mjs'
 import { runTestGate } from './test-repair.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -265,7 +266,8 @@ function run(script, extraEnv = {}) {
 
 function runNode(script, extraEnv = {}) {
   return new Promise((resolvePromise) => {
-    const child = spawn(process.execPath, [script], {
+    // pnpm 换掉 runtime 目录后，本进程启动时的 execPath 会失效。
+    const child = spawn(nodeExecutable(), [script], {
       cwd: root,
       env: { ...process.env, ...extraEnv },
       stdio: 'inherit',
