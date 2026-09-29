@@ -1129,6 +1129,41 @@ struct CCSwitchQuotaParserTests {
         )) == nil)
         #expect((CCSwitchQuotaParsers.parseOpenAIPlanExpiry(Data("not-json".utf8), accountID: "account-id")) == nil)
     }
+
+    @Test
+    func testParsesOpenAIPlanExpiryFromTheSignedInDefaultAccountEntry() {
+        let expires = ISO8601DateFormatter().date(from: "2026-10-15T00:00:00Z")
+        // ChatGPT keys the signed-in account `default` and repeats that key in
+        // `last_account_id`; it never uses the account id as the key.
+        let signedIn = Data(#"""
+        {"accounts":{"default":{"account":{"po_id":"org-1"},"plan_type":"pro","entitlement":{
+          "subscription_id":"sub_1","has_active_subscription":true,"subscription_plan":"chatgptproplan",
+          "expires_at":"2026-10-15T00:00:00Z","renews_at":"2026-10-15T00:00:00Z"}}},
+         "last_account_id":"default","is_paid":true}
+        """#.utf8)
+        #expect((CCSwitchQuotaParsers.parseOpenAIPlanExpiry(signedIn, accountID: "account-id")?.resetsAt) == expires)
+
+        let named = Data(#"{"accounts":{"default":{"account_id":"account-id","entitlement":{"expires_at":"2026-10-15T00:00:00Z"}}}}"#.utf8)
+        #expect((CCSwitchQuotaParsers.parseOpenAIPlanExpiry(named, accountID: "account-id")?.resetsAt) == expires)
+        #expect((CCSwitchQuotaParsers.parseOpenAIPlanExpiry(named, accountID: "other-account")) == nil)
+
+        let workspace = Data(#"{"accounts":{"team-1":{"entitlement":{"expires_at":"2026-10-15T00:00:00Z"}}},"last_account_id":"team-1"}"#.utf8)
+        #expect((CCSwitchQuotaParsers.parseOpenAIPlanExpiry(workspace, accountID: "account-id")?.resetsAt) == expires)
+
+        // A plan without an active subscription reports a placeholder instead
+        // of a boundary, and a placeholder is not a deadline.
+        let free = Data(#"{"accounts":{"default":{"entitlement":{"has_active_subscription":false,"subscription_plan":"chatgptfreeplan","expires_at":"2999-09-28T13:14:52+00:00"}}}}"#.utf8)
+        #expect((CCSwitchQuotaParsers.parseOpenAIPlanExpiry(free, accountID: "account-id")) == nil)
+
+        // The signed-in entry wins over an unrelated one, and an entry naming
+        // or keyed by another account is never this account's boundary.
+        let withExtra = Data(#"{"accounts":{"other":{"entitlement":{"expires_at":"2026-01-01T00:00:00Z"}},"default":{"entitlement":{"expires_at":"2026-10-15T00:00:00Z"}}}}"#.utf8)
+        #expect((CCSwitchQuotaParsers.parseOpenAIPlanExpiry(withExtra, accountID: "account-id")?.resetsAt) == expires)
+        let foreign = Data(#"{"accounts":{"other-account":{"entitlement":{"expires_at":"2026-10-15T00:00:00Z"}}}}"#.utf8)
+        #expect((CCSwitchQuotaParsers.parseOpenAIPlanExpiry(foreign, accountID: "account-id")) == nil)
+        let foreignNamed = Data(#"{"accounts":{"default":{"account_id":"other-account","entitlement":{"expires_at":"2026-10-15T00:00:00Z"}}}}"#.utf8)
+        #expect((CCSwitchQuotaParsers.parseOpenAIPlanExpiry(foreignNamed, accountID: "account-id")) == nil)
+    }
 }
 
 struct AccountQuotaClientTests {
@@ -1323,6 +1358,28 @@ struct AccountQuotaClientTests {
         ])
         #expect((noAccount.requests.map { $0.url?.path }) == (["/backend-api/wham/usage"]))
         #expect((noAccountChips.map(\.status)) == ([.windows(usageWindows)]))
+    }
+
+    @Test
+    func testOfficialCardShowsItsDeadlineFromTheDefaultAccountEntry() async throws {
+        let usage = #"{"rate_limit":{"primary_window":{"used_percent":42,"limit_window_seconds":18000,"reset_at":1760000000},"secondary_window":{"used_percent":13,"limit_window_seconds":604800,"reset_at":1760500000}}}"#
+        let check = #"{"accounts":{"default":{"entitlement":{"has_active_subscription":true,"expires_at":"2026-10-15T00:00:00Z","renews_at":"2026-10-15T00:00:00Z"}}},"last_account_id":"default"}"#
+        let transport = ScriptedQuotaTransport { request in
+            let body = request.url?.path == "/backend-api/accounts/check/v4-2023-04-27" ? check : usage
+            return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(body.utf8))
+        }
+        let chips = try await AccountQuotaClient(transport: transport).refresh(targets: [
+            quotaTarget(id: "official", name: "OpenAI", kind: .officialNote, key: nil, accessToken: "official-token", accountID: "account-id"),
+        ])
+        let card = try #require(chips.first)
+        guard case let .windows(windows) = card.status else { return recordFailure("usage must succeed") }
+        #expect((windows.map(\.name)) == (["five_hour", "weekly_limit", ParsedQuotaWindow.planExpiryName]))
+        let now = Date(timeIntervalSince1970: 1_758_600_000)
+        let summary = AccountQuotaFormatting.plainSummary(for: card, now: now)
+        #expect(summary.contains("5h 58%"))
+        #expect(summary.contains("7d 87%"))
+        #expect(summary.contains("至10月15日"))
+        #expect(AccountQuotaFormatting.help(for: card, now: now).contains("7d重置"))
     }
 
     @Test
@@ -1639,6 +1696,37 @@ struct AccountQuotaClientTests {
         #expect((chips.map(\.status)) == ([.message(AccountQuotaMessage.reauthRequired)]))
         #expect((AccountQuotaFormatting.runs(for: chips[0], now: Date()).map(\.tone)) == ([.orange]))
         #expect(!(transport.requests.contains { $0.url?.host == "grok.com" }))
+    }
+
+    /// CC Switch owns the Grok login, so a login-required chip sends the user
+    /// there. The stored provider website is a product page with no sign-in.
+    @Test
+    func testXaiSignInChipsPointAtCCSwitchInsteadOfTheWebsite() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let reauth = chip(kind: .xaiOAuth, status: .message(AccountQuotaMessage.reauthRequired))
+        let loggedOut = chip(
+            kind: .xaiOAuth,
+            status: .note(text: AccountQuotaMessage.notLoggedIn, help: AccountQuotaMessage.notLoggedInHelp)
+        )
+        let signedIn = chip(
+            kind: .xaiOAuth,
+            status: .windows([ParsedQuotaWindow(name: "weekly_limit", utilization: 20, resetsAt: nil)])
+        )
+        let openAIReauth = chip(kind: .officialNote, status: .message(AccountQuotaMessage.reauthRequired))
+
+        #expect(AccountQuotaFormatting.requiresCCSwitchSignIn(reauth))
+        #expect(AccountQuotaFormatting.requiresCCSwitchSignIn(loggedOut))
+        #expect(!(AccountQuotaFormatting.requiresCCSwitchSignIn(signedIn)))
+        #expect(!(AccountQuotaFormatting.requiresCCSwitchSignIn(openAIReauth)))
+
+        let reauthHelp = AccountQuotaFormatting.help(for: reauth, now: now)
+        #expect(reauthHelp.contains("需要重新登录"))
+        #expect(reauthHelp.contains(AccountQuotaMessage.xaiSignInHelp))
+        #expect(!(reauthHelp.contains("https://example.com")))
+        #expect(AccountQuotaFormatting.help(for: loggedOut, now: now).contains(AccountQuotaMessage.xaiSignInHelp))
+        // A working xAI chip and every other provider keep their website line.
+        #expect(AccountQuotaFormatting.help(for: signedIn, now: now).contains("https://example.com"))
+        #expect(AccountQuotaFormatting.help(for: openAIReauth, now: now).contains("https://example.com"))
     }
 
     @Test
