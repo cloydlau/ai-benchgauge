@@ -34,7 +34,14 @@ const schema = {
 function codexRepair(root, first, env) {
   const timeout = Number(env.TEST_REPAIR_TIMEOUT_MS || 600_000)
   if (!Number.isFinite(timeout) || timeout <= 0) return { completed: false, attempted: false, summary: 'TEST_REPAIR_TIMEOUT_MS 必须是正数' }
-  const candidates = [env.TEST_REPAIR_CODEX, 'codex', '/Applications/ChatGPT.app/Contents/Resources/codex'].filter(Boolean)
+  // ChatGPT.app 的 CLI 实际嵌在 codex-cli/CodexCLI.app 里；两个路径都保留，
+  // 兼容不同版本的安装布局。
+  const candidates = [
+    env.TEST_REPAIR_CODEX,
+    'codex',
+    '/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex',
+    '/Applications/ChatGPT.app/Contents/Resources/codex',
+  ].filter(Boolean)
   const codex = candidates.find((command) => spawnSync(command, ['--version'], { env, stdio: 'ignore', timeout: 5000 }).status === 0)
   if (!codex) return { completed: false, attempted: false, summary: '未找到 Codex CLI，保留失败日志并停止' }
   const directory = join(root, 'work', 'test-results')

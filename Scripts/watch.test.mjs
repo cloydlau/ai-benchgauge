@@ -23,7 +23,7 @@ test('staging a new version changes the commit retry signature', () => {
 
 // Run the real watcher in an isolated project. The build/restart scripts only
 // record calls; these tests never launch the user's app or use its accounts.
-function watcherFixture(t, { binary = 'fresh', restartFails = false, testsFail = false, gitWork = false, env = {} } = {}) {
+function watcherFixture(t, { binary = 'fresh', restartFails = false, testsFail = false, gitWork = false, receiptCommit = null, env = {} } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'benchgauge-watch-test-')))
   const scripts = join(root, 'Scripts')
   const app = join(root, 'outputs', 'AI-BenchGauge.app')
@@ -63,12 +63,14 @@ exit ${restartFails ? 1 : 0}
 case "$1" in
   status) test -f commit.done || printf ' M Sources/example.swift\\0';;
   rev-list) if test -f push.done; then echo '0 0'; else echo '0 1'; fi;;
-  rev-parse) echo fixture-head;;
+  rev-parse) if test -f head; then cat head; else echo fixture-head; fi;;
+  cat-file) exit 0;;
+  diff) echo Sources/example.swift;;
   *) for arg in "$@"; do if test "$arg" = push; then echo push >> events; touch push.done; fi; done;;
 esac
 exit 0
 `, { mode: 0o755 })
-    writeFileSync(join(scripts, 'commit.mjs'), `import { appendFileSync, writeFileSync } from 'node:fs'; appendFileSync('events', 'commit\\n'); writeFileSync('commit.done', 'done')`)
+    writeFileSync(join(scripts, 'commit.mjs'), `import { appendFileSync, writeFileSync } from 'node:fs'; appendFileSync('events', 'commit\\n'); writeFileSync('commit.done', 'done'); writeFileSync('head', 'fixture-head-2')`)
   }
   const executable = join(app, 'Contents', 'MacOS', 'leaderboard-menu')
   if (binary !== 'missing') {
@@ -79,6 +81,10 @@ exit 0
   // Deliberately disagree with the executable's date to catch bundle-mtime bugs.
   const bundleDate = new Date(Date.now() + (binary === 'fresh' ? -120_000 : 120_000))
   utimesSync(app, bundleDate, bundleDate)
+  if (receiptCommit) {
+    mkdirSync(join(root, 'work'), { recursive: true })
+    writeFileSync(join(root, 'work', '.last-app-deploy'), `${JSON.stringify({ commit: receiptCommit })}\n`)
+  }
   const child = spawn(process.execPath, [join(scripts, 'watch.mjs')], {
     cwd: root,
     env: { ...process.env, WATCH_AUTOCOMMIT: gitWork ? '1' : '0', DESKTOP_NOTIFY: '0', ...env,
@@ -174,6 +180,38 @@ test('saving a workflow script triggers tests before rebuild', async (t) => {
   writeFileSync(join(fixture.root, 'Scripts', 'example.mjs'), '// changed')
   await waitUntil(fixture, () => fixture.events().length === 5)
   assert.deepEqual(fixture.events(), ['test', 'restart', 'test', 'build', 'restart'])
+})
+
+test('an older deploy receipt rebuilds committed app changes at startup', async (t) => {
+  const fixture = watcherFixture(t, {
+    gitWork: true,
+    receiptCommit: 'fixture-old',
+    env: { WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' },
+  })
+  await waitUntil(fixture, () => {
+    try {
+      return JSON.parse(readFileSync(join(fixture.root, 'work', '.last-app-deploy'), 'utf8')).commit === 'fixture-head-2'
+    } catch {
+      return false
+    }
+  })
+  assert.match(fixture.output(), /上次已部署提交：fixture-old/)
+  assert.match(fixture.output(), /未部署的已提交应用变更/)
+  assert.deepEqual(fixture.events().slice(0, 3), ['test', 'build', 'restart'])
+  assert.match(fixture.output(), /检测到已提交的应用变更|启动时检测到未提交改动/)
+})
+
+test('APP_AUTODEPLOY=0 keeps the watcher from rebuilding or restarting the app', async (t) => {
+  const fixture = watcherFixture(t, {
+    env: { APP_AUTODEPLOY: '0', WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' },
+  })
+  await waitUntil(fixture, () => fixture.output().includes('自动部署已关闭，等待源码变更'))
+  assert.deepEqual(fixture.events(), ['test'])
+  writeFileSync(fixture.source, '// changed\n')
+  await waitUntil(fixture, () => fixture.events().length === 2)
+  assert.deepEqual(fixture.events(), ['test', 'test'])
+  assert.ok(!fixture.events().includes('build'))
+  assert.ok(!fixture.events().includes('restart'))
 })
 
 test('failed tests prevent commits and pushes; recovery runs tests before every mutation', async (t) => {
