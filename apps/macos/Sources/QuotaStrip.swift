@@ -232,7 +232,7 @@ private struct QuotaChipView: View {
     }
 
     private var quotaAccent: Color? {
-        AccountQuotaFormatting.colorLevel(for: chip).map {
+        AccountQuotaFormatting.cardColorLevel(for: chip, now: now).map {
             remainingQuotaColor($0, dark: colorScheme == .dark)
         }
     }
@@ -311,6 +311,8 @@ private struct QuotaRunsText: View {
             return remainingQuotaColor(0, dark: colorScheme == .dark)
         case let .remaining(percent):
             return remainingQuotaColor(percent, dark: colorScheme == .dark)
+        case let .deadline(level):
+            return remainingQuotaColor(level, dark: colorScheme == .dark)
         case let .balance(amount, currency):
             guard let level = QuotaColorScale.balanceLevel(amount: amount, currency: currency) else { return .secondary }
             return remainingQuotaColor(level, dark: colorScheme == .dark)
