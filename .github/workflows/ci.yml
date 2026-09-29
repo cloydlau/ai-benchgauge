@@ -28,6 +28,7 @@ jobs:
             exit 1
           fi
         env:
+          APP_UNIVERSAL: '1'
           DESKTOP_NOTIFY: '0'
           TEST_AUTO_REPAIR: '0'
   windows:
