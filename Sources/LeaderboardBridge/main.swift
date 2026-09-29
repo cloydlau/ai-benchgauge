@@ -41,6 +41,7 @@ struct Entry: Encodable {
 struct Quota: Encodable {
     var id: String; var name: String; var isCurrent: Bool; var isStale: Bool
     var help: String; var url: String?; var canConnect: Bool; var connection: String?; var runs: [Run]
+    var accentLight: String?
 }
 struct Run: Encodable { var text: String; var light: String; var dark: String }
 struct Alert: Encodable { var title: String; var body: String }
@@ -221,7 +222,7 @@ actor Engine {
                     connection: chip.kind == .officialNote ? "openai" : (chip.kind == .qwen ? "qwen" : (ccSwitchSignIn ? "ccswitch" : nil)),
                     runs: AccountQuotaFormatting.runs(for: chip, now: now).map { run in
                 Run(text: language.quotaText(run.text), light: color(run.tone, dark: false), dark: color(run.tone, dark: true))
-            })
+            }, accentLight: AccountQuotaFormatting.cardColorLevel(for: chip, now: now).map { color(.remaining($0), dark: false) })
         }
         let alerts = displayChips.flatMap { QuotaAlerts.alerts(for: $0, now: now) }
         let activeKeys = Set(alerts.flatMap(\.componentKeys))
@@ -236,6 +237,7 @@ actor Engine {
         let rgb: QuotaRGB
         switch tone {
         case .remaining(let value): rgb = QuotaColorScale.color(remainingPercent: value, dark: dark)
+        case .deadline(let level): rgb = QuotaColorScale.color(remainingPercent: level, dark: dark)
         case .balance(let amount, let currency):
             guard let level = QuotaColorScale.balanceLevel(amount: amount, currency: currency) else { return dark ? "#AAAAAA" : "#666666" }
             rgb = QuotaColorScale.color(remainingPercent: level, dark: dark)

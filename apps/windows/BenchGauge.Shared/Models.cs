@@ -15,7 +15,7 @@ public sealed record AppConfig(string Version, string Repository, string UpdateP
 public sealed record DisplayState(Board[] Boards, Quota[] Quotas, bool QuotaNeedsCCSwitch, bool QuotaUnavailable, string? TrayText, Alert[] Alerts);
 public sealed record Board(string Kind, string Title, string Url, string? UpdatedAt, string? Error, Entry[] Entries);
 public sealed record Entry(int Rank, string Name, double Score, string? Organization, string? Country, string? Logo, string? CodingURL, string? ApiURL, string? Help);
-public sealed record Quota(string Id, string Name, bool IsCurrent, bool IsStale, string Help, string? Url, bool CanConnect, string? Connection, Run[] Runs);
+public sealed record Quota(string Id, string Name, bool IsCurrent, bool IsStale, string Help, string? Url, bool CanConnect, string? Connection, Run[] Runs, string? AccentLight = null);
 public sealed record Run(string Text, string Light, string Dark);
 public sealed record Alert(string Title, string Body);
 public sealed record EngineResponse(int Id, DisplayState? Result, string? AuthorizationURL, string? LoginID, string? Error);

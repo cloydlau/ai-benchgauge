@@ -27,6 +27,7 @@ sealed class MainWindow : Window
     readonly TextBlock privatePrompt = new() { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 12), TextWrapping = TextWrapping.Wrap };
     readonly TextBlock status = new() { FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(4) };
     readonly DispatcherTimer boardTimer = new() { Interval = TimeSpan.FromMinutes(30) };
+    readonly DispatcherTimer quotaClockTimer = new() { Interval = TimeSpan.FromMinutes(1) };
     readonly DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromHours(24) };
     readonly List<ComboBox> dropdowns = [];
     DisplayState? state;
@@ -57,16 +58,20 @@ sealed class MainWindow : Window
         }, DispatcherPriority.Background);
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && !modalOpen) Hide(); };
         boardTimer.Tick += async (_, _) => { await Refresh("refreshBoards"); await Refresh("refreshCurrentQuota"); };
+        quotaClockTimer.Tick += async (_, _) =>
+        {
+            if (IsVisible && !modalOpen && !dropdowns.Any(box => box.IsDropDownOpen)) await Refresh("state");
+        };
         updateTimer.Tick += async (_, _) => await CheckUpdates(false);
     }
     public async Task Start()
     {
-        boardTimer.Start(); updateTimer.Start();
+        boardTimer.Start(); quotaClockTimer.Start(); updateTimer.Start();
         await Refresh("state");
         await Task.WhenAll(Refresh("refreshBoards"), Refresh("refreshQuotas"));
         await CheckUpdates(false);
     }
-    public void Stop() { closing = true; boardTimer.Stop(); updateTimer.Stop(); SaveFrame(); }
+    public void Stop() { closing = true; boardTimer.Stop(); quotaClockTimer.Stop(); updateTimer.Stop(); SaveFrame(); }
     public void Toggle() { if (IsVisible) { Hide(); SaveFrame(); } else { Reveal(); _ = Refresh("refreshQuotas"); } }
     public void Reveal()
     {
@@ -160,7 +165,10 @@ sealed class MainWindow : Window
                 text.Inlines.Add(new System.Windows.Documents.Run(quota.Name + "  ") { FontWeight = FontWeights.SemiBold });
                 foreach (var run in quota.Runs) text.Inlines.Add(new System.Windows.Documents.Run(run.Text) { Foreground = (Brush)new BrushConverter().ConvertFromString(run.Light)! });
                 if (quota.IsStale) text.Inlines.Add(new System.Windows.Documents.Run("  · " + Tr("saved", "缓存", "快取")) { Foreground = Brushes.Gray });
-                var card = new Border { Child = text, CornerRadius = new CornerRadius(7), Background = Brushes.White, Margin = new Thickness(0, 0, 8, 6), BorderThickness = new Thickness(quota.IsCurrent ? 1 : 0), BorderBrush = Brushes.DodgerBlue };
+                var background = quota.AccentLight is { } accent
+                    ? new SolidColorBrush((Color)ColorConverter.ConvertFromString(accent)) { Opacity = quota.IsCurrent ? 0.12 : 0.06 }
+                    : Brushes.White;
+                var card = new Border { Child = text, CornerRadius = new CornerRadius(7), Background = background, Margin = new Thickness(0, 0, 8, 6), BorderThickness = new Thickness(quota.IsCurrent ? 1 : 0), BorderBrush = Brushes.DodgerBlue };
                 card.Cursor = Cursors.Hand;
                 card.MouseLeftButtonUp += async (_, _) => { if (quota.CanConnect) await Connect(quota); else if (quota.Url is { } url) Open(url); };
                 quotaPanel.Children.Add(card);
