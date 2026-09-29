@@ -33,7 +33,7 @@ struct QuotaColorScaleTests {
     }
 
     @Test
-    func testCardUsesTheLowestUsagePoolAndIgnoresDates() {
+    func testQuotaLevelUsesTheLowestUsagePoolAndIgnoresDates() {
         let chip = makeChip(.windows([
             ParsedQuotaWindow(name: "five_hour", utilization: 20, resetsAt: nil),
             ParsedQuotaWindow(name: "seven_day", utilization: 85, resetsAt: nil),
@@ -143,6 +143,107 @@ struct QuotaColorScaleTests {
         #expect(runs.contains { $0.text == "$2.00" && $0.tone == .balance(amount: 2, currency: "USD") })
         let empty = AccountQuotaFormatting.runs(for: makeChip(.balances([ParsedBalance(currency: "CNY", amount: 0)])), now: Date())
         #expect((empty) == ([QuotaTextRun(text: AccountQuotaMessage.emptyBalance, tone: .red)]))
+    }
+
+    @Test
+    func testDeadlineReferencePointsAndContinuousProgression() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        for (days, level) in [(-1.0, 0.0), (0, 0), (1, 12.5), (2, 25), (7, 50), (14, 100), (30, 100)] {
+            #expect(QuotaColorScale.deadlineLevel(until: now.addingTimeInterval(days * 86_400), now: now) == level)
+        }
+        #expect(QuotaColorScale.deadlineLevel(until: Date(timeIntervalSince1970: .nan), now: now) == nil)
+        for dark in [false, true] {
+            var previous = QuotaColorScale.color(remainingPercent: 0, dark: dark)
+            for minute in 1...(14 * 24 * 60) {
+                let level = try #require(QuotaColorScale.deadlineLevel(until: now.addingTimeInterval(Double(minute) * 60), now: now))
+                let color = QuotaColorScale.color(remainingPercent: level, dark: dark)
+                #expect(color != previous)
+                for (channel, last) in zip([color.red, color.green, color.blue], [previous.red, previous.green, previous.blue]) {
+                    #expect(abs(channel - last) < 0.001)
+                }
+                previous = color
+            }
+        }
+    }
+
+    @Test
+    func testOnlyBackgroundCombinesQuotaAndDeadlineUrgency() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        for (remaining, days, expected) in [(90.0, 2.0, 25.0), (10, 14, 10), (0, 14, 0), (90, -1, 0)] {
+            let chip = makeChip(.windows([
+                ParsedQuotaWindow(name: "five_hour", utilization: 100 - remaining, resetsAt: nil),
+                ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: now.addingTimeInterval(days * 86_400)),
+            ]))
+            let dateLevel = QuotaColorScale.deadlineLevel(until: now.addingTimeInterval(days * 86_400), now: now)!
+            #expect(AccountQuotaFormatting.cardColorLevel(for: chip, now: now) == expected)
+            let runs = AccountQuotaFormatting.runs(for: chip, now: now)
+            #expect(runs.contains { $0.text == "\(Int(remaining))%" && $0.tone == .remaining(remaining) })
+            #expect(runs.last?.tone == .deadline(dateLevel))
+            #expect(runs.filter { $0.tone == .secondary }.map(\.text) == ["5h ", " · "])
+            #expect(AccountQuotaFormatting.isExhausted(chip) == (remaining == 0))
+        }
+    }
+
+    @Test
+    func testDeadlineColorUsesExactlyTheBoundaryShownOnTheCard() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let soon = now.addingTimeInterval(2 * 86_400)
+        let later = now.addingTimeInterval(14 * 86_400)
+        let statuses: [AccountQuotaChip.Status] = [
+            .windows([ParsedQuotaWindow(name: "monthly", utilization: 10, resetsAt: soon),
+                      ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: later)]),
+            .qwenPlan(QwenPlanQuota(usedPercent: 10, remainingCredits: 90, totalCredits: 100, resetsAt: soon, expiresAt: later)),
+            .qwenWebsite(QwenWebsiteQuota(periodLabel: "1mo", remainingPercent: 90, resetsAt: soon, expiresAt: later)),
+        ]
+        for status in statuses {
+            let chip = makeChip(status)
+            #expect(AccountQuotaFormatting.deadlineColorLevel(for: chip, now: now) == 100)
+            #expect(AccountQuotaFormatting.runs(for: chip, now: now).last?.tone == .deadline(100))
+        }
+        for status: AccountQuotaChip.Status in [
+            .windows([ParsedQuotaWindow(name: "monthly", utilization: 10, resetsAt: soon),
+                      ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: nil)]),
+            .qwenWebsite(QwenWebsiteQuota(periodLabel: "1mo", remainingPercent: 90, resetsAt: soon)),
+        ] {
+            let chip = makeChip(status)
+            #expect(AccountQuotaFormatting.deadlineColorLevel(for: chip, now: now) == 25)
+            #expect(AccountQuotaFormatting.runs(for: chip, now: now).last?.tone == .deadline(25))
+        }
+    }
+
+    @Test
+    func testMissingDeadlineAndShortResetsDoNotTriggerDateColors() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let shortReset = now.addingTimeInterval(60)
+        let statuses: [AccountQuotaChip.Status] = [
+            .windows([ParsedQuotaWindow(name: "five_hour", utilization: 10, resetsAt: shortReset),
+                      ParsedQuotaWindow(name: "weekly_limit", utilization: 10, resetsAt: shortReset)]),
+            .qwenPlan(QwenPlanQuota(usedPercent: 10, remainingCredits: 90, totalCredits: 100, resetsAt: shortReset)),
+            .qwenWebsite(QwenWebsiteQuota(periodLabel: "7d", remainingPercent: 90, resetsAt: shortReset)),
+            .pending,
+            .balances([ParsedBalance(currency: "USD", amount: 20)]),
+        ]
+        for status in statuses {
+            let chip = makeChip(status)
+            #expect(AccountQuotaFormatting.deadlineColorLevel(for: chip, now: now) == nil)
+            #expect(AccountQuotaFormatting.cardColorLevel(for: chip, now: now) == AccountQuotaFormatting.colorLevel(for: chip))
+            #expect(!AccountQuotaFormatting.runs(for: chip, now: now).contains { if case .deadline = $0.tone { return true }; return false })
+        }
+        let dateOnly = makeChip(.windows([ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 100, resetsAt: now)]))
+        #expect(AccountQuotaFormatting.cardColorLevel(for: dateOnly, now: now) == 0)
+        #expect(!AccountQuotaFormatting.isExhausted(dateOnly))
+        #expect(QuotaAlerts.alerts(for: dateOnly, now: now).isEmpty)
+        #expect(!AccountQuotaFormatting.help(for: dateOnly, now: now).contains("已到期"))
+    }
+
+    @Test
+    func testDateColorReferenceIsTranslatedAndOnlyShownWithADate() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let chip = makeChip(.windows([ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: now)]))
+        #expect(AccountQuotaFormatting.help(for: chip, now: now).contains(AccountQuotaFormatting.deadlineColorReference))
+        #expect(AppLanguage.english.quotaText(AccountQuotaFormatting.deadlineColorReference).hasPrefix("Date colors:"))
+        #expect(AppLanguage.traditionalChinese.quotaText(AccountQuotaFormatting.deadlineColorReference).contains("顏色"))
+        #expect(!AccountQuotaFormatting.help(for: makeChip(.pending), now: now).contains(AccountQuotaFormatting.deadlineColorReference))
     }
 
     private func makeChip(_ status: AccountQuotaChip.Status) -> AccountQuotaChip {

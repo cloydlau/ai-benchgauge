@@ -394,7 +394,7 @@ struct AccountQuotaFormattingTests {
         let planText = AccountQuotaFormatting.planExpiryPhrase(until: planEnd, now: now)!
         #expect((AccountQuotaFormatting.plainSummary(for: zhipu, now: now)) == ("5h 100% · 7d 0% · \(planText)"))
         #expect(!(AccountQuotaFormatting.plainSummary(for: zhipu, now: now).contains("总到期")))
-        #expect((AccountQuotaFormatting.runs(for: zhipu, now: now).map(\.tone)) == ([.secondary, .remaining(100), .secondary, .secondary, .remaining(0), .secondary, .secondary]))
+        #expect((AccountQuotaFormatting.runs(for: zhipu, now: now).map(\.tone)) == ([.secondary, .remaining(100), .secondary, .secondary, .remaining(0), .secondary, .deadline(100)]))
         let zhipuHelp = AccountQuotaFormatting.help(for: zhipu, now: now)
         #expect(zhipuHelp.contains("5h 100%"))
         #expect(zhipuHelp.contains("7d 0%"))
@@ -441,7 +441,7 @@ struct AccountQuotaFormattingTests {
         let passedBoundary = AccountQuotaFormatting.periodEndPhrase(until: now.addingTimeInterval(-60), now: now)
         #expect((AccountQuotaFormatting.plainSummary(for: expiredPlan, now: now)) == (passedBoundary))
         // A passed boundary does not prove access expired or renewal stopped.
-        #expect((AccountQuotaFormatting.help(for: expiredPlan, now: now)) == ("\(passedBoundary)\nhttps://example.com"))
+        #expect((AccountQuotaFormatting.help(for: expiredPlan, now: now)) == ("\(passedBoundary)\n\(AccountQuotaFormatting.deadlineColorReference)\nhttps://example.com"))
 
         let deepseek = chip(
             kind: .deepseek,
