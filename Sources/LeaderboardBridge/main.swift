@@ -205,11 +205,21 @@ actor Engine {
                                     kind: chip.kind, isCurrent: chip.isCurrent, status: .qwenWebsite(quota))
         }
         let quotas = AccountQuotaFormatting.sortedChips(displayChips).map { chip in
-            Quota(id: chip.id, name: chip.shortName, isCurrent: chip.isCurrent, isStale: chip.isStale,
-                  help: language.quotaText(AccountQuotaFormatting.help(for: chip, now: now)),
-                  url: chip.websiteURL?.absoluteString, canConnect: chip.kind == .officialNote || chip.kind == .qwen,
-                  connection: chip.kind == .officialNote ? "openai" : (chip.kind == .qwen ? "qwen" : nil),
-                  runs: AccountQuotaFormatting.runs(for: chip, now: now).map { run in
+            // A Grok sign-in lives in CC Switch, so the card must not fall back
+            // to the provider's product page, which has no sign-in entry.
+            let ccSwitchSignIn = AccountQuotaFormatting.requiresCCSwitchSignIn(chip)
+            return Quota(id: chip.id, name: chip.shortName, isCurrent: chip.isCurrent, isStale: chip.isStale,
+                    // Help is one fixed phrase or one composed value per line,
+                    // and `quotaText` exact-matches a whole line only. Translating
+                    // the joined block would leave every fixed phrase in Chinese.
+                    help: AccountQuotaFormatting.help(for: chip, now: now)
+                        .components(separatedBy: "\n")
+                        .map(language.quotaText)
+                        .joined(separator: "\n"),
+                    url: ccSwitchSignIn ? nil : chip.websiteURL?.absoluteString,
+                    canConnect: chip.kind == .officialNote || chip.kind == .qwen || ccSwitchSignIn,
+                    connection: chip.kind == .officialNote ? "openai" : (chip.kind == .qwen ? "qwen" : (ccSwitchSignIn ? "ccswitch" : nil)),
+                    runs: AccountQuotaFormatting.runs(for: chip, now: now).map { run in
                 Run(text: language.quotaText(run.text), light: color(run.tone, dark: false), dark: color(run.tone, dark: true))
             })
         }

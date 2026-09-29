@@ -232,8 +232,39 @@ sealed class MainWindow : Window
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != "https") return;
         try { Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true }); } catch (System.ComponentModel.Win32Exception) { }
     }
+    /// Launches the installed CC Switch. Its per-user and per-machine install
+    /// directories both keep the executable name, so a miss only means the
+    /// caller shows the sign-in instruction instead.
+    static bool OpenCCSwitch()
+    {
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        foreach (var path in new[]
+        {
+            Path.Combine(local, "cc-switch", "cc-switch.exe"),
+            Path.Combine(local, "CC Switch", "cc-switch.exe"),
+            Path.Combine(local, "Programs", "cc-switch", "cc-switch.exe"),
+            Path.Combine(programFiles, "cc-switch", "cc-switch.exe"),
+            Path.Combine(programFiles, "CC Switch", "cc-switch.exe"),
+        })
+        {
+            if (!File.Exists(path)) continue;
+            try { Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); return true; }
+            catch (System.ComponentModel.Win32Exception) { }
+        }
+        return false;
+    }
     async Task Connect(Quota quota)
     {
+        // A Grok sign-in can only happen inside CC Switch, which owns the auth
+        // file this quota reads. The provider website has no sign-in entry.
+        if (quota.Connection == "ccswitch")
+        {
+            status.Text = OpenCCSwitch()
+                ? Tr("Sign in to Grok in CC Switch.", "请在 CC Switch 中登录 Grok。", "請在 CC Switch 中登入 Grok。")
+                : Tr("Open CC Switch to sign in to Grok.", "请打开 CC Switch 登录 Grok。", "請開啟 CC Switch 登入 Grok。");
+            return;
+        }
         if (engine is null) return;
         if (quota.Connection == "qwen")
         {
