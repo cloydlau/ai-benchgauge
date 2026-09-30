@@ -46,7 +46,7 @@
             "name": "Qwen3-Max-Thinking 长名称测试模型",
             "score": 94.6,
             "organization": "Alibaba",
-            "logo": "alibaba",
+            "logo": "qwen",
             "country": "china",
             "codingURL": null,
             "apiURL": null,
@@ -67,8 +67,8 @@
             "rank": 6,
             "name": "GLM-4.6",
             "score": 92.0,
-            "organization": "Zhipu AI",
-            "logo": "zhipu",
+            "organization": "Z.ai",
+            "logo": "zai",
             "country": "china",
             "codingURL": null,
             "apiURL": null,
@@ -79,7 +79,7 @@
             "name": "Kimi K2 Thinking",
             "score": 90.7,
             "organization": "Moonshot AI",
-            "logo": "moonshot",
+            "logo": "kimi",
             "country": "china",
             "codingURL": null,
             "apiURL": null,
@@ -90,7 +90,7 @@
             "name": "Grok 4 Fast Reasoning",
             "score": 89.4,
             "organization": "xAI",
-            "logo": "xai",
+            "logo": "spacexai",
             "country": "unitedStates",
             "codingURL": null,
             "apiURL": null,
@@ -109,10 +109,10 @@
           },
           {
             "rank": 10,
-            "name": "Command A Reasoning",
+            "name": "Ideogram 3.0",
             "score": 86.8,
-            "organization": "Cohere",
-            "logo": "cohere",
+            "organization": "Ideogram",
+            "logo": "ideogram",
             "country": "canada",
             "codingURL": null,
             "apiURL": null,
@@ -156,7 +156,7 @@
             "name": "Qwen3-Max-Thinking 长名称测试模型 · secondary evaluation",
             "score": 81.6,
             "organization": "Alibaba",
-            "logo": "alibaba",
+            "logo": "qwen",
             "country": "china",
             "codingURL": null,
             "apiURL": null,
@@ -177,8 +177,8 @@
             "rank": 16,
             "name": "GLM-4.6 · secondary evaluation",
             "score": 79.0,
-            "organization": "Zhipu AI",
-            "logo": "zhipu",
+            "organization": "Z.ai",
+            "logo": "zai",
             "country": "china",
             "codingURL": null,
             "apiURL": null,
@@ -189,7 +189,7 @@
             "name": "Kimi K2 Thinking · secondary evaluation",
             "score": 77.7,
             "organization": "Moonshot AI",
-            "logo": "moonshot",
+            "logo": "kimi",
             "country": "china",
             "codingURL": null,
             "apiURL": null,
@@ -200,7 +200,7 @@
             "name": "Grok 4 Fast Reasoning · secondary evaluation",
             "score": 76.4,
             "organization": "xAI",
-            "logo": "xai",
+            "logo": "spacexai",
             "country": "unitedStates",
             "codingURL": null,
             "apiURL": null,
@@ -219,10 +219,10 @@
           },
           {
             "rank": 20,
-            "name": "Command A Reasoning · secondary evaluation",
+            "name": "Ideogram 3.0 · secondary evaluation",
             "score": 73.8,
-            "organization": "Cohere",
-            "logo": "cohere",
+            "organization": "Ideogram",
+            "logo": "ideogram",
             "country": "canada",
             "codingURL": null,
             "apiURL": null,
@@ -275,7 +275,7 @@
             "name": "Qwen3-Max-Thinking 长名称测试模型",
             "score": 97.8,
             "organization": "Alibaba",
-            "logo": "alibaba",
+            "logo": "qwen",
             "country": "china",
             "codingURL": null,
             "apiURL": null,
@@ -296,8 +296,8 @@
             "rank": 6,
             "name": "GLM-4.6",
             "score": 95.2,
-            "organization": "Zhipu AI",
-            "logo": "zhipu",
+            "organization": "Z.ai",
+            "logo": "zai",
             "country": "china",
             "codingURL": null,
             "apiURL": null,
@@ -308,7 +308,7 @@
             "name": "Kimi K2 Thinking",
             "score": 93.9,
             "organization": "Moonshot AI",
-            "logo": "moonshot",
+            "logo": "kimi",
             "country": "china",
             "codingURL": null,
             "apiURL": null,
@@ -319,7 +319,7 @@
             "name": "Grok 4 Fast Reasoning",
             "score": 92.60000000000001,
             "organization": "xAI",
-            "logo": "xai",
+            "logo": "spacexai",
             "country": "unitedStates",
             "codingURL": null,
             "apiURL": null,
@@ -338,10 +338,10 @@
           },
           {
             "rank": 10,
-            "name": "Command A Reasoning",
+            "name": "Ideogram 3.0",
             "score": 90.0,
-            "organization": "Cohere",
-            "logo": "cohere",
+            "organization": "Ideogram",
+            "logo": "ideogram",
             "country": "canada",
             "codingURL": null,
             "apiURL": null,
@@ -385,7 +385,7 @@
             "name": "Qwen3-Max-Thinking 长名称测试模型 · secondary evaluation",
             "score": 84.8,
             "organization": "Alibaba",
-            "logo": "alibaba",
+            "logo": "qwen",
             "country": "china",
             "codingURL": null,
             "apiURL": null,
@@ -406,8 +406,8 @@
             "rank": 16,
             "name": "GLM-4.6 · secondary evaluation",
             "score": 82.2,
-            "organization": "Zhipu AI",
-            "logo": "zhipu",
+            "organization": "Z.ai",
+            "logo": "zai",
             "country": "china",
             "codingURL": null,
             "apiURL": null,
@@ -418,7 +418,7 @@
             "name": "Kimi K2 Thinking · secondary evaluation",
             "score": 80.9,
             "organization": "Moonshot AI",
-            "logo": "moonshot",
+            "logo": "kimi",
             "country": "china",
             "codingURL": null,
             "apiURL": null,
@@ -429,7 +429,7 @@
             "name": "Grok 4 Fast Reasoning · secondary evaluation",
             "score": 79.60000000000001,
             "organization": "xAI",
-            "logo": "xai",
+            "logo": "spacexai",
             "country": "unitedStates",
             "codingURL": null,
             "apiURL": null,
@@ -448,10 +448,10 @@
           },
           {
             "rank": 20,
-            "name": "Command A Reasoning · secondary evaluation",
+            "name": "Ideogram 3.0 · secondary evaluation",
             "score": 77.0,
-            "organization": "Cohere",
-            "logo": "cohere",
+            "organization": "Ideogram",
+            "logo": "ideogram",
             "country": "canada",
             "codingURL": null,
             "apiURL": null,
@@ -472,16 +472,21 @@
         "connection": null,
         "runs": [
           {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
             "text": "88.5%",
-            "light": "#198542",
-            "dark": "#198542"
+            "light": "#3C8438",
+            "dark": "#99D37C"
           }
         ],
-        "accentLight": "#198542"
+        "accentLight": "#3C8438"
       },
       {
         "id": "fixture-1",
-        "name": "Claude",
+        "name": "Kimi",
         "isCurrent": false,
         "isStale": false,
         "help": "Synthetic test data; no account access",
@@ -490,12 +495,17 @@
         "connection": null,
         "runs": [
           {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
             "text": "20%",
-            "light": "#DB2828",
-            "dark": "#DB2828"
+            "light": "#DB521D",
+            "dark": "#FF9153"
           }
         ],
-        "accentLight": "#DB2828"
+        "accentLight": "#DB521D"
       },
       {
         "id": "fixture-2",
@@ -508,12 +518,17 @@
         "connection": null,
         "runs": [
           {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
             "text": "99%",
-            "light": "#198542",
-            "dark": "#198542"
+            "light": "#1C8541",
+            "dark": "#7FD68B"
           }
         ],
-        "accentLight": "#198542"
+        "accentLight": "#1C8541"
       },
       {
         "id": "fixture-3",
@@ -526,12 +541,17 @@
         "connection": null,
         "runs": [
           {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
             "text": "55%",
-            "light": "#198542",
-            "dark": "#198542"
+            "light": "#9F8219",
+            "dark": "#EBCB4E"
           }
         ],
-        "accentLight": "#198542"
+        "accentLight": "#9F8219"
       },
       {
         "id": "fixture-4",
@@ -544,16 +564,21 @@
         "connection": null,
         "runs": [
           {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
             "text": "10%",
-            "light": "#DB2828",
-            "dark": "#DB2828"
+            "light": "#DB3D23",
+            "dark": "#FF825F"
           }
         ],
-        "accentLight": "#DB2828"
+        "accentLight": "#DB3D23"
       },
       {
         "id": "fixture-5",
-        "name": "Kimi",
+        "name": "xAI",
         "isCurrent": false,
         "isStale": false,
         "help": "Synthetic test data; no account access",
@@ -562,12 +587,17 @@
         "connection": null,
         "runs": [
           {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
             "text": "75%",
-            "light": "#198542",
-            "dark": "#198542"
+            "light": "#63832B",
+            "dark": "#BAD06A"
           }
         ],
-        "accentLight": "#198542"
+        "accentLight": "#63832B"
       }
     ],
     "quotaNeedsCCSwitch": false,

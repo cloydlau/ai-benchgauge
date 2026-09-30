@@ -71,7 +71,7 @@ sealed class MainWindow : Window
         await Task.WhenAll(Refresh("refreshBoards"), Refresh("refreshQuotas"));
         await CheckUpdates(false);
     }
-    public void Stop() { closing = true; boardTimer.Stop(); quotaClockTimer.Stop(); updateTimer.Stop(); SaveFrame(); }
+    public void Stop(bool savePreferences = true) { closing = true; boardTimer.Stop(); quotaClockTimer.Stop(); updateTimer.Stop(); if (savePreferences) SaveFrame(); }
     public void Toggle() { if (IsVisible) { Hide(); SaveFrame(); } else { Reveal(); _ = Refresh("refreshQuotas"); } }
     public void Reveal()
     {

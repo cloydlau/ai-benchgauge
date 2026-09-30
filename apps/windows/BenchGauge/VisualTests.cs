@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Interop;
@@ -65,7 +66,9 @@ static class VisualTests
         var root = Environment.CurrentDirectory;
         var directory = Path.Combine(root, "work", "visual-parity", "windows");
         Directory.CreateDirectory(directory);
-        var fixture = JsonSerializer.Deserialize<Fixture>(File.ReadAllText(Path.Combine(root, "tests", "fixtures", "visual-state.json")), AppConfig.Json)
+        var fixtureBytes = File.ReadAllBytes(Path.Combine(root, "tests", "fixtures", "visual-state.json"));
+        var fixtureHash = Convert.ToHexString(SHA256.HashData(fixtureBytes)).ToLowerInvariant();
+        var fixture = JsonSerializer.Deserialize<Fixture>(fixtureBytes, AppConfig.Json)
             ?? throw new InvalidOperationException("Missing visual fixture");
         var metadata = new List<object>();
         foreach (var test in fixture.Cases)
@@ -79,6 +82,15 @@ static class VisualTests
             try
             {
                 window.SetState(state); window.Reveal();
+                Settle(window);
+                // Fixture dimensions describe the content, independent of
+                // the native title bar and resize border in window mode.
+                if (test.Scenario == "window" && window.Content is FrameworkElement client)
+                {
+                    window.Width += test.Width - client.ActualWidth;
+                    window.Height += test.Height - client.ActualHeight;
+                    Settle(window);
+                }
                 // Centre and verify the complete client area fits the desktop.
                 window.Left = SystemParameters.WorkArea.Left + (SystemParameters.WorkArea.Width - window.ActualWidth) / 2;
                 window.Top = SystemParameters.WorkArea.Top + (SystemParameters.WorkArea.Height - window.ActualHeight) / 2;
@@ -107,9 +119,10 @@ static class VisualTests
                 var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(window);
                 metadata.Add(new { test.Id, test.Language, test.Scenario, test.Width, test.Height,
                     clientPixelWidth = rect.Right, clientPixelHeight = rect.Bottom, dpiScale = dpi.DpiScaleX,
+                    fixtureHash, timezone = TimeZoneInfo.Local.Id,
                     capture = "desktop-client-area", frames = new[] { "shown", "refreshed", "settled" }, os = Environment.OSVersion.ToString() });
             }
-            finally { window.Stop(); window.Close(); }
+            finally { window.Stop(savePreferences: false); window.Close(); }
         }
         File.WriteAllText(Path.Combine(directory, "metadata.json"), JsonSerializer.Serialize(metadata, new JsonSerializerOptions { WriteIndented = true }));
         app.Shutdown();

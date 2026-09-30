@@ -94,6 +94,23 @@ final class AppState: ObservableObject {
         selectedGrouping = GroupingPreference.load()
     }
 
+    #if DEBUG
+    /// The native visual suite supplies public fixture data and never starts
+    /// timers, network requests, authentication or account refreshes.
+    func applyVisualFixture(snapshot: LeaderboardSnapshot, chips: [AccountQuotaChip],
+                            language: AppLanguage, errors: [LeaderboardKind: String],
+                            emptyState: CCSwitchState?, panelMode: PanelMode = .clickToClose) {
+        self.snapshot = snapshot
+        quotaChips = chips
+        selectedLanguage = language
+        selectedCategory = .general
+        selectedGrouping = .model
+        self.panelMode = panelMode
+        lastErrors = errors
+        ccSwitchEmptyState = emptyState
+    }
+    #endif
+
     func start() {
         refreshNow()
         refreshQuotas(minimumInterval: 0)
