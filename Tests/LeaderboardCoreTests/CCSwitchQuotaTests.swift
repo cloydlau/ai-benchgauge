@@ -172,6 +172,31 @@ struct CCSwitchQuotaCatalogTests {
     }
 
     @Test
+    func testKeepsTheConfiguredModelForCompactSurfacesWithoutChangingProviderLabels() {
+        let targets = CCSwitchQuotaCatalog.targets(
+            from: [
+                record(
+                    id: "zhipu",
+                    name: "Zhipu GLM",
+                    isCurrent: true,
+                    meta: #"{"usage_script":{"enabled":true,"codingPlanProvider":"zhipu"}}"#,
+                    settings: settings(
+                        key: "zhipu-key",
+                        config: """
+                        model = "glm-5.3"
+                        base_url = "https://open.bigmodel.cn/api/paas/v4"
+                        """
+                    )
+                ),
+            ],
+            currentProviderID: "zhipu"
+        )
+
+        #expect((targets.first?.shortName) == ("GLM"))
+        #expect((targets.first?.modelName) == ("glm-5.3"))
+    }
+
+    @Test
     func testDisabledMislabeledScriptStillShowsQwenHostWithoutSendingItsKey() {
         let targets = CCSwitchQuotaCatalog.targets(
             from: [
@@ -309,18 +334,19 @@ struct AccountQuotaFormattingTests {
     func testMenuBarTextProjectsTheCurrentChip() {
         let pending = chip(kind: .kimi, status: .pending)
         let current = AccountQuotaChip(
-            id: "qwen", shortName: "千问", websiteURL: nil, kind: .qwen, isCurrent: true,
+            id: "qwen", shortName: "千问", modelName: "qwen3.8-max", websiteURL: nil,
+            kind: .qwen, isCurrent: true,
             status: .qwenWebsite(QwenWebsiteQuota(
                 periodLabel: "1mo", remainingPercent: 42, resetsAt: nil
             ))
         )
-        #expect((AccountQuotaFormatting.menuBarText(forChips: [pending, current])) == (AccountQuotaMenuBarText(name: "千问", fullName: "千问", quota: "1mo 42%")))
+        #expect((AccountQuotaFormatting.menuBarText(forChips: [pending, current])) == (AccountQuotaMenuBarText(name: "qwen3.8-max", fullName: "qwen3.8-max", quota: "1mo 42%")))
         #expect((AccountQuotaFormatting.menuBarText(forChips: [pending])) == nil)
         #expect((AccountQuotaFormatting.menuBarText(forChips: [])) == nil)
 
         let longName = String(repeating: "a", count: 30)
         let long = AccountQuotaChip(
-            id: "long", shortName: longName, websiteURL: nil,
+            id: "long", shortName: "Kimi", modelName: longName, websiteURL: nil,
             kind: .kimi, isCurrent: true,
             status: .windows([ParsedQuotaWindow(name: "seven_day", utilization: 10, resetsAt: nil)])
         )
@@ -1478,6 +1504,13 @@ struct AccountQuotaClientTests {
         #expect((transport.requests.filter { $0.url?.absoluteString == "https://auth.x.ai/oauth2/token" }.count) == 2)
         #expect((XAIOAuthKeepAlivePolicy.successInterval) == (6.5 * 24 * 60 * 60))
         #expect((XAIOAuthKeepAlivePolicy.failureRetryInterval) == (60 * 60))
+
+        let scheduleURL = directory.appending(path: "keepalive-schedule.json")
+        let scheduleStore = XAIOAuthKeepAliveScheduleStore(fileURL: scheduleURL)
+        let next = Date().addingTimeInterval(XAIOAuthKeepAlivePolicy.successInterval)
+        scheduleStore.save(accountID: "acct-1", nextAt: next)
+        #expect(scheduleStore.nextDate(accountID: "acct-1").map { abs($0.timeIntervalSince(next)) < 1 } == true)
+        #expect((scheduleStore.nextDate(accountID: "acct-2")) == (nil))
     }
 
     @Test
