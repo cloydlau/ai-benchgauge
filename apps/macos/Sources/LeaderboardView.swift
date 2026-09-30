@@ -212,9 +212,10 @@ struct LeaderboardView: View {
                 )
                 .padding(.top, 10)
                 .background(QuotaStripAnchor())
-            } else if state.ccSwitchEmptyState == .notInstalled {
+            } else if state.ccSwitchEmptyState != nil {
                 quotaSetupPrompt
                     .padding(.top, 10)
+                    .background(QuotaStripAnchor())
             }
         }
         .padding(.horizontal, 18)
@@ -228,7 +229,7 @@ struct LeaderboardView: View {
     private func quotaSetupPrompt(isScreenshot: Bool) -> some View {
         let installed = !isScreenshot && state.ccSwitchEmptyState == .installedEmpty
         return HStack(spacing: 3) {
-            Text(installed ? tr("Configure models in", "请在") : tr("Install", "安装"))
+            Text(installed ? tr("Open", "请在") : tr("Install", "安装"))
                 .foregroundStyle(.secondary)
             if isScreenshot {
                 // ImageRenderer cannot draw AppKit-backed Link controls.
@@ -249,12 +250,18 @@ struct LeaderboardView: View {
                 .pointingHandCursor()
             }
             Text(installed
-                 ? tr("to see provider quotas here.", "中配置模型，即可在这里查看余量。")
+                 ? tr("to add a provider or sign in and see quotas here.", "中添加供应商或登录，即可在这里查看余量。")
                  : tr("to see provider quotas here.", "，即可在这里查看各家提供商的余量。"))
                 .foregroundStyle(.secondary)
         }
         .font(.system(size: 11))
-        .frame(maxWidth: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, minHeight: 28, alignment: .center)
+        .background(.quaternary.opacity(0.2), in: RoundedRectangle(cornerRadius: 6))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(.secondary.opacity(0.25), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+        }
+        .accessibilityIdentifier("quota-setup-placeholder")
     }
 
     private func sourceHeaderHelp(kind: LeaderboardKind, description: SourceLensDescription) -> String {
