@@ -1437,6 +1437,50 @@ struct AccountQuotaClientTests {
     }
 
     @Test
+    func testXAIKeepAliveForcesRefreshTokenRotationBeyondAccessTokenCache() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "xai-keep-alive-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let authURL = directory.appending(path: "xai_oauth_auth.json")
+        try Data(xaiAuthJSON(requiresReauth: false).utf8).write(to: authURL)
+
+        let transport = ScriptedQuotaTransport { request in
+            switch request.url?.absoluteString {
+            case "https://auth.x.ai/.well-known/openid-configuration":
+                return AccountQuotaHTTPResponse(
+                    statusCode: 200,
+                    headers: [:],
+                    body: Data(
+                        #"{"issuer":"https://auth.x.ai","token_endpoint":"https://auth.x.ai/oauth2/token"}"#.utf8
+                    )
+                )
+            case "https://auth.x.ai/oauth2/token":
+                return AccountQuotaHTTPResponse(
+                    statusCode: 200,
+                    headers: [:],
+                    body: Data(#"{"access_token":"unit-test-access","expires_in":3600}"#.utf8)
+                )
+            case "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig":
+                return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data())
+            default:
+                recordFailure("unexpected request \(request.url?.absoluteString ?? "")")
+                return AccountQuotaHTTPResponse(statusCode: 500, headers: [:], body: Data())
+            }
+        }
+        let client = AccountQuotaClient(transport: transport, authFileURL: authURL)
+        let target = quotaTarget(id: "xai", name: "xAI", kind: .xaiOAuth, key: nil)
+
+        _ = try await client.refresh(targets: [target], authFileURL: authURL)
+        let outcome = try await client.keepAliveXAI(authFileURL: authURL)
+
+        #expect((outcome) == (.renewed))
+        #expect((transport.requests.filter { $0.url?.absoluteString == "https://auth.x.ai/oauth2/token" }.count) == 2)
+        #expect((XAIOAuthKeepAlivePolicy.successInterval) == (6.5 * 24 * 60 * 60))
+        #expect((XAIOAuthKeepAlivePolicy.failureRetryInterval) == (60 * 60))
+    }
+
+    @Test
     func testZhipuUsesTheHostThatMatchesItsBaseURL() async throws {
         let baseURL = "https://open.bigmodel.cn/api/paas/v4"
         let transport = ScriptedQuotaTransport { request in
