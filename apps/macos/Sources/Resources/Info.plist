@@ -39,7 +39,7 @@
 	<key>SUFeedURL</key>
 	<string>https://github.com/cloydlau/ai-benchgauge/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string>7rgwKvsc0BVscgwm1gX3FPSktJ/aGfswwsZJvamaSno=</string>
+	<string>9+gdSEuQHeTGT4AF36euyIL6wSjR9QdcpLXs+cmjFeU=</string>
 	<key>SURequireSignedFeed</key>
 	<true/>
 	<key>SUScheduledCheckInterval</key>
