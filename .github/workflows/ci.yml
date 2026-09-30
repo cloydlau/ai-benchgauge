@@ -22,11 +22,16 @@ jobs:
         with:
           dotnet-version: '10.0.401'
       - name: Screenshots and recordings need review
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            node Scripts/media-gate-ci.mjs "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}"
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            node Scripts/media-gate-ci.mjs "$PR_BASE_SHA" "$HEAD_SHA"
           else
-            node Scripts/media-gate-ci.mjs "${{ github.event.before }}" "${{ github.sha }}"
+            node Scripts/media-gate-ci.mjs "$BEFORE_SHA" "$HEAD_SHA"
           fi
       - name: Tests and packaged application
         run: |

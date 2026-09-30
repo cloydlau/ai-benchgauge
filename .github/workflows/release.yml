@@ -29,7 +29,10 @@ jobs:
       - uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: '10.0.401'
-      - run: node Scripts/validate-app-config.mjs "${{ github.ref_name }}"
+      - name: Validate shared app configuration
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node Scripts/validate-app-config.mjs "$RELEASE_TAG"
       - name: Validate tag, update configuration, and increasing version
         env:
           GH_TOKEN: ${{ github.token }}
