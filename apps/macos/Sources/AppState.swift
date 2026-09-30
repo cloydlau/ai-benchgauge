@@ -4,7 +4,7 @@ import LeaderboardCore
 
 private struct CCSwitchQuotaLoad: Sendable {
     var result: CCSwitchProviderLoadResult
-    var databaseMissing: Bool
+    var isInstalled: Bool
     var currentProviderID: String?
     var xaiAuthURL: URL
 }
@@ -33,7 +33,7 @@ final class AppState: ObservableObject {
     @Published private(set) var quotaChips: [AccountQuotaChip] = []
     @Published private(set) var quotaUpdatedAt: Date?
     @Published private(set) var quotaUnavailable = false
-    @Published private(set) var quotaNeedsCCSwitch = false
+    @Published private(set) var ccSwitchEmptyState: CCSwitchState?
     @Published private(set) var connectingOpenAIProviderID: String?
 
     /// The status item is a projection of the same chips the panel renders, so
@@ -46,6 +46,9 @@ final class AppState: ObservableObject {
     private let fetcher = LeaderboardFetcher()
     private let cache: LeaderboardCache
     private let defaults: UserDefaults
+    private let configuration = AppConfiguration.load(
+        from: Bundle.main.url(forResource: "app", withExtension: "json")
+    )
     private let qwenWebsiteSource = QwenWebsiteQuotaSource()
     private let openAIConnection = OpenAIAccountConnection()
     private var quotaTargetsByID: [String: CCSwitchQuotaTarget] = [:]
@@ -135,10 +138,23 @@ final class AppState: ObservableObject {
     /// recovers on the next refresh, which re-reads that file.
     func openCCSwitchSignIn(_ chip: AccountQuotaChip) {
         guard !isQuitting, chip.kind == .xaiOAuth else { return }
+        openCCSwitch()
+    }
+
+    func openCCSwitch() {
+        guard !isQuitting else { return }
+        if let running = NSRunningApplication.runningApplications(
+            withBundleIdentifier: CCSwitchProviderStore.bundleID
+        ).first {
+            running.activate(options: [.activateAllWindows])
+            return
+        }
         if let appURL = NSWorkspace.shared.urlForApplication(
             withBundleIdentifier: CCSwitchProviderStore.bundleID
         ) {
-            NSWorkspace.shared.openApplication(at: appURL, configuration: .init()) { _, _ in }
+            let options = NSWorkspace.OpenConfiguration()
+            options.activates = true
+            NSWorkspace.shared.openApplication(at: appURL, configuration: options) { _, _ in }
             return
         }
         NSWorkspace.shared.open(CCSwitchProviderStore.downloadURL)
@@ -243,7 +259,9 @@ final class AppState: ObservableObject {
     }
 
     private func currentQuotaProviderSelection() -> String? {
-        CCSwitchProviderStore.currentCodexProviderID(
+        guard configuration.previewCCSwitchState != .notInstalled,
+              configuration.previewCCSwitchState != .installedEmpty else { return nil }
+        return CCSwitchProviderStore.currentCodexProviderID(
             settingsURL: CCSwitchProviderStore.resolveInstall().settingsURL
         )
     }
@@ -259,6 +277,12 @@ final class AppState: ObservableObject {
         inactiveMinimumInterval: TimeInterval = 0,
         inactiveScope: InactiveQuotaRefreshScope = .all
     ) {
+        if let preview = configuration.previewCCSwitchState, preview != .configured {
+            quotaTask?.cancel()
+            quotaGeneration += 1
+            showCCSwitchEmptyState(preview)
+            return
+        }
         guard !isQuitting, connectingOpenAIProviderID == nil else { return }
         if let lastQuotaAttemptAt,
            Date().timeIntervalSince(lastQuotaAttemptAt) < minimumInterval {
@@ -268,6 +292,9 @@ final class AppState: ObservableObject {
         quotaGeneration += 1
         let generation = quotaGeneration
         quotaTask?.cancel()
+        let isInstalled = NSWorkspace.shared.urlForApplication(
+            withBundleIdentifier: CCSwitchProviderStore.bundleID
+        ) != nil
 
         quotaTask = Task { [weak self] in
             guard let self else { return }
@@ -282,7 +309,7 @@ final class AppState: ObservableObject {
                 }
                 return CCSwitchQuotaLoad(
                     result: result,
-                    databaseMissing: !FileManager.default.fileExists(atPath: install.databaseURL.path(percentEncoded: false)),
+                    isInstalled: isInstalled,
                     currentProviderID: currentID,
                     xaiAuthURL: install.xaiAuthURL
                 )
@@ -291,31 +318,25 @@ final class AppState: ObservableObject {
 
             switch loaded.result {
             case .absent:
-                self.quotaUnavailable = false
-                self.quotaNeedsCCSwitch = loaded.databaseMissing
-                self.quotaChips = []
-                self.quotaUpdatedAt = nil
-                self.lastQuotaAttemptAtByID = [:]
-                self.xaiKeepAliveAccountID = nil
-                self.nextXAIKeepAliveAt = nil
+                self.showCCSwitchEmptyState(self.configuration.ccSwitchState(
+                    isInstalled: loaded.isInstalled, hasProviders: false
+                ))
             case .unavailable:
                 // Keep the last chips. The strip only notes that this read failed.
                 self.quotaUnavailable = true
-                self.quotaNeedsCCSwitch = false
+                self.ccSwitchEmptyState = nil
             case let .records(records):
                 self.quotaUnavailable = false
-                self.quotaNeedsCCSwitch = false
+                self.ccSwitchEmptyState = nil
                 let targets = CCSwitchQuotaCatalog.targets(
                     from: records,
                     currentProviderID: loaded.currentProviderID
                 )
                 self.quotaTargetsByID = Dictionary(uniqueKeysWithValues: targets.map { ($0.id, $0) })
                 guard !targets.isEmpty else {
-                    self.quotaChips = []
-                    self.quotaUpdatedAt = nil
-                    self.lastQuotaAttemptAtByID = [:]
-                    self.xaiKeepAliveAccountID = nil
-                    self.nextXAIKeepAliveAt = nil
+                    self.showCCSwitchEmptyState(self.configuration.ccSwitchState(
+                        isInstalled: loaded.isInstalled, hasProviders: false
+                    ))
                     return
                 }
                 if targets.contains(where: { $0.kind == .xaiOAuth }) {
@@ -427,6 +448,23 @@ final class AppState: ObservableObject {
         guard let data = try? Data(contentsOf: url),
               let snapshot = XaiAuthFile.parse(data) else { return nil }
         return XaiAuthFile.selectedAccount(snapshot)?.id
+    }
+
+    private func showCCSwitchEmptyState(_ state: CCSwitchState) {
+        ccSwitchEmptyState = state == .configured ? nil : state
+        quotaUnavailable = false
+        quotaTargetsByID = [:]
+        quotaChips = state == .configured ? [
+            AccountQuotaChip(
+                id: "preview-openai", shortName: "OpenAI · 示例", websiteURL: nil,
+                kind: .officialNote, isCurrent: true,
+                status: .windows([ParsedQuotaWindow(name: "weekly", utilization: 25, resetsAt: nil)])
+            ),
+        ] : []
+        quotaUpdatedAt = nil
+        lastQuotaAttemptAtByID = [:]
+        xaiKeepAliveAccountID = nil
+        nextXAIKeepAliveAt = nil
     }
 
     /// Keeps the last shown value while a refresh is in flight so a failure
