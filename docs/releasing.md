@@ -77,10 +77,19 @@ git push origin v1.0.1
 
 1. 检查标签来自 `main`，与应用版本、构建版本一致，且高于已发布稳定版。
 2. 分别在 macOS / Windows 执行共享核心测试、脚本和 Windows 验签测试；Windows 还检查原生窗口及打包引擎。
-3. 构建 Apple 芯片与 Intel 通用 `.dmg`、Windows x64 自包含安装 `.exe`，生成含发布说明的更新清单，签名并验证，生成 SHA-256 清单。
+3. 构建 Apple 芯片与 Intel 通用 `.dmg`、Windows x64 自包含安装 `.exe`，生成含发布说明的更新清单，签名并验证，生成 Homebrew Cask 与 SHA-256 清单。
 4. 将所有附件上传为 GitHub 草稿 Release，完整上传成功后发布并设为最新稳定版。
+5. 发布成功后，用 GitHub Contents API 把 `Casks/ai-benchgauge.rb` 更新到 `main`，Cask 始终指向当前版本的固定 DMG 地址。
 
-最终附件为 `AI-BenchGauge-版本-macos-universal.dmg`、`AI-BenchGauge-版本-windows-x64-setup.exe`、`appcast.xml`、`windows-update.json`、`windows-update.json.sig` 和 `SHA256SUMS.txt`。
+最终附件为 `AI-BenchGauge-版本-macos-universal.dmg`、`AI-BenchGauge-版本-windows-x64-setup.exe`、`appcast.xml`、`windows-update.json`、`windows-update.json.sig`、`ai-benchgauge.rb` 和 `SHA256SUMS.txt`。
+首次 Release 成功后，`main` 会包含 `Casks/ai-benchgauge.rb`。用户可通过仓库 tap 安装：
+
+```bash
+brew tap cloydlau/ai-benchgauge https://github.com/cloydlau/ai-benchgauge
+brew install --cask cloydlau/ai-benchgauge/ai-benchgauge
+```
+
+Cask 复用同一个 Developer ID 签名 / 公证 DMG，并设置 `auto_updates true`；日常更新仍由应用内 Sparkle 完成。需要强制同步 Homebrew 记录的版本时，可使用 `brew upgrade --cask --greedy cloydlau/ai-benchgauge/ai-benchgauge`。
 失败不会更新线上稳定版清单。已发布的版本不覆盖；修正问题后使用更高版本号。
 若仅发布草稿的最后一步失败，可在 GitHub 确认附件齐全后手动发布该草稿。
 

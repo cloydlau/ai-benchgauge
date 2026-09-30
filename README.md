@@ -90,6 +90,13 @@ the title to check immediately. See [release setup and signing](docs/releasing.m
 ## Quick start
 
 Download the Universal Mac `.dmg` or Windows x64 `-setup.exe` from [GitHub Releases](https://github.com/cloydlau/ai-benchgauge/releases), using the compatibility table above.
+On macOS, you can also install the signed cask with Homebrew; Sparkle continues to handle in-app updates:
+
+```bash
+brew tap cloydlau/ai-benchgauge https://github.com/cloydlau/ai-benchgauge
+brew install --cask cloydlau/ai-benchgauge/ai-benchgauge
+```
+
 Mac source builds require Swift 6, Command Line Tools and .NET 10 SDK for the Windows update tests:
 
 ```bash

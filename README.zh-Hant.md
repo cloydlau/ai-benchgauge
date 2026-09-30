@@ -89,6 +89,13 @@ xAI 顯示「需要重新登入」或「未登錄」時，點擊卡片會開啟 
 ## 快速開始
 
 從 [GitHub Releases](https://github.com/cloydlau/ai-benchgauge/releases) 下載 Mac 通用 `.dmg` 或 Windows x64 `-setup.exe`，依上方相容性表選擇。
+Mac 也可以用 Homebrew 安裝簽署 Cask，後續更新繼續由應用程式內 Sparkle 提供：
+
+```bash
+brew tap cloydlau/ai-benchgauge https://github.com/cloydlau/ai-benchgauge
+brew install --cask cloydlau/ai-benchgauge/ai-benchgauge
+```
+
 Mac 原始碼建置需要 Swift 6、Command Line Tools 與 .NET 10 SDK（執行 Windows 更新測試）：
 
 ```bash
