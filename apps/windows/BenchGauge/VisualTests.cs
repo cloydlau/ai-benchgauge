@@ -22,8 +22,44 @@ static class VisualTests
     [StructLayout(LayoutKind.Sequential)] struct Point { public int X, Y; }
     [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr window, out Rect rect);
     [DllImport("user32.dll")] static extern bool ClientToScreen(IntPtr window, ref Point point);
+    // DEVMODEW: retain all driver-populated bytes, modifying only a supported
+    // mode returned by EnumDisplaySettings (not an invented resolution).
+    [StructLayout(LayoutKind.Explicit, Size = 220)] struct DisplayMode
+    {
+        [FieldOffset(68)] public ushort Size;
+        [FieldOffset(72)] public uint Fields;
+        [FieldOffset(172)] public uint Width;
+        [FieldOffset(176)] public uint Height;
+    }
+    [DllImport("user32.dll", EntryPoint = "EnumDisplaySettingsW", CharSet = CharSet.Unicode)]
+    static extern bool EnumDisplaySettings(string? device, int index, ref DisplayMode mode);
+    [DllImport("user32.dll", EntryPoint = "ChangeDisplaySettingsW")]
+    static extern int ChangeDisplaySettings(ref DisplayMode mode, int flags);
 
     public static void Run()
+    {
+        DisplayMode? original = null;
+        if (Environment.GetEnvironmentVariable("CI") == "true")
+        {
+            var current = new DisplayMode { Size = 220 };
+            if (!EnumDisplaySettings(null, -1, ref current)) throw new InvalidOperationException("Cannot read CI desktop mode");
+            if (current.Width < 1200 || current.Height < 900)
+            {
+                for (var index = 0; ; index++)
+                {
+                    var candidate = new DisplayMode { Size = 220 };
+                    if (!EnumDisplaySettings(null, index, ref candidate)) throw new InvalidOperationException("CI desktop has no supported resolution large enough for visual cases");
+                    if (candidate.Width < 1200 || candidate.Height < 900) continue;
+                    if (ChangeDisplaySettings(ref candidate, 0) != 0) continue;
+                    original = current; break;
+                }
+            }
+        }
+        try { CaptureCases(); }
+        finally { if (original is { } restore) ChangeDisplaySettings(ref restore, 0); }
+    }
+
+    static void CaptureCases()
     {
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         var root = Environment.CurrentDirectory;
