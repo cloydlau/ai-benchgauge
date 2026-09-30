@@ -51,6 +51,7 @@ final class AppState: ObservableObject {
     private var quotaTargetsByID: [String: CCSwitchQuotaTarget] = [:]
     private var quotaClient: AccountQuotaClient!
     private let quotaNotifier = QuotaNotifier()
+    private let xaiKeepAliveScheduleStore = XAIOAuthKeepAliveScheduleStore()
     private var updateTimer: Timer?
     private var refreshTask: Task<Void, Never>?
     private var quotaTask: Task<Void, Never>?
@@ -58,6 +59,7 @@ final class AppState: ObservableObject {
     private var lastLeaderboardAttemptAtByCategory: [LeaderboardCategory: Date] = [:]
     private var lastQuotaAttemptAt: Date?
     private var lastQuotaAttemptAtByID: [String: Date] = [:]
+    private var xaiKeepAliveAccountID: String?
     private var nextXAIKeepAliveAt: Date?
     private var isXAIKeepAliveRefreshing = false
     private var quotaGeneration = 0
@@ -294,6 +296,7 @@ final class AppState: ObservableObject {
                 self.quotaChips = []
                 self.quotaUpdatedAt = nil
                 self.lastQuotaAttemptAtByID = [:]
+                self.xaiKeepAliveAccountID = nil
                 self.nextXAIKeepAliveAt = nil
             case .unavailable:
                 // Keep the last chips. The strip only notes that this read failed.
@@ -311,12 +314,14 @@ final class AppState: ObservableObject {
                     self.quotaChips = []
                     self.quotaUpdatedAt = nil
                     self.lastQuotaAttemptAtByID = [:]
+                    self.xaiKeepAliveAccountID = nil
                     self.nextXAIKeepAliveAt = nil
                     return
                 }
                 if targets.contains(where: { $0.kind == .xaiOAuth }) {
                     await self.refreshXAIKeepAliveIfDue(authFileURL: loaded.xaiAuthURL)
                 } else {
+                    self.xaiKeepAliveAccountID = nil
                     self.nextXAIKeepAliveAt = nil
                 }
                 var previous = self.displayChips(for: targets)
@@ -326,6 +331,7 @@ final class AppState: ObservableObject {
                         return AccountQuotaChip(
                             id: chip.id,
                             shortName: chip.shortName,
+                            modelName: chip.modelName,
                             websiteURL: chip.websiteURL,
                             kind: chip.kind,
                             isCurrent: chip.isCurrent,
@@ -372,6 +378,7 @@ final class AppState: ObservableObject {
                         return AccountQuotaChip(
                             id: chip.id,
                             shortName: chip.shortName,
+                            modelName: chip.modelName,
                             websiteURL: chip.websiteURL,
                             kind: chip.kind,
                             isCurrent: chip.isCurrent,
@@ -388,6 +395,13 @@ final class AppState: ObservableObject {
     /// seven-day boundary minus a safety margin.
     private func refreshXAIKeepAliveIfDue(authFileURL: URL) async {
         guard !isXAIKeepAliveRefreshing else { return }
+        let accountID = Self.selectedXAIAuthAccountID(at: authFileURL)
+        if let persisted = xaiKeepAliveScheduleStore.nextDate(accountID: accountID) {
+            nextXAIKeepAliveAt = persisted
+        } else if xaiKeepAliveAccountID != accountID {
+            nextXAIKeepAliveAt = nil
+        }
+        xaiKeepAliveAccountID = accountID
         if let next = nextXAIKeepAliveAt, Date() < next { return }
         isXAIKeepAliveRefreshing = true
         defer { isXAIKeepAliveRefreshing = false }
@@ -400,11 +414,19 @@ final class AppState: ObservableObject {
             outcome = .retry
         }
         if Task.isCancelled { return }
-        nextXAIKeepAliveAt = Date().addingTimeInterval(
+        let next = Date().addingTimeInterval(
             outcome == .renewed
                 ? XAIOAuthKeepAlivePolicy.successInterval
                 : XAIOAuthKeepAlivePolicy.failureRetryInterval
         )
+        nextXAIKeepAliveAt = next
+        xaiKeepAliveScheduleStore.save(accountID: accountID, nextAt: next)
+    }
+
+    private static func selectedXAIAuthAccountID(at url: URL) -> String? {
+        guard let data = try? Data(contentsOf: url),
+              let snapshot = XaiAuthFile.parse(data) else { return nil }
+        return XaiAuthFile.selectedAccount(snapshot)?.id
     }
 
     /// Keeps the last shown value while a refresh is in flight so a failure
@@ -416,6 +438,7 @@ final class AppState: ObservableObject {
                 return AccountQuotaChip(
                     id: target.id,
                     shortName: target.shortName,
+                    modelName: target.modelName,
                     websiteURL: target.websiteURL,
                     kind: target.kind,
                     isCurrent: target.isCurrent,
