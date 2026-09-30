@@ -58,6 +58,8 @@ final class AppState: ObservableObject {
     private var lastLeaderboardAttemptAtByCategory: [LeaderboardCategory: Date] = [:]
     private var lastQuotaAttemptAt: Date?
     private var lastQuotaAttemptAtByID: [String: Date] = [:]
+    private var nextXAIKeepAliveAt: Date?
+    private var isXAIKeepAliveRefreshing = false
     private var quotaGeneration = 0
     /// The current-provider selection this app last reacted to. CC Switch owns
     /// the value and rewrites its tiny settings file on every switch.
@@ -98,14 +100,12 @@ final class AppState: ObservableObject {
     /// own intervals because they read different sources.
     private static let minimumLeaderboardRefreshInterval: TimeInterval = 30 * 60
     private static let inactiveQuotaRefreshInterval: TimeInterval = 60
-    /// Refresh the persistent menu bar quota every 30 minutes. The status item
-    /// queries the current provider plus inactive xAI, whose OAuth refresh
-    /// token otherwise stops being rotated after switching away from Grok. The
-    /// keepalive runs on a slower cadence than the current-provider quota.
-    /// Other inactive chips are refreshed when the panel is opened. A provider
-    /// switch does not wait for this cadence; see the selection check in tick().
+    /// Refresh the persistent menu bar quota every 30 minutes. Inactive xAI
+    /// gets a separate token renewal near its observed seven-day login
+    /// lifetime; other inactive chips are refreshed when the panel is opened.
+    /// A provider switch does not wait for this cadence; see the selection
+    /// check in tick().
     private static let backgroundQuotaRefreshInterval: TimeInterval = 30 * 60
-    private static let xaiOAuthKeepAliveInterval: TimeInterval = 6 * 60 * 60
 
     func refreshFromMenuClick() {
         refreshQuotas(
@@ -212,7 +212,7 @@ final class AppState: ObservableObject {
         refreshQuotaSelectionIfChanged()
         refreshQuotas(
             minimumInterval: Self.backgroundQuotaRefreshInterval,
-            inactiveMinimumInterval: Self.xaiOAuthKeepAliveInterval,
+            inactiveMinimumInterval: 0,
             inactiveScope: .xaiOAuthOnly
         )
         if Date() >= schedule.giveUpAt {
@@ -294,6 +294,7 @@ final class AppState: ObservableObject {
                 self.quotaChips = []
                 self.quotaUpdatedAt = nil
                 self.lastQuotaAttemptAtByID = [:]
+                self.nextXAIKeepAliveAt = nil
             case .unavailable:
                 // Keep the last chips. The strip only notes that this read failed.
                 self.quotaUnavailable = true
@@ -310,7 +311,13 @@ final class AppState: ObservableObject {
                     self.quotaChips = []
                     self.quotaUpdatedAt = nil
                     self.lastQuotaAttemptAtByID = [:]
+                    self.nextXAIKeepAliveAt = nil
                     return
+                }
+                if targets.contains(where: { $0.kind == .xaiOAuth }) {
+                    await self.refreshXAIKeepAliveIfDue(authFileURL: loaded.xaiAuthURL)
+                } else {
+                    self.nextXAIKeepAliveAt = nil
                 }
                 var previous = self.displayChips(for: targets)
                 if let cachedQwen = self.qwenWebsiteSource.cachedQuota() {
@@ -331,7 +338,7 @@ final class AppState: ObservableObject {
                 let now = Date()
                 let targetsToRefresh = targets.filter { target in
                     if target.isCurrent { return true }
-                    if inactiveScope == .xaiOAuthOnly, target.kind != .xaiOAuth {
+                    if inactiveScope == .xaiOAuthOnly {
                         return false
                     }
                     guard let lastAttempt = self.lastQuotaAttemptAtByID[target.id] else {
@@ -374,6 +381,30 @@ final class AppState: ObservableObject {
                 }
             }
         }
+    }
+
+    /// Forces a refresh-token exchange rather than relying on a quota request.
+    /// xAI does not publish the login lifetime, so this uses the observed
+    /// seven-day boundary minus a safety margin.
+    private func refreshXAIKeepAliveIfDue(authFileURL: URL) async {
+        guard !isXAIKeepAliveRefreshing else { return }
+        if let next = nextXAIKeepAliveAt, Date() < next { return }
+        isXAIKeepAliveRefreshing = true
+        defer { isXAIKeepAliveRefreshing = false }
+        let outcome: XAIOAuthKeepAliveOutcome
+        do {
+            outcome = try await quotaClient.keepAliveXAI(authFileURL: authFileURL)
+        } catch is CancellationError {
+            return
+        } catch {
+            outcome = .retry
+        }
+        if Task.isCancelled { return }
+        nextXAIKeepAliveAt = Date().addingTimeInterval(
+            outcome == .renewed
+                ? XAIOAuthKeepAlivePolicy.successInterval
+                : XAIOAuthKeepAlivePolicy.failureRetryInterval
+        )
     }
 
     /// Keeps the last shown value while a refresh is in flight so a failure
