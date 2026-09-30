@@ -47,6 +47,8 @@ public enum CCSwitchQuotaKind: Equatable, Sendable {
 public struct CCSwitchQuotaTarget: Equatable, Sendable, Identifiable {
     public let id: String
     public let shortName: String
+    /// Concrete model configured for this provider, shown in compact surfaces.
+    public let modelName: String?
     public let websiteURL: URL?
     public let kind: CCSwitchQuotaKind
     public let isCurrent: Bool
@@ -61,6 +63,7 @@ public struct CCSwitchQuotaTarget: Equatable, Sendable, Identifiable {
     public init(
         id: String,
         shortName: String,
+        modelName: String? = nil,
         websiteURL: URL?,
         kind: CCSwitchQuotaKind,
         isCurrent: Bool,
@@ -71,6 +74,7 @@ public struct CCSwitchQuotaTarget: Equatable, Sendable, Identifiable {
     ) {
         self.id = id
         self.shortName = shortName
+        self.modelName = modelName
         self.websiteURL = websiteURL
         self.kind = kind
         self.isCurrent = isCurrent
@@ -153,6 +157,8 @@ public struct AccountQuotaChip: Identifiable, Equatable, Sendable {
 
     public let id: String
     public let shortName: String
+    /// Concrete model configured for this provider, if CC Switch provides one.
+    public let modelName: String?
     public let websiteURL: URL?
     public let kind: CCSwitchQuotaKind
     public let isCurrent: Bool
@@ -163,6 +169,7 @@ public struct AccountQuotaChip: Identifiable, Equatable, Sendable {
     public init(
         id: String,
         shortName: String,
+        modelName: String? = nil,
         websiteURL: URL?,
         kind: CCSwitchQuotaKind,
         isCurrent: Bool,
@@ -171,6 +178,7 @@ public struct AccountQuotaChip: Identifiable, Equatable, Sendable {
     ) {
         self.id = id
         self.shortName = shortName
+        self.modelName = modelName
         self.websiteURL = websiteURL
         self.kind = kind
         self.isCurrent = isCurrent
@@ -202,9 +210,9 @@ public struct QuotaTextRun: Equatable, Sendable {
 /// The status item's projection of the quota snapshot: the provider the panel
 /// marks as current, plus the compact amount it shows.
 public struct AccountQuotaMenuBarText: Equatable, Sendable {
-    /// Provider name shortened to fit the menu bar.
+    /// Model or provider name shortened to fit the menu bar.
     public let name: String
-    /// Untruncated provider name, for the tooltip.
+    /// Untruncated model or provider name, for the tooltip.
     public let fullName: String
     public let quota: String
 
@@ -227,7 +235,7 @@ public enum AccountQuotaFormatting {
     ) -> AccountQuotaMenuBarText? {
         guard let current = chips.first(where: \.isCurrent),
               let quota = compactMenuBarQuota(for: current) else { return nil }
-        let fullName = current.shortName
+        let fullName = current.modelName ?? current.shortName
         let name = fullName.count > maximumNameLength
             ? String(fullName.prefix(maximumNameLength - 1)) + "…"
             : fullName
@@ -919,6 +927,7 @@ public enum CCSwitchQuotaCatalog {
                 CCSwitchQuotaTarget(
                     id: record.id,
                     shortName: shortName(for: kind),
+                    modelName: extracted.modelName,
                     websiteURL: websiteURL(record.websiteURL)
                         ?? (kind == .qwen
                             ? URL(string: "https://platform.qianwenai.com/home/analytics/token-plan/individual")
@@ -946,6 +955,7 @@ public enum CCSwitchQuotaCatalog {
             return CCSwitchQuotaTarget(
                 id: target.id,
                 shortName: target.shortName,
+                modelName: target.modelName,
                 websiteURL: target.websiteURL,
                 kind: target.kind,
                 isCurrent: isCurrent,
@@ -1049,6 +1059,7 @@ public enum CCSwitchQuotaCatalog {
             return CCSwitchQuotaTarget(
                 id: target.id,
                 shortName: "\(target.shortName) \(count)",
+                modelName: target.modelName,
                 websiteURL: target.websiteURL,
                 kind: target.kind,
                 isCurrent: target.isCurrent,
@@ -1072,11 +1083,18 @@ public enum CCSwitchQuotaCatalog {
         var accessToken: String?
         var accountID: String?
         var baseURLs: [String]
+        var modelName: String?
     }
 
     private static func credentials(from settingsJSON: String) -> ExtractedCredentials {
         guard let root = jsonObject(settingsJSON) else {
-            return ExtractedCredentials(apiKey: nil, accessToken: nil, accountID: nil, baseURLs: [])
+            return ExtractedCredentials(
+                apiKey: nil,
+                accessToken: nil,
+                accountID: nil,
+                baseURLs: [],
+                modelName: nil
+            )
         }
         let auth = root["auth"] as? [String: Any]
         var apiKey = usableAPIKey(auth?["OPENAI_API_KEY"] as? String)
@@ -1084,20 +1102,40 @@ public enum CCSwitchQuotaCatalog {
         let accessToken = usableToken(tokens?["access_token"] as? String)
         let accountID = usableToken(tokens?["account_id"] as? String)
         var extractedBaseURLs: [String] = []
+        var extractedModelName: String?
         if let config = root["config"] as? String {
             extractedBaseURLs.append(contentsOf: baseURLs(inTOML: config))
+            extractedModelName = usableModelName(tomlStringValue(named: "model", in: config))
             if apiKey == nil {
                 apiKey = usableAPIKey(tomlStringValue(named: "experimental_bearer_token", in: config))
             }
         } else if let config = root["config"] {
             extractedBaseURLs.append(contentsOf: baseURLs(inJSON: config))
+            extractedModelName = usableModelName(modelName(inJSON: config))
         }
         return ExtractedCredentials(
             apiKey: apiKey,
             accessToken: accessToken,
             accountID: accountID,
-            baseURLs: extractedBaseURLs
+            baseURLs: extractedBaseURLs,
+            modelName: extractedModelName
         )
+    }
+
+    private static func modelName(inJSON value: Any) -> String? {
+        if let name = value as? String { return name }
+        guard let object = value as? [String: Any] else { return nil }
+        if let name = object["model"] as? String { return name }
+        for child in object.values {
+            if let name = modelName(inJSON: child) { return name }
+        }
+        return nil
+    }
+
+    private static func usableModelName(_ value: String?) -> String? {
+        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty else { return nil }
+        return trimmed
     }
 
     private static func usableAPIKey(_ value: String?) -> String? {
@@ -1340,6 +1378,7 @@ extension AccountQuotaChip {
         return AccountQuotaChip(
             id: target.id,
             shortName: target.shortName,
+            modelName: target.modelName,
             websiteURL: target.websiteURL,
             kind: target.kind,
             isCurrent: target.isCurrent,

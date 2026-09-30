@@ -222,7 +222,8 @@ public actor OpenAIManagedQuotaSource: OfficialAccountQuotaSource {
     }
 
     private func chip(_ target: CCSwitchQuotaTarget, status: AccountQuotaChip.Status) -> AccountQuotaChip {
-        AccountQuotaChip(id: target.id, shortName: target.shortName, websiteURL: target.websiteURL,
+        AccountQuotaChip(id: target.id, shortName: target.shortName, modelName: target.modelName,
+                         websiteURL: target.websiteURL,
                          kind: target.kind, isCurrent: target.isCurrent, status: status)
     }
 }

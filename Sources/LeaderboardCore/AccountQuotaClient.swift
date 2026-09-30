@@ -44,6 +44,54 @@ public enum XAIOAuthKeepAlivePolicy {
     public static let failureRetryInterval: TimeInterval = 60 * 60
 }
 
+public struct XAIOAuthKeepAliveSchedule: Codable, Equatable, Sendable {
+    public var accountID: String?
+    public var nextAt: Date
+
+    public init(accountID: String? = nil, nextAt: Date) {
+        self.accountID = accountID
+        self.nextAt = nextAt
+    }
+}
+
+public struct XAIOAuthKeepAliveScheduleStore {
+    private let fileURL: URL
+    private let encoder: JSONEncoder
+    private let decoder: JSONDecoder
+
+    public init(fileURL: URL = PlatformPaths.applicationSupport.appending(path: "xai-oauth-keepalive.json")) {
+        self.fileURL = fileURL
+        encoder = JSONEncoder()
+        decoder = JSONDecoder()
+    }
+
+    public func nextDate(accountID: String?) -> Date? {
+        guard let data = try? Data(contentsOf: fileURL),
+              let schedule = try? decoder.decode(XAIOAuthKeepAliveSchedule.self, from: data),
+              schedule.accountID == accountID else { return nil }
+        return schedule.nextAt
+    }
+
+    public func save(accountID: String?, nextAt: Date) {
+        guard let data = try? encoder.encode(XAIOAuthKeepAliveSchedule(accountID: accountID, nextAt: nextAt)) else { return }
+        do {
+            try FileManager.default.createDirectory(
+                at: fileURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try data.write(to: fileURL, options: .atomic)
+            #if !os(Windows)
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o600],
+                ofItemAtPath: PlatformPaths.fileSystemPath(fileURL)
+            )
+            #endif
+        } catch {
+            // Persistence is best-effort; an unreadable schedule safely falls back to renewal now.
+        }
+    }
+}
+
 public struct URLSessionAccountQuotaTransport: AccountQuotaTransport {
     private let session: URLSession
 
@@ -227,6 +275,7 @@ public actor AccountQuotaClient {
             AccountQuotaChip(
                 id: target.id,
                 shortName: target.shortName,
+                modelName: target.modelName,
                 websiteURL: target.websiteURL,
                 kind: target.kind,
                 isCurrent: target.isCurrent,
@@ -320,6 +369,7 @@ public actor AccountQuotaClient {
                 return AccountQuotaChip(
                     id: target.id,
                     shortName: target.shortName,
+                    modelName: target.modelName,
                     websiteURL: target.websiteURL,
                     kind: target.kind,
                     isCurrent: target.isCurrent,
@@ -467,6 +517,7 @@ public actor AccountQuotaClient {
         return AccountQuotaChip(
             id: target.id,
             shortName: target.shortName,
+            modelName: target.modelName,
             websiteURL: target.websiteURL,
             kind: target.kind,
             isCurrent: target.isCurrent,
@@ -583,6 +634,7 @@ public actor AccountQuotaClient {
         return AccountQuotaChip(
             id: target.id,
             shortName: target.shortName,
+            modelName: target.modelName,
             websiteURL: target.websiteURL,
             kind: target.kind,
             isCurrent: target.isCurrent,
@@ -613,6 +665,7 @@ public actor AccountQuotaClient {
         return AccountQuotaChip(
             id: target.id,
             shortName: target.shortName,
+            modelName: target.modelName,
             websiteURL: target.websiteURL,
             kind: target.kind,
             isCurrent: target.isCurrent,
@@ -633,6 +686,7 @@ public actor AccountQuotaClient {
             return AccountQuotaChip(
                 id: chip.id,
                 shortName: chip.shortName,
+                modelName: chip.modelName,
                 websiteURL: chip.websiteURL,
                 kind: chip.kind,
                 isCurrent: chip.isCurrent,
