@@ -91,4 +91,23 @@ export function renderAppcast({ version, archiveName, signature, length, notes, 
 `
 }
 
+export function renderHomebrewCask({ version, archiveName, digest }) {
+  version = releaseVersion(version)
+  if (archiveName !== `AI-BenchGauge-${version}-macos-universal.dmg` || !/^[0-9a-f]{64}$/.test(digest ?? '')) {
+    throw new Error('Invalid Homebrew cask metadata')
+  }
+  return `cask "ai-benchgauge" do
+  version "${version}"
+  sha256 "${digest}"
+  url "https://github.com/${repository}/releases/download/v${version}/${archiveName}"
+  name "AI BenchGauge"
+  desc "Menu-bar leaderboard and provider quota dashboard"
+  homepage "https://github.com/${repository}"
+  auto_updates true
+  depends_on macos: ">= :sonoma"
+  app "AI-BenchGauge.app"
+end
+`
+}
+
 export function sha256(data) { return createHash('sha256').update(data).digest('hex') }

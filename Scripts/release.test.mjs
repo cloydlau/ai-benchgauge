@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
-import { compareVersions, feedURL, releaseVersion, renderAppcast, signArchive, signingKey, validateRelease } from './release-lib.mjs'
+import { compareVersions, feedURL, releaseVersion, renderAppcast, renderHomebrewCask, signArchive, signingKey, validateRelease } from './release-lib.mjs'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 function keys() {
@@ -65,6 +65,20 @@ test('feed uses the exact immutable archive, minimum OS, signature, and escaped 
   assert.match(xml, /&lt;script&gt;bad\(\)&lt;\/script&gt; &amp; \]\]&gt;/)
   assert.equal(xml.includes('<script>'), false)
   assert.throws(() => renderAppcast({ version: '1.2.3', archiveName: 'arbitrary.zip', signature: '', length: 0 }))
+})
+
+test('Homebrew cask points to the exact signed DMG and reports app-managed updates', () => {
+  const digest = 'a'.repeat(64)
+  const cask = renderHomebrewCask({ version: '1.2.3', archiveName: 'AI-BenchGauge-1.2.3-macos-universal.dmg', digest })
+  assert.match(cask, /cask "ai-benchgauge"/)
+  assert.match(cask, /version "1\.2\.3"/)
+  assert.match(cask, /sha256 "a{64}"/)
+  assert.match(cask, /url "https:\/\/github\.com\/cloydlau\/ai-benchgauge\/releases\/download\/v1\.2\.3\/AI-BenchGauge-1\.2\.3-macos-universal\.dmg"/)
+  assert.match(cask, /auto_updates true/)
+  assert.match(cask, /depends_on macos: ">= :sonoma"/)
+  assert.match(cask, /app "AI-BenchGauge\.app"/)
+  assert.throws(() => renderHomebrewCask({ version: '1.2.3', archiveName: 'other.dmg', digest }))
+  assert.throws(() => renderHomebrewCask({ version: '1.2.3', archiveName: 'AI-BenchGauge-1.2.3-macos-universal.dmg', digest: 'not-a-sha256' }))
 })
 
 test('official Sparkle verifies signatures and detects tampered signed feeds', { skip: !existsSync(join(root, '.build/artifacts/sparkle/Sparkle/bin/sign_update')) }, (t) => {

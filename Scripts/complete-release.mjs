@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { validateAppConfig } from './app-config.mjs'
-import { repository, sha256, signArchive, signingKey } from './release-lib.mjs'
+import { renderHomebrewCask, repository, sha256, signArchive, signingKey } from './release-lib.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 try {
   const config = validateAppConfig(root, process.argv[2] || process.env.GITHUB_REF_NAME)
@@ -23,7 +23,8 @@ try {
   if (payload.length > 65_536) throw new Error('Windows update metadata exceeds limit')
   writeFileSync(join(directory, 'windows-update.json'), payload)
   writeFileSync(join(directory, 'windows-update.json.sig'), signArchive(payload, key) + '\n')
-  const assets = [mac, windows, 'appcast.xml', 'windows-update.json', 'windows-update.json.sig']
+  writeFileSync(join(directory, 'ai-benchgauge.rb'), renderHomebrewCask({ version, archiveName: mac, digest: sha256(macBytes) }))
+  const assets = [mac, windows, 'appcast.xml', 'windows-update.json', 'windows-update.json.sig', 'ai-benchgauge.rb']
   writeFileSync(join(directory, 'SHA256SUMS.txt'), assets.map(name => `${sha256(readFileSync(join(directory, name)))}  ${name}`).join('\n') + '\n')
-  console.log(`Verified both installers and signed Windows updates for ${version}`)
+  console.log(`Verified both installers, signed Windows updates, and generated the Homebrew cask for ${version}`)
 } catch (error) { console.error(`[release] ${error.message}`); process.exitCode = 1 }
