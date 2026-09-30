@@ -28,6 +28,22 @@ public protocol AccountQuotaTransport: Sendable {
     func data(for request: URLRequest) async throws -> AccountQuotaHTTPResponse
 }
 
+public enum XAIOAuthKeepAliveOutcome: Equatable, Sendable {
+    case renewed
+    case retry
+    case loginRequired
+}
+
+public enum XAIOAuthKeepAlivePolicy {
+    /// xAI does not disclose the refresh-token lifetime. Local failures have
+    /// consistently appeared near seven days, so renew shortly before that
+    /// observed boundary rather than using the one-hour access-token lifetime.
+    public static let successInterval: TimeInterval = 7 * 24 * 60 * 60 - 12 * 60 * 60
+    /// A failed renewal gets a short backoff without making successful logins
+    /// refresh hourly.
+    public static let failureRetryInterval: TimeInterval = 60 * 60
+}
+
 public struct URLSessionAccountQuotaTransport: AccountQuotaTransport {
     private let session: URLSession
 
@@ -238,6 +254,28 @@ public actor AccountQuotaClient {
                 return nil
             }
             return Self.chip(target, .failed)
+        }
+    }
+
+    /// Rotates the selected xAI login without querying its billing API. The
+    /// scheduler uses the returned outcome to distinguish a renewed login from
+    /// a transient failure that should be retried.
+    public func keepAliveXAI(authFileURL: URL? = nil) async throws -> XAIOAuthKeepAliveOutcome {
+        let url = authFileURL ?? self.authFileURL
+        switch try await xaiTokens.forceRefresh(
+            transport: transport,
+            authFileURL: url,
+            now: now()
+        ) {
+        case .token:
+            return .renewed
+        case let .failure(reason):
+            switch reason {
+            case .failed, .network:
+                return .retry
+            case .reauth, .notLoggedIn, .notConfigured:
+                return .loginRequired
+            }
         }
     }
 
@@ -637,6 +675,28 @@ private actor XAIAccessTokens {
     private var cached: CachedToken?
     private var tokenEndpoint: URL?
 
+    func forceRefresh(
+        transport: any AccountQuotaTransport,
+        authFileURL: URL,
+        now: Date
+    ) async throws -> XAITokenResult {
+        switch Self.readLogin(at: authFileURL) {
+        case .notLoggedIn:
+            cached = nil
+            return .failure(.notLoggedIn)
+        case .reauth:
+            cached = nil
+            return .failure(.reauth)
+        case let .account(account):
+            return try await performRefresh(
+                account: account,
+                transport: transport,
+                authFileURL: authFileURL,
+                now: now
+            )
+        }
+    }
+
     func billing(
         transport: any AccountQuotaTransport,
         authFileURL: URL,
@@ -710,6 +770,20 @@ private actor XAIAccessTokens {
             return .token(cached.token)
         }
 
+        return try await performRefresh(
+            account: account,
+            transport: transport,
+            authFileURL: authFileURL,
+            now: now
+        )
+    }
+
+    private func performRefresh(
+        account: XaiAuthFile.Account,
+        transport: any AccountQuotaTransport,
+        authFileURL: URL,
+        now: Date
+    ) async throws -> XAITokenResult {
         let endpoint: URL
         switch try await resolveTokenEndpoint(transport: transport) {
         case let .endpoint(url):
