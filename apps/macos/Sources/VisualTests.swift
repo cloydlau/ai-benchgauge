@@ -24,7 +24,8 @@ enum NativeVisualCapture {
         let output = root.appending(path: "work/visual-parity/macos")
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         let fixtureBytes = try Data(contentsOf: root.appending(path: "tests/fixtures/visual-state.json"))
-        let fixtureHash = SHA256.hash(data: fixtureBytes).map { String(format: "%02x", $0) }.joined()
+        let normalizedFixture = Data(String(decoding: fixtureBytes, as: UTF8.self).replacingOccurrences(of: "\r\n", with: "\n").utf8)
+        let fixtureHash = SHA256.hash(data: normalizedFixture).map { String(format: "%02x", $0) }.joined()
         let fixture = try JSONDecoder().decode(Fixture.self, from: fixtureBytes)
         let fixedDate = ISO8601DateFormatter().date(from: "2026-09-29T00:00:00Z")!
         let boards = Dictionary(uniqueKeysWithValues: fixture.state.boards.map { board in

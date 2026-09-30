@@ -7,7 +7,7 @@ const root = resolve(import.meta.dirname, '..')
 const directory = resolve(process.argv[2] || join(root, 'work/visual-parity'))
 const fixtureBytes = readFileSync(join(root, 'tests/fixtures/visual-state.json'))
 const fixture = JSON.parse(fixtureBytes)
-const fixtureHash = createHash('sha256').update(fixtureBytes).digest('hex')
+const fixtureHash = createHash('sha256').update(fixtureBytes.toString('utf8').replaceAll('\r\n', '\n')).digest('hex')
 const windows = JSON.parse(readFileSync(join(directory, 'windows/metadata.json')))
 const macos = JSON.parse(readFileSync(join(directory, 'macos/metadata.json')))
 for (const item of [...windows, ...macos]) {

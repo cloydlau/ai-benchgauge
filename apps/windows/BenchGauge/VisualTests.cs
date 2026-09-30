@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Interop;
@@ -67,7 +68,8 @@ static class VisualTests
         var directory = Path.Combine(root, "work", "visual-parity", "windows");
         Directory.CreateDirectory(directory);
         var fixtureBytes = File.ReadAllBytes(Path.Combine(root, "tests", "fixtures", "visual-state.json"));
-        var fixtureHash = Convert.ToHexString(SHA256.HashData(fixtureBytes)).ToLowerInvariant();
+        var normalizedFixture = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(fixtureBytes).Replace("\r\n", "\n"));
+        var fixtureHash = Convert.ToHexString(SHA256.HashData(normalizedFixture)).ToLowerInvariant();
         var fixture = JsonSerializer.Deserialize<Fixture>(fixtureBytes, AppConfig.Json)
             ?? throw new InvalidOperationException("Missing visual fixture");
         var metadata = new List<object>();

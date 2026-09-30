@@ -477,12 +477,12 @@
             "dark": "#AAAAAA"
           },
           {
-            "text": "88.5%",
-            "light": "#3C8438",
+            "text": "88%",
+            "light": "#3D8437",
             "dark": "#99D37C"
           }
         ],
-        "accentLight": "#3C8438"
+        "accentLight": "#3D8437"
       },
       {
         "id": "fixture-1",
