@@ -212,7 +212,7 @@ struct LeaderboardView: View {
                 )
                 .padding(.top, 10)
                 .background(QuotaStripAnchor())
-            } else if state.quotaNeedsCCSwitch {
+            } else if state.ccSwitchEmptyState == .notInstalled {
                 quotaSetupPrompt
                     .padding(.top, 10)
             }
@@ -226,32 +226,35 @@ struct LeaderboardView: View {
     }
 
     private func quotaSetupPrompt(isScreenshot: Bool) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "chart.bar.xaxis")
+        let installed = !isScreenshot && state.ccSwitchEmptyState == .installedEmpty
+        return HStack(spacing: 3) {
+            Text(installed ? tr("Configure models in", "请在") : tr("Install", "安装"))
                 .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
-            Text(tr(
-                "See provider quotas here with CC Switch.",
-                "安装 CC Switch，即可在这里查看各家提供商的余量。"
-            ))
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 8)
             if isScreenshot {
                 // ImageRenderer cannot draw AppKit-backed Link controls.
-                Text(tr("Download CC Switch", "下载 CC Switch"))
-                    .font(.system(size: 11, weight: .medium))
+                Text("CC Switch")
+                    .underline()
                     .foregroundStyle(Color.accentColor)
+            } else if installed {
+                Button(action: state.openCCSwitch) {
+                    Text("CC Switch").underline()
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.accentColor)
+                .pointingHandCursor()
             } else {
-                Link(
-                    tr("Download CC Switch", "下载 CC Switch"),
-                    destination: CCSwitchProviderStore.downloadURL
-                )
-                .font(.system(size: 11, weight: .medium))
+                Link(destination: CCSwitchProviderStore.downloadURL) {
+                    Text("CC Switch").underline()
+                }
                 .pointingHandCursor()
             }
+            Text(installed
+                 ? tr("to see provider quotas here.", "中配置模型，即可在这里查看余量。")
+                 : tr("to see provider quotas here.", "，即可在这里查看各家提供商的余量。"))
+                .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .font(.system(size: 11))
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func sourceHeaderHelp(kind: LeaderboardKind, description: SourceLensDescription) -> String {
