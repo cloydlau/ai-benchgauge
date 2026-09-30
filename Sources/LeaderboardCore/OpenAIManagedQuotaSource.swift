@@ -1,3 +1,4 @@
+import LeaderboardKit
 #if canImport(CryptoKit)
 import CryptoKit
 #elseif os(Windows)
