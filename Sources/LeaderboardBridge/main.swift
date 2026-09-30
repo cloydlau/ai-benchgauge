@@ -63,6 +63,8 @@ actor Engine {
     private var lastBoardRefresh: [LeaderboardCategory: Date] = [:]
     private var lastQuotaRefresh: Date?
     private var lastInactiveRefresh: Date?
+    private let xaiKeepAliveScheduleStore = XAIOAuthKeepAliveScheduleStore()
+    private var xaiKeepAliveAccountID: String?
     private var nextXAIKeepAliveAt: Date?
     private var isXAIKeepAliveRefreshing = false
     private var activeBoardRefreshes = Set<LeaderboardCategory>()
@@ -158,16 +160,29 @@ actor Engine {
         case .absent:
             chips = []; targets = [:]; unavailable = false
             needsCCSwitch = !FileManager.default.fileExists(atPath: install.databaseURL.path)
+            xaiKeepAliveAccountID = nil
             nextXAIKeepAliveAt = nil
         case .unavailable: unavailable = true
-            chips = chips.map { AccountQuotaChip(id: $0.id, shortName: $0.shortName, websiteURL: $0.websiteURL, kind: $0.kind, isCurrent: $0.isCurrent, status: $0.status, isStale: true) }
+            chips = chips.map {
+                AccountQuotaChip(
+                    id: $0.id,
+                    shortName: $0.shortName,
+                    modelName: $0.modelName,
+                    websiteURL: $0.websiteURL,
+                    kind: $0.kind,
+                    isCurrent: $0.isCurrent,
+                    status: $0.status,
+                    isStale: true
+                )
+            }
         case .records(let records):
             unavailable = false; needsCCSwitch = false
             let list = CCSwitchQuotaCatalog.targets(from: records, currentProviderID: CCSwitchProviderStore.currentCodexProviderID(settingsURL: install.settingsURL))
             targets = Dictionary(uniqueKeysWithValues: list.map { ($0.id, $0) })
             let prior = Dictionary(uniqueKeysWithValues: chips.map { ($0.id, $0) })
             chips = list.map { target in
-                AccountQuotaChip(id: target.id, shortName: target.shortName, websiteURL: target.websiteURL,
+                AccountQuotaChip(id: target.id, shortName: target.shortName, modelName: target.modelName,
+                                 websiteURL: target.websiteURL,
                                  kind: target.kind, isCurrent: target.isCurrent,
                                  status: prior[target.id]?.status ?? .pending, isStale: prior[target.id]?.isStale ?? false)
             }
@@ -175,6 +190,7 @@ actor Engine {
             if list.contains(where: { $0.kind == .xaiOAuth }) {
                 await refreshXAIKeepAliveIfDue(authFileURL: install.xaiAuthURL)
             } else {
+                xaiKeepAliveAccountID = nil
                 nextXAIKeepAliveAt = nil
             }
             let includeInactive = !onlyCurrent && (
@@ -198,6 +214,13 @@ actor Engine {
 
     private func refreshXAIKeepAliveIfDue(authFileURL: URL) async {
         guard !isXAIKeepAliveRefreshing else { return }
+        let accountID = Self.selectedXAIAuthAccountID(at: authFileURL)
+        if let persisted = xaiKeepAliveScheduleStore.nextDate(accountID: accountID) {
+            nextXAIKeepAliveAt = persisted
+        } else if xaiKeepAliveAccountID != accountID {
+            nextXAIKeepAliveAt = nil
+        }
+        xaiKeepAliveAccountID = accountID
         if let next = nextXAIKeepAliveAt, Date() < next { return }
         isXAIKeepAliveRefreshing = true
         defer { isXAIKeepAliveRefreshing = false }
@@ -211,11 +234,19 @@ actor Engine {
             outcome = .retry
         }
         if Task.isCancelled { return }
-        nextXAIKeepAliveAt = Date().addingTimeInterval(
+        let next = Date().addingTimeInterval(
             outcome == .renewed
                 ? XAIOAuthKeepAlivePolicy.successInterval
                 : XAIOAuthKeepAlivePolicy.failureRetryInterval
         )
+        nextXAIKeepAliveAt = next
+        xaiKeepAliveScheduleStore.save(accountID: accountID, nextAt: next)
+    }
+
+    private static func selectedXAIAuthAccountID(at url: URL) -> String? {
+        guard let data = try? Data(contentsOf: url),
+              let snapshot = XaiAuthFile.parse(data) else { return nil }
+        return XaiAuthFile.selectedAccount(snapshot)?.id
     }
 
     private func project(category: LeaderboardCategory, grouping: String?, language: AppLanguage) -> State {
@@ -244,7 +275,8 @@ actor Engine {
             let quota = QwenWebsiteQuota(periodLabel: website.periodLabel, remainingPercent: website.remainingPercent,
                                          resetsAt: website.resetsAt, expiresAt: website.expiresAt,
                                          isCached: now.timeIntervalSince(captured) > 60, capturedAt: captured)
-            return AccountQuotaChip(id: chip.id, shortName: chip.shortName, websiteURL: chip.websiteURL,
+            return AccountQuotaChip(id: chip.id, shortName: chip.shortName, modelName: chip.modelName,
+                                    websiteURL: chip.websiteURL,
                                     kind: chip.kind, isCurrent: chip.isCurrent, status: .qwenWebsite(quota))
         }
         let quotas = AccountQuotaFormatting.sortedChips(displayChips).map { chip in
