@@ -138,5 +138,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$RELEASE_TAG" outputs/release/*.dmg outputs/release/*.exe outputs/release/appcast.xml outputs/release/windows-update.json outputs/release/windows-update.json.sig outputs/release/SHA256SUMS.txt --verify-tag --draft --title "AI BenchGauge $RELEASE_TAG" --notes-file outputs/release/release-notes.md
+          gh release create "$RELEASE_TAG" outputs/release/*.dmg outputs/release/*.exe outputs/release/appcast.xml outputs/release/windows-update.json outputs/release/windows-update.json.sig outputs/release/ai-benchgauge.rb outputs/release/SHA256SUMS.txt --verify-tag --draft --title "AI BenchGauge $RELEASE_TAG" --notes-file outputs/release/release-notes.md
           gh release edit "$RELEASE_TAG" --draft=false --latest
+      - name: Publish Homebrew cask
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node Scripts/publish-homebrew-cask.mjs
