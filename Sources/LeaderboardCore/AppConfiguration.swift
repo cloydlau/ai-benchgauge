@@ -2,6 +2,7 @@ import Foundation
 
 public enum CCSwitchState: String, Codable, CaseIterable, Sendable {
     case notInstalled
+    /// Installed, but no displayable quota providers (including official providers without login).
     case installedEmpty
     case configured
 }
