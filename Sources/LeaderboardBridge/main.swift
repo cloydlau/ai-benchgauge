@@ -47,6 +47,9 @@ struct Run: Encodable { var text: String; var light: String; var dark: String }
 struct Alert: Encodable { var title: String; var body: String }
 
 actor Engine {
+    private static let inactiveQuotaRefreshInterval: TimeInterval = 60
+    private static let xAIKeepAliveInterval: TimeInterval = 30 * 60
+
     private var snapshot = LeaderboardSnapshot()
     private var errors: [LeaderboardKind: String] = [:]
     private var chips: [AccountQuotaChip] = []
@@ -167,9 +170,24 @@ actor Engine {
                                  status: prior[target.id]?.status ?? .pending, isStale: prior[target.id]?.isStale ?? false)
             }
             if client == nil { client = AccountQuotaClient(officialQuotaSource: official) }
-            let includeInactive = !onlyCurrent && (lastInactiveRefresh.map { now.timeIntervalSince($0) >= 60 } ?? true)
-            let refreshing = list.filter { $0.isCurrent || includeInactive }
-            if includeInactive { lastInactiveRefresh = now }
+            let includeInactive = !onlyCurrent && (
+                lastInactiveRefresh.map {
+                    now.timeIntervalSince($0) >= Self.inactiveQuotaRefreshInterval
+                } ?? true
+            )
+            let includeXAIKeepAlive = onlyCurrent && (
+                lastInactiveRefresh.map {
+                    now.timeIntervalSince($0) >= Self.xAIKeepAliveInterval
+                } ?? true
+            )
+            let refreshing = list.filter { target in
+                if target.isCurrent { return true }
+                if includeInactive { return true }
+                return includeXAIKeepAlive && target.kind == .xaiOAuth
+            }
+            if includeInactive || refreshing.contains(where: { $0.kind == .xaiOAuth }) {
+                lastInactiveRefresh = now
+            }
             guard let client, !refreshing.isEmpty else { return }
             let refreshed = try await client.refresh(targets: refreshing, previous: chips, authFileURL: install.xaiAuthURL)
             let result = Dictionary(uniqueKeysWithValues: refreshed.map { ($0.id, $0) })
