@@ -59,6 +59,9 @@ final class AppState: ObservableObject {
     private var lastQuotaAttemptAt: Date?
     private var lastQuotaAttemptAtByID: [String: Date] = [:]
     private var quotaGeneration = 0
+    /// The current-provider selection this app last reacted to. CC Switch owns
+    /// the value and rewrites its tiny settings file on every switch.
+    private var lastCheckedQuotaProviderID: String?
 
     init(cache: LeaderboardCache, defaults: UserDefaults = .standard) {
         self.cache = cache
@@ -87,6 +90,7 @@ final class AppState: ObservableObject {
     func start() {
         refreshNow()
         refreshQuotas(minimumInterval: 0)
+        lastCheckedQuotaProviderID = currentQuotaProviderSelection()
         startTimer()
     }
 
@@ -97,7 +101,8 @@ final class AppState: ObservableObject {
     /// Refresh the persistent menu bar quota every 30 minutes. The status item
     /// queries the current provider plus inactive xAI, whose OAuth refresh
     /// token otherwise stops being rotated after switching away from Grok.
-    /// Other inactive chips are refreshed when the panel is opened.
+    /// Other inactive chips are refreshed when the panel is opened. A provider
+    /// switch does not wait for this cadence; see the selection check in tick().
     private static let backgroundQuotaRefreshInterval: TimeInterval = 30 * 60
 
     func refreshFromMenuClick() {
@@ -202,6 +207,7 @@ final class AppState: ObservableObject {
 
     private func tick() {
         guard !isQuitting else { return }
+        refreshQuotaSelectionIfChanged()
         refreshQuotas(
             minimumInterval: Self.backgroundQuotaRefreshInterval,
             inactiveMinimumInterval: Self.backgroundQuotaRefreshInterval,
@@ -214,6 +220,28 @@ final class AppState: ObservableObject {
 
         guard !isRefreshing, schedule.isDue() else { return }
         refreshNow()
+    }
+
+    /// CC Switch owns provider switching, while quota queries stay on the slow
+    /// background cadence. Each tick reads only the tiny selection file; a
+    /// changed selection forces one background-style refresh so the menu bar
+    /// follows the switch within a minute instead of within half an hour.
+    private func refreshQuotaSelectionIfChanged() {
+        guard !isQuitting, connectingOpenAIProviderID == nil else { return }
+        let selection = currentQuotaProviderSelection()
+        guard selection != lastCheckedQuotaProviderID else { return }
+        lastCheckedQuotaProviderID = selection
+        refreshQuotas(
+            minimumInterval: 0,
+            inactiveMinimumInterval: Self.backgroundQuotaRefreshInterval,
+            inactiveScope: .xaiOAuthOnly
+        )
+    }
+
+    private func currentQuotaProviderSelection() -> String? {
+        CCSwitchProviderStore.currentCodexProviderID(
+            settingsURL: CCSwitchProviderStore.resolveInstall().settingsURL
+        )
     }
 
     /// Loads providers from the local CC Switch database and refreshes their
