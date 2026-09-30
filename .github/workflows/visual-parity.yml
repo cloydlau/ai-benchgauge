@@ -1,0 +1,34 @@
+name: Native visual comparison
+on:
+  workflow_dispatch:
+  push:
+    branches: ["codex/visual-parity-*"]
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.401'
+      - name: Build the native WPF application
+        run: dotnet build apps/windows/BenchGauge/BenchGauge.csproj -c Release -o work/visual-app
+      - name: Capture real Windows client pixels
+        shell: pwsh
+        run: |
+          $process = Start-Process work/visual-app/AI-BenchGauge.exe -ArgumentList '--visual-test' -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            Get-Content work/visual-parity/windows/failed.txt -ErrorAction SilentlyContinue
+            throw "Native window capture failed ($($process.ExitCode))"
+          }
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: native-visual-windows
+          path: work/visual-parity/windows/
+          if-no-files-found: error

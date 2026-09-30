@@ -1,0 +1,90 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Windows;
+using System.Windows.Interop;
+using System.Windows.Threading;
+using BenchGauge.Shared;
+using Drawing = System.Drawing;
+
+namespace BenchGauge;
+
+// Runs the real WPF window on a Windows desktop, without starting the engine,
+// reading accounts or using the privacy-redacted Copy command.
+static class VisualTests
+{
+    sealed record Case(string Id, string Language, int Width, int Height, string Scenario, string Mode);
+    sealed record Fixture(DisplayState State, Case[] Cases);
+    [StructLayout(LayoutKind.Sequential)] struct Rect { public int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)] struct Point { public int X, Y; }
+    [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr window, out Rect rect);
+    [DllImport("user32.dll")] static extern bool ClientToScreen(IntPtr window, ref Point point);
+
+    public static void Run()
+    {
+        var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        var root = Environment.CurrentDirectory;
+        var directory = Path.Combine(root, "work", "visual-parity", "windows");
+        Directory.CreateDirectory(directory);
+        var fixture = JsonSerializer.Deserialize<Fixture>(File.ReadAllText(Path.Combine(root, "tests", "fixtures", "visual-state.json")), AppConfig.Json)
+            ?? throw new InvalidOperationException("Missing visual fixture");
+        var metadata = new List<object>();
+        foreach (var test in fixture.Cases)
+        {
+            var state = fixture.State;
+            if (test.Scenario is "normal" or "window") state = state with { Quotas = state.Quotas.Take(2).ToArray() };
+            if (test.Scenario == "empty") state = state with { Quotas = [], QuotaNeedsCCSwitch = true };
+            if (test.Scenario == "error") state = state with { Boards = state.Boards.Select(board => board with { Error = "Refresh failed / 刷新失败（测试）" }).ToArray(), Quotas = [] };
+            var window = new MainWindow(null, new Preferences { Language = test.Language, PanelMode = test.Scenario == "window" ? "window" : test.Mode })
+                { Width = test.Width, Height = test.Height };
+            try
+            {
+                window.SetState(state); window.Reveal();
+                // Centre and verify the complete client area fits the desktop.
+                window.Left = SystemParameters.WorkArea.Left + (SystemParameters.WorkArea.Width - window.ActualWidth) / 2;
+                window.Top = SystemParameters.WorkArea.Top + (SystemParameters.WorkArea.Height - window.ActualHeight) / 2;
+                Settle(window);
+                var hwnd = new WindowInteropHelper(window).Handle;
+                if (!GetClientRect(hwnd, out var rect)) throw new InvalidOperationException("Cannot measure Windows client area");
+                var point = new Point();
+                if (!ClientToScreen(hwnd, ref point)) throw new InvalidOperationException("Cannot locate Windows client area");
+                var bounds = System.Windows.Forms.SystemInformation.VirtualScreen;
+                if (!bounds.Contains(new Drawing.Rectangle(point.X, point.Y, rect.Right, rect.Bottom)))
+                    throw new InvalidOperationException("Visual case does not fit the real Windows desktop: " + test.Id);
+                for (var frame = 0; frame < 3; frame++)
+                {
+                    if (frame == 1) window.SetState(state); // Catch layout changes after refresh.
+                    Settle(window);
+                    using var bitmap = new Drawing.Bitmap(rect.Right, rect.Bottom);
+                    using (var graphics = Drawing.Graphics.FromImage(bitmap))
+                        graphics.CopyFromScreen(point.X, point.Y, 0, 0, bitmap.Size);
+                    // An inaccessible/locked desktop must fail instead of producing a false pass.
+                    var colors = new HashSet<int>();
+                    for (var y = 0; y < bitmap.Height; y += 7)
+                    for (var x = 0; x < bitmap.Width; x += 7) colors.Add(bitmap.GetPixel(x, y).ToArgb());
+                    if (colors.Count < 20) throw new InvalidOperationException("Blank Windows desktop capture: " + test.Id);
+                    bitmap.Save(Path.Combine(directory, $"{test.Id}-frame-{frame}.png"), Drawing.Imaging.ImageFormat.Png);
+                }
+                var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(window);
+                metadata.Add(new { test.Id, test.Language, test.Scenario, test.Width, test.Height,
+                    clientPixelWidth = rect.Right, clientPixelHeight = rect.Bottom, dpiScale = dpi.DpiScaleX,
+                    capture = "desktop-client-area", frames = new[] { "shown", "refreshed", "settled" }, os = Environment.OSVersion.ToString() });
+            }
+            finally { window.Stop(); window.Close(); }
+        }
+        File.WriteAllText(Path.Combine(directory, "metadata.json"), JsonSerializer.Serialize(metadata, new JsonSerializerOptions { WriteIndented = true }));
+        app.Shutdown();
+    }
+
+    static void Settle(Window window)
+    {
+        window.UpdateLayout();
+        var frame = new DispatcherFrame();
+        var timer = new DispatcherTimer(DispatcherPriority.ApplicationIdle) { Interval = TimeSpan.FromMilliseconds(250) };
+        timer.Tick += (_, _) => { timer.Stop(); frame.Continue = false; };
+        timer.Start(); Dispatcher.PushFrame(frame);
+    }
+}
