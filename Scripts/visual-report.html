@@ -32,24 +32,24 @@ img{display:block;width:100%;height:auto;background:#fff}.overlay{display:grid;m
 <div class="overlay" id="overlay" hidden><img id="overlay-mac" alt="Mac 对照底图"><img id="overlay-windows" alt="Windows 叠加截图"></div>
 <figure id="diff-panel" hidden><figcaption>像素差异（包含系统字体、抗锯齿与原生控件差异，不能直接作为质量分数）</figcaption><canvas id="diff" style="width:100%;max-width:1100px;height:auto" aria-label="两端截图的像素差异图"></canvas></figure>
 <div class="findings">
-<h2>首轮差异记录</h2>
-<table><thead><tr><th>区域</th><th>Mac</th><th>Windows</th></tr></thead><tbody>
-<tr><td>榜单结构</td><td>两榜共享排名列、表头与滚动区域</td><td>两个独立榜单，各自重复排名、独立滚动</td></tr>
-<tr><td>榜单样式</td><td>32pt 行高、交替行底色、公司色条、前三名奖牌、国家列</td><td>25 DIP 行高、无公司色条与国家列，前三名为普通数字</td></tr>
-<tr><td>顶部控件</td><td>品牌标题与更新时间，分类和分组使用分段选择</td><td>标题、分类、分组、语言、窗口模式位于同一行，使用下拉框</td></tr>
-<tr><td>余量栏</td><td>带供应商图标的紧凑标签，较小文字与间距</td><td>无供应商图标，较厚内边距与更高卡片</td></tr>
-<tr><td>空态</td><td>居中、虚线占位区和 CC Switch 链接</td><td>左侧单行安装链接，缺少完整占位区</td></tr>
-<tr><td>底部与高度</td><td>紧凑页脚，与榜单相邻</td><td>固定窗口高度留下较大空白，通用按钮集中在页脚两侧</td></tr>
-<tr><td>主题</td><td>支持浅色与深色</td><td>窗口背景、文字和余量色使用固定浅色设置</td></tr>
+<h2>逐帧审查清单</h2>
+<p id="provenance" class="note"></p>
+<table><thead><tr><th>区域</th><th>每个受影响状态都要检查</th></tr></thead><tbody>
+<tr><td>榜单</td><td>表头、排名列、行高、列宽、公司色条、图标、滚动对齐和长名称截断。</td></tr>
+<tr><td>控件</td><td>分类、分组、语言和窗口模式的布局、字体、间距与点击区域。</td></tr>
+<tr><td>余量与空态</td><td>供应商图标、数值与单位、卡片间距，以及引导链接和占位区是否出现。</td></tr>
+<tr><td>刷新与错误</td><td>打开、刷新、稳定三帧之间是否跳位、丢失内容、被遮挡或出现异常空白。</td></tr>
+<tr><td>语言、主题与窗口</td><td>逐个查看已有语言、宽度、浅色和深色；记录有意保留的平台差异。</td></tr>
 </tbody></table>
-<p class="note">这是首轮截图对照，尚未改动这些产品样式。实际用户的版本、Windows 版本和显示缩放确认后，应补上对应环境。</p>
+<p class="note">截图生成成功不等于样式合格。未覆盖的新状态需补测试场景；Windows 10/11 和实际显示缩放问题需在对应桌面补拍。</p>
 </div>
 <script>
 /* CAPTURE_DATA */
 const byId = id => document.getElementById(id);
 const picker = byId('case');
 for (const item of captures) { const option = document.createElement('option'); option.value = item.id; option.textContent = item.id; picker.append(option); }
-picker.value = 'model-zh-900';
+picker.value = captures.some(item => item.id === 'model-zh-900') ? 'model-zh-900' : captures[0].id;
+byId('provenance').textContent = coverage.sourceVerified ? `本次提交：${coverage.sourceCommit} · ${coverage.cases} 个状态 / ${coverage.windowsFrames + coverage.macosFrames} 帧 · 待人工审查` : '本地报告：未验证双端来源提交，不能用作发布审核凭据。';
 let revision = 0;
 async function render() {
   const token = ++revision;

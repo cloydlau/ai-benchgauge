@@ -67,7 +67,7 @@ static class VisualTests
         var root = Environment.CurrentDirectory;
         var directory = Path.Combine(root, "work", "visual-parity", "windows");
         Directory.CreateDirectory(directory);
-        var fixtureBytes = File.ReadAllBytes(Path.Combine(root, "tests", "fixtures", "visual-state.json"));
+        var fixtureBytes = File.ReadAllBytes(Path.Combine(root, "Tests", "fixtures", "visual-state.json"));
         var normalizedFixture = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(fixtureBytes).Replace("\r\n", "\n"));
         var fixtureHash = Convert.ToHexString(SHA256.HashData(normalizedFixture)).ToLowerInvariant();
         var fixture = JsonSerializer.Deserialize<Fixture>(fixtureBytes, AppConfig.Json)
@@ -122,6 +122,7 @@ static class VisualTests
                 metadata.Add(new { test.Id, test.Language, test.Scenario, test.Width, test.Height,
                     clientPixelWidth = rect.Right, clientPixelHeight = rect.Bottom, dpiScale = dpi.DpiScaleX,
                     fixtureHash, timezone = TimeZoneInfo.Local.Id,
+                    sourceCommit = Environment.GetEnvironmentVariable("GITHUB_SHA") ?? "local-uncommitted",
                     capture = "desktop-client-area", frames = new[] { "shown", "refreshed", "settled" }, os = Environment.OSVersion.ToString() });
             }
             finally { window.Stop(savePreferences: false); window.Close(); }

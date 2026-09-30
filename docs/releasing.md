@@ -78,8 +78,11 @@ git push origin v1.0.1
 1. 检查标签来自 `main`，与应用版本、构建版本一致，且高于已发布稳定版。
 2. 分别在 macOS / Windows 执行共享核心测试、脚本和 Windows 验签测试；Windows 还检查原生窗口及打包引擎。
 3. 构建 Apple 芯片与 Intel 通用 `.dmg`、Windows x64 自包含安装 `.exe`，生成含发布说明的更新清单，签名并验证，生成 Homebrew Cask 与 SHA-256 清单。
-4. 将所有附件上传为 GitHub 草稿 Release，完整上传成功后发布并设为最新稳定版。
-5. 发布成功后，用 GitHub Contents API 把 `Casks/ai-benchgauge.rb` 更新到 `main`，Cask 始终指向当前版本的固定 DMG 地址。
+4. 在标签对应提交上生成 Mac / Windows 原生逐帧对照报告，并等待 `native-visual-review` 环境的人工审核；缺帧、来源/尺寸不一致、未配置审核人或审核未通过，都会阻止 publish。
+5. 审核通过且构建完整后，将所有附件上传为 GitHub 草稿 Release，完整上传成功后发布并设为最新稳定版。
+6. 发布成功后，用 GitHub Contents API 把 `Casks/ai-benchgauge.rb` 更新到 `main`，Cask 始终指向当前版本的固定 DMG 地址。
+
+审核方法、覆盖范围与门禁演练见 [双端视觉检查](visual-comparison.md)。在等待审核的作业或 comparison 摘要下载报告，逐帧检查后再批准；机器人不得代替人工批准。
 
 最终附件为 `AI-BenchGauge-版本-macos-universal.dmg`、`AI-BenchGauge-版本-windows-x64-setup.exe`、`appcast.xml`、`windows-update.json`、`windows-update.json.sig`、`ai-benchgauge.rb` 和 `SHA256SUMS.txt`。
 首次 Release 成功后，`main` 会包含 `Casks/ai-benchgauge.rb`。用户可通过仓库 tap 安装：

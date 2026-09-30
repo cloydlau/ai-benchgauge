@@ -23,7 +23,7 @@ enum NativeVisualCapture {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let output = root.appending(path: "work/visual-parity/macos")
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
-        let fixtureBytes = try Data(contentsOf: root.appending(path: "tests/fixtures/visual-state.json"))
+        let fixtureBytes = try Data(contentsOf: root.appending(path: "Tests/fixtures/visual-state.json"))
         let normalizedFixture = Data(String(decoding: fixtureBytes, as: UTF8.self).replacingOccurrences(of: "\r\n", with: "\n").utf8)
         let fixtureHash = SHA256.hash(data: normalizedFixture).map { String(format: "%02x", $0) }.joined()
         let fixture = try JSONDecoder().decode(Fixture.self, from: fixtureBytes)
@@ -77,6 +77,7 @@ enum NativeVisualCapture {
                 }
                 metadata.append(["id": test.id, "theme": theme, "width": String(test.width), "height": String(test.height),
                     "fixtureHash": fixtureHash, "timezone": TimeZone.current.identifier,
+                    "sourceCommit": ProcessInfo.processInfo.environment["GITHUB_SHA"] ?? "local-uncommitted",
                     "backingScale": String(describing: window.backingScaleFactor), "capture": "native-view-without-redaction",
                     "os": ProcessInfo.processInfo.operatingSystemVersionString])
             }

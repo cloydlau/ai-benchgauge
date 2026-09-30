@@ -1,47 +1,47 @@
 name: Native visual comparison
 on:
+  workflow_call:
+    inputs:
+      require_review:
+        type: boolean
+        default: false
   workflow_dispatch:
-  pull_request:
-    paths:
-      - 'apps/macos/Sources/**'
-      - 'apps/windows/BenchGauge/**'
-      - 'tests/fixtures/visual-state.json'
-      - 'Scripts/*visual*'
-      - '.github/workflows/visual-parity.yml'
+    inputs:
+      require_review:
+        description: 'Exercise the release review gate after capturing both platforms'
+        type: boolean
+        default: false
+  # PR/main/release runs call this through their existing workflows.
   push:
-    branches: [main, "codex/visual-parity-*"]
-    paths:
-      - 'apps/macos/Sources/**'
-      - 'apps/windows/BenchGauge/**'
-      - 'tests/fixtures/visual-state.json'
-      - 'Scripts/*visual*'
-      - '.github/workflows/visual-parity.yml'
+    branches: ['codex/visual-parity-*']
 permissions:
   contents: read
+  actions: read
 jobs:
   macos:
     runs-on: macos-15
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Capture native Mac windows from the same fixture
         run: zsh Scripts/capture-macos-visual.sh
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: native-visual-macos
           path: work/visual-parity/macos/
           if-no-files-found: error
+          retention-days: 30
   windows:
     runs-on: windows-2022
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: '10.0.401'
       - name: Build the native WPF application
@@ -54,33 +54,80 @@ jobs:
             Get-Content work/visual-parity/windows/failed.txt -ErrorAction SilentlyContinue
             throw "Native window capture failed ($($process.ExitCode))"
           }
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: native-visual-windows
           path: work/visual-parity/windows/
           if-no-files-found: error
+          retention-days: 30
   comparison:
     needs: [macos, windows]
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      report_url: ${{ steps.report.outputs.artifact-url }}
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
-      - uses: actions/download-artifact@v8
+      - name: Test capture validation and release gates
+        run: node --test Scripts/visual-process.test.mjs
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: native-visual-windows
           path: work/visual-parity/windows/
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: native-visual-macos
           path: work/visual-parity/macos/
-      - name: Verify fixture and viewport, build the comparison report
+      - name: Verify fixture, source revision, frames and both client viewports
         run: node Scripts/visual-report.mjs
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        id: report
         with:
           name: native-visual-comparison
           path: |
             work/visual-parity/comparison.html
             work/visual-parity/coverage.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Link the report for the reviewer
+        env:
+          REPORT_URL: ${{ steps.report.outputs.artifact-url }}
+        run: |
+          node --input-type=module <<'JS'
+          import { appendFileSync, readFileSync } from 'node:fs'
+          const c = JSON.parse(readFileSync('work/visual-parity/coverage.json', 'utf8'))
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Native visual review\n\n[Download comparison.html and coverage.json](${process.env.REPORT_URL})\n\nCommit: \`${c.sourceCommit}\` · ${c.cases} states · ${c.windowsFrames + c.macosFrames} frames.\n\nOpen the HTML and review shown/refreshed/settled, both Mac themes, and all affected states. Capture success is not style approval.\n\n${c.limitations.map(s => '- ' + s).join('\n')}\n`)
+          JS
+  review-policy:
+    if: inputs.require_review == true
+    needs: comparison
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - name: Fail if the review environment has no required reviewer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node Scripts/visual-review-policy.mjs
+  review:
+    if: inputs.require_review == true
+    needs: [comparison, review-policy]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment:
+      name: native-visual-review
+      url: ${{ needs.comparison.outputs.report_url }}
+    steps:
+      - name: Record the completed human review
+        run: echo 'The required reviewer approved this run. Release publishing may now proceed.' >> "$GITHUB_STEP_SUMMARY"
