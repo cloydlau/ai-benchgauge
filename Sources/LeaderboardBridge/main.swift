@@ -48,7 +48,7 @@ struct Alert: Encodable { var title: String; var body: String }
 
 actor Engine {
     private static let inactiveQuotaRefreshInterval: TimeInterval = 60
-    private static let xAIKeepAliveInterval: TimeInterval = 30 * 60
+    private static let xaiOAuthKeepAliveInterval: TimeInterval = 6 * 60 * 60
 
     private var snapshot = LeaderboardSnapshot()
     private var errors: [LeaderboardKind: String] = [:]
@@ -177,7 +177,7 @@ actor Engine {
             )
             let includeXAIKeepAlive = onlyCurrent && (
                 lastInactiveRefresh.map {
-                    now.timeIntervalSince($0) >= Self.xAIKeepAliveInterval
+                    now.timeIntervalSince($0) >= Self.xaiOAuthKeepAliveInterval
                 } ?? true
             )
             let refreshing = list.filter { target in
