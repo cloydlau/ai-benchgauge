@@ -48,7 +48,6 @@ struct Alert: Encodable { var title: String; var body: String }
 
 actor Engine {
     private static let inactiveQuotaRefreshInterval: TimeInterval = 60
-    private static let xaiOAuthKeepAliveInterval: TimeInterval = 6 * 60 * 60
 
     private var snapshot = LeaderboardSnapshot()
     private var errors: [LeaderboardKind: String] = [:]
@@ -64,6 +63,8 @@ actor Engine {
     private var lastBoardRefresh: [LeaderboardCategory: Date] = [:]
     private var lastQuotaRefresh: Date?
     private var lastInactiveRefresh: Date?
+    private var nextXAIKeepAliveAt: Date?
+    private var isXAIKeepAliveRefreshing = false
     private var activeBoardRefreshes = Set<LeaderboardCategory>()
     private var refreshingQuotas = false
     private var qwenWebsite: QwenWebsiteQuota?
@@ -157,6 +158,7 @@ actor Engine {
         case .absent:
             chips = []; targets = [:]; unavailable = false
             needsCCSwitch = !FileManager.default.fileExists(atPath: install.databaseURL.path)
+            nextXAIKeepAliveAt = nil
         case .unavailable: unavailable = true
             chips = chips.map { AccountQuotaChip(id: $0.id, shortName: $0.shortName, websiteURL: $0.websiteURL, kind: $0.kind, isCurrent: $0.isCurrent, status: $0.status, isStale: true) }
         case .records(let records):
@@ -170,22 +172,21 @@ actor Engine {
                                  status: prior[target.id]?.status ?? .pending, isStale: prior[target.id]?.isStale ?? false)
             }
             if client == nil { client = AccountQuotaClient(officialQuotaSource: official) }
+            if list.contains(where: { $0.kind == .xaiOAuth }) {
+                await refreshXAIKeepAliveIfDue(authFileURL: install.xaiAuthURL)
+            } else {
+                nextXAIKeepAliveAt = nil
+            }
             let includeInactive = !onlyCurrent && (
                 lastInactiveRefresh.map {
                     now.timeIntervalSince($0) >= Self.inactiveQuotaRefreshInterval
                 } ?? true
             )
-            let includeXAIKeepAlive = onlyCurrent && (
-                lastInactiveRefresh.map {
-                    now.timeIntervalSince($0) >= Self.xaiOAuthKeepAliveInterval
-                } ?? true
-            )
             let refreshing = list.filter { target in
                 if target.isCurrent { return true }
-                if includeInactive { return true }
-                return includeXAIKeepAlive && target.kind == .xaiOAuth
+                return includeInactive
             }
-            if includeInactive || refreshing.contains(where: { $0.kind == .xaiOAuth }) {
+            if includeInactive {
                 lastInactiveRefresh = now
             }
             guard let client, !refreshing.isEmpty else { return }
@@ -194,6 +195,29 @@ actor Engine {
             chips = chips.map { result[$0.id] ?? $0 }
         }
     }
+
+    private func refreshXAIKeepAliveIfDue(authFileURL: URL) async {
+        guard !isXAIKeepAliveRefreshing else { return }
+        if let next = nextXAIKeepAliveAt, Date() < next { return }
+        isXAIKeepAliveRefreshing = true
+        defer { isXAIKeepAliveRefreshing = false }
+        guard let client else { return }
+        let outcome: XAIOAuthKeepAliveOutcome
+        do {
+            outcome = try await client.keepAliveXAI(authFileURL: authFileURL)
+        } catch is CancellationError {
+            return
+        } catch {
+            outcome = .retry
+        }
+        if Task.isCancelled { return }
+        nextXAIKeepAliveAt = Date().addingTimeInterval(
+            outcome == .renewed
+                ? XAIOAuthKeepAlivePolicy.successInterval
+                : XAIOAuthKeepAlivePolicy.failureRetryInterval
+        )
+    }
+
     private func project(category: LeaderboardCategory, grouping: String?, language: AppLanguage) -> State {
         let now = Date()
         let formatter = ISO8601DateFormatter()
