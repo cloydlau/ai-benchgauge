@@ -2,11 +2,11 @@ name: iPad
 on:
   workflow_dispatch:
   pull_request:
-    paths: ['apps/ipad/**', 'Sources/LeaderboardKit/**', 'Package.swift', 'Package.resolved', 'Scripts/ipad*', '.github/workflows/ipad.yml']
+    paths: ['apps/ipad/**', 'Sources/LeaderboardKit/**', 'Package.swift', 'Package.resolved', 'config/app.json', 'LICENSE', 'Scripts/ipad*', '.github/workflows/ipad.yml']
   push:
     branches: [main, 'codex/ipad-support']
     tags: ['v*']
-    paths: ['apps/ipad/**', 'Sources/LeaderboardKit/**', 'Package.swift', 'Package.resolved', 'Scripts/ipad*', '.github/workflows/ipad.yml']
+    paths: ['apps/ipad/**', 'Sources/LeaderboardKit/**', 'Package.swift', 'Package.resolved', 'config/app.json', 'LICENSE', 'Scripts/ipad*', '.github/workflows/ipad.yml']
 permissions:
   contents: read
 jobs:

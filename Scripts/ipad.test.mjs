@@ -43,6 +43,7 @@ test('iPad project uses only the portable UI library, shared version, and Debug-
   assert.ok(!project.includes('Sparkle'))
   assert.ok(scheme.includes('BenchGaugeUITests'))
   assert.ok(readFileSync(new URL('../apps/ipad/App/DebugFixtures.swift', import.meta.url), 'utf8').startsWith('#if DEBUG'))
+  assert.equal(readFileSync(new URL('../apps/ipad/UI/Resources/AI-BenchGauge.txt', import.meta.url), 'utf8'), readFileSync(new URL('../LICENSE', import.meta.url), 'utf8'))
   assert.throws(() => ipadProject({ version: 'v1.0.0' }), /version/)
 })
 test('iPad supports rotation and resizable multitasking without requiring full screen', () => {

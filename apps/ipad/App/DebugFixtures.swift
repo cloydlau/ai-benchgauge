@@ -22,7 +22,7 @@ enum DebugFixtures {
             return board(kind)
         })
     }
-    private static func board(_ kind: LeaderboardKind) -> Leaderboard {
+    nonisolated private static func board(_ kind: LeaderboardKind) -> Leaderboard {
         Leaderboard(kind: kind, title: "Fixture", fetchedAt: Date(timeIntervalSince1970: 1_700_000_000), entries: [
             LeaderboardEntry(rank: 1, name: "GPT Fixture", score: 90, organization: "OpenAI"),
             LeaderboardEntry(rank: 2, name: "DeepSeek Fixture", score: 89, organization: "DeepSeek"),

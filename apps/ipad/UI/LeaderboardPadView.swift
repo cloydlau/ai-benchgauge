@@ -6,6 +6,12 @@ private final class PadPresentationState: ObservableObject {
     @Published var showingSettings = false
     @Published var showingShare = false
     @Published var shareImage: Image?
+    @Published var licenseSection: PadLicenseSection?
+}
+
+private enum PadLicenseSection: String, Identifiable {
+    case application, notices
+    var id: String { rawValue }
 }
 
 @MainActor
@@ -56,6 +62,7 @@ public struct LeaderboardPadView: View {
             }
             .sheet(isPresented: $presentation.showingSettings) { settings }
             .sheet(isPresented: $presentation.showingShare) { shareSheet }
+            .sheet(item: $presentation.licenseSection) { licenseSheet($0) }
             .task(id: store.category) { await store.refresh() }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { Task { await store.refresh() } }
@@ -112,12 +119,34 @@ public struct LeaderboardPadView: View {
 
     private var footer: some View {
         HStack {
-            Button("MIT License") { presentation.showingSettings = true }
+            Button("MIT License") { presentation.licenseSection = .application }
             Spacer(minLength: 12)
-            Link("GitHub", destination: Self.repositoryURL)
+            HStack(spacing: 16) {
+                Button(tr("Notices", "开源声明")) { presentation.licenseSection = .notices }
+                Link("GitHub", destination: Self.repositoryURL)
+            }
         }
         .font(.footnote)
         .foregroundStyle(.secondary)
+    }
+
+    private func licenseSheet(_ section: PadLicenseSection) -> some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    if section == .application {
+                        Text(Self.license).font(.footnote).textSelection(.enabled)
+                    } else {
+                        Text(tr("This iPad edition bundles the project's own MIT-licensed leaderboard modules and uses Apple's system frameworks. No additional third-party software is bundled. Desktop libraries and logo assets are not included.",
+                            "iPad 版包含本项目采用 MIT 许可证的排行榜模块，并使用 Apple 系统框架，没有额外打包第三方软件。未包含桌面依赖及第三方品牌图片。"))
+                        Link("github.com/cloydlau/ai-benchgauge", destination: Self.repositoryURL)
+                        Text(Self.license).font(.footnote).textSelection(.enabled)
+                    }
+                }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .navigationTitle(section == .application ? "MIT License" : tr("Open-source notices", "开源声明"))
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(tr("Done", "完成")) { presentation.licenseSection = nil } } }
+        }
     }
 
     private var settings: some View {
@@ -267,7 +296,11 @@ private struct PadBoardCard: View {
                 }
                 dateLabel(tr("Fetched", "获取于"), date: board.fetchedAt)
                 if let note = board.sourceNote { Text(note).font(.caption).foregroundStyle(.secondary) }
-                if grouping == .company { Text(tr("Score uses each company's strongest model", CompanyLeaderboard.scoreExplanation)).font(.caption).foregroundStyle(.secondary) }
+                if grouping == .company {
+                    Text(isImage ? tr("Score uses each company's strongest model", CompanyLeaderboard.scoreExplanation)
+                        : tr("Score uses each company's strongest model. Tap a score for details.", "以最强模型分数为准，轻点分数查看构成。"))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 if rows.isEmpty { Text(tr("No entries for this country in the Top 20.", "Top 20 中没有这个国家的条目。")) .foregroundStyle(.secondary).padding(.vertical, 20) }
                 ForEach(Array(rows.enumerated()), id: \.offset) { _, entry in entryRow(entry) }
             } else if isRefreshing {
@@ -324,6 +357,7 @@ private struct PadBoardCard: View {
                 Button {
                     detail.selectedCompany = CompanyLeaderboard.rank(board?.entries ?? []).first { $0.entry.id == entry.id }
                 } label: { Text(entry.score, format: .number.precision(.fractionLength(1))).monospacedDigit() }
+                .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(entry.name), \(entry.score), \(tr("score details", "分数说明"))")
             } else {
