@@ -32,6 +32,17 @@ test('shared version and update key cannot diverge by platform', t => {
   writeFileSync(plist, JSON.stringify({ ...f.info, SUPublicEDKey: Buffer.alloc(32).toString('base64') }))
   assert.throws(() => validateAppConfig(f.dir))
 })
+test('CC Switch preview accepts three states or automatic detection and rejects invalid switches', t => {
+  const f = fixture(t)
+  for (const previewCCSwitchState of [null, 'notInstalled', 'installedEmpty', 'configured']) {
+    writeFileSync(join(f.dir, 'config/app.json'), JSON.stringify({ ...f.config, previewCCSwitchState }))
+    assert.equal(validateAppConfig(f.dir).previewCCSwitchState, previewCCSwitchState)
+  }
+  for (const previewCCSwitchState of [true, false, 'empty']) {
+    writeFileSync(join(f.dir, 'config/app.json'), JSON.stringify({ ...f.config, previewCCSwitchState }))
+    assert.throws(() => validateAppConfig(f.dir), /previewCCSwitchState/)
+  }
+})
 test('release summary requires both installers and signs immutable Windows metadata', t => {
   const f = fixture(t)
   for (const file of ['complete-release.mjs', 'app-config.mjs', 'release-lib.mjs']) copyFileSync(join(root, 'Scripts', file), join(f.dir, 'Scripts', file))

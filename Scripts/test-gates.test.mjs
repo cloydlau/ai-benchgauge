@@ -33,6 +33,7 @@ function fixture(t) {
 test('standalone packaging stops before Swift build when the test gate fails', (t) => {
   const { root, original, env } = fixture(t)
   copyFileSync(join(original, 'make-app.sh'), join(root, 'Scripts', 'make-app.sh'))
+  writeFileSync(join(root, 'Scripts', 'validate-app-config.mjs'), '')
   writeFileSync(join(root, 'Scripts', 'test.mjs'), "process.exitCode = 1")
   mkdirSync(join(root, 'bin'))
   writeFileSync(join(root, 'bin', 'swift'), '#!/bin/sh\ntouch unexpected-build\n', { mode: 0o755 })

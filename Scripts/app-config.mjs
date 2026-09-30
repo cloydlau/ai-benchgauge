@@ -5,6 +5,9 @@ export function readAppConfig(root) {
   const config = JSON.parse(readFileSync(join(root, 'config/app.json'), 'utf8'))
   releaseVersion(config.version); decodePublicKey(config.updatePublicKey)
   if (config.repository !== repository) throw new Error('Unexpected release repository')
+  if (config.previewCCSwitchState != null && !['notInstalled', 'installedEmpty', 'configured'].includes(config.previewCCSwitchState)) {
+    throw new Error('previewCCSwitchState must be null, notInstalled, installedEmpty or configured')
+  }
   return config
 }
 export function plistString(text, key) {
