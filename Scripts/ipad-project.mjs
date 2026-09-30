@@ -43,7 +43,8 @@ export function ipadProject({ version, buildNumber = '1', team = '' }) {
       const values = { ...settings, SWIFT_OPTIMIZATION_LEVEL: config === 'Debug' ? '-Onone' : '-O',
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: config === 'Debug' ? 'DEBUG $(inherited)' : '$(inherited)',
         DEBUG_INFORMATION_FORMAT: config === 'Debug' ? 'dwarf' : 'dwarf-with-dsym',
-        ENABLE_TESTABILITY: config === 'Debug' ? 'YES' : 'NO' }
+        ENABLE_TESTABILITY: config === 'Debug' ? 'YES' : 'NO',
+        ONLY_ACTIVE_ARCH: config === 'Debug' ? 'YES' : 'NO' }
       const body = Object.entries(values).map(([key, value]) => `${key} = ${q(value)};`).join('\n')
       return put(`${name}-${config}`, `isa = XCBuildConfiguration; buildSettings = { ${body} }; name = ${config};`)
     })

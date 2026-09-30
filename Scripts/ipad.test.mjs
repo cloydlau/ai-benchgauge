@@ -36,6 +36,8 @@ test('iPad project uses only the portable UI library, shared version, and Debug-
   assert.ok(project.includes('CURRENT_PROJECT_VERSION = "17"'))
   assert.ok(project.includes('TARGETED_DEVICE_FAMILY = "2"'))
   assert.ok(project.includes('IPHONEOS_DEPLOYMENT_TARGET = "17.0"'))
+  assert.ok(project.includes('ONLY_ACTIVE_ARCH = "YES"'))
+  assert.ok(project.includes('ONLY_ACTIVE_ARCH = "NO"'))
   assert.ok(project.includes('productName = LeaderboardPadUI'))
   assert.ok(!project.includes('productName = LeaderboardCore'))
   assert.ok(!project.includes('Sparkle'))
