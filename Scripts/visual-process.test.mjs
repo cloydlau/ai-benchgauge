@@ -54,7 +54,7 @@ test('API errors and removed reviewers fail closed', async () => {
   await assert.rejects(checkVisualReviewPolicy({ env, request: async () => { throw new Error('network unavailable') } }), /network/)
 })
 test('PR CI always captures and release publishing depends on the protected review', () => {
-  const read = name => readFileSync(new URL(`../.github/workflows/${name}`, import.meta.url), 'utf8')
+  const read = name => readFileSync(new URL(`../.github/workflows/${name}`, import.meta.url), 'utf8').replaceAll('\r\n', '\n')
   const ci = read('ci.yml'), release = read('release.yml'), visual = read('visual-parity.yml')
   assert.match(ci, /visual:\n\s+uses: \.\/\.github\/workflows\/visual-parity.yml/)
   assert.match(release, /visual:\n\s+uses: \.\/\.github\/workflows\/visual-parity.yml\n\s+with:\n\s+require_review: true/)
