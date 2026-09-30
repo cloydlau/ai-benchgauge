@@ -86,10 +86,10 @@ git push origin v1.0.1
 
 ```bash
 brew tap cloydlau/ai-benchgauge https://github.com/cloydlau/ai-benchgauge
-brew install --cask cloydlau/ai-benchgauge/ai-benchgauge
+brew install --cask ai-benchgauge
 ```
 
-Cask 复用同一个 Developer ID 签名 / 公证 DMG，并设置 `auto_updates true`；日常更新仍由应用内 Sparkle 完成。需要强制同步 Homebrew 记录的版本时，可使用 `brew upgrade --cask --greedy cloydlau/ai-benchgauge/ai-benchgauge`。
+Cask 复用同一个 Developer ID 签名 / 公证 DMG，并设置 `auto_updates true`；日常更新仍由应用内 Sparkle 完成。需要强制同步 Homebrew 记录的版本时，可使用 `brew upgrade --cask --greedy ai-benchgauge`。
 失败不会更新线上稳定版清单。已发布的版本不覆盖；修正问题后使用更高版本号。
 若仅发布草稿的最后一步失败，可在 GitHub 确认附件齐全后手动发布该草稿。
 

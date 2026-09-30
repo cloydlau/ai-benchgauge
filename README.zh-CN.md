@@ -92,7 +92,7 @@ Mac 也可以用 Homebrew 安装签名 Cask，后续更新继续由应用内 Spa
 
 ```bash
 brew tap cloydlau/ai-benchgauge https://github.com/cloydlau/ai-benchgauge
-brew install --cask cloydlau/ai-benchgauge/ai-benchgauge
+brew install --cask ai-benchgauge
 ```
 
 Windows 按当前用户安装，不需要单独安装 Swift 或 .NET；[源码构建说明](apps/windows/README.md)。

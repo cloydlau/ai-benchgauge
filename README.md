@@ -94,7 +94,7 @@ On macOS, you can also install the signed cask with Homebrew; Sparkle continues 
 
 ```bash
 brew tap cloydlau/ai-benchgauge https://github.com/cloydlau/ai-benchgauge
-brew install --cask cloydlau/ai-benchgauge/ai-benchgauge
+brew install --cask ai-benchgauge
 ```
 
 Mac source builds require Swift 6, Command Line Tools and .NET 10 SDK for the Windows update tests:
