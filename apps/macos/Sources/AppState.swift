@@ -9,6 +9,11 @@ private struct CCSwitchQuotaLoad: Sendable {
     var xaiAuthURL: URL
 }
 
+private enum InactiveQuotaRefreshScope {
+    case all
+    case xaiOAuthOnly
+}
+
 @MainActor
 final class AppState: ObservableObject {
     @Published private(set) var snapshot = LeaderboardSnapshot()
@@ -90,8 +95,9 @@ final class AppState: ObservableObject {
     private static let minimumLeaderboardRefreshInterval: TimeInterval = 30 * 60
     private static let inactiveQuotaRefreshInterval: TimeInterval = 60
     /// Refresh the persistent menu bar quota every 30 minutes. The status item
-    /// shows only the current provider, so a background pass queries only that
-    /// one; the panel's other chips are refreshed when the panel is opened.
+    /// queries the current provider plus inactive xAI, whose OAuth refresh
+    /// token otherwise stops being rotated after switching away from Grok.
+    /// Other inactive chips are refreshed when the panel is opened.
     private static let backgroundQuotaRefreshInterval: TimeInterval = 30 * 60
 
     func refreshFromMenuClick() {
@@ -198,7 +204,8 @@ final class AppState: ObservableObject {
         guard !isQuitting else { return }
         refreshQuotas(
             minimumInterval: Self.backgroundQuotaRefreshInterval,
-            inactiveMinimumInterval: nil
+            inactiveMinimumInterval: Self.backgroundQuotaRefreshInterval,
+            inactiveScope: .xaiOAuthOnly
         )
         if Date() >= schedule.giveUpAt {
             schedule = schedule.givingUp()
@@ -211,13 +218,14 @@ final class AppState: ObservableObject {
 
     /// Loads providers from the local CC Switch database and refreshes their
     /// quotas. `inactiveMinimumInterval` throttles the providers the status
-    /// item does not show; `nil` leaves them out of the pass entirely, so they
-    /// keep their last values instead of being re-queried in the background.
+    /// item does not show. `inactiveScope` can limit a background pass to xAI
+    /// for OAuth keepalive while leaving other inactive providers untouched.
     /// Credential material stays inside the client request. Does not read a
     /// Codex install.
     private func refreshQuotas(
         minimumInterval: TimeInterval,
-        inactiveMinimumInterval: TimeInterval? = 0
+        inactiveMinimumInterval: TimeInterval = 0,
+        inactiveScope: InactiveQuotaRefreshScope = .all
     ) {
         guard !isQuitting, connectingOpenAIProviderID == nil else { return }
         if let lastQuotaAttemptAt,
@@ -293,7 +301,9 @@ final class AppState: ObservableObject {
                 let now = Date()
                 let targetsToRefresh = targets.filter { target in
                     if target.isCurrent { return true }
-                    guard let inactiveMinimumInterval else { return false }
+                    if inactiveScope == .xaiOAuthOnly, target.kind != .xaiOAuth {
+                        return false
+                    }
                     guard let lastAttempt = self.lastQuotaAttemptAtByID[target.id] else {
                         return true
                     }
