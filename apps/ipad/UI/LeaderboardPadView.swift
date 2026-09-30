@@ -119,7 +119,7 @@ public struct LeaderboardPadView: View {
 
     private var footer: some View {
         HStack {
-            Button("MIT License") { presentation.licenseSection = .application }
+            Button("MIT License") { presentation.licenseSection = .application }.accessibilityIdentifier("license")
             Spacer(minLength: 12)
             HStack(spacing: 16) {
                 Button(tr("Notices", "开源声明")) { presentation.licenseSection = .notices }
@@ -164,7 +164,7 @@ public struct LeaderboardPadView: View {
                     Text(tr("iPad edition shows public leaderboards. Refreshes on return when results are older than 24 hours; pull down to refresh at any time.",
                         "iPad 版展示公开排行榜。回到应用时，超过 24 小时的数据会自动刷新，也可随时下拉刷新。"))
                     Text(tr("Desktop account quotas are not available in this edition.", "此版本暂不提供电脑上的账户余量。"))
-                    Link("github.com/cloydlau/ai-benchgauge", destination: Self.repositoryURL)
+                    Link("github.com/cloydlau/ai-benchgauge", destination: Self.repositoryURL).accessibilityIdentifier("settings-github")
                     Text("v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")")
                 }
                 Section("MIT License") {
@@ -219,7 +219,7 @@ public struct LeaderboardPadView: View {
                         shareImage.resizable().scaledToFit()
                         ShareLink(item: shareImage, preview: SharePreview("AI BenchGauge", image: shareImage)) {
                             Label(tr("Share leaderboard image", "分享榜单图片"), systemImage: "square.and.arrow.up")
-                        }.buttonStyle(.borderedProminent)
+                        }.buttonStyle(.borderedProminent).accessibilityIdentifier("share-image")
                     } else {
                         Text(tr("The image could not be created. You can still share the project link.", "图片生成失败，仍可分享项目链接。"))
                     }
@@ -360,6 +360,7 @@ private struct PadBoardCard: View {
                 .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(entry.name), \(entry.score), \(tr("score details", "分数说明"))")
+                .accessibilityIdentifier("score-\(kind.rawValue)-\(entry.id)")
             } else {
                 Text(entry.score, format: .number.precision(.fractionLength(1))).monospacedDigit().font(.subheadline)
             }
