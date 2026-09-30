@@ -100,10 +100,12 @@ final class AppState: ObservableObject {
     private static let inactiveQuotaRefreshInterval: TimeInterval = 60
     /// Refresh the persistent menu bar quota every 30 minutes. The status item
     /// queries the current provider plus inactive xAI, whose OAuth refresh
-    /// token otherwise stops being rotated after switching away from Grok.
+    /// token otherwise stops being rotated after switching away from Grok. The
+    /// keepalive runs on a slower cadence than the current-provider quota.
     /// Other inactive chips are refreshed when the panel is opened. A provider
     /// switch does not wait for this cadence; see the selection check in tick().
     private static let backgroundQuotaRefreshInterval: TimeInterval = 30 * 60
+    private static let xaiOAuthKeepAliveInterval: TimeInterval = 6 * 60 * 60
 
     func refreshFromMenuClick() {
         refreshQuotas(
@@ -210,7 +212,7 @@ final class AppState: ObservableObject {
         refreshQuotaSelectionIfChanged()
         refreshQuotas(
             minimumInterval: Self.backgroundQuotaRefreshInterval,
-            inactiveMinimumInterval: Self.backgroundQuotaRefreshInterval,
+            inactiveMinimumInterval: Self.xaiOAuthKeepAliveInterval,
             inactiveScope: .xaiOAuthOnly
         )
         if Date() >= schedule.giveUpAt {
