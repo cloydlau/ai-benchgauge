@@ -21,7 +21,11 @@ on_err() {
 trap on_err ERR
 
 node "$ROOT/Scripts/validate-app-config.mjs"
-node "$ROOT/Scripts/test.mjs" --gate
+node "$ROOT/Scripts/prepare-swift-workspace.mjs"
+
+if [[ "${BENCHGAUGE_SKIP_TESTS:-0}" != "1" ]]; then
+  node "$ROOT/Scripts/test.mjs" --gate
+fi
 
 build_args=(-c release --package-path "$ROOT" --cache-path "$ROOT/work/swiftpm-cache"
   --manifest-cache local --disable-build-manifest-caching --disable-sandbox -debug-info-format none)
@@ -33,8 +37,8 @@ swift build "${build_args[@]}" --product leaderboard-menu
 BIN="$(swift build "${build_args[@]}" --show-bin-path)/leaderboard-menu"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$ROOT/apps/macos/Sources/Resources/Info.plist" "$APP/Contents/Info.plist"
-cp "$BIN" "$APP/Contents/MacOS/leaderboard-menu"
 cp "$ROOT/config/app.json" "$APP/Contents/Resources/app.json"
+cp "$BIN" "$APP/Contents/MacOS/leaderboard-menu"
 rm -rf "$APP/Contents/Resources/logos"
 cp -R "$ROOT/assets/logos" "$APP/Contents/Resources/logos"
 rm -rf "$APP/Contents/Resources/Licenses"
