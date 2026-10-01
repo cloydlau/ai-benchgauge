@@ -33,10 +33,14 @@ struct State: Encodable {
     var quotaUnavailable: Bool
     var trayText: String?
     var alerts: [Alert]
+    var layoutEntries: [LayoutEntry]? = nil
+    var quotaUpdatedAt: String? = nil
 }
+struct LayoutEntry: Encodable { var name: String; var planTitle: String?; var apiTitle: String? }
 struct Board: Encodable {
     var kind: String; var title: String; var url: String
     var updatedAt: String?; var error: String?; var entries: [Entry]
+    var fetchedAt: String? = nil
 }
 struct Entry: Encodable {
     var rank: Int; var name: String; var score: Double
@@ -66,9 +70,11 @@ actor Engine {
     private let fetcher = LeaderboardFetcher()
     private let cache: LeaderboardCache
     private let official = OpenAIManagedQuotaSource()
+    private let officialAccountStore = OfficialQuotaAccountStore()
     private var client: AccountQuotaClient?
     private var lastBoardRefresh: [LeaderboardCategory: Date] = [:]
     private var lastQuotaRefresh: Date?
+    private var quotaUpdatedAt: Date?
     private var lastInactiveRefresh: Date?
     private let xaiKeepAliveScheduleStore = XAIOAuthKeepAliveScheduleStore()
     private var xaiKeepAliveAccountID: String?
@@ -264,6 +270,7 @@ actor Engine {
             let refreshed = try await client.refresh(targets: refreshing, previous: chips, authFileURL: install.xaiAuthURL)
             let result = Dictionary(uniqueKeysWithValues: refreshed.map { ($0.id, $0) })
             chips = chips.map { result[$0.id] ?? $0 }
+            quotaUpdatedAt = QuotaFreshness.updatedAt(afterRefreshing: refreshed, previous: quotaUpdatedAt, now: Date())
         }
     }
 
@@ -306,8 +313,8 @@ actor Engine {
 
     private func project(category: LeaderboardCategory, grouping: String?, language: AppLanguage) -> State {
         let now = Date()
-        let formatter = ISO8601DateFormatter()
         let boards = category.boardKinds.map { kind -> Board in
+            let formatter = ISO8601DateFormatter()
             let board = snapshot.boards[kind]
             let standings = grouping == "company" ? CompanyLeaderboard.rank(board?.entries ?? []) : []
             let entries = grouping == "company" ? standings.map(\.entry) : (board?.entries ?? [])
@@ -322,7 +329,24 @@ actor Engine {
                              codingURL: PurchaseLinkCatalog.preferredLink(from: links.codingPlan, language: language)?.url.absoluteString,
                              apiURL: PurchaseLinkCatalog.preferredLink(from: links.payAsYouGo, language: language)?.url.absoluteString,
                              help: standings.first { $0.entry.rank == entry.rank }.map { CompanyLeaderboard.scoreHelp(for: $0, language: language) })
-            })
+            }, fetchedAt: board.map { formatter.string(from: $0.fetchedAt) })
+        }
+        // Mirror Mac: size against every cached category and grouping, even
+        // when the currently selected board happens to have short titles.
+        var layoutEntries: [LayoutEntry] = []
+        for category in LeaderboardCategory.allCases {
+            for kind in category.boardKinds {
+                let models = snapshot.boards[kind]?.entries ?? []
+                for grouping in LeaderboardGrouping.allCases {
+                    let entries = grouping == .company ? CompanyLeaderboard.rank(models).map(\.entry) : Array(models.prefix(20))
+                    for entry in entries {
+                        let links = PurchaseLinkCatalog.links(forOrganization: entry.organization, modelName: entry.name)
+                        layoutEntries.append(LayoutEntry(name: entry.name,
+                            planTitle: grouping == .company && !links.codingPlan.isEmpty ? language.text("Plan", "套餐") : nil,
+                            apiTitle: grouping == .company && !links.payAsYouGo.isEmpty ? language.text("Pay as you go", "按量") : nil))
+                    }
+                }
+            }
         }
         let displayChips = chips.map { chip -> AccountQuotaChip in
             guard chip.kind == .qwen, let website = qwenWebsite, let captured = qwenCapturedAt,

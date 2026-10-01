@@ -6,6 +6,29 @@ using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Security;
 
+// Stable data timestamps, boundary ages and language forms; rendering alone
+// must never fabricate a just-now timestamp from the presence of quota cards.
+var ageNow = DateTimeOffset.Parse("2026-10-01T12:00:00Z");
+foreach (var sample in new[] {
+    (Seconds: 0, En: "just now", Zh: "刚刚", Hant: "剛剛"),
+    (Seconds: 59, En: "just now", Zh: "刚刚", Hant: "剛剛"),
+    (Seconds: 60, En: "1 min ago", Zh: "1 分钟前", Hant: "1 分鐘前"),
+    (Seconds: 3599, En: "59 min ago", Zh: "59 分钟前", Hant: "59 分鐘前"),
+    (Seconds: 3600, En: "1 hr ago", Zh: "1 小时前", Hant: "1 小時前"),
+    (Seconds: 86399, En: "23 hr ago", Zh: "23 小时前", Hant: "23 小時前"),
+    (Seconds: 86400, En: "1 day ago", Zh: "1 天前", Hant: "1 天前"),
+    (Seconds: 172800, En: "2 days ago", Zh: "2 天前", Hant: "2 天前") })
+{
+    var date = ageNow.AddSeconds(-sample.Seconds);
+    if (UpdateAge.Format(date, ageNow, "en") != sample.En || UpdateAge.Format(date, ageNow, "zh") != sample.Zh || UpdateAge.Format(date, ageNow, "zh-Hant") != sample.Hant)
+        throw new Exception("Incorrect relative update age");
+}
+if (UpdateAge.Parse("invalid") is not null || UpdateAge.Format(null, ageNow, "zh") != "待更新" ||
+    UpdateAge.Format(ageNow.AddSeconds(30), ageNow, "zh") != "刚刚" ||
+    UpdateAge.Parse("2026-10-01T20:00:00+08:00") != ageNow) throw new Exception("Incorrect unknown or offset update time");
+var oldState = JsonSerializer.Deserialize<DisplayState>("{\"boards\":[],\"quotas\":[],\"quotaNeedsCCSwitch\":false,\"quotaUnavailable\":false,\"alerts\":[]}", AppConfig.Json)!;
+if (oldState.QuotaUpdatedAt is not null) throw new Exception("Missing data timestamp must remain unknown");
+
 var keys = new Ed25519PrivateKeyParameters(new SecureRandom());
 var publicKey = Convert.ToBase64String(keys.GeneratePublicKey().GetEncoded());
 const string repository = "cloydlau/ai-benchgauge";

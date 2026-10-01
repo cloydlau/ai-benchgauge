@@ -452,7 +452,7 @@ final class AppState: ObservableObject {
                     let refreshedByID = Dictionary(uniqueKeysWithValues: chips.map { ($0.id, $0) })
                     let refreshedAt = Date()
                     self.quotaChips = previous.map { refreshedByID[$0.id] ?? $0 }
-                    self.quotaUpdatedAt = refreshedAt
+                    self.quotaUpdatedAt = QuotaFreshness.updatedAt(afterRefreshing: chips, previous: self.quotaUpdatedAt, now: refreshedAt)
                     self.quotaNotifier.consider(chips: chips, now: refreshedAt, language: self.selectedLanguage)
                 } catch is CancellationError {
                     return
