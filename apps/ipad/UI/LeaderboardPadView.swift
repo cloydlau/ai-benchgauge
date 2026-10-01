@@ -480,18 +480,6 @@ private extension Color {
 /// Explicit segment widths match the desktop control and remain stable across
 /// SwiftUI measurement probes, rotation and screenshot-feedback updates.
 @MainActor
-private final class PadEqualSegments: UISegmentedControl {
-    override func layoutSubviews() {
-        if numberOfSegments > 0 && bounds.width > 0 {
-            let width = bounds.width / CGFloat(numberOfSegments)
-            for index in 0..<numberOfSegments where abs(widthForSegment(at: index) - width) > 0.1 {
-                setWidth(width, forSegmentAt: index)
-            }
-        }
-        super.layoutSubviews()
-    }
-}
-@MainActor
 private struct PadSegmentedControl<Value: Hashable>: UIViewRepresentable {
     let values: [Value]
     let titles: [String]
@@ -500,13 +488,17 @@ private struct PadSegmentedControl<Value: Hashable>: UIViewRepresentable {
     let label: String
 
     func makeCoordinator() -> Coordinator { Coordinator(values: values, selection: $selection) }
-    func makeUIView(context: Context) -> PadEqualSegments {
-        let control = PadEqualSegments(items: titles)
+    func makeUIView(context: Context) -> UISegmentedControl {
+        let control = UISegmentedControl(items: titles)
         control.apportionsSegmentWidthsByContent = false
+        // Both fixed-width control groups allocate 90 points per option.
+        // Do not change widths during layout: UIKit can invalidate its own
+        // measurements repeatedly and block the main event loop.
+        for index in titles.indices { control.setWidth(90, forSegmentAt: index) }
         control.addTarget(context.coordinator, action: #selector(Coordinator.changed(_:)), for: .valueChanged)
         return control
     }
-    func updateUIView(_ control: PadEqualSegments, context: Context) {
+    func updateUIView(_ control: UISegmentedControl, context: Context) {
         context.coordinator.selection = $selection
         for (index, title) in titles.enumerated() where control.titleForSegment(at: index) != title {
             control.setTitle(title, forSegmentAt: index)
@@ -515,7 +507,6 @@ private struct PadSegmentedControl<Value: Hashable>: UIViewRepresentable {
         control.accessibilityLabel = label
         let index = values.firstIndex(of: selection) ?? UISegmentedControl.noSegment
         if control.selectedSegmentIndex != index { control.selectedSegmentIndex = index }
-        control.setNeedsLayout()
     }
     @MainActor
     final class Coordinator: NSObject {
