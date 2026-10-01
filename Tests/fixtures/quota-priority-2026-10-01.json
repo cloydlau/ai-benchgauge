@@ -1,0 +1,1327 @@
+{
+  "boards" : {
+    "arenaText" : {
+      "entries" : [
+        {
+          "modelID" : "claude-opus-5.5-high-vertex",
+          "name" : "claude-opus-5.5-high",
+          "organization" : "Anthropic",
+          "rank" : 1,
+          "score" : 1508.5538218355593
+        },
+        {
+          "modelID" : "claude-opus-4-6-thinking",
+          "name" : "claude-opus-4-6-high",
+          "organization" : "Anthropic",
+          "rank" : 2,
+          "score" : 1505.3591281365773
+        },
+        {
+          "modelID" : "claude-fable-5-text",
+          "name" : "claude-fable-5-high",
+          "organization" : "Anthropic",
+          "rank" : 3,
+          "score" : 1503.8150896849393
+        },
+        {
+          "modelID" : "claude-opus-4-7-thinking",
+          "name" : "claude-opus-4-7-high",
+          "organization" : "Anthropic",
+          "rank" : 4,
+          "score" : 1501.8585562971846
+        },
+        {
+          "modelID" : "claude-fable-5.1-max-text",
+          "name" : "claude-fable-5.1-max",
+          "organization" : "Anthropic",
+          "rank" : 5,
+          "score" : 1501.293611997489
+        },
+        {
+          "modelID" : "claude-opus-4-6",
+          "name" : "claude-opus-4-6",
+          "organization" : "Anthropic",
+          "rank" : 6,
+          "score" : 1497.622962014369
+        },
+        {
+          "modelID" : "muse-spark-1.2-xhigh-text",
+          "name" : "muse-spark-1.2 (xHigh)",
+          "organization" : "Meta",
+          "rank" : 7,
+          "score" : 1496.1661141754707
+        },
+        {
+          "modelID" : "claude-opus-4-7",
+          "name" : "claude-opus-4-7",
+          "organization" : "Anthropic",
+          "rank" : 8,
+          "score" : 1494.6333169834716
+        },
+        {
+          "modelID" : "muse-spark-1-3-max-bhma-text",
+          "name" : "muse-spark-1.3-max",
+          "organization" : "Meta",
+          "rank" : 9,
+          "score" : 1494.0967431517377
+        },
+        {
+          "modelID" : "skimaki-kwc6",
+          "name" : "gemini-3.8-flash-high",
+          "organization" : "Google",
+          "rank" : 10,
+          "score" : 1492.3909065738185
+        },
+        {
+          "modelID" : "claude-opus-5-high-text",
+          "name" : "claude-opus-5-high",
+          "organization" : "Anthropic",
+          "rank" : 11,
+          "score" : 1491.076699495733
+        },
+        {
+          "modelID" : "super-nova-ext-3tam-text",
+          "name" : "muse-spark-1.1",
+          "organization" : "Meta",
+          "rank" : 12,
+          "score" : 1490.7940510697133
+        },
+        {
+          "modelID" : "eureka",
+          "name" : "muse-spark",
+          "organization" : "Meta",
+          "rank" : 13,
+          "score" : 1489.143888520688
+        },
+        {
+          "modelID" : "claude-opus-5-max-text",
+          "name" : "claude-opus-5-max",
+          "organization" : "Anthropic",
+          "rank" : 14,
+          "score" : 1488.1718212082453
+        },
+        {
+          "modelID" : "andwise-evfd",
+          "name" : "gemini-3.7-flash-high",
+          "organization" : "Google",
+          "rank" : 15,
+          "score" : 1488.0019165376268
+        },
+        {
+          "modelID" : "kimi-k3-v3-text",
+          "name" : "kimi-k3-max",
+          "organization" : "Moonshot",
+          "rank" : 16,
+          "score" : 1487.9637997404498
+        },
+        {
+          "modelID" : "gemini-3.1-pro-preview",
+          "name" : "gemini-3.1-pro-preview",
+          "organization" : "Google",
+          "rank" : 17,
+          "score" : 1486.6776290065297
+        },
+        {
+          "modelID" : "gemini-3-pro",
+          "name" : "gemini-3-pro",
+          "organization" : "Google",
+          "rank" : 18,
+          "score" : 1485.4653649066427
+        },
+        {
+          "modelID" : "gpt-5.6-sol-xhigh-text",
+          "name" : "gpt-5.6-sol-xhigh",
+          "organization" : "OpenAI",
+          "rank" : 19,
+          "score" : 1483.1712763891155
+        },
+        {
+          "modelID" : "gemini-3.6-flash",
+          "name" : "gemini-3.6-flash-high",
+          "organization" : "Google",
+          "rank" : 20,
+          "score" : 1481.9337306367183
+        }
+      ],
+      "fetchedAt" : "2026-09-30T18:20:46Z",
+      "kind" : "arenaText",
+      "sourceUpdatedAt" : "2026-09-25T22:00:00Z",
+      "title" : "Arena | Text"
+    },
+    "arenaTextToImage" : {
+      "entries" : [
+        {
+          "modelID" : "lina-f-alpha-wyi7",
+          "name" : "gpt-image-2.5-sunburst",
+          "organization" : "OpenAI",
+          "rank" : 1,
+          "score" : 1423.6048361955234
+        },
+        {
+          "modelID" : "lina-alpha-y6hr",
+          "name" : "gpt-image-2.5-flare",
+          "organization" : "OpenAI",
+          "rank" : 2,
+          "score" : 1400.9416980966648
+        },
+        {
+          "modelID" : "gpt-image-2-medium",
+          "name" : "gpt-image-2 (medium)",
+          "organization" : "OpenAI",
+          "rank" : 3,
+          "score" : 1382.9939222783125
+        },
+        {
+          "modelID" : "lo-bah-png-uq1z",
+          "name" : "mai-image-2.6",
+          "organization" : "Microsoft AI",
+          "rank" : 4,
+          "score" : 1335.0213617288207
+        },
+        {
+          "modelID" : "carillon-jhq8",
+          "name" : "reve-2.1",
+          "organization" : "Reve",
+          "rank" : 5,
+          "score" : 1302.2635903212558
+        },
+        {
+          "modelID" : "porcelain-k9cy",
+          "name" : "grok-imagine-image-2.0 (low)",
+          "organization" : "SpaceXAI",
+          "rank" : 6,
+          "score" : 1300.7641718910454
+        },
+        {
+          "modelID" : "iron-bloom-kosy",
+          "name" : "muse-image",
+          "organization" : "Meta",
+          "rank" : 7,
+          "score" : 1275.9911360334524
+        },
+        {
+          "modelID" : "babylon-fp95",
+          "name" : "reve-2.0",
+          "organization" : "Reve",
+          "rank" : 8,
+          "score" : 1268.9026009829524
+        },
+        {
+          "modelID" : "gemini-3.1-flash-image (nano-banana-2)",
+          "name" : "gemini-3.1-flash-image (nano-banana-2) [web-search]",
+          "organization" : "Google",
+          "rank" : 9,
+          "score" : 1261.2259528367952
+        },
+        {
+          "modelID" : "seedream-5.0-pro",
+          "name" : "seedream-5.0-pro",
+          "organization" : "Bytedance",
+          "rank" : 10,
+          "score" : 1256.2330581191047
+        },
+        {
+          "modelID" : "zen-bear-v14r-z42u",
+          "name" : "qwen-image-3.0-pro",
+          "organization" : "Alibaba",
+          "rank" : 11,
+          "score" : 1255.934521955782
+        },
+        {
+          "modelID" : "baryonyx-xyv3",
+          "name" : "mai-image-2.5",
+          "organization" : "Microsoft AI",
+          "rank" : 12,
+          "score" : 1254.0074042608874
+        },
+        {
+          "modelID" : "instant-ramen-a85d",
+          "name" : "gemini-3.1-flash-lite-image (nano-banana-2-lite)",
+          "organization" : "Google",
+          "rank" : 13,
+          "score" : 1250.0350797164904
+        },
+        {
+          "modelID" : "gemini-3-pro-image-2k",
+          "name" : "gemini-3-pro-image-2k (nano-banana-pro)",
+          "organization" : "Google",
+          "rank" : 14,
+          "score" : 1247.400868252854
+        },
+        {
+          "modelID" : "gpt-image-1.5-high-fidelity",
+          "name" : "gpt-image-1.5-high-fidelity",
+          "organization" : "OpenAI",
+          "rank" : 15,
+          "score" : 1238.4552092692286
+        },
+        {
+          "modelID" : "gemini-3-pro-image-preview",
+          "name" : "gemini-3-pro-image-preview (nano-banana-pro)",
+          "organization" : "Google",
+          "rank" : 16,
+          "score" : 1234.0604209730575
+        },
+        {
+          "modelID" : "lychee-21-09-6n7b-text-to-image",
+          "name" : "qwen-image-2.1",
+          "organization" : "Alibaba",
+          "rank" : 17,
+          "score" : 1227.608026459679
+        },
+        {
+          "modelID" : "nonnas-meatballs-open-weight",
+          "name" : "ideogram-4.0-quality",
+          "organization" : "Ideogram",
+          "rank" : 18,
+          "score" : 1204.7684953656765
+        },
+        {
+          "modelID" : "auto-bear-v2-ej1q",
+          "name" : "qwen-image-2.0-pro-2026-06-22",
+          "organization" : "Alibaba",
+          "rank" : 19,
+          "score" : 1191.6527689469945
+        },
+        {
+          "modelID" : "flow-state-5-1y1p",
+          "name" : "uni-1.1-max",
+          "organization" : "Luma AI",
+          "rank" : 20,
+          "score" : 1189.1276769816382
+        }
+      ],
+      "fetchedAt" : "2026-09-30T18:20:45Z",
+      "kind" : "arenaTextToImage",
+      "sourceUpdatedAt" : "2026-09-24T18:00:00Z",
+      "title" : "Arena | 文生图"
+    },
+    "arenaTextToVideo" : {
+      "entries" : [
+        {
+          "modelID" : "omni-1-1-eap-925h",
+          "name" : "gemini-omni-1.1-flash",
+          "organization" : "Google",
+          "rank" : 1,
+          "score" : 1516.2118921315541
+        },
+        {
+          "modelID" : "bouncybohr",
+          "name" : "gemini-omni-flash",
+          "organization" : "Google",
+          "rank" : 2,
+          "score" : 1512.8868289138463
+        },
+        {
+          "modelID" : "latent-sauce-79r5",
+          "name" : "flux-3-video",
+          "organization" : "Black Forest Labs",
+          "rank" : 3,
+          "score" : 1493.0543332847847
+        },
+        {
+          "modelID" : "saiph-ooo3",
+          "name" : "grok-imagine-video-1.5-agent",
+          "organization" : "SpaceXAI",
+          "rank" : 4,
+          "score" : 1492.3046704346343
+        },
+        {
+          "modelID" : "k2",
+          "name" : "dreamina-seedance-2.0-720p",
+          "organization" : "Bytedance",
+          "rank" : 5,
+          "score" : 1479.175705007644
+        },
+        {
+          "modelID" : "vega-v9e1",
+          "name" : "wan3.0",
+          "organization" : "Alibaba",
+          "rank" : 6,
+          "score" : 1476.2739934367091
+        },
+        {
+          "modelID" : "lhotse",
+          "name" : "dreamina-seedance-2.5-720p",
+          "organization" : "Bytedance",
+          "rank" : 7,
+          "score" : 1473.9317980031665
+        },
+        {
+          "modelID" : "hailuo-3-text-to-video",
+          "name" : "minimax-h3",
+          "organization" : "MiniMax",
+          "rank" : 8,
+          "score" : 1460.3432579513055
+        },
+        {
+          "modelID" : "cold-brew-vznw",
+          "name" : "muse-video",
+          "organization" : "Meta",
+          "rank" : 9,
+          "score" : 1455.8204019190434
+        },
+        {
+          "modelID" : "model-x-2",
+          "name" : "happyhorse-1.0",
+          "organization" : "Alibaba-ATH",
+          "rank" : 10,
+          "score" : 1427.1825277992866
+        },
+        {
+          "modelID" : "sora-2-pro",
+          "name" : "sora-2-pro",
+          "organization" : "OpenAI",
+          "rank" : 11,
+          "score" : 1367.7785079474975
+        },
+        {
+          "modelID" : "veo-3.1-audio",
+          "name" : "veo-3.1-audio",
+          "organization" : "Google",
+          "rank" : 12,
+          "score" : 1364.1829129498647
+        },
+        {
+          "modelID" : "veo-3.1-audio-1080p",
+          "name" : "veo-3.1-audio-1080p",
+          "organization" : "Google",
+          "rank" : 13,
+          "score" : 1362.2058561903405
+        },
+        {
+          "modelID" : "veo-3.1-fast-audio",
+          "name" : "veo-3.1-fast-audio",
+          "organization" : "Google",
+          "rank" : 14,
+          "score" : 1361.91151855212
+        },
+        {
+          "modelID" : "veo-3.1-fast-audio-1080p",
+          "name" : "veo-3.1-fast-audio-1080p",
+          "organization" : "Google",
+          "rank" : 15,
+          "score" : 1357.948145912706
+        },
+        {
+          "modelID" : "veo-3-fast-audio",
+          "name" : "veo-3-fast-audio",
+          "organization" : "Google",
+          "rank" : 16,
+          "score" : 1347.8534486865315
+        },
+        {
+          "modelID" : "sora-2",
+          "name" : "sora-2",
+          "organization" : "OpenAI",
+          "rank" : 17,
+          "score" : 1342.5555504253562
+        },
+        {
+          "modelID" : "grok-imagine-video-720p-t2v",
+          "name" : "grok-imagine-video-720p",
+          "organization" : "SpaceXAI",
+          "rank" : 18,
+          "score" : 1342.1528886385886
+        },
+        {
+          "modelID" : "veo-3-audio",
+          "name" : "veo-3-audio",
+          "organization" : "Google",
+          "rank" : 19,
+          "score" : 1340.1572781135928
+        },
+        {
+          "modelID" : "wan2.7-t2v-2026-04-25",
+          "name" : "wan2.7-t2v",
+          "organization" : "Alibaba",
+          "rank" : 20,
+          "score" : 1337.1761500745083
+        }
+      ],
+      "fetchedAt" : "2026-09-30T18:20:45Z",
+      "kind" : "arenaTextToVideo",
+      "sourceUpdatedAt" : "2026-09-21T17:00:00Z",
+      "title" : "Arena | 文生视频"
+    },
+    "artificialAnalysis" : {
+      "entries" : [
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/anthropic.svg",
+          "modelID" : "claude-opus-5-5",
+          "name" : "Claude Opus 5.5 (Adaptive Reasoning, Max Effort, Default Fallback)",
+          "organization" : "Anthropic",
+          "rank" : 1,
+          "score" : 57.6223698102963
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/anthropic.svg",
+          "modelID" : "claude-opus-5-5-xhigh",
+          "name" : "Claude Opus 5.5 (Adaptive Reasoning, Xhigh Effort, Default Fallback)",
+          "organization" : "Anthropic",
+          "rank" : 2,
+          "score" : 55.9873505840139
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/anthropic.svg",
+          "modelID" : "claude-sonnet-5-5",
+          "name" : "Claude Sonnet 5.5 (Adaptive Reasoning, Max Effort, Default Fallback)",
+          "organization" : "Anthropic",
+          "rank" : 3,
+          "score" : 55.9779549012591
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/anthropic.svg",
+          "modelID" : "claude-opus-5-5-high",
+          "name" : "Claude Opus 5.5 (Adaptive Reasoning, High Effort, Default Fallback)",
+          "organization" : "Anthropic",
+          "rank" : 4,
+          "score" : 53.5831959822067
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/anthropic.svg",
+          "modelID" : "claude-fable-5-1",
+          "name" : "Claude Fable 5.1 (Adaptive Reasoning, Max Effort, Default Fallback)",
+          "organization" : "Anthropic",
+          "rank" : 5,
+          "score" : 53.3549259623252
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/anthropic.svg",
+          "modelID" : "claude-fable-5-1-xhigh",
+          "name" : "Claude Fable 5.1 (Adaptive Reasoning, Xhigh Effort, Default Fallback)",
+          "organization" : "Anthropic",
+          "rank" : 6,
+          "score" : 53.2032587538944
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/openai.svg",
+          "modelID" : "gpt-6-astra",
+          "name" : "GPT-6 Astra (max)",
+          "organization" : "OpenAI",
+          "rank" : 7,
+          "score" : 52.673669395513
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/openai.svg",
+          "modelID" : "gpt-6-astra-xhigh",
+          "name" : "GPT-6 Astra (xhigh)",
+          "organization" : "OpenAI",
+          "rank" : 8,
+          "score" : 52.3863277108782
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/anthropic.svg",
+          "modelID" : "claude-sonnet-5-5-xhigh",
+          "name" : "Claude Sonnet 5.5 (Adaptive Reasoning, Xhigh Effort, Default Fallback)",
+          "organization" : "Anthropic",
+          "rank" : 9,
+          "score" : 51.8522867021152
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/openai.svg",
+          "modelID" : "gpt-6-1-sol",
+          "name" : "GPT-6.1 Sol (max)",
+          "organization" : "OpenAI",
+          "rank" : 10,
+          "score" : 51.8332597011541
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/meta.svg",
+          "modelID" : "muse-spark-1-3",
+          "name" : "Muse Spark 1.3 (max)",
+          "organization" : "Meta",
+          "rank" : 11,
+          "score" : 48.0923107719685
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/openai.svg",
+          "modelID" : "gpt-6-sol",
+          "name" : "GPT-6 Sol (max)",
+          "organization" : "OpenAI",
+          "rank" : 12,
+          "score" : 47.5276426437724
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/spacexai.svg",
+          "modelID" : "grok-4-7",
+          "name" : "Grok 4.7 (xhigh)",
+          "organization" : "SpaceXAI",
+          "rank" : 13,
+          "score" : 46.4465506302286
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/xiaomi.svg",
+          "modelID" : "mimo-v2-6-pro",
+          "name" : "MiMo-V2.6-Pro",
+          "organization" : "Xiaomi",
+          "rank" : 14,
+          "score" : 46.3242065310383
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/alibaba.svg",
+          "modelID" : "qwen3-8-max",
+          "name" : "Qwen3.8 Max (0902)",
+          "organization" : "Alibaba",
+          "rank" : 15,
+          "score" : 45.4152084980521
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/zai.svg",
+          "modelID" : "glm-5-3",
+          "name" : "GLM-5.3 (max)",
+          "organization" : "Z AI",
+          "rank" : 16,
+          "score" : 44.777392385614
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/stepfun.svg",
+          "modelID" : "step-5",
+          "name" : "Step 5 Preview",
+          "organization" : "StepFun",
+          "rank" : 17,
+          "score" : 43.7343049141614
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/kimi.jpg",
+          "modelID" : "kimi-k3",
+          "name" : "Kimi K3 (max)",
+          "organization" : "Kimi",
+          "rank" : 18,
+          "score" : 43.5938229518782
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/zai.svg",
+          "modelID" : "glm-5-3-flash",
+          "name" : "GLM 5.3 Flash",
+          "organization" : "Z AI",
+          "rank" : 19,
+          "score" : 41.807466113455
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/google.svg",
+          "modelID" : "gemini-3-8-flash",
+          "name" : "Gemini 3.8 Flash (high)",
+          "organization" : "Google",
+          "rank" : 20,
+          "score" : 40.9262321765904
+        }
+      ],
+      "fetchedAt" : "2026-09-30T18:20:45Z",
+      "kind" : "artificialAnalysis",
+      "organizationLogoURLs" : {
+        "Alibaba" : "https:\/\/artificialanalysis.ai\/img\/logos\/alibaba.svg",
+        "Anthropic" : "https:\/\/artificialanalysis.ai\/img\/logos\/anthropic.svg",
+        "DeepSeek" : "https:\/\/artificialanalysis.ai\/img\/logos\/deepseek.svg",
+        "Google" : "https:\/\/artificialanalysis.ai\/img\/logos\/google.svg",
+        "Institute of Foundation Models" : "https:\/\/artificialanalysis.ai\/img\/logos\/ifm.svg",
+        "Kimi" : "https:\/\/artificialanalysis.ai\/img\/logos\/kimi.jpg",
+        "Meta" : "https:\/\/artificialanalysis.ai\/img\/logos\/meta.svg",
+        "MiniMax" : "https:\/\/artificialanalysis.ai\/img\/logos\/minimax.svg",
+        "Mistral" : "https:\/\/artificialanalysis.ai\/img\/logos\/mistral.png",
+        "NVIDIA" : "https:\/\/artificialanalysis.ai\/img\/logos\/nvidia.svg",
+        "OpenAI" : "https:\/\/artificialanalysis.ai\/img\/logos\/openai.svg",
+        "SpaceXAI" : "https:\/\/artificialanalysis.ai\/img\/logos\/spacexai.svg",
+        "StepFun" : "https:\/\/artificialanalysis.ai\/img\/logos\/stepfun.svg",
+        "Thinking Machines" : "https:\/\/artificialanalysis.ai\/img\/logos\/thinking-machines.svg",
+        "Xiaomi" : "https:\/\/artificialanalysis.ai\/img\/logos\/xiaomi.svg",
+        "Z AI" : "https:\/\/artificialanalysis.ai\/img\/logos\/zai.svg"
+      },
+      "sourceNote" : "v4.3.2",
+      "title" : "Artificial Analysis Intelligence Index"
+    },
+    "artificialAnalysisCodingAgent" : {
+      "entries" : [
+        {
+          "modelID" : "private-anthropic_claude-beignet-eap-max",
+          "name" : "Claude Code - Sonnet 5.5 (max)",
+          "organization" : "Anthropic",
+          "rank" : 1,
+          "score" : 68.35783373750832
+        },
+        {
+          "modelID" : "anthropic_claude-opus-5-5",
+          "name" : "Claude Code - Opus 5.5 (max)",
+          "organization" : "Anthropic",
+          "rank" : 2,
+          "score" : 65.9885802549234
+        },
+        {
+          "modelID" : "openai_quasar-alpha",
+          "name" : "Codex - GPT-6.1 Sol (xhigh) ({'reasoning_effort': 'xhigh'})",
+          "organization" : "OpenAI",
+          "rank" : 3,
+          "score" : 62.90776736822983
+        },
+        {
+          "modelID" : "private-anthropic_claude-beignet-eap-xhigh",
+          "name" : "Claude Code - Sonnet 5.5 (xhigh)",
+          "organization" : "Anthropic",
+          "rank" : 4,
+          "score" : 62.8713868151493
+        },
+        {
+          "modelID" : "anthropic_claude-fable-5-1",
+          "name" : "Claude Code - Fable 5.1 (max) (with fallback)",
+          "organization" : "Anthropic",
+          "rank" : 5,
+          "score" : 62.22249615769457
+        },
+        {
+          "modelID" : "cognition_fusion-claude-fable-5-1-xhigh-sidekick-penguin-medium",
+          "name" : "Devin Fusion CLI - Claude Fable 5.1 XHigh + SWE-2 Medium",
+          "rank" : 6,
+          "score" : 61.68255492406223
+        },
+        {
+          "modelID" : "openai_vega-alpha",
+          "name" : "Codex - GPT-6 Astra (max)",
+          "organization" : "OpenAI",
+          "rank" : 7,
+          "score" : 61.64504498789397
+        },
+        {
+          "modelID" : "openai_quasar-alpha",
+          "name" : "Codex - GPT-6.1 Sol (medium) ({'reasoning_effort': 'medium'})",
+          "organization" : "OpenAI",
+          "rank" : 8,
+          "score" : 61.41474695571183
+        },
+        {
+          "modelID" : "openai_quasar-alpha",
+          "name" : "Codex - GPT-6.1 Sol (high) ({'reasoning_effort': 'high'})",
+          "organization" : "OpenAI",
+          "rank" : 9,
+          "score" : 60.14923716179784
+        },
+        {
+          "modelID" : "openai_quasar-alpha",
+          "name" : "Codex - GPT-6.1 Sol (max)",
+          "organization" : "OpenAI",
+          "rank" : 10,
+          "score" : 60.14750704302517
+        },
+        {
+          "modelID" : "anthropic_claude-opus-5",
+          "name" : "Claude Code - Opus 5 (max)",
+          "organization" : "Anthropic",
+          "rank" : 11,
+          "score" : 59.726367298448366
+        },
+        {
+          "modelID" : "cognition_fusion-gpt-6-astra-xhigh-sidekick-penguin-medium",
+          "name" : "Devin Fusion CLI - GPT-6 Astra XHigh + SWE-2 Medium",
+          "rank" : 12,
+          "score" : 58.8884131062264
+        },
+        {
+          "modelID" : "openai_quasar-alpha",
+          "name" : "Codex - GPT-6.1 Sol (low) ({'reasoning_effort': 'low'})",
+          "organization" : "OpenAI",
+          "rank" : 13,
+          "score" : 57.21634943016617
+        },
+        {
+          "modelID" : "openai_gpt-6-sol",
+          "name" : "Codex - GPT-6 Sol (max)",
+          "organization" : "OpenAI",
+          "rank" : 14,
+          "score" : 56.662591275779974
+        },
+        {
+          "modelID" : "xai_grok-bop-o86-xhigh",
+          "name" : "Grok Build - Grok 4.7 (xhigh)",
+          "organization" : "xAI",
+          "rank" : 15,
+          "score" : 56.26764360706693
+        },
+        {
+          "modelID" : "private-anthropic_claude-beignet-eap-high",
+          "name" : "Claude Code - Sonnet 5.5 (high)",
+          "organization" : "Anthropic",
+          "rank" : 16,
+          "score" : 55.01249049636148
+        },
+        {
+          "modelID" : "openai_gpt-5-6-sol",
+          "name" : "Codex - GPT-5.6 Sol (max) ({'reasoning_effort': 'max'})",
+          "organization" : "OpenAI",
+          "rank" : 17,
+          "score" : 54.559127289644
+        },
+        {
+          "modelID" : "meta_aa_glacier135",
+          "name" : "Muse Code - Muse Spark 1.3 (max)",
+          "organization" : "Meta",
+          "rank" : 18,
+          "score" : 54.30273329930766
+        },
+        {
+          "modelID" : "zai_glm-5-3",
+          "name" : "Opencode - GLM-5.3 ({'reasoning_effort': 'max'})",
+          "organization" : "Opencode",
+          "rank" : 19,
+          "score" : 53.55484140097326
+        },
+        {
+          "modelID" : "moonshot_kimi-k3",
+          "name" : "Kimi Code CLI - Kimi K3",
+          "organization" : "Moonshot AI",
+          "rank" : 20,
+          "score" : 51.9259105470924
+        }
+      ],
+      "fetchedAt" : "2026-09-30T18:20:45Z",
+      "kind" : "artificialAnalysisCodingAgent",
+      "sourceNote" : "v1.5",
+      "sourceUpdatedAt" : "2026-09-30T15:05:37Z",
+      "title" : "Artificial Analysis Coding Agent Index"
+    },
+    "artificialAnalysisTextToImage" : {
+      "entries" : [
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/openai.svg",
+          "modelID" : "98833f93-0f33-4205-b83a-c4d42a25da4f",
+          "name" : "GPT Image 2.5 Sunburst (max)",
+          "organization" : "OpenAI",
+          "rank" : 1,
+          "score" : 1196.51
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/openai.svg",
+          "modelID" : "ac3abe51-14ca-4c04-b215-01a85f3a36ac",
+          "name" : "GPT Image 2.5 Flare (max)",
+          "organization" : "OpenAI",
+          "rank" : 2,
+          "score" : 1189.81
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/openai.svg",
+          "modelID" : "9570e1d0-a390-48c1-a270-1317570fe3d5",
+          "name" : "GPT Image 2 (high)",
+          "organization" : "OpenAI",
+          "rank" : 3,
+          "score" : 1171.62
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/spacexai.svg",
+          "modelID" : "748fadd1-ecd9-41d0-9b43-f5fccd4fb843",
+          "name" : "Grok Imagine Image 2.0",
+          "organization" : "SpaceXAI",
+          "rank" : 4,
+          "score" : 1155.22
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/microsoft-ai.svg",
+          "modelID" : "5d931c2e-797e-406e-8eb9-83ce18b5710c",
+          "name" : "MAI-Image-2.6",
+          "organization" : "Microsoft AI",
+          "rank" : 5,
+          "score" : 1149.66
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/google.svg",
+          "modelID" : "3180162e-693d-487d-adbb-721f859f768d",
+          "name" : "Nano Banana 2 (Gemini 3.1 Flash Image)",
+          "organization" : "Google",
+          "rank" : 6,
+          "score" : 1124.74
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/meta.svg",
+          "modelID" : "0a7b7bb4-caa5-4334-aff3-57ad2bdead0d",
+          "name" : "Muse Image",
+          "organization" : "Meta",
+          "rank" : 7,
+          "score" : 1113.69
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/microsoft-ai.svg",
+          "modelID" : "daa01918-0450-4825-992a-eade1f981683",
+          "name" : "MAI-Image-2.6-Flash",
+          "organization" : "Microsoft AI",
+          "rank" : 8,
+          "score" : 1104.92
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/microsoft-ai.svg",
+          "modelID" : "3f8a2d6b-9c4e-4f1a-b7d2-8e5a0c3d71f9",
+          "name" : "MAI-Image-2.5",
+          "organization" : "Microsoft AI",
+          "rank" : 9,
+          "score" : 1103.67
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/google.svg",
+          "modelID" : "6a5056eb-6854-43c4-bf18-01d185ce9e2f",
+          "name" : "Nano Banana Pro (Gemini 3 Pro Image)",
+          "organization" : "Google",
+          "rank" : 10,
+          "score" : 1101.2
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/microsoft-ai.svg",
+          "modelID" : "503fdcd1-5895-4145-8484-1ab301320f6d",
+          "name" : "MAI-Image-2.5-Pro",
+          "organization" : "Microsoft AI",
+          "rank" : 11,
+          "score" : 1100.07
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/google.svg",
+          "modelID" : "7f1079f3-b886-4ac1-bd3e-7059da87ff28",
+          "name" : "Nano Banana 2 Lite (Gemini 3.1 Flash Lite Image)",
+          "organization" : "Google",
+          "rank" : 12,
+          "score" : 1095.84
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/alibaba.svg",
+          "modelID" : "5538a039-fb86-4cd7-a207-4d692f358032",
+          "name" : "Qwen-Image-3.0-Pro",
+          "organization" : "Alibaba",
+          "rank" : 13,
+          "score" : 1089.25
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/bytedance.svg",
+          "modelID" : "c9e4f0a2-3b7d-4c61-8e29-1f5a6d0b47c3",
+          "name" : "Seedream 5.0 Pro",
+          "organization" : "ByteDance Seed",
+          "rank" : 14,
+          "score" : 1080.86
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/alibaba.svg",
+          "modelID" : "2253749f-b609-4016-b639-0ce39a42375a",
+          "name" : "Qwen-Image-3.0",
+          "organization" : "Alibaba",
+          "rank" : 15,
+          "score" : 1075.33
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/spacexai.svg",
+          "modelID" : "9fe07c8f-8d20-4908-a991-65c00e5ef260",
+          "name" : "grok-imagine-image-quality",
+          "organization" : "SpaceXAI",
+          "rank" : 16,
+          "score" : 1045.04
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/alibaba.svg",
+          "modelID" : "dea37206-747e-49f3-8bed-6541ca505d03",
+          "name" : "Qwen-Image-2.1",
+          "organization" : "Alibaba",
+          "rank" : 17,
+          "score" : 1034.49
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/microsoft-ai.svg",
+          "modelID" : "e23a6328-1441-4633-b53c-bb2c40c5a647",
+          "name" : "MAI-Image-2.5-Flash",
+          "organization" : "Microsoft AI",
+          "rank" : 18,
+          "score" : 1032.6
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/alibaba.svg",
+          "modelID" : "16e22800-1485-4b5f-b28c-bf802ca160ac",
+          "name" : "Qwen Image 2.0 Pro (2026-04-22)",
+          "organization" : "Alibaba",
+          "rank" : 19,
+          "score" : 1029.76
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/bytedance.svg",
+          "modelID" : "e9f5c7b0-bcb3-400b-81a1-0a1401323551",
+          "name" : "Seedream 4.0",
+          "organization" : "ByteDance Seed",
+          "rank" : 20,
+          "score" : 1028.66
+        }
+      ],
+      "fetchedAt" : "2026-09-30T18:20:45Z",
+      "kind" : "artificialAnalysisTextToImage",
+      "organizationLogoURLs" : {
+        "Alibaba" : "https:\/\/artificialanalysis.ai\/img\/logos\/alibaba.svg",
+        "Amazon" : "https:\/\/artificialanalysis.ai\/img\/logos\/aws.svg",
+        "Api Airforce" : "https:\/\/artificialanalysis.ai\/img\/logos\/airforce.webp",
+        "Baidu" : "https:\/\/artificialanalysis.ai\/img\/logos\/baidu.svg",
+        "Black Forest Labs" : "https:\/\/artificialanalysis.ai\/img\/logos\/blackforestlabs.svg",
+        "Bria" : "https:\/\/artificialanalysis.ai\/img\/logos\/bria.svg",
+        "ByteDance Seed" : "https:\/\/artificialanalysis.ai\/img\/logos\/bytedance.svg",
+        "Bytedance" : "https:\/\/artificialanalysis.ai\/img\/logos\/bytedance.svg",
+        "DeepSeek" : "https:\/\/artificialanalysis.ai\/img\/logos\/deepseek.svg",
+        "Eigen AI" : "https:\/\/artificialanalysis.ai\/img\/logos\/eigenai.svg",
+        "Fal" : "https:\/\/artificialanalysis.ai\/img\/logos\/fal.svg",
+        "Google" : "https:\/\/artificialanalysis.ai\/img\/logos\/google.svg",
+        "HiDream" : "https:\/\/artificialanalysis.ai\/img\/logos\/hidream.png",
+        "Ideogram" : "https:\/\/artificialanalysis.ai\/img\/logos\/ideogram.svg",
+        "ImagineArt" : "https:\/\/artificialanalysis.ai\/img\/logos\/imagineart.png",
+        "InclusionAI" : "https:\/\/artificialanalysis.ai\/img\/logos\/inclusionai.jpg",
+        "KlingAI" : "https:\/\/artificialanalysis.ai\/img\/logos\/klingai.svg",
+        "Krea" : "https:\/\/artificialanalysis.ai\/img\/logos\/krea.svg",
+        "Leonardo.Ai" : "https:\/\/artificialanalysis.ai\/img\/logos\/leonardoai.png",
+        "Luma Labs" : "https:\/\/artificialanalysis.ai\/img\/logos\/lumalabs.svg",
+        "Meituan" : "https:\/\/artificialanalysis.ai\/img\/logos\/meituan.svg",
+        "Meta" : "https:\/\/artificialanalysis.ai\/img\/logos\/meta.svg",
+        "Microsoft AI" : "https:\/\/artificialanalysis.ai\/img\/logos\/microsoft-ai.svg",
+        "Midjourney" : "https:\/\/artificialanalysis.ai\/img\/logos\/midjourney.png",
+        "MiniMax" : "https:\/\/artificialanalysis.ai\/img\/logos\/minimax.svg",
+        "NVIDIA" : "https:\/\/artificialanalysis.ai\/img\/logos\/nvidia.svg",
+        "OpenAI" : "https:\/\/artificialanalysis.ai\/img\/logos\/openai.svg",
+        "OpenGVLab" : "https:\/\/artificialanalysis.ai\/img\/logos\/opengvlab.jpg",
+        "Playground AI" : "https:\/\/artificialanalysis.ai\/img\/logos\/playgroundai.png",
+        "Pruna AI" : "https:\/\/artificialanalysis.ai\/img\/logos\/pruna.svg",
+        "Recraft" : "https:\/\/artificialanalysis.ai\/img\/logos\/recraftai.png",
+        "Reve" : "https:\/\/artificialanalysis.ai\/img\/logos\/reve.svg",
+        "Runway" : "https:\/\/artificialanalysis.ai\/img\/logos\/runway.svg",
+        "SpaceXAI" : "https:\/\/artificialanalysis.ai\/img\/logos\/spacexai.svg",
+        "Stability.ai" : "https:\/\/artificialanalysis.ai\/img\/logos\/stabilityai.png",
+        "StepFun" : "https:\/\/artificialanalysis.ai\/img\/logos\/stepfun.svg",
+        "Tencent" : "https:\/\/artificialanalysis.ai\/img\/logos\/tencent.svg",
+        "VectorSpaceLab" : "https:\/\/artificialanalysis.ai\/img\/logos\/vectorspacelab.png",
+        "Vidu" : "https:\/\/artificialanalysis.ai\/img\/logos\/vidu.svg",
+        "Z AI" : "https:\/\/artificialanalysis.ai\/img\/logos\/zai.svg"
+      },
+      "title" : "Artificial Analysis | 文生图"
+    },
+    "artificialAnalysisTextToVideo" : {
+      "entries" : [
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/alibaba.svg",
+          "modelID" : "ceee978e-c560-4ba9-9405-f7d390a47709",
+          "name" : "Wan 3.0",
+          "organization" : "Alibaba",
+          "rank" : 1,
+          "score" : 1156.84
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/utopai.svg",
+          "modelID" : "48635dd3-c2f3-400e-b739-49a29c61c0ad",
+          "name" : "Utopai X (based on MiniMax H3)",
+          "organization" : "Utopai Studios",
+          "rank" : 2,
+          "score" : 1150.24
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/bytedance.svg",
+          "modelID" : "57913d03-a959-4752-8027-8991612448ed",
+          "name" : "Dreamina Seedance 2.5",
+          "organization" : "ByteDance Seed",
+          "rank" : 3,
+          "score" : 1143.25
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/minimax.svg",
+          "modelID" : "da987d84-718f-4ac2-a278-518595967b42",
+          "name" : "MiniMax H3 (768p)",
+          "organization" : "MiniMax",
+          "rank" : 4,
+          "score" : 1138.46
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/blackforestlabs.svg",
+          "modelID" : "b0e23926-7240-4277-8480-b3f12c12251b",
+          "name" : "FLUX 3",
+          "organization" : "Black Forest Labs",
+          "rank" : 5,
+          "score" : 1128.66
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/google.svg",
+          "modelID" : "91ad83d7-be21-4595-952a-2eefee3360e5",
+          "name" : "Gemini Omni Flash 1.1",
+          "organization" : "Google",
+          "rank" : 6,
+          "score" : 1120.12
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/bytedance.svg",
+          "modelID" : "b8289cfd-3843-4d4c-a3fb-ec5ae5e752e0",
+          "name" : "Dreamina Seedance 2.0",
+          "organization" : "ByteDance Seed",
+          "rank" : 7,
+          "score" : 1118.36
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/fal.svg",
+          "modelID" : "0aa31432-4bf3-4f1b-ad2d-b31abba7a98c",
+          "name" : "Minimax H3 Max (Based on MiniMax H3)",
+          "organization" : "Fal",
+          "rank" : 8,
+          "score" : 1110.58
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/skywork.svg",
+          "modelID" : "50ed6856-5052-431d-8994-584b2e02f023",
+          "name" : "SkyReels V4",
+          "organization" : "Skywork AI",
+          "rank" : 9,
+          "score" : 1073.6
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/sapiens.svg",
+          "modelID" : "5518540d-d1bc-48cc-9ad3-8f20769c021e",
+          "name" : "Agnes-Video-2.5",
+          "organization" : "Sapiens AI",
+          "rank" : 10,
+          "score" : 1059.21
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/alibaba.svg",
+          "modelID" : "e0e60f8f-ad67-4b84-aec9-4da2b9a962d5",
+          "name" : "HappyHorse-1.1",
+          "organization" : "Alibaba-ATH",
+          "rank" : 11,
+          "score" : 1046.31
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/spacexai.svg",
+          "modelID" : "e83498b8-ae29-4eb7-a343-2a2a74eb0e53",
+          "name" : "grok-imagine-video-1.5",
+          "organization" : "SpaceXAI",
+          "rank" : 12,
+          "score" : 1046.07
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/alibaba.svg",
+          "modelID" : "03ff7ea5-2ee9-4f2d-9c41-01f4279362cb",
+          "name" : "Wan2.7-260612",
+          "organization" : "Alibaba",
+          "rank" : 13,
+          "score" : 1029.44
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/alibaba.svg",
+          "modelID" : "a4dc21f8-7a35-497e-90a4-4c9a1593c8ca",
+          "name" : "HappyHorse-1.0",
+          "organization" : "Alibaba-ATH",
+          "rank" : 14,
+          "score" : 1024.36
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/klingai.svg",
+          "modelID" : "553f28a1-95de-4991-9084-d9275d862f68",
+          "name" : "Kling 3.0 Omni 1080p (Pro)",
+          "organization" : "KlingAI",
+          "rank" : 15,
+          "score" : 1014.95
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/klingai.svg",
+          "modelID" : "d149ad95-b3b2-4d23-8611-07a84c1a0e7f",
+          "name" : "Kling 3.0 1080p (Pro)",
+          "organization" : "KlingAI",
+          "rank" : 16,
+          "score" : 1000
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/pixverse.svg",
+          "modelID" : "be866b8a-d073-4ee4-9652-73227c679dc4",
+          "name" : "PixVerse V6",
+          "organization" : "PixVerse",
+          "rank" : 17,
+          "score" : 988.65
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/google.svg",
+          "modelID" : "b8dc1338-a685-4c03-ad98-cf61226547b0",
+          "name" : "Veo 3.1",
+          "organization" : "Google",
+          "rank" : 18,
+          "score" : 966.95
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/sandai.svg",
+          "modelID" : "1d0f4e17-4e52-44fa-9de7-36308c5cee61",
+          "name" : "MAGI-2 Preview (0912)",
+          "organization" : "Sand.ai",
+          "rank" : 19,
+          "score" : 963.77
+        },
+        {
+          "logoURL" : "https:\/\/artificialanalysis.ai\/img\/logos\/google.svg",
+          "modelID" : "f3c7e331-2b60-4f87-bc9c-363264f211a8",
+          "name" : "Veo 3.1 Fast",
+          "organization" : "Google",
+          "rank" : 20,
+          "score" : 962.14
+        }
+      ],
+      "fetchedAt" : "2026-09-30T18:20:45Z",
+      "kind" : "artificialAnalysisTextToVideo",
+      "organizationLogoURLs" : {
+        "Alibaba" : "https:\/\/artificialanalysis.ai\/img\/logos\/alibaba.svg",
+        "Alibaba-ATH" : "https:\/\/artificialanalysis.ai\/img\/logos\/alibaba.svg",
+        "Black Forest Labs" : "https:\/\/artificialanalysis.ai\/img\/logos\/blackforestlabs.svg",
+        "ByteDance Seed" : "https:\/\/artificialanalysis.ai\/img\/logos\/bytedance.svg",
+        "Creatify" : "https:\/\/artificialanalysis.ai\/img\/logos\/creatify.svg",
+        "Fal" : "https:\/\/artificialanalysis.ai\/img\/logos\/fal.svg",
+        "Google" : "https:\/\/artificialanalysis.ai\/img\/logos\/google.svg",
+        "KlingAI" : "https:\/\/artificialanalysis.ai\/img\/logos\/klingai.svg",
+        "Lightricks" : "https:\/\/artificialanalysis.ai\/img\/logos\/lightricks.svg",
+        "MiniMax" : "https:\/\/artificialanalysis.ai\/img\/logos\/minimax.svg",
+        "Pika Art" : "https:\/\/artificialanalysis.ai\/img\/logos\/pika-labs.png",
+        "PixVerse" : "https:\/\/artificialanalysis.ai\/img\/logos\/pixverse.svg",
+        "Pruna AI" : "https:\/\/artificialanalysis.ai\/img\/logos\/pruna.svg",
+        "Runway" : "https:\/\/artificialanalysis.ai\/img\/logos\/runway.svg",
+        "Sand.ai" : "https:\/\/artificialanalysis.ai\/img\/logos\/sandai.svg",
+        "Sapiens AI" : "https:\/\/artificialanalysis.ai\/img\/logos\/sapiens.svg",
+        "Skywork AI" : "https:\/\/artificialanalysis.ai\/img\/logos\/skywork.svg",
+        "SpaceXAI" : "https:\/\/artificialanalysis.ai\/img\/logos\/spacexai.svg",
+        "Utopai Studios" : "https:\/\/artificialanalysis.ai\/img\/logos\/utopai.svg",
+        "Vidu" : "https:\/\/artificialanalysis.ai\/img\/logos\/vidu.svg"
+      },
+      "title" : "Artificial Analysis | 文生视频"
+    },
+    "codeArenaWebDev" : {
+      "entries" : [
+        {
+          "modelID" : "claude-opus-5.5-max-vertex-webdev",
+          "name" : "claude-opus-5.5-max",
+          "organization" : "Anthropic",
+          "rank" : 1,
+          "score" : 1817.8444420683181
+        },
+        {
+          "modelID" : "gpt-6-astra-max-code-codex-harness",
+          "name" : "gpt-6-astra-max",
+          "organization" : "OpenAI",
+          "rank" : 2,
+          "score" : 1789.1055739079766
+        },
+        {
+          "modelID" : "gpt-6.1-sol-max-code-codex-harness",
+          "name" : "gpt-6.1-sol-max",
+          "organization" : "OpenAI",
+          "rank" : 3,
+          "score" : 1758.724697016325
+        },
+        {
+          "modelID" : "claude-fable-5.1-max-webdev",
+          "name" : "claude-fable-5.1-max",
+          "organization" : "Anthropic",
+          "rank" : 4,
+          "score" : 1750.6666954444622
+        },
+        {
+          "modelID" : "claude-sonnet-5-5-high",
+          "name" : "claude-sonnet-5.5-high",
+          "organization" : "Anthropic",
+          "rank" : 5,
+          "score" : 1708.6633845070737
+        },
+        {
+          "modelID" : "claude-opus-5-max-webdev",
+          "name" : "claude-opus-5-max",
+          "organization" : "Anthropic",
+          "rank" : 6,
+          "score" : 1693.678694932812
+        },
+        {
+          "modelID" : "gpt-6-sol-max-code-codex-harness",
+          "name" : "gpt-6-sol-max",
+          "organization" : "OpenAI",
+          "rank" : 7,
+          "score" : 1689.331621450443
+        },
+        {
+          "modelID" : "kinsley-5jmg",
+          "name" : "qwen3.8-max",
+          "organization" : "Alibaba",
+          "rank" : 8,
+          "score" : 1671.2286513300737
+        },
+        {
+          "modelID" : "kiana-8mgg",
+          "name" : "qwen3.8-max-0902",
+          "organization" : "Alibaba",
+          "rank" : 9,
+          "score" : 1669.7153651706149
+        },
+        {
+          "modelID" : "claude-opus-5-high-webdev",
+          "name" : "claude-opus-5-high",
+          "organization" : "Anthropic",
+          "rank" : 10,
+          "score" : 1659.9669958874742
+        },
+        {
+          "modelID" : "kivine-wxzc",
+          "name" : "kimi-k3-max",
+          "organization" : "Moonshot",
+          "rank" : 11,
+          "score" : 1657.8428028964095
+        },
+        {
+          "modelID" : "muse-spark-1-3-max-bhma-webdev",
+          "name" : "muse-spark-1.3-max",
+          "organization" : "Meta",
+          "rank" : 12,
+          "score" : 1655.4226502573888
+        },
+        {
+          "modelID" : "farris-ees5-webdev",
+          "name" : "qwen3.8-flash-next",
+          "organization" : "Alibaba",
+          "rank" : 13,
+          "score" : 1637.8002818037521
+        },
+        {
+          "modelID" : "grok-4.7-xhigh-public",
+          "name" : "grok-4.7-xhigh",
+          "organization" : "SpaceXAI",
+          "rank" : 14,
+          "score" : 1636.2737652493324
+        },
+        {
+          "modelID" : "phoenix-qcs2-webdev",
+          "name" : "hy4-preview",
+          "organization" : "Tencent",
+          "rank" : 15,
+          "score" : 1633.1704260699548
+        },
+        {
+          "modelID" : "claude-fable-5-webdev",
+          "name" : "claude-fable-5-high",
+          "organization" : "Anthropic",
+          "rank" : 16,
+          "score" : 1625.6133348674134
+        },
+        {
+          "modelID" : "muse-spark-1.3-xhigh-webdev",
+          "name" : "muse-spark-1.3 (xHigh)",
+          "organization" : "Meta",
+          "rank" : 17,
+          "score" : 1623.3061076847457
+        },
+        {
+          "modelID" : "glm-5.3",
+          "name" : "glm-5.3-max",
+          "organization" : "Z.ai",
+          "rank" : 18,
+          "score" : 1622.0411323854364
+        },
+        {
+          "modelID" : "grok-4.6-high-public-webdev",
+          "name" : "grok-4.6-high",
+          "organization" : "SpaceXAI",
+          "rank" : 19,
+          "score" : 1620.0702861826376
+        },
+        {
+          "modelID" : "deepseek-v4.1-flash-max-20260910-webdev",
+          "name" : "deepseek-v4.1-flash-max",
+          "organization" : "DeepSeek",
+          "rank" : 20,
+          "score" : 1620.0078178383633
+        }
+      ],
+      "fetchedAt" : "2026-09-30T18:20:46Z",
+      "kind" : "codeArenaWebDev",
+      "sourceUpdatedAt" : "2026-09-30T14:00:00Z",
+      "title" : "Code Arena | WebDev"
+    }
+  }
+}
