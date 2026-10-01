@@ -13,7 +13,6 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using BenchGauge.Shared;
 using WpfButton = System.Windows.Controls.Button;
-using Inline = System.Windows.Documents.InlineUIContainer;
 using TextRun = System.Windows.Documents.Run;
 using NativeButton = System.Windows.Controls.Button;
 
@@ -57,6 +56,7 @@ sealed partial class MainWindow
     TextBlock Caption(string text, Brush? foreground = null, double size = 11) => new()
     {
         Text = text, Foreground = foreground ?? PanelMuted, FontSize = size,
+        FontFamily = new FontFamily("Segoe UI"),
         VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis,
     };
     static Binding ParentBinding(string property) => new(property) { RelativeSource = RelativeSource.TemplatedParent };
@@ -90,6 +90,7 @@ sealed partial class MainWindow
         buttons.Setters.Add(new Setter(WpfButton.BorderThicknessProperty, new Thickness(0)));
         buttons.Setters.Add(new Setter(WpfButton.CursorProperty, Cursors.Hand));
         buttons.Setters.Add(new Setter(WpfButton.FontSizeProperty, 11.0));
+        buttons.Setters.Add(new Setter(WpfButton.FontFamilyProperty, new FontFamily("Segoe UI")));
         Resources[typeof(NativeButton)] = buttons;
 
         var template = new ControlTemplate(typeof(ComboBox));
@@ -111,12 +112,16 @@ sealed partial class MainWindow
         selection.SetValue(ContentPresenter.MarginProperty, new Thickness(8, 2, 23, 2));
         selection.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
         selection.SetValue(ContentPresenter.IsHitTestVisibleProperty, false); grid.AppendChild(selection);
-        var arrow = new FrameworkElementFactory(typeof(TextBlock));
-        arrow.SetValue(TextBlock.TextProperty, "⌄"); arrow.SetValue(TextBlock.ForegroundProperty, PanelMuted);
-        arrow.SetValue(TextBlock.MarginProperty, new Thickness(0, 0, 7, 2));
-        arrow.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right);
-        arrow.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
-        arrow.SetValue(TextBlock.IsHitTestVisibleProperty, false); grid.AppendChild(arrow);
+        var arrow = new FrameworkElementFactory(typeof(System.Windows.Shapes.Path));
+        arrow.SetValue(System.Windows.Shapes.Path.DataProperty, Geometry.Parse("M0,0 L3,3 L6,0"));
+        arrow.SetValue(System.Windows.Shapes.Path.StrokeProperty, PanelMuted);
+        arrow.SetValue(System.Windows.Shapes.Path.StrokeThicknessProperty, 1.2);
+        arrow.SetValue(System.Windows.Shapes.Path.StretchProperty, Stretch.Uniform);
+        arrow.SetValue(FrameworkElement.WidthProperty, 7.0); arrow.SetValue(FrameworkElement.HeightProperty, 4.0);
+        arrow.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 8, 0));
+        arrow.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Right);
+        arrow.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        arrow.SetValue(UIElement.IsHitTestVisibleProperty, false); grid.AppendChild(arrow);
         var popup = new FrameworkElementFactory(typeof(Popup), "PART_Popup");
         popup.SetValue(Popup.PlacementProperty, PlacementMode.Bottom); popup.SetValue(Popup.AllowsTransparencyProperty, true);
         popup.SetBinding(Popup.IsOpenProperty, ParentBinding("IsDropDownOpen"));
@@ -130,6 +135,7 @@ sealed partial class MainWindow
         popup.AppendChild(popupFrame); grid.AppendChild(popup); template.VisualTree = grid;
         var combos = new Style(typeof(ComboBox)); combos.Setters.Add(new Setter(ComboBox.TemplateProperty, template));
         combos.Setters.Add(new Setter(ComboBox.ForegroundProperty, PanelInk));
+        combos.Setters.Add(new Setter(ComboBox.FontFamilyProperty, new FontFamily("Segoe UI")));
         combos.Setters.Add(new Setter(ComboBox.FontSizeProperty, 11.0)); Resources[typeof(ComboBox)] = combos;
     }
 
@@ -200,6 +206,7 @@ sealed partial class MainWindow
         var button = QuietButton("", action);
         button.Content = label; button.Foreground = PanelMuted;
         button.Margin = new Thickness(0, 0, 6, 6); button.Padding = new Thickness(7, 3, 7, 3);
+        button.Height = 24;
         button.BorderThickness = new Thickness(1); button.BorderBrush = PanelLine;
         button.VerticalAlignment = VerticalAlignment.Center; button.IsEnabled = engine is not null;
         button.ToolTip = Tr("Add a model provider to view its quota", "添加模型供应商，查看其余量");
@@ -243,7 +250,7 @@ sealed partial class MainWindow
         var line = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         line.Children.Add(Caption(Tr("Install ", "安装 ", "安裝 ")));
         var link = QuietButton("CC Switch", () => Open("https://github.com/farion1231/cc-switch/releases/latest")); link.Foreground = PanelBlue;
-        link.Content = new TextBlock { Text = "CC Switch", Foreground = PanelBlue, TextDecorations = TextDecorations.Underline };
+        var linkText = Caption("CC Switch", PanelBlue); linkText.TextDecorations = TextDecorations.Underline; link.Content = linkText;
         ((Button)link).ToolTip = Tr("Download CC Switch", "下载 CC Switch", "下載 CC Switch"); line.Children.Add(link);
         line.Children.Add(Caption(Tr(" to see provider quotas here.", "，即可在这里查看各家提供商的余量。", "，即可在這裡查看各家提供者的餘量。")));
         var guide = new Grid { Width = Math.Max(1, renderedPanelWidth - 36), Height = 28 };
@@ -253,17 +260,21 @@ sealed partial class MainWindow
     }
     FrameworkElement QuotaCard(Quota quota)
     {
-        var text = new TextBlock { FontSize = 11, VerticalAlignment = VerticalAlignment.Center, ToolTip = quota.Help };
+        var line = new Grid { Height = 18, VerticalAlignment = VerticalAlignment.Center };
+        line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); line.ColumnDefinitions.Add(new ColumnDefinition());
+        var text = Caption("", PanelInk); text.Inlines.Clear(); text.ToolTip = quota.Help;
         if (ProviderLogo(quota.Name) is { } key && Logo(key, 16) is { } image)
         {
-            var mark = new Border { Child = image, Width = 17, Height = 17, Background = Brushes.White, CornerRadius = new CornerRadius(3), Margin = new Thickness(0, 0, 5, -3) };
-            text.Inlines.Add(new Inline(mark) { BaselineAlignment = BaselineAlignment.Center });
+            var mark = new Border { Child = image, Width = 18, Height = 18, VerticalAlignment = VerticalAlignment.Center,
+                Background = Brushes.White, CornerRadius = new CornerRadius(3), Margin = new Thickness(0, 0, 5, 0) };
+            AddCell(line, mark, 0);
         }
         text.Inlines.Add(new TextRun(quota.Name + "  ") { FontWeight = quota.IsCurrent ? FontWeights.SemiBold : FontWeights.Medium });
         foreach (var run in quota.Runs) text.Inlines.Add(new TextRun(run.Text) { Foreground = Tint(panelDark ? run.Dark : run.Light) });
         if (quota.IsStale) text.Inlines.Add(new TextRun(" · " + Tr("saved", "缓存", "快取")) { Foreground = PanelMuted });
         var fill = quota.AccentLight is { } accent ? Tint(accent, quota.IsCurrent ? 0.12 : 0.06) : PanelSurface;
-        var card = new Border { Child = text, Padding = new Thickness(7, 3, 7, 3), CornerRadius = new CornerRadius(5), Background = fill,
+        AddCell(line, text, 1);
+        var card = new Border { Child = line, Height = 24, Padding = new Thickness(7, 2, 7, 2), CornerRadius = new CornerRadius(5), Background = fill,
             Margin = new Thickness(0, 0, 6, 6), BorderThickness = new Thickness(quota.IsCurrent ? 1 : 0), BorderBrush = Tint("#238D50") };
         if (quota.CanConnect || quota.Url is not null) { card.Cursor = Cursors.Hand; card.MouseLeftButtonUp += async (_, _) => { if (quota.CanConnect) await Connect(quota); else if (quota.Url is { } url) Open(url); }; }
         return card;
@@ -278,7 +289,8 @@ sealed partial class MainWindow
     static Image? Logo(string key, double size)
     {
         var path = Path.Combine(AppContext.BaseDirectory, "logos", key + ".png");
-        return File.Exists(path) ? new Image { Source = new BitmapImage(new Uri(path)), Width = size, Height = size, Stretch = Stretch.Uniform } : null;
+        return File.Exists(path) ? new Image { Source = new BitmapImage(new Uri(path)), Width = size, Height = size, Stretch = Stretch.Uniform,
+            VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center } : null;
     }
 
     FrameworkElement PairedBoards()
@@ -293,6 +305,7 @@ sealed partial class MainWindow
         {
             var board = pair[i]; var column = i == 0 ? 1 : 4;
             var summary = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 9,
+                FontFamily = new FontFamily("Segoe UI"),
                 Margin = new Thickness(5, 0, 4, 0), ToolTip = board.Error ?? board.Title + "\n" + Tr("Scores are not directly comparable across lists", "两榜分数不直接互比", "兩榜分數不直接互比") };
             var name = BoardTitle(board); var date = DateTimeOffset.TryParse(board.UpdatedAt, out var d) ? d.ToLocalTime().ToString("M/d HH:mm", CultureInfo.InvariantCulture) : "";
             summary.Inlines.Add(new TextRun(name + (date.Length == 0 ? "" : " · " + date) + " · "));
@@ -361,7 +374,8 @@ sealed partial class MainWindow
     {
         var row = new Grid(); row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) }); row.ColumnDefinitions.Add(new ColumnDefinition());
         if (entry.Logo is { } key && Logo(key, 16) is { } logo)
-            AddCell(row, new Border { Child = logo, Width = 20, Height = 20, Background = Brushes.White, CornerRadius = new CornerRadius(4), Margin = new Thickness(0, 0, 4, 0) }, 0);
+            AddCell(row, new Border { Child = logo, Width = 20, Height = 20, VerticalAlignment = VerticalAlignment.Center,
+                Background = Brushes.White, CornerRadius = new CornerRadius(4), Margin = new Thickness(0, 0, 4, 0) }, 0);
         var name = Caption(entry.Name, PanelInk, 13); name.Margin = new Thickness(6, 0, 3, 0); AddCell(row, name, 1);
         if (entry.CodingURL is not null || entry.ApiURL is not null)
         {
@@ -389,7 +403,10 @@ sealed partial class MainWindow
     };
     FrameworkElement CountryPicker(Board board)
     {
-        var button = QuietButton(Tr("Country ⌄", "国家 ⌄", "國家 ⌄"), () => { }); button.Foreground = PanelInk;
+        var button = QuietButton("", () => { }); button.Foreground = PanelInk;
+        var label = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        label.Children.Add(Caption(Tr("Country", "国家", "國家"), PanelInk));
+        label.Children.Add(PanelIcon("chevron", PanelInk, 7, 4, new Thickness(4, 0, 0, 0))); button.Content = label;
         var menu = new ContextMenu();
         foreach (var item in new[] { ("",Tr("All countries","所有国家","所有國家")),("china",Tr("China","中国","中國")),("unitedStates",Tr("United States","美国","美國")),("canada",Tr("Canada","加拿大")),("france",Tr("France","法国","法國")),("germany",Tr("Germany","德国","德國")),("singapore",Tr("Singapore","新加坡")) })
         {
@@ -429,28 +446,48 @@ sealed partial class MainWindow
         var border = new Border { BorderBrush = PanelLine, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(18, 10, 18, 10) };
         var row = new Grid(); row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); row.ColumnDefinitions.Add(new ColumnDefinition()); row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var left = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        var repository = QuietButton("", () => Open("https://github.com/" + config.Repository));
+        Button FooterButton(string text, Action action) { var button = QuietButton(text, action); button.FontSize = 10; return button; }
+        var repository = FooterButton("", () => Open("https://github.com/" + config.Repository));
         if (Logo("github", 13) is { } github) repository.Content = new System.Windows.Shapes.Rectangle { Width = 13, Height = 13, Fill = PanelMuted, OpacityMask = new ImageBrush(github.Source) };
         else repository.Content = "GitHub";
         left.Children.Add(repository);
-        left.Children.Add(Caption(" Cloyd Lau · ", PanelMuted, 10)); left.Children.Add(QuietButton("MIT License", () => ShowLicenses(false)));
-        left.Children.Add(Caption(" · ", PanelMuted, 10)); left.Children.Add(QuietButton(Tr("Open-source notices", "开源声明", "開源聲明"), () => ShowLicenses(true))); row.Children.Add(left);
+        left.Children.Add(Caption(" Cloyd Lau · ", PanelMuted, 10)); left.Children.Add(FooterButton("MIT License", () => ShowLicenses(false)));
+        left.Children.Add(Caption(" · ", PanelMuted, 10)); left.Children.Add(FooterButton(Tr("Open-source notices", "开源声明", "開源聲明"), () => ShowLicenses(true))); row.Children.Add(left);
         var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         if (renderedPanelWidth >= 850)
         {
             right.Children.Add(Caption(Tr("Sources ", "数据来源 ", "資料來源 "), PanelMuted, 10));
             var sources = state?.Boards.Take(2).ToArray() ?? [];
-            for (var i = 0; i < sources.Length; i++) { var source = sources[i]; if (i > 0) right.Children.Add(Caption(" · ")); right.Children.Add(QuietButton(source.Kind.StartsWith("artificialAnalysis") ? "Artificial Analysis ↗" : "Arena ↗", () => Open(source.Url))); }
+            for (var i = 0; i < sources.Length; i++) { var source = sources[i]; if (i > 0) right.Children.Add(Caption(" · ", size: 10)); right.Children.Add(FooterButton(source.Kind.StartsWith("artificialAnalysis") ? "Artificial Analysis ↗" : "Arena ↗", () => Open(source.Url))); }
             right.Children.Add(Caption(" · "));
         }
-        right.Children.Add(QuietButton("▣ " + Tr("Copy", "截图", "截圖"), Capture)); right.Children.Add(Caption(" · "));
+        right.Children.Add(IconButton("camera", Tr("Copy", "截图", "截圖"), Capture)); right.Children.Add(Caption(" · ", size: 10));
         right.Children.Add(Select([("clickToClose",Tr("Keep open","保持打开","保持打開")),("alwaysOnTop",Tr("Always on top","保持置顶","保持置頂")),("closeOnBlur",Tr("Close on blur","失焦关闭","失焦關閉")),("window",Tr("Window","独立窗口","獨立視窗"))], prefs.PanelMode,
             value => { SaveFrame(); prefs.PanelMode = value; ApplyMode(); SaveFrame(); Reveal(); return Task.CompletedTask; }));
         right.Children.Add(Caption(" · ")); right.Children.Add(Segments([("en","EN"),("zh","简中"),("zh-Hant","繁中")], prefs.Language, renderedPanelWidth < 850 ? 120 : 150,
             async value => { prefs.Language = value; SaveFrame(); Render(); await Refresh("state"); }));
-        right.Children.Add(Caption(" · ")); right.Children.Add(QuietButton("⏻ " + Tr("Quit", "退出", "退出"), () => { Stop(); Application.Current.Shutdown(); }));
+        right.Children.Add(Caption(" · ", size: 10)); right.Children.Add(IconButton("power", Tr("Quit", "退出", "退出"), () => { Stop(); Application.Current.Shutdown(); }));
         Grid.SetColumn(right, 2); row.Children.Add(right);
-        status.Margin = new Thickness(4, 0, 4, 0); status.FontSize = 10; Grid.SetColumn(status, 1); row.Children.Add(status);
+        status.Margin = new Thickness(4, 0, 4, 0); status.FontSize = 10; status.FontFamily = new FontFamily("Segoe UI"); Grid.SetColumn(status, 1); row.Children.Add(status);
         border.Child = row; dock.Children.Add(border); return dock;
+    }
+    static FrameworkElement PanelIcon(string kind, Brush ink, double width = 12, double height = 12, Thickness? margin = null) => new System.Windows.Shapes.Path
+    {
+        Data = Geometry.Parse(kind switch {
+            "chevron" => "M0,0 L3,3 L6,0",
+            "camera" => "M2,4 L5,4 L6,2 L10,2 L11,4 L14,4 L14,13 L2,13 Z M11,8.5 A3,3 0 1 1 5,8.5 A3,3 0 1 1 11,8.5",
+            "power" => "M8,1 L8,8 M4,3.5 A6,6 0 1 0 12,3.5",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+        }),
+        Stroke = ink, StrokeThickness = 1.1, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
+        StrokeLineJoin = PenLineJoin.Round, Stretch = Stretch.Uniform, Width = width, Height = height,
+        VerticalAlignment = VerticalAlignment.Center, Margin = margin ?? new Thickness(0), IsHitTestVisible = false,
+    };
+    Button IconButton(string icon, string label, Action action)
+    {
+        var line = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        line.Children.Add(PanelIcon(icon, PanelMuted, margin: new Thickness(0, 0, 4, 0)));
+        line.Children.Add(Caption(label, size: 10));
+        var button = QuietButton("", action); button.FontSize = 10; button.Content = line; return button;
     }
 }

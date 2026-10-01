@@ -32,14 +32,14 @@ static class SmokeTests
             // Refresh an already visible window too: reused WPF elements must
             // retain one parent while quota and footer content are rebuilt.
             window.SetState(state); window.UpdateLayout();
-            var cards = Descendants<Border>(window).Where(card => card.Child is TextBlock text &&
-                text.Inlines.OfType<TextRun>().FirstOrDefault()?.Text.StartsWith("Synthetic ") == true).ToArray();
+            var cards = Descendants<Border>(window).Where(card => card.Child is Grid line &&
+                line.Children.OfType<TextBlock>().Any(text => text.Inlines.OfType<TextRun>().FirstOrDefault()?.Text.StartsWith("Synthetic ") == true)).ToArray();
             if (cards.Length != 2) throw new Exception("Missing quota cards");
             foreach (var card in cards)
             {
                 if (card.Background is not SolidColorBrush fill || fill.Color != (Color)ColorConverter.ConvertFromString("#DB2828") || fill.Opacity <= 0)
                     throw new Exception("Quota and date warnings must both tint the background");
-                var runs = ((TextBlock)card.Child).Inlines.OfType<TextRun>().ToArray();
+                var runs = ((Grid)card.Child).Children.OfType<TextBlock>().Single().Inlines.OfType<TextRun>().ToArray();
                 var dateWarning = runs[0].Text.Contains("date warning");
                 if (card.BorderThickness.Left != (dateWarning ? 1 : 0)) throw new Exception("Only the active card has a border");
                 var quotaColor = ((SolidColorBrush)runs[1].Foreground).Color;
