@@ -228,7 +228,8 @@
             "apiURL": null,
             "help": null
           }
-        ]
+        ],
+        "fetchedAt": "2026-09-29T00:00:00Z"
       },
       {
         "kind": "arenaText",
@@ -457,7 +458,8 @@
             "apiURL": null,
             "help": null
           }
-        ]
+        ],
+        "fetchedAt": "2026-09-29T00:00:00Z"
       }
     ],
     "quotas": [
@@ -603,7 +605,8 @@
     "quotaNeedsCCSwitch": false,
     "quotaUnavailable": false,
     "trayText": null,
-    "alerts": []
+    "alerts": [],
+    "quotaUpdatedAt": "2026-09-29T00:00:00Z"
   },
   "cases": [
     {
@@ -789,6 +792,168 @@
       "height": 820,
       "scenario": "manyQuotas",
       "mode": "clickToClose"
+    },
+    {
+      "id": "freshness-now-en-1440",
+      "language": "en",
+      "width": 1440,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 0
+    },
+    {
+      "id": "freshness-minutes-en-600",
+      "language": "en",
+      "width": 600,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 1380
+    },
+    {
+      "id": "freshness-hours-en-900",
+      "language": "en",
+      "width": 900,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 18000
+    },
+    {
+      "id": "freshness-days-en-1440",
+      "language": "en",
+      "width": 1440,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 172800
+    },
+    {
+      "id": "freshness-stale-en-600",
+      "language": "en",
+      "width": 600,
+      "height": 820,
+      "scenario": "freshnessStale",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 1380
+    },
+    {
+      "id": "freshness-unknown-en-900",
+      "language": "en",
+      "width": 900,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": -1
+    },
+    {
+      "id": "freshness-now-zh-1440",
+      "language": "zh",
+      "width": 1440,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 0
+    },
+    {
+      "id": "freshness-minutes-zh-600",
+      "language": "zh",
+      "width": 600,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 1380
+    },
+    {
+      "id": "freshness-hours-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 18000
+    },
+    {
+      "id": "freshness-days-zh-1440",
+      "language": "zh",
+      "width": 1440,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 172800
+    },
+    {
+      "id": "freshness-stale-zh-600",
+      "language": "zh",
+      "width": 600,
+      "height": 820,
+      "scenario": "freshnessStale",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 1380
+    },
+    {
+      "id": "freshness-unknown-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": -1
+    },
+    {
+      "id": "freshness-now-zh-Hant-1440",
+      "language": "zh-Hant",
+      "width": 1440,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 0
+    },
+    {
+      "id": "freshness-minutes-zh-Hant-600",
+      "language": "zh-Hant",
+      "width": 600,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 1380
+    },
+    {
+      "id": "freshness-hours-zh-Hant-900",
+      "language": "zh-Hant",
+      "width": 900,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 18000
+    },
+    {
+      "id": "freshness-days-zh-Hant-1440",
+      "language": "zh-Hant",
+      "width": 1440,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 172800
+    },
+    {
+      "id": "freshness-stale-zh-Hant-600",
+      "language": "zh-Hant",
+      "width": 600,
+      "height": 820,
+      "scenario": "freshnessStale",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 1380
+    },
+    {
+      "id": "freshness-unknown-zh-Hant-900",
+      "language": "zh-Hant",
+      "width": 900,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": -1
     }
   ]
 }

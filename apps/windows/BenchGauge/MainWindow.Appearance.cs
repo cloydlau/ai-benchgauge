@@ -186,7 +186,9 @@ sealed partial class MainWindow
         var header = new StackPanel { Margin = new Thickness(18, 9, 18, 10) };
         var titleLine = new Grid(); titleLine.ColumnDefinitions.Add(new ColumnDefinition()); titleLine.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var brand = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        headerTitle = new TextBlock { Text = "AI BenchGauge", FontFamily = new FontFamily("Segoe Script"), FontWeight = FontWeights.Bold, FontSize = 21, Height = 27, Foreground = PanelInk };
+        headerTitle = new TextBlock { Text = Tr("AI BenchGauge", "智衡", "智衡"),
+            FontFamily = prefs.Language == "en" ? new FontFamily("Segoe Script") : FontFamily,
+            FontWeight = FontWeights.Bold, FontSize = 21, Height = 27, Foreground = PanelInk };
         brand.Children.Add(headerTitle);
         updateButton = QuietButton("v" + config.Version + (availableUpdate is null ? "" : " ↑"), async () => await CheckUpdates(true));
         updateButton.Foreground = Tint("#C6C6CA"); updateButton.Margin = new Thickness(8, 0, 0, 0); brand.Children.Add(updateButton);
@@ -194,7 +196,8 @@ sealed partial class MainWindow
         var freshness = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         freshness.Children.Add(Caption(Tr("UPDATED", "更新时间", "更新時間")));
         freshness.Children.Add(FreshnessPill(Tr("Boards ", "榜单 ", "榜單 ") + BoardFreshness(), state?.Boards.Any(board => board.Error is not null) == true));
-        freshness.Children.Add(FreshnessPill(Tr("Quotas ", "余量 ", "餘量 ") + (state?.Quotas.Any() == true ? Tr("loaded", "已读取", "已讀取") : Tr("pending", "待更新", "待更新")), state?.QuotaUnavailable == true));
+        if (state?.Quotas.Any() == true || state?.QuotaUnavailable == true)
+            freshness.Children.Add(FreshnessPill(Tr("Quotas ", "余量 ", "餘量 ") + UpdateAge.Format(UpdateAge.Parse(state.QuotaUpdatedAt), DateTimeOffset.UtcNow, prefs.Language), state.QuotaUnavailable));
         freshness.Cursor = Cursors.Hand;
         freshness.ToolTip = Tr("Click to refresh boards and quotas", "点击刷新榜单与余量", "點擊重新整理榜單與餘量");
         freshness.MouseLeftButtonUp += async (_, _) => { if (panelRefreshing) return; panelRefreshing = true; try { await Task.WhenAll(Refresh("refreshBoards"), Refresh("refreshQuotas")); } finally { panelRefreshing = false; } };
@@ -235,15 +238,16 @@ sealed partial class MainWindow
     }
     string BoardFreshness()
     {
-        var date = state?.Boards.Select(board => DateTimeOffset.TryParse(board.UpdatedAt, out var d) ? (DateTimeOffset?)d : null).Where(d => d.HasValue).Max();
-        if (date is null) return Tr("pending", "待更新");
-        var days = Math.Max(0, (DateTimeOffset.UtcNow - date.Value).Days);
-        return days > 0 ? Tr($"{days}d ago", $"{days} 天前") : Tr("today", "今天");
+        // Match Mac: report the oldest visible fetch, not a source's
+        // publication date or the newest half of a partial refresh.
+        var date = state?.Boards.Select(board => UpdateAge.Parse(board.FetchedAt ?? board.UpdatedAt))
+            .Where(date => date.HasValue).DefaultIfEmpty(null).Min();
+        return UpdateAge.Format(date, DateTimeOffset.UtcNow, prefs.Language);
     }
     FrameworkElement FreshnessPill(string text, bool failed) => new Border
     {
         Background = failed ? Tint(panelDark ? "#4A3720" : "#FFF0DE") : PanelSurface, CornerRadius = new CornerRadius(10),
-        Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(8, 0, 0, 0), MinWidth = 80,
+        Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(8, 0, 0, 0), Width = prefs.Language == "en" ? 124 : 92,
         Child = Caption(text, failed ? Tint("#B96B0F") : PanelMuted, 10),
     };
     FrameworkElement Segments((string Value, string Title)[] items, string selected, double width, Func<string, Task> change)

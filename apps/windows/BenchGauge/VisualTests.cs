@@ -18,7 +18,7 @@ namespace BenchGauge;
 // reading accounts or using the privacy-redacted Copy command.
 static class VisualTests
 {
-    sealed record Case(string Id, string Language, int Width, int Height, string Scenario, string Mode);
+    sealed record Case(string Id, string Language, int Width, int Height, string Scenario, string Mode, int? QuotaAgeSeconds);
     sealed record Fixture(DisplayState State, Case[] Cases);
     [StructLayout(LayoutKind.Sequential)] struct Rect { public int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Sequential)] struct Point { public int X, Y; }
@@ -77,9 +77,17 @@ static class VisualTests
         foreach (var theme in new[] { "light", "dark" })
         {
             var state = fixture.State;
-            if (test.Scenario is "normal" or "window") state = state with { Quotas = state.Quotas.Take(2).ToArray() };
+            if (test.Scenario is "normal" or "window" || test.QuotaAgeSeconds.HasValue) state = state with { Quotas = state.Quotas.Take(2).ToArray() };
             if (test.Scenario is "empty" or "installedEmpty") state = state with { Quotas = [], QuotaNeedsCCSwitch = test.Scenario == "empty" };
             if (test.Scenario == "error") state = state with { Boards = state.Boards.Select(board => board with { Error = "Refresh failed / 刷新失败（测试）" }).ToArray(), Quotas = [] };
+            if (test.QuotaAgeSeconds is { } age)
+            {
+                var stamp = age < 0 ? null : DateTimeOffset.UtcNow.AddSeconds(-age).ToString("O");
+                state = state with { QuotaUpdatedAt = stamp,
+                    Boards = state.Boards.Select(board => board with { FetchedAt = stamp ?? board.FetchedAt }).ToArray() };
+            }
+            if (test.Scenario == "freshnessStale") state = state with {
+                QuotaUnavailable = true, Quotas = state.Quotas.Select(quota => quota with { IsStale = true }).ToArray() };
             var window = new MainWindow(null, new Preferences { Language = test.Language, PanelMode = test.Scenario == "window" ? "window" : test.Mode })
                 { Width = test.Width, Height = test.Height };
             try

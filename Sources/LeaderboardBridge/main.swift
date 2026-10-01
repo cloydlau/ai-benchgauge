@@ -29,11 +29,13 @@ struct State: Encodable {
     var trayText: String?
     var alerts: [Alert]
     var layoutEntries: [LayoutEntry]? = nil
+    var quotaUpdatedAt: String? = nil
 }
 struct LayoutEntry: Encodable { var name: String; var planTitle: String?; var apiTitle: String? }
 struct Board: Encodable {
     var kind: String; var title: String; var url: String
     var updatedAt: String?; var error: String?; var entries: [Entry]
+    var fetchedAt: String? = nil
 }
 struct Entry: Encodable {
     var rank: Int; var name: String; var score: Double
@@ -64,6 +66,7 @@ actor Engine {
     private var client: AccountQuotaClient?
     private var lastBoardRefresh: [LeaderboardCategory: Date] = [:]
     private var lastQuotaRefresh: Date?
+    private var quotaUpdatedAt: Date?
     private var lastInactiveRefresh: Date?
     private let xaiKeepAliveScheduleStore = XAIOAuthKeepAliveScheduleStore()
     private var xaiKeepAliveAccountID: String?
@@ -99,7 +102,7 @@ actor Engine {
                       let quota = QwenWebsiteQuotaParser.parse(Data(text.utf8)) else {
                     return Response(id: request.id, error: "No quota found")
                 }
-                qwenWebsite = quota; qwenCapturedAt = Date()
+                qwenWebsite = quota; qwenCapturedAt = Date(); quotaUpdatedAt = qwenCapturedAt
                 if let stored = QwenWebsiteQuotaParser.persistedData(for: quota) {
                     try FileManager.default.createDirectory(at: qwenCacheFile.deletingLastPathComponent(), withIntermediateDirectories: true)
                     try stored.write(to: qwenCacheFile, options: .atomic)
@@ -160,7 +163,7 @@ actor Engine {
         let install = CCSwitchProviderStore.resolveInstall()
         switch CCSwitchProviderStore.loadCodexProviders(databaseURL: install.databaseURL) {
         case .absent:
-            chips = []; targets = [:]; unavailable = false
+            chips = []; targets = [:]; unavailable = false; quotaUpdatedAt = nil
             needsCCSwitch = !FileManager.default.fileExists(atPath: install.databaseURL.path)
             xaiKeepAliveAccountID = nil
             nextXAIKeepAliveAt = nil
@@ -182,6 +185,7 @@ actor Engine {
             let list = CCSwitchQuotaCatalog.targets(from: records, currentProviderID: CCSwitchProviderStore.currentCodexProviderID(settingsURL: install.settingsURL))
             targets = Dictionary(uniqueKeysWithValues: list.map { ($0.id, $0) })
             let prior = Dictionary(uniqueKeysWithValues: chips.map { ($0.id, $0) })
+            if !list.contains(where: { prior[$0.id] != nil }) { quotaUpdatedAt = nil }
             chips = list.map { target in
                 AccountQuotaChip(id: target.id, shortName: target.shortName, modelName: target.modelName,
                                  websiteURL: target.websiteURL,
@@ -211,6 +215,7 @@ actor Engine {
             let refreshed = try await client.refresh(targets: refreshing, previous: chips, authFileURL: install.xaiAuthURL)
             let result = Dictionary(uniqueKeysWithValues: refreshed.map { ($0.id, $0) })
             chips = chips.map { result[$0.id] ?? $0 }
+            quotaUpdatedAt = QuotaFreshness.updatedAt(afterRefreshing: refreshed, previous: quotaUpdatedAt, now: Date())
         }
     }
 
@@ -269,7 +274,7 @@ actor Engine {
                              codingURL: PurchaseLinkCatalog.preferredLink(from: links.codingPlan, language: language)?.url.absoluteString,
                              apiURL: PurchaseLinkCatalog.preferredLink(from: links.payAsYouGo, language: language)?.url.absoluteString,
                              help: standings.first { $0.entry.rank == entry.rank }.map { CompanyLeaderboard.scoreHelp(for: $0, language: language) })
-            })
+            }, fetchedAt: board.map { formatter.string(from: $0.fetchedAt) })
         }
         // Mirror Mac: size against every cached category and grouping, even
         // when the currently selected board happens to have short titles.
@@ -325,7 +330,7 @@ actor Engine {
         return State(boards: boards, quotas: quotas, quotaNeedsCCSwitch: needsCCSwitch, quotaUnavailable: unavailable,
                      trayText: AccountQuotaFormatting.menuBarText(forChips: displayChips).map { "\($0.name) · \(language.quotaText($0.quota))" },
                      alerts: pending.map { Alert(title: language.quotaText($0.subtitle), body: language.quotaText($0.body)) },
-                     layoutEntries: layoutEntries)
+                     layoutEntries: layoutEntries, quotaUpdatedAt: quotaUpdatedAt.map { formatter.string(from: $0) })
     }
     private func color(_ tone: QuotaTone, dark: Bool) -> String {
         let rgb: QuotaRGB
