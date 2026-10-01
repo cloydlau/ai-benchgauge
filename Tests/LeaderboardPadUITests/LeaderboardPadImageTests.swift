@@ -31,6 +31,8 @@ import LeaderboardKit
         #expect(image.height > 400)
         // ImageRenderer cannot rasterize some native interactive controls.
         // Its yellow disabled placeholders must never enter shared pictures.
+        // Gold rank medals are intentional; detect broad flat yellow runs,
+        // rather than treating every yellow medal pixel as a disabled control.
         #expect(yellowPlaceholderPixels(in: image) == 0)
         if ProcessInfo.processInfo.environment["BENCHGAUGE_IPAD_PREVIEWS"] == "1" {
             let output = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appending(path: "work/ipad/previews")
@@ -49,8 +51,17 @@ private func yellowPlaceholderPixels(in image: CGImage) -> Int {
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return -1 }
         context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
         let pixels = buffer.bindMemory(to: UInt8.self)
-        return stride(from: 0, to: pixels.count, by: 4).filter {
-            pixels[$0] > 200 && pixels[$0 + 1] > 150 && pixels[$0 + 2] < 60
-        }.count
+        var broadRuns = 0
+        for y in 0..<image.height {
+            var run = 0
+            for x in 0..<image.width {
+                let offset = (y * image.width + x) * 4
+                if pixels[offset] > 200 && pixels[offset + 1] > 150 && pixels[offset + 2] < 60 {
+                    run += 1
+                    if run == 48 { broadRuns += 1 }
+                } else { run = 0 }
+            }
+        }
+        return broadRuns
     }
 }

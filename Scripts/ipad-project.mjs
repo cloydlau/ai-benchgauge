@@ -26,7 +26,8 @@ export function ipadProject({ version, buildNumber = '1', team = '' }) {
   const testBuild = put('uitest-build', `isa = PBXBuildFile; fileRef = ${testFile};`)
   const assetFile = put('assets', 'isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = App/Assets.xcassets; sourceTree = "<group>";')
   const privacyFile = put('privacy', 'isa = PBXFileReference; lastKnownFileType = text.xml; path = App/PrivacyInfo.xcprivacy; sourceTree = "<group>";')
-  const resources = [assetFile, privacyFile].map(fileRef => put(`resource-${fileRef}`, `isa = PBXBuildFile; fileRef = ${fileRef};`))
+  const logoFile = put('logos', 'isa = PBXFileReference; lastKnownFileType = folder; path = ../../assets/logos; sourceTree = "<group>";')
+  const resources = [assetFile, privacyFile, logoFile].map(fileRef => put(`resource-${fileRef}`, `isa = PBXBuildFile; fileRef = ${fileRef};`))
   const infoFile = put('info', 'isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = App/Info.plist; sourceTree = "<group>";')
   const appProduct = put('app-product', 'isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "AI BenchGauge.app"; sourceTree = BUILT_PRODUCTS_DIR;')
   const testProduct = put('test-product', 'isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BenchGaugeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR;')
@@ -66,7 +67,7 @@ export function ipadProject({ version, buildNumber = '1', team = '' }) {
   const dependency = put('test-app-dependency', `isa = PBXTargetDependency; target = ${appTarget}; targetProxy = ${proxy};`)
   const testTarget = put('test-target', `isa = PBXNativeTarget; buildConfigurationList = ${testConfigs}; buildPhases = ${list(testPhases)}; buildRules = (); dependencies = (${dependency}); name = BenchGaugeUITests; productName = BenchGaugeUITests; productReference = ${testProduct}; productType = "com.apple.product-type.bundle.ui-testing";`)
   const products = put('products', `isa = PBXGroup; children = (${appProduct}, ${testProduct}); name = Products; sourceTree = "<group>";`)
-  const group = put('group', `isa = PBXGroup; children = ${list([...['BenchGaugeApp.swift', 'DebugFixtures.swift'].map(id), testFile, assetFile, privacyFile, infoFile, products])}; sourceTree = "<group>";`)
+  const group = put('group', `isa = PBXGroup; children = ${list([...['BenchGaugeApp.swift', 'DebugFixtures.swift'].map(id), testFile, assetFile, privacyFile, logoFile, infoFile, products])}; sourceTree = "<group>";`)
   put('project', `isa = PBXProject; attributes = { LastUpgradeCheck = 1600; BuildIndependentTargetsInParallel = YES; TargetAttributes = { ${testTarget} = { TestTargetID = ${appTarget}; }; }; }; buildConfigurationList = ${projectConfigs}; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, "zh-Hans", "zh-Hant", Base); mainGroup = ${group}; packageReferences = (${packageRef}); productRefGroup = ${products}; projectDirPath = ""; projectRoot = ""; targets = (${appTarget}, ${testTarget});`)
   const project = `// !$*UTF8*$!\n{ archiveVersion = 1; classes = {}; objectVersion = 56; objects = {\n${[...objects].map(([key, body]) => `${key} = { ${body} };`).join('\n')}\n}; rootObject = ${id('project')}; }\n`
   const ref = (target, product, name) => `<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="${target}" BuildableName="${xml(product)}" BlueprintName="${xml(name)}" ReferencedContainer="container:AI-BenchGauge.xcodeproj"/>`

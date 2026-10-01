@@ -10,7 +10,7 @@ public final class LeaderboardPadStore: ObservableObject {
     @Published public var category: LeaderboardCategory { didSet { CategoryPreference.save(category, to: defaults) } }
     @Published public var grouping: LeaderboardGrouping { didSet { GroupingPreference.save(grouping, to: defaults) } }
     @Published public var language: AppLanguage { didSet { language.save(to: defaults) } }
-    @Published private var filters: [LeaderboardKind: OrganizationCountry] = [:]
+    @Published private var filters: [LeaderboardKind: LeaderboardCountryFilter] = [:]
     private var attempts: [LeaderboardKind: Date] = [:]
     private let defaults: UserDefaults
     private let cache: LeaderboardCache?
@@ -26,16 +26,25 @@ public final class LeaderboardPadStore: ObservableObject {
         self.grouping = GroupingPreference.load(from: defaults)
         self.language = AppLanguage.load(from: defaults)
         for kind in LeaderboardKind.allCases {
-            if let raw = defaults.string(forKey: "country.\(kind.rawValue)"), let country = OrganizationCountry(rawValue: raw) {
-                filters[kind] = country
+            if let raw = defaults.string(forKey: "country.\(kind.rawValue)") {
+                if raw == "unknown" { filters[kind] = .unknown }
+                else if let country = OrganizationCountry(rawValue: raw) { filters[kind] = .country(country) }
             }
         }
     }
 
-    public func country(for kind: LeaderboardKind) -> OrganizationCountry? { filters[kind] }
+    public func country(for kind: LeaderboardKind) -> OrganizationCountry? {
+        if case .country(let country) = countryFilter(for: kind) { return country }
+        return nil
+    }
+    public func countryFilter(for kind: LeaderboardKind) -> LeaderboardCountryFilter { filters[kind] ?? .all }
+    public func setCountryFilter(_ filter: LeaderboardCountryFilter, for kind: LeaderboardKind) {
+        filters[kind] = filter
+        let value: String? = switch filter { case .all: nil; case .unknown: "unknown"; case .country(let country): country.rawValue }
+        defaults.set(value, forKey: "country.\(kind.rawValue)")
+    }
     public func setCountry(_ country: OrganizationCountry?, for kind: LeaderboardKind) {
-        filters[kind] = country
-        defaults.set(country?.rawValue, forKey: "country.\(kind.rawValue)")
+        setCountryFilter(country.map(LeaderboardCountryFilter.country) ?? .all, for: kind)
     }
 
     public func refresh(force: Bool = false, now: Date = Date()) async {

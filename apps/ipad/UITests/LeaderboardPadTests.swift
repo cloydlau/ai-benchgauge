@@ -15,34 +15,38 @@ final class LeaderboardPadTests: XCTestCase {
     func testCategoriesGroupingAndCountryFilter() {
         app.launch()
         XCTAssertTrue(app.otherElements["board-artificialAnalysis"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["UPDATED"].exists)
+        XCTAssertFalse(app.staticTexts["Fetched"].exists)
         app.segmentedControls["category"].buttons["Coding"].tap()
         XCTAssertTrue(app.otherElements["board-codeArenaWebDev"].waitForExistence(timeout: 5))
         app.segmentedControls["grouping"].buttons["Companies"].tap()
-        XCTAssertTrue(app.staticTexts["OpenAI"].firstMatch.exists)
+        XCTAssertTrue(app.buttons["name-artificialAnalysisCodingAgent-1"].exists)
         app.buttons["score-artificialAnalysisCodingAgent-1"].tap()
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Score uses the strongest model")).firstMatch.waitForExistence(timeout: 5))
         app.buttons["Done"].tap()
         app.buttons["country-artificialAnalysisCodingAgent"].tap()
         app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "China")).firstMatch.tap()
-        XCTAssertTrue(app.staticTexts["DeepSeek"].firstMatch.exists)
+        XCTAssertTrue(app.buttons["name-artificialAnalysisCodingAgent-1"].label.contains("DeepSeek"))
         capture("portrait")
         XCUIDevice.shared.orientation = .landscapeLeft
-        XCTAssertTrue(app.otherElements["board-artificialAnalysisCodingAgent"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.otherElements["board-codeArenaWebDev"].exists)
         waitForLayout(landscape: true)
         capture("landscape")
+        assertCategorySegments()
+        app.buttons["name-artificialAnalysisCodingAgent-1"].tap()
+        XCTAssertTrue(app.staticTexts["Copied DeepSeek"].waitForExistence(timeout: 5))
     }
-    func testOfflineResultsAndSettings() {
+    func testOfflineResultsAndLicenseAndScreenshot() {
         app.launchArguments.append("--offline")
         app.launch()
-        XCTAssertTrue(app.descendants(matching: .any)["source-error-artificialAnalysis"].firstMatch.waitForExistence(timeout: 10)
-            || app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "No internet connection")).firstMatch.waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["GPT Fixture"].firstMatch.exists)
-        app.buttons["settings"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["settings-github"].firstMatch.waitForExistence(timeout: 5))
-        app.buttons["Done"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["source-error-artificialAnalysis"].firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["name-artificialAnalysis-1"].exists)
+        capture("offline")
         app.buttons["license"].tap()
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Permission is hereby granted")).firstMatch.waitForExistence(timeout: 5))
+        app.buttons["Done"].tap()
+        app.buttons["open-source-notices"].tap()
+        XCTAssertTrue(app.staticTexts["Open-source notices"].firstMatch.waitForExistence(timeout: 5))
+        capture("notices")
         app.buttons["Done"].tap()
         app.buttons["share"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["share-image"].firstMatch.waitForExistence(timeout: 10))
@@ -53,43 +57,81 @@ final class LeaderboardPadTests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.otherElements["board-artificialAnalysis"].waitForExistence(timeout: 10))
         waitForLayout(landscape: false)
+        XCTAssertTrue(app.staticTexts["更新时间"].exists)
+        XCTAssertFalse(app.staticTexts["获取于"].exists)
         capture("zh-models-portrait")
         app.segmentedControls["grouping"].buttons["公司"].tap()
         capture("zh-companies-portrait")
         XCUIDevice.shared.orientation = .landscapeLeft
         waitForLayout(landscape: true)
         capture("zh-companies-landscape")
-        XCUIDevice.shared.orientation = .portrait
-        waitForLayout(landscape: false)
-        app.buttons["settings"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["settings-github"].firstMatch.waitForExistence(timeout: 5))
-        capture("zh-settings")
+        app.buttons["source-help-artificialAnalysis"].tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "两榜分数不直接互比")).firstMatch.waitForExistence(timeout: 5))
+        capture("zh-source-details")
     }
-
+    func testFullBoardLongNamesUnknownCountryAndLanguages() {
+        app.launchArguments += ["--full-board", "--dark"]
+        app.launch()
+        XCTAssertTrue(app.buttons["name-artificialAnalysis-1"].waitForExistence(timeout: 10))
+        capture("full-long-dark-portrait")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        waitForLayout(landscape: true)
+        capture("full-long-dark-landscape")
+        app.buttons["country-artificialAnalysis"].tap()
+        app.buttons["Unknown country"].tap()
+        XCTAssertTrue(app.buttons["name-artificialAnalysis-20"].exists)
+        capture("unknown-country")
+        // Footer may be below the fold with twenty real rows.
+        scrollToFooter()
+        app.segmentedControls["language"].buttons["繁中"].tap()
+        XCTAssertTrue(app.staticTexts["更新時間"].exists)
+        capture("traditional-dark")
+        app.segmentedControls["language"].buttons["简中"].tap()
+        XCTAssertTrue(app.staticTexts["更新时间"].exists)
+        for _ in 0..<8 {
+            if app.segmentedControls["category"].isHittable { break }
+            app.swipeDown()
+        }
+        app.segmentedControls["category"].buttons["图片"].tap()
+        XCTAssertTrue(app.otherElements["board-arenaTextToImage"].waitForExistence(timeout: 5))
+        capture("image-dark")
+        app.segmentedControls["category"].buttons["视频"].tap()
+        XCTAssertTrue(app.otherElements["board-arenaTextToVideo"].waitForExistence(timeout: 5))
+        capture("video-dark")
+    }
+    private func scrollToFooter() {
+        for _ in 0..<8 {
+            if app.segmentedControls["language"].isHittable { return }
+            app.swipeUp()
+        }
+        XCTAssertTrue(app.segmentedControls["language"].isHittable)
+    }
+    private func assertCategorySegments() {
+        let segments = ["General", "Coding", "Image", "Video"].map { app.segmentedControls["category"].buttons[$0].frame }
+        for (left, right) in zip(segments, segments.dropFirst()) {
+            XCTAssertLessThan(left.maxX, right.maxX)
+            XCTAssertEqual(left.width, right.width, accuracy: 2)
+        }
+    }
     private func waitForLayout(landscape: Bool) {
         let window = app.windows.firstMatch
         let predicate = NSPredicate { _, _ in
             let frame = window.frame
-            return frame.width > 0 && frame.height > 0
-                && (frame.width > frame.height) == landscape
-                && self.app.buttons["settings"].isHittable
+            return frame.width > 0 && frame.height > 0 && (frame.width > frame.height) == landscape
+                && self.app.segmentedControls["category"].isHittable
         }
-        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: window)
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 10), .completed)
-        // Existing board identifiers can remain present while rotation is still animating.
-        // Wait for a stable window frame before taking the complete screen snapshot.
-        var previous = window.frame
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: window)], timeout: 10), .completed)
+        var previous = app.segmentedControls["category"].frame
         var stableFrames = 0
         for _ in 0..<20 {
             Thread.sleep(forTimeInterval: 0.3)
-            let current = window.frame
+            let current = app.segmentedControls["category"].frame
             stableFrames = current == previous ? stableFrames + 1 : 0
             previous = current
             if stableFrames >= 3 { return }
         }
-        XCTFail("iPad window did not settle after rotation")
+        XCTFail("iPad controls did not settle after rotation")
     }
-
     private func capture(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name

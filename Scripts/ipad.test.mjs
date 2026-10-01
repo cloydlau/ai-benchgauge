@@ -56,3 +56,23 @@ test('iPad uses one full-screen scene with rotation and respects newer system wi
   assert.match(info, /<key>UIApplicationSupportsMultipleScenes<\/key>\s*<false\/>/)
   assert.ok(!info.includes('NSAppTransportSecurity'))
 })
+
+test('iPad source names and explanations stay aligned with desktop copy', () => {
+  const desktop = readFileSync(new URL('../apps/macos/Sources/LeaderboardView.swift', import.meta.url), 'utf8')
+  const presentation = readFileSync(new URL('../Sources/LeaderboardKit/LeaderboardPresentation.swift', import.meta.url), 'utf8')
+  const desktopLenses = desktop.slice(desktop.indexOf('private extension LeaderboardCategory'), desktop.indexOf('private struct SourceLensDescription'))
+  const titles = [...desktopLenses.matchAll(/case \.\w+: "([^"]+)"/g)].map(match => match[1])
+  assert.equal(titles.length, 8)
+  for (const title of titles) assert.ok(presentation.includes(JSON.stringify(title)), `iPad source title differs: ${title}`)
+  const copyPairs = [...desktopLenses.matchAll(/language\.text\(\s*"([^"]+)",\s*"([^"]+)"/g)]
+  assert.equal(copyPairs.length, 16)
+  for (const [, english, chinese] of copyPairs) {
+    assert.ok(presentation.includes(JSON.stringify(english)), `Missing desktop copy: ${english}`)
+    assert.ok(presentation.includes(JSON.stringify(chinese)), `Missing desktop copy: ${chinese}`)
+  }
+  const ui = readFileSync(new URL('../apps/ipad/UI/LeaderboardPadView.swift', import.meta.url), 'utf8')
+  assert.ok(!ui.includes('获取于'))
+  assert.ok(!ui.includes('"Fetched"'))
+  const { project } = ipadProject({ version: '0.1.2' })
+  assert.ok(project.includes('path = ../../assets/logos'))
+})

@@ -64,6 +64,7 @@ private actor FetchGate {
     store.grouping = .company
     store.language = .traditionalChinese
     store.setCountry(.china, for: .arenaText)
+    store.setCountryFilter(.unknown, for: .artificialAnalysis)
     await store.refresh(force: true)
     #expect(store.snapshot.boards[.arenaText] == cached)
     #expect(store.failures[.arenaText] == .offline)
@@ -73,5 +74,6 @@ private actor FetchGate {
     #expect(relaunched.grouping == .company)
     #expect(relaunched.language == .traditionalChinese)
     #expect(relaunched.country(for: .arenaText) == .china)
+    #expect(relaunched.countryFilter(for: .artificialAnalysis) == .unknown)
     #expect(relaunched.snapshot.boards[.arenaText] == cached)
 }
