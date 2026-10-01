@@ -282,6 +282,27 @@ struct CCSwitchQuotaCatalogTests {
 
 struct AccountQuotaFormattingTests {
     @Test
+    func testAllQuotaSurfacesUseAtMostOneDecimalPlace() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let examples: [(AccountQuotaChip.Status, String)] = [
+            (.windows([ParsedQuotaWindow(name: "five_hour", utilization: 12.34, resetsAt: nil)]), "5h 87.7%"),
+            (.windows([ParsedQuotaWindow(name: "seven_day", utilization: 100, resetsAt: nil)]), "7d 0%"),
+            (.windows([ParsedQuotaWindow(name: "monthly", utilization: 0, resetsAt: nil)]), "1mo 100%"),
+            (.qwenWebsite(QwenWebsiteQuota(periodLabel: "1mo", remainingPercent: 6.84, resetsAt: nil)), "1mo 6.8%"),
+            (.qwenWebsite(QwenWebsiteQuota(periodLabel: "7d", remainingPercent: 42, resetsAt: nil)), "7d 42%"),
+            (.qwenWebsite(QwenWebsiteQuota(periodLabel: "7d", remainingPercent: 6.96, resetsAt: nil)), "7d 7%"),
+            (.qwenPlan(QwenPlanQuota(usedPercent: 80, remainingCredits: 2, totalCredits: 3, resetsAt: nil)), "额度 66.7%"),
+            (.qwenPlan(QwenPlanQuota(usedPercent: 12.34, remainingCredits: 0, totalCredits: 0, resetsAt: nil)), "额度 87.7%"),
+        ]
+        for (status, expected) in examples {
+            let quota = chip(kind: .qwen, isCurrent: true, status: status)
+            #expect(AccountQuotaFormatting.menuBarText(forChips: [quota])?.quota == expected)
+            #expect(AccountQuotaFormatting.plainSummary(for: quota, now: now) == expected)
+            #expect(AccountQuotaFormatting.help(for: quota, now: now).contains(expected))
+        }
+    }
+
+    @Test
     func testMenuBarUsesTheShortestSuccessfulWindow() {
         let windows = [
             ParsedQuotaWindow(name: "monthly", utilization: 40, resetsAt: nil),
@@ -783,6 +804,54 @@ struct AccountQuotaFormattingTests {
         ]
 
         #expect((AccountQuotaFormatting.sortedChips(chips).map(\.id)) == (["website", "current", "plan", "same", "latest", "note", "balance"]))
+    }
+
+    @Test
+    func testUndatedAndFailedPlansAlwaysPrecedePayAsYouGoProviders() {
+        let plans: [AccountQuotaChip.Status] = [
+            .pending, .note(text: AccountQuotaMessage.notConfigured, help: ""),
+            .message(AccountQuotaMessage.queryFailed), .message(AccountQuotaMessage.reauthRequired),
+            .message(AccountQuotaMessage.notLoggedIn), .message(AccountQuotaMessage.network),
+            .windows([ParsedQuotaWindow(name: "weekly_limit", utilization: 25,
+                resetsAt: Date(timeIntervalSince1970: 1_700_000_000))]),
+            .windows([]),
+        ]
+        let metered: [AccountQuotaChip.Status] = [
+            .pending, .message(AccountQuotaMessage.queryFailed),
+            .message(AccountQuotaMessage.notConfigured), .balances([]),
+            .balances([ParsedBalance(currency: "CNY", amount: 0)]),
+            .balances([ParsedBalance(currency: "CNY", amount: 12.36)]),
+        ]
+        for planStatus in plans {
+            for kind in [CCSwitchQuotaKind.deepseek, .stepfun, .blackForestLabs, .luma] {
+                for balanceStatus in metered {
+                    let plan = quotaChip(id: "xai", kind: .xaiOAuth, status: planStatus)
+                    let balance = quotaChip(id: "metered", kind: kind, isCurrent: true, status: balanceStatus)
+                    for input in [[balance, plan], [plan, balance]] {
+                        #expect(AccountQuotaFormatting.sortedChips(input).map(\.id) == ["xai", "metered"])
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    func testQuotaBillingGroupsPreserveExpiryAndStableTieOrder() {
+        let late = Date(timeIntervalSince1970: 1_700_000_000)
+        let soon = late.addingTimeInterval(-86_400)
+        let chips = [
+            quotaChip(id: "deepseek", kind: .deepseek, status: .message(AccountQuotaMessage.queryFailed)),
+            quotaChip(id: "xai", kind: .xaiOAuth, status: .pending),
+            quotaChip(id: "luma", kind: .luma, status: .balances([ParsedBalance(currency: "USD", amount: 1)])),
+            quotaChip(id: "late", kind: .kimi, isCurrent: true, status: .windows([
+                ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: late)])),
+            quotaChip(id: "undated", kind: .qwen, status: .message(AccountQuotaMessage.network)),
+            quotaChip(id: "soon", kind: .zhipu, status: .windows([
+                ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: soon)])),
+            quotaChip(id: "balanceResult", kind: .minimax, status: .balances([ParsedBalance(currency: "CNY", amount: 3)])),
+        ]
+        #expect(AccountQuotaFormatting.sortedChips(chips).map(\.id) ==
+            ["soon", "late", "xai", "undated", "deepseek", "luma", "balanceResult"])
     }
 
     @Test

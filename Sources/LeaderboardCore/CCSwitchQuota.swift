@@ -272,17 +272,17 @@ public enum AccountQuotaFormatting {
                 if let window = windows.first(where: {
                     $0.name == name && $0.utilization.isFinite && (0...100).contains($0.utilization)
                 }) {
-                    return "\(label(forWindowName: name)) \(remainingPercent(utilization: window.utilization))%"
+                    return "\(label(forWindowName: name)) \(percentText(remainingPercent(utilization: window.utilization)))%"
                 }
             }
             return nil
         case let .qwenPlan(plan):
-            return "额度 \(qwenPlanRemainingPercent(plan))%"
+            return "额度 \(percentText(qwenPlanRemainingPercent(plan)))%"
         case let .qwenWebsite(quota):
             guard quota.remainingPercent.isFinite,
                   (0...100).contains(quota.remainingPercent),
                   ["7d", "1mo"].contains(quota.periodLabel) else { return nil }
-            return "\(quota.periodLabel) \(roundedPercent(quota.remainingPercent))%"
+            return "\(quota.periodLabel) \(percentText(quota.remainingPercent))%"
         case let .balances(balances):
             let available = balances.filter {
                 $0.amount.isFinite && $0.amount >= 0 && !$0.currency.isEmpty
@@ -313,7 +313,7 @@ public enum AccountQuotaFormatting {
                 $0.name != ParsedQuotaWindow.planExpiryName && $0.utilization.isFinite
             }.map { min(100, max(0, 100 - $0.utilization)) }.min()
         case let .qwenPlan(plan):
-            return Double(qwenPlanRemainingPercent(plan))
+            return qwenPlanRemainingPercent(plan)
         case let .qwenWebsite(quota):
             return quota.remainingPercent.isFinite ? min(100, max(0, quota.remainingPercent)) : nil
         case .pending, .note, .message, .balances:
@@ -592,20 +592,35 @@ public enum AccountQuotaFormatting {
         return order.flatMap { grouped[$0] ?? [] } + rest
     }
 
-    /// Providers expiring soonest come first. A chip sorts by the expiry its
+    /// Pay-as-you-go providers always follow quota/plan providers, including
+    /// pending, failed and undated plans. Within plans, soonest expiry comes
+    /// first. A chip sorts by the expiry its
     /// card shows: the plan end when there is one, otherwise a monthly quota
     /// reset. Shorter usage resets are not subscription deadlines. Missing
-    /// expiry sorts last, ties keep the stored order, and the
+    /// expiry sorts after dated plans, ties keep the stored order, and the
     /// current provider is not pinned.
     public static func sortedChips(_ chips: [AccountQuotaChip]) -> [AccountQuotaChip] {
         chips.enumerated()
             .sorted { lhs, rhs in
-                if let ordered = compareExpiry(chipExpiry(lhs.element), chipExpiry(rhs.element), soonerFirst: true) {
+                let leftMetered = isPayAsYouGo(lhs.element)
+                let rightMetered = isPayAsYouGo(rhs.element)
+                if leftMetered != rightMetered { return !leftMetered }
+                if !leftMetered, let ordered = compareExpiry(chipExpiry(lhs.element), chipExpiry(rhs.element), soonerFirst: true) {
                     return ordered
                 }
                 return lhs.offset < rhs.offset
             }
             .map(\.element)
+    }
+
+    private static func isPayAsYouGo(_ chip: AccountQuotaChip) -> Bool {
+        // Provider kind remains available when a balance request fails.
+        switch chip.kind {
+        case .deepseek, .stepfun, .blackForestLabs, .luma: return true
+        default:
+            if case .balances = chip.status { return true }
+            return false
+        }
     }
 
     /// The boundary shown after 至. A plan boundary wins over monthly
@@ -766,14 +781,23 @@ public enum AccountQuotaFormatting {
         planPeriodEnd(windows) ?? windows.first(where: { $0.name == "monthly" })?.resetsAt
     }
 
-    private static func remainingPercent(utilization: Double) -> Int {
-        min(100, max(0, 100 - roundedPercent(utilization)))
+    private static func remainingPercent(utilization: Double) -> Double {
+        guard utilization.isFinite else { return 100 }
+        return min(100, max(0, 100 - utilization))
+    }
+
+    /// All quota surfaces show at most one decimal place, omitting trailing .0.
+    /// Round only when producing text, preserving precision in the calculation.
+    private static func percentText(_ value: Double) -> String {
+        let clamped = value.isFinite ? min(100, max(0, value)) : 0
+        let text = String(format: "%.1f", locale: Locale(identifier: "en_US_POSIX"), clamped)
+        return text.hasSuffix(".0") ? String(text.dropLast(2)) : text
     }
 
     private static func windowDetailLines(_ windows: [ParsedQuotaWindow], now: Date) -> [String] {
         var lines = orderedUsageWindows(windows).map { window in
             let label = label(forWindowName: window.name)
-            return "\(label) \(remainingPercent(utilization: window.utilization))%"
+            return "\(label) \(percentText(remainingPercent(utilization: window.utilization)))%"
         }
         for window in orderedUsageWindows(windows) {
             if let reset = window.resetsAt, let date = resetDateText(reset, now: now) {
@@ -807,7 +831,7 @@ public enum AccountQuotaFormatting {
     }
 
     private static func qwenWebsiteHelp(_ quota: QwenWebsiteQuota, now: Date) -> String {
-        var lines = ["\(quota.periodLabel) \(creditText(quota.remainingPercent))%"]
+        var lines = ["\(quota.periodLabel) \(percentText(quota.remainingPercent))%"]
         if let reset = quota.resetsAt, let date = resetDateText(reset, now: now) {
             lines.append("\(quota.periodLabel)重置\(date)")
         }
@@ -831,7 +855,7 @@ public enum AccountQuotaFormatting {
             appendSeparator(&runs)
             runs.append(contentsOf: remainingRuns(
                 label: label(forWindowName: window.name),
-                percentText: "\(remainingPercent(utilization: window.utilization))",
+                percentText: percentText(remainingPercent(utilization: window.utilization)),
                 utilizationForTone: window.utilization
             ))
         }
@@ -890,8 +914,8 @@ public enum AccountQuotaFormatting {
         let remaining = qwenPlanRemainingPercent(plan)
         var runs = remainingRuns(
             label: "额度",
-            percentText: "\(remaining)",
-            utilizationForTone: Double(100 - remaining)
+            percentText: percentText(remaining),
+            utilizationForTone: 100 - remaining
         )
         if let expiry = plan.expiresAt {
             appendSeparator(&runs)
@@ -903,7 +927,7 @@ public enum AccountQuotaFormatting {
     private static func qwenWebsiteRuns(_ quota: QwenWebsiteQuota, now: Date) -> [QuotaTextRun] {
         var runs = remainingRuns(
             label: quota.periodLabel,
-            percentText: creditText(quota.remainingPercent),
+            percentText: percentText(quota.remainingPercent),
             utilizationForTone: 100 - quota.remainingPercent
         )
         if let end = quota.expiresAt ?? (quota.periodLabel == "1mo" ? quota.resetsAt : nil) {
@@ -915,11 +939,11 @@ public enum AccountQuotaFormatting {
 
     /// Credits are the remaining amount when the CLI reports them. Otherwise
     /// fall back to the complement of used percent.
-    private static func qwenPlanRemainingPercent(_ plan: QwenPlanQuota) -> Int {
+    private static func qwenPlanRemainingPercent(_ plan: QwenPlanQuota) -> Double {
         if plan.totalCredits > 0, plan.remainingCredits.isFinite, plan.totalCredits.isFinite {
             let ratio = plan.remainingCredits / plan.totalCredits * 100
             if ratio.isFinite {
-                return min(100, max(0, roundedPercent(ratio)))
+                return min(100, max(0, ratio))
             }
         }
         return remainingPercent(utilization: plan.usedPercent)
