@@ -8,8 +8,6 @@ import AppKit
 
 @MainActor
 private final class PadPresentationState: ObservableObject {
-    @Published var showingShare = false
-    @Published var shareImage: Image?
     @Published var licenseSection: PadLicenseSection?
     @Published var note: String?
 }
@@ -56,7 +54,6 @@ public struct LeaderboardPadView: View {
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8)).padding(20)
             }
         }
-        .sheet(isPresented: $presentation.showingShare) { shareSheet }
         .sheet(item: $presentation.licenseSection) { licenseSheet($0) }
         .task(id: store.category) { await store.refresh() }
         .onChange(of: scenePhase) { _, phase in
@@ -156,7 +153,7 @@ public struct LeaderboardPadView: View {
                     ForEach(store.category.boardKinds, id: \.self) { kind in Link(kind.sourceLinkTitle, destination: kind.sourceURL) }
                 }
                 Text("·")
-                Button { prepareShare() } label: {
+                Button { copyScreenshot() } label: {
                     if compact { Image(systemName: "camera") }
                     else { Label(tr("Screenshot", "截图"), systemImage: "camera") }
                 }.accessibilityLabel(tr("Screenshot", "截图")).accessibilityIdentifier("share")
@@ -210,26 +207,18 @@ public struct LeaderboardPadView: View {
         renderer.scale = 2
         return renderer.cgImage
     }
-    private func prepareShare() {
-        if let cgImage = renderLeaderboardImage(scheme: colorScheme) { presentation.shareImage = Image(decorative: cgImage, scale: 2) }
-        else { presentation.shareImage = nil }
-        presentation.showingShare = true
-    }
-    private var shareSheet: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    if let shareImage = presentation.shareImage {
-                        shareImage.resizable().scaledToFit()
-                        ShareLink(item: shareImage, preview: SharePreview("AI BenchGauge", image: shareImage)) {
-                            Label(tr("Share", "分享"), systemImage: "square.and.arrow.up")
-                        }.buttonStyle(.borderedProminent).accessibilityIdentifier("share-image")
-                    } else { Text(tr("Screenshot failed", "截图失败")) }
-                }.padding(20)
-            }
-            .navigationTitle(tr("Screenshot", "截图"))
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(tr("Done", "完成")) { presentation.showingShare = false } } }
+    private func copyScreenshot() {
+        guard let cgImage = renderLeaderboardImage(scheme: colorScheme) else {
+            showNote(tr("Screenshot failed", "截图失败"))
+            return
         }
+        #if os(iOS)
+        UIPasteboard.general.image = UIImage(cgImage: cgImage, scale: 2, orientation: .up)
+        #else
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.writeObjects([NSImage(cgImage: cgImage, size: .zero)])
+        #endif
+        showNote(tr("Copied to clipboard", "已复制到剪贴板"))
     }
     private func copyName(_ name: String) {
         #if os(iOS)
@@ -238,7 +227,9 @@ public struct LeaderboardPadView: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(name, forType: .string)
         #endif
-        let note = tr("Copied ", "已复制 ") + name
+        showNote(tr("Copied ", "已复制 ") + name)
+    }
+    private func showNote(_ note: String) {
         presentation.note = note
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(2.4))

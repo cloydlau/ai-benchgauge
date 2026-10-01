@@ -49,8 +49,8 @@ final class LeaderboardPadTests: XCTestCase {
         capture("notices")
         app.buttons["Done"].tap()
         app.buttons["share"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["share-image"].firstMatch.waitForExistence(timeout: 10))
-        capture("share")
+        XCTAssertTrue(app.staticTexts["Copied to clipboard"].waitForExistence(timeout: 10))
+        capture("screenshot-feedback")
     }
     func testChineseInterfacePreviews() {
         app.launchArguments.append("--preview-zh")
