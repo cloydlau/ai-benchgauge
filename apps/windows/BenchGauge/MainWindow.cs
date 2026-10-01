@@ -35,7 +35,7 @@ sealed partial class MainWindow : Window
     DockPanel? footer;
     Button? updateButton;
     TextBlock? headerTitle;
-    bool rendering, modalOpen, closing, refreshing, checkingUpdate;
+    bool rendering, modalOpen, closing, checkingUpdate;
     WindowsUpdate? availableUpdate;
     string? notifiedVersion;
     public Forms.NotifyIcon? Tray { get; set; }

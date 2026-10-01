@@ -25,6 +25,7 @@ sealed partial class MainWindow
 {
     double renderedPanelWidth;
     bool panelMenuOpen;
+    bool panelRefreshing;
     bool panelDark = ReadSystemDark();
     Brush PanelInk => Tint(panelDark ? "#ECECEF" : "#232325");
     Brush PanelMuted => Tint(panelDark ? "#A5A5AA" : "#77777B");
@@ -74,21 +75,21 @@ sealed partial class MainWindow
         label.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
         label.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
         frame.AppendChild(label); buttonTemplate.VisualTree = frame;
-        var hover = new Trigger { Property = NativeWpfButton.IsMouseOverProperty, Value = true };
+        var hover = new Trigger { Property = WpfButton.IsMouseOverProperty, Value = true };
         hover.Setters.Add(new Setter(Border.BackgroundProperty, Tint("#E9E9EC"), "frame"));
         buttonTemplate.Triggers.Add(hover);
-        var pressed = new Trigger { Property = NativeWpfButton.IsPressedProperty, Value = true };
+        var pressed = new Trigger { Property = WpfButton.IsPressedProperty, Value = true };
         pressed.Setters.Add(new Setter(Border.BackgroundProperty, Tint("#DDDEE2"), "frame"));
         buttonTemplate.Triggers.Add(pressed);
-        var disabled = new Trigger { Property = NativeWpfButton.IsEnabledProperty, Value = false };
-        disabled.Setters.Add(new Setter(NativeWpfButton.OpacityProperty, 0.5)); buttonTemplate.Triggers.Add(disabled);
+        var disabled = new Trigger { Property = WpfButton.IsEnabledProperty, Value = false };
+        disabled.Setters.Add(new Setter(WpfButton.OpacityProperty, 0.5)); buttonTemplate.Triggers.Add(disabled);
         var buttons = new Style(typeof(NativeButton));
-        buttons.Setters.Add(new Setter(NativeWpfButton.TemplateProperty, buttonTemplate));
-        buttons.Setters.Add(new Setter(NativeWpfButton.ForegroundProperty, PanelInk));
-        buttons.Setters.Add(new Setter(NativeWpfButton.BackgroundProperty, Brushes.Transparent));
-        buttons.Setters.Add(new Setter(NativeWpfButton.BorderThicknessProperty, new Thickness(0)));
-        buttons.Setters.Add(new Setter(NativeWpfButton.CursorProperty, Cursors.Hand));
-        buttons.Setters.Add(new Setter(NativeWpfButton.FontSizeProperty, 11.0));
+        buttons.Setters.Add(new Setter(WpfButton.TemplateProperty, buttonTemplate));
+        buttons.Setters.Add(new Setter(WpfButton.ForegroundProperty, PanelInk));
+        buttons.Setters.Add(new Setter(WpfButton.BackgroundProperty, Brushes.Transparent));
+        buttons.Setters.Add(new Setter(WpfButton.BorderThicknessProperty, new Thickness(0)));
+        buttons.Setters.Add(new Setter(WpfButton.CursorProperty, Cursors.Hand));
+        buttons.Setters.Add(new Setter(WpfButton.FontSizeProperty, 11.0));
         Resources[typeof(NativeButton)] = buttons;
 
         var template = new ControlTemplate(typeof(ComboBox));
@@ -162,7 +163,7 @@ sealed partial class MainWindow
         headerTitle = new TextBlock { Text = "AI BenchGauge", FontFamily = new FontFamily("Segoe Script"), FontWeight = FontWeights.Bold, FontSize = 21, Height = 27, Foreground = PanelInk };
         brand.Children.Add(headerTitle);
         updateButton = QuietButton("v" + config.Version + (availableUpdate is null ? "" : " ↑"), async () => await CheckUpdates(true));
-        updateWpfButton.Foreground = Tint("#C6C6CA"); updateWpfButton.Margin = new Thickness(8, 0, 0, 0); brand.Children.Add(updateButton);
+        updateButton.Foreground = Tint("#C6C6CA"); updateButton.Margin = new Thickness(8, 0, 0, 0); brand.Children.Add(updateButton);
         titleLine.Children.Add(brand);
         var freshness = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         freshness.Children.Add(Caption(Tr("UPDATED", "更新时间", "更新時間")));
@@ -170,7 +171,7 @@ sealed partial class MainWindow
         freshness.Children.Add(FreshnessPill(Tr("Quotas ", "余量 ", "餘量 ") + (state?.Quotas.Any() == true ? Tr("loaded", "已读取", "已讀取") : Tr("pending", "待更新", "待更新")), state?.QuotaUnavailable == true));
         freshness.Cursor = Cursors.Hand;
         freshness.ToolTip = Tr("Click to refresh boards and quotas", "点击刷新榜单与余量", "點擊重新整理榜單與餘量");
-        freshness.MouseLeftButtonUp += async (_, _) => { if (refreshing) return; refreshing = true; try { await Task.WhenAll(Refresh("refreshBoards"), Refresh("refreshQuotas")); } finally { refreshing = false; } };
+        freshness.MouseLeftButtonUp += async (_, _) => { if (panelRefreshing) return; panelRefreshing = true; try { await Task.WhenAll(Refresh("refreshBoards"), Refresh("refreshQuotas")); } finally { panelRefreshing = false; } };
         Grid.SetColumn(freshness, 1); titleLine.Children.Add(freshness);
         var tabs = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
         tabs.Children.Add(Segments([("model",Tr("Models","模型")),("company",Tr("Companies","公司"))], prefs.Grouping, 180,
@@ -235,7 +236,7 @@ sealed partial class MainWindow
     }
     Button QuietButton(string text, Action action) => Quiet(Button(text, action));
     Button QuietButton(string text, Func<Task> action) => Quiet(Button(text, action));
-    static Button Quiet(Button button) { button.Padding = new Thickness(2, 0, 2, 0); button.Margin = new Thickness(0); button.Foreground = PanelMuted; return button; }
+    Button Quiet(Button button) { button.Padding = new Thickness(2, 0, 2, 0); button.Margin = new Thickness(0); button.Foreground = PanelMuted; return button; }
 
     FrameworkElement QuotaPlaceholder()
     {
