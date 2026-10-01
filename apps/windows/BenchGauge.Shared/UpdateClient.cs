@@ -7,9 +7,10 @@ using Org.BouncyCastle.Crypto.Signers;
 
 namespace BenchGauge.Shared;
 public sealed record WindowsUpdate(string Version, string Url, string Sha256, long Length, string Notes);
-public sealed class UpdateClient(AppConfig config)
+public sealed class UpdateClient(AppConfig config, HttpClient? client = null, string? downloadDirectory = null)
 {
-    static readonly HttpClient http = new() { Timeout = TimeSpan.FromMinutes(10) };
+    static readonly HttpClient sharedHttp = new() { Timeout = TimeSpan.FromMinutes(10) };
+    readonly HttpClient http = client ?? sharedHttp;
     public static WindowsUpdate Verify(byte[] payload, string signature, string publicKey, string repository)
     {
         if (payload.Length > 65_536) throw new CryptographicException("Update metadata exceeds limit");
@@ -31,7 +32,7 @@ public sealed class UpdateClient(AppConfig config)
         var update = Verify(payload, signature, config.UpdatePublicKey, config.Repository);
         return Version.Parse(update.Version) > Version.Parse(config.Version) ? update : null;
     }
-    static async Task<byte[]> ReadLimited(string url, int maximum)
+    async Task<byte[]> ReadLimited(string url, int maximum)
     {
         using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
         response.EnsureSuccessStatusCode();
@@ -49,9 +50,16 @@ public sealed class UpdateClient(AppConfig config)
     }
     public async Task<string> Download(WindowsUpdate update, IProgress<double>? progress = null)
     {
-        var directory = Path.Combine(Preferences.DirectoryPath, "updates");
+        var directory = downloadDirectory ?? Path.Combine(Preferences.DirectoryPath, "updates");
         Directory.CreateDirectory(directory);
         var file = Path.Combine(directory, $"AI-BenchGauge-{update.Version}-setup.exe");
+        // Reuse only a cache matching the authenticated version's size and digest.
+        if (File.Exists(file) && new FileInfo(file).Length == update.Length)
+        {
+            await using var cached = File.OpenRead(file);
+            var digest = await SHA256.HashDataAsync(cached);
+            if (CryptographicOperations.FixedTimeEquals(digest, Convert.FromHexString(update.Sha256))) return file;
+        }
         var temp = file + "." + Guid.NewGuid() + ".tmp";
         try
         {
@@ -82,6 +90,6 @@ public sealed class UpdateClient(AppConfig config)
         var start = new ProcessStartInfo(installer) { UseShellExecute = true };
         start.ArgumentList.Add("/UPDATE");
         start.ArgumentList.Add($"/WAITPID={Environment.ProcessId}");
-        Process.Start(start);
+        _ = Process.Start(start) ?? throw new InvalidOperationException("Installer could not start");
     }
 }

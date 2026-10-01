@@ -25,9 +25,9 @@ export function validateRelease(tag, info, published = []) {
     throw new Error('Unexpected bundle identifier or deployment target')
   }
   if (info.SUFeedURL !== feedURL || info.SUScheduledCheckInterval !== 86400 || info.SUEnableAutomaticChecks !== true
-      || info.SUAutomaticallyUpdate !== false || info.SUAllowsAutomaticUpdates !== false
+      || info.SUAutomaticallyUpdate !== true || info.SUAllowsAutomaticUpdates !== true
       || info.SURequireSignedFeed !== true || info.SUVerifyUpdateBeforeExtraction !== true) {
-    throw new Error('The release must use the signed 24-hour update feed and require an Install click')
+    throw new Error('The release must enable signed 24-hour background update preparation')
   }
   decodePublicKey(info.SUPublicEDKey)
   for (const prior of published.filter((item) => !item.isDraft && !item.isPrerelease)) {

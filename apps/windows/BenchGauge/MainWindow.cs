@@ -32,37 +32,46 @@ sealed class MainWindow : Window
     readonly List<ComboBox> dropdowns = [];
     DisplayState? state;
     QwenWebsiteWindow? qwenWindow;
+    XAIWebsiteSubscriptionWindow? xaiSubscriptionWindow;
     DockPanel? footer;
     Button? updateButton;
     TextBlock? headerTitle;
-    bool rendering, modalOpen, closing, refreshing, checkingUpdate;
+    bool rendering, modalOpen, closing, checkingUpdate;
     WindowsUpdate? availableUpdate;
-    string? notifiedVersion;
+    readonly PreparedUpdate preparedUpdate = new();
+    PreparedUpdateDialog? updateDialog;
     public Forms.NotifyIcon? Tray { get; set; }
     public string Tr(string en, string zh, string? traditional = null) => prefs.Language switch { "en" => en, "zh-Hant" => traditional ?? zh, _ => zh };
     public MainWindow(EngineClient? engine, Preferences prefs)
     {
         this.engine = engine; this.prefs = prefs; updater = new UpdateClient(config);
-        Title = "AI BenchGauge"; Width = 900; Height = 720; MinWidth = 600; MinHeight = 600;
+        Title = "AI BenchGauge"; Width = 850; MinWidth = 600;
+        MinHeight = Math.Min(600, SystemParameters.WorkArea.Height);
+        Height = Math.Min(820, SystemParameters.WorkArea.Height);
         WindowStartupLocation = WindowStartupLocation.Manual;
-        FontFamily = new FontFamily("Segoe UI, Microsoft YaHei UI"); FontSize = 12;
-        Background = new SolidColorBrush(Color.FromRgb(247, 248, 250));
-        Content = new Border { Padding = new Thickness(16), Child = content };
+        FontFamily = new FontFamily("Segoe UI, Microsoft YaHei UI"); FontSize = 13;
+        UseLayoutRounding = true; SnapsToDevicePixels = true;
+        ConfigurePanelStyles();
+        Microsoft.Win32.SystemEvents.UserPreferenceChanged += SystemAppearanceChanged;
+        Closed += (_, _) => Microsoft.Win32.SystemEvents.UserPreferenceChanged -= SystemAppearanceChanged;
+        Content = new Border { Padding = new Thickness(0), Child = content };
         quotaArea.Children.Add(quotaPanel); quotaArea.Children.Add(privatePrompt);
         ApplyMode(); Render();
-        SizeChanged += (_, _) => { if (headerTitle is not null) headerTitle.Visibility = ActualWidth < 740 ? Visibility.Collapsed : Visibility.Visible; };
-        Closing += (_, e) => { if (!closing) { e.Cancel = true; Hide(); SaveFrame(); } };
+        SizeChanged += (_, _) => Dispatcher.BeginInvoke(() => { if (!closing && !rendering && Content is FrameworkElement client && Math.Abs(client.ActualWidth - renderedPanelWidth) > 1) Render(); }, DispatcherPriority.Loaded);
+        Closing += (_, e) => { if (!closing) { e.Cancel = true; if (!preparedUpdate.IsPresenting) { Hide(); SaveFrame(); } } };
         Deactivated += (_, _) => Dispatcher.BeginInvoke(() =>
         {
-            if (!closing && IsVisible && prefs.PanelMode == "closeOnBlur" && !IsActive && !modalOpen && !dropdowns.Any(box => box.IsDropDownOpen)) Hide();
+            if (!closing && IsVisible && prefs.PanelMode == "closeOnBlur" && !IsActive && !modalOpen && !(panelMenuOpen || dropdowns.Any(box => box.IsDropDownOpen))) Hide();
         }, DispatcherPriority.Background);
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && !modalOpen) Hide(); };
         boardTimer.Tick += async (_, _) => { await Refresh("refreshBoards"); await Refresh("refreshCurrentQuota"); };
         quotaClockTimer.Tick += async (_, _) =>
         {
-            if (IsVisible && !modalOpen && !dropdowns.Any(box => box.IsDropDownOpen)) await Refresh("state");
+            if (IsVisible && !modalOpen && !(panelMenuOpen || dropdowns.Any(box => box.IsDropDownOpen))) await Refresh("state");
         };
         updateTimer.Tick += async (_, _) => await CheckUpdates(false);
+        Activated += (_, _) => Dispatcher.BeginInvoke(TryPresentPreparedUpdate, DispatcherPriority.Background);
+
     }
     public async Task Start()
     {
@@ -71,10 +80,11 @@ sealed class MainWindow : Window
         await Task.WhenAll(Refresh("refreshBoards"), Refresh("refreshQuotas"));
         await CheckUpdates(false);
     }
-    public void Stop() { closing = true; boardTimer.Stop(); quotaClockTimer.Stop(); updateTimer.Stop(); SaveFrame(); }
-    public void Toggle() { if (IsVisible) { Hide(); SaveFrame(); } else { Reveal(); _ = Refresh("refreshQuotas"); } }
+    public void Stop(bool savePreferences = true) { closing = true; updateDialog?.PrepareForShutdown(); boardTimer.Stop(); quotaClockTimer.Stop(); updateTimer.Stop(); if (savePreferences) SaveFrame(); }
+    public void Toggle() { if (preparedUpdate.IsPresenting) { updateDialog?.Activate(); return; } if (IsVisible) { Hide(); SaveFrame(); } else { Reveal(); _ = Refresh("refreshQuotas"); } }
     public void Reveal()
     {
+        if (preparedUpdate.IsPresenting) { updateDialog?.Activate(); return; }
         if (prefs.PanelMode == "window")
         {
             if (!IsVisible && prefs.WindowWidth is { } width && prefs.WindowHeight is { } height)
@@ -293,31 +303,50 @@ sealed class MainWindow : Window
         }
         catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException)
         { status.Text = Tr("Sign-in failed. Try again.", "授权未完成，请重试。"); try { await engine.Request("cancelOpenAI", prefs, providerID: quota.Id); } catch (Exception cancelError) when (cancelError is IOException or TimeoutException or InvalidOperationException) { } }
-        finally { modalOpen = false; }
+        finally { modalOpen = false; _ = Dispatcher.BeginInvoke(TryPresentPreparedUpdate); }
     }
     public async Task CheckUpdates(bool manual)
     {
-        if (checkingUpdate || engine is null) return;
+        if (preparedUpdate.Installer is not null) { TryPresentPreparedUpdate(); return; }
+        if (checkingUpdate) return;
         checkingUpdate = true;
         try
         {
             availableUpdate = await updater.Check(); Render();
             if (availableUpdate is null) { if (manual) status.Text = Tr("Up to date", "已是最新版"); return; }
-            if (!manual && notifiedVersion == availableUpdate.Version) return;
-            notifiedVersion = availableUpdate.Version; modalOpen = true;
-            var wasTopmost = Topmost; Topmost = false;
-            try
-            {
-                if (MessageBox.Show(this, Tr($"Version {availableUpdate.Version} is available. Install and restart?", $"发现新版本 {availableUpdate.Version}，安装并重启？") + "\n\n" + availableUpdate.Notes, "AI BenchGauge", MessageBoxButton.YesNo, MessageBoxImage.Information) != MessageBoxResult.Yes) return;
-                if (updateButton is not null) updateButton.IsEnabled = false;
-                var file = await updater.Download(availableUpdate, new Progress<double>(value => status.Text = Tr($"Downloading {value:P0}", $"正在下载 {value:P0}")));
-                UpdateClient.Install(file); Application.Current.Shutdown();
-            }
-            finally { Topmost = wasTopmost; modalOpen = false; }
+            var file = await updater.Download(availableUpdate);
+            preparedUpdate.Ready(file);
+            TryPresentPreparedUpdate();
         }
-        catch (Exception e) when (e is IOException or System.Net.Http.HttpRequestException or System.Security.Cryptography.CryptographicException or System.Text.Json.JsonException or FormatException or TaskCanceledException or System.ComponentModel.Win32Exception)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Net.Http.HttpRequestException or System.Security.Cryptography.CryptographicException or System.Text.Json.JsonException or FormatException or TaskCanceledException)
         { if (manual) status.Text = Tr("Update check failed. Try again.", "检查更新失败，请重试。"); }
-        finally { checkingUpdate = false; if (updateButton is not null) updateButton.IsEnabled = true; }
+        finally { checkingUpdate = false; }
+    }
+    void TryPresentPreparedUpdate()
+    {
+        if (!preparedUpdate.TryPresent(IsVisible, IsActive, modalOpen || panelMenuOpen || dropdowns.Any(box => box.IsDropDownOpen), closing)) return;
+        modalOpen = true;
+        updateDialog = new PreparedUpdateDialog(this, Tr, InstallPreparedUpdate);
+        updateDialog.ShowDialog();
+    }
+    async void InstallPreparedUpdate()
+    {
+        var file = preparedUpdate.Confirm();
+        if (file is null) return;
+        try
+        {
+            // Recheck the cache after potentially hours awaiting activation.
+            file = await updater.Download(availableUpdate!);
+            UpdateClient.Install(file);
+            closing = true;
+            updateDialog?.PrepareForShutdown();
+            Application.Current.Shutdown();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or InvalidOperationException or System.Net.Http.HttpRequestException or System.Security.Cryptography.CryptographicException or TaskCanceledException)
+        {
+            preparedUpdate.InstallationFailed();
+            updateDialog?.InstallationFailed();
+        }
     }
     void ShowLicenses(bool thirdParty)
     {
@@ -331,7 +360,7 @@ sealed class MainWindow : Window
                 Content = new TextBox { Text = text, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(16), FontFamily = new FontFamily("Consolas"), FontSize = 11 } };
             dialog.ShowDialog();
         }
-        finally { modalOpen = false; }
+        finally { modalOpen = false; _ = Dispatcher.BeginInvoke(TryPresentPreparedUpdate); }
     }
     public BitmapSource RenderScreenshot()
     {

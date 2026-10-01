@@ -86,9 +86,10 @@ If xAI shows **Sign in again** or **Not signed in**, clicking the card opens CC 
 
 Image and video use their dedicated boards. The Artificial Analysis Coding Agent Index embeds a `materializedAt` batch stamp in its payload, and the app shows that source data time beside the index version. The other Artificial Analysis boards expose no data timestamp, so their columns show no date and the panel heading keeps this Mac's fetch time. Arena's vote cutoff is shown when available. Switching categories uses cached data first.
 
-Application updates use Sparkle: check for stable GitHub Releases every 24 hours, then download,
-verify, install, and relaunch after the user's Install click. Click the version beside
-the title to check immediately. See [release setup and signing](docs/releasing.md).
+Application updates check stable GitHub Releases at launch and every 24 hours, downloading and verifying new versions in the background.
+Only a prepared update and an active app window trigger the mandatory, single-button “Restart to update” dialog.
+Hidden or inactive windows never steal focus. Clicking the button installs and starts the new version.
+Click the footer version to check immediately. See [release setup and signing](docs/releasing.md).
 
 ## Quick start
 

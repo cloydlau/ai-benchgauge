@@ -61,9 +61,31 @@ static class SmokeTests
             if (bitmap.PixelWidth < 500 || bitmap.PixelHeight < 500) throw new Exception("Screenshot too small");
             var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
             using (var file = File.Create(Path.Combine(directory, $"{mode}-{language}-{width}.png"))) encoder.Save(file);
+            var confirms = 0;
+            PreparedUpdateDialog? update = null;
+            update = new PreparedUpdateDialog(window, window.Tr, () =>
+            {
+                confirms++;
+                update!.PrepareForShutdown(); update.Close();
+            });
+            window.Dispatcher.BeginInvoke(() =>
+            {
+                update.Close(); // Title-bar/Alt-F4 close requests must be rejected.
+                if (!update.IsVisible) throw new Exception("Mandatory update was dismissible");
+                var escape = new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(update), 0, Key.Escape) { RoutedEvent = Keyboard.PreviewKeyDownEvent };
+                update.RaiseEvent(escape);
+                if (!escape.Handled || !update.IsVisible || confirms != 0) throw new Exception("Escape dismissed or confirmed update");
+                var buttons = Descendants<Button>(update).ToArray();
+                if (buttons.Length != 1 || update.WindowStyle != WindowStyle.None || update.ShowInTaskbar) throw new Exception("Update dialog has dismiss controls");
+                if (language == "zh" && (update.Title != "发现新版本" || buttons[0].Content?.ToString() != "重启升级" || !Descendants<TextBlock>(update).Any(text => text.Text == "新版本已下载完成，重启后生效。")))
+                    throw new Exception("Mini-program copy changed");
+                buttons[0].RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            }, DispatcherPriority.ApplicationIdle);
+            update.ShowDialog();
+            if (confirms != 1) throw new Exception("Update action must run once");
             window.Stop(); window.Close();
         }
-        File.WriteAllText(Path.Combine(directory, "passed.txt"), "PASS: four modes, three languages, two widths, independent quota/date colors, warning backgrounds, active borders, positioning, restoring, repeated refresh and private screenshots\n");
+        File.WriteAllText(Path.Combine(directory, "passed.txt"), "PASS: four modes, three languages, two widths, independent quota/date colors, warning backgrounds, active borders, positioning, restoring, repeated refresh, private screenshots and non-dismissible update dialogs\n");
         app.Shutdown();
     }
 
