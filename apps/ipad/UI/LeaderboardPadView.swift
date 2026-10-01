@@ -63,7 +63,7 @@ public struct LeaderboardPadView: View {
                     compactControls(width: geometry.size.width - 24)
                     cubeSelector
                     cubeBoards
-                    compactFooter
+                    compactFooter.zIndex(2)
                 }.padding(.horizontal, 12).padding(.vertical, 8)
             } else {
                 ScrollView {
@@ -284,8 +284,9 @@ public struct LeaderboardPadView: View {
                 Section(tr("Sources", "数据来源")) {
                     ForEach(store.category.boardKinds, id: \.self) { kind in Link(kind.sourceLinkTitle, destination: kind.sourceURL) }
                 }
-            } label: { Text("Cloyd Lau · MIT").font(.caption) }
-                .accessibilityIdentifier("attribution").frame(minHeight: 44)
+            } label: {
+                Text("Cloyd Lau · MIT").font(.caption).frame(minHeight: 44).contentShape(Rectangle())
+            }.accessibilityIdentifier("attribution")
             Spacer(minLength: 0)
             Button { copyScreenshot() } label: { Image(systemName: "camera").frame(width: 44, height: 44) }
                 .accessibilityLabel(tr("Screenshot", "截图")).accessibilityIdentifier("share")
@@ -296,7 +297,7 @@ public struct LeaderboardPadView: View {
                         else { Text(languageLabel(language)) }
                     }
                 }
-            } label: { Text(languageLabel(store.language)).font(.caption).frame(minWidth: 40, minHeight: 44) }
+            } label: { Text(languageLabel(store.language)).font(.caption).frame(minWidth: 40, minHeight: 44).contentShape(Rectangle()) }
                 .accessibilityLabel(tr("Language", "语言")).accessibilityIdentifier("language-menu")
         }.buttonStyle(.plain).foregroundStyle(.secondary).lineLimit(1)
     }

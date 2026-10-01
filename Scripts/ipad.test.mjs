@@ -75,9 +75,21 @@ test('iPad source names and explanations stay aligned with desktop copy', () => 
     assert.ok(presentation.includes(JSON.stringify(chinese)), `Missing desktop copy: ${chinese}`)
   }
   const ui = readFileSync(new URL('../apps/ipad/UI/LeaderboardPadView.swift', import.meta.url), 'utf8')
-  assert.ok(ui.includes('Text(tr("AI BenchGauge", "智衡"))'))
+  assert.ok(ui.includes('Text("AI BenchGauge")'))
   assert.ok(!ui.includes('获取于'))
   assert.ok(!ui.includes('"Fetched"'))
   const { project } = ipadProject({ version: '0.1.2' })
   assert.ok(project.includes('path = ../../assets/logos'))
+})
+
+test('SDK build and family-specific UI checks are independently runnable', () => {
+  assert.equal(ipadBuildPlan('build', { directory: '/repo' }).length, 2)
+  for (const family of ['iPhone', 'iPad']) {
+    const plan = ipadBuildPlan('test', { device: uuid, phone: uuid, family })
+    assert.equal(plan.length, 1)
+    assert.ok(plan[0].some(arg => arg.endsWith('.xcresult') && arg.includes(family)))
+  }
+  assert.equal(ipadBuildPlan('test', { device: uuid, family: 'iPad' }).length, 1)
+  assert.throws(() => ipadBuildPlan('test', { device: uuid, family: 'iPhone' }), /simulator IDs/)
+  assert.throws(() => ipadBuildPlan('test', { device: uuid, phone: uuid, family: 'unsupported' }), /family/)
 })
