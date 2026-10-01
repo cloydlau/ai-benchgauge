@@ -36,10 +36,13 @@
 | macOS 14 Sonoma 或更新版本 | Apple 晶片（`arm64`，M1 / M2 及後續晶片） | 支援 |
 | macOS 14 / 15 / 26，且機型支援對應系統 | Intel（`x86_64`） | 支援 |
 | macOS 13 Ventura 或更早版本 | 任意 | 不支援 |
+| iOS 17 / iPadOS 17 及以上 | 能執行對應系統的 iPhone、iPad | 已加入原生專案，尚未發布公開 TestFlight / App Store 版本 |
 
 Mac 的 `.dmg` 包含 **Apple 晶片與 Intel 原生通用應用程式**，兩種晶片使用同一個安裝包，無需 Rosetta。
 Windows 提供 `x64` 的 `-setup.exe`，內含 Swift 與 .NET；不提供 32 位元或原生 ARM64 安裝包，ARM64 模擬執行尚未驗證。
 版本限制、已驗證範圍及 Intel 支援評估見[系統相容說明](docs/compatibility.md)。
+
+**iPhone / iPad：**[原生排行榜版](apps/ipad/README.md)共用一個應用程式套件、商店記錄和版本。iPhone 透過左右滑動／點按進行 3D 魔方翻面，在同一位置切換兩個榜單；iPad 寬螢幕維持並排。支援橫豎螢幕、離線快取和截圖複製，不提供桌面的顯示模式選擇。新版 iPadOS 的系統視窗仍由使用者控制。首版不提供電腦的帳戶餘量。目前尚未發布公開 TestFlight / App Store 版本，無法安裝 DMG / EXE。
 
 ## 你會得到什麼
 

@@ -30,11 +30,13 @@ Windows CI 在 Windows Server 2022 runner 上验证共享核心、更新验签�
 该检查不等于逐一验证了 Windows 10 / 11 的所有版本、版本类型和机器配置。
 千问网页登录使用 WebView2，安装器在缺少该运行时时调用微软引导安装器。
 
-## iPad
+## iPhone / iPad
 
-原生排行榜版的最低目标是 iPadOS 17，适用于能运行该系统的 iPad，不限定 M 系列芯片。工程、Info.plist 和共享包的最低系统版本保持一致。采用单窗口、全屏优先展示，不提供桌面的展示模式选择，支持横竖屏。旧系统的 Split View / Slide Over 模式下请求固定全屏；Stage Manager 及 iPadOS 26 起的系统窗口模式由用户控制，不能保证始终占满整块屏幕。详见 [Apple 全屏兼容说明](https://developer.apple.com/documentation/bundleresources/information-property-list/uirequiresfullscreen)。
+原生排行榜版的最低目标是 iOS 17 / iPadOS 17，适用于能运行对应系统的 iPhone 和 iPad，不限定 M 系列芯片。iPhone 与 iPad 共用应用包、Bundle ID 和商店记录。iPhone 横竖屏均通过 3D 魔方翻面切换两榜，iPad 宽屏并排，窄窗口采用同一翻面方式；系统开启减弱动态效果时使用淡入切换。工程、Info.plist 和共享包的最低系统版本保持一致。采用单窗口、全屏优先展示，不提供桌面的展示模式选择，支持横竖屏。旧系统的 Split View / Slide Over 模式下请求固定全屏；Stage Manager 及 iPadOS 26 起的系统窗口模式由用户控制，不能保证始终占满整块屏幕。详见 [Apple 全屏兼容说明](https://developer.apple.com/documentation/bundleresources/information-property-list/uirequiresfullscreen)。
 
-已加入原生源代码、项目生成器及独立的 iPad CI；尚未发布 TestFlight / App Store 版本。2026-10-01 的 [iPad 原生检查](https://github.com/cloydlau/ai-benchgauge/actions/runs/36820908883)在源码 `88e3f07f9783873a25643150cf596318c083c80e` 上通过模拟器与设备 SDK 的 Release 构建，以及四项模拟器界面测试。已人工查看 [原生截图及测试结果](https://github.com/cloydlau/ai-benchgauge/actions/runs/36820908883/artifacts/11143871994)，覆盖三种语言、横竖屏、模型／公司榜、完整 20 行测试榜单、长名称、未知国家、深色界面、离线状态、来源说明、许可证及截图复制。文案、图标、更新时间、筛选逻辑和底部入口已对齐桌面，移除额外的 iPad 设置页。环境为 iPad Pro 13 英寸（M5）模拟器、iPadOS 26.2、实际 2× 缩放，CI 使用 macOS 15.7.9 / Xcode 16.4。尚未完成 iPad 实机、小尺寸设备、真实完整榜单、大字、空榜及其他 iPadOS 版本验收。开发机只有 Command Line Tools，原生检查在 GitHub Actions 的 Xcode 环境完成。详细构建、验收与分发步骤见 [iPad 说明](../apps/ipad/README.md)。首版提供排行榜，暂不提供电脑的 CC Switch 余量；更新由 TestFlight / App Store 管理。
+已加入原生源代码、项目生成器及覆盖 iPhone 和 iPad 的原生 CI；尚未发布 TestFlight / App Store 版本。2026-10-01 的 [iPad 原生检查](https://github.com/cloydlau/ai-benchgauge/actions/runs/36820908883)在源码 `88e3f07f9783873a25643150cf596318c083c80e` 上通过模拟器与设备 SDK 的 Release 构建，以及四项模拟器界面测试。代理已查看 [原生截图及测试结果](https://github.com/cloydlau/ai-benchgauge/actions/runs/36820908883/artifacts/11143871994)，覆盖三种语言、横竖屏、模型／公司榜、完整 20 行测试榜单、长名称、未知国家、深色界面、离线状态、来源说明、许可证及截图复制。文案、图标、更新时间、筛选逻辑和底部入口已对齐桌面，移除额外的 iPad 设置页。环境为 iPad Pro 13 英寸（M5）模拟器、iPadOS 26.2、实际 2× 缩放，CI 使用 macOS 15.7.9 / Xcode 16.4。尚未完成 iPad 实机、小尺寸设备、真实完整榜单、大字、空榜及其他 iPadOS 版本验收。开发机只有 Command Line Tools，原生检查在 GitHub Actions 的 Xcode 环境完成。详细构建、验收与分发步骤见 [iPad 说明](../apps/ipad/README.md)。首版提供排行榜，暂不提供电脑的 CC Switch 余量；更新由 TestFlight / App Store 管理。
+
+iPhone 适配已在 [通用原生检查](https://github.com/cloydlau/ai-benchgauge/actions/runs/36826949674)的源码 `217f68411a142c832b224d8c23f6058845878f1f` 上通过两个 Release SDK 构建、五项 iPhone 界面测试和四项 iPad 界面测试。最终移动端应用、共享库、构建脚本及界面测试与该通过版本一致。本地六项脚本检查和十三项共享／界面单元测试通过。[iPhone 原生截图](https://github.com/cloydlau/ai-benchgauge/actions/runs/36826949674/artifacts/11146300071)为 iPhone 17 Pro / iOS 26.2 / 实际 3×，包括初始、刷新、翻面完成与翻面中间状态、长榜排名对齐、三种语言、深色横竖屏、离线／来源／许可证、截图反馈及减弱动态效果。代理已逐张查看这些状态；这是模拟器检查，不代表实机动画流畅度、大字、小尺寸及其他系统版本已验收。详细记录见 [移动端说明](../apps/ipad/README.md#validation-status)。
 
 ## Intel 是否值得保留
 
