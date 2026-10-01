@@ -49,6 +49,8 @@ static class SmokeTests
             }
             if (window.Topmost != (mode == "alwaysOnTop") || window.ShowInTaskbar != (mode == "window")) throw new Exception("Incorrect window mode");
             var workArea = SystemParameters.WorkArea;
+            if (window.Height > workArea.Height || window.Top < workArea.Top - 1 || window.Top + window.Height > workArea.Bottom + 1)
+                throw new Exception("Panel must fit the available desktop height");
             var expectedLeft = mode == "window" ? workArea.Left + (workArea.Width - width) / 2 : Math.Max(workArea.Left, workArea.Right - width - 12);
             var expectedTop = mode == "window" ? workArea.Top + (workArea.Height - window.Height) / 2 : Math.Max(workArea.Top, workArea.Bottom - window.Height - 12);
             if (Math.Abs(window.Left - expectedLeft) > 1 || Math.Abs(window.Top - expectedTop) > 1) throw new Exception("Incorrect initial window position");
