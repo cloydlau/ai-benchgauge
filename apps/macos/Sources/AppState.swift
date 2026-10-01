@@ -169,29 +169,37 @@ final class AppState: ObservableObject {
         openAIConnection.connect(target, language: selectedLanguage, after: previousTask)
     }
 
-    /// A Grok sign-in can only happen inside CC Switch, which owns the auth
-    /// file this quota reads. The provider's stored website is a product page
-    /// with no sign-in entry, so the chip opens CC Switch instead. The chip
-    /// recovers on the next refresh, which re-reads that file.
-    func openCCSwitchSignIn(_ chip: AccountQuotaChip) {
+    /// CC Switch owns usage OAuth; the app owns its separate, identity-checked
+    /// official-site session for subscription dates.
+    func connectXAI(_ chip: AccountQuotaChip) {
         guard !isQuitting, chip.kind == .xaiOAuth else { return }
-        openCCSwitch()
+        if AccountQuotaFormatting.requiresXAISubscriptionConnection(chip) {
+            connectXAISubscription()
+        } else { openCCSwitch() }
+    }
+
+    func connectXAISubscription() {
+        guard !isQuitting else { return }
+        xaiWebsiteSource.connect(language: selectedLanguage)
     }
 
     func openCCSwitch() {
         guard !isQuitting else { return }
-        if let running = NSRunningApplication.runningApplications(
-            withBundleIdentifier: CCSwitchProviderStore.bundleID
-        ).first {
-            running.activate(options: [.activateAllWindows])
-            return
-        }
         if let appURL = NSWorkspace.shared.urlForApplication(
             withBundleIdentifier: CCSwitchProviderStore.bundleID
         ) {
+            // Reopen the existing instance so a window hidden in the tray
+            // is restored too. Activation alone does not restore that window.
             let options = NSWorkspace.OpenConfiguration()
             options.activates = true
-            NSWorkspace.shared.openApplication(at: appURL, configuration: options) { _, _ in }
+            options.createsNewApplicationInstance = false
+            NSWorkspace.shared.openApplication(at: appURL, configuration: options) { _, error in
+                if let error {
+                    Task { @MainActor in
+                        NSAlert(error: error).runModal()
+                    }
+                }
+            }
             return
         }
         NSWorkspace.shared.open(CCSwitchProviderStore.downloadURL)
@@ -204,6 +212,7 @@ final class AppState: ObservableObject {
         guard !isQuitting else { return false }
         isQuitting = true
         openAIConnection.cancel()
+        xaiWebsiteSource.cancel()
         refreshPending = false
         updateTimer?.invalidate()
         updateTimer = nil

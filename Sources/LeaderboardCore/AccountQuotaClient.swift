@@ -218,19 +218,24 @@ public actor AccountQuotaClient {
     private let officialQuotaSource: (any OfficialAccountQuotaSource)?
     private let now: @Sendable () -> Date
     private let xaiTokens = XAIAccessTokens()
+    private let xaiSubscriptionDateStore: XAISubscriptionDateStore
 
     public init(
         transport: any AccountQuotaTransport = URLSessionAccountQuotaTransport(),
         authFileURL: URL = XaiAuthFile.defaultURL,
         qwenQuotaSource: any QwenQuotaSource = QwenCLIQuotaSource(),
         officialQuotaSource: (any OfficialAccountQuotaSource)? = nil,
-        now: @escaping @Sendable () -> Date = { Date() }
+        now: @escaping @Sendable () -> Date = { Date() },
+        xaiSubscriptionDateStore: XAISubscriptionDateStore? = nil
     ) {
         self.transport = transport
         self.authFileURL = authFileURL
         self.qwenQuotaSource = qwenQuotaSource
         self.officialQuotaSource = officialQuotaSource
         self.now = now
+        self.xaiSubscriptionDateStore = xaiSubscriptionDateStore ?? (authFileURL == XaiAuthFile.defaultURL
+            ? XAISubscriptionDateStore()
+            : XAISubscriptionDateStore(fileURL: authFileURL.appendingPathExtension("subscription-dates.json")))
     }
 
     public func refresh(
@@ -329,6 +334,23 @@ public actor AccountQuotaClient {
         }
     }
 
+    /// Accept only an official site's subscription response belonging to the
+    /// currently selected OAuth login. Website cookies and tokens stay in the
+    /// native browser; only a verified date enters the existing account cache.
+    public func captureXAIWebsiteSubscription(_ data: Data, authFileURL: URL? = nil) async throws -> Bool {
+        let authURL = authFileURL ?? self.authFileURL
+        guard data.count <= 1_048_576,
+              case let .account(started) = XAIAccessTokens.readLogin(at: authURL),
+              let identity = try await xaiTokens.subscriptionUserID(transport: transport, authFileURL: authURL, now: now()),
+              identity.accountID == started.id,
+              let end = GrokBillingParser.parseSubscriptionExpiry(data, accountID: identity.userID)?.resetsAt,
+              end > now(),
+              case let .account(current) = XAIAccessTokens.readLogin(at: authURL),
+              current.id == started.id else { return false }
+        try xaiSubscriptionDateStore.save(.init(accountID: current.id, periodEnd: end, source: .cached))
+        return true
+    }
+
     private func officialChips(
         for targets: [CCSwitchQuotaTarget],
         previous: [AccountQuotaChip]
@@ -359,6 +381,10 @@ public actor AccountQuotaClient {
     ) async throws -> [AccountQuotaChip] {
         let xaiTargets = targets.filter { $0.kind == .xaiOAuth }
         guard !xaiTargets.isEmpty else { return [] }
+        let accountID: String?
+        if case let .account(account) = XAIAccessTokens.readLogin(at: authFileURL) {
+            accountID = account.id
+        } else { accountID = nil }
         let failure = try await xaiTokens.billing(
             transport: transport,
             authFileURL: authFileURL,
@@ -367,6 +393,20 @@ public actor AccountQuotaClient {
         return xaiTargets.map { target in
             switch failure {
             case let .windows(windows):
+                var resolvedWindows = windows
+                // Bind stored subscription dates to the same selected login
+                // before and after the network calls. A usage reset is never
+                // persisted or promoted to a subscription boundary.
+                if let accountID,
+                   case let .account(account) = XAIAccessTokens.readLogin(at: authFileURL),
+                   account.id == accountID {
+                    if let end = windows.first(where: { $0.name == ParsedQuotaWindow.planExpiryName })?.resetsAt {
+                        try? xaiSubscriptionDateStore.save(.init(accountID: accountID, periodEnd: end, source: .cached))
+                    } else if let saved = xaiSubscriptionDateStore.record(accountID: accountID, now: now()) {
+                        resolvedWindows.append(ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName,
+                            utilization: 0, resetsAt: saved.periodEnd, dateSource: saved.source))
+                    }
+                }
                 return AccountQuotaChip(
                     id: target.id,
                     shortName: target.shortName,
@@ -374,7 +414,7 @@ public actor AccountQuotaClient {
                     websiteURL: target.websiteURL,
                     kind: target.kind,
                     isCurrent: target.isCurrent,
-                    status: .windows(windows)
+                    status: .windows(resolvedWindows)
                 )
             case let .failure(reason):
                 return Self.chip(target, reason)
@@ -863,6 +903,21 @@ private actor XAIAccessTokens {
         // An optional subscription failure must not erase the usage result or
         // mislabel its weekly reset as the monthly subscription deadline.
         return billing
+    }
+
+    func subscriptionUserID(transport: any AccountQuotaTransport, authFileURL: URL, now: Date) async throws -> (accountID: String, userID: String)? {
+        guard case let .account(started) = Self.readLogin(at: authFileURL) else { return nil }
+        guard case let .token(access) = try await accessToken(transport: transport, authFileURL: authFileURL, now: now),
+              cached?.accountID == started.id, cached?.token == access else { return nil }
+        var request = URLRequest(url: XaiEndpointValidator.subscriptionUserURL, timeoutInterval: 10)
+        request.setValue("Bearer \(access)", forHTTPHeaderField: "Authorization")
+        request.setValue("xai-grok-cli", forHTTPHeaderField: "X-XAI-Token-Auth")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        let response = try await transport.data(for: request)
+        guard (200...299).contains(response.statusCode), response.body.count <= 1_048_576,
+              let object = try? JSONSerialization.jsonObject(with: response.body) as? [String: Any],
+              let userID = object["userId"] as? String, !userID.isEmpty else { return nil }
+        return (accountID: started.id, userID: userID)
     }
 
     private func accessToken(

@@ -142,6 +142,18 @@ actor Engine {
                     try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: qwenCacheFile.path)
                     #endif
                 }
+            case "captureXAI":
+                guard let text = request.pageText, text.utf8.count <= 1_048_576 else { return Response(id: request.id, error: "No matching plan date") }
+                if client == nil { client = AccountQuotaClient(officialQuotaSource: official) }
+                let authURL = CCSwitchProviderStore.resolveInstall().xaiAuthURL
+                guard try await client!.captureXAIWebsiteSubscription(Data(text.utf8), authFileURL: authURL) else {
+                    return Response(id: request.id, error: "No matching plan date")
+                }
+                let xaiTargets = targets.values.filter { $0.kind == .xaiOAuth }
+                let refreshed = try await client!.refresh(targets: xaiTargets, previous: chips, authFileURL: authURL)
+                let byID = Dictionary(uniqueKeysWithValues: refreshed.map { ($0.id, $0) })
+                chips = chips.map { byID[$0.id] ?? $0 }
+                quotaUpdatedAt = QuotaFreshness.updatedAt(afterRefreshing: refreshed, previous: quotaUpdatedAt, now: Date())
             case "refreshBoards": await refreshBoards(category)
             case "refreshQuotas", "refreshCurrentQuota":
                 try await refreshQuotas(onlyCurrent: request.command == "refreshCurrentQuota")
@@ -326,6 +338,7 @@ actor Engine {
             // A Grok sign-in lives in CC Switch, so the card must not fall back
             // to the provider's product page, which has no sign-in entry.
             let ccSwitchSignIn = AccountQuotaFormatting.requiresCCSwitchSignIn(chip)
+            let xaiSubscription = AccountQuotaFormatting.requiresXAISubscriptionConnection(chip)
             return Quota(id: chip.id, name: chip.shortName, isCurrent: chip.isCurrent, isStale: chip.isStale,
                     // Help is one fixed phrase or one composed value per line,
                     // and `quotaText` exact-matches a whole line only. Translating
@@ -335,8 +348,8 @@ actor Engine {
                         .map(language.quotaText)
                         .joined(separator: "\n"),
                     url: ccSwitchSignIn ? nil : chip.websiteURL?.absoluteString,
-                    canConnect: chip.kind == .officialNote || chip.kind == .qwen || ccSwitchSignIn,
-                    connection: chip.kind == .officialNote ? "openai" : (chip.kind == .qwen ? "qwen" : (ccSwitchSignIn ? "ccswitch" : nil)),
+                    canConnect: chip.kind == .officialNote || chip.kind == .qwen || ccSwitchSignIn || xaiSubscription,
+                    connection: chip.kind == .officialNote ? "openai" : (chip.kind == .qwen ? "qwen" : (ccSwitchSignIn ? "ccswitch" : (xaiSubscription ? "xaiSubscription" : nil))),
                     runs: AccountQuotaFormatting.runs(for: chip, now: now).map { run in
                 Run(text: language.quotaText(run.text), light: color(run.tone, dark: false), dark: color(run.tone, dark: true))
             }, accentLight: AccountQuotaFormatting.cardColorLevel(for: chip, now: now).map { color(.remaining($0), dark: false) })

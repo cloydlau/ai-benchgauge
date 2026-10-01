@@ -681,10 +681,11 @@ public enum GrokBillingParser {
     /// active Grok subscription is its monthly/annual billing-period boundary.
     /// Active status does not establish whether the next period will renew.
     /// Inactive history and usage reset timestamps must not supply this date.
-    public static func parseSubscriptionExpiry(_ data: Data) -> ParsedQuotaWindow? {
+    public static func parseSubscriptionExpiry(_ data: Data, accountID: String? = nil) -> ParsedQuotaWindow? {
         guard let body = CCSwitchJSON.object(data),
               let subscriptions = body["subscriptions"] as? [[String: Any]] else { return nil }
         let ends = subscriptions.compactMap { subscription -> Date? in
+            if let accountID, subscription["xaiUserId"] as? String != accountID { return nil }
             guard subscription["status"] as? String == "SUBSCRIPTION_STATUS_ACTIVE",
                   let tier = subscription["tier"] as? String,
                   tier.hasPrefix("SUBSCRIPTION_TIER_GROK_") || tier.hasPrefix("SUBSCRIPTION_TIER_SUPER_GROK_"),
