@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 
 final class LeaderboardPadTests: XCTestCase {
     private var app: XCUIApplication!
@@ -7,6 +8,8 @@ final class LeaderboardPadTests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
         app = XCUIApplication()
         app.launchArguments = ["--ui-testing"]
+        try XCTSkipIf(UIDevice.current.userInterfaceIdiom != .pad, "iPad layout suite")
+        print("[native] iPad OS=\(UIDevice.current.systemVersion) scale=\(UIScreen.main.scale) model=\(ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"] ?? "unknown")")
     }
     override func tearDownWithError() throws {
         app.terminate()
@@ -148,6 +151,157 @@ final class LeaderboardPadTests: XCTestCase {
             if stableFrames >= 3 { return }
         }
         XCTFail("iPad controls did not settle after rotation")
+    }
+    private func capture(_ name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+}
+
+final class LeaderboardPhoneTests: XCTestCase {
+    private var app: XCUIApplication!
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+        app = XCUIApplication()
+        app.launchArguments = ["--ui-testing"]
+        try XCTSkipIf(UIDevice.current.userInterfaceIdiom != .phone, "iPhone cube suite")
+        print("[native] iPhone OS=\(UIDevice.current.systemVersion) scale=\(UIScreen.main.scale) model=\(ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"] ?? "unknown")")
+        XCUIDevice.shared.orientation = .portrait
+    }
+    override func tearDownWithError() throws {
+        app.terminate()
+        XCUIDevice.shared.orientation = .portrait
+    }
+    func testSwipeAndTapBothFacesThenRefresh() {
+        app.launch()
+        waitForFace("artificialAnalysis")
+        capture("iphone-shown")
+        XCTAssertFalse(app.otherElements["board-arenaText"].exists)
+        let before = app.otherElements["cube-viewport"].frame
+        swipe(left: true)
+        waitForFace("arenaText")
+        capture("iphone-second-face-settled")
+        XCTAssertEqual(app.otherElements["cube-viewport"].frame, before)
+        swipe(left: false)
+        waitForFace("artificialAnalysis")
+        app.buttons["refresh"].tap()
+        waitForFace("artificialAnalysis")
+        capture("iphone-refreshed")
+        app.buttons["face-1"].tap()
+        waitForFace("arenaText")
+        app.segmentedControls["category"].buttons["Coding"].tap()
+        waitForFace("codeArenaWebDev")
+        capture("iphone-coding-second-face")
+        app.buttons["face-0"].tap()
+        waitForFace("artificialAnalysisCodingAgent")
+        app.segmentedControls["grouping"].buttons["Companies"].tap()
+        app.buttons["score-artificialAnalysisCodingAgent-1"].tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Score uses the strongest model")).firstMatch.waitForExistence(timeout: 5))
+        app.buttons["Done"].tap()
+        capture("iphone-coding-companies")
+        app.buttons["country-artificialAnalysisCodingAgent"].tap()
+        app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "China")).firstMatch.tap()
+        XCTAssertTrue(app.buttons["name-artificialAnalysisCodingAgent-1"].label.contains("DeepSeek"))
+        app.buttons["face-1"].tap()
+        waitForFace("codeArenaWebDev")
+        XCTAssertEqual(app.buttons["country-codeArenaWebDev"].value as? String, "All countries")
+        capture("iphone-independent-filter")
+    }
+    func testOfflineLicenseScreenshotAndLanguages() {
+        app.launchArguments.append("--offline")
+        app.launch()
+        XCTAssertTrue(app.buttons["source-error-artificialAnalysis"].waitForExistence(timeout: 10))
+        capture("iphone-offline")
+        app.buttons["source-error-artificialAnalysis"].tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "No internet connection")).firstMatch.waitForExistence(timeout: 5))
+        capture("iphone-offline-details")
+        app.buttons["Done"].tap()
+        app.buttons["attribution"].tap()
+        app.buttons["license"].tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Permission is hereby granted")).firstMatch.waitForExistence(timeout: 5))
+        capture("iphone-license")
+        app.buttons["Done"].tap()
+        app.buttons["attribution"].tap()
+        app.buttons["open-source-notices"].tap()
+        XCTAssertTrue(app.segmentedControls["license-section"].waitForExistence(timeout: 5))
+        capture("iphone-notices")
+        app.buttons["Done"].tap()
+        app.buttons["share"].tap()
+        XCTAssertTrue(app.staticTexts["Copied to clipboard"].waitForExistence(timeout: 10))
+        capture("iphone-screenshot-feedback")
+        app.buttons["language-menu"].tap()
+        app.buttons["简中"].tap()
+        XCTAssertTrue(app.staticTexts["智衡"].exists)
+        XCTAssertFalse(app.staticTexts["获取于"].exists)
+        app.segmentedControls["category"].buttons["图片"].tap()
+        waitForFace("artificialAnalysisTextToImage")
+        capture("iphone-zh-image")
+        app.buttons["face-1"].tap()
+        waitForFace("arenaTextToImage")
+        capture("iphone-zh-image-second-face")
+        app.buttons["language-menu"].tap()
+        app.buttons["繁中"].tap()
+        app.segmentedControls["category"].buttons["視頻"].tap()
+        waitForFace("arenaTextToVideo")
+        capture("iphone-traditional-video")
+    }
+    func testLongBoardComparisonRankAndLandscape() {
+        app.launchArguments += ["--full-board", "--dark", "--preview-zh"]
+        app.launch()
+        waitForFace("artificialAnalysis")
+        capture("iphone-long-dark")
+        let viewport = app.otherElements["cube-viewport"]
+        viewport.swipeUp()
+        viewport.swipeUp()
+        let visible = (2...19).first { rank in
+            let row = app.buttons["name-artificialAnalysis-\(rank)"]
+            return row.isHittable && row.frame.minY >= viewport.frame.minY && row.frame.minY < viewport.frame.midY
+        }
+        XCTAssertNotNil(visible)
+        capture("iphone-scrolled-first-face")
+        app.buttons["face-1"].tap()
+        waitForFace("arenaText")
+        if let rank = visible { XCTAssertTrue(app.buttons["name-arenaText-\(rank)"].isHittable, "Keep the same rank visible for comparison") }
+        capture("iphone-scrolled-second-face")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            self.app.windows.firstMatch.frame.width > self.app.windows.firstMatch.frame.height
+        }, object: app.windows.firstMatch)], timeout: 10), .completed)
+        capture("iphone-landscape-dark")
+        XCTAssertTrue(app.buttons["face-0"].isHittable)
+        XCTAssertTrue(app.buttons["share"].isHittable)
+        app.buttons["face-0"].tap()
+        waitForFace("artificialAnalysis")
+    }
+    func testCubeMidTurnNativeCapture() {
+        app.launchArguments += ["--cube-preview", "--preview-zh"]
+        app.launch()
+        XCTAssertTrue(app.buttons["face-0"].waitForExistence(timeout: 10))
+        capture("iphone-cube-mid-turn")
+        app.buttons["face-1"].tap()
+        waitForFace("arenaText")
+    }
+    func testReducedMotionStillSupportsSwipeAndButtons() {
+        app.launchArguments += ["--reduce-motion", "--dark"]
+        app.launch()
+        waitForFace("artificialAnalysis")
+        swipe(left: true)
+        waitForFace("arenaText")
+        capture("iphone-reduced-motion")
+        app.buttons["face-0"].tap()
+        waitForFace("artificialAnalysis")
+    }
+    private func waitForFace(_ kind: String) {
+        XCTAssertTrue(app.otherElements["board-\(kind)"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["name-\(kind)-1"].waitForExistence(timeout: 5))
+    }
+    private func swipe(left: Bool) {
+        let viewport = app.otherElements["cube-viewport"]
+        let start = viewport.coordinate(withNormalizedOffset: CGVector(dx: left ? 0.85 : 0.15, dy: 0.5))
+        let end = viewport.coordinate(withNormalizedOffset: CGVector(dx: left ? 0.15 : 0.85, dy: 0.5))
+        start.press(forDuration: 0.08, thenDragTo: end)
     }
     private func capture(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())

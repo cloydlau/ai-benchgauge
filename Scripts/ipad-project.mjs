@@ -52,7 +52,7 @@ export function ipadProject({ version, buildNumber = '1', team = '' }) {
     return put(`${name}-config-list`, `isa = XCConfigurationList; buildConfigurations = ${list(configs)}; defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;`)
   }
   const common = { IPHONEOS_DEPLOYMENT_TARGET: '17.0', SDKROOT: 'iphoneos', SWIFT_VERSION: '6.0',
-    TARGETED_DEVICE_FAMILY: '2', SUPPORTED_PLATFORMS: 'iphoneos iphonesimulator',
+    TARGETED_DEVICE_FAMILY: '1,2', SUPPORTED_PLATFORMS: 'iphoneos iphonesimulator',
     CODE_SIGN_STYLE: 'Automatic', ...(team ? { DEVELOPMENT_TEAM: team } : {}),
     CLANG_ENABLE_MODULES: 'YES', SWIFT_STRICT_CONCURRENCY: 'complete' }
   const projectConfigs = configurations('project', common)

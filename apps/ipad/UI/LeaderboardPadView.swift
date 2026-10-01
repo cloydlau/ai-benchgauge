@@ -27,26 +27,58 @@ public struct LeaderboardPadView: View {
     @ObservedObject private var store: LeaderboardPadStore
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var presentation = PadPresentationState()
     public static let repositoryURL = URL(string: "https://github.com/cloydlau/ai-benchgauge")!
 
-    public init(store: LeaderboardPadStore) { self.store = store }
+    @StateObject private var cube = LeaderboardCubeState()
+    public init(store: LeaderboardPadStore) { self.store = store
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--cube-preview") {
+            _cube = StateObject(wrappedValue: LeaderboardCubeState(position: 0.5))
+        }
+        #endif
+    }
+    private var usesReducedMotion: Bool {
+        #if DEBUG
+        reduceMotion || ProcessInfo.processInfo.arguments.contains("--reduce-motion")
+        #else
+        reduceMotion
+        #endif
+    }
+    private func usesCube(width: CGFloat) -> Bool {
+        #if os(iOS)
+        UIDevice.current.userInterfaceIdiom == .phone || width < 760
+        #else
+        width < 760
+        #endif
+    }
     private func tr(_ en: String, _ zh: String) -> String { store.language.text(en, zh) }
 
     public var body: some View {
         GeometryReader { geometry in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    header
-                    controls
-                    boardPair(wide: geometry.size.width >= 760)
-                    footer
+            if usesCube(width: geometry.size.width) {
+                VStack(alignment: .leading, spacing: 10) {
+                    compactHeader
+                    compactControls(width: geometry.size.width - 24)
+                    cubeSelector
+                    cubeBoards
+                    compactFooter
+                }.padding(.horizontal, 12).padding(.vertical, 8)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        header
+                        controls
+                        boardPair(wide: true)
+                        footer
+                    }
+                    .padding(18)
+                    .frame(maxWidth: 1100)
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(18)
-                .frame(maxWidth: 1100)
-                .frame(maxWidth: .infinity)
+                .refreshable { await store.refresh(force: true) }
             }
-            .refreshable { await store.refresh(force: true) }
         }
         .background(Color.padBackground)
         .overlay(alignment: .bottom) {
@@ -60,6 +92,8 @@ public struct LeaderboardPadView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await store.refresh() } }
         }
+        .onChange(of: store.category) { cube.rank = nil }
+        .onChange(of: store.grouping) { cube.rank = nil }
         .environment(\.locale, store.language.locale)
     }
 
@@ -71,6 +105,10 @@ public struct LeaderboardPadView: View {
                     .font(.caption).foregroundStyle(.tertiary)
             }
             Spacer(minLength: 4)
+            updateButton
+        }
+    }
+    private var updateButton: some View {
             TimelineView(.periodic(from: .now, by: 60)) { context in
                 Button { Task { await store.refresh(force: true) } } label: {
                     HStack(spacing: 8) {
@@ -86,6 +124,14 @@ public struct LeaderboardPadView: View {
                 .disabled(store.category.boardKinds.contains { store.refreshing.contains($0) })
                 .accessibilityLabel(tr("Click to refresh boards", "点击刷新榜单"))
                 .accessibilityIdentifier("refresh")
+            }
+    }
+    private var compactHeader: some View {
+        ViewThatFits(in: .horizontal) {
+            header.fixedSize(horizontal: true, vertical: false)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline) { appTitle; Spacer(); Text("v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")").font(.caption).foregroundStyle(.tertiary) }
+                updateButton
             }
         }
     }
@@ -106,6 +152,26 @@ public struct LeaderboardPadView: View {
                 .fixedSize(horizontal: true, vertical: false)
             VStack(alignment: .leading, spacing: 8) { groupingPicker.frame(width: 180); categoryPicker }
         }
+    }
+    private func compactControls(width: CGFloat) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) { groupingPicker.frame(width: 180); categoryPicker.frame(width: 360) }
+                .fixedSize(horizontal: true, vertical: false)
+            VStack(alignment: .leading, spacing: 6) {
+                groupingPicker.frame(width: 180)
+                categoryControl(segmentWidth: min(360, width) / 4).frame(width: min(360, width))
+            }
+        }
+    }
+    @ViewBuilder private func categoryControl(segmentWidth: CGFloat) -> some View {
+        #if os(iOS)
+        PadSegmentedControl(values: LeaderboardCategory.allCases,
+            titles: LeaderboardCategory.allCases.map { LeaderboardPresentation.title($0, language: store.language) },
+            selection: $store.category, identifier: "category", label: tr("Leaderboard category", "榜单类别"), segmentWidth: segmentWidth)
+            .frame(height: 32).id(segmentWidth)
+        #else
+        categoryPicker
+        #endif
     }
     private var categoryPicker: some View {
         #if os(iOS)
@@ -134,6 +200,102 @@ public struct LeaderboardPadView: View {
         #endif
     }
 
+    private var cubeSelector: some View {
+        HStack(spacing: 6) {
+            ForEach(Array(store.category.boardKinds.enumerated()), id: \.offset) { index, kind in
+                Button { turnCube(to: index) } label: {
+                    Text(kind.sourceLinkTitle).font(.caption.weight(.semibold))
+                        .lineLimit(2).frame(maxWidth: .infinity, minHeight: 38)
+                        .foregroundStyle(cube.face == index ? Color.accentColor : Color.secondary)
+                        .background(cube.face == index ? Color.accentColor.opacity(0.12) : Color.secondary.opacity(0.06),
+                                    in: RoundedRectangle(cornerRadius: 8))
+                }.buttonStyle(.plain).accessibilityIdentifier("face-\(index)")
+                    .accessibilityAddTraits(cube.face == index ? .isSelected : [])
+            }
+        }
+    }
+    private func turnCube(to face: Int) {
+        cube.dragging = false
+        cube.face = face
+        withAnimation(.easeInOut(duration: usesReducedMotion ? 0.18 : 0.42)) { cube.position = Double(face) }
+    }
+    private var cubeBoards: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(store.category.boardKinds.enumerated()), id: \.element) { index, kind in
+                    ScrollView {
+                        boardCard(kind)
+                    }
+                    .scrollPosition(id: Binding(get: { cube.rank }, set: { rank in
+                        if index == cube.face && !cube.dragging { cube.rank = rank }
+                    }), anchor: .top)
+                    .refreshable { await store.refresh(force: true) }
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .background(Color.padBackground)
+                    .modifier(CubeFace(position: cube.position, face: index, width: geometry.size.width, reduceMotion: usesReducedMotion))
+                    .allowsHitTesting(index == cube.face && !cube.dragging)
+                    .accessibilityHidden(index != cube.face || cube.dragging)
+                }
+            }
+            .clipped()
+            .contentShape(Rectangle())
+            .simultaneousGesture(DragGesture(minimumDistance: 16)
+                .onChanged { value in
+                    guard cube.dragging || LeaderboardCube.isHorizontal(x: value.translation.width, y: value.translation.height) else { return }
+                    cube.dragging = true
+                    if !usesReducedMotion {
+                        cube.position = LeaderboardCube.position(face: cube.face, translation: value.translation.width, width: geometry.size.width)
+                    }
+                }
+                .onEnded { value in
+                    guard cube.dragging else { return }
+                    turnCube(to: LeaderboardCube.destination(face: cube.face, translation: value.translation.width,
+                                                             predicted: value.predictedEndTranslation.width, width: geometry.size.width))
+                })
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("cube-viewport")
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment: turnCube(to: 1)
+                case .decrement: turnCube(to: 0)
+                @unknown default: break
+                }
+            }
+        }
+    }
+    private var compactFooter: some View {
+        HStack(spacing: 12) {
+            Link(destination: Self.repositoryURL) {
+                if let image = PadOrganizationLogo.image(for: "github") {
+                    image.renderingMode(.template).resizable().scaledToFit().frame(width: 16, height: 16)
+                } else { Image(systemName: "link") }
+            }.accessibilityLabel("GitHub").frame(minHeight: 44)
+            Menu {
+                Button("MIT License") { openLicense(.application) }.accessibilityIdentifier("license")
+                Button(tr("Open-source notices", "开源声明")) { openLicense(.notices) }.accessibilityIdentifier("open-source-notices")
+                Section(tr("Sources", "数据来源")) {
+                    ForEach(store.category.boardKinds, id: \.self) { kind in Link(kind.sourceLinkTitle, destination: kind.sourceURL) }
+                }
+            } label: { Text("Cloyd Lau · MIT").font(.caption) }
+                .accessibilityIdentifier("attribution").frame(minHeight: 44)
+            Spacer(minLength: 0)
+            Button { copyScreenshot() } label: { Image(systemName: "camera").frame(width: 44, height: 44) }
+                .accessibilityLabel(tr("Screenshot", "截图")).accessibilityIdentifier("share")
+            Menu {
+                ForEach(AppLanguage.allCases, id: \.self) { language in
+                    Button { store.language = language } label: {
+                        if language == store.language { Label(languageLabel(language), systemImage: "checkmark") }
+                        else { Text(languageLabel(language)) }
+                    }
+                }
+            } label: { Text(languageLabel(store.language)).font(.caption).frame(minWidth: 40, minHeight: 44) }
+                .accessibilityLabel(tr("Language", "语言")).accessibilityIdentifier("language-menu")
+        }.buttonStyle(.plain).foregroundStyle(.secondary).lineLimit(1)
+    }
+    private func languageLabel(_ language: AppLanguage) -> String {
+        switch language { case .english: "EN"; case .chinese: "简中"; case .traditionalChinese: "繁中" }
+    }
+
     @ViewBuilder private func boardPair(wide: Bool, isImage: Bool = false) -> some View {
         if wide {
             HStack(alignment: .top, spacing: 12) {
@@ -149,7 +311,7 @@ public struct LeaderboardPadView: View {
         PadBoardCard(kind: kind, board: store.snapshot.boards[kind], grouping: store.grouping,
             language: store.language, filter: store.countryFilter(for: kind), failure: store.failures[kind],
             isRefreshing: store.refreshing.contains(kind), isImage: isImage,
-            selectCountry: { store.setCountryFilter($0, for: kind) }, copyName: copyName)
+            selectCountry: { store.setCountryFilter($0, for: kind); cube.rank = nil }, copyName: copyName)
     }
 
     private var footer: some View {
@@ -358,7 +520,11 @@ private struct PadBoardCard: View {
             Divider()
             if board != nil {
                 if rows.isEmpty { Text("-").foregroundStyle(.secondary).padding(16) }
-                ForEach(Array(rows.prefix(20).enumerated()), id: \.offset) { index, entry in entryRow(entry, rank: index + 1) }
+                VStack(spacing: 0) {
+                    ForEach(Array(rows.prefix(20).enumerated()), id: \.offset) { index, entry in
+                        entryRow(entry, rank: index + 1).id(index + 1)
+                    }
+                }.scrollTargetLayout()
             } else {
                 ForEach(1...20, id: \.self) { rank in
                     HStack { Text(LeaderboardPresentation.rankLabel(rank)).frame(width: 32); Spacer(); Text("-").frame(width: 50); Text("-").frame(width: 44) }
@@ -486,6 +652,7 @@ private struct PadSegmentedControl<Value: Hashable>: UIViewRepresentable {
     @Binding var selection: Value
     let identifier: String
     let label: String
+    var segmentWidth: CGFloat = 90
 
     func makeCoordinator() -> Coordinator { Coordinator(values: values, selection: $selection) }
     func makeUIView(context: Context) -> UISegmentedControl {
@@ -494,7 +661,7 @@ private struct PadSegmentedControl<Value: Hashable>: UIViewRepresentable {
         // Both fixed-width control groups allocate 90 points per option.
         // Do not change widths during layout: UIKit can invalidate its own
         // measurements repeatedly and block the main event loop.
-        for index in titles.indices { control.setWidth(90, forSegmentAt: index) }
+        for index in titles.indices { control.setWidth(segmentWidth, forSegmentAt: index) }
         control.addTarget(context.coordinator, action: #selector(Coordinator.changed(_:)), for: .valueChanged)
         return control
     }

@@ -6,12 +6,14 @@ import { ipadBuildPlan, ipadSimulator } from './ipad-build.mjs'
 
 const uuid = '00000000-0000-0000-0000-000000000001'
 test('iPad checks build both Release SDKs and run deterministic simulator UI tests', () => {
-  const plan = ipadBuildPlan('check', { device: uuid, directory: '/repo' })
-  assert.equal(plan.length, 3)
+  const plan = ipadBuildPlan('check', { device: uuid, phone: '00000000-0000-0000-0000-000000000002', directory: '/repo' })
+  assert.equal(plan.length, 4)
   assert.ok(plan[0].includes('generic/platform=iOS Simulator'))
   assert.ok(plan[1].includes('generic/platform=iOS'))
   assert.ok(plan[2].includes(`platform=iOS Simulator,id=${uuid}`))
   assert.equal(plan[2].at(-1), 'test')
+  assert.ok(plan[3].includes('platform=iOS Simulator,id=00000000-0000-0000-0000-000000000002'))
+  assert.notEqual(plan[2][plan[2].indexOf('-resultBundlePath') + 1], plan[3][plan[3].indexOf('-resultBundlePath') + 1])
   for (const args of plan) assert.ok(args.includes('CODE_SIGNING_ALLOWED=NO'))
   assert.throws(() => ipadBuildPlan('archive'), /APPLE_TEAM_ID/)
   const archive = ipadBuildPlan('archive', { team: 'ABCDEFGHIJ' })[0]
@@ -27,6 +29,8 @@ test('simulator selection excludes iPhones, old runtimes and unavailable iPads',
       { name: 'iPad Pro', isAvailable: true, udid: uuid },
     ],
   } }), uuid)
+  assert.equal(ipadSimulator({ devices: { 'com.apple.CoreSimulator.SimRuntime.iOS-26-0': [{ name: 'iPhone 16', isAvailable: true, udid: uuid }] } }, 'iPhone'), uuid)
+  assert.throws(() => ipadSimulator({ devices: {} }, 'iPhone'), /iPhone simulator/)
   assert.throws(() => ipadSimulator({ devices: {} }), /iPad simulator/)
 })
 test('iPad project uses only the portable UI library, shared version, and Debug-only fixtures', () => {
@@ -34,7 +38,7 @@ test('iPad project uses only the portable UI library, shared version, and Debug-
   assert.equal(project, ipadProject({ version: '0.1.2', buildNumber: '17' }).project)
   assert.ok(project.includes('MARKETING_VERSION = "0.1.2"'))
   assert.ok(project.includes('CURRENT_PROJECT_VERSION = "17"'))
-  assert.ok(project.includes('TARGETED_DEVICE_FAMILY = "2"'))
+  assert.ok(project.includes('TARGETED_DEVICE_FAMILY = "1,2"'))
   assert.ok(project.includes('IPHONEOS_DEPLOYMENT_TARGET = "17.0"'))
   assert.ok(project.includes('ONLY_ACTIVE_ARCH = "YES"'))
   assert.ok(project.includes('ONLY_ACTIVE_ARCH = "NO"'))
