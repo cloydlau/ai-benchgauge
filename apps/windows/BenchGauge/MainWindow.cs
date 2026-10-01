@@ -23,7 +23,7 @@ sealed partial class MainWindow : Window
     readonly UpdateClient updater;
     readonly Grid content = new();
     readonly Grid quotaArea = new();
-    readonly WrapPanel quotaPanel = new() { Margin = new Thickness(18, 0, 18, 10) };
+    readonly WrapPanel quotaPanel = new() { Margin = new Thickness(18, 0, 18, 6) };
     readonly TextBlock privatePrompt = new() { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 12), TextWrapping = TextWrapping.Wrap };
     readonly TextBlock status = new() { FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(4) };
     readonly DispatcherTimer boardTimer = new() { Interval = TimeSpan.FromMinutes(30) };

@@ -49,9 +49,9 @@ sealed partial class MainWindow
     {
         ["openai"] = "#10A37F", ["anthropic"] = "#D97757", ["google"] = "#4285F4",
         ["qwen"] = "#623AE7", ["deepseek"] = "#4D6BFE", ["zai"] = "#3A3A3A",
-        ["kimi"] = "#1677FF", ["spacexai"] = "#242424", ["mistral"] = "#F29D38",
-        ["ideogram"] = "#404040", ["meta"] = "#0866FF", ["minimax"] = "#F23D75",
-        ["tencent"] = "#0052D9", ["nvidia"] = "#76B900", ["bytedance"] = "#00C9CD",
+        ["kimi"] = "#007CFF", ["spacexai"] = "#242424", ["mistral"] = "#F29D38",
+        ["ideogram"] = "#404040", ["meta"] = "#0068D5", ["minimax"] = "#F21985",
+        ["tencent"] = "#0052D9", ["nvidia"] = "#76B900", ["bytedance"] = "#3C8CFF",
     };
     static Brush Tint(string hex, double opacity = 1) => new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)) { Opacity = opacity };
     TextBlock Caption(string text, Brush? foreground = null, double size = 11) => new()
@@ -76,10 +76,10 @@ sealed partial class MainWindow
         label.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
         frame.AppendChild(label); buttonTemplate.VisualTree = frame;
         var hover = new Trigger { Property = WpfButton.IsMouseOverProperty, Value = true };
-        hover.Setters.Add(new Setter(Border.BackgroundProperty, Tint("#E9E9EC"), "frame"));
+        hover.Setters.Add(new Setter(Border.BackgroundProperty, Tint(panelDark ? "#3A3A3D" : "#E9E9EC"), "frame"));
         buttonTemplate.Triggers.Add(hover);
         var pressed = new Trigger { Property = WpfButton.IsPressedProperty, Value = true };
-        pressed.Setters.Add(new Setter(Border.BackgroundProperty, Tint("#DDDEE2"), "frame"));
+        pressed.Setters.Add(new Setter(Border.BackgroundProperty, Tint(panelDark ? "#4A4A4F" : "#DDDEE2"), "frame"));
         buttonTemplate.Triggers.Add(pressed);
         var disabled = new Trigger { Property = WpfButton.IsEnabledProperty, Value = false };
         disabled.Setters.Add(new Setter(WpfButton.OpacityProperty, 0.5)); buttonTemplate.Triggers.Add(disabled);
@@ -243,10 +243,13 @@ sealed partial class MainWindow
         var line = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         line.Children.Add(Caption(Tr("Install ", "安装 ", "安裝 ")));
         var link = QuietButton("CC Switch", () => Open("https://github.com/farion1231/cc-switch/releases/latest")); link.Foreground = PanelBlue;
+        link.Content = new TextBlock { Text = "CC Switch", Foreground = PanelBlue, TextDecorations = TextDecorations.Underline };
         ((Button)link).ToolTip = Tr("Download CC Switch", "下载 CC Switch", "下載 CC Switch"); line.Children.Add(link);
         line.Children.Add(Caption(Tr(" to see provider quotas here.", "，即可在这里查看各家提供商的余量。", "，即可在這裡查看各家提供者的餘量。")));
-        return new Border { Child = line, Width = Math.Max(1, renderedPanelWidth - 36), Height = 28, Background = Tint(panelDark ? "#29292B" : "#F8F8FA"),
-            BorderBrush = PanelLine, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6) };
+        var guide = new Grid { Width = Math.Max(1, renderedPanelWidth - 36), Height = 28 };
+        guide.Children.Add(new System.Windows.Shapes.Rectangle { RadiusX = 6, RadiusY = 6, Stroke = PanelLine, StrokeThickness = 1,
+            StrokeDashArray = new DoubleCollection { 3, 3 }, Fill = Tint(panelDark ? "#29292B" : "#F8F8FA") });
+        guide.Children.Add(line); return guide;
     }
     FrameworkElement QuotaCard(Quota quota)
     {
@@ -337,11 +340,22 @@ sealed partial class MainWindow
         grid.Children.Add(new Border { Width = 13, Height = 13, CornerRadius = new CornerRadius(7), Background = Tint(rank == 1 ? "#F8BF24" : rank == 2 ? "#B8BEC4" : "#C78C5C"), VerticalAlignment = VerticalAlignment.Bottom,
             Child = Center(Caption(rank.ToString(CultureInfo.InvariantCulture), Brushes.White, 9)) }); return grid;
     }
-    Brush BrandFill(string hex)
+    Brush BrandFill(string hex, string modelName)
     {
         var color = (Color)ColorConverter.ConvertFromString(hex);
-        if (panelDark && color.R + color.G + color.B < 240) return Tint("#B0B0B5", 0.34);
-        return Tint(hex, 0.34);
+        var channels = new[] { (int)color.R, (int)color.G, (int)color.B };
+        if (panelDark && channels.Max() - channels.Min() <= 24)
+        {
+            var neutral = 255 - (int)(channels.Average() * 0.7);
+            channels = [neutral, neutral, neutral];
+        }
+        // Match the Mac catalog's stable per-model shade, including UTF-8 names.
+        ulong hash = 14695981039346656037;
+        foreach (var rune in modelName.ToLowerInvariant().EnumerateRunes().Where(System.Text.Rune.IsLetterOrDigit))
+            foreach (var value in System.Text.Encoding.UTF8.GetBytes(rune.ToString())) hash = unchecked((hash ^ value) * 1099511628211);
+        var shade = new[] { -0.24, -0.12, 0, 0.12, 0.24 }[(int)(hash % 5)];
+        channels = channels.Select(channel => (int)Math.Round(shade < 0 ? channel * (1 + shade) : channel + (255 - channel) * shade, MidpointRounding.AwayFromZero)).ToArray();
+        return new SolidColorBrush(Color.FromRgb((byte)channels[0], (byte)channels[1], (byte)channels[2])) { Opacity = 0.34 };
     }
     FrameworkElement ModelCell(Entry entry)
     {
@@ -357,7 +371,7 @@ sealed partial class MainWindow
             if (entry.ApiURL is { } api) links.Children.Add(LinkButton("API", api, Tr("API pricing", "API 价格")));
             AddCell(row, links, 2);
         }
-        var color = entry.Logo is { } logoKey && BrandColors.TryGetValue(logoKey, out var hex) ? BrandFill(hex) : Brushes.Transparent;
+        var color = entry.Logo is { } logoKey && BrandColors.TryGetValue(logoKey, out var hex) ? BrandFill(hex, entry.Name) : Brushes.Transparent;
         var cell = new Border { Child = row, Background = color, CornerRadius = new CornerRadius(5), Padding = new Thickness(4, 0, 3, 0), Margin = new Thickness(12, 4, 8, 4), ToolTip = entry.Help ?? entry.Name, Cursor = Cursors.Hand };
         cell.MouseLeftButtonUp += (_, _) => { try { Clipboard.SetText(entry.Name); status.Text = Tr("Copied", "已复制", "已複製"); } catch (System.Runtime.InteropServices.COMException) { } };
         return cell;
@@ -415,7 +429,10 @@ sealed partial class MainWindow
         var border = new Border { BorderBrush = PanelLine, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(18, 10, 18, 10) };
         var row = new Grid(); row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); row.ColumnDefinitions.Add(new ColumnDefinition()); row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var left = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        left.Children.Add(QuietButton("◉", () => Open("https://github.com/" + config.Repository)));
+        var repository = QuietButton("", () => Open("https://github.com/" + config.Repository));
+        if (Logo("github", 13) is { } github) repository.Content = new System.Windows.Shapes.Rectangle { Width = 13, Height = 13, Fill = PanelMuted, OpacityMask = new ImageBrush(github.Source) };
+        else repository.Content = "GitHub";
+        left.Children.Add(repository);
         left.Children.Add(Caption(" Cloyd Lau · ", PanelMuted, 10)); left.Children.Add(QuietButton("MIT License", () => ShowLicenses(false)));
         left.Children.Add(Caption(" · ", PanelMuted, 10)); left.Children.Add(QuietButton(Tr("Open-source notices", "开源声明", "開源聲明"), () => ShowLicenses(true))); row.Children.Add(left);
         var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
