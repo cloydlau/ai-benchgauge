@@ -39,4 +39,86 @@ var oversized = Encoding.UTF8.GetBytes(new string('x', 65_537));
 Reject(() => UpdateClient.Verify(oversized, Sign(oversized), publicKey, repository));
 if (AppConfig.Load().Repository != repository) throw new Exception("Wrong embedded repository");
 if (Version.Parse("1.10.0") <= Version.Parse("1.9.99")) throw new Exception("Version comparison must be numeric");
-Console.WriteLine("PASS: 13 Windows update signature, tampering, origin, size, configuration and version cases");
+// Every ordering of download completion, activation, visibility and modal state.
+var gateCases = 0;
+foreach (var visible in new[] { false, true })
+foreach (var active in new[] { false, true })
+foreach (var modal in new[] { false, true })
+foreach (var closing in new[] { false, true })
+{
+    var gate = new PreparedUpdate();
+    if (gate.TryPresent(visible, active, modal, closing)) throw new Exception("Prompt before download");
+    gate.Ready("verified-installer.exe");
+    if (gate.Confirm() is not null) throw new Exception("Install before presenting");
+    var expected = visible && active && !modal && !closing;
+    if (gate.TryPresent(visible, active, modal, closing) != expected) throw new Exception("Incorrect update presentation gate");
+    if (expected)
+    {
+        if (gate.TryPresent(true, true, false, false)) throw new Exception("Duplicate update dialog");
+        if (gate.Confirm() != "verified-installer.exe" || gate.Confirm() is not null) throw new Exception("Install must be confirmed once");
+        gate.InstallationFailed();
+        if (gate.Confirm() != "verified-installer.exe") throw new Exception("Failed installer must be retryable");
+    }
+    else if (!gate.TryPresent(true, true, false, false)) throw new Exception("Deferred prompt lost after activation");
+    gateCases++;
+}
+var pending = new PreparedUpdate();
+pending.Ready("first.exe"); pending.Ready("second.exe");
+if (!pending.TryPresent(true, true, false, false) || pending.Confirm() != "first.exe") throw new Exception("Pending installer changed under the dialog");
+
+var fixtureDirectory = Path.Combine(Path.GetTempPath(), "BenchGauge-update-tests-" + Guid.NewGuid());
+var installerBytes = Encoding.UTF8.GetBytes("Synthetic installer: must never be executed");
+var downloadUpdate = valid with { Length = installerBytes.Length, Sha256 = Convert.ToHexStringLower(SHA256.HashData(installerBytes)) };
+var fixtureConfig = new AppConfig("1.2.2", repository, publicKey);
+var downloadCases = 0;
+try
+{
+    var payload = Encode(downloadUpdate);
+    using var handler = new FixtureHttpHandler(request => request.RequestUri!.AbsolutePath.EndsWith(".sig")
+        ? Encoding.UTF8.GetBytes(Sign(payload)) : request.RequestUri.AbsolutePath.EndsWith(".json") ? payload : installerBytes);
+    using var http = new HttpClient(handler);
+    var client = new UpdateClient(fixtureConfig, http, fixtureDirectory);
+    if (await client.Check() != downloadUpdate) throw new Exception("Higher signed version not detected");
+    downloadCases++;
+    var file = await client.Download(downloadUpdate);
+    if (!File.ReadAllBytes(file).SequenceEqual(installerBytes)) throw new Exception("Verified installer not saved");
+    var requests = handler.Requests;
+    if (await client.Download(downloadUpdate) != file || handler.Requests != requests) throw new Exception("Verified cache not reused");
+    downloadCases++;
+    File.WriteAllBytes(file, new byte[installerBytes.Length]);
+    await client.Download(downloadUpdate);
+    if (!File.ReadAllBytes(file).SequenceEqual(installerBytes) || handler.Requests != requests + 1) throw new Exception("Corrupt cache not replaced");
+    downloadCases++;
+    var currentClient = new UpdateClient(fixtureConfig with { Version = "1.2.3" }, http, fixtureDirectory);
+    if (await currentClient.Check() is not null) throw new Exception("Same version offered as update");
+    var newerClient = new UpdateClient(fixtureConfig with { Version = "1.2.4" }, http, fixtureDirectory);
+    if (await newerClient.Check() is not null) throw new Exception("Rollback offered as update");
+    downloadCases += 2;
+    File.Delete(file);
+    foreach (var badBytes in new[] { new byte[installerBytes.Length], installerBytes[..^1], installerBytes.Concat(new byte[] { 0 }).ToArray() })
+    {
+        using var badHandler = new FixtureHttpHandler(_ => badBytes);
+        using var badHttp = new HttpClient(badHandler);
+        try { await new UpdateClient(fixtureConfig, badHttp, fixtureDirectory).Download(downloadUpdate); throw new Exception("Accepted corrupt download"); }
+        catch (Exception error) when (error is CryptographicException or IOException) { }
+        if (Directory.GetFiles(fixtureDirectory).Length != 0) throw new Exception("Failed download left installer or temporary data");
+        downloadCases++;
+    }
+    using var tamperedHandler = new FixtureHttpHandler(request => request.RequestUri!.AbsolutePath.EndsWith(".sig") ? Encoding.UTF8.GetBytes(Sign(payload)) : tampered);
+    using var tamperedHttp = new HttpClient(tamperedHandler);
+    try { await new UpdateClient(fixtureConfig, tamperedHttp, fixtureDirectory).Check(); throw new Exception("Accepted tampered live metadata"); }
+    catch (CryptographicException) { }
+    downloadCases++;
+}
+finally { if (Directory.Exists(fixtureDirectory)) Directory.Delete(fixtureDirectory, true); }
+Console.WriteLine($"PASS: 13 signature/configuration cases, {gateCases + 1} update presentation cases, {downloadCases} signed check/download/cache/integrity cases");
+
+sealed class FixtureHttpHandler(Func<HttpRequestMessage, byte[]> response) : HttpMessageHandler
+{
+    public int Requests { get; private set; }
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Requests++;
+        return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new ByteArrayContent(response(request)) });
+    }
+}

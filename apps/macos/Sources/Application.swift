@@ -113,8 +113,17 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
             name: NSApplication.didChangeScreenParametersNotification,
             object: nil
         )
-        NotificationCenter.default.addObserver(self, selector: #selector(prepareForAppUpdate),
-            name: AppUpdater.willPresentUpdate, object: nil)
+        AppUpdater.shared.activePresentationWindow = { [weak self] in
+            guard let self, NSApp.isActive else { return nil }
+            if self.state.panelMode == .window {
+                guard let window = self.leaderboardWindow, window.isVisible,
+                      !window.isMiniaturized, window.isKeyWindow else { return nil }
+                return window
+            }
+            guard self.popover.isShown, let window = self.hosting.view.window,
+                  window.isVisible, window.alphaValue > 0, window.isKeyWindow else { return nil }
+            return window
+        }
 
         // Pre-warm: create the popover window and run the first SwiftUI
         // layout pass at launch (invisibly), so the first click opens
@@ -122,11 +131,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
             self?.prewarmPopover()
         }
-    }
-
-    @objc private func prepareForAppUpdate() {
-        popover.performClose(nil)
-        leaderboardWindow?.orderBack(nil)
     }
 
     private func prewarmPopover() {
@@ -353,6 +357,10 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
         applySettledFrame(to: window)
     }
 
+    func popoverShouldClose(_ popover: NSPopover) -> Bool {
+        !AppUpdater.shared.isPresentingUpdate
+    }
+
     func popoverWillShow(_ notification: Notification) {
         settledPopoverFrame = nil
         framePinAttempts = 0
@@ -395,10 +403,17 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
         revealAfterSettle = false
         window.alphaValue = 1
         window.orderFrontRegardless()
+        window.makeKey()
+        NSApp.activate(ignoringOtherApps: true)
         updateDismissMonitor()
+        AppUpdater.shared.presentIfReady()
     }
 
     @objc private func togglePopover() {
+        if AppUpdater.shared.isPresentingUpdate {
+            AppUpdater.shared.focusPreparedUpdateFromMenuClick()
+            return
+        }
         if state.panelMode == .window {
             showLeaderboardWindow()
             state.refreshFromMenuClick()
@@ -422,6 +437,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
     }
 
     private func closePopover() {
+        guard !AppUpdater.shared.isPresentingUpdate else { return }
         removeDismissMonitor()
         popover.performClose(nil)
     }
@@ -467,6 +483,10 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
             reopenPopoverAfterFullScreen = false
             showPopover()
         }
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        !AppUpdater.shared.isPresentingUpdate
     }
 
     func windowWillClose(_ notification: Notification) {
