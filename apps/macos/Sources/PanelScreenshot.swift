@@ -7,6 +7,23 @@ import SwiftUI
 /// cacheDisplay sometimes skips. The table region decides which result is real.
 @MainActor
 enum PanelScreenshot {
+    #if DEBUG
+    /// Forms do not have the leaderboard regions used by the sharing capture.
+    static func captureForm(view: NSView) -> Data? {
+        view.layoutSubtreeIfNeeded()
+        view.window?.displayIfNeeded()
+        CATransaction.flush()
+        // Sparse form headers need a denser sample than the leaderboard.
+        let samples = stride(from: 0.005, through: 0.995, by: 0.01).map { $0 }
+        let candidates = [cacheDisplayRepresentation(of: view), layerRepresentation(of: view)].compactMap { $0 }
+        guard let rep = candidates.max(by: {
+            regionVariety($0, xs: samples, ys: samples) < regionVariety($1, xs: samples, ys: samples)
+        }), regionVariety(rep, xs: samples, ys: samples) >= 3 else { return nil }
+        return flattenedCapture(from: rep, view: view, replacingTopBandWith: nil,
+                                replacingFooterBandWith: nil)?.png
+    }
+    #endif
+
     /// The quota band is in view points, origin at the top-left, y downward.
     /// Its original pixels are covered before the rendered CC Switch guide is
     /// inserted. A failed replacement must never produce a shareable image.

@@ -7,6 +7,18 @@ import LeaderboardCore
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var stateController: StatusBarController?
     func applicationDidFinishLaunching(_ notification: Notification) {
+        #if DEBUG
+        if CommandLine.arguments.contains("--visual-test") {
+            Task { @MainActor in
+                do { try await NativeVisualCapture.run(); NSApp.terminate(nil) }
+                catch {
+                    FileHandle.standardError.write(Data("Native visual capture failed: \(error)\n".utf8))
+                    exit(1)
+                }
+            }
+            return
+        }
+        #endif
         BundleIdentifierMigration.run()
         let cache: LeaderboardCache
         do {

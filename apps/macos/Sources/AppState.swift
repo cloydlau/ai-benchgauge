@@ -107,14 +107,26 @@ final class AppState: ObservableObject {
     /// the value and rewrites its tiny settings file on every switch.
     private var lastCheckedQuotaProviderID: String?
 
-    init(cache: LeaderboardCache, defaults: UserDefaults = .standard) {
+    init(
+        cache: LeaderboardCache,
+        defaults: UserDefaults = .standard,
+        configuration: AppConfiguration = .load(from: Bundle.main.url(forResource: "app", withExtension: "json"))
+    ) {
         self.cache = cache
         self.defaults = defaults
+        self.configuration = configuration
+        currentCodexModelConfiguration = CCSwitchProviderStore.currentCodexModelConfiguration()
         panelMode = PanelModePreference.load(from: defaults)
         quotaClient = AccountQuotaClient(
             qwenQuotaSource: QwenPreferredQuotaSource(website: qwenWebsiteSource),
             officialQuotaSource: openAIConnection.source
         )
+        xaiWebsiteSource.onData = { [weak self] data in
+            guard let self, let client = self.quotaClient, !self.isQuitting else { return false }
+            let authURL = CCSwitchProviderStore.resolveInstall().xaiAuthURL
+            return (try? await client.captureXAIWebsiteSubscription(data, authFileURL: authURL)) == true
+        }
+        xaiWebsiteSource.onUpdated = { [weak self] in self?.refreshQuotas(minimumInterval: 0) }
         qwenWebsiteSource.onConnected = { [weak self] in
             self?.refreshQuotas(minimumInterval: 0)
         }
@@ -137,6 +149,25 @@ final class AppState: ObservableObject {
         lastCheckedQuotaProviderID = currentQuotaProviderSelection()
         startTimer()
     }
+
+    #if DEBUG
+    /// The native visual suite supplies public fixture data and never starts
+    /// timers, network requests, authentication or account refreshes.
+    func applyVisualFixture(snapshot: LeaderboardSnapshot, chips: [AccountQuotaChip],
+                            language: AppLanguage, errors: [LeaderboardKind: String],
+                            emptyState: CCSwitchState?, panelMode: PanelMode = .clickToClose, quotaUpdatedAt: Date? = nil, quotaUnavailable: Bool = false) {
+        self.snapshot = snapshot
+        self.quotaUpdatedAt = quotaUpdatedAt
+        self.quotaUnavailable = quotaUnavailable
+        quotaChips = chips
+        selectedLanguage = language
+        selectedCategory = .general
+        selectedGrouping = .model
+        self.panelMode = panelMode
+        lastErrors = errors
+        ccSwitchEmptyState = emptyState
+    }
+    #endif
 
     /// Applies to every leaderboard refresh path. Quota refreshes use their
     /// own intervals because they read different sources.
