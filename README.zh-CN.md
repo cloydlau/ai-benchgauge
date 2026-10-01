@@ -55,16 +55,22 @@ Windows 提供 `x64` 的 `-setup.exe`，内含 Swift 和 .NET；不提供 32 位
 | **直达套餐与按量页面** | 仅在“公司”分组显示可用的“套餐 / 按量”链接。简中优先打开中国大陆站点，其他界面语言优先打开国际站点。 |
 | **许可证与声明** | 底部 MIT License 与“开源声明”打开同一个可滚动弹窗，完整许可正文可离线查看。当前核对情况见[声明清单](docs/third-party-notices.md)。 |
 | **少打扰的更新** | 点开菜单栏时检查更新；榜单每天自动更新，失败后按小时重试。缓存让来源暂时不可用时仍能查看上次结果。 |
-| **应用自动更新** | 每 24 小时检查 GitHub 稳定版，发现新版提示安装；点击后下载、校验签名、更新并重启。点击标题旁版本号可立即检查。[发版配置](docs/releasing.md)。 |
+| **应用自动更新** | 启动时及每 24 小时检查 GitHub 稳定版，后台下载并校验；准备好且窗口激活后显示不可关闭的“重启升级”提示，点击安装并启动新版，后台不抢焦点。点击页脚版本号可立即检查。[发版配置](docs/releasing.md)。 |
 
-### CC Switch 余量如何工作？
+### 账户余量如何工作？
 
-应用从**本机 CC Switch 数据库**识别支持的提供商，再查询相应服务的账户余量。余量属于账户信息，不会混进模型分数列。当前使用的提供商在满足提醒条件、且你允许通知时，可收到余量提醒。
+应用优先从**本机 CC Switch 数据库**识别支持的账号（包含 Claude、Gemini 配置），再补充官方本地登录和手动添加的 Key，通过供应商服务查询余量。余量属于账户信息，不会混进模型分数列。当前使用的提供商在满足提醒条件、且你允许通知时，可收到余量提醒。
 
-- 没有 CC Switch：榜单照常可用，余量区域提供官方安装入口。
-- 没找到支持的提供商：不显示余量条，榜单照常可用。
+- 没有 CC Switch：在支持的本地配置中自动检测 OpenAI、Claude、Gemini 和 Kimi 官方登录，也可通过**添加模型**选择供应商并验证官方 API／套餐 Key。没有可用账号时显示 CC Switch 引导链接。
+- 已安装但没有支持的账号：可通过**添加模型**添加官方账号，或打开 CC Switch 配置供应商。
 - 数据库暂时读取失败：如果有上次的余量数据，就保留并标记为旧数据。
 - 复制应用截图：自动把可见余量替换成 CC Switch 引导，并在单行页脚直接显示 `github.com/cloydlau/ai-benchgauge`，方便看到图片的人找到项目。
+
+余量开发优先覆盖综合、编程、图片、视频四类榜单中两套 Top 20 的供应商并集。当前接入 OpenAI Codex、Claude、Gemini Code Assist、Kimi Code、GLM、DeepSeek、Qwen、xAI、MiniMax Coding Plan、StepFun、Black Forest Labs、Luma。各产品的额度池不同：Code Assist 与 Google 图片／视频计费、MiniMax Coding Plan 与海螺视频、Luma API 与 Dream Machine 网页订阅分别计算。详见[覆盖范围及待接入清单](docs/architecture.md#榜单供应商与余量查询范围)。
+
+Claude、Gemini 和 Kimi 的本地 OAuth 检测只读，登录过期后需在官方客户端更新。本应用不执行 CC Switch 任意自定义查询脚本。手动添加的 Key 仅保存在本地账号配置（macOS 文件权限 0600；Windows 继承用户目录 ACL），不进入展示数据或日志。
+
+在 macOS 上，可通过 [config/app.json](config/app.json) 中的 `previewCCSwitchState` 预览三种状态：`"notInstalled"`（未安装）、`"installedEmpty"`（已安装但未配置模型）、`"configured"`（已配置模型）。设为 `null` 则使用真实状态。修改后重新构建并启动应用；运行中的 `./dev.sh` 会自动处理。预览不修改 CC Switch 数据；如果真实账户尚无模型，已配置预览会显示明确标记为“示例”的余量卡片。
 
 千问 Token Plan 的剩余比例与重置时间来自登录后的官方页面；首次使用可点击千问余量卡片登录。官方 `qianwen usage summary --format json` 在返回已订阅套餐时作为备用来源。CC Switch 记录的本机请求次数不等于订阅剩余额度，因此不会冒充 Token Plan 余量。
 

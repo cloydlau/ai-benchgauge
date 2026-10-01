@@ -7,5 +7,14 @@
     "englishDescription": "Application updates, including the upstream notices for its bundled components.",
     "chineseDescription": "应用更新框架，含上游随附组件的完整许可声明。",
     "file": "Sparkle.txt"
+  },
+  {
+    "id": "cc-switch",
+    "name": "CC Switch quota adapters",
+    "license": "MIT",
+    "source": "https://github.com/farion1231/cc-switch/tree/7c0d0fc615f7e9391de9784958c918368455cbcc",
+    "englishDescription": "Native quota adapters following the upstream subscription, Coding Plan, and balance query implementations. CC Switch itself is not bundled.",
+    "chineseDescription": "参考上游官方订阅、Coding Plan 和余额查询实现的原生适配；不打包 CC Switch 应用。",
+    "file": "CC-Switch.txt"
   }
 ]

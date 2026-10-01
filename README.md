@@ -56,14 +56,20 @@ See [compatibility details, validation scope, and the Intel support assessment](
 | **License notices** | Footer links open a scrollable sheet for the app's MIT license and third-party notices, with full license text available offline. See the [notice inventory](docs/third-party-notices.md) for the current audit status. |
 | **Updates that stay out of the way** | Opening the panel checks for updates. Rankings update daily, retry hourly after a failed daily update, and remain available from the local cache when a source is temporarily down. |
 
-### How CC Switch quotas work
+### How account quotas work
 
-The app identifies supported providers from the **local CC Switch database**, then asks their services for account quotas. Account quotas stay above the rankings; they are not model scores. With notification permission, the current provider can produce quota alerts when the alert conditions are met.
+The app first identifies supported accounts from the **local CC Switch database**, including Claude and Gemini provider configurations, then supplements them with supported official local logins and manually added keys. It queries each account through its provider service. Account quotas stay above the rankings; they are not model scores. With notification permission, the current provider can produce quota alerts when the alert conditions are met.
 
-- **No CC Switch?** Rankings still work, and the quota area offers an official installation link.
-- **No supported provider found?** The rankings still work without a quota strip.
+- **No CC Switch?** Existing official OpenAI, Claude, Gemini and Kimi local logins are detected where supported. Use **Add model** to select a supported provider and verify an official API/plan key. If no account is available, the quota area shows the CC Switch setup link.
+- **Installed with no supported accounts?** Add an official account through **Add model**, or use Open CC Switch to configure a provider.
 - **Database read fails?** Previously loaded quota values, if any, remain visible and are marked as stale.
 - **Sharing a screenshot?** The copy-screenshot action replaces visible quotas with the CC Switch setup guide and displays `github.com/cloydlau/ai-benchgauge` in the single-row footer, so viewers can find the project from the image.
+
+Quota development prioritizes the union of the General, Coding, Image and Video Top 20 lists from both sources. The current batch supports OpenAI Codex, Claude, Gemini Code Assist, Kimi Code, GLM, DeepSeek, Qwen, xAI, MiniMax Coding Plan, StepFun, Black Forest Labs and Luma. These account products have different quota pools: Code Assist is separate from Google image/video billing, MiniMax Coding Plan from Hailuo, and Luma API from Dream Machine subscriptions. See the [scope and remaining providers](docs/architecture.md#榜单供应商与余量查询范围).
+
+Official Claude, Gemini and Kimi OAuth discovery is read-only; refresh expired logins in their official clients. The app does not execute arbitrary CC Switch usage scripts. Manually added keys are stored only in the local account configuration (0600 permissions on macOS; the user directory ACL on Windows) and are omitted from display DTOs and logs.
+
+On macOS, set `previewCCSwitchState` in [config/app.json](config/app.json) to `"notInstalled"`, `"installedEmpty"`, or `"configured"` to preview the three states. Use `null` for the real state. Rebuild and restart after editing; a running `./dev.sh` does this automatically. Preview does not alter CC Switch data; when no real providers exist, configured preview uses clearly marked sample cards.
 
 For Qwen Token Plan, the app reads the remaining percentage and reset time from the authenticated official page. Click the Qwen quota card to sign in the first time. The official `qianwen usage summary --format json` output is a fallback when it reports a subscribed plan. CC Switch request counts from this Mac are not treated as subscription credits.
 

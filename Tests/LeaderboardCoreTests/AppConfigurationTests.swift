@@ -36,4 +36,18 @@ struct AppConfigurationTests {
         #expect(AppConfiguration.load(from: url).previewCCSwitchState == .installedEmpty)
         #expect(AppConfiguration.load(from: nil).previewCCSwitchState == nil)
     }
+    @Test
+    func testBundledPreviewStatesAndAutomaticMode() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appending(path: "app-config-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        #expect(AppConfiguration.load(from: url).previewCCSwitchState == nil)
+        for state in CCSwitchState.allCases {
+            try Data(#"{"previewCCSwitchState":"\#(state.rawValue)"}"#.utf8).write(to: url)
+            #expect(AppConfiguration.load(from: url).previewCCSwitchState == state)
+        }
+        try Data(#"{"previewCCSwitchState":null}"#.utf8).write(to: url)
+        #expect(AppConfiguration.load(from: url).previewCCSwitchState == nil)
+    }
 }

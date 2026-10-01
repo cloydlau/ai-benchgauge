@@ -81,6 +81,18 @@ public enum CCSwitchProviderStore {
     public static func loadCodexProviders(
         databaseURL: URL = defaultDatabaseURL
     ) -> CCSwitchProviderLoadResult {
+        loadProviders(databaseURL: databaseURL, allApps: false)
+    }
+
+    /// Quota discovery includes providers configured for Claude / Gemini too.
+    /// Keep the Codex-only reader for the menu's current-model selection.
+    public static func loadQuotaProviders(
+        databaseURL: URL = defaultDatabaseURL
+    ) -> CCSwitchProviderLoadResult {
+        loadProviders(databaseURL: databaseURL, allApps: true)
+    }
+
+    private static func loadProviders(databaseURL: URL, allApps: Bool) -> CCSwitchProviderLoadResult {
         let path = PlatformPaths.fileSystemPath(databaseURL)
         #if os(Windows)
         // Foundation's existence check opens the file on Windows and reports
@@ -132,9 +144,9 @@ public enum CCSwitchProviderStore {
         }
 
         let sql = """
-        SELECT id, name, website_url, sort_index, created_at, is_current, meta, settings_config
+        SELECT id, name, website_url, sort_index, created_at, is_current, meta, settings_config, app_type
         FROM providers
-        WHERE app_type = 'codex'
+        \(allApps ? "" : "WHERE app_type = 'codex'")
         """
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
@@ -158,12 +170,13 @@ public enum CCSwitchProviderStore {
                 : Int(sqlite3_column_int64(statement, 3))
             records.append(
                 CCSwitchProviderRecord(
-                    id: id,
+                    id: (columnText(statement, 8) ?? "codex") == "codex"
+                        ? id : "cc-switch:\(columnText(statement, 8) ?? "unknown"):\(id)",
                     name: name,
                     websiteURL: columnText(statement, 2),
                     sortIndex: sortIndex,
                     createdAt: createdAt,
-                    isCurrent: sqlite3_column_int(statement, 5) != 0,
+                    isCurrent: (columnText(statement, 8) ?? "codex") == "codex" && sqlite3_column_int(statement, 5) != 0,
                     metaJSON: columnText(statement, 6) ?? "{}",
                     settingsConfigJSON: columnText(statement, 7) ?? "{}"
                 )

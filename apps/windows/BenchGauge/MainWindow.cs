@@ -272,6 +272,109 @@ sealed class MainWindow : Window
         }
         return false;
     }
+    async Task ManageOfficialAccounts()
+    {
+        if (engine is null || modalOpen) return;
+        modalOpen = true;
+        try
+        {
+            var response = await engine.Request("officialAccounts", prefs);
+            CreateOfficialAccountsWindow(response).ShowDialog();
+        }
+        catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException) { status.Text = Tr("Could not open account settings. Try again.", "账号设置暂不可用，请重试。"); }
+        finally { modalOpen = false; _ = Dispatcher.BeginInvoke(TryPresentPreparedUpdate); }
+    }
+
+    internal Window CreateOfficialAccountsWindow(EngineResponse response)
+    {
+        var window = new Window { Owner = this, Title = Tr("Add model", "添加模型", "添加模型"),
+            Width = 500, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var form = new StackPanel { Margin = new Thickness(20) };
+        form.Children.Add(new TextBlock { Text = Tr("CC Switch accounts appear automatically. Add an official API or plan key below.",
+            "CC Switch 中的账号会自动显示，也可以添加官方 API 或套餐 Key。"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12) });
+        var providers = new ComboBox { ItemsSource = response.OfficialProviders ?? [], DisplayMemberPath = "Name", SelectedIndex = 0, Margin = new Thickness(0, 0, 0, 8) };
+        var description = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 0, 8) };
+        void DescribeProvider()
+        {
+            var id = (providers.SelectedItem as OfficialProviderSummary)?.Id;
+            description.Text = id switch {
+                "minimax-cn" or "minimax-global" => Tr("Coding Plan quota; Hailuo video credits are separate.", "查询 Coding Plan 套餐额度；海螺视频额度另行计算。"),
+                "luma" => Tr("Luma API balance; Dream Machine subscriptions are separate.", "查询 Luma API 余额；Dream Machine 网页订阅另行计算。"),
+                "bfl" => Tr("Official API credits.", "查询官方 API Credits。"),
+                "deepseek" or "stepfun" => Tr("Official API account balance.", "查询官方 API 账户余额。"),
+                _ => Tr("Use the official Coding Plan key.", "请使用官方 Coding Plan 套餐 Key。")
+            };
+        }
+        providers.SelectionChanged += (_, _) => DescribeProvider(); DescribeProvider();
+        form.Children.Add(providers); form.Children.Add(description);
+        form.Children.Add(new TextBlock { Text = Tr("Official API / plan key", "官方 API / 套餐 Key") });
+        var key = new PasswordBox { Margin = new Thickness(0, 4, 0, 10), MaxLength = 16_384 }; form.Children.Add(key);
+        var message = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DarkRed, Margin = new Thickness(0, 0, 0, 8) }; form.Children.Add(message);
+        var actions = new StackPanel { Orientation = Orientation.Horizontal };
+        var add = new Button { Content = Tr("Verify and add", "验证并添加"), Margin = new Thickness(0, 0, 10, 0) };
+        var done = new Button { Content = Tr("Done", "完成") }; actions.Children.Add(add); actions.Children.Add(done); form.Children.Add(actions);
+        var accounts = new StackPanel { Margin = new Thickness(0, 14, 0, 0) };
+        form.Children.Add(new ScrollViewer { Content = accounts, MaxHeight = 150, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+        bool busy = false;
+        void SetBusy(bool value) { busy = value; add.IsEnabled = done.IsEnabled = providers.IsEnabled = key.IsEnabled = accounts.IsEnabled = !value; }
+        void DisplayAccounts(OfficialAccountSummary[] values)
+        {
+            accounts.Children.Clear();
+            foreach (var account in values)
+            {
+                var row = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+                var remove = new Button { Content = Tr("Remove", "移除") }; DockPanel.SetDock(remove, Dock.Right); row.Children.Add(remove);
+                var name = response.OfficialProviders?.FirstOrDefault(provider => provider.Id == account.ProviderID)?.Name ?? account.ProviderID;
+                row.Children.Add(new TextBlock { Text = name + (account.Label.Length == 0 ? "" : " · " + account.Label), VerticalAlignment = VerticalAlignment.Center });
+                remove.Click += async (_, _) => {
+                    if (engine is null) return;
+                    SetBusy(true); message.Text = "";
+                    try {
+                        var result = await engine.Request("removeOfficialAccount", prefs, providerID: account.Id);
+                        if (result.Result is { } updated) SetState(updated);
+                        DisplayAccounts((await engine.Request("officialAccounts", prefs)).OfficialAccounts ?? []);
+                    } catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException) {
+                        message.Text = Tr("Could not remove this account. Try again.", "账号移除失败，请重试。");
+                    } finally { SetBusy(false); }
+                };
+                accounts.Children.Add(row);
+            }
+        }
+        DisplayAccounts(response.OfficialAccounts ?? []);
+        add.Click += async (_, _) => {
+            if (engine is null) return;
+            if (providers.SelectedItem is not OfficialProviderSummary selected || string.IsNullOrWhiteSpace(key.Password)) return;
+            SetBusy(true); message.Text = Tr("Checking…", "验证中…");
+            try {
+                var result = await engine.Request("addOfficialAccount", prefs, officialProvider: selected.Id, apiKey: key.Password.Trim());
+                key.Password = ""; message.Text = "";
+                if (result.Result is { } updated) SetState(updated);
+                DisplayAccounts((await engine.Request("officialAccounts", prefs)).OfficialAccounts ?? []);
+            } catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException) {
+                message.Text = Tr("Could not verify or save this account. Check the key, region and connection.", "账号验证或保存失败，请检查 Key、地区和网络连接。");
+            } finally { SetBusy(false); }
+        };
+        done.Click += (_, _) => window.Close();
+        window.Closing += (_, e) => e.Cancel = busy;
+        form.Children.Add(new TextBlock { Text = Tr("Coverage and inclusion", "收录原则与范围", "收錄原則與範圍"),
+            FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Brushes.Gray, Margin = new Thickness(0, 12, 0, 6) });
+        foreach (var text in new[] {
+            Tr("We prioritize official providers in the General, Coding, Image and Video Top 20 lists from Artificial Analysis and Arena.",
+                "优先接入 Artificial Analysis 与 Arena 的综合、编程、图片、视频 Top 20 榜单涉及的官方供应商。",
+                "優先接入 Artificial Analysis 與 Arena 的綜合、編程、圖片、視頻 Top 20 榜單涉及的官方供應商。"),
+            Tr("The menu offers supported official API balance, credits and plan quota queries. Products, plans and regions may have separate quotas; see the selected provider's description.",
+                "下拉列表仅提供已支持的官方 API 余额、Credits 和套餐额度查询。不同产品、套餐和地区可能有独立额度，请查看所选供应商的说明。",
+                "下拉列表僅提供已支持的官方 API 餘額、Credits 和套餐額度查詢。不同產品、套餐和地區可能有獨立額度，請查看所選供應商的說明。"),
+            Tr("Existing OpenAI, Claude, Gemini and Kimi official logins are detected locally. Accounts stay available when a provider leaves the rankings.",
+                "已有 OpenAI、Claude、Gemini、Kimi 官方登录会从本地配置自动识别；供应商跌出榜单不会移除已有账号。",
+                "已有 OpenAI、Claude、Gemini、Kimi 官方登錄會從本地配置自動識別；供應商跌出榜單不會移除已有帳號。")
+        }) form.Children.Add(new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap,
+            FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 0, 6) });
+        window.Content = form; window.Closed += (_, _) => key.Password = "";
+        return window;
+    }
+
     async Task Connect(Quota quota)
     {
         // A Grok sign-in can only happen inside CC Switch, which owns the auth

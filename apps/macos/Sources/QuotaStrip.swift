@@ -14,14 +14,15 @@ struct QuotaStrip: View {
     let language: AppLanguage
     let onConnectQwen: () -> Void
     let onConnectOpenAI: (AccountQuotaChip) -> Void
-    let onOpenCCSwitch: (AccountQuotaChip) -> Void
+    let onConnectXAI: (AccountQuotaChip) -> Void
+    let onAddModel: () -> Void
     let connectingOpenAIProviderID: String?
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             // Chips keep their full text. Freshness lives in the header caption,
             // so a timestamp cannot sit on this row and steal width from wrapping.
-            // Soonest expiry first. Stored chip order stays stable for refresh identity.
+            // Plans by expiry, then metered providers. Keep stored refresh identity stable.
             QuotaFlowLayout(spacing: 6, lineSpacing: 6) {
                 ForEach(AccountQuotaFormatting.sortedChips(chips)) { chip in
                     QuotaChipView(
@@ -30,10 +31,11 @@ struct QuotaStrip: View {
                         language: language,
                         onConnectQwen: needsQwenConnection(chip) ? onConnectQwen : nil,
                         onConnectOpenAI: { onConnectOpenAI(chip) },
-                        onOpenCCSwitch: { onOpenCCSwitch(chip) },
+                        onConnectXAI: { onConnectXAI(chip) },
                         isConnectingOpenAI: connectingOpenAIProviderID == chip.id
                     )
                 }
+                AddModelButton(language: language, action: onAddModel)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)
@@ -46,6 +48,31 @@ struct QuotaStrip: View {
             return true
         }
         return false
+    }
+}
+
+struct AddModelButton: View {
+    let language: AppLanguage
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(language.text("Add model", "添加模型"), systemImage: "plus")
+                .font(.system(size: 11))
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(.quaternary.opacity(0.2), in: RoundedRectangle(cornerRadius: 6))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(.secondary.opacity(0.25), lineWidth: 1)
+                }
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .fixedSize()
+        .pointingHandCursor()
+        .help(language.text("Add a model provider to view its quota", "添加模型供应商，查看其余量"))
+        .accessibilityIdentifier("add-model")
     }
 }
 
@@ -249,6 +276,12 @@ private struct QuotaChipView: View {
         case .qwen: "Qwen"
         case .xaiOAuth: "xAI"
         case .zhipu: "Z.ai"
+        case .minimax: "MiniMax"
+        case .stepfun: "StepFun"
+        case .blackForestLabs: "Black Forest Labs"
+        case .luma: "Luma"
+        case .claude: "Anthropic"
+        case .gemini: "Google"
         }
     }
 

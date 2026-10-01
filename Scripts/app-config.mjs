@@ -3,6 +3,13 @@ import { join } from 'node:path'
 import { decodePublicKey, releaseVersion, repository } from './release-lib.mjs'
 export function readAppConfig(root) {
   const config = JSON.parse(readFileSync(join(root, 'config/app.json'), 'utf8'))
+  if ('previewCCSwitchEmptyState' in config) {
+    throw new Error('Use previewCCSwitchState instead of previewCCSwitchEmptyState')
+  }
+  if (config.previewCCSwitchState !== undefined && config.previewCCSwitchState !== null
+    && !['notInstalled', 'installedEmpty', 'configured'].includes(config.previewCCSwitchState)) {
+    throw new Error('previewCCSwitchState must be notInstalled, installedEmpty, configured, or null')
+  }
   releaseVersion(config.version); decodePublicKey(config.updatePublicKey)
   if (config.repository !== repository) throw new Error('Unexpected release repository')
   if (config.previewCCSwitchState != null && !['notInstalled', 'installedEmpty', 'configured'].includes(config.previewCCSwitchState)) {
