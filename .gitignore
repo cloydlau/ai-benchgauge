@@ -19,3 +19,10 @@ __pycache__/
 # .NET build output
 **/bin/
 **/obj/
+
+# Shared-source checkout used by GitHub Actions
+.calmmit-library/
+
+# Calmmit logs and private media-review intent
+.calmmit.log
+.media-review.local.json

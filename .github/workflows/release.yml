@@ -16,12 +16,26 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 45
     env:
+      CALMMIT_PATH: ${{ github.workspace }}/.calmmit-library
       DESKTOP_NOTIFY: '0'
       TEST_AUTO_REPAIR: '0'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
+      - name: Require shared CI source repository
+        env:
+          CALMMIT_REPOSITORY: ${{ vars.CALMMIT_REPOSITORY }}
+          CALMMIT_SHA: ${{ vars.CALMMIT_SHA }}
+        run: |
+          test -n "$CALMMIT_REPOSITORY" || { echo "Set CALMMIT_REPOSITORY to the shared library repository." >&2; exit 1; }
+          [[ "$CALMMIT_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Set CALMMIT_SHA to a reviewed immutable commit SHA." >&2; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ vars.CALMMIT_REPOSITORY }}
+          ref: ${{ vars.CALMMIT_SHA }}
+          path: .calmmit-library
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:

@@ -21,7 +21,7 @@ export function notifyDesktop(root, title, message, {
   const args = [worker, kind, `${projectName()} · ${title}`, message || ' ', image || '']
   const childEnv = {
     ...env,
-    LOCAL_CI_NOTIFY_DIR: env.LOCAL_CI_NOTIFY_DIR || join(root, 'work', 'notify-apps'),
+    CALMMIT_NOTIFY_DIR: env.CALMMIT_NOTIFY_DIR || join(root, 'work', 'notify-apps'),
   }
   if (wait) {
     const result = spawnSync(nodeExecutable({ env, platform }), args, {

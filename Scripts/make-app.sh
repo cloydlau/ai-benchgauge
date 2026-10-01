@@ -5,7 +5,7 @@ ROOT=${0:A:h:h}
 APP="$ROOT/outputs/AI-BenchGauge.app"
 
 notify() {
-  if [[ -n "${LOCAL_CI_NOTIFY_OWNER:-}" || "${DESKTOP_NOTIFY:-}" == "0" ]]; then
+  if [[ -n "${CALMMIT_NOTIFY_OWNER:-}" || "${DESKTOP_NOTIFY:-}" == "0" ]]; then
     return 0
   fi
   node "$ROOT/Scripts/desktop-notify.mjs" --wait "$1" "$2" "$3" || true

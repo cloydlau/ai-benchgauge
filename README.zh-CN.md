@@ -115,10 +115,12 @@ open outputs/AI-BenchGauge.app
 
 <br>
 
+本地流程读取 [calmmit.config.json](calmmit.config.json)，直接执行 `../calmmit` 的源码，也可以用 `CALMMIT_PATH` 指定其他本地目录。各项功能开关保存在本仓库，无需发布 npm。入口和 GitHub Actions 所需的两个仓库变量见 [Calmmit 接入说明](docs/CALMMIT.md)。
+
 本地流程先执行完整的 Swift 核心、Node.js 脚本和 Windows 更新测试，通过后再按目的拆分提交、推送、构建和重启，同时保留模型署名、头像、桌面通知及防抖节流。
 
 ```bash
-./dev.sh
+MODEL_NAME=实际模型名 ./dev.sh
 ```
 
 `./dev.sh` 启动时先运行测试，再重新打开最新应用；如果可执行文件缺失或源码较新，会先构建再启动。后续保存按下面的防抖和节流间隔处理。测试失败会阻断后续动作，监听器继续等待，保存修复后重新验证。
@@ -140,15 +142,15 @@ DESKTOP_NOTIFY=0 node Scripts/ci-checks.mjs  # 语法、测试、正式应用构
 测试范围和可选网页快照见 [测试说明](docs/testing.md)。更新流程脚本后，已经运行的 `./dev.sh` 需要重启一次。
 
 ```bash
-Scripts/commit.sh                 # 立刻暂存全部改动并拆成原子提交
-Scripts/commit.sh --dry-run       # 只打印拆分计划
-Scripts/commit.sh --identity      # 查看模型名称、邮箱和头像
-Scripts/commit.sh -m "feat(menu): …"
+MODEL_NAME=实际模型名 Scripts/commit.sh                 # 立刻暂存全部改动并拆成原子提交
+MODEL_NAME=实际模型名 Scripts/commit.sh --dry-run       # 只打印拆分计划
+MODEL_NAME=实际模型名 Scripts/commit.sh --identity      # 查看模型名称和邮箱
+MODEL_NAME=实际模型名 Scripts/commit.sh -m "feat(menu): …"
 ```
 
-作者是 Codex 配置里的当前模型，邮箱按厂商填写，桌面通知会尽量带上模型图标。成功和失败通知都使用临时样式。`COMMIT_SPLIT=0` 合并成一个提交。`COMMIT_CODEX_MESSAGE=0` 不调用模型，按用途分组。`Scripts/commit.sh` 的 `COMMIT_PUSH` 仍默认关闭。`COMMIT_COAUTHOR=1` 才把本人恢复为 committer，并加上 `Co-authored-by`。`DESKTOP_NOTIFY=0` 关闭桌面通知。
+用 `MODEL_NAME` 显式传入实际修改代码的模型；author 和 committer 均使用该模型，不根据 Codex 全局默认配置猜测身份。`COMMIT_SPLIT=0` 合并成一个提交；`COMMIT_CODEX_MESSAGE=0` 使用一条本地生成的提交信息。单独提交默认不推送，`DESKTOP_NOTIFY=0` 关闭通知。
 
-截图和录屏一律不允许模型直接提交。暂存区新增或修改录屏（`.gif`、`.mov`、`.mp4` 等）、截图目录或文件名（`docs/screenshots/`、`截屏…`、`frame-0001.png`），或 `assets/logos/`、`docs/logo/` 之外的位图时，`Scripts/commit.mjs` 在写入历史前直接中止。本人逐帧确认画面后加 `COMMIT_MEDIA_REVIEWED=1` 重跑，或用 `COMMIT_COAUTHOR=1` 以本人身份提交；两种方式都会在提交信息里留下 `Media-Reviewed-By` 审核记录。删除画面不受限制。CI 用 `node Scripts/media-gate-ci.mjs <base> <head>` 复查推送范围内的每个提交，绕过 `Scripts/commit.sh` 的裸 `git commit` 也会被拦下。
+所有新增或修改的位图和录屏都经过共享的独立 AI 隐私与用途审查。制作前在忽略的 `.media-review.local.json` 中声明准确路径和用途；审核记录绑定实际 Git blob 与声明用途，内容或用途变化后需要重审。仓库所有者完整审核画面后，可显式设置 `COMMIT_MEDIA_REVIEWED=1` 授予人工例外。删除画面不受限制。`node Scripts/media-gate-ci.mjs <base> <head>` 复查完整推送范围，包括合并提交新引入的媒体。
 
 </details>
 

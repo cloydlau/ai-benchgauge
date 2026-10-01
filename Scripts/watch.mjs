@@ -17,6 +17,10 @@ import { materializeAvatar, notifyDesktop } from './desktop-notify.mjs'
 import { gitProxyArgs, gitProxyValue } from './git-network.mjs'
 import { nodeExecutable } from './node-executable.mjs'
 import { runTestGate } from './test-repair.mjs'
+import { ci } from './calmmit.mjs'
+
+const { workflowStatus } = await ci.load('workflow-status')
+const reportStatus = (state, message) => console.log(`[watch] ${workflowStatus(state, message)}`)
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const appPath = join(root, 'outputs', 'AI-BenchGauge.app')
@@ -256,7 +260,7 @@ function run(script, extraEnv = {}) {
   return new Promise((resolvePromise) => {
     const child = spawn(script, [], {
       cwd: root,
-      env: { ...process.env, ...extraEnv, LOCAL_CI_NOTIFY_OWNER: 'watch' },
+      env: { ...process.env, ...extraEnv, CALMMIT_NOTIFY_OWNER: 'watch' },
       stdio: 'inherit',
     })
     child.on('error', (error) => resolvePromise({ status: 1, error }))
@@ -334,7 +338,9 @@ async function restartApp() {
     return false
   }
   console.log('[watch] 已启动最新应用')
-  await notify(true, '已重启', `${detectModelName()}\n菜单栏应用已使用最新代码重新打开。`)
+  let model = ''
+  try { model = detectModelName() } catch { /* Model attribution is required for commits, not application startup. */ }
+  await notify(true, '已重启', `${model ? model + '\n' : ''}菜单栏应用已使用最新代码重新打开。`)
   return true
 }
 
@@ -407,7 +413,7 @@ async function main() {
     })
     clearTimer()
     const eta = new Date(Date.now() + wait).toLocaleTimeString('zh-CN', { hour12: false })
-    console.log(`[watch] ${reason}，将于 ${eta} ${actionLabel()}（防抖 ${Math.round(debounceMs / 1000)} 秒，节流 ${Math.round(throttleMs / 1000)} 秒）`)
+    reportStatus('waiting', `${reason}，将于 ${eta} ${actionLabel()}（防抖 ${Math.round(debounceMs / 1000)} 秒，节流 ${Math.round(throttleMs / 1000)} 秒）；无需人工介入`)
     timer = setTimeout(runScheduled, wait)
   }
 
@@ -424,10 +430,10 @@ async function main() {
       const testSignature = `${builtSignature}\n${gitSignature}`
       if (testSignature === failedTestSignature) {
         busy = false
-        console.log('[watch] 这一版测试已失败，等待下次保存')
+        reportStatus('manual', '这一版测试已失败，等待下次保存；日志：work/test-results/latest.log')
         return
       }
-      console.log('[watch] 开始单元测试…')
+      reportStatus('running', '开始单元测试；通过后执行提交、推送及部署')
       const tested = await runTestGate({ env: { ...process.env, BENCHGAUGE_TEST_PASS: lastTestPass } })
       if (tested.status !== 0) {
         busy = false
@@ -437,7 +443,7 @@ async function main() {
           schedule('测试期间有新变更，重新验证', Date.now())
         } else {
           failedTestSignature = `${lastSignature}\n${lastGitSignature}`
-          console.error('[watch] 测试失败，已停止提交、推送和重建；等待下次保存')
+          reportStatus('manual', `测试失败，已停止提交、推送和重建；等待下次保存；日志：${tested.logPath}`)
           await notify(false, '测试失败', `后续任务已停止。日志：${tested.logPath}`)
         }
         return
@@ -557,6 +563,13 @@ async function main() {
       schedule(commitStatus === 75 ? '提交锁被占用，稍后重试' : '运行期间有新变更', Date.now(), {
         retryPush: sourceMoved || gitMoved,
       })
+    } else if (failedCommitSignature || failedPushSignature || !rebuiltOk) {
+      const failure = failedCommitSignature ? '提交失败或改动未提交；日志：.git/commit-last.log'
+        : failedPushSignature ? '推送失败，请检查上方 Git 错误'
+          : '构建或重启失败，请检查上方错误'
+      reportStatus('manual', `${failure}；本轮已停止自动重试，等待新改动`)
+    } else {
+      reportStatus('done', '本轮流程完成，继续监听；无需人工介入')
     }
   }
 
@@ -606,13 +619,15 @@ async function main() {
   busy = false
   if (!started) {
     if (initialTest.status === 0) {
-      console.error('[watch] 启动失败，修复错误后重新运行 ./dev.sh')
+      reportStatus('manual', '启动失败，修复错误后重新运行 ./dev.sh')
       process.exitCode = 1
       return
     }
-    console.error('[watch] 测试失败，已停止提交、推送和启动；保存修改后重新验证')
-    failedTestSignature = `${testedInitialSignature}\n${lastGitSignature}`
-    await notify(false, '测试失败', `后续任务已停止。日志：${initialTest.logPath}`)
+    if (initialTest.status !== 75) {
+      console.error('[watch] 测试失败，已停止提交、推送和启动；保存修改后重新验证')
+      failedTestSignature = `${testedInitialSignature}\n${lastGitSignature}`
+      await notify(false, '测试失败', `后续任务已停止。日志：${initialTest.logPath}`)
+    }
   }
   if (started) lastRebuiltSignature = testedInitialSignature
   if (needsInitialBuild) lastRunAt = Date.now()
@@ -624,21 +639,22 @@ async function main() {
     warnedNoUpstream = true
   }
   const ahead = initialAhead.state === 'ahead'
-  if (!started) {
-    console.log('[watch] 等待测试相关文件变更')
-  } else if (!deployEnabled) {
-    console.log('[watch] 自动部署已关闭，等待源码变更')
+  console.log(commitEnabled
+    ? `[watch] 监听 Sources/、Tests/、Scripts/ 和构建配置；测试通过后自动原子提交${pushEnabled ? '、推送' : ''}；Ctrl-C 停止。`
+    : '[watch] 监听 Sources/、Tests/、Scripts/ 和构建配置；测试通过后重建重启；Ctrl-C 停止。不自动提交。')
+  // 最后输出真实工作流状态；关闭部署不能阻断启动时的提交或推送。
+  if (!started && initialTest.status === 75) {
+    schedule('测试锁被占用或检查期间有新改动，稍后重新验证', Date.now())
+  } else if (!started) {
+    reportStatus('manual', `启动测试失败，提交、推送和部署已暂停；等待测试相关文件变更；日志：${initialTest.logPath}`)
   } else if (dirty) {
     const reason = '启动时检测到未提交改动'
     schedule(ahead ? `${reason}，且有未推送提交` : reason, Date.now())
   } else if (ahead) {
     schedule('启动时检测到未推送提交', Date.now() - debounceMs)
   } else {
-    console.log('[watch] 应用已启动，等待源码变更')
+    reportStatus('done', `${deployEnabled ? '应用已启动' : '自动部署已关闭'}，等待源码变更；无需人工介入`)
   }
-  console.log(commitEnabled
-    ? `[watch] 监听 Sources/、Tests/、Scripts/ 和构建配置；测试通过后自动原子提交${pushEnabled ? '、推送' : ''}；Ctrl-C 停止。`
-    : '[watch] 监听 Sources/、Tests/、Scripts/ 和构建配置；测试通过后重建重启；Ctrl-C 停止。不自动提交。')
 
   const poll = setInterval(() => {
     let next

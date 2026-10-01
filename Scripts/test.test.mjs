@@ -87,3 +87,21 @@ test('coverage enables reporting for both languages and toolchain plugins are di
   assert.ok(commands[1][1].includes('--enable-code-coverage'))
   assert.ok(commands[1][1].includes(plugins))
 })
+
+test('Calmmit configuration and live shared source invalidate passing receipts', (t) => {
+  const root = fixture(t)
+  const library = join(root, 'shared-ci')
+  mkdirSync(join(library, 'src'), { recursive: true })
+  mkdirSync(join(library, 'bin'))
+  const config = { library: './shared-ci', steps: { tests: true } }
+  writeFileSync(join(root, 'calmmit.config.json'), JSON.stringify(config))
+  writeFileSync(join(library, 'src/identity.mjs'), 'export const version = 1')
+  const env = { ...process.env, CALMMIT_PATH: '' }
+  const before = testInputSignature(root, env)
+  writeFileSync(join(library, 'src/identity.mjs'), 'export const version = 2')
+  const updated = testInputSignature(root, env)
+  assert.notEqual(updated, before)
+  config.steps.tests = false
+  writeFileSync(join(root, 'calmmit.config.json'), JSON.stringify(config))
+  assert.notEqual(testInputSignature(root, env), updated)
+})

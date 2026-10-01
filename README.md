@@ -111,14 +111,16 @@ The build script produces an ad-hoc signed app at `outputs/AI-BenchGauge.app`. O
 ## Local development
 
 <details>
-<summary>Local CI workflow</summary>
+<summary>Calmmit workflow</summary>
 
 <br>
+
+The local workflow reads [calmmit.config.json](calmmit.config.json) and executes the live source at `../calmmit`; `CALMMIT_PATH` can select another checkout. Feature switches stay in this repository. No npm publication is required. See [Calmmit integration](docs/CALMMIT.md) for local commands and the two GitHub Actions repository variables.
 
 The local workflow runs the Swift, Node.js and Windows update test suites before purpose-based atomic commits, pushes, builds, and restarts. It also handles current-model identity, avatars, desktop notifications, debounce, and throttle.
 
 ```bash
-./dev.sh
+MODEL_NAME=actual-model ./dev.sh
 ```
 
 `./dev.sh` runs tests on startup, then reopens the latest app, building first if the executable is missing or older than the source. The debounce and throttle intervals below apply to subsequent changes. A test failure stops subsequent actions; the watcher stays active and retries after a new save.
@@ -140,15 +142,15 @@ Standalone `Scripts/commit.sh` and `./make-app.sh` also require passing tests. O
 See [Testing](docs/testing.md) for test scope and optional saved-page fixtures. Restart an already running `./dev.sh` once after updating workflow scripts.
 
 ```bash
-Scripts/commit.sh                 # Stage changes and create purpose-based commits
-Scripts/commit.sh --dry-run       # Print the proposed commit plan
-Scripts/commit.sh --identity      # Show model name, email, and avatar
-Scripts/commit.sh -m "feat(menu): …"
+MODEL_NAME=actual-model Scripts/commit.sh                 # Stage changes and create purpose-based commits
+MODEL_NAME=actual-model Scripts/commit.sh --dry-run       # Print the proposed commit plan
+MODEL_NAME=actual-model Scripts/commit.sh --identity      # Show model name and email
+MODEL_NAME=actual-model Scripts/commit.sh -m "feat(menu): …"
 ```
 
-The commit author follows the current model in Codex configuration, with a vendor-specific email address. Desktop notifications try to include the model avatar and use temporary styling for success and failure. `COMMIT_SPLIT=0` creates one commit; `COMMIT_CODEX_MESSAGE=0` groups by purpose without calling a model. `Scripts/commit.sh` does not push by default. `COMMIT_COAUTHOR=1` restores the user as committer and adds a `Co-authored-by` line. `DESKTOP_NOTIFY=0` disables desktop notifications.
+Set `MODEL_NAME` to the model actually doing the work. Both author and committer use that model; the global Codex default is not used to guess the identity. `COMMIT_SPLIT=0` creates one commit; `COMMIT_CODEX_MESSAGE=0` uses one locally generated commit message. Standalone commits do not push by default. `DESKTOP_NOTIFY=0` disables notifications.
 
-Screenshots and screen recordings may never be committed by a model. Adding or changing a recording (`.gif`, `.mov`, `.mp4`, …), a capture directory or name (`docs/screenshots/`, `截屏…`, `frame-0001.png`), or any bitmap outside `assets/logos/` and `docs/logo/` stops `Scripts/commit.mjs` before anything is staged in history. The user reviews the frames and re-runs with `COMMIT_MEDIA_REVIEWED=1`, or commits as themselves with `COMMIT_COAUTHOR=1`; either way the commit records a `Media-Reviewed-By:` trailer. Deleting captures stays unrestricted. `node Scripts/media-gate-ci.mjs <base> <head>` re-checks every pushed commit in CI, so a raw `git commit` cannot bypass the rule.
+All added or changed bitmaps and recordings pass the shared independent AI privacy and intent gate. Declare exact output paths and their purpose in the ignored `.media-review.local.json` before creating media. Approval binds to the exact Git blobs and declared intent; changed content or purpose requires another review. The repository owner may explicitly grant a manual exception with `COMMIT_MEDIA_REVIEWED=1` after reviewing the full media. Deletions are unrestricted. `node Scripts/media-gate-ci.mjs <base> <head>` rechecks the complete pushed range, including newly introduced media in merges.
 
 </details>
 

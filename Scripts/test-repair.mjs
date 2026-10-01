@@ -6,19 +6,8 @@ import { acquireCommitLock } from './commit-lock.mjs'
 
 // Mirrors the mini-app workflow: one attempt, followed by real tests; an AI
 // report alone can never turn a failed test into a pass.
-export async function repairTests({ runTests: test, repairWithAi, protectedSignature }) {
-  const first = await test()
-  if (first.status === 0 || first.status === 75) return { ...first, attemptedAi: false }
-  const before = protectedSignature()
-  let report
-  try { report = await repairWithAi(first) } catch (error) { report = { completed: false, summary: error.message } }
-  if (before !== protectedSignature()) return { ...first, attemptedAi: true, error: '修复改动了测试或流程配置，检查已停止，请人工核对' }
-  if (!report?.completed) return { ...first, attemptedAi: report?.attempted !== false, error: report?.summary || '自动修复不可用' }
-  const verified = await test()
-  const blocking = report.verdict !== 'pass' || report.decisions?.length || report.issues?.length
-  return { ...verified, status: verified.status || (blocking ? 1 : 0), attemptedAi: true,
-    error: blocking ? report.summary || '自动修复仍有待处理项' : '' }
-}
+import { ci } from './calmmit.mjs'
+export const { repairNativeTests: repairTests } = await ci.load('test-repair')
 
 const schema = {
   type: 'object', additionalProperties: false,
