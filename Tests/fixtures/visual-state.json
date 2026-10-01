@@ -725,6 +725,38 @@
       "height": 820,
       "scenario": "manyQuotas",
       "mode": "clickToClose"
+    },
+    {
+      "id": "model-en-600",
+      "language": "en",
+      "width": 600,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "manyQuotas-en-600",
+      "language": "en",
+      "width": 600,
+      "height": 820,
+      "scenario": "manyQuotas",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "model-zh-Hant-600",
+      "language": "zh-Hant",
+      "width": 600,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "manyQuotas-zh-Hant-600",
+      "language": "zh-Hant",
+      "width": 600,
+      "height": 820,
+      "scenario": "manyQuotas",
+      "mode": "clickToClose"
     }
   ]
 }
