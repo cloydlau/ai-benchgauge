@@ -83,20 +83,28 @@ function permissionFailure(error) {
   return /permission|disabled|not granted|alerts disabled|Notification rejected/i.test(error?.message || '')
 }
 
-export function deliverNotification(kind, title, message, image) {
+export function deliverNotification(kind, title, message, image, {
+  directories = appDirectories(),
+  ensureApp = ensureNotificationApp,
+  send = (app, payload) => JSON.parse(run(join(app, 'Contents', 'MacOS', 'notification-settings'), ['--send', payload])),
+} = {}) {
   let lastError = null
-  for (const directory of appDirectories()) {
+  for (const directory of directories) {
     try {
-      const app = ensureNotificationApp(kind, directory)
+      const app = ensureApp(kind, directory)
       const temp = mkdtempSync(join(tmpdir(), 'leaderboard-notify-'))
       try {
+        // UNNotificationAttachment 会移动附件；每次尝试只交出独立副本，
+        // 不让系统取走仓库里的本地图标或影响下一次发送。
+        const attachment = image ? join(temp, `avatar${extname(image)}`) : ''
+        if (attachment) copyFileSync(image, attachment)
         const payload = join(temp, 'notification.json')
         writeFileSync(payload, JSON.stringify({
           title: String(title || '').replace(/[\r\n]/g, ' '),
           message: message || ' ',
-          image: image || '',
+          image: attachment,
         }))
-        const receipt = JSON.parse(run(join(app, 'Contents', 'MacOS', 'notification-settings'), ['--send', payload]))
+        const receipt = send(app, payload)
         if (receipt?.accepted !== true) throw new Error('通知发送缺少系统回执')
         return receipt
       } finally {
