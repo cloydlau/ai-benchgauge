@@ -302,6 +302,14 @@ public struct LeaderboardPadView: View {
                     image.renderingMode(.template).resizable().scaledToFit().frame(width: 16, height: 16)
                 } else { Image(systemName: "link") }
             }.accessibilityLabel("GitHub").frame(minHeight: 44)
+            #if os(iOS)
+            PhoneMenuButton(title: "Cloyd Lau · MIT", identifier: "attribution", items: [
+                PhoneMenuItem(title: "MIT License", identifier: "license", action: { openLicense(.application) }),
+                PhoneMenuItem(title: tr("Open-source notices", "开源声明"), identifier: "open-source-notices", action: { openLicense(.notices) }),
+            ], sourceTitle: tr("Sources", "数据来源"), sources: store.category.boardKinds.map { kind in
+                PhoneMenuItem(title: kind.sourceLinkTitle, identifier: "source-link-\(kind.rawValue)", action: { UIApplication.shared.open(kind.sourceURL) })
+            }).frame(width: 110, height: 44)
+            #else
             Menu {
                 Button("MIT License") { openLicense(.application) }.accessibilityIdentifier("license")
                 Button(tr("Open-source notices", "开源声明")) { openLicense(.notices) }.accessibilityIdentifier("open-source-notices")
@@ -311,6 +319,7 @@ public struct LeaderboardPadView: View {
             } label: {
                 Text("Cloyd Lau · MIT").font(.caption).frame(minHeight: 44).contentShape(Rectangle())
             }.accessibilityIdentifier("attribution")
+            #endif
             Spacer(minLength: 0)
             Button { copyScreenshot() } label: { Image(systemName: "camera").frame(width: 44, height: 44) }
                 .accessibilityLabel(tr("Screenshot", "截图")).accessibilityIdentifier("share")

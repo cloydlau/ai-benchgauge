@@ -214,20 +214,21 @@ final class LeaderboardPhoneTests: XCTestCase {
         app.launchArguments.append("--offline")
         app.launch()
         XCTAssertTrue(app.buttons["source-error-artificialAnalysis"].waitForExistence(timeout: 10))
+        waitForButton("attribution")
         capture("iphone-offline")
         app.buttons["source-error-artificialAnalysis"].tap()
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "No internet connection")).firstMatch.waitForExistence(timeout: 5))
         capture("iphone-offline-details")
         app.buttons["Done"].tap()
-        XCTAssertTrue(app.buttons["attribution"].isHittable)
+        waitForButton("attribution")
         app.buttons["attribution"].tap()
-        app.buttons["license"].tap()
+        app.buttons["MIT License"].tap()
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Permission is hereby granted")).firstMatch.waitForExistence(timeout: 5))
         capture("iphone-license")
         app.buttons["Done"].tap()
-        XCTAssertTrue(app.buttons["attribution"].isHittable)
+        waitForButton("attribution")
         app.buttons["attribution"].tap()
-        app.buttons["open-source-notices"].tap()
+        app.buttons["Open-source notices"].tap()
         XCTAssertTrue(app.segmentedControls["license-section"].waitForExistence(timeout: 5))
         capture("iphone-notices")
         app.buttons["Done"].tap()
@@ -306,6 +307,11 @@ final class LeaderboardPhoneTests: XCTestCase {
         capture("iphone-reduced-motion")
         app.buttons["face-0"].tap()
         waitForFace("artificialAnalysis")
+    }
+    private func waitForButton(_ identifier: String) {
+        let button = app.buttons[identifier]
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in button.isHittable }, object: button)
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed, "\(identifier) must be reachable")
     }
     private func assertCategorySegments() {
         let segments = app.segmentedControls["category"].buttons.allElementsBoundByIndex.map(\.frame)

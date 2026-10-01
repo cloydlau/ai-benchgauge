@@ -41,12 +41,16 @@ struct CubeFace: AnimatableModifier {
         set { position = newValue }
     }
     private var distance: Double { Double(face) - position }
+    // Keep both UIKit scroll hosts in their ordinary coordinate system when
+    // settled. A nonzero perspective matrix at zero degrees can leave native
+    // menu hit testing inconsistent with the visibly flat page.
+    private var flat: Bool { reduceMotion || abs(distance) < 0.0001 || abs(distance) > 0.9999 }
     func body(content: Content) -> some View {
         content
             .overlay(Color.black.opacity(reduceMotion ? 0 : abs(distance) * 0.18).allowsHitTesting(false))
-            .rotation3DEffect(.degrees(reduceMotion ? 0 : distance * 90), axis: (x: 0, y: 1, z: 0),
-                              anchor: face == 0 ? .trailing : .leading, perspective: 0.65)
-            .offset(x: reduceMotion ? 0 : width * distance)
+            .rotation3DEffect(.degrees(flat ? 0 : distance * 90), axis: (x: 0, y: 1, z: 0),
+                              anchor: flat ? .center : (face == 0 ? .trailing : .leading), perspective: flat ? 0 : 0.65)
+            .offset(x: flat ? 0 : width * distance)
             .opacity(reduceMotion ? 1 - abs(distance) : (abs(distance) >= 0.999 ? 0 : 1))
             .zIndex(1 - abs(distance))
     }
