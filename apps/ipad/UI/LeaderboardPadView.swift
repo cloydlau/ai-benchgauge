@@ -100,17 +100,30 @@ public struct LeaderboardPadView: View {
         }
     }
     private var categoryPicker: some View {
+        #if os(iOS)
+        PadSegmentedControl(values: LeaderboardCategory.allCases,
+            titles: LeaderboardCategory.allCases.map { LeaderboardPresentation.title($0, language: store.language) },
+            selection: $store.category, identifier: "category", label: tr("Leaderboard category", "榜单类别"))
+            .frame(height: 32)
+        #else
         Picker(tr("Leaderboard category", "榜单类别"), selection: $store.category) {
             ForEach(LeaderboardCategory.allCases) { category in
                 Text(LeaderboardPresentation.title(category, language: store.language)).tag(category)
             }
         }.pickerStyle(.segmented).accessibilityIdentifier("category")
+        #endif
     }
     private var groupingPicker: some View {
+        #if os(iOS)
+        PadSegmentedControl(values: LeaderboardGrouping.allCases,
+            titles: [tr("Models", "模型"), tr("Companies", "公司")], selection: $store.grouping,
+            identifier: "grouping", label: tr("Grouping", "分组")).frame(height: 32)
+        #else
         Picker(tr("Grouping", "分组"), selection: $store.grouping) {
             Text(tr("Models", "模型")).tag(LeaderboardGrouping.model)
             Text(tr("Companies", "公司")).tag(LeaderboardGrouping.company)
         }.pickerStyle(.segmented).accessibilityIdentifier("grouping")
+        #endif
     }
 
     @ViewBuilder private func boardPair(wide: Bool, isImage: Bool = false) -> some View {
@@ -326,6 +339,9 @@ private struct PadBoardCard: View {
             NavigationStack {
                 ScrollView { Text(sourceDetails).frame(maxWidth: .infinity, alignment: .leading).padding(24) }
                     .navigationTitle(LeaderboardPresentation.title(kind, language: language))
+                    #if os(iOS)
+                    .navigationBarTitleDisplayMode(.inline)
+                    #endif
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button(tr("Done", "完成")) { detail.showingSource = false } } }
             }
         }
@@ -425,3 +441,56 @@ private extension Color {
     }
     static var padCard: Color { padBackground }
 }
+
+#if os(iOS)
+/// Explicit segment widths match the desktop control and remain stable across
+/// SwiftUI measurement probes, rotation and screenshot-feedback updates.
+@MainActor
+private final class PadEqualSegments: UISegmentedControl {
+    override func layoutSubviews() {
+        if numberOfSegments > 0 && bounds.width > 0 {
+            let width = bounds.width / CGFloat(numberOfSegments)
+            for index in 0..<numberOfSegments where abs(widthForSegment(at: index) - width) > 0.1 {
+                setWidth(width, forSegmentAt: index)
+            }
+        }
+        super.layoutSubviews()
+    }
+}
+@MainActor
+private struct PadSegmentedControl<Value: Hashable>: UIViewRepresentable {
+    let values: [Value]
+    let titles: [String]
+    @Binding var selection: Value
+    let identifier: String
+    let label: String
+
+    func makeCoordinator() -> Coordinator { Coordinator(values: values, selection: $selection) }
+    func makeUIView(context: Context) -> PadEqualSegments {
+        let control = PadEqualSegments(items: titles)
+        control.apportionsSegmentWidthsByContent = false
+        control.addTarget(context.coordinator, action: #selector(Coordinator.changed(_:)), for: .valueChanged)
+        return control
+    }
+    func updateUIView(_ control: PadEqualSegments, context: Context) {
+        context.coordinator.selection = $selection
+        for (index, title) in titles.enumerated() where control.titleForSegment(at: index) != title {
+            control.setTitle(title, forSegmentAt: index)
+        }
+        control.accessibilityIdentifier = identifier
+        control.accessibilityLabel = label
+        let index = values.firstIndex(of: selection) ?? UISegmentedControl.noSegment
+        if control.selectedSegmentIndex != index { control.selectedSegmentIndex = index }
+        control.setNeedsLayout()
+    }
+    final class Coordinator: NSObject {
+        let values: [Value]
+        var selection: Binding<Value>
+        init(values: [Value], selection: Binding<Value>) { self.values = values; self.selection = selection }
+        @objc func changed(_ control: UISegmentedControl) {
+            guard values.indices.contains(control.selectedSegmentIndex) else { return }
+            selection.wrappedValue = values[control.selectedSegmentIndex]
+        }
+    }
+}
+#endif

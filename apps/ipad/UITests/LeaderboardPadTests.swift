@@ -54,6 +54,7 @@ final class LeaderboardPadTests: XCTestCase {
         app.buttons["Done"].tap()
         app.buttons["share"].tap()
         XCTAssertTrue(app.staticTexts["Copied to clipboard"].waitForExistence(timeout: 10))
+        assertCategorySegments()
         capture("screenshot-feedback")
     }
     func testChineseInterfacePreviews() {
