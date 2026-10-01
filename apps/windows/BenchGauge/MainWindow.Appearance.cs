@@ -53,12 +53,29 @@ sealed partial class MainWindow
         ["tencent"] = "#0052D9", ["nvidia"] = "#76B900", ["bytedance"] = "#3C8CFF",
     };
     static Brush Tint(string hex, double opacity = 1) => new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)) { Opacity = opacity };
-    TextBlock Caption(string text, Brush? foreground = null, double size = 11) => new()
+    TextBlock Caption(string text, Brush? foreground = null, double size = 11)
     {
-        Text = text, Foreground = foreground ?? PanelMuted, FontSize = size,
-        FontFamily = new FontFamily("Segoe UI"),
-        VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis,
-    };
+        var label = new TextBlock { Text = text, Foreground = foreground ?? PanelMuted, FontSize = size,
+            FontFamily = new FontFamily("Segoe UI"), VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis };
+        CenterTextInk(label); return label;
+    }
+    static void CenterTextInk(TextBlock label)
+    {
+        // WPF centres the line box, whose ascent/descent leave visible ink low.
+        // Measure the actual glyphs so Latin and CJK labels use their own metrics.
+        label.Loaded += (_, _) =>
+        {
+            if (label.Text.Length == 0 || label.ActualWidth <= 0 || label.ActualHeight <= 0) return;
+            var glyphs = new FormattedText(label.Text, CultureInfo.GetCultureInfo(label.Language.IetfLanguageTag), label.FlowDirection,
+                new Typeface(label.FontFamily, label.FontStyle, label.FontWeight, label.FontStretch), label.FontSize,
+                label.Foreground, VisualTreeHelper.GetDpi(label).PixelsPerDip)
+            { MaxTextWidth = Math.Max(1, label.ActualWidth), MaxLineCount = 1, Trimming = label.TextTrimming };
+            var ink = glyphs.BuildGeometry(new Point()).Bounds;
+            if (!ink.IsEmpty) label.RenderTransform = new TranslateTransform(0,
+                Math.Round(label.ActualHeight / 2 - ink.Top - ink.Height / 2, MidpointRounding.AwayFromZero));
+        };
+    }
     static Binding ParentBinding(string property) => new(property) { RelativeSource = RelativeSource.TemplatedParent };
 
     void ConfigurePanelStyles()
@@ -154,6 +171,7 @@ sealed partial class MainWindow
             foreach (var quota in state?.Quotas ?? []) quotaPanel.Children.Add(QuotaCard(quota));
             if (state?.QuotaUnavailable == true) quotaPanel.Children.Add(Caption(Tr("CC Switch data unavailable", "CC Switch 数据暂不可用", "CC Switch 資料暫不可用"), Tint("#C87816")));
             if (manageAccounts is not null) quotaPanel.Children.Add(AddModelButton(manageAccounts));
+            quotaPanel.Margin = new Thickness(18, 0, 18, quotaPanel.Children.Count == 0 ? 1 : 3);
             Place(quotaArea, 1);
             Place(PairedBoards(), 2);
             footer = PanelFooter(); Place(footer, 3);
@@ -193,7 +211,7 @@ sealed partial class MainWindow
             wide.Children.Add(brand); Grid.SetColumn(tabs, 1); wide.Children.Add(tabs); Grid.SetColumn(freshness, 2); wide.Children.Add(freshness);
             freshness.HorizontalAlignment = HorizontalAlignment.Right; header.Children.Add(wide);
         }
-        else { header.Children.Add(titleLine); tabs.Margin = new Thickness(0, 8, 0, 0); header.Children.Add(tabs); }
+        else { header.Children.Add(titleLine); tabs.Margin = new Thickness(0, 10, 0, 0); header.Children.Add(tabs); }
         return header;
     }
     Button AddModelButton(Func<Task> action)
@@ -253,7 +271,7 @@ sealed partial class MainWindow
         var linkText = Caption("CC Switch", PanelBlue); linkText.TextDecorations = TextDecorations.Underline; link.Content = linkText;
         ((Button)link).ToolTip = Tr("Download CC Switch", "下载 CC Switch", "下載 CC Switch"); line.Children.Add(link);
         line.Children.Add(Caption(Tr(" to see provider quotas here.", "，即可在这里查看各家提供商的余量。", "，即可在這裡查看各家提供者的餘量。")));
-        var guide = new Grid { Width = Math.Max(1, renderedPanelWidth - 36), Height = 28 };
+        var guide = new Grid { Width = Math.Max(1, renderedPanelWidth - 36), Height = 28, Margin = new Thickness(0, 0, 0, 2) };
         guide.Children.Add(new System.Windows.Shapes.Rectangle { RadiusX = 6, RadiusY = 6, Stroke = PanelLine, StrokeThickness = 1,
             StrokeDashArray = new DoubleCollection { 3, 3 }, Fill = Tint(panelDark ? "#29292B" : "#F8F8FA") });
         guide.Children.Add(line); return guide;
@@ -307,6 +325,7 @@ sealed partial class MainWindow
             var summary = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 9,
                 FontFamily = new FontFamily("Segoe UI"),
                 Margin = new Thickness(5, 0, 4, 0), ToolTip = board.Error ?? board.Title + "\n" + Tr("Scores are not directly comparable across lists", "两榜分数不直接互比", "兩榜分數不直接互比") };
+            CenterTextInk(summary);
             var name = BoardTitle(board); var date = DateTimeOffset.TryParse(board.UpdatedAt, out var d) ? d.ToLocalTime().ToString("M/d HH:mm", CultureInfo.InvariantCulture) : "";
             summary.Inlines.Add(new TextRun(name + (date.Length == 0 ? "" : " · " + date) + " · "));
             summary.Inlines.Add(new TextRun(board.Error is not null ? Tr("Refresh failed", "刷新失败", "刷新失敗") : SourceLens(board)) { Foreground = board.Error is not null ? Tint("#B96B0F") : i == 0 ? PanelBlue : PanelPurple });
@@ -446,7 +465,7 @@ sealed partial class MainWindow
         var border = new Border { BorderBrush = PanelLine, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(18, 10, 18, 10) };
         var row = new Grid(); row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); row.ColumnDefinitions.Add(new ColumnDefinition()); row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var left = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        Button FooterButton(string text, Action action) { var button = QuietButton(text, action); button.FontSize = 10; return button; }
+        Button FooterButton(string text, Action action) { var button = QuietButton(text, action); button.FontSize = 10; button.Content = Caption(text, size: 10); return button; }
         var repository = FooterButton("", () => Open("https://github.com/" + config.Repository));
         if (Logo("github", 13) is { } github) repository.Content = new System.Windows.Shapes.Rectangle { Width = 13, Height = 13, Fill = PanelMuted, OpacityMask = new ImageBrush(github.Source) };
         else repository.Content = "GitHub";
