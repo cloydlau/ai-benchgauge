@@ -33,8 +33,8 @@ static class SmokeTests
             // retain one parent while quota and footer content are rebuilt.
             window.SetState(state); window.UpdateLayout();
             var cards = Descendants<Border>(window).Where(card => card.Child is Grid line &&
-                line.Children.OfType<TextBlock>().Any(text => text.Inlines.OfType<TextRun>().FirstOrDefault()?.Text.StartsWith("Synthetic ") == true)).ToArray();
-            if (cards.Length != 2) throw new Exception("Missing quota cards");
+                line.Children.OfType<TextBlock>().Any(text => text.Inlines.OfType<TextRun>().FirstOrDefault()?.Text.Trim() is "Synthetic date warning" or "Synthetic quota warning")).ToArray();
+            if (cards.Length != 2) throw new Exception($"Expected two quota cards, found {cards.Length}");
             foreach (var card in cards)
             {
                 if (card.Background is not SolidColorBrush fill || fill.Color != (Color)ColorConverter.ConvertFromString("#DB2828") || fill.Opacity <= 0)
