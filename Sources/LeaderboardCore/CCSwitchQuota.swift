@@ -103,12 +103,17 @@ public enum AccountQuotaMessage {
     /// CC Switch owns the Grok login, so neither `requires_reauth` nor a
     /// missing auth file can be cleared from a web page.
     public static let xaiSignInHelp = "Grok 登录在 CC Switch 中完成，请在 CC Switch 中登录"
+    public static let xaiSubscriptionHelp = "点击在应用内连接 xAI 套餐；连接后自动查询日期，并核对额度账号"
     public static let network = "网络错误"
     public static let officialSummary = "查询中"
     public static let officialHelp = "正在查询官方用量"
     public static let emptyBalance = "无可用余额"
     public static let connectOfficial = "未连接"
     public static let connectOfficialHelp = "只显示千问账号套餐剩余，多设备共用，不统计本机请求"
+}
+
+public enum ParsedQuotaDateSource: String, Codable, Sendable {
+    case cached
 }
 
 public struct ParsedQuotaWindow: Equatable, Sendable {
@@ -119,11 +124,13 @@ public struct ParsedQuotaWindow: Equatable, Sendable {
     public let name: String
     public let utilization: Double
     public let resetsAt: Date?
+    public let dateSource: ParsedQuotaDateSource?
 
-    public init(name: String, utilization: Double, resetsAt: Date?) {
+    public init(name: String, utilization: Double, resetsAt: Date?, dateSource: ParsedQuotaDateSource? = nil) {
         self.name = name
         self.utilization = utilization
         self.resetsAt = resetsAt
+        self.dateSource = dateSource
     }
 }
 
@@ -700,10 +707,21 @@ public enum AccountQuotaFormatting {
         // website: that product page has no sign-in entry.
         if requiresCCSwitchSignIn(chip) {
             lines.append(AccountQuotaMessage.xaiSignInHelp)
-        } else if let websiteURL = chip.websiteURL {
-            lines.append(websiteURL.absoluteString)
+        } else {
+            if requiresXAISubscriptionConnection(chip) {
+                lines.append(AccountQuotaMessage.xaiSubscriptionHelp)
+            }
+            if let websiteURL = chip.websiteURL {
+                lines.append(websiteURL.absoluteString)
+            }
         }
         return lines.joined(separator: "\n")
+    }
+
+    public static func requiresXAISubscriptionConnection(_ chip: AccountQuotaChip) -> Bool {
+        guard chip.kind == .xaiOAuth, case let .windows(windows) = chip.status else { return false }
+        guard let expiry = windows.first(where: { $0.name == ParsedQuotaWindow.planExpiryName }) else { return true }
+        return expiry.dateSource == .cached
     }
 
     private static func detailLines(for chip: AccountQuotaChip, now: Date) -> [String] {
@@ -762,12 +780,16 @@ public enum AccountQuotaFormatting {
         }
         if let end = planPeriodEnd(windows) {
             lines.append(periodEndPhrase(until: end, now: now))
+            switch windows.first(where: { $0.name == ParsedQuotaWindow.planExpiryName })?.dateSource {
+            case .cached: lines.append("套餐日期来自已保存的查询结果；接口暂时不可用")
+            case nil: break
+            }
         }
         return lines
     }
 
     private static func qwenPlanHelp(_ plan: QwenPlanQuota, now: Date) -> String {
-        var lines = ["额度 \(qwenPlanRemainingPercent(plan))%"]
+        var lines = ["额度 \(percentText(qwenPlanRemainingPercent(plan)))%"]
         if plan.totalCredits > 0 {
             lines.append(
                 "剩余 \(creditText(plan.remainingCredits))/\(creditText(plan.totalCredits)) Credits"
@@ -1333,6 +1355,8 @@ public enum XaiEndpointValidator {
     public static let clientID = "b1a00492-073a-47ea-816f-4c329264a828"
     public static let scope = "openid profile email offline_access grok-cli:access api:access"
     public static let subscriptionsURL = URL(string: "https://grok.com/rest/subscriptions")!
+    /// Official Grok Build's live subscription account lookup.
+    public static let subscriptionUserURL = URL(string: "https://cli-chat-proxy.grok.com/v1/user?include=subscription")!
     public static let billingURL = URL(string: "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig")!
 
     public static func isTrustedIssuer(_ value: String) -> Bool {

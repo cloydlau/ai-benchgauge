@@ -135,8 +135,18 @@ sealed class MainWindow : Window
             var response = await engine.Request(command, prefs);
             if (view != (prefs.Category, prefs.Grouping, prefs.Language)) return;
             if (response.Result is { } result) SetState(result);
+            if ((command == "refreshQuotas" || command == "refreshCurrentQuota") && prefs.XaiSubscriptionWebsiteConnected)
+            {
+                xaiSubscriptionWindow ??= new XAIWebsiteSubscriptionWindow(engine, prefs, SetState);
+                _ = RefreshXaiSubscription();
+            }
         }
         catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException) { status.Text = Tr("Could not refresh. Try again.", "刷新失败，请重试。"); }
+    }
+    async Task RefreshXaiSubscription()
+    {
+        try { if (xaiSubscriptionWindow is not null) await xaiSubscriptionWindow.Refresh(); }
+        catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException or System.ComponentModel.Win32Exception or Microsoft.Web.WebView2.Core.WebView2RuntimeNotFoundException) { }
     }
     public void SetState(DisplayState result)
     {
@@ -387,6 +397,14 @@ sealed class MainWindow : Window
             return;
         }
         if (engine is null) return;
+        if (quota.Connection == "xaiSubscription")
+        {
+            xaiSubscriptionWindow ??= new XAIWebsiteSubscriptionWindow(engine, prefs, SetState);
+            try { await xaiSubscriptionWindow.Connect(); }
+            catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException or System.ComponentModel.Win32Exception or Microsoft.Web.WebView2.Core.WebView2RuntimeNotFoundException)
+            { status.Text = Tr("xAI plan connection could not open. Try again.", "xAI 套餐连接暂不可用，请重试。", "xAI 套餐連接暫不可用，請重試。"); }
+            return;
+        }
         if (quota.Connection == "qwen")
         {
             qwenWindow ??= new QwenWebsiteWindow(engine, prefs, SetState);

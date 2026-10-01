@@ -17,6 +17,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let state = AppState(cache: cache)
         stateController = StatusBarController(state: state)
         state.start()
+        if CommandLine.arguments.contains("--connect-xai-subscription") {
+            state.connectXAISubscription()
+        }
         AppUpdater.shared.start()
     }
 

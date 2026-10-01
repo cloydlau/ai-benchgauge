@@ -84,7 +84,7 @@ private struct QuotaChipView: View {
     let language: AppLanguage
     let onConnectQwen: (() -> Void)?
     let onConnectOpenAI: () -> Void
-    let onOpenCCSwitch: () -> Void
+    let onConnectXAI: () -> Void
     let isConnectingOpenAI: Bool
 
     var body: some View {
@@ -92,8 +92,8 @@ private struct QuotaChipView: View {
             Button {
                 if requiresOpenAISignIn {
                     onConnectOpenAI()
-                } else if requiresCCSwitchSignIn {
-                    onOpenCCSwitch()
+                } else if requiresCCSwitchSignIn || AccountQuotaFormatting.requiresXAISubscriptionConnection(chip) {
+                    onConnectXAI()
                 } else if let onConnectQwen {
                     onConnectQwen()
                 } else if let url = chip.websiteURL {
@@ -111,15 +111,15 @@ private struct QuotaChipView: View {
     }
 
     private var isClickable: Bool {
-        requiresOpenAISignIn || requiresCCSwitchSignIn || onConnectQwen != nil || chip.websiteURL != nil
+        requiresOpenAISignIn || requiresCCSwitchSignIn || AccountQuotaFormatting.requiresXAISubscriptionConnection(chip) || onConnectQwen != nil || chip.websiteURL != nil
     }
 
     private var requiresOpenAISignIn: Bool {
         chip.kind == .officialNote && (isConnectingOpenAI || chip.status == .message(AccountQuotaMessage.reauthRequired))
     }
 
-    /// CC Switch owns the Grok login, so this chip goes there instead of to the
-    /// provider website, which has no sign-in entry.
+    /// Missing usage OAuth still goes to CC Switch. A missing subscription
+    /// date uses the app-owned official-site connection instead.
     private var requiresCCSwitchSignIn: Bool {
         AccountQuotaFormatting.requiresCCSwitchSignIn(chip)
     }
