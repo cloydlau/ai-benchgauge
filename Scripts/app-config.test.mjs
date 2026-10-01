@@ -38,6 +38,8 @@ test('CC Switch preview accepts three states or automatic detection and rejects 
     writeFileSync(join(f.dir, 'config/app.json'), JSON.stringify({ ...f.config, previewCCSwitchState }))
     assert.equal(validateAppConfig(f.dir).previewCCSwitchState, previewCCSwitchState)
   }
+  writeFileSync(join(f.dir, 'config/app.json'), JSON.stringify({ ...f.config, previewCCSwitchEmptyState: true }))
+  assert.throws(() => validateAppConfig(f.dir), /previewCCSwitchState/)
   for (const previewCCSwitchState of [true, false, 'empty']) {
     writeFileSync(join(f.dir, 'config/app.json'), JSON.stringify({ ...f.config, previewCCSwitchState }))
     assert.throws(() => validateAppConfig(f.dir), /previewCCSwitchState/)

@@ -9,6 +9,7 @@ private final class ScreenshotUIState: ObservableObject {
     @Published var noteID = 0
     @Published var isCapturing = false
     @Published var licenseSection: LicenseSection?
+    @Published var showOfficialAccounts = false
 }
 
 struct LeaderboardView: View {
@@ -162,6 +163,9 @@ struct LeaderboardView: View {
         .sheet(item: $screenshot.licenseSection) { section in
             LicenseNoticesView(section: section, language: language)
         }
+        .sheet(isPresented: $screenshot.showOfficialAccounts) {
+            OfficialQuotaAccountsView(state: state)
+        }
         .overlay(alignment: .bottom) {
             if let note = screenshot.note, !state.isQuitting {
                 screenshotToast(note)
@@ -207,15 +211,19 @@ struct LeaderboardView: View {
                     language: language,
                     onConnectQwen: state.connectQwenWebsite,
                     onConnectOpenAI: state.connectOpenAI,
-                    onOpenCCSwitch: state.openCCSwitchSignIn,
+                    onConnectXAI: state.connectXAI,
+                    onAddModel: { screenshot.showOfficialAccounts = true },
                     connectingOpenAIProviderID: state.connectingOpenAIProviderID
                 )
                 .padding(.top, 10)
                 .background(QuotaStripAnchor())
-            } else if state.ccSwitchEmptyState != nil {
-                quotaSetupPrompt
-                    .padding(.top, 10)
-                    .background(QuotaStripAnchor())
+            } else {
+                HStack(spacing: 6) {
+                    if state.ccSwitchEmptyState != nil { quotaSetupPrompt }
+                    AddModelButton(language: language) { screenshot.showOfficialAccounts = true }
+                }
+                .padding(.top, 10)
+                .background(QuotaStripAnchor())
             }
         }
         .padding(.horizontal, 18)

@@ -2236,6 +2236,12 @@ private extension CCSwitchQuotaKind {
         case .deepseek: "deepseek"
         case .qwen: "qwen"
         case .xaiOAuth: "xai"
+        case .minimax: "minimax"
+        case .stepfun: "stepfun"
+        case .blackForestLabs: "bfl"
+        case .luma: "luma"
+        case .claude: "claude"
+        case .gemini: "gemini"
         }
     }
 }

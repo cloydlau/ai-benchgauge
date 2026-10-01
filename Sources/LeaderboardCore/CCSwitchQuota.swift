@@ -36,13 +36,19 @@ public struct CCSwitchProviderRecord: Equatable, Sendable {
     }
 }
 
-public enum CCSwitchQuotaKind: Equatable, Sendable {
+public enum CCSwitchQuotaKind: String, Codable, Equatable, Sendable {
     case officialNote
     case kimi
     case zhipu
     case deepseek
     case qwen
     case xaiOAuth
+    case minimax
+    case stepfun
+    case blackForestLabs
+    case luma
+    case claude
+    case gemini
 }
 
 public struct CCSwitchQuotaTarget: Equatable, Sendable, Identifiable {
@@ -338,6 +344,12 @@ public enum AccountQuotaFormatting {
         case "weekly_limit", "seven_day": "7d"
         case "monthly": "1mo"
         case "credits": "额度"
+        case "gemini_pro": "Pro"
+        case "gemini_flash": "Flash"
+        case "gemini_flash_lite": "Flash Lite"
+        case "seven_day_opus": "7d Opus"
+        case "seven_day_sonnet": "7d Sonnet"
+        case "seven_day_fable": "7d Fable"
         default: name
         }
     }
@@ -650,6 +662,15 @@ public enum AccountQuotaFormatting {
 
     public static func help(for chip: AccountQuotaChip, now: Date) -> String {
         var lines: [String] = []
+        switch chip.kind {
+        case .minimax: lines.append("MiniMax Coding Plan 套餐额度，与海螺视频额度独立")
+        case .luma: lines.append("Luma API 余额，与 Dream Machine 网页订阅额度独立")
+        case .blackForestLabs: lines.append("Black Forest Labs API Credits")
+        case .stepfun: lines.append("StepFun API 账户余额")
+        case .claude: lines.append("Claude 官方订阅额度；登录过期时请在官方客户端重新登录")
+        case .gemini: lines.append("Gemini Code Assist 额度，与图片和视频 API 计费独立；登录过期时请在官方客户端重新登录")
+        default: break
+        }
         if chip.isCurrent {
             lines.append("当前供应商")
         }
@@ -915,15 +936,19 @@ public enum CCSwitchQuotaCatalog {
         var built: [CCSwitchQuotaTarget] = []
         for record in ordered {
             guard let kind = kind(for: record) else { continue }
-            let extracted = credentials(from: record.settingsConfigJSON)
-            // Official usage uses only the access token CC Switch already stored.
-            // Do not read ~/.codex, CODEX_HOME, or the codex binary. No stored
-            // login — including when Codex is not installed — is omitted, not
-            // shown as an error or a prompt to install Codex.
+            var extracted = credentials(from: record.settingsConfigJSON)
+            let usage = jsonObject(record.metaJSON)?["usage_script"] as? [String: Any]
+            if let key = usableAPIKey(usage?["apiKey"] as? String) { extracted.apiKey = key }
+            if let base = usage?["baseUrl"] as? String, !base.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                extracted.baseURLs = [base]
+            }
+            // This catalog only reads the CC Switch record. Independent
+            // official-client discovery is merged by the application later.
             if kind == .officialNote, usableOfficialAccessToken(extracted.accessToken) == nil {
                 continue
             }
             let baseURL = preferredBaseURL(extracted.baseURLs, kind: kind)
+            if [.minimax, .stepfun, .blackForestLabs, .luma].contains(kind), baseURL == nil { continue }
             built.append(
                 CCSwitchQuotaTarget(
                     id: record.id,
@@ -998,7 +1023,13 @@ public enum CCSwitchQuotaCatalog {
         }
         let template = (script?["templateType"] as? String)?.lowercased()
         let plan = (script?["codingPlanProvider"] as? String)?.lowercased()
-        if record.id == "codex-official" || template == "official_subscription" {
+        if template == "official_subscription", record.id.hasPrefix("cc-switch:claude:") {
+            return .claude
+        }
+        if template == "official_subscription", record.id.hasPrefix("cc-switch:gemini:") {
+            return .gemini
+        }
+        if record.id == "codex-official" || (template == "official_subscription" && !record.id.hasPrefix("cc-switch:")) {
             return .officialNote
         }
         // Host wins over a stale coding-plan label so a Qwen key is never
@@ -1006,23 +1037,32 @@ public enum CCSwitchQuotaCatalog {
         if let qwen = qwenHostKind(record) {
             return qwen
         }
+        let bases = credentials(from: record.settingsConfigJSON).baseURLs
+        let queryOverride = (script?["baseUrl"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let queryBases = queryOverride.flatMap { $0.isEmpty ? nil : [$0] } ?? bases
+        let nativeTemplate = template == nil || template == "balance" || template == "token_plan"
         if let plan, !plan.isEmpty {
             switch plan {
             case "kimi": return .kimi
             case "zhipu": return .zhipu
+            case "minimax":
+                return nativeTemplate && queryBases.contains {
+                    LeaderboardQuotaProviders.kind(forBaseURL: $0) == .minimax
+                } ? .minimax : nil
             case "qwen", "bailian", "alibaba": return .qwen
             default:
                 return qwenHostKind(record)
             }
         }
-        let bases = credentials(from: record.settingsConfigJSON).baseURLs
         if bases.contains(where: isQwen) { return .qwen }
         if template == "balance" {
-            return bases.contains(where: isDeepSeek) ? .deepseek : nil
+            return bases.contains(where: isDeepSeek) ? .deepseek
+                : queryBases.compactMap(LeaderboardQuotaProviders.kind(forBaseURL:)).first(where: { $0 != .minimax })
         }
         if bases.contains(where: isKimi) { return .kimi }
         if bases.contains(where: isZhipu) { return .zhipu }
         if bases.contains(where: isDeepSeek) { return .deepseek }
+        if nativeTemplate, let kind = queryBases.compactMap(LeaderboardQuotaProviders.kind(forBaseURL:)).first { return kind }
         return qwenHostKind(record)
     }
 
@@ -1048,6 +1088,12 @@ public enum CCSwitchQuotaCatalog {
         case .xaiOAuth: "xAI"
         case .zhipu: "GLM"
         case .qwen: "Qwen"
+        case .minimax: "MiniMax"
+        case .stepfun: "StepFun"
+        case .blackForestLabs: "Black Forest Labs"
+        case .luma: "Luma"
+        case .claude: "Claude"
+        case .gemini: "Gemini"
         }
     }
 
@@ -1098,11 +1144,22 @@ public enum CCSwitchQuotaCatalog {
             )
         }
         let auth = root["auth"] as? [String: Any]
+        let env = root["env"] as? [String: Any]
+        // OpenCode provider records store connection settings under options.
+        let options = root["options"] as? [String: Any]
         var apiKey = usableAPIKey(auth?["OPENAI_API_KEY"] as? String)
+            ?? usableAPIKey(env?["ANTHROPIC_AUTH_TOKEN"] as? String)
+            ?? usableAPIKey(env?["ANTHROPIC_API_KEY"] as? String)
+            ?? usableAPIKey(env?["GEMINI_API_KEY"] as? String)
+            ?? usableAPIKey(root["apiKey"] as? String)
+            ?? usableAPIKey(options?["apiKey"] as? String)
+        var envBases = [env?["ANTHROPIC_BASE_URL"] as? String, env?["GOOGLE_GEMINI_BASE_URL"] as? String].compactMap { $0 }
+        if let base = root["baseUrl"] as? String { envBases.append(base) }
+        if let base = options?["baseURL"] as? String { envBases.append(base) }
         let tokens = auth?["tokens"] as? [String: Any]
         let accessToken = usableToken(tokens?["access_token"] as? String)
         let accountID = usableToken(tokens?["account_id"] as? String)
-        var extractedBaseURLs: [String] = []
+        var extractedBaseURLs: [String] = envBases
         var extractedModelName: String?
         if let config = root["config"] as? String {
             extractedBaseURLs.append(contentsOf: baseURLs(inTOML: config))
@@ -1189,7 +1246,9 @@ public enum CCSwitchQuotaCatalog {
             case .zhipu: isZhipu(url)
             case .deepseek: isDeepSeek(url)
             case .qwen: isQwen(url)
-            case .officialNote, .xaiOAuth: false
+            case .minimax, .stepfun, .blackForestLabs, .luma:
+                LeaderboardQuotaProviders.kind(forBaseURL: url) == kind
+            case .officialNote, .xaiOAuth, .claude, .gemini: false
             }
         }
         return matches.first ?? urls.first
@@ -1373,7 +1432,7 @@ extension AccountQuotaChip {
     public static func placeholder(for target: CCSwitchQuotaTarget) -> AccountQuotaChip {
         let status: Status
         switch target.kind {
-        case .officialNote, .kimi, .zhipu, .deepseek, .qwen, .xaiOAuth:
+        case .officialNote, .kimi, .zhipu, .deepseek, .qwen, .xaiOAuth, .minimax, .stepfun, .blackForestLabs, .luma, .claude, .gemini:
             status = .pending
         }
         return AccountQuotaChip(

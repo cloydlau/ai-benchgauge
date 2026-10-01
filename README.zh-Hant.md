@@ -56,14 +56,20 @@ Windows 提供 `x64` 的 `-setup.exe`，內含 Swift 與 .NET；不提供 32 位
 | **許可證與聲明** | 底部 MIT License 與「開源聲明」打開同一個可捲動彈窗，完整許可正文可離線查看。目前核對情況見[聲明清單](docs/third-party-notices.md)。 |
 | **不打擾的更新** | 打開選單列時檢查更新；榜單每天自動更新，失敗後每小時重試。來源暫時無法使用時，仍可查看本機快取。 |
 
-### CC Switch 額度如何運作？
+### 帳戶額度如何運作？
 
-應用程式從**本機 CC Switch 資料庫**識別支援的供應商，再向相應服務查詢帳戶額度。額度屬於帳戶資訊，不會混入模型分數欄。當目前使用的供應商符合提醒條件，且你允許通知時，應用程式可以發送額度提醒。
+應用程式優先從**本機 CC Switch 資料庫**識別支援的帳號（包含 Claude、Gemini 設定），再補充官方本機登入和手動新增的 Key，透過供應商服務查詢額度。額度屬於帳戶資訊，不會混入模型分數欄。當目前使用的供應商符合提醒條件，且你允許通知時，應用程式可以發送額度提醒。
 
-- 沒有 CC Switch：榜單照常可用，額度區域提供官方安裝連結。
-- 找不到支援的供應商：不顯示額度列，榜單照常可用。
+- 沒有 CC Switch：在支援的本機設定中自動偵測 OpenAI、Claude、Gemini 和 Kimi 官方登入，也可透過**添加模型**選擇供應商並驗證官方 API／方案 Key。沒有可用帳號時顯示 CC Switch 引導連結。
+- 已安裝但沒有支援的帳號：可透過**添加模型**新增官方帳號，或開啟 CC Switch 設定供應商。
 - 資料庫暫時讀取失敗：如果有上次的額度資料，就保留並標示為舊資料。
 - 複製應用截圖：自動以 CC Switch 安裝引導取代可見額度，並在單行頁尾直接顯示 `github.com/cloydlau/ai-benchgauge`，方便看到圖片的人找到專案。
+
+額度開發優先涵蓋綜合、程式、圖片、影片四類榜單中兩套 Top 20 的供應商聯集。目前接入 OpenAI Codex、Claude、Gemini Code Assist、Kimi Code、GLM、DeepSeek、Qwen、xAI、MiniMax Coding Plan、StepFun、Black Forest Labs、Luma。各產品的額度池不同：Code Assist 與 Google 圖片／影片計費、MiniMax Coding Plan 與海螺影片、Luma API 與 Dream Machine 網頁訂閱分別計算。詳見[涵蓋範圍與待接入清單](docs/architecture.md#榜单供应商与余量查询范围)。
+
+Claude、Gemini 和 Kimi 的本機 OAuth 偵測唯讀，登入過期後需在官方客戶端更新。本應用不執行 CC Switch 任意自訂查詢腳本。手動新增的 Key 僅儲存在本機帳號設定（macOS 檔案權限 0600；Windows 繼承使用者目錄 ACL），不進入顯示資料或日誌。
+
+在 macOS 上，可透過 [config/app.json](config/app.json) 中的 `previewCCSwitchState` 預覽三種狀態：`"notInstalled"`（未安裝）、`"installedEmpty"`（已安裝但未設定模型）、`"configured"`（已設定模型）。設為 `null` 則使用實際狀態。修改後重新建置並啟動；執行中的 `./dev.sh` 會自動處理。預覽不修改 CC Switch 資料；若實際帳戶沒有模型，已設定預覽會顯示明確標為「示例」的額度卡片。
 
 千問 Token Plan 的剩餘比例與重置時間來自登入後的官方頁面；首次使用可點擊千問額度卡片登入。官方 `qianwen usage summary --format json` 在回傳已訂閱方案時作為備用來源。CC Switch 記錄的本機請求次數不等於訂閱剩餘額度，因此不會被當作 Token Plan 額度。
 

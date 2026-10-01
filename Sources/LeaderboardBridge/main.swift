@@ -13,6 +13,9 @@ struct Request: Decodable, Sendable {
     var loginID: String?
     var authorizationURL: String?
     var pageText: String?
+    var officialProvider: String?
+    var accountLabel: String?
+    var apiKey: String?
 }
 struct Response: Encodable {
     var id: Int
@@ -20,6 +23,8 @@ struct Response: Encodable {
     var authorizationURL: String?
     var loginID: String?
     var error: String?
+    var officialAccounts: [OfficialAccountSummary]?
+    var officialProviders: [OfficialProviderSummary]?
 }
 struct State: Encodable {
     var boards: [Board]
@@ -45,6 +50,8 @@ struct Quota: Encodable {
 }
 struct Run: Encodable { var text: String; var light: String; var dark: String }
 struct Alert: Encodable { var title: String; var body: String }
+struct OfficialAccountSummary: Encodable { var id: String; var providerID: String; var label: String }
+struct OfficialProviderSummary: Encodable { var id: String; var name: String; var description: String }
 
 actor Engine {
     private static let inactiveQuotaRefreshInterval: TimeInterval = 60
@@ -91,13 +98,43 @@ actor Engine {
                 return Response(id: request.id, error: "Account access disabled for offline fixtures")
             }
             switch request.command {
+            case "officialAccounts":
+                return Response(id: request.id, officialAccounts: try officialAccountStore.load().map {
+                    OfficialAccountSummary(id: $0.id, providerID: $0.providerID, label: $0.label)
+                }, officialProviders: LeaderboardQuotaProviders.keyProviders.map {
+                    OfficialProviderSummary(id: $0.id, name: $0.name, description: $0.quotaDescription)
+                })
+            case "addOfficialAccount":
+                guard let provider = request.officialProvider, let key = request.apiKey, !key.isEmpty, key.utf8.count <= 16_384,
+                      !key.unicodeScalars.contains(where: { $0 == "\n" || $0 == "\r" }) else { throw OpenAIConnectionError.invalidResponse }
+                let account = OfficialQuotaAccount(providerID: provider, label: String((request.accountLabel ?? "").prefix(80)), apiKey: key)
+                guard let target = account.target else { throw OpenAIConnectionError.invalidResponse }
+                if client == nil { client = AccountQuotaClient(officialQuotaSource: official) }
+                let result = try await client!.refresh(targets: [target], previous: [])
+                guard let chip = result.first else { throw OpenAIConnectionError.invalidResponse }
+                switch chip.status {
+                case let .windows(windows): guard !windows.isEmpty else { throw OpenAIConnectionError.invalidResponse }
+                case let .balances(balances): guard !balances.isEmpty else { throw OpenAIConnectionError.invalidResponse }
+                default: throw OpenAIConnectionError.invalidResponse
+                }
+                var accounts = try officialAccountStore.load(); accounts.append(account)
+                try officialAccountStore.save(accounts)
+                lastQuotaRefresh = nil
+                lastInactiveRefresh = nil
+                try await refreshQuotas(onlyCurrent: false)
+            case "removeOfficialAccount":
+                guard let id = request.providerID, id.hasPrefix("official:") else { throw OpenAIConnectionError.invalidResponse }
+                try officialAccountStore.save(try officialAccountStore.load().filter { $0.id != id })
+                lastQuotaRefresh = nil
+                lastInactiveRefresh = nil
+                try await refreshQuotas(onlyCurrent: false)
             case "state": break
             case "captureQwen":
                 guard let text = request.pageText, text.utf8.count <= 50000,
                       let quota = QwenWebsiteQuotaParser.parse(Data(text.utf8)) else {
                     return Response(id: request.id, error: "No quota found")
                 }
-                qwenWebsite = quota; qwenCapturedAt = Date()
+                qwenWebsite = quota; qwenCapturedAt = Date(); quotaUpdatedAt = qwenCapturedAt
                 if let stored = QwenWebsiteQuotaParser.persistedData(for: quota) {
                     try FileManager.default.createDirectory(at: qwenCacheFile.deletingLastPathComponent(), withIntermediateDirectories: true)
                     try stored.write(to: qwenCacheFile, options: .atomic)
@@ -156,9 +193,13 @@ actor Engine {
         defer { refreshingQuotas = false }
         lastQuotaRefresh = now
         let install = CCSwitchProviderStore.resolveInstall()
-        switch CCSwitchProviderStore.loadCodexProviders(databaseURL: install.databaseURL) {
+        var loaded = CCSwitchProviderStore.loadQuotaProviders(databaseURL: install.databaseURL)
+        let officialTargets = OfficialQuotaDiscovery.merge(ccSwitch: [], official:
+            ((try? officialAccountStore.load()) ?? []).compactMap(\.target) + OfficialQuotaDiscovery.targets())
+        if case .absent = loaded, !officialTargets.isEmpty { loaded = .records([]) }
+        switch loaded {
         case .absent:
-            chips = []; targets = [:]; unavailable = false
+            chips = []; targets = [:]; unavailable = false; quotaUpdatedAt = nil
             needsCCSwitch = !FileManager.default.fileExists(atPath: install.databaseURL.path)
             xaiKeepAliveAccountID = nil
             nextXAIKeepAliveAt = nil
@@ -177,9 +218,11 @@ actor Engine {
             }
         case .records(let records):
             unavailable = false; needsCCSwitch = false
-            let list = CCSwitchQuotaCatalog.targets(from: records, currentProviderID: CCSwitchProviderStore.currentCodexProviderID(settingsURL: install.settingsURL))
+            let list = OfficialQuotaDiscovery.merge(ccSwitch: CCSwitchQuotaCatalog.targets(from: records,
+                currentProviderID: CCSwitchProviderStore.currentCodexProviderID(settingsURL: install.settingsURL)), official: officialTargets)
             targets = Dictionary(uniqueKeysWithValues: list.map { ($0.id, $0) })
             let prior = Dictionary(uniqueKeysWithValues: chips.map { ($0.id, $0) })
+            if !list.contains(where: { prior[$0.id] != nil }) { quotaUpdatedAt = nil }
             chips = list.map { target in
                 AccountQuotaChip(id: target.id, shortName: target.shortName, modelName: target.modelName,
                                  websiteURL: target.websiteURL,

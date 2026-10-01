@@ -17,8 +17,16 @@ notices. Complete notices are bundled locally and are selectable and scrollable.
 - The executable dynamically links the macOS system frameworks, Swift runtime,
   and `/usr/lib/libsqlite3.dylib`; no copies of those libraries are shipped.
   [SQLite's deliverable code is public domain](https://sqlite.org/copyright.html).
-- CC Switch, Codex CLI, and qianwen CLI are external integrations, not bundled
-  dependencies. Their source code and executables are not distributed in this app.
+- CC Switch's native quota adapters reference its request and response contracts
+  at revision `7c0d0fc615f7e9391de9784958c918368455cbcc` (MIT, copyright
+  2025 Jason Young). The full notice is bundled as `CC-Switch.txt` on both
+  desktop platforms and listed in the macOS `ThirdParty.json`. The adapter
+  implementation is Swift; the CC Switch executable and JavaScript runtime
+  are not bundled. Sources: [subscription queries](https://github.com/farion1231/cc-switch/blob/7c0d0fc615f7e9391de9784958c918368455cbcc/src-tauri/src/services/subscription.rs),
+  [Coding Plan queries](https://github.com/farion1231/cc-switch/blob/7c0d0fc615f7e9391de9784958c918368455cbcc/src-tauri/src/services/coding_plan.rs),
+  and [balance queries](https://github.com/farion1231/cc-switch/blob/7c0d0fc615f7e9391de9784958c918368455cbcc/src-tauri/src/services/balance.rs).
+- Codex CLI and qianwen CLI remain external integrations; their executables
+  are not distributed in this app.
 
 The Sparkle notice above covers the newly bundled update framework. This is
 **not a completed provenance audit of the bundled brand images**.

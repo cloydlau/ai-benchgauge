@@ -242,7 +242,7 @@ public actor AccountQuotaClient {
         let authFileURL = authFileURL ?? self.authFileURL
         let keyTargets = targets.filter { target in
             switch target.kind {
-            case .kimi, .zhipu, .deepseek: true
+            case .kimi, .zhipu, .deepseek, .minimax, .stepfun, .blackForestLabs, .luma, .claude, .gemini: true
             case .officialNote, .qwen, .xaiOAuth: false
             }
         }
@@ -386,11 +386,31 @@ public actor AccountQuotaClient {
         _ target: CCSwitchQuotaTarget,
         transport: any AccountQuotaTransport
     ) async throws -> AccountQuotaChip {
-        guard let apiKey = usableKey(target.apiKey) else {
+        let credential = [.claude, .gemini].contains(target.kind) ? target.accessToken : (target.accessToken ?? target.apiKey)
+        guard let apiKey = usableKey(credential) else {
             return chip(target, .notConfigured)
         }
-        guard let request = keyRequest(target, apiKey: apiKey) else {
+        guard var request = keyRequest(target, apiKey: apiKey) else {
             return chip(target, .failed)
+        }
+        if target.kind == .gemini {
+            let project: AccountQuotaHTTPResponse
+            do { project = try await transport.data(for: request) }
+            catch {
+                if Self.isCancellation(error) { throw CancellationError() }
+                return chip(target, .network)
+            }
+            if let reason = keyFailure(statusCode: project.statusCode) {
+                return chip(target, [401, 403].contains(project.statusCode) ? .reauth : reason)
+            }
+            guard project.body.count <= 1_048_576,
+                  let body = try? JSONSerialization.jsonObject(with: project.body) as? [String: Any] else {
+                return chip(target, .failed)
+            }
+            let raw = body["cloudaicompanionProject"]
+            let id = (raw as? String) ?? ((raw as? [String: Any])?["id"] as? String)
+            request.url = URL(string: "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota")!
+            request.httpBody = try? JSONSerialization.data(withJSONObject: id.map { ["project": $0] } ?? [:])
         }
         let response: AccountQuotaHTTPResponse
         do {
@@ -404,7 +424,7 @@ public actor AccountQuotaClient {
         }
         switch keyFailure(statusCode: response.statusCode) {
         case let reason?:
-            return chip(target, reason)
+            return chip(target, target.accessToken != nil && [401, 403].contains(response.statusCode) ? .reauth : reason)
         case nil:
             break
         }
@@ -421,6 +441,18 @@ public actor AccountQuotaClient {
             )
         case .deepseek:
             parsed = CCSwitchQuotaParsers.parseDeepSeek(response.body)
+        case .minimax:
+            parsed = LeaderboardQuotaParsers.miniMax(response.body)
+        case .stepfun:
+            parsed = LeaderboardQuotaParsers.stepFun(response.body)
+        case .blackForestLabs:
+            parsed = LeaderboardQuotaParsers.blackForestLabs(response.body)
+        case .luma:
+            parsed = LeaderboardQuotaParsers.luma(response.body)
+        case .claude:
+            parsed = LeaderboardQuotaParsers.claude(response.body)
+        case .gemini:
+            parsed = LeaderboardQuotaParsers.gemini(response.body)
         case .officialNote, .qwen, .xaiOAuth:
             return chip(target, .failed)
         }
@@ -598,16 +630,44 @@ public actor AccountQuotaClient {
         case .zhipu:
             url = CCSwitchQuotaCatalog.zhipuQuotaURL(baseURL: target.baseURL)
             authorization = apiKey
+        case .minimax:
+            let host = URL(string: target.baseURL ?? "")?.host?.lowercased() == "api.minimax.io"
+                ? "api.minimax.io" : "api.minimaxi.com"
+            url = URL(string: "https://\(host)/v1/api/openplatform/coding_plan/remains")!
+            authorization = "Bearer \(apiKey)"
+        case .stepfun:
+            url = URL(string: "https://api.stepfun.com/v1/accounts")!
+            authorization = "Bearer \(apiKey)"
+        case .blackForestLabs:
+            url = URL(string: "https://api.bfl.ai/v1/credits")!
+            authorization = apiKey
+        case .luma:
+            url = URL(string: "https://api.lumalabs.ai/dream-machine/v1/credits")!
+            authorization = "Bearer \(apiKey)"
+        case .claude:
+            url = URL(string: "https://api.anthropic.com/api/oauth/usage")!
+            authorization = "Bearer \(apiKey)"
+        case .gemini:
+            url = URL(string: "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist")!
+            authorization = "Bearer \(apiKey)"
         case .officialNote, .qwen, .xaiOAuth:
             return nil
         }
         var request = URLRequest(url: url, timeoutInterval: 15)
         request.httpMethod = "GET"
-        request.setValue(authorization, forHTTPHeaderField: "Authorization")
+        request.setValue(authorization, forHTTPHeaderField: target.kind == .blackForestLabs ? "x-key" : "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if target.kind == .zhipu {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("en-US,en", forHTTPHeaderField: "Accept-Language")
+        }
+        if target.kind == .claude {
+            request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
+        }
+        if target.kind == .gemini {
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = Data(#"{"metadata":{"ideType":"GEMINI_CLI","pluginType":"GEMINI"}}"#.utf8)
         }
         return request
     }
