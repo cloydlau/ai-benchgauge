@@ -67,13 +67,14 @@ sealed partial class MainWindow
         label.Loaded += (_, _) =>
         {
             if (label.Text.Length == 0 || label.ActualWidth <= 0 || label.ActualHeight <= 0) return;
+            var dpi = VisualTreeHelper.GetDpi(label);
             var glyphs = new FormattedText(label.Text, CultureInfo.GetCultureInfo(label.Language.IetfLanguageTag), label.FlowDirection,
                 new Typeface(label.FontFamily, label.FontStyle, label.FontWeight, label.FontStretch), label.FontSize,
-                label.Foreground, VisualTreeHelper.GetDpi(label).PixelsPerDip)
+                label.Foreground, dpi.PixelsPerDip)
             { MaxTextWidth = Math.Max(1, label.ActualWidth), MaxLineCount = 1, Trimming = label.TextTrimming };
             var ink = glyphs.BuildGeometry(new Point()).Bounds;
             if (!ink.IsEmpty) label.RenderTransform = new TranslateTransform(0,
-                Math.Round(label.ActualHeight / 2 - ink.Top - ink.Height / 2, MidpointRounding.AwayFromZero));
+                Math.Round((label.ActualHeight / 2 - ink.Top - ink.Height / 2) * dpi.DpiScaleY, MidpointRounding.AwayFromZero) / dpi.DpiScaleY);
         };
     }
     static Binding ParentBinding(string property) => new(property) { RelativeSource = RelativeSource.TemplatedParent };
@@ -300,7 +301,7 @@ sealed partial class MainWindow
     static string? ProviderLogo(string name)
     {
         var value = name.ToLowerInvariant();
-        foreach (var item in new[] { ("openai","openai"),("claude","anthropic"),("gemini","google"),("kimi","kimi"),("qwen","qwen"),("千问","qwen"),("deepseek","deepseek"),("glm","zai"),("grok","spacexai"),("智谱","zai") })
+        foreach (var item in new[] { ("openai","openai"),("claude","anthropic"),("anthropic","anthropic"),("gemini","google"),("google","google"),("kimi","kimi"),("qwen","qwen"),("千问","qwen"),("deepseek","deepseek"),("glm","zai"),("grok","spacexai"),("xai","spacexai"),("智谱","zai") })
             if (value.Contains(item.Item1)) return item.Item2;
         return null;
     }
@@ -424,7 +425,9 @@ sealed partial class MainWindow
     {
         var button = QuietButton("", () => { }); button.Foreground = PanelInk;
         var label = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        label.Children.Add(Caption(Tr("Country", "国家", "國家"), PanelInk));
+        var countryLabel = Caption(Tr("Country", "国家", "國家"), PanelInk);
+        if (renderedPanelWidth < 850) countryLabel.MaxWidth = 25;
+        label.Children.Add(countryLabel);
         label.Children.Add(PanelIcon("chevron", PanelInk, 7, 4, new Thickness(4, 0, 0, 0))); button.Content = label;
         var menu = new ContextMenu();
         foreach (var item in new[] { ("",Tr("All countries","所有国家","所有國家")),("china",Tr("China","中国","中國")),("unitedStates",Tr("United States","美国","美國")),("canada",Tr("Canada","加拿大")),("france",Tr("France","法国","法國")),("germany",Tr("Germany","德国","德國")),("singapore",Tr("Singapore","新加坡")) })
