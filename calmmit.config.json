@@ -64,7 +64,18 @@
     "activity": [
       {
         "kind": "mac-app",
-        "executable": "outputs/AI-BenchGauge.app/Contents/MacOS/leaderboard-menu"
+        "executable": "outputs/AI-BenchGauge.app/Contents/MacOS/leaderboard-menu",
+        "sources": [
+          "Sources",
+          "apps",
+          "assets",
+          "config",
+          "Package.swift",
+          "Package.resolved",
+          "make-app.sh",
+          "Scripts/make-app.sh"
+        ],
+        "revisionReceipt": "work/.last-app-deploy"
       }
     ],
     "enabled": true,
