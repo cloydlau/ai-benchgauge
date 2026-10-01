@@ -43,7 +43,7 @@ sealed partial class MainWindow : Window
     public MainWindow(EngineClient? engine, Preferences prefs)
     {
         this.engine = engine; this.prefs = prefs; updater = new UpdateClient(config);
-        Title = "AI BenchGauge"; Width = 900; MinWidth = 600;
+        Title = "AI BenchGauge"; Width = 850; MinWidth = 600;
         MinHeight = Math.Min(600, SystemParameters.WorkArea.Height);
         Height = Math.Min(820, SystemParameters.WorkArea.Height);
         WindowStartupLocation = WindowStartupLocation.Manual;

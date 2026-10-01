@@ -28,7 +28,9 @@ struct State: Encodable {
     var quotaUnavailable: Bool
     var trayText: String?
     var alerts: [Alert]
+    var layoutEntries: [LayoutEntry]? = nil
 }
+struct LayoutEntry: Encodable { var name: String; var planTitle: String?; var apiTitle: String? }
 struct Board: Encodable {
     var kind: String; var title: String; var url: String
     var updatedAt: String?; var error: String?; var entries: [Entry]
@@ -269,6 +271,23 @@ actor Engine {
                              help: standings.first { $0.entry.rank == entry.rank }.map { CompanyLeaderboard.scoreHelp(for: $0, language: language) })
             })
         }
+        // Mirror Mac: size against every cached category and grouping, even
+        // when the currently selected board happens to have short titles.
+        var layoutEntries: [LayoutEntry] = []
+        for category in LeaderboardCategory.allCases {
+            for kind in category.boardKinds {
+                let models = snapshot.boards[kind]?.entries ?? []
+                for grouping in LeaderboardGrouping.allCases {
+                    let entries = grouping == .company ? CompanyLeaderboard.rank(models).map(\.entry) : Array(models.prefix(20))
+                    for entry in entries {
+                        let links = PurchaseLinkCatalog.links(forOrganization: entry.organization, modelName: entry.name)
+                        layoutEntries.append(LayoutEntry(name: entry.name,
+                            planTitle: grouping == .company && !links.codingPlan.isEmpty ? language.text("Plan", "套餐") : nil,
+                            apiTitle: grouping == .company && !links.payAsYouGo.isEmpty ? language.text("Pay as you go", "按量") : nil))
+                    }
+                }
+            }
+        }
         let displayChips = chips.map { chip -> AccountQuotaChip in
             guard chip.kind == .qwen, let website = qwenWebsite, let captured = qwenCapturedAt,
                   now.timeIntervalSince(captured) < 86400 else { return chip }
@@ -305,7 +324,8 @@ actor Engine {
         for alert in pending { delivered.formUnion(alert.componentKeys) }
         return State(boards: boards, quotas: quotas, quotaNeedsCCSwitch: needsCCSwitch, quotaUnavailable: unavailable,
                      trayText: AccountQuotaFormatting.menuBarText(forChips: displayChips).map { "\($0.name) · \(language.quotaText($0.quota))" },
-                     alerts: pending.map { Alert(title: language.quotaText($0.subtitle), body: language.quotaText($0.body)) })
+                     alerts: pending.map { Alert(title: language.quotaText($0.subtitle), body: language.quotaText($0.body)) },
+                     layoutEntries: layoutEntries)
     }
     private func color(_ tone: QuotaTone, dark: Bool) -> String {
         let rgb: QuotaRGB

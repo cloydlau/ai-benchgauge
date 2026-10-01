@@ -45,13 +45,13 @@ static class VisualTests
         {
             var current = new DisplayMode { Size = 220 };
             if (!EnumDisplaySettings(null, -1, ref current)) throw new InvalidOperationException("Cannot read CI desktop mode");
-            if (current.Width < 1200 || current.Height < 900)
+            if (current.Width < 1500 || current.Height < 900)
             {
                 for (var index = 0; ; index++)
                 {
                     var candidate = new DisplayMode { Size = 220 };
                     if (!EnumDisplaySettings(null, index, ref candidate)) throw new InvalidOperationException("CI desktop has no supported resolution large enough for visual cases");
-                    if (candidate.Width < 1200 || candidate.Height < 900) continue;
+                    if (candidate.Width < 1500 || candidate.Height < 900) continue;
                     if (ChangeDisplaySettings(ref candidate, 0) != 0) continue;
                     original = current; break;
                 }
@@ -84,6 +84,7 @@ static class VisualTests
                 { Width = test.Width, Height = test.Height };
             try
             {
+                window.SetVisualViewport(test.Width, test.Height);
                 window.SetVisualAppearance(theme == "dark");
                 window.SetState(state); window.Reveal();
                 Settle(window);

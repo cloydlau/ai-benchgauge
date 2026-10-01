@@ -162,6 +162,7 @@ sealed partial class MainWindow
         rendering = true;
         try
         {
+            UpdatePanelWidth();
             renderedPanelWidth = Content is FrameworkElement client && client.ActualWidth > 0 ? client.ActualWidth : Width;
             (status.Parent as Panel)?.Children.Remove(status);
             dropdowns.Clear(); content.Children.Clear(); content.RowDefinitions.Clear();
