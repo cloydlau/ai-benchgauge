@@ -150,6 +150,7 @@ final class AppState: ObservableObject {
     private static let backgroundQuotaRefreshInterval: TimeInterval = 30 * 60
 
     func refreshFromMenuClick() {
+        refreshCurrentModelName()
         refreshQuotas(
             minimumInterval: 0,
             inactiveMinimumInterval: Self.inactiveQuotaRefreshInterval
@@ -273,6 +274,7 @@ final class AppState: ObservableObject {
 
     private func tick() {
         guard !isQuitting else { return }
+        refreshCurrentModelName()
         refreshQuotaSelectionIfChanged()
         refreshQuotas(
             minimumInterval: Self.backgroundQuotaRefreshInterval,
@@ -286,6 +288,13 @@ final class AppState: ObservableObject {
 
         guard !isRefreshing, schedule.isDue() else { return }
         refreshNow()
+    }
+
+    /// Model selection can change inside Codex without switching CC Switch providers.
+    /// Update only display metadata; keep the existing quota snapshot and cadence.
+    private func refreshCurrentModelName() {
+        let current = CCSwitchProviderStore.currentCodexModelConfiguration()
+        if current != currentCodexModelConfiguration { currentCodexModelConfiguration = current }
     }
 
     /// CC Switch owns provider switching, while quota queries stay on the slow

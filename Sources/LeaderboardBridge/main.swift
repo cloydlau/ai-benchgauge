@@ -359,9 +359,13 @@ actor Engine {
         delivered = QuotaAlerts.retainedKeys(delivered, evaluatedChips: displayChips, activeKeys: activeKeys)
         let pending = QuotaAlerts.pendingAlerts(alerts, delivered: delivered)
         for alert in pending { delivered.formUnion(alert.componentKeys) }
+        let liveModel = allowsAccountAccess ? displayChips.first(where: \.isCurrent)
+            .flatMap { targets[$0.id] }
+            .flatMap { CCSwitchProviderStore.currentCodexModelConfiguration()?.modelName(matching: $0) } : nil
         return State(boards: boards, quotas: quotas, quotaNeedsCCSwitch: needsCCSwitch, quotaUnavailable: unavailable,
-                     trayText: AccountQuotaFormatting.menuBarText(forChips: displayChips).map { "\($0.name) · \(language.quotaText($0.quota))" },
-                     alerts: pending.map { Alert(title: language.quotaText($0.subtitle), body: language.quotaText($0.body)) })
+                     trayText: AccountQuotaFormatting.menuBarText(forChips: displayChips, currentModelName: liveModel).map { "\($0.name) · \(language.quotaText($0.quota))" },
+                     alerts: pending.map { Alert(title: language.quotaText($0.subtitle), body: language.quotaText($0.body)) },
+                     layoutEntries: layoutEntries, quotaUpdatedAt: quotaUpdatedAt.map { ISO8601DateFormatter().string(from: $0) })
     }
     private func color(_ tone: QuotaTone, dark: Bool) -> String {
         let rgb: QuotaRGB
