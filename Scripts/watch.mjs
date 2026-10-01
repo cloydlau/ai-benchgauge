@@ -413,7 +413,7 @@ async function main() {
     })
     clearTimer()
     const eta = new Date(Date.now() + wait).toLocaleTimeString('zh-CN', { hour12: false })
-    reportStatus('waiting', `${reason}，将于 ${eta} ${actionLabel()}（防抖 ${Math.round(debounceMs / 1000)} 秒，节流 ${Math.round(throttleMs / 1000)} 秒）；无需人工介入`)
+    reportStatus('waiting', `${reason}，将于 ${eta} ${actionLabel()}（防抖 ${Math.round(debounceMs / 1000)} 秒，节流 ${Math.round(throttleMs / 1000)} 秒）`)
     timer = setTimeout(runScheduled, wait)
   }
 
@@ -569,7 +569,7 @@ async function main() {
           : '构建或重启失败，请检查上方错误'
       reportStatus('manual', `${failure}；本轮已停止自动重试，等待新改动`)
     } else {
-      reportStatus('done', '本轮流程完成，继续监听；无需人工介入')
+      reportStatus('done', '本轮流程完成，继续监听')
     }
   }
 
@@ -653,7 +653,7 @@ async function main() {
   } else if (ahead) {
     schedule('启动时检测到未推送提交', Date.now() - debounceMs)
   } else {
-    reportStatus('done', `${deployEnabled ? '应用已启动' : '自动部署已关闭'}，等待源码变更；无需人工介入`)
+    reportStatus('done', `${deployEnabled ? '应用已启动' : '自动部署已关闭'}，等待源码变更`)
   }
 
   const poll = setInterval(() => {
