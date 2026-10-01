@@ -63,10 +63,8 @@ public struct LeaderboardPadView: View {
                     compactControls(width: geometry.size.width - 24)
                     cubeSelector
                     cubeBoards
+                    compactFooter.zIndex(2)
                 }.padding(.horizontal, 12).padding(.vertical, 8)
-                    .safeAreaInset(edge: .bottom, spacing: 2) {
-                        compactFooter.padding(.horizontal, 12).padding(.bottom, 8)
-                    }
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {

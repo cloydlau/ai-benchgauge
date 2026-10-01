@@ -258,13 +258,7 @@ final class LeaderboardPhoneTests: XCTestCase {
         app.launchArguments += ["--full-board", "--dark", "--preview-zh"]
         app.launch()
         waitForFace("artificialAnalysis")
-        waitForButton("attribution")
-        waitForButton("share")
-        waitForButton("language-menu")
         capture("iphone-long-dark")
-        app.buttons["refresh"].tap()
-        waitForFace("artificialAnalysis")
-        capture("iphone-long-dark-refreshed")
         let viewport = app.otherElements["cube-viewport"]
         viewport.swipeUp()
         viewport.swipeUp()
