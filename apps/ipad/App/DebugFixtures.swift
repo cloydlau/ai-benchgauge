@@ -12,7 +12,8 @@ enum DebugFixtures {
         let name = "ai-benchgauge-ui-tests"
         let defaults = UserDefaults(suiteName: name)!
         defaults.removePersistentDomain(forName: name)
-        AppLanguage.english.save(to: defaults)
+        let language: AppLanguage = arguments.contains("--preview-zh") ? .chinese : .english
+        language.save(to: defaults)
         let cache = LeaderboardCache(fileURL: FileManager.default.temporaryDirectory.appending(path: "ui-test-boards.json"))
         let boards = Dictionary(uniqueKeysWithValues: LeaderboardKind.allCases.map { ($0, board($0)) })
         cache.save(LeaderboardSnapshot(boards: boards))

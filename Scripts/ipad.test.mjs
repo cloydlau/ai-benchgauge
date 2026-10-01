@@ -46,12 +46,13 @@ test('iPad project uses only the portable UI library, shared version, and Debug-
   assert.equal(readFileSync(new URL('../apps/ipad/UI/Resources/AI-BenchGauge.txt', import.meta.url), 'utf8'), readFileSync(new URL('../LICENSE', import.meta.url), 'utf8'))
   assert.throws(() => ipadProject({ version: 'v1.0.0' }), /version/)
 })
-test('iPad supports rotation and resizable multitasking without requiring full screen', () => {
+test('iPad uses one full-screen scene with rotation and respects newer system windowing', () => {
   const info = readFileSync(new URL('../apps/ipad/App/Info.plist', import.meta.url), 'utf8')
   for (const orientation of ['Portrait', 'PortraitUpsideDown', 'LandscapeLeft', 'LandscapeRight']) {
     assert.ok(info.includes(`UIInterfaceOrientation${orientation}`))
   }
-  assert.ok(!info.includes('UIRequiresFullScreen'))
-  assert.ok(info.includes('UIApplicationSupportsMultipleScenes'))
+  assert.match(info, /<key>UIRequiresFullScreen<\/key>\s*<true\/>/)
+  assert.match(info, /<key>UIRequiresFullScreenIgnoredStartingWithVersion<\/key>\s*<string>26<\/string>/)
+  assert.match(info, /<key>UIApplicationSupportsMultipleScenes<\/key>\s*<false\/>/)
   assert.ok(!info.includes('NSAppTransportSecurity'))
 })

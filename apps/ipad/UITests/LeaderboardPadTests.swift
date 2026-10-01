@@ -29,6 +29,7 @@ final class LeaderboardPadTests: XCTestCase {
         XCUIDevice.shared.orientation = .landscapeLeft
         XCTAssertTrue(app.otherElements["board-artificialAnalysisCodingAgent"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.otherElements["board-codeArenaWebDev"].exists)
+        waitForLayout(landscape: true)
         capture("landscape")
     }
     func testOfflineResultsAndSettings() {
@@ -47,8 +48,50 @@ final class LeaderboardPadTests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["share-image"].firstMatch.waitForExistence(timeout: 10))
         capture("share")
     }
+    func testChineseInterfacePreviews() {
+        app.launchArguments.append("--preview-zh")
+        app.launch()
+        XCTAssertTrue(app.otherElements["board-artificialAnalysis"].waitForExistence(timeout: 10))
+        waitForLayout(landscape: false)
+        capture("zh-models-portrait")
+        app.segmentedControls["grouping"].buttons["公司"].tap()
+        capture("zh-companies-portrait")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        waitForLayout(landscape: true)
+        capture("zh-companies-landscape")
+        XCUIDevice.shared.orientation = .portrait
+        waitForLayout(landscape: false)
+        app.buttons["settings"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["settings-github"].firstMatch.waitForExistence(timeout: 5))
+        capture("zh-settings")
+    }
+
+    private func waitForLayout(landscape: Bool) {
+        let window = app.windows.firstMatch
+        let predicate = NSPredicate { _, _ in
+            let frame = window.frame
+            return frame.width > 0 && frame.height > 0
+                && (frame.width > frame.height) == landscape
+                && self.app.buttons["settings"].isHittable
+        }
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: window)
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 10), .completed)
+        // Existing board identifiers can remain present while rotation is still animating.
+        // Wait for a stable window frame before taking the complete screen snapshot.
+        var previous = window.frame
+        var stableFrames = 0
+        for _ in 0..<20 {
+            Thread.sleep(forTimeInterval: 0.3)
+            let current = window.frame
+            stableFrames = current == previous ? stableFrames + 1 : 0
+            previous = current
+            if stableFrames >= 3 { return }
+        }
+        XCTFail("iPad window did not settle after rotation")
+    }
+
     private func capture(_ name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)

@@ -11,8 +11,11 @@
     <key>LSRequiresIPhoneOS</key><true/>
     <key>ITSAppUsesNonExemptEncryption</key><false/>
     <key>UILaunchScreen</key><dict/>
+    <key>UIRequiresFullScreen</key><true/>
+    <!-- Newer iPadOS controls windowing; use native resizing instead of scaling the whole UI. -->
+    <key>UIRequiresFullScreenIgnoredStartingWithVersion</key><string>26</string>
     <key>UIApplicationSceneManifest</key><dict>
-        <key>UIApplicationSupportsMultipleScenes</key><true/>
+        <key>UIApplicationSupportsMultipleScenes</key><false/>
     </dict>
     <key>UISupportedInterfaceOrientations</key><array>
         <string>UIInterfaceOrientationPortrait</string>
