@@ -8,13 +8,13 @@ struct PanelModeTests {
     }
 
     @Test
-    func testLegacyClosePreferenceKeepsBothExistingModes() throws {
+    func testDefaultsToCloseOnBlurAndKeepsBothLegacyModes() throws {
         let defaults = try defaults()
         defer {
             defaults.removeObject(forKey: PanelModePreference.legacyFocusLossKey)
             defaults.removeObject(forKey: PanelModePreference.userDefaultsKey)
         }
-        #expect((PanelModePreference.load(from: defaults)) == (.clickToClose))
+        #expect((PanelModePreference.load(from: defaults)) == (.closeOnBlur))
         defaults.set(true, forKey: PanelModePreference.legacyFocusLossKey)
         #expect((PanelModePreference.load(from: defaults)) == (.closeOnBlur))
         defaults.set(false, forKey: PanelModePreference.legacyFocusLossKey)
@@ -52,6 +52,8 @@ struct PanelModeTests {
         }
         defaults.set("unknown", forKey: PanelModePreference.userDefaultsKey)
         defaults.set(true, forKey: PanelModePreference.legacyFocusLossKey)
+        #expect((PanelModePreference.load(from: defaults)) == (.closeOnBlur))
+        defaults.removeObject(forKey: PanelModePreference.legacyFocusLossKey)
         #expect((PanelModePreference.load(from: defaults)) == (.closeOnBlur))
     }
 }

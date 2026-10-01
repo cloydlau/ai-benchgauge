@@ -29,7 +29,10 @@ public enum PanelModePreference {
         if let raw = defaults.string(forKey: userDefaultsKey), let mode = PanelMode(rawValue: raw) {
             return mode
         }
-        return defaults.bool(forKey: legacyFocusLossKey) ? .closeOnBlur : .clickToClose
+        if defaults.object(forKey: legacyFocusLossKey) != nil {
+            return defaults.bool(forKey: legacyFocusLossKey) ? .closeOnBlur : .clickToClose
+        }
+        return .closeOnBlur
     }
 
     public static func save(_ mode: PanelMode, to defaults: UserDefaults = .standard) {
