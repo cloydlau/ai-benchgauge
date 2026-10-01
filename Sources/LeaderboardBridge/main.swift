@@ -258,8 +258,8 @@ actor Engine {
 
     private func project(category: LeaderboardCategory, grouping: String?, language: AppLanguage) -> State {
         let now = Date()
-        let formatter = ISO8601DateFormatter()
         let boards = category.boardKinds.map { kind -> Board in
+            let formatter = ISO8601DateFormatter()
             let board = snapshot.boards[kind]
             let standings = grouping == "company" ? CompanyLeaderboard.rank(board?.entries ?? []) : []
             let entries = grouping == "company" ? standings.map(\.entry) : (board?.entries ?? [])
@@ -330,7 +330,7 @@ actor Engine {
         return State(boards: boards, quotas: quotas, quotaNeedsCCSwitch: needsCCSwitch, quotaUnavailable: unavailable,
                      trayText: AccountQuotaFormatting.menuBarText(forChips: displayChips).map { "\($0.name) · \(language.quotaText($0.quota))" },
                      alerts: pending.map { Alert(title: language.quotaText($0.subtitle), body: language.quotaText($0.body)) },
-                     layoutEntries: layoutEntries, quotaUpdatedAt: quotaUpdatedAt.map { formatter.string(from: $0) })
+                     layoutEntries: layoutEntries, quotaUpdatedAt: quotaUpdatedAt.map { ISO8601DateFormatter().string(from: $0) })
     }
     private func color(_ tone: QuotaTone, dark: Bool) -> String {
         let rgb: QuotaRGB
