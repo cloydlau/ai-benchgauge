@@ -1,11 +1,11 @@
 // 成功和失败使用两个 macOS 应用身份，通知样式由系统按应用记住。
-// 已安装且版本一致的 Local CI Success/Failure 直接复用，避免覆盖同一 bundle。
+// 已安装且版本一致的 Calmmit Success/Failure 直接复用，避免覆盖同一 bundle。
 import { spawnSync } from 'node:child_process'
 import {
-  existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync,
+  copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync,
 } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const revision = '4'
@@ -20,8 +20,8 @@ function run(command, args, options = {}) {
 }
 
 export function notificationAppName(kind) {
-  if (kind === 'failure') return 'Local CI Failure'
-  if (kind === 'success') return 'Local CI Success'
+  if (kind === 'failure') return 'Calmmit Failure'
+  if (kind === 'success') return 'Calmmit Success'
   throw new Error(`未知通知类型：${kind}`)
 }
 
@@ -39,14 +39,14 @@ export function ensureNotificationApp(kind, directory) {
   }
   if (current()) return app
   mkdirSync(directory, { recursive: true })
-  const staging = mkdtempSync(join(directory, '.local-ci-notify-'))
+  const staging = mkdtempSync(join(directory, '.calmmit-notify-'))
   try {
     const compiled = join(staging, `${name}.app`)
     mkdirSync(join(compiled, 'Contents', 'MacOS'), { recursive: true })
     mkdirSync(join(compiled, 'Contents', 'Resources'))
     const plist = join(compiled, 'Contents', 'Info.plist')
     writeFileSync(plist, JSON.stringify({
-      CFBundleIdentifier: `local.limphase.ci.${kind}`,
+      CFBundleIdentifier: `org.calmmit.notify.${kind}`,
       CFBundleName: name,
       CFBundleDisplayName: name,
       CFBundleExecutable: 'notification-settings',
@@ -59,7 +59,7 @@ export function ensureNotificationApp(kind, directory) {
     run('/usr/bin/plutil', ['-convert', 'xml1', plist])
     const compiledBinary = join(compiled, 'Contents', 'MacOS', 'notification-settings')
     run('/usr/bin/xcrun', ['clang', '-fobjc-arc', '-framework', 'Foundation', '-framework', 'UserNotifications', source, '-o', compiledBinary])
-    run('/usr/bin/codesign', ['--force', '--sign', '-', '--identifier', `local.limphase.ci.${kind}`, compiledBinary])
+    run('/usr/bin/codesign', ['--force', '--sign', '-', '--identifier', `org.calmmit.notify.${kind}`, compiledBinary])
     writeFileSync(join(compiled, 'Contents', 'Resources', 'notification-revision'), revision)
     run('/usr/bin/codesign', ['--force', '--sign', '-', compiled])
     if (current()) return app
@@ -74,7 +74,7 @@ export function ensureNotificationApp(kind, directory) {
 }
 
 function appDirectories() {
-  const fallback = process.env.LOCAL_CI_NOTIFY_DIR || join(process.cwd(), 'work', 'notify-apps')
+  const fallback = process.env.CALMMIT_NOTIFY_DIR || join(process.cwd(), 'work', 'notify-apps')
   const homeApps = join(homedir(), 'Applications')
   return homeApps === fallback ? [homeApps] : [homeApps, fallback]
 }

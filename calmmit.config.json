@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "library": "../calmmit",
+  "preset": "swift",
+  "steps": {
+    "lint": true,
+    "tests": true,
+    "format": false,
+    "unused": false,
+    "build": true,
+    "dependencies": false,
+    "audit": false,
+    "secrets": true,
+    "media": true,
+    "alint": false
+  },
+  "commands": {
+    "lint": ["node", "Scripts/check-syntax.mjs"],
+    "tests": ["node", "Scripts/test.mjs"],
+    "build": ["node", "Scripts/ci-build.mjs"]
+  },
+  "profiles": {
+    "commit": ["lint", "tests", "alint"],
+    "check": ["lint", "tests", "build", "alint"],
+    "push": ["lint", "tests"]
+  },
+  "identity": {
+    "allowConfiguredModel": false,
+    "human": {
+      "name": "Cloyd Lau",
+      "email": "31238760+cloydlau@users.noreply.github.com"
+    },
+    "avatarDirectory": "assets/logos",
+    "avatarFiles": {
+      "glm": "zai.png",
+      "deepseek": "deepseek.png",
+      "openai": "openai.png",
+      "claude": "anthropic.png",
+      "kimi": "kimi.png",
+      "grok": "spacexai.png",
+      "qwen": "qwen.png",
+      "gemini": "google.png",
+      "meta": "meta.png",
+      "mimo": "xiaomi.png",
+      "devin": "devin.png"
+    },
+    "avatarAliases": {
+      "devin": "devin"
+    }
+  },
+  "commit": {
+    "review": true,
+    "generateMessage": true,
+    "push": false,
+    "split": true,
+    "autoUpgrade": false,
+    "backgroundReview": false,
+    "backgroundCoverage": false
+  },
+  "repair": {
+    "enabled": true
+  },
+  "dev": {
+    "enabled": true,
+    "command": ["node", "Scripts/watch.mjs"],
+    "themeColor": "#0070e3",
+    "update": ["node", "Scripts/dev-update-deps.mjs"]
+  }
+}

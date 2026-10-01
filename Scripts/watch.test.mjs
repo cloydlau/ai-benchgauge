@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { spawn } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { dirtyStatusSignature } from './watch.mjs'
 
@@ -23,7 +23,7 @@ test('staging a new version changes the commit retry signature', () => {
 
 // Run the real watcher in an isolated project. The build/restart scripts only
 // record calls; these tests never launch the user's app or use its accounts.
-function watcherFixture(t, { binary = 'fresh', restartFails = false, testsFail = false, gitWork = false, receiptCommit = null, env = {} } = {}) {
+function watcherFixture(t, { binary = 'fresh', restartFails = false, testsFail = false, commitFails = false, initiallyBusy = false, gitWork = false, receiptCommit = null, env = {} } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'benchgauge-watch-test-')))
   const scripts = join(root, 'Scripts')
   const app = join(root, 'outputs', 'AI-BenchGauge.app')
@@ -32,17 +32,22 @@ function watcherFixture(t, { binary = 'fresh', restartFails = false, testsFail =
   mkdirSync(join(root, 'Tests'))
   mkdirSync(join(app, 'Contents', 'MacOS'), { recursive: true })
   const original = dirname(fileURLToPath(import.meta.url))
-  for (const name of ['watch.mjs', 'commit-identity.mjs', 'desktop-notify.mjs', 'git-network.mjs', 'node-executable.mjs']) {
+  for (const name of ['calmmit.mjs', 'watch.mjs', 'commit-identity.mjs', 'desktop-notify.mjs', 'git-network.mjs', 'node-executable.mjs']) {
     copyFileSync(join(original, name), join(scripts, name))
   }
+  const config = JSON.parse(readFileSync(join(original, '../calmmit.config.json'), 'utf8'))
+  config.library = resolve(original, '..', config.library)
+  writeFileSync(join(root, 'calmmit.config.json'), JSON.stringify(config))
   const source = join(root, 'Sources', 'example.swift')
   const testFile = join(root, 'Tests', 'example.swift')
   writeFileSync(testFile, testsFail ? 'fail' : 'pass')
   writeFileSync(join(scripts, 'test-repair.mjs'), `import { appendFileSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 const root = fileURLToPath(new URL('../', import.meta.url))
+let calls = 0
 export async function runTestGate() {
   appendFileSync(root + 'events', 'test\\n')
+  if (${initiallyBusy} && calls++ === 0) return { status: 75, signature: null }
   return { status: readFileSync(root + 'Tests/example.swift', 'utf8') === 'fail' ? 1 : 0, signature: 'mock-pass', logPath: 'mock.log' }
 }
 `)
@@ -70,7 +75,7 @@ case "$1" in
 esac
 exit 0
 `, { mode: 0o755 })
-    writeFileSync(join(scripts, 'commit.mjs'), `import { appendFileSync, writeFileSync } from 'node:fs'; appendFileSync('events', 'commit\\n'); writeFileSync('commit.done', 'done'); writeFileSync('head', 'fixture-head-2')`)
+    writeFileSync(join(scripts, 'commit.mjs'), `import { appendFileSync, writeFileSync } from 'node:fs'; appendFileSync('events', 'commit\\n'); if (${commitFails}) process.exit(2); writeFileSync('commit.done', 'done'); writeFileSync('head', 'fixture-head-2')`)
   }
   const executable = join(app, 'Contents', 'MacOS', 'leaderboard-menu')
   if (binary !== 'missing') {
@@ -155,6 +160,7 @@ test('failed tests stop startup and saving a test file recovers without restarti
   const fixture = watcherFixture(t, { testsFail: true, binary: 'missing', env: { WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' } })
   await waitUntil(fixture, () => fixture.output().includes('等待测试相关文件变更'))
   assert.deepEqual(fixture.events(), ['test'])
+  assert.match(fixture.output().trim().split('\n').at(-1), /⚠【需人工介入】.*启动测试失败.*mock.log/)
   await new Promise((resolve) => setTimeout(resolve, 500))
   assert.deepEqual(fixture.events(), ['test'])
   writeFileSync(fixture.testFile, 'pass')
@@ -222,4 +228,36 @@ test('failed tests prevent commits and pushes; recovery runs tests before every 
   writeFileSync(fixture.testFile, 'pass')
   await waitUntil(fixture, () => fixture.events().includes('restart'))
   assert.deepEqual(fixture.events(), ['test', 'test', 'commit', 'push', 'build', 'restart'])
+})
+
+test('startup commits and pushes existing changes even when deployment is disabled', async (t) => {
+  const fixture = watcherFixture(t, {
+    gitWork: true,
+    env: { APP_AUTODEPLOY: '0', WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200', COMMIT_PUSH: '1', WATCH_AUTOPUSH: '1' },
+  })
+  await waitUntil(fixture, () => fixture.output().includes('【已完成】'))
+  assert.match(fixture.output(), /【等待自动处理】.*启动时检测到未提交改动/)
+  assert.deepEqual(fixture.events(), ['test', 'test', 'commit', 'push'])
+})
+
+test('a failed commit stays visible after a successful rebuild without looping', async (t) => {
+  const fixture = watcherFixture(t, {
+    gitWork: true, commitFails: true,
+    env: { WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200', COMMIT_PUSH: '0' },
+  })
+  await waitUntil(fixture, () => fixture.output().includes('⚠【需人工介入】'))
+  assert.match(fixture.output().trim().split('\n').at(-1), /⚠【需人工介入】.*提交失败.*commit-last.log/)
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  assert.equal(fixture.events().filter((event) => event === 'commit').length, 1)
+  assert.doesNotMatch(fixture.output(), /【已完成】/)
+})
+
+test('startup retries a transient test lock without waiting for another edit', async (t) => {
+  const fixture = watcherFixture(t, {
+    gitWork: true, initiallyBusy: true,
+    env: { APP_AUTODEPLOY: '0', WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200', COMMIT_PUSH: '0' },
+  })
+  await waitUntil(fixture, () => fixture.output().includes('【已完成】'))
+  assert.deepEqual(fixture.events(), ['test', 'test', 'commit'])
+  assert.doesNotMatch(fixture.output(), /⚠【需人工介入】/)
 })

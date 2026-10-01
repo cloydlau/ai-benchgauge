@@ -109,7 +109,7 @@ test('每家有内置图标的模型都指向仓库里真实存在的 PNG', () =
   }
 })
 
-test('GLM 各别名使用已关联的 Z.ai Bot 邮箱，模型署名保持不变', () => {
+test('GLM 各别名保留模型署名与现有邮箱，不证明品牌头像可用', () => {
   for (const model of ['GLM-5.3', 'glm-5.3-flash', 'zhipu', 'zai']) {
     assert.equal(emailForModel(model), 'zai-bot@users.noreply.github.com')
     const identity = resolveCommitIdentity({ env: { MODEL_NAME: model } })
@@ -118,7 +118,7 @@ test('GLM 各别名使用已关联的 Z.ai Bot 邮箱，模型署名保持不变
   }
 })
 
-test('真实 Git 提交写入 GLM 模型署名与可关联头像的邮箱', (t) => {
+test('真实 Git 提交写入 GLM 模型署名与邮箱，不带 Co-authored-by', (t) => {
   const root = mkdtempSync(join(tmpdir(), 'benchgauge-commit-identity-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const identity = resolveCommitIdentity({ env: { MODEL_NAME: 'glm-5.3' } })

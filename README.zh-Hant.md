@@ -114,10 +114,12 @@ open outputs/AI-BenchGauge.app
 
 <br>
 
+本機流程讀取 [calmmit.config.json](calmmit.config.json)，直接執行 `../calmmit` 的原始碼，也可用 `CALMMIT_PATH` 指定其他本機目錄。各項功能開關保存在本儲存庫，無需發布 npm。入口與 GitHub Actions 所需的兩個儲存庫變數見 [Calmmit 接入說明](docs/CALMMIT.md)。
+
 本機流程先執行完整的 Swift 核心、Node.js 腳本與 Windows 更新測試，通過後再依用途提交、推送、建置及重啟，同時保留模型署名、頭像、桌面通知及防抖節流。
 
 ```bash
-./dev.sh
+MODEL_NAME=實際模型名 ./dev.sh
 ```
 
 `./dev.sh` 啟動時先執行測試，再重新開啟最新應用；如果執行檔缺失或原始碼較新，會先建置再啟動。後續儲存依照下列防抖與節流間隔處理。測試失敗會阻擋後續動作，監看程式持續等待，儲存修復後重新驗證。
@@ -139,15 +141,15 @@ DESKTOP_NOTIFY=0 node Scripts/ci-checks.mjs  # 語法、測試、正式應用建
 測試範圍與可選網頁快照請見 [測試說明](docs/testing.md)。更新流程腳本後，已執行的 `./dev.sh` 需要重啟一次。
 
 ```bash
-Scripts/commit.sh                 # 立即暫存全部變更並依用途拆分提交
-Scripts/commit.sh --dry-run       # 僅列印提交計畫
-Scripts/commit.sh --identity      # 查看模型名稱、電子郵件與頭像
-Scripts/commit.sh -m "feat(menu): …"
+MODEL_NAME=實際模型名 Scripts/commit.sh                 # 立即暫存全部變更並依用途拆分提交
+MODEL_NAME=實際模型名 Scripts/commit.sh --dry-run       # 僅列印提交計畫
+MODEL_NAME=實際模型名 Scripts/commit.sh --identity      # 查看模型名稱與電子郵件
+MODEL_NAME=實際模型名 Scripts/commit.sh -m "feat(menu): …"
 ```
 
-提交作者採用 Codex 設定中的目前模型，電子郵件依供應商設定。桌面通知會盡量附上模型頭像，成功與失敗通知都使用暫時顯示的樣式。`COMMIT_SPLIT=0` 將變更合併為單一提交；`COMMIT_CODEX_MESSAGE=0` 不呼叫模型，而是依用途分組。`Scripts/commit.sh` 的 `COMMIT_PUSH` 預設仍為關閉。`COMMIT_COAUTHOR=1` 才會將使用者恢復為 committer，並加入 `Co-authored-by`。`DESKTOP_NOTIFY=0` 關閉桌面通知。
+用 `MODEL_NAME` 明確傳入實際修改程式碼的模型；author 與 committer 均使用該模型，不根據 Codex 全域預設設定猜測身分。`COMMIT_SPLIT=0` 合併為單一提交；`COMMIT_CODEX_MESSAGE=0` 使用一條本機產生的提交訊息。單獨提交預設不推送，`DESKTOP_NOTIFY=0` 關閉通知。
 
-截圖與錄影一律不允許模型直接提交。暫存區新增或修改錄影（`.gif`、`.mov`、`.mp4` 等）、截圖目錄或檔名（`docs/screenshots/`、`截屏…`、`frame-0001.png`），或 `assets/logos/`、`docs/logo/` 以外的點陣圖時，`Scripts/commit.mjs` 會在寫入歷史前直接中止。本人逐格確認畫面後加上 `COMMIT_MEDIA_REVIEWED=1` 重跑，或用 `COMMIT_COAUTHOR=1` 以本人身分提交；兩種方式都會在提交訊息裡留下 `Media-Reviewed-By` 審核記錄。刪除畫面不受限制。CI 用 `node Scripts/media-gate-ci.mjs <base> <head>` 複查推送範圍內的每個提交，繞過 `Scripts/commit.sh` 的直接 `git commit` 也會被擋下。
+所有新增或修改的點陣圖與錄影都經過共用的獨立 AI 隱私與用途審查。製作前在忽略的 `.media-review.local.json` 中聲明準確路徑與用途；審核記錄綁定實際 Git blob 與聲明用途，內容或用途變更後需要重新審查。儲存庫擁有者完整審核畫面後，可明確設定 `COMMIT_MEDIA_REVIEWED=1` 授予人工例外。刪除畫面不受限制。`node Scripts/media-gate-ci.mjs <base> <head>` 複查完整推送範圍，包括合併提交新引入的媒體。
 
 </details>
 

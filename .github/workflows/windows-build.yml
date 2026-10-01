@@ -11,9 +11,25 @@ jobs:
   windows:
     runs-on: windows-2022
     timeout-minutes: 60
+    env:
+      CALMMIT_PATH: ${{ github.workspace }}/.calmmit-library
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
+      - name: Require shared CI source repository
+        shell: pwsh
+        env:
+          CALMMIT_REPOSITORY: ${{ vars.CALMMIT_REPOSITORY }}
+          CALMMIT_SHA: ${{ vars.CALMMIT_SHA }}
+        run: |
+          if (-not $env:CALMMIT_REPOSITORY) { throw 'Set CALMMIT_REPOSITORY to the shared library repository.' }
+          if ($env:CALMMIT_SHA -notmatch '^[0-9a-f]{40}$') { throw 'Set CALMMIT_SHA to a reviewed immutable commit SHA.' }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ vars.CALMMIT_REPOSITORY }}
+          ref: ${{ vars.CALMMIT_SHA }}
+          path: .calmmit-library
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:

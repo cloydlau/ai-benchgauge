@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, readFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 
@@ -36,7 +36,7 @@ test('录屏、GIF 和截图命中门禁，仓库里的设计稿不命中', () =
     'assets/logos/kimi.png', 'docs/logo/social-preview.png', 'docs/logo/ai-benchgauge-menubar-22@2x.png',
     'docs/logo/AI-BenchGauge.icns', 'docs/overview.svg', 'docs/architecture.md', 'Scripts/commit.mjs',
     'apps/windows/BenchGauge/App.xaml', 'Sources/LeaderboardCore/Quota.swift',
-  ]) assert.equal(isMediaPath(path), false, path)
+  ]) assert.equal(isMediaPath(path), /\.(png|jpe?g|webp|avif|heic|heif|tiff?|bmp)$/i.test(path), path)
 })
 
 test('只有新增和修改会进历史，删除截图不需要审核', () => {
@@ -95,9 +95,12 @@ test('CI 脚本拒绝没有审核记录的截图提交，补上记录或删除�
   t.after(() => rmSync(root, { recursive: true, force: true }))
   mkdirSync(join(root, 'Scripts'), { recursive: true })
   mkdirSync(join(root, 'docs', 'screenshots'), { recursive: true })
-  for (const file of ['media-gate.mjs', 'media-gate-ci.mjs', 'commit-identity.mjs']) {
+  for (const file of ['calmmit.mjs', 'media-gate.mjs', 'media-gate-ci.mjs', 'commit-identity.mjs']) {
     copyFileSync(join(original, file), join(root, 'Scripts', file))
   }
+  const config = JSON.parse(readFileSync(join(original, '../calmmit.config.json'), 'utf8'))
+  config.library = resolve(original, '..', config.library)
+  writeFileSync(join(root, 'calmmit.config.json'), JSON.stringify(config))
   const gate = (...args) => spawnSync(process.execPath, [join(root, 'Scripts', 'media-gate-ci.mjs'), ...args], { cwd: root, encoding: 'utf8' })
   const git = (args) => {
     const result = spawnSync('git', args, {
@@ -117,18 +120,18 @@ test('CI 脚本拒绝没有审核记录的截图提交，补上记录或删除�
 
   const blocked = gate()
   assert.equal(blocked.status, 1)
-  assert.match(blocked.stderr, /没有人工审核记录/)
+  assert.match(blocked.stderr, /没有匹配的审核记录/)
   assert.match(blocked.stderr, /docs\/screenshots\/menu\.png（截图目录）/)
 
   git(['commit', '-q', '--amend', '-m', `docs(menu): add preview\n\n${MEDIA_REVIEW_TRAILER}: ${HUMAN.name} <${HUMAN.email}>`])
   const allowed = gate()
   assert.equal(allowed.status, 0, allowed.stderr)
-  assert.match(allowed.stdout, /已人工审核/)
+  assert.match(allowed.stdout, /已通过媒体审核/)
 
   git(['rm', '-q', 'docs/screenshots/menu.png'])
   git(['commit', '-qm', 'docs(menu): remove preview'])
   assert.equal(gate().status, 0)
   const ranged = gate('HEAD~2', 'HEAD')
   assert.equal(ranged.status, 0, ranged.stderr)
-  assert.match(ranged.stdout, /1 个含截图\/录屏且已人工审核/)
+  assert.match(ranged.stdout, /1 个含媒体且已通过审核/)
 })
