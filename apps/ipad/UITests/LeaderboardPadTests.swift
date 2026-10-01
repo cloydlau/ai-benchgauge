@@ -261,10 +261,10 @@ final class LeaderboardPhoneTests: XCTestCase {
         waitForButton("attribution")
         waitForButton("share")
         waitForButton("language-menu")
-        capture("iphone-long-dark")
+        capture("iphone-long-dark", checkingDarkFooter: true)
         app.buttons["refresh"].tap()
         waitForFace("artificialAnalysis")
-        capture("iphone-long-dark-refreshed")
+        capture("iphone-long-dark-refreshed", checkingDarkFooter: true)
         let viewport = app.otherElements["cube-viewport"]
         viewport.swipeUp()
         viewport.swipeUp()
@@ -274,7 +274,7 @@ final class LeaderboardPhoneTests: XCTestCase {
         }
         XCTAssertNotNil(visible)
         let firstY = visible.map { app.buttons["name-artificialAnalysis-\($0)"].frame.minY }
-        capture("iphone-scrolled-first-face")
+        capture("iphone-scrolled-first-face", checkingDarkFooter: true)
         app.buttons["face-1"].tap()
         waitForFace("arenaText")
         if let rank = visible, let firstY {
@@ -282,12 +282,12 @@ final class LeaderboardPhoneTests: XCTestCase {
             XCTAssertTrue(row.isHittable, "Keep the same rank visible for comparison")
             XCTAssertEqual(row.frame.minY, firstY, accuracy: 48, "The compared rank must stay near the same vertical position, not return to rank 1")
         }
-        capture("iphone-scrolled-second-face")
+        capture("iphone-scrolled-second-face", checkingDarkFooter: true)
         XCUIDevice.shared.orientation = .landscapeLeft
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             self.app.windows.firstMatch.frame.width > self.app.windows.firstMatch.frame.height
         }, object: app.windows.firstMatch)], timeout: 10), .completed)
-        capture("iphone-landscape-dark")
+        capture("iphone-landscape-dark", checkingDarkFooter: true)
         XCTAssertTrue(app.buttons["face-0"].isHittable)
         XCTAssertTrue(app.buttons["share"].isHittable)
         assertCategorySegments()
@@ -296,7 +296,7 @@ final class LeaderboardPhoneTests: XCTestCase {
         app.segmentedControls["grouping"].buttons["公司"].tap()
         XCTAssertTrue(app.buttons["country-artificialAnalysis"].isHittable, "Grouping changes must return to the top")
         XCTAssertTrue(app.buttons["name-artificialAnalysis-1"].isHittable)
-        capture("iphone-reset-companies-landscape")
+        capture("iphone-reset-companies-landscape", checkingDarkFooter: true)
     }
     func testCubeMidTurnNativeCapture() {
         app.launchArguments += ["--cube-preview", "--preview-zh"]
@@ -312,7 +312,7 @@ final class LeaderboardPhoneTests: XCTestCase {
         waitForFace("artificialAnalysis")
         swipe(left: true)
         waitForFace("arenaText")
-        capture("iphone-reduced-motion")
+        capture("iphone-reduced-motion", checkingDarkFooter: true)
         app.buttons["face-0"].tap()
         waitForFace("artificialAnalysis")
     }
@@ -339,11 +339,36 @@ final class LeaderboardPhoneTests: XCTestCase {
         let end = viewport.coordinate(withNormalizedOffset: CGVector(dx: left ? 0.15 : 0.85, dy: 0.5))
         start.press(forDuration: 0.08, thenDragTo: end)
     }
-    private func capture(_ name: String) {
+    private func capture(_ name: String, checkingDarkFooter: Bool = false) {
         Thread.sleep(forTimeInterval: 0.75)
-        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        let screenshot = XCUIScreen.main.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+        if checkingDarkFooter { assertDarkFooterVisible(in: screenshot) }
+    }
+    private func assertDarkFooterVisible(in screenshot: XCUIScreenshot) {
+        guard let image = screenshot.image.cgImage else { return XCTFail("Native screenshot has no pixels") }
+        let window = app.windows.firstMatch.frame
+        let scale = CGFloat(image.width) / window.width
+        // Accessibility can report a tappable control whose glyphs were never
+        // painted. Inspect the very same native capture retained above.
+        for identifier in ["attribution", "share", "language-menu"] {
+            let frame = app.buttons[identifier].frame
+            let rect = CGRect(x: (frame.minX - window.minX) * scale, y: (frame.minY - window.minY) * scale,
+                              width: frame.width * scale, height: frame.height * scale).integral
+            guard let crop = image.cropping(to: rect) else { return XCTFail("Missing screenshot region for \(identifier)") }
+            var bytes = [UInt8](repeating: 0, count: crop.width * crop.height * 4)
+            let visible = bytes.withUnsafeMutableBytes { buffer -> Int in
+                guard let context = CGContext(data: buffer.baseAddress, width: crop.width, height: crop.height,
+                    bitsPerComponent: 8, bytesPerRow: crop.width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue) else { return 0 }
+                context.draw(crop, in: CGRect(x: 0, y: 0, width: crop.width, height: crop.height))
+                let pixels = buffer.bindMemory(to: UInt8.self)
+                return stride(from: 0, to: pixels.count, by: 4).filter { max(pixels[$0], pixels[$0 + 1], pixels[$0 + 2]) > 128 }.count
+            }
+            XCTAssertGreaterThan(visible, 16, "\(identifier) must paint visible glyphs on the dark footer")
+        }
     }
 }
