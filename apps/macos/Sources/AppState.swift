@@ -99,8 +99,10 @@ final class AppState: ObservableObject {
     /// timers, network requests, authentication or account refreshes.
     func applyVisualFixture(snapshot: LeaderboardSnapshot, chips: [AccountQuotaChip],
                             language: AppLanguage, errors: [LeaderboardKind: String],
-                            emptyState: CCSwitchState?, panelMode: PanelMode = .clickToClose) {
+                            emptyState: CCSwitchState?, panelMode: PanelMode = .clickToClose, quotaUpdatedAt: Date? = nil, quotaUnavailable: Bool = false) {
         self.snapshot = snapshot
+        self.quotaUpdatedAt = quotaUpdatedAt
+        self.quotaUnavailable = quotaUnavailable
         quotaChips = chips
         selectedLanguage = language
         selectedCategory = .general

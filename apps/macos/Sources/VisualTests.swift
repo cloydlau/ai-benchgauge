@@ -14,8 +14,8 @@ enum NativeVisualCapture {
         struct Run: Decodable { let text: String }
         let id: String; let name: String; let isCurrent: Bool; let runs: [Run]
     }
-    struct State: Decodable { let boards: [Board]; let quotas: [Quota] }
-    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String }
+    struct State: Decodable { let boards: [Board]; let quotas: [Quota]; let quotaUpdatedAt: String? }
+    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int? }
     struct Fixture: Decodable { let state: State; let cases: [Case] }
 
     static func run() async throws {
@@ -51,11 +51,26 @@ enum NativeVisualCapture {
                 let state = AppState(cache: LeaderboardCache(fileURL: output.appending(path: "nonexistent-cache.json")), defaults: defaults)
                 let visibleChips = test.scenario == "manyQuotas" ? chips : (test.scenario == "empty" || test.scenario == "error" ? [] : Array(chips.prefix(2)))
                 let errors: [LeaderboardKind: String] = test.scenario == "error" ? [.artificialAnalysis: "Refresh failed / 刷新失败（测试）", .arenaText: "Refresh failed / 刷新失败（测试）"] : [:]
+                let quotaDate: Date?
+                if let age = test.quotaAgeSeconds {
+                    quotaDate = age < 0 ? nil : Date().addingTimeInterval(-Double(age))
+                } else {
+                    quotaDate = fixture.state.quotaUpdatedAt.flatMap { ISO8601DateFormatter().date(from: $0) }
+                }
+                let fetchedBoards = boards.mapValues { board in
+                    Leaderboard(kind: board.kind, title: board.title, sourceUpdatedAt: board.sourceUpdatedAt,
+                                fetchedAt: quotaDate ?? fixedDate, entries: board.entries)
+                }
+                let stale = test.scenario == "freshnessStale"
+                let shownChips = stale ? visibleChips.map { chip in
+                    AccountQuotaChip(id: chip.id, shortName: chip.shortName, websiteURL: chip.websiteURL,
+                                     kind: chip.kind, isCurrent: chip.isCurrent, status: chip.status, isStale: true)
+                } : visibleChips
                 func apply() {
-                    state.applyVisualFixture(snapshot: LeaderboardSnapshot(boards: boards), chips: visibleChips,
+                    state.applyVisualFixture(snapshot: LeaderboardSnapshot(boards: fetchedBoards), chips: shownChips,
                         language: AppLanguage(rawValue: test.language)!, errors: errors,
                         emptyState: test.scenario == "empty" ? .notInstalled : nil,
-                        panelMode: test.scenario == "window" ? .window : .clickToClose)
+                        panelMode: test.scenario == "window" ? .window : .clickToClose, quotaUpdatedAt: quotaDate, quotaUnavailable: stale)
                 }
                 apply()
                 let size = NSSize(width: test.width, height: test.height)
