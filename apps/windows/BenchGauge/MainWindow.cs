@@ -48,11 +48,12 @@ sealed partial class MainWindow : Window
         FontFamily = new FontFamily("Segoe UI, Microsoft YaHei UI"); FontSize = 13;
         UseLayoutRounding = true; SnapsToDevicePixels = true;
         ConfigurePanelStyles();
-        Background = new SolidColorBrush(Color.FromRgb(255, 255, 255));
+        Microsoft.Win32.SystemEvents.UserPreferenceChanged += SystemAppearanceChanged;
+        Closed += (_, _) => Microsoft.Win32.SystemEvents.UserPreferenceChanged -= SystemAppearanceChanged;
         Content = new Border { Padding = new Thickness(0), Child = content };
         quotaArea.Children.Add(quotaPanel); quotaArea.Children.Add(privatePrompt);
         ApplyMode(); Render();
-        SizeChanged += (_, _) => { if (!rendering && Math.Abs(ActualWidth - renderedPanelWidth) > 1) Render(); };
+        SizeChanged += (_, _) => Dispatcher.BeginInvoke(() => { if (!closing && !rendering && Content is FrameworkElement client && Math.Abs(client.ActualWidth - renderedPanelWidth) > 1) Render(); }, DispatcherPriority.Loaded);
         Closing += (_, e) => { if (!closing) { e.Cancel = true; Hide(); SaveFrame(); } };
         Deactivated += (_, _) => Dispatcher.BeginInvoke(() =>
         {

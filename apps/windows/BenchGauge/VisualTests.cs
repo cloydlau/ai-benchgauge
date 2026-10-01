@@ -74,15 +74,17 @@ static class VisualTests
             ?? throw new InvalidOperationException("Missing visual fixture");
         var metadata = new List<object>();
         foreach (var test in fixture.Cases)
+        foreach (var theme in new[] { "light", "dark" })
         {
             var state = fixture.State;
             if (test.Scenario is "normal" or "window") state = state with { Quotas = state.Quotas.Take(2).ToArray() };
-            if (test.Scenario == "empty") state = state with { Quotas = [], QuotaNeedsCCSwitch = true };
+            if (test.Scenario is "empty" or "installedEmpty") state = state with { Quotas = [], QuotaNeedsCCSwitch = test.Scenario == "empty" };
             if (test.Scenario == "error") state = state with { Boards = state.Boards.Select(board => board with { Error = "Refresh failed / 刷新失败（测试）" }).ToArray(), Quotas = [] };
             var window = new MainWindow(null, new Preferences { Language = test.Language, PanelMode = test.Scenario == "window" ? "window" : test.Mode })
                 { Width = test.Width, Height = test.Height };
             try
             {
+                window.SetVisualAppearance(theme == "dark");
                 window.SetState(state); window.Reveal();
                 Settle(window);
                 // Fixture dimensions describe the content, independent of
@@ -116,10 +118,10 @@ static class VisualTests
                     for (var y = 0; y < bitmap.Height; y += 7)
                     for (var x = 0; x < bitmap.Width; x += 7) colors.Add(bitmap.GetPixel(x, y).ToArgb());
                     if (colors.Count < 20) throw new InvalidOperationException("Blank Windows desktop capture: " + test.Id);
-                    bitmap.Save(Path.Combine(directory, $"{test.Id}-frame-{frame}.png"), Drawing.Imaging.ImageFormat.Png);
+                    bitmap.Save(Path.Combine(directory, $"{test.Id}{(theme == "dark" ? "-dark" : "")}-frame-{frame}.png"), Drawing.Imaging.ImageFormat.Png);
                 }
                 var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(window);
-                metadata.Add(new { test.Id, test.Language, test.Scenario, test.Width, test.Height,
+                metadata.Add(new { test.Id, theme, test.Language, test.Scenario, test.Width, test.Height,
                     clientPixelWidth = rect.Right, clientPixelHeight = rect.Bottom, dpiScale = dpi.DpiScaleX,
                     fixtureHash, timezone = TimeZoneInfo.Local.Id,
                     sourceCommit = Environment.GetEnvironmentVariable("GITHUB_SHA") ?? "local-uncommitted",

@@ -16,11 +16,11 @@ img{display:block;width:100%;height:auto;background:#fff}.overlay{display:grid;m
 </style>
 <h1>AI BenchGauge · 原生窗口对照</h1>
 <p>相同测试数据与内容尺寸，逐张查看打开、刷新和稳定后的画面。图片来自实际 WPF 窗口与 AppKit / SwiftUI 窗口。</p>
-<p class="note">Windows：Server 2022，实际缩放见下方。Mac：浅色与深色各三帧。此报告尚未覆盖 Windows 10/11、125%/150% 缩放及连续动画。</p>
+<p class="note">Windows：Server 2022，实际缩放见下方。Mac / Windows：浅色与深色各三帧。此报告尚未覆盖 Windows 10/11、125%/150% 缩放及连续动画。</p>
 <div class="controls">
   <label>页面状态<select id="case"></select></label>
   <label>帧<select id="frame"><option value="0">① 打开后</option><option value="1">② 刷新后</option><option value="2" selected>③ 稳定后</option></select></label>
-  <label>Mac 外观<select id="theme"><option value="light">浅色</option><option value="dark">深色（Windows 当前固定浅色）</option></select></label>
+  <label>外观<select id="theme"><option value="light">浅色</option><option value="dark">深色</option></select></label>
   <label>对照方式<select id="view"><option value="side">并排</option><option value="overlay">叠加</option><option value="difference">像素差异</option></select></label>
   <label id="blend-label" hidden>Windows 叠加透明度<input id="blend" type="range" min="0" max="100" value="50"></label>
 </div>
@@ -57,15 +57,16 @@ async function render() {
   const frame = item.frames[Number(byId('frame').value)];
   const theme = byId('theme').value;
   const mode = byId('view').value;
+  const windowsImage = theme === 'dark' && frame.windowsDark ? frame.windowsDark : frame.windows;
   byId('metadata').textContent = `${item.width} × ${item.height} 内容尺寸 · Windows ${Math.round(item.windows.dpiScale*100)}% · ${item.windows.os} · Mac ${item.macos.find(value=>value.theme===theme).os}`;
   byId('pictures').hidden = mode !== 'side'; byId('overlay').hidden = mode !== 'overlay'; byId('diff-panel').hidden = mode !== 'difference';
   byId('blend-label').hidden = mode !== 'overlay';
-  byId('mac-image').src = frame[theme]; byId('windows-image').src = frame.windows;
-  byId('overlay-mac').src = frame[theme]; byId('overlay-windows').src = frame.windows;
+  byId('mac-image').src = frame[theme]; byId('windows-image').src = windowsImage;
+  byId('overlay-mac').src = frame[theme]; byId('overlay-windows').src = windowsImage;
   byId('overlay-windows').style.opacity = Number(byId('blend').value)/100;
   if (mode === 'difference') {
     const load = src => new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=src;});
-    const [mac,win] = await Promise.all([load(frame[theme]),load(frame.windows)]);
+    const [mac,win] = await Promise.all([load(frame[theme]),load(windowsImage)]);
     if(token!==revision)return;
     const canvas = byId('diff');canvas.width=item.width;canvas.height=item.height;
     const context=canvas.getContext('2d',{willReadFrequently:true});context.drawImage(mac,0,0,item.width,item.height);const a=context.getImageData(0,0,item.width,item.height);

@@ -65,3 +65,11 @@ test('PR CI always captures and release publishing depends on the protected revi
   assert.doesNotMatch(ci + visual, /\n\s+paths:/)
   assert.doesNotMatch(release + visual, /continue-on-error: true/)
 })
+
+test('CI requires actual Windows dark captures, including every viewport and revision', () => {
+  assert.throws(() => validateCaptureMetadata(fixture, win(), mac(), 'hash', revision, true), /Windows dark/)
+  const both = [{ ...win()[0], theme: 'light' }, { ...win()[0], theme: 'dark' }]
+  assert.doesNotThrow(() => validateCaptureMetadata(fixture, both, mac(), 'hash', revision, true))
+  both[1].clientPixelHeight = 819
+  assert.throws(() => validateCaptureMetadata(fixture, both, mac(), 'hash', revision, true), /Windows client/)
+})
