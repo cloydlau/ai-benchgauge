@@ -317,7 +317,8 @@ struct LeaderboardView: View {
     }
 
     private var appTitle: some View {
-        HStack(alignment: .center, spacing: 8) {
+        let version = versionLabel
+        return HStack(alignment: .center, spacing: 8) {
             Text("AI BenchGauge")
                 // Snell Roundhand ships with macOS, so referencing it by
                 // name needs no font bundling or license.
@@ -327,13 +328,13 @@ struct LeaderboardView: View {
                     Self.textInkCenter(dimensions, text: "AI BenchGauge",
                         font: NSFont(name: "SnellRoundhand-Bold", size: 21)!)
                 }
-            Button(versionLabel) { appUpdater.checkForUpdates() }
+            Button(version) { appUpdater.checkForUpdates() }
                 .buttonStyle(.plain)
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
                 .monospacedDigit()
                 .alignmentGuide(VerticalAlignment.center) { dimensions in
-                    Self.textInkCenter(dimensions, text: versionLabel,
+                    Self.textInkCenter(dimensions, text: version,
                         font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular))
                 }
                 .disabled(!appUpdater.canCheckForUpdates)
