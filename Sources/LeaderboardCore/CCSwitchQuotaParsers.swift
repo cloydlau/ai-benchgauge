@@ -1,3 +1,4 @@
+import LeaderboardKit
 import Foundation
 #if canImport(CoreFoundation)
 import CoreFoundation

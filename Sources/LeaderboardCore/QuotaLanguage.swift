@@ -1,60 +1,8 @@
 import Foundation
+import LeaderboardKit
 
-/// The interface follows the system's preferred languages until the user chooses one.
-public enum AppLanguage: String, CaseIterable, Sendable {
-    case english = "en"
-    case chinese = "zh"
-    case traditionalChinese = "zh-Hant"
-
-    public static let preferenceKey = "interfaceLanguage"
-
-    public static func load(
-        from defaults: UserDefaults = .standard,
-        preferredLanguages: [String] = Locale.preferredLanguages
-    ) -> AppLanguage {
-        if let raw = defaults.string(forKey: preferenceKey),
-           let saved = AppLanguage(rawValue: raw) {
-            return saved
-        }
-        for identifier in preferredLanguages {
-            let language = Locale(identifier: identifier).language
-            switch language.languageCode?.identifier {
-            case "zh":
-                return language.script?.identifier == "Hant" ? .traditionalChinese : .chinese
-            case "en":
-                return .english
-            default:
-                continue
-            }
-        }
-        return .english
-    }
-
-    public func save(to defaults: UserDefaults = .standard) {
-        defaults.set(rawValue, forKey: Self.preferenceKey)
-    }
-
-    public func text(_ english: String, _ chinese: String) -> String {
-        switch self {
-        case .english: english
-        case .chinese: chinese
-        case .traditionalChinese: Self.traditional(chinese)
-        }
-    }
-
-    public var locale: Locale {
-        switch self {
-        case .english: Locale(identifier: "en_US")
-        case .chinese: Locale(identifier: "zh_CN")
-        case .traditionalChinese: Locale(identifier: "zh_Hant")
-        }
-    }
-
-    private static func traditional(_ value: String) -> String {
-        value.applyingTransform(StringTransform("Hans-Hant"), reverse: false) ?? value
-    }
-
-    public func providerName(_ kind: CCSwitchQuotaKind) -> String {
+public extension AppLanguage {
+    func providerName(_ kind: CCSwitchQuotaKind) -> String {
         switch kind {
         case .officialNote: "OpenAI"
         case .kimi: "Kimi"
@@ -62,17 +10,23 @@ public enum AppLanguage: String, CaseIterable, Sendable {
         case .xaiOAuth: "xAI"
         case .zhipu: "GLM"
         case .qwen: "Qwen"
+        case .minimax: "MiniMax"
+        case .stepfun: "StepFun"
+        case .blackForestLabs: "Black Forest Labs"
+        case .luma: "Luma"
+        case .claude: "Claude"
+        case .gemini: "Gemini"
         }
     }
 
     /// Quota values arrive as structured data, but the existing formatter also
     /// produces a few fixed Chinese phrases. Convert only that known UI copy.
     /// Model and company names never pass through this function.
-    public func quotaText(_ value: String) -> String {
+    func quotaText(_ value: String) -> String {
         if self == .traditionalChinese {
             // A lone “余” is ambiguous to ICU; this label means remaining balance.
             let copy = value.hasPrefix("余 ") ? "餘 " + value.dropFirst(2) : value
-            return Self.traditional(copy)
+            return text("", copy)
         }
         guard self == .english else { return value }
         let exact: [String: String] = [
@@ -81,19 +35,29 @@ public enum AppLanguage: String, CaseIterable, Sendable {
             "未登录": "Not signed in", "网络错误": "Network error",
             "无可用余额": "No balance", "未连接": "Connect",
             "等待授权": "Waiting for authorization",
+            "MiniMax Coding Plan 套餐额度，与海螺视频额度独立": "MiniMax Coding Plan quota; Hailuo video credits are separate",
+            "Luma API 余额，与 Dream Machine 网页订阅额度独立": "Luma API balance; Dream Machine subscription credits are separate",
+            "StepFun API 账户余额": "StepFun API account balance",
+            "Claude 官方订阅额度；登录过期时请在官方客户端重新登录": "Claude subscription quota; sign in again in the official client when the login expires",
+            "Gemini Code Assist 额度，与图片和视频 API 计费独立；登录过期时请在官方客户端重新登录": "Gemini Code Assist quota; image/video API billing is separate. Sign in again in the official client when the login expires",
             "请在浏览器中完成 OpenAI 授权": "Complete OpenAI authorization in your browser",
             "正在查询官方用量": "Checking official usage",
             "没有可用的 API Key 或供应商令牌，未发起查询": "No API key or provider token; no query sent",
             "没有可用的 xAI 登录，未发起查询": "No xAI sign-in; no query sent",
             "Grok 登录在 CC Switch 中完成，请在 CC Switch 中登录": "Grok sign-in is completed in CC Switch; sign in there",
+            AccountQuotaMessage.xaiSubscriptionHelp: "Click to connect the xAI plan inside the app; dates refresh automatically and are checked against the quota account",
             "只显示千问账号套餐剩余，多设备共用，不统计本机请求": "Shows the Qwen account plan balance shared across devices",
             "当前供应商": "Current provider",
+            "套餐日期来自已保存的查询结果；接口暂时不可用": "Plan date from a saved query; the endpoint is temporarily unavailable",
             "千问官网套餐额度（qianwen CLI 当前登录账号）": "Qwen plan quota (current qianwen CLI account)",
             "千问官网个人版用量（网页显示的剩余百分比；网页未提供精确 Credits）": "Qwen personal plan remaining percentage; exact credits are unavailable",
             "本期将在2天内结束": "Current period ends within 2 days",
             AccountQuotaFormatting.deadlineColorReference: "Date colors: 14+ days remaining green, 7 days yellow, 2 days orange, 0 days red; continuous transitions. The date only marks the current period boundary.",
         ]
         if let translated = exact[value] { return translated }
+        if value.hasPrefix("重置") {
+            return "Resets " + Self.englishDate(in: String(value.dropFirst(2)))
+        }
         if value.hasPrefix("余量达到") {
             return value.replacingOccurrences(of: "余量达到", with: "Remaining quota reached ")
         }

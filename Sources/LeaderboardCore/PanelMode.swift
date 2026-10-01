@@ -1,3 +1,4 @@
+import LeaderboardKit
 import Foundation
 
 public enum PanelMode: String, CaseIterable, Identifiable, Sendable {

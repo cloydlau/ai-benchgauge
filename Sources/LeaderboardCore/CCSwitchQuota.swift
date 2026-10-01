@@ -1,3 +1,4 @@
+import LeaderboardKit
 import Foundation
 
 /// CC Switch Codex-provider quota, reduced to display data.

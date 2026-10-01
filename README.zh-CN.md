@@ -30,6 +30,7 @@
 
 | 系统 | 处理器 | 支持情况 |
 | --- | --- | --- |
+| iOS 17 / iPadOS 17 及以上 | 能运行对应系统的 iPhone、iPad | 已加入原生工程，尚未发布公开 TestFlight / App Store 版本 |
 | Windows 11 | 64 位 Intel / AMD（`x64`） | 支持 |
 | Windows 10 | 64 位 Intel / AMD（`x64`） | 兼容目标；.NET 10 官方支持仍受维护的 LTSC / Enterprise 版本，Home / Pro 尚未验证 |
 | Windows 7 / 8 / 8.1 | 任意 | 不支持 |
@@ -40,6 +41,8 @@
 Mac 的 `.dmg` 包含 **Apple 芯片与 Intel 原生通用应用**，两种芯片下载同一个安装包，无需 Rosetta。
 Windows 提供 `x64` 的 `-setup.exe`，内含 Swift 和 .NET；不提供 32 位或原生 ARM64 安装包，ARM64 模拟运行尚未验证。
 具体版本限制、已验证范围和 Intel 支持评估见[系统兼容说明](docs/compatibility.md)。
+
+**iPhone / iPad：**[原生排行榜版](apps/ipad/README.md)共用一个应用包、商店记录和版本。iPhone 通过左右滑动／点按进行 3D 魔方翻面，在同一位置切换两个榜单；iPad 宽屏保持并排。支持横竖屏、离线缓存和截图复制，不提供桌面的展示模式选择。新版 iPadOS 的系统窗口仍由用户控制。首版不提供电脑的账户余量。目前尚未发布公开 TestFlight / App Store 版本，不能安装 DMG / EXE。
 
 ## 你会得到什么
 

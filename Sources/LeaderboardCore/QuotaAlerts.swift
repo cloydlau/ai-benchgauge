@@ -1,3 +1,4 @@
+import LeaderboardKit
 import Foundation
 
 /// Desktop notifications for the provider that is currently in use.

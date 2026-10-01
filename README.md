@@ -30,6 +30,7 @@ Stop switching between leaderboard tabs. Open the menu bar to compare the Top 20
 
 | System | Processor | Support |
 | --- | --- | --- |
+| iOS 17 / iPadOS 17 or later | iPhones and iPads supported by those systems | Native project added; public TestFlight/App Store release pending |
 | Windows 11 | 64-bit Intel / AMD (`x64`) | Supported |
 | Windows 10 | 64-bit Intel / AMD (`x64`) | Compatibility target; .NET 10 officially supports maintained LTSC / Enterprise releases. Home / Pro editions are not yet verified. |
 | Windows 7 / 8 / 8.1 | Any | Not supported |
@@ -40,6 +41,8 @@ Stop switching between leaderboard tabs. Open the menu bar to compare the Top 20
 The Mac `.dmg` contains one **Universal app with native Apple silicon and Intel binaries**; no Rosetta is needed.
 Windows ships an `x64` `-setup.exe` with Swift and .NET included. There is no Windows 32-bit or native ARM64 package; ARM64 emulation is not verified.
 See [compatibility details, validation scope, and the Intel support assessment](docs/compatibility.md).
+
+**iPhone / iPad:** the [universal native leaderboard edition](apps/ipad/README.md) uses one app record and version. iPhone shows one board at a time with swipe/tap 3D cube switching; wide iPad layouts show both boards side by side. It supports rotation, offline cache and screenshot copying; there is no desktop display-mode selector. Newer iPadOS system windowing remains under user control. Computer account quotas are outside this edition. No public TestFlight/App Store build has been published; DMG/EXE files are for desktops.
 
 ## What you get
 

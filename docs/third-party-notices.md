@@ -74,3 +74,7 @@ Windows 使用 .NET / WPF / WinForms、Swift / Foundation / libdispatch、Bouncy
 NSIS 3.11 LZMA 模块使用 CPL 1.0 及其链接例外，未修改源码来自 https://github.com/kichik/nsis/tree/v311。
 WebView2 Evergreen Runtime 由微软独立安装和更新，运行时条款由微软安装程序提供；SDK 的完整声明随本应用分发。
 SQLite 使用系统库，不打包第三方 SQLite 二进制。
+
+## iPad edition
+
+The iPad target links the repository's own `LeaderboardKit` and `LeaderboardPadUI` plus Apple system frameworks. It does not ship Sparkle, SQLite, desktop command-line integrations, Windows dependencies, or desktop quota adapters. It reuses the desktop brand PNGs from `assets/logos`; the unresolved provenance audit above applies to iPad distribution too. The complete project MIT license is bundled in `apps/ipad/UI/Resources/AI-BenchGauge.txt` and is available offline from the footer's MIT License entry.
