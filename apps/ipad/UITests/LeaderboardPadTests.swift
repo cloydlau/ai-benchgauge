@@ -68,7 +68,7 @@ final class LeaderboardPadTests: XCTestCase {
         XCTAssertTrue(app.otherElements["board-artificialAnalysis"].waitForExistence(timeout: 10))
         waitForLayout(landscape: false)
         XCTAssertTrue(app.staticTexts["更新时间"].exists)
-        XCTAssertTrue(app.staticTexts["智衡"].exists)
+        XCTAssertTrue(app.staticTexts["AI BenchGauge"].exists)
         XCTAssertFalse(app.staticTexts["获取于"].exists)
         capture("zh-models-portrait")
         app.segmentedControls["grouping"].buttons["公司"].tap()
@@ -96,7 +96,7 @@ final class LeaderboardPadTests: XCTestCase {
         scrollToFooter()
         app.segmentedControls["language"].buttons["繁中"].tap()
         XCTAssertTrue(app.staticTexts["更新時間"].exists)
-        XCTAssertTrue(app.staticTexts["智衡"].exists)
+        XCTAssertTrue(app.staticTexts["AI BenchGauge"].exists)
         capture("traditional-footer-dark")
         scrollToHeader()
         waitForLayout(landscape: true)
@@ -230,10 +230,11 @@ final class LeaderboardPhoneTests: XCTestCase {
         app.buttons["Done"].tap()
         app.buttons["share"].tap()
         XCTAssertTrue(app.staticTexts["Copied to clipboard"].waitForExistence(timeout: 10))
+        assertCategorySegments()
         capture("iphone-screenshot-feedback")
         app.buttons["language-menu"].tap()
         app.buttons["简中"].tap()
-        XCTAssertTrue(app.staticTexts["智衡"].exists)
+        XCTAssertTrue(app.staticTexts["AI BenchGauge"].exists)
         XCTAssertFalse(app.staticTexts["获取于"].exists)
         app.segmentedControls["category"].buttons["图片"].tap()
         waitForFace("artificialAnalysisTextToImage")
@@ -272,8 +273,13 @@ final class LeaderboardPhoneTests: XCTestCase {
         capture("iphone-landscape-dark")
         XCTAssertTrue(app.buttons["face-0"].isHittable)
         XCTAssertTrue(app.buttons["share"].isHittable)
+        assertCategorySegments()
         app.buttons["face-0"].tap()
         waitForFace("artificialAnalysis")
+        app.segmentedControls["grouping"].buttons["公司"].tap()
+        XCTAssertTrue(app.buttons["country-artificialAnalysis"].isHittable, "Grouping changes must return to the top")
+        XCTAssertTrue(app.buttons["name-artificialAnalysis-1"].isHittable)
+        capture("iphone-reset-companies-landscape")
     }
     func testCubeMidTurnNativeCapture() {
         app.launchArguments += ["--cube-preview", "--preview-zh"]
@@ -292,6 +298,14 @@ final class LeaderboardPhoneTests: XCTestCase {
         capture("iphone-reduced-motion")
         app.buttons["face-0"].tap()
         waitForFace("artificialAnalysis")
+    }
+    private func assertCategorySegments() {
+        let segments = app.segmentedControls["category"].buttons.allElementsBoundByIndex.map(\.frame)
+        XCTAssertEqual(segments.count, 4)
+        for (left, right) in zip(segments, segments.dropFirst()) {
+            XCTAssertEqual(left.width, right.width, accuracy: 2)
+            XCTAssertLessThan(left.maxX, right.maxX)
+        }
     }
     private func waitForFace(_ kind: String) {
         XCTAssertTrue(app.otherElements["board-\(kind)"].waitForExistence(timeout: 10))

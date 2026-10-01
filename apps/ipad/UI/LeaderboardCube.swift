@@ -6,6 +6,7 @@ final class LeaderboardCubeState: ObservableObject {
     @Published var face = 0
     @Published var dragging = false
     @Published var rank: Int?
+    @Published var generation = 0
     init(position: Double = 0) { self.position = position }
 }
 

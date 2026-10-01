@@ -91,9 +91,10 @@ public struct LeaderboardPadView: View {
         .task(id: store.category) { await store.refresh() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await store.refresh() } }
+            else if cube.dragging { turnCube(to: cube.face) }
         }
-        .onChange(of: store.category) { cube.rank = nil }
-        .onChange(of: store.grouping) { cube.rank = nil }
+        .onChange(of: store.category) { resetComparison() }
+        .onChange(of: store.grouping) { resetComparison() }
         .environment(\.locale, store.language.locale)
     }
 
@@ -136,10 +137,8 @@ public struct LeaderboardPadView: View {
         }
     }
     private var appTitle: some View {
-        Text(tr("AI BenchGauge", "智衡"))
-            .font(store.language == .english
-                ? .custom("SnellRoundhand-Bold", size: 21)
-                : .system(size: 21, weight: .semibold))
+        Text("AI BenchGauge")
+            .font(.custom("SnellRoundhand-Bold", size: 21))
             .lineLimit(1)
     }
     private var rankingFailed: Bool { store.category.boardKinds.contains { store.failures[$0] != nil && !store.refreshing.contains($0) } }
@@ -214,6 +213,11 @@ public struct LeaderboardPadView: View {
             }
         }
     }
+    private func resetComparison() {
+        cube.rank = nil
+        cube.generation += 1
+        if cube.dragging { turnCube(to: cube.face) }
+    }
     private func turnCube(to face: Int) {
         cube.dragging = false
         cube.face = face
@@ -224,10 +228,10 @@ public struct LeaderboardPadView: View {
             ZStack(alignment: .topLeading) {
                 ForEach(Array(store.category.boardKinds.enumerated()), id: \.element) { index, kind in
                     ScrollView {
-                        boardCard(kind)
+                        boardCard(kind, compact: true)
                     }
                     .scrollPosition(id: Binding(get: { cube.rank }, set: { rank in
-                        if index == cube.face && !cube.dragging { cube.rank = rank }
+                        if index == cube.face && !cube.dragging && cube.rank != rank { cube.rank = rank }
                     }), anchor: .top)
                     .refreshable { await store.refresh(force: true) }
                     .frame(width: geometry.size.width, height: geometry.size.height)
@@ -237,7 +241,9 @@ public struct LeaderboardPadView: View {
                     .accessibilityHidden(index != cube.face || cube.dragging)
                 }
             }
+            .id(cube.generation)
             .clipped()
+            .onChange(of: geometry.size) { if cube.dragging { turnCube(to: cube.face) } }
             .contentShape(Rectangle())
             .simultaneousGesture(DragGesture(minimumDistance: 16)
                 .onChanged { value in
@@ -254,6 +260,8 @@ public struct LeaderboardPadView: View {
                 })
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("cube-viewport")
+            .accessibilityLabel(LeaderboardPresentation.title(store.category, language: store.language))
+            .accessibilityValue(store.category.boardKinds[cube.face].sourceLinkTitle)
             .accessibilityAdjustableAction { direction in
                 switch direction {
                 case .increment: turnCube(to: 1)
@@ -307,11 +315,11 @@ public struct LeaderboardPadView: View {
             }
         }
     }
-    private func boardCard(_ kind: LeaderboardKind, isImage: Bool = false) -> some View {
+    private func boardCard(_ kind: LeaderboardKind, isImage: Bool = false, compact: Bool = false) -> some View {
         PadBoardCard(kind: kind, board: store.snapshot.boards[kind], grouping: store.grouping,
             language: store.language, filter: store.countryFilter(for: kind), failure: store.failures[kind],
-            isRefreshing: store.refreshing.contains(kind), isImage: isImage,
-            selectCountry: { store.setCountryFilter($0, for: kind); cube.rank = nil }, copyName: copyName)
+            isRefreshing: store.refreshing.contains(kind), isImage: isImage, compact: compact,
+            selectCountry: { store.setCountryFilter($0, for: kind); resetComparison() }, copyName: copyName)
     }
 
     private var footer: some View {
@@ -470,6 +478,7 @@ private struct PadBoardCard: View {
     let failure: LeaderboardFailure?
     let isRefreshing: Bool
     let isImage: Bool
+    let compact: Bool
     let selectCountry: (LeaderboardCountryFilter) -> Void
     let copyName: (String) -> Void
     @Environment(\.colorScheme) private var colorScheme
@@ -537,8 +546,13 @@ private struct PadBoardCard: View {
         .accessibilityElement(children: .contain).accessibilityIdentifier("board-\(kind.rawValue)")
         .sheet(isPresented: $detail.showingSource) {
             NavigationStack {
-                ScrollView { Text(sourceDetails).frame(maxWidth: .infinity, alignment: .leading).padding(24) }
-                    .navigationTitle(LeaderboardPresentation.title(kind, language: language))
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if compact { Text(LeaderboardPresentation.title(kind, language: language)).font(.headline).fixedSize(horizontal: false, vertical: true) }
+                        Text(sourceDetails)
+                    }.frame(maxWidth: .infinity, alignment: .leading).padding(24)
+                }
+                    .navigationTitle(compact ? kind.sourceLinkTitle : LeaderboardPresentation.title(kind, language: language))
                     #if os(iOS)
                     .navigationBarTitleDisplayMode(.inline)
                     #endif
@@ -567,13 +581,13 @@ private struct PadBoardCard: View {
             Text(LeaderboardPresentation.rankLabel(rank)).monospacedDigit().frame(width: 32)
             HStack(spacing: 6) {
                 PadOrganizationLogo(entry: entry)
-                if isImage { Text(entry.name).fixedSize(horizontal: false, vertical: true) }
-                else {
-                    Button { copyName(entry.name) } label: { Text(entry.name).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading) }
-                        .buttonStyle(.plain).accessibilityLabel(entry.name + tr(", click to copy", "，点击复制"))
-                        .accessibilityIdentifier("name-\(kind.rawValue)-\(entry.id)")
+                if compact && grouping == .company {
+                    VStack(alignment: .leading, spacing: 3) { entryName(entry); purchaseLinks(entry) }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    entryName(entry)
+                    if grouping == .company { purchaseLinks(entry) }
                 }
-                if grouping == .company { purchaseLinks(entry) }
             }.padding(.horizontal, 5).padding(.vertical, 3)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(brandColor(entry).opacity(0.34), in: RoundedRectangle(cornerRadius: 5))
@@ -589,6 +603,15 @@ private struct PadBoardCard: View {
         }
         .font(.subheadline).padding(.horizontal, 8).frame(minHeight: 44)
         .background(rank.isMultiple(of: 2) ? Color.secondary.opacity(0.05) : Color.clear)
+    }
+    @ViewBuilder private func entryName(_ entry: LeaderboardEntry) -> some View {
+        if isImage { Text(entry.name).fixedSize(horizontal: false, vertical: true) }
+        else {
+            Button { copyName(entry.name) } label: {
+                Text(entry.name).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
+            }.buttonStyle(.plain).accessibilityLabel(entry.name + tr(", click to copy", "，点击复制"))
+                .accessibilityIdentifier("name-\(kind.rawValue)-\(entry.id)")
+        }
     }
     private func purchaseLinks(_ entry: LeaderboardEntry) -> some View {
         let links = PurchaseLinkCatalog.links(forOrganization: entry.organization, modelName: entry.name)

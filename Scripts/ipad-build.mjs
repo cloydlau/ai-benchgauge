@@ -49,7 +49,9 @@ export function runIpadBuild(mode = 'check', env = process.env) {
     device = ipadSimulator(available)
     phone = ipadSimulator(available, 'iPhone')
     console.log(`[iOS] Native test destinations: iPad ${device}; iPhone ${phone}`)
-    console.log(result.stdout)
+    const selected = Object.entries(available.devices).flatMap(([runtime, list]) =>
+      list.filter(value => [device, phone].includes(value.udid)).map(value => ({ runtime, name: value.name, udid: value.udid })))
+    console.log(JSON.stringify({ nativeDestinations: selected }))
   }
   mkdirSync(join(root, 'work/ipad'), { recursive: true })
   for (const args of ipadBuildPlan(mode, { device, phone, team })) {
