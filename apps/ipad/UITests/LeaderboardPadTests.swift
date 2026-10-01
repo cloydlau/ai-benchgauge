@@ -41,6 +41,10 @@ final class LeaderboardPadTests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["source-error-artificialAnalysis"].firstMatch.waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["name-artificialAnalysis-1"].exists)
         capture("offline")
+        app.buttons["source-error-artificialAnalysis"].tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "No internet connection")).firstMatch.waitForExistence(timeout: 5))
+        capture("offline-details")
+        app.buttons["Done"].tap()
         app.buttons["license"].tap()
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Permission is hereby granted")).firstMatch.waitForExistence(timeout: 5))
         app.buttons["Done"].tap()
@@ -85,19 +89,27 @@ final class LeaderboardPadTests: XCTestCase {
         scrollToFooter()
         app.segmentedControls["language"].buttons["繁中"].tap()
         XCTAssertTrue(app.staticTexts["更新時間"].exists)
+        capture("traditional-footer-dark")
+        scrollToHeader()
+        waitForLayout(landscape: true)
         capture("traditional-dark")
+        scrollToFooter()
         app.segmentedControls["language"].buttons["简中"].tap()
         XCTAssertTrue(app.staticTexts["更新时间"].exists)
-        for _ in 0..<8 {
-            if app.segmentedControls["category"].isHittable { break }
-            app.swipeDown()
-        }
+        scrollToHeader()
         app.segmentedControls["category"].buttons["图片"].tap()
         XCTAssertTrue(app.otherElements["board-arenaTextToImage"].waitForExistence(timeout: 5))
         capture("image-dark")
         app.segmentedControls["category"].buttons["视频"].tap()
         XCTAssertTrue(app.otherElements["board-arenaTextToVideo"].waitForExistence(timeout: 5))
         capture("video-dark")
+    }
+    private func scrollToHeader() {
+        for _ in 0..<8 {
+            if app.segmentedControls["category"].isHittable { return }
+            app.swipeDown()
+        }
+        XCTAssertTrue(app.segmentedControls["category"].isHittable)
     }
     private func scrollToFooter() {
         for _ in 0..<8 {

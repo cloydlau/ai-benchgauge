@@ -73,12 +73,13 @@ public struct LeaderboardPadView: View {
             TimelineView(.periodic(from: .now, by: 60)) { context in
                 Button { Task { await store.refresh(force: true) } } label: {
                     HStack(spacing: 8) {
-                        Text(tr("UPDATED", "更新时间")).fontWeight(.semibold)
+                        Text(tr("UPDATED", "更新时间")).fontWeight(.semibold).foregroundStyle(.secondary)
                         Text(LeaderboardPresentation.rankingUpdated(store.snapshot, category: store.category,
                             language: store.language, now: context.date))
                             .padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(Color.secondary.opacity(0.10), in: Capsule())
-                    }.font(.caption).monospacedDigit().foregroundStyle(rankingFailed ? Color.orange : Color.secondary)
+                            .foregroundStyle(rankingFailed ? Color.orange : Color.secondary)
+                            .background((rankingFailed ? Color.orange : Color.secondary).opacity(rankingFailed ? 0.12 : 0.10), in: Capsule())
+                    }.font(.caption).monospacedDigit().foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
                 .disabled(store.category.boardKinds.contains { store.refreshing.contains($0) })
@@ -132,14 +133,19 @@ public struct LeaderboardPadView: View {
 
     private var footer: some View {
         ViewThatFits(in: .horizontal) {
-            footerRow(compact: false)
-            footerRow(compact: true)
+            footerRow(compact: false, showsSources: true)
+            footerRow(compact: false, showsSources: false)
+            footerRow(compact: true, showsSources: false)
         }.font(.caption).foregroundStyle(.secondary).lineLimit(1)
     }
-    private func footerRow(compact: Bool) -> some View {
+    private func footerRow(compact: Bool, showsSources: Bool) -> some View {
         HStack(spacing: 7) {
             HStack(spacing: 7) {
-                Link(destination: Self.repositoryURL) { Image(systemName: "link") }.accessibilityLabel("GitHub")
+                Link(destination: Self.repositoryURL) {
+                    if let image = PadOrganizationLogo.image(for: "github") {
+                        image.renderingMode(.template).resizable().scaledToFit().frame(width: 13, height: 13)
+                    } else { Image(systemName: "link") }
+                }.accessibilityLabel("GitHub")
                 Text("Cloyd Lau")
                 Text("·")
                 Button(compact ? "MIT" : "MIT License") { presentation.licenseSection = .application }.accessibilityIdentifier("license")
@@ -149,8 +155,15 @@ public struct LeaderboardPadView: View {
             }.fixedSize()
             Spacer(minLength: 8)
             HStack(spacing: 7) {
-                Menu(tr("Sources", "数据来源")) {
-                    ForEach(store.category.boardKinds, id: \.self) { kind in Link(kind.sourceLinkTitle, destination: kind.sourceURL) }
+                if showsSources {
+                    Text(tr("Sources", "数据来源"))
+                    Link(store.category.boardKinds[0].sourceLinkTitle, destination: store.category.boardKinds[0].sourceURL)
+                    Text("·")
+                    Link(store.category.boardKinds[1].sourceLinkTitle, destination: store.category.boardKinds[1].sourceURL)
+                } else {
+                    Menu(tr("Sources", "数据来源")) {
+                        ForEach(store.category.boardKinds, id: \.self) { kind in Link(kind.sourceLinkTitle, destination: kind.sourceURL) }
+                    }
                 }
                 Text("·")
                 Button { copyScreenshot() } label: {
@@ -271,7 +284,7 @@ private struct PadBoardCard: View {
                         Button { detail.showingSource = true } label: {
                             Text(failure == nil ? LeaderboardPresentation.explanation(kind, language: language) : tr("Refresh failed", "刷新失败"))
                         }.buttonStyle(.plain).foregroundStyle(failure == nil ? Color.secondary : Color.orange)
-                        .accessibilityIdentifier("source-help-\(kind.rawValue)")
+                        .accessibilityIdentifier("\(failure == nil ? "source-help" : "source-error")-\(kind.rawValue)")
                     }
                 }.font(.caption)
                 Spacer(minLength: 2)
@@ -296,10 +309,6 @@ private struct PadBoardCard: View {
                 }
             }.font(.caption).foregroundStyle(.secondary).padding(.horizontal, 8).padding(.vertical, 8)
             Divider()
-            if let failure, !isImage {
-                Text(failure.message(language: language, hasCachedBoard: board != nil)).font(.caption).foregroundStyle(.orange)
-                    .padding(12).accessibilityIdentifier("source-error-\(kind.rawValue)")
-            }
             if board != nil {
                 if rows.isEmpty { Text("-").foregroundStyle(.secondary).padding(16) }
                 ForEach(Array(rows.prefix(20).enumerated()), id: \.offset) { index, entry in entryRow(entry, rank: index + 1) }
@@ -315,7 +324,7 @@ private struct PadBoardCard: View {
         .accessibilityElement(children: .contain).accessibilityIdentifier("board-\(kind.rawValue)")
         .sheet(isPresented: $detail.showingSource) {
             NavigationStack {
-                ScrollView { Text(LeaderboardPresentation.sourceHelp(kind, language: language, board: board)).frame(maxWidth: .infinity, alignment: .leading).padding(24) }
+                ScrollView { Text(sourceDetails).frame(maxWidth: .infinity, alignment: .leading).padding(24) }
                     .navigationTitle(LeaderboardPresentation.title(kind, language: language))
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button(tr("Done", "完成")) { detail.showingSource = false } } }
             }
@@ -328,6 +337,12 @@ private struct PadBoardCard: View {
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button(tr("Done", "完成")) { detail.selectedCompany = nil } } }
             }
         }
+    }
+
+    private var sourceDetails: String {
+        let explanation = LeaderboardPresentation.sourceHelp(kind, language: language, board: board)
+        guard let failure else { return explanation }
+        return failure.message(language: language, hasCachedBoard: board != nil) + "\n\n" + explanation
     }
 
     private func entryRow(_ entry: LeaderboardEntry, rank: Int) -> some View {
@@ -382,7 +397,11 @@ private struct PadOrganizationLogo: View {
     let entry: LeaderboardEntry
     private var image: Image? {
         guard let key = OrganizationLogoCatalog.bundledLogoKey(forOrganization: entry.organization, modelName: entry.name),
-              let url = Bundle.main.url(forResource: key, withExtension: "png", subdirectory: "logos") else { return nil }
+              let image = Self.image(for: key) else { return nil }
+        return image
+    }
+    static func image(for key: String) -> Image? {
+        guard let url = Bundle.main.url(forResource: key, withExtension: "png", subdirectory: "logos") else { return nil }
         #if os(iOS)
         return UIImage(contentsOfFile: url.path).map(Image.init(uiImage:))
         #else
