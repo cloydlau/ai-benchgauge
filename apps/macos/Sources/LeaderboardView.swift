@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreText
 import LeaderboardCore
 
 /// Screenshot toast state. `@State` is a SwiftUI macro, and Command Line Tools
@@ -268,6 +269,7 @@ struct LeaderboardView: View {
         .overlay {
             RoundedRectangle(cornerRadius: 6)
                 .strokeBorder(.secondary.opacity(0.25), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                .allowsHitTesting(false)
         }
         .accessibilityIdentifier("quota-setup-placeholder")
     }
@@ -323,23 +325,44 @@ struct LeaderboardView: View {
     }
 
     private var appTitle: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("AI BenchGauge")
+        let title = "AI BenchGauge"
+        let version = versionLabel
+        return HStack(alignment: .center, spacing: 8) {
+            Text(title)
                 // Snell Roundhand ships with macOS, so referencing it by
                 // name needs no font bundling or license.
                 .font(.custom("SnellRoundhand-Bold", size: 21))
                 .lineLimit(1)
-            Button("v\(appVersion)") { appUpdater.checkForUpdates() }
+                .alignmentGuide(VerticalAlignment.center) { dimensions in
+                    Self.textInkCenter(dimensions, text: title,
+                        font: NSFont(name: "SnellRoundhand-Bold", size: 21)!)
+                }
+            Button(version) { appUpdater.checkForUpdates() }
                 .buttonStyle(.plain)
-                .font(.caption)
+                .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
                 .monospacedDigit()
+                .alignmentGuide(VerticalAlignment.center) { dimensions in
+                    Self.textInkCenter(dimensions, text: version,
+                        font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular))
+                }
                 .disabled(!appUpdater.canCheckForUpdates)
                 .help(tr("Check for app updates", "检查应用更新"))
                 .accessibilityLabel(tr("Check for app updates", "检查应用更新"))
                 .accessibilityIdentifier("check-app-updates")
         }
     }
+
+    // SwiftUI's line boxes retain different ascents/descents for the title
+    // and small version. Align their native glyph centres instead.
+    nonisolated private static func textInkCenter(_ dimensions: ViewDimensions, text: String, font: NSFont) -> CGFloat {
+        let line = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: [.font: font]))
+        let ink = CTLineGetImageBounds(line, nil)
+        guard !ink.isNull, !ink.isEmpty else { return dimensions[VerticalAlignment.center] }
+        return dimensions[.firstTextBaseline] - ink.midY
+    }
+
+    private var versionLabel: String { visualVersionText ?? "v\(appVersion)" }
 
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"

@@ -15,7 +15,7 @@ using BenchGauge.Shared;
 using Forms = System.Windows.Forms;
 
 namespace BenchGauge;
-sealed class MainWindow : Window
+sealed partial class MainWindow : Window
 {
     readonly EngineClient? engine;
     readonly Preferences prefs;
@@ -23,7 +23,7 @@ sealed class MainWindow : Window
     readonly UpdateClient updater;
     readonly Grid content = new();
     readonly Grid quotaArea = new();
-    readonly WrapPanel quotaPanel = new() { Margin = new Thickness(0, 0, 0, 12) };
+    readonly WrapPanel quotaPanel = new() { Margin = new Thickness(18, 0, 18, 6) };
     readonly TextBlock privatePrompt = new() { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 12), TextWrapping = TextWrapping.Wrap };
     readonly TextBlock status = new() { FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(4) };
     readonly DispatcherTimer boardTimer = new() { Interval = TimeSpan.FromMinutes(30) };
@@ -158,97 +158,15 @@ sealed class MainWindow : Window
             foreach (var alert in result.Alerts) Tray.ShowBalloonTip(5000, alert.Title, alert.Body, Forms.ToolTipIcon.Warning);
         }
     }
-    void Render()
-    {
-        rendering = true;
-        try
-        {
-            (status.Parent as Panel)?.Children.Remove(status);
-            dropdowns.Clear(); content.Children.Clear(); content.RowDefinitions.Clear();
-            for (var i = 0; i < 4; i++) content.RowDefinitions.Add(new RowDefinition { Height = i == 2 ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
-            var header = new DockPanel { Margin = new Thickness(0, 0, 0, 12), LastChildFill = false };
-            headerTitle = new TextBlock { Text = "AI BenchGauge", FontWeight = FontWeights.SemiBold, FontSize = 17, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0), Visibility = Width < 740 ? Visibility.Collapsed : Visibility.Visible };
-            header.Children.Add(headerTitle);
-            header.Children.Add(Select([("general",Tr("General","综合")),("coding",Tr("Coding","编程","編程")),("image",Tr("Image","图片","圖片")),("video",Tr("Video","视频","視頻"))], prefs.Category, async value => { prefs.Category = value; SaveFrame(); await Refresh("state"); await Refresh("refreshBoards"); }));
-            header.Children.Add(Select([("model",Tr("Models","模型")),("company",Tr("Companies","公司"))], prefs.Grouping, async value => { prefs.Grouping = value; SaveFrame(); await Refresh("state"); }));
-            var mode = Select([("clickToClose",Tr("Keep open","保持打开","保持打開")),("alwaysOnTop",Tr("Always on top","保持置顶","保持置頂")),("closeOnBlur",Tr("Close on blur","失焦关闭","失焦關閉")),("window",Tr("Window","独立窗口","獨立視窗"))], prefs.PanelMode, value => { SaveFrame(); prefs.PanelMode = value; ApplyMode(); SaveFrame(); Reveal(); return Task.CompletedTask; });
-            DockPanel.SetDock(mode, Dock.Right); header.Children.Add(mode);
-            var language = Select([("zh","简体中文"),("zh-Hant","繁體中文"),("en","English")], prefs.Language, async value => { prefs.Language = value; SaveFrame(); Render(); await Refresh("state"); });
-            DockPanel.SetDock(language, Dock.Right); header.Children.Add(language);
-            Place(header, 0);
-            quotaPanel.Children.Clear();
-            if (state?.QuotaNeedsCCSwitch == true)
-                quotaPanel.Children.Add(LinkButton(Tr("Install CC Switch to view remaining quotas", "安装 CC Switch 查看余量", "安裝 CC Switch 查看餘量"), "https://github.com/farion1231/cc-switch"));
-            foreach (var quota in state?.Quotas ?? [])
-            {
-                var text = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(8), MaxWidth = 340, ToolTip = quota.Help };
-                text.Inlines.Add(new System.Windows.Documents.Run(quota.Name + "  ") { FontWeight = FontWeights.SemiBold });
-                foreach (var run in quota.Runs) text.Inlines.Add(new System.Windows.Documents.Run(run.Text) { Foreground = (Brush)new BrushConverter().ConvertFromString(run.Light)! });
-                if (quota.IsStale) text.Inlines.Add(new System.Windows.Documents.Run("  · " + Tr("saved", "缓存", "快取")) { Foreground = Brushes.Gray });
-                var background = quota.AccentLight is { } accent
-                    ? new SolidColorBrush((Color)ColorConverter.ConvertFromString(accent)) { Opacity = quota.IsCurrent ? 0.12 : 0.06 }
-                    : Brushes.White;
-                var card = new Border { Child = text, CornerRadius = new CornerRadius(7), Background = background, Margin = new Thickness(0, 0, 8, 6), BorderThickness = new Thickness(quota.IsCurrent ? 1 : 0), BorderBrush = Brushes.DodgerBlue };
-                card.Cursor = Cursors.Hand;
-                card.MouseLeftButtonUp += async (_, _) => { if (quota.CanConnect) await Connect(quota); else if (quota.Url is { } url) Open(url); };
-                quotaPanel.Children.Add(card);
-            }
-            if (state?.QuotaUnavailable == true) quotaPanel.Children.Add(new TextBlock { Text = Tr("CC Switch data unavailable", "CC Switch 数据暂不可用"), Foreground = Brushes.DarkOrange });
-            Place(quotaArea, 1);
-            var boards = new Grid(); boards.ColumnDefinitions.Add(new ColumnDefinition()); boards.ColumnDefinitions.Add(new ColumnDefinition());
-            var displayed = state?.Boards ?? [];
-            for (var i = 0; i < displayed.Length && i < 2; i++)
-            {
-                var board = RenderBoard(displayed[i]); Grid.SetColumn(board, i); boards.Children.Add(board);
-            }
-            if (displayed.Length == 0) boards.Children.Add(new TextBlock { Text = Tr("Loading leaderboards…", "正在加载排行榜…"), Margin = new Thickness(12) });
-            Place(boards, 2);
-            footer = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 10, 0, 0), Height = 28 };
-            var left = new StackPanel { Orientation = Orientation.Horizontal };
-            left.Children.Add(LinkButton("GitHub", "https://github.com/" + config.Repository));
-            left.Children.Add(Button("MIT", () => ShowLicenses(false)));
-            left.Children.Add(Button(Tr("Notices","声明","聲明"), () => ShowLicenses(true)));
-            left.Children.Add(status);
-            var right = new StackPanel { Orientation = Orientation.Horizontal }; DockPanel.SetDock(right, Dock.Right);
-            right.Children.Add(Button(Tr("Copy", "截图", "截圖"), Capture));
-            right.Children.Add(Button(Tr("Refresh", "刷新"), async () => { if (refreshing) return; refreshing = true; try { await Task.WhenAll(Refresh("refreshBoards"), Refresh("refreshQuotas")); } finally { refreshing = false; } }));
-            updateButton = Button("v" + config.Version + (availableUpdate is null ? "" : " ↑"), async () => await CheckUpdates(true)); right.Children.Add(updateButton);
-            footer.Children.Add(right); footer.Children.Add(left); Place(footer, 3);
-        }
-        finally { rendering = false; }
-    }
+    void Render() => RenderPanel(ManageOfficialAccounts);
     void Place(UIElement element, int row) { Grid.SetRow(element, row); content.Children.Add(element); }
-    FrameworkElement RenderBoard(Board board)
-    {
-        var box = new DockPanel { Margin = new Thickness(0, 0, 8, 0), LastChildFill = true };
-        var header = new StackPanel(); DockPanel.SetDock(header, Dock.Top);
-        var heading = new DockPanel(); heading.Children.Add(LinkButton(board.Title, board.Url));
-        var country = Select([("",Tr("All countries","所有国家","所有國家")),("china",Tr("China","中国","中國")),("unitedStates",Tr("United States","美国","美國")),("canada",Tr("Canada","加拿大")),("france",Tr("France","法国","法國")),("germany",Tr("Germany","德国","德國")),("singapore",Tr("Singapore","新加坡"))], prefs.Countries.GetValueOrDefault(board.Kind, ""), value => { prefs.Countries[board.Kind] = value; SaveFrame(); Render(); return Task.CompletedTask; });
-        DockPanel.SetDock(country, Dock.Right); heading.Children.Add(country); header.Children.Add(heading);
-        var note = board.Error ?? (board.UpdatedAt is { } iso && DateTimeOffset.TryParse(iso, out var date) ? date.ToLocalTime().ToString("MM-dd HH:mm", CultureInfo.InvariantCulture) : Tr("Waiting for data", "等待数据", "等待資料"));
-        header.Children.Add(new TextBlock { Text = note, Foreground = board.Error is null ? Brushes.Gray : Brushes.DarkOrange, FontSize = 10, Margin = new Thickness(4, 4, 4, 8) }); box.Children.Add(header);
-        var rows = new StackPanel(); var filter = prefs.Countries.GetValueOrDefault(board.Kind, "");
-        foreach (var entry in board.Entries.Where(entry => filter.Length == 0 || entry.Country == filter))
-        {
-            var row = new Grid { Height = 25, ToolTip = entry.Help ?? entry.Name };
-            foreach (var width in new[] { new GridLength(26), new GridLength(23), new GridLength(1, GridUnitType.Star), new GridLength(42), new GridLength(30), new GridLength(30) }) row.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
-            AddCell(row, new TextBlock { Text = entry.Rank.ToString(CultureInfo.InvariantCulture), Foreground = Brushes.Gray, VerticalAlignment = VerticalAlignment.Center }, 0);
-            if (entry.Logo is { } logo && File.Exists(Path.Combine(AppContext.BaseDirectory, "logos", logo + ".png")))
-                AddCell(row, new Image { Source = new BitmapImage(new Uri(Path.Combine(AppContext.BaseDirectory,"logos",logo+".png"))), Width = 17, Height = 17, Stretch = Stretch.Uniform }, 1);
-            AddCell(row, new TextBlock { Text = entry.Name, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center }, 2);
-            AddCell(row, new TextBlock { Text = entry.Score.ToString("0.#", CultureInfo.InvariantCulture), FontWeight = FontWeights.SemiBold, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center }, 3);
-            if (entry.CodingURL is { } coding) AddCell(row, LinkButton("↗", coding, Tr("Coding plan", "编程套餐", "編程方案")), 4);
-            if (entry.ApiURL is { } api) AddCell(row, LinkButton("API", api, Tr("API pricing", "API 价格", "API 價格")), 5);
-            rows.Children.Add(row);
-        }
-        box.Children.Add(new ScrollViewer { Content = rows, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled }); return box;
-    }
     static void AddCell(Grid row, UIElement cell, int column) { Grid.SetColumn(cell, column); row.Children.Add(cell); }
     ComboBox Select((string Value, string Title)[] items, string selected, Func<string, Task> change)
     {
-        var combo = new ComboBox { Margin = new Thickness(3, 0, 3, 0), Padding = new Thickness(4), MinHeight = 26, MaxWidth = 160, VerticalAlignment = VerticalAlignment.Center };
+        var combo = new ComboBox { Margin = new Thickness(0), Padding = new Thickness(8, 2, 8, 2), MinHeight = 22, MaxWidth = 160, VerticalAlignment = VerticalAlignment.Center };
         foreach (var item in items) combo.Items.Add(new ComboBoxItem { Content = item.Title, Tag = item.Value });
         combo.SelectedIndex = Math.Max(0, Array.FindIndex(items, item => item.Value == selected));
+        combo.DropDownClosed += (_, _) => _ = Dispatcher.BeginInvoke(TryPresentPreparedUpdate);
         combo.SelectionChanged += async (_, _) => { if (!rendering && combo.SelectedItem is ComboBoxItem item) await change((string)item.Tag); };
         dropdowns.Add(combo); return combo;
     }
