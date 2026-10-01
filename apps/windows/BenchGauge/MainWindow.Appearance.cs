@@ -186,9 +186,7 @@ sealed partial class MainWindow
         var header = new StackPanel { Margin = new Thickness(18, 9, 18, 10) };
         var titleLine = new Grid(); titleLine.ColumnDefinitions.Add(new ColumnDefinition()); titleLine.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var brand = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        headerTitle = new TextBlock { Text = Tr("AI BenchGauge", "智衡", "智衡"),
-            FontFamily = prefs.Language == "en" ? new FontFamily("Segoe Script") : FontFamily,
-            FontWeight = FontWeights.Bold, FontSize = 21, Height = 27, Foreground = PanelInk };
+        headerTitle = new TextBlock { Text = "AI BenchGauge", FontFamily = new FontFamily("Segoe Script"), FontWeight = FontWeights.Bold, FontSize = 21, Height = 27, Foreground = PanelInk };
         brand.Children.Add(headerTitle);
         updateButton = QuietButton("v" + config.Version + (availableUpdate is null ? "" : " ↑"), async () => await CheckUpdates(true));
         updateButton.Foreground = Tint("#C6C6CA"); updateButton.Margin = new Thickness(8, 0, 0, 0); brand.Children.Add(updateButton);
