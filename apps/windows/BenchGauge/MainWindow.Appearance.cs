@@ -79,6 +79,45 @@ sealed partial class MainWindow
                 Math.Round((label.ActualHeight / 2 - ink.Top - ink.Height / 2) * dpi.DpiScaleY, MidpointRounding.AwayFromZero) / dpi.DpiScaleY);
         };
     }
+    // Draw both header labels with the same native text renderer. TextBlock's
+    // line baseline can differ from FormattedText's, especially for script fonts.
+    static FrameworkElement HeaderInk(TextBlock spec) => new HeaderInkLabel(spec)
+    { Height = 27, VerticalAlignment = VerticalAlignment.Center };
+
+    sealed class HeaderInkLabel : FrameworkElement
+    {
+        readonly TextBlock spec;
+        public HeaderInkLabel(TextBlock spec)
+        {
+            this.spec = spec;
+            System.Windows.Automation.AutomationProperties.SetName(this, spec.Text);
+        }
+        protected override System.Windows.Automation.Peers.AutomationPeer OnCreateAutomationPeer() => new HeaderInkPeer(this);
+        sealed class HeaderInkPeer(HeaderInkLabel owner) : System.Windows.Automation.Peers.FrameworkElementAutomationPeer(owner)
+        {
+            protected override System.Windows.Automation.Peers.AutomationControlType GetAutomationControlTypeCore() => System.Windows.Automation.Peers.AutomationControlType.Text;
+            protected override bool IsContentElementCore() => true;
+        }
+        FormattedText Text() => new(spec.Text, CultureInfo.GetCultureInfo(spec.Language.IetfLanguageTag), spec.FlowDirection,
+            new Typeface(spec.FontFamily, spec.FontStyle, spec.FontWeight, spec.FontStretch), spec.FontSize,
+            spec.Foreground, VisualTreeHelper.GetDpi(this).PixelsPerDip);
+        protected override Size MeasureOverride(Size available)
+        {
+            var text = Text();
+            return new Size(text.WidthIncludingTrailingWhitespace, 27);
+        }
+        protected override void OnRender(DrawingContext drawing)
+        {
+            var text = Text();
+            var bounds = text.BuildGeometry(new Point()).Bounds;
+            if (bounds.IsEmpty) return;
+            var dpi = VisualTreeHelper.GetDpi(this);
+            var y = Math.Round((ActualHeight / 2 - bounds.Top - bounds.Height / 2) * dpi.DpiScaleY,
+                MidpointRounding.AwayFromZero) / dpi.DpiScaleY;
+            drawing.DrawText(text, new Point(0, y));
+        }
+    }
+
     static Binding ParentBinding(string property) => new(property) { RelativeSource = RelativeSource.TemplatedParent };
 
     void ConfigurePanelStyles()
@@ -189,11 +228,11 @@ sealed partial class MainWindow
         var titleLine = new Grid(); titleLine.ColumnDefinitions.Add(new ColumnDefinition()); titleLine.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var brand = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         headerTitle = new TextBlock { Text = "AI BenchGauge", FontFamily = new FontFamily("Segoe Script"), FontWeight = FontWeights.Bold, FontSize = 21, Height = 27, Foreground = PanelInk };
-        CenterTextInk(headerTitle);
-        brand.Children.Add(headerTitle);
+        brand.Children.Add(HeaderInk(headerTitle));
         updateButton = QuietButton(visualVersionText ?? ("v" + config.Version + (availableUpdate is null ? "" : " ↑")), async () => await CheckUpdates(true));
         updateButton.Foreground = Tint("#C6C6CA");
-        updateButton.Content = Caption((string)updateButton.Content, updateButton.Foreground);
+        System.Windows.Automation.AutomationProperties.SetName(updateButton, (string)updateButton.Content);
+        updateButton.Content = HeaderInk(Caption((string)updateButton.Content, updateButton.Foreground));
         updateButton.Height = headerTitle.Height;
         updateButton.Margin = new Thickness(8, 0, 0, 0); brand.Children.Add(updateButton);
         titleLine.Children.Add(brand);
