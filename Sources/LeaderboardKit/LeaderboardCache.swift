@@ -7,14 +7,28 @@ public struct LeaderboardCache {
 
     public init(fileURL: URL) {
         self.fileURL = fileURL
-        encoder.dateEncodingStrategy = .iso8601
+        // Preserve Date's full precision; ISO 8601 encoding drops subsecond values.
+        encoder.dateEncodingStrategy = .deferredToDate
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            if let interval = try? container.decode(Double.self) {
+                return Date(timeIntervalSinceReferenceDate: interval)
+            }
+            // Caches written by older builds contain ISO 8601 strings.
+            let value = try container.decode(String.self)
+            guard let date = ISO8601DateFormatter().date(from: value) else {
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid cached date")
+            }
+            return date
+        }
     }
 
     public static func defaultFileURL() throws -> URL {
         #if os(Windows)
-        let directory = PlatformPaths.applicationSupport
+        let root = ProcessInfo.processInfo.environment["LOCALAPPDATA"].map { URL(fileURLWithPath: $0) }
+            ?? FileManager.default.homeDirectoryForCurrentUser.appending(path: "AppData/Local")
+        let directory = root.appending(path: "AI-BenchGauge", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory.appending(path: "leaderboards.json")
         #else

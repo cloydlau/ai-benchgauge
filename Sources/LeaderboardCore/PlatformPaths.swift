@@ -1,3 +1,4 @@
+import LeaderboardKit
 import Foundation
 public enum PlatformPaths {
     public static func fileSystemPath(_ url: URL) -> String {

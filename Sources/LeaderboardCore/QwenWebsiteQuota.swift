@@ -1,3 +1,4 @@
+import LeaderboardKit
 import Foundation
 
 public struct QwenWebsiteQuota: Equatable, Sendable {

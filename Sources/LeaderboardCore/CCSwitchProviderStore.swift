@@ -1,3 +1,4 @@
+import LeaderboardKit
 import Foundation
 import CSQLite
 #if os(Windows)

@@ -1,3 +1,4 @@
+import LeaderboardKit
 import Foundation
 
 public enum CCSwitchState: String, Codable, CaseIterable, Sendable {

@@ -1,0 +1,62 @@
+name: iPhone and iPad
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['apps/ipad/**', 'Sources/LeaderboardKit/**', 'Package.swift', 'Package.resolved', 'config/app.json', 'LICENSE', 'Scripts/ipad*', '.github/workflows/ipad.yml']
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths: ['apps/ipad/**', 'Sources/LeaderboardKit/**', 'Package.swift', 'Package.resolved', 'config/app.json', 'LICENSE', 'Scripts/ipad*', '.github/workflows/ipad.yml']
+permissions:
+  contents: read
+jobs:
+  release-sdk:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - name: Build universal Release app for simulator and physical-device SDKs
+        run: |
+          mkdir -p work/ipad
+          set -o pipefail
+          node Scripts/ipad-build.mjs build 2>&1 | tee work/ipad/build.log
+      - name: Preserve SDK build log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ios-sdk-build-log
+          path: work/ipad/
+          if-no-files-found: error
+  simulator:
+    runs-on: macos-15
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        family: [iPad, iPhone]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - name: Run native ${{ matrix.family }} UI suite
+        run: |
+          mkdir -p work/ipad
+          set -o pipefail
+          sw_vers
+          xcodebuild -version
+          node Scripts/ipad-build.mjs test '${{ matrix.family }}' 2>&1 | tee work/ipad/build.log
+      - name: Preserve native screenshots and results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ios-${{ matrix.family }}-test-results
+          path: work/ipad/
+          if-no-files-found: error
