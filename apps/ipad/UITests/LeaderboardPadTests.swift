@@ -153,6 +153,7 @@ final class LeaderboardPadTests: XCTestCase {
         XCTFail("iPad controls did not settle after rotation")
     }
     private func capture(_ name: String) {
+        Thread.sleep(forTimeInterval: 0.75)
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways
@@ -263,10 +264,15 @@ final class LeaderboardPhoneTests: XCTestCase {
             return row.isHittable && row.frame.minY >= viewport.frame.minY && row.frame.minY < viewport.frame.midY
         }
         XCTAssertNotNil(visible)
+        let firstY = visible.map { app.buttons["name-artificialAnalysis-\($0)"].frame.minY }
         capture("iphone-scrolled-first-face")
         app.buttons["face-1"].tap()
         waitForFace("arenaText")
-        if let rank = visible { XCTAssertTrue(app.buttons["name-arenaText-\(rank)"].isHittable, "Keep the same rank visible for comparison") }
+        if let rank = visible, let firstY {
+            let row = app.buttons["name-arenaText-\(rank)"]
+            XCTAssertTrue(row.isHittable, "Keep the same rank visible for comparison")
+            XCTAssertEqual(row.frame.minY, firstY, accuracy: 48, "The compared rank must stay near the same vertical position, not return to rank 1")
+        }
         capture("iphone-scrolled-second-face")
         XCUIDevice.shared.orientation = .landscapeLeft
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
@@ -320,6 +326,7 @@ final class LeaderboardPhoneTests: XCTestCase {
         start.press(forDuration: 0.08, thenDragTo: end)
     }
     private func capture(_ name: String) {
+        Thread.sleep(forTimeInterval: 0.75)
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways

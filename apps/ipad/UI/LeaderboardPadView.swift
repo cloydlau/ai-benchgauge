@@ -220,25 +220,21 @@ public struct LeaderboardPadView: View {
     }
     private func turnCube(to face: Int) {
         cube.dragging = false
+        cube.turnSerial += 1
+        let serial = cube.turnSerial
+        cube.turning = true
         cube.face = face
-        withAnimation(.easeInOut(duration: usesReducedMotion ? 0.18 : 0.42)) { cube.position = Double(face) }
+        withAnimation(.easeInOut(duration: usesReducedMotion ? 0.18 : 0.42)) {
+            cube.position = Double(face)
+        } completion: {
+            if cube.turnSerial == serial { cube.turning = false }
+        }
     }
     private var cubeBoards: some View {
         GeometryReader { geometry in
             ZStack(alignment: .topLeading) {
                 ForEach(Array(store.category.boardKinds.enumerated()), id: \.element) { index, kind in
-                    ScrollView {
-                        boardCard(kind, compact: true)
-                    }
-                    .scrollPosition(id: Binding(get: { cube.rank }, set: { rank in
-                        if index == cube.face && !cube.dragging && cube.rank != rank { cube.rank = rank }
-                    }), anchor: .top)
-                    .refreshable { await store.refresh(force: true) }
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .background(Color.padBackground)
-                    .modifier(CubeFace(position: cube.position, face: index, width: geometry.size.width, reduceMotion: usesReducedMotion))
-                    .allowsHitTesting(index == cube.face && !cube.dragging)
-                    .accessibilityHidden(index != cube.face || cube.dragging)
+                    cubeFace(kind, index: index, size: geometry.size)
                 }
             }
             .id(cube.generation)
@@ -247,6 +243,7 @@ public struct LeaderboardPadView: View {
             .contentShape(Rectangle())
             .simultaneousGesture(DragGesture(minimumDistance: 16)
                 .onChanged { value in
+                    guard !cube.turning else { return }
                     guard cube.dragging || LeaderboardCube.isHorizontal(x: value.translation.width, y: value.translation.height) else { return }
                     cube.dragging = true
                     if !usesReducedMotion {
@@ -269,6 +266,33 @@ public struct LeaderboardPadView: View {
                 @unknown default: break
                 }
             }
+        }
+    }
+    private func cubeFace(_ kind: LeaderboardKind, index: Int, size: CGSize) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView { boardCard(kind, compact: true) }
+                .coordinateSpace(name: "rank-scroll-\(kind.rawValue)")
+                .onPreferenceChange(LeaderboardRankFrames.self) { frames in
+                    Task { @MainActor in
+                        guard index == cube.face && !cube.dragging && !cube.turning else { return }
+                        let rank = LeaderboardCube.visibleRank(frames, height: size.height)
+                        if cube.rank != rank { cube.rank = rank }
+                    }
+                }
+                .onChange(of: cube.face) { _, face in
+                    if face == index, let rank = cube.rank {
+                        // Move the incoming source to the same ranking position
+                        // before rotating it into view; never animate the scroll.
+                        var transaction = Transaction(); transaction.disablesAnimations = true
+                        withTransaction(transaction) { proxy.scrollTo(rank, anchor: .top) }
+                    }
+                }
+                .refreshable { await store.refresh(force: true) }
+                .frame(width: size.width, height: size.height)
+                .background(Color.padBackground)
+                .modifier(CubeFace(position: cube.position, face: index, width: size.width, reduceMotion: usesReducedMotion))
+                .allowsHitTesting(index == cube.face && !cube.dragging && !cube.turning)
+                .accessibilityHidden(index != cube.face || cube.dragging)
         }
     }
     private var compactFooter: some View {
@@ -533,8 +557,17 @@ private struct PadBoardCard: View {
                 VStack(spacing: 0) {
                     ForEach(Array(rows.prefix(20).enumerated()), id: \.offset) { index, entry in
                         entryRow(entry, rank: index + 1).id(index + 1)
+                            .background {
+                                if compact && !isImage {
+                                    GeometryReader { geometry in
+                                        let frame = geometry.frame(in: .named("rank-scroll-\(kind.rawValue)"))
+                                        Color.clear.preference(key: LeaderboardRankFrames.self,
+                                            value: [index + 1: LeaderboardRankFrame(minY: frame.minY, maxY: frame.maxY)])
+                                    }
+                                }
+                            }
                     }
-                }.scrollTargetLayout()
+                }
             } else {
                 ForEach(1...20, id: \.self) { rank in
                     HStack { Text(LeaderboardPresentation.rankLabel(rank)).frame(width: 32); Spacer(); Text("-").frame(width: 50); Text("-").frame(width: 44) }

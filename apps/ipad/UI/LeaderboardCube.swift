@@ -5,6 +5,8 @@ final class LeaderboardCubeState: ObservableObject {
     @Published var position: Double
     @Published var face = 0
     @Published var dragging = false
+    @Published var turning = false
+    var turnSerial = 0
     @Published var rank: Int?
     @Published var generation = 0
     init(position: Double = 0) { self.position = position }
@@ -20,6 +22,11 @@ enum LeaderboardCube {
     static func destination(face: Int, translation: Double, predicted: Double, width: Double) -> Int {
         let travel = abs(predicted) > abs(translation) ? predicted : translation
         return position(face: face, translation: travel, width: width) >= 0.5 ? 1 : 0
+    }
+    static func visibleRank(_ frames: [Int: LeaderboardRankFrame], height: CGFloat) -> Int? {
+        guard height > 0 else { return nil }
+        let visible = frames.filter { $0.value.maxY > 0 && $0.value.minY < height }
+        return visible.filter { $0.value.minY >= -1 }.keys.min() ?? visible.keys.min()
     }
     static func isHorizontal(x: Double, y: Double) -> Bool { abs(x) > abs(y) * 1.25 }
 }
@@ -42,5 +49,16 @@ struct CubeFace: AnimatableModifier {
             .offset(x: reduceMotion ? 0 : width * distance)
             .opacity(reduceMotion ? 1 - abs(distance) : (abs(distance) >= 0.999 ? 0 : 1))
             .zIndex(1 - abs(distance))
+    }
+}
+
+struct LeaderboardRankFrame: Equatable, Sendable {
+    let minY: CGFloat
+    let maxY: CGFloat
+}
+struct LeaderboardRankFrames: PreferenceKey {
+    static var defaultValue: [Int: LeaderboardRankFrame] { [:] }
+    static func reduce(value: inout [Int: LeaderboardRankFrame], nextValue: () -> [Int: LeaderboardRankFrame]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, right in right })
     }
 }
