@@ -37,6 +37,7 @@ struct LeaderboardView: View {
 
     let maximumWidth: CGFloat
     var viewportSize: CGSize? = nil
+    var visualVersionText: String? = nil
 
     private var contentWidth: CGFloat {
         viewportSize?.width ?? Self.preferredWidth(for: state, maximumWidth: maximumWidth)

@@ -14,6 +14,18 @@ static class Program
     [STAThread]
     static void Main(string[] args)
     {
+        if (Array.IndexOf(args, "--visual-test") >= 0)
+        {
+            try { VisualTests.Run(); }
+            catch (Exception error)
+            {
+                var directory = Path.Combine(Environment.CurrentDirectory, "work", "visual-parity", "windows");
+                Directory.CreateDirectory(directory);
+                File.WriteAllText(Path.Combine(directory, "failed.txt"), error.ToString());
+                Environment.ExitCode = 1;
+            }
+            return;
+        }
         if (Array.IndexOf(args, "--smoke-test") >= 0)
         {
             try { SmokeTests.Run(); }
