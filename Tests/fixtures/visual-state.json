@@ -685,6 +685,14 @@
       "height": 820,
       "scenario": "window",
       "mode": "clickToClose"
+    },
+    {
+      "id": "short-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 600,
+      "scenario": "normal",
+      "mode": "clickToClose"
     }
   ]
 }
