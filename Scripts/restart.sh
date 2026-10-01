@@ -6,10 +6,13 @@ set -euo pipefail
 
 ROOT=${0:A:h:h}
 APP="$ROOT/outputs/AI-BenchGauge.app"
-BIN="$APP/Contents/MacOS/leaderboard-menu"
+# The running instance may still come from the repository's previous location.
+# Match the exact bundle/executable suffix so moving the checkout cannot leave
+# Launch Services reactivating the old process while we wait for the new path.
+APP_PROCESS_PATTERN='[/]AI-BenchGauge[.]app/Contents/MacOS/leaderboard-menu$'
 
 notify() {
-  if [[ -n "${LOCAL_CI_NOTIFY_OWNER:-}" || "${DESKTOP_NOTIFY:-}" == "0" ]]; then
+  if [[ -n "${CALMMIT_NOTIFY_OWNER:-}" || "${DESKTOP_NOTIFY:-}" == "0" ]]; then
     return 0
   fi
   node "$ROOT/Scripts/desktop-notify.mjs" --wait "$1" "$2" "$3" || true
@@ -26,7 +29,7 @@ trap on_err ERR
 
 running_pids() {
   local pids
-  if pids=$(pgrep -f "$BIN"); then
+  if pids=$(pgrep -f "$APP_PROCESS_PATTERN"); then
     print -r -- "$pids"
     return 0
   else
@@ -43,7 +46,7 @@ running_pids() {
 
 old_pids=$(running_pids)
 if [[ -n "$old_pids" ]]; then
-  pkill -f "$BIN"
+  pkill -f "$APP_PROCESS_PATTERN"
   for attempt in {1..20}; do
     current_pids=$(running_pids)
     [[ -z "$current_pids" ]] && break
