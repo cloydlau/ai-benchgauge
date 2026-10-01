@@ -61,6 +61,12 @@
     "enabled": true
   },
   "dev": {
+    "activity": [
+      {
+        "kind": "mac-app",
+        "executable": "outputs/AI-BenchGauge.app/Contents/MacOS/leaderboard-menu"
+      }
+    ],
     "enabled": true,
     "command": ["node", "Scripts/watch.mjs"],
     "themeColor": "#0070e3",
