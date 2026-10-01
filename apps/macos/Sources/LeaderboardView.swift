@@ -35,6 +35,7 @@ struct LeaderboardView: View {
 
     let maximumWidth: CGFloat
     var viewportSize: CGSize? = nil
+    var visualVersionText: String? = nil
 
     private var contentWidth: CGFloat {
         viewportSize?.width ?? Self.preferredWidth(for: state, maximumWidth: maximumWidth)
@@ -321,7 +322,7 @@ struct LeaderboardView: View {
                 // name needs no font bundling or license.
                 .font(.custom("SnellRoundhand-Bold", size: 21))
                 .lineLimit(1)
-            Button("v\(appVersion)") { appUpdater.checkForUpdates() }
+            Button(versionLabel) { appUpdater.checkForUpdates() }
                 .buttonStyle(.plain)
                 .font(.caption)
                 .foregroundStyle(.tertiary)
@@ -332,6 +333,8 @@ struct LeaderboardView: View {
                 .accessibilityIdentifier("check-app-updates")
         }
     }
+
+    private var versionLabel: String { visualVersionText ?? "v\(appVersion)" }
 
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
