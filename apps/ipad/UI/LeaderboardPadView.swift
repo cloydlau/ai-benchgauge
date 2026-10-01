@@ -74,7 +74,7 @@ public struct LeaderboardPadView: View {
     private var controls: some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 24) { groupingPicker.frame(width: 180); categoryPicker }
-            VStack(alignment: .leading, spacing: 12) { groupingPicker.frame(width: 180); categoryPicker }
+            VStack(alignment: .leading, spacing: 12) { groupingPicker; categoryPicker }
         }
     }
 
