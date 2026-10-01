@@ -66,7 +66,7 @@ public struct LeaderboardPadView: View {
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("AI BenchGauge").font(.custom("SnellRoundhand-Bold", size: 21)).lineLimit(1)
+                appTitle
                 Text("v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")")
                     .font(.caption).foregroundStyle(.tertiary)
             }
@@ -88,6 +88,13 @@ public struct LeaderboardPadView: View {
                 .accessibilityIdentifier("refresh")
             }
         }
+    }
+    private var appTitle: some View {
+        Text(tr("AI BenchGauge", "智衡"))
+            .font(store.language == .english
+                ? .custom("SnellRoundhand-Bold", size: 21)
+                : .system(size: 21, weight: .semibold))
+            .lineLimit(1)
     }
     private var rankingFailed: Bool { store.category.boardKinds.contains { store.failures[$0] != nil && !store.refreshing.contains($0) } }
 
@@ -240,7 +247,7 @@ public struct LeaderboardPadView: View {
     func renderLeaderboardImage(width: CGFloat = 1000, scheme: ColorScheme = .light) -> CGImage? {
         let content = VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("AI BenchGauge").font(.custom("SnellRoundhand-Bold", size: 21))
+                appTitle
                 Text(tr(store.grouping == .model ? "Models" : "Companies", store.grouping == .model ? "模型" : "公司"))
                 Text(LeaderboardPresentation.title(store.category, language: store.language))
                 Spacer()

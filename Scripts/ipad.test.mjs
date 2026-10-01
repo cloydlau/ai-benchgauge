@@ -71,6 +71,7 @@ test('iPad source names and explanations stay aligned with desktop copy', () => 
     assert.ok(presentation.includes(JSON.stringify(chinese)), `Missing desktop copy: ${chinese}`)
   }
   const ui = readFileSync(new URL('../apps/ipad/UI/LeaderboardPadView.swift', import.meta.url), 'utf8')
+  assert.ok(ui.includes('Text(tr("AI BenchGauge", "智衡"))'))
   assert.ok(!ui.includes('获取于'))
   assert.ok(!ui.includes('"Fetched"'))
   const { project } = ipadProject({ version: '0.1.2' })
