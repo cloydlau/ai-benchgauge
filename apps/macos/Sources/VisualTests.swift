@@ -74,7 +74,7 @@ enum NativeVisualCapture {
                 }
                 apply()
                 let size = NSSize(width: test.width, height: test.height)
-                let host = NSHostingView(rootView: LeaderboardView(state: state, maximumWidth: CGFloat(test.width), viewportSize: size)
+                let host = NSHostingView(rootView: LeaderboardView(state: state, maximumWidth: CGFloat(test.width), viewportSize: size, visualVersionText: test.versionText)
                     .environment(\.colorScheme, theme == "dark" ? .dark : .light))
                 let style: NSWindow.StyleMask = test.scenario == "window" ? [.titled, .closable, .miniaturizable, .resizable] : [.borderless]
                 let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: style, backing: .buffered, defer: false)

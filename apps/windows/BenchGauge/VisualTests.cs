@@ -93,6 +93,7 @@ static class VisualTests
             try
             {
                 window.SetVisualViewport(test.Width, test.Height);
+                window.SetVisualVersionText(test.VersionText);
                 window.SetVisualAppearance(theme == "dark");
                 window.SetState(state); window.Reveal();
                 Settle(window);
