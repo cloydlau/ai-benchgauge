@@ -1,0 +1,986 @@
+{
+  "state": {
+    "boards": [
+      {
+        "kind": "artificialAnalysis",
+        "title": "Artificial Analysis",
+        "url": "https://artificialanalysis.ai",
+        "updatedAt": "2026-09-29T00:00:00Z",
+        "error": null,
+        "entries": [
+          {
+            "rank": 1,
+            "name": "GPT-5.2 (high)",
+            "score": 98.5,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 2,
+            "name": "Claude Sonnet 4.5 (extended thinking)",
+            "score": 97.2,
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 3,
+            "name": "Gemini 3 Pro Preview",
+            "score": 95.9,
+            "organization": "Google",
+            "logo": "google",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 4,
+            "name": "Qwen3-Max-Thinking 长名称测试模型",
+            "score": 94.6,
+            "organization": "Alibaba",
+            "logo": "qwen",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 5,
+            "name": "DeepSeek-V3.2-Speciale",
+            "score": 93.3,
+            "organization": "DeepSeek",
+            "logo": "deepseek",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 6,
+            "name": "GLM-4.6",
+            "score": 92.0,
+            "organization": "Z.ai",
+            "logo": "zai",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 7,
+            "name": "Kimi K2 Thinking",
+            "score": 90.7,
+            "organization": "Moonshot AI",
+            "logo": "kimi",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 8,
+            "name": "Grok 4 Fast Reasoning",
+            "score": 89.4,
+            "organization": "xAI",
+            "logo": "spacexai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 9,
+            "name": "Mistral Large 3",
+            "score": 88.1,
+            "organization": "Mistral",
+            "logo": "mistral",
+            "country": "france",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 10,
+            "name": "Ideogram 3.0",
+            "score": 86.8,
+            "organization": "Ideogram",
+            "logo": "ideogram",
+            "country": "canada",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 11,
+            "name": "GPT-5.2 (high) · secondary evaluation",
+            "score": 85.5,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 12,
+            "name": "Claude Sonnet 4.5 (extended thinking) · secondary evaluation",
+            "score": 84.2,
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 13,
+            "name": "Gemini 3 Pro Preview · secondary evaluation",
+            "score": 82.9,
+            "organization": "Google",
+            "logo": "google",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 14,
+            "name": "Qwen3-Max-Thinking 长名称测试模型 · secondary evaluation",
+            "score": 81.6,
+            "organization": "Alibaba",
+            "logo": "qwen",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 15,
+            "name": "DeepSeek-V3.2-Speciale · secondary evaluation",
+            "score": 80.3,
+            "organization": "DeepSeek",
+            "logo": "deepseek",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 16,
+            "name": "GLM-4.6 · secondary evaluation",
+            "score": 79.0,
+            "organization": "Z.ai",
+            "logo": "zai",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 17,
+            "name": "Kimi K2 Thinking · secondary evaluation",
+            "score": 77.7,
+            "organization": "Moonshot AI",
+            "logo": "kimi",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 18,
+            "name": "Grok 4 Fast Reasoning · secondary evaluation",
+            "score": 76.4,
+            "organization": "xAI",
+            "logo": "spacexai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 19,
+            "name": "Mistral Large 3 · secondary evaluation",
+            "score": 75.1,
+            "organization": "Mistral",
+            "logo": "mistral",
+            "country": "france",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 20,
+            "name": "Ideogram 3.0 · secondary evaluation",
+            "score": 73.8,
+            "organization": "Ideogram",
+            "logo": "ideogram",
+            "country": "canada",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          }
+        ],
+        "fetchedAt": "2026-09-29T00:00:00Z"
+      },
+      {
+        "kind": "arenaText",
+        "title": "Arena",
+        "url": "https://arena.ai",
+        "updatedAt": "2026-09-29T00:00:00Z",
+        "error": null,
+        "entries": [
+          {
+            "rank": 1,
+            "name": "GPT-5.2 (high)",
+            "score": 101.7,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 2,
+            "name": "Claude Sonnet 4.5 (extended thinking)",
+            "score": 100.4,
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 3,
+            "name": "Gemini 3 Pro Preview",
+            "score": 99.10000000000001,
+            "organization": "Google",
+            "logo": "google",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 4,
+            "name": "Qwen3-Max-Thinking 长名称测试模型",
+            "score": 97.8,
+            "organization": "Alibaba",
+            "logo": "qwen",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 5,
+            "name": "DeepSeek-V3.2-Speciale",
+            "score": 96.5,
+            "organization": "DeepSeek",
+            "logo": "deepseek",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 6,
+            "name": "GLM-4.6",
+            "score": 95.2,
+            "organization": "Z.ai",
+            "logo": "zai",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 7,
+            "name": "Kimi K2 Thinking",
+            "score": 93.9,
+            "organization": "Moonshot AI",
+            "logo": "kimi",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 8,
+            "name": "Grok 4 Fast Reasoning",
+            "score": 92.60000000000001,
+            "organization": "xAI",
+            "logo": "spacexai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 9,
+            "name": "Mistral Large 3",
+            "score": 91.3,
+            "organization": "Mistral",
+            "logo": "mistral",
+            "country": "france",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 10,
+            "name": "Ideogram 3.0",
+            "score": 90.0,
+            "organization": "Ideogram",
+            "logo": "ideogram",
+            "country": "canada",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 11,
+            "name": "GPT-5.2 (high) · secondary evaluation",
+            "score": 88.7,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 12,
+            "name": "Claude Sonnet 4.5 (extended thinking) · secondary evaluation",
+            "score": 87.4,
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 13,
+            "name": "Gemini 3 Pro Preview · secondary evaluation",
+            "score": 86.10000000000001,
+            "organization": "Google",
+            "logo": "google",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 14,
+            "name": "Qwen3-Max-Thinking 长名称测试模型 · secondary evaluation",
+            "score": 84.8,
+            "organization": "Alibaba",
+            "logo": "qwen",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 15,
+            "name": "DeepSeek-V3.2-Speciale · secondary evaluation",
+            "score": 83.5,
+            "organization": "DeepSeek",
+            "logo": "deepseek",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 16,
+            "name": "GLM-4.6 · secondary evaluation",
+            "score": 82.2,
+            "organization": "Z.ai",
+            "logo": "zai",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 17,
+            "name": "Kimi K2 Thinking · secondary evaluation",
+            "score": 80.9,
+            "organization": "Moonshot AI",
+            "logo": "kimi",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 18,
+            "name": "Grok 4 Fast Reasoning · secondary evaluation",
+            "score": 79.60000000000001,
+            "organization": "xAI",
+            "logo": "spacexai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 19,
+            "name": "Mistral Large 3 · secondary evaluation",
+            "score": 78.3,
+            "organization": "Mistral",
+            "logo": "mistral",
+            "country": "france",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 20,
+            "name": "Ideogram 3.0 · secondary evaluation",
+            "score": 77.0,
+            "organization": "Ideogram",
+            "logo": "ideogram",
+            "country": "canada",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          }
+        ],
+        "fetchedAt": "2026-09-29T00:00:00Z"
+      }
+    ],
+    "quotas": [
+      {
+        "id": "fixture-0",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "88%",
+            "light": "#3D8437",
+            "dark": "#99D37C"
+          }
+        ],
+        "accentLight": "#3D8437"
+      },
+      {
+        "id": "fixture-1",
+        "name": "Kimi",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "20%",
+            "light": "#DB521D",
+            "dark": "#FF9153"
+          }
+        ],
+        "accentLight": "#DB521D"
+      },
+      {
+        "id": "fixture-2",
+        "name": "Qwen",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "99%",
+            "light": "#1C8541",
+            "dark": "#7FD68B"
+          }
+        ],
+        "accentLight": "#1C8541"
+      },
+      {
+        "id": "fixture-3",
+        "name": "DeepSeek",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "55%",
+            "light": "#9F8219",
+            "dark": "#EBCB4E"
+          }
+        ],
+        "accentLight": "#9F8219"
+      },
+      {
+        "id": "fixture-4",
+        "name": "GLM",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "10%",
+            "light": "#DB3D23",
+            "dark": "#FF825F"
+          }
+        ],
+        "accentLight": "#DB3D23"
+      },
+      {
+        "id": "fixture-5",
+        "name": "xAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "75%",
+            "light": "#63832B",
+            "dark": "#BAD06A"
+          }
+        ],
+        "accentLight": "#63832B"
+      }
+    ],
+    "quotaNeedsCCSwitch": false,
+    "quotaUnavailable": false,
+    "trayText": null,
+    "alerts": [],
+    "quotaUpdatedAt": "2026-09-29T00:00:00Z"
+  },
+  "cases": [
+    {
+      "id": "model-en-900",
+      "language": "en",
+      "width": 900,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "model-en-1100",
+      "language": "en",
+      "width": 1100,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "model-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "model-zh-1100",
+      "language": "zh",
+      "width": 1100,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "model-zh-Hant-900",
+      "language": "zh-Hant",
+      "width": 900,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "model-zh-Hant-1100",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "empty-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 820,
+      "scenario": "empty",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "error-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 820,
+      "scenario": "error",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "manyQuotas-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 820,
+      "scenario": "manyQuotas",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "window-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 820,
+      "scenario": "window",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "short-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 600,
+      "scenario": "normal",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "model-zh-600",
+      "language": "zh",
+      "width": 600,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "manyQuotas-zh-600",
+      "language": "zh",
+      "width": 600,
+      "height": 820,
+      "scenario": "manyQuotas",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "manyQuotas-en-900",
+      "language": "en",
+      "width": 900,
+      "height": 820,
+      "scenario": "manyQuotas",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "manyQuotas-zh-Hant-900",
+      "language": "zh-Hant",
+      "width": 900,
+      "height": 820,
+      "scenario": "manyQuotas",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "model-en-600",
+      "language": "en",
+      "width": 600,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "manyQuotas-en-600",
+      "language": "en",
+      "width": 600,
+      "height": 820,
+      "scenario": "manyQuotas",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "model-zh-Hant-600",
+      "language": "zh-Hant",
+      "width": 600,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "manyQuotas-zh-Hant-600",
+      "language": "zh-Hant",
+      "width": 600,
+      "height": 820,
+      "scenario": "manyQuotas",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "model-en-1440",
+      "language": "en",
+      "width": 1440,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "model-zh-1440",
+      "language": "zh",
+      "width": 1440,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "model-zh-Hant-1440",
+      "language": "zh-Hant",
+      "width": 1440,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "manyQuotas-zh-1440",
+      "language": "zh",
+      "width": 1440,
+      "height": 820,
+      "scenario": "manyQuotas",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "freshness-now-en-1440",
+      "language": "en",
+      "width": 1440,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 0
+    },
+    {
+      "id": "freshness-minutes-en-600",
+      "language": "en",
+      "width": 600,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 1380
+    },
+    {
+      "id": "freshness-hours-en-900",
+      "language": "en",
+      "width": 900,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 18000
+    },
+    {
+      "id": "freshness-days-en-1440",
+      "language": "en",
+      "width": 1440,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 172800
+    },
+    {
+      "id": "freshness-stale-en-600",
+      "language": "en",
+      "width": 600,
+      "height": 820,
+      "scenario": "freshnessStale",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 1380
+    },
+    {
+      "id": "freshness-unknown-en-900",
+      "language": "en",
+      "width": 900,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": -1
+    },
+    {
+      "id": "freshness-now-zh-1440",
+      "language": "zh",
+      "width": 1440,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 0
+    },
+    {
+      "id": "freshness-minutes-zh-600",
+      "language": "zh",
+      "width": 600,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 1380
+    },
+    {
+      "id": "freshness-hours-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 18000
+    },
+    {
+      "id": "freshness-days-zh-1440",
+      "language": "zh",
+      "width": 1440,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 172800
+    },
+    {
+      "id": "freshness-stale-zh-600",
+      "language": "zh",
+      "width": 600,
+      "height": 820,
+      "scenario": "freshnessStale",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 1380
+    },
+    {
+      "id": "freshness-unknown-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": -1
+    },
+    {
+      "id": "freshness-now-zh-Hant-1440",
+      "language": "zh-Hant",
+      "width": 1440,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 0
+    },
+    {
+      "id": "freshness-minutes-zh-Hant-600",
+      "language": "zh-Hant",
+      "width": 600,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 1380
+    },
+    {
+      "id": "freshness-hours-zh-Hant-900",
+      "language": "zh-Hant",
+      "width": 900,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 18000
+    },
+    {
+      "id": "freshness-days-zh-Hant-1440",
+      "language": "zh-Hant",
+      "width": 1440,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 172800
+    },
+    {
+      "id": "freshness-stale-zh-Hant-600",
+      "language": "zh-Hant",
+      "width": 600,
+      "height": 820,
+      "scenario": "freshnessStale",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": 1380
+    },
+    {
+      "id": "freshness-unknown-zh-Hant-900",
+      "language": "zh-Hant",
+      "width": 900,
+      "height": 820,
+      "scenario": "freshness",
+      "mode": "clickToClose",
+      "quotaAgeSeconds": -1
+    },
+    {
+      "id": "header-version-en-900",
+      "language": "en",
+      "width": 900,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "versionText": "v12.34.567 ↑"
+    },
+    {
+      "id": "header-version-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "versionText": "v12.34.567 ↑"
+    },
+    {
+      "id": "header-version-zh-Hant-900",
+      "language": "zh-Hant",
+      "width": 900,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "versionText": "v12.34.567 ↑"
+    }
+  ]
+}

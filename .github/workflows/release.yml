@@ -4,10 +4,15 @@ on:
     tags: ['v*']
 permissions:
   contents: write
+  actions: read
 concurrency:
   group: stable-release
   cancel-in-progress: false
 jobs:
+  visual:
+    uses: ./.github/workflows/visual-parity.yml
+    with:
+      require_review: true
   windows:
     uses: ./.github/workflows/windows-build.yml
     with:
@@ -116,7 +121,7 @@ jobs:
         run: |
           if [ -f "$RUNNER_TEMP/release.keychain-db" ]; then security delete-keychain "$RUNNER_TEMP/release.keychain-db"; fi
   publish:
-    needs: [macos, windows]
+    needs: [macos, windows, visual]
     runs-on: macos-15
     timeout-minutes: 15
     steps:

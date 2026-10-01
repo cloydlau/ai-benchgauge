@@ -5,7 +5,10 @@ on:
     branches: [main]
 permissions:
   contents: read
+  actions: read
 jobs:
+  visual:
+    uses: ./.github/workflows/visual-parity.yml
   checks:
     runs-on: macos-15
     timeout-minutes: 30

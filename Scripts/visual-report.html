@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI BenchGauge · 原生窗口对照</title>
+<style>
+body{margin:24px auto;padding:0 20px;max-width:1800px;background:#f3f4f6;color:#172033;font:15px/1.6 system-ui,sans-serif}
+[hidden]{display:none!important}
+h1{font-size:24px;margin:0 0 8px}p{margin:8px 0}a{color:#1d4ed8}
+.controls{display:flex;gap:16px;flex-wrap:wrap;margin:20px 0;align-items:end}label{display:grid;gap:4px}
+select,input,button{font:inherit}select,button{padding:8px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:inherit}
+.pictures{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}figure{margin:0;min-width:0}figcaption{padding:8px 0;font-weight:600}
+img{display:block;width:100%;height:auto;background:#fff}.overlay{display:grid;max-width:1100px;margin:auto}.overlay img{grid-area:1/1}.overlay[hidden],.pictures[hidden]{display:none}
+.note{color:#475569}.findings{margin-top:24px}td,th{text-align:left;padding:10px;vertical-align:top;border-bottom:1px solid #cbd5e1}table{border-collapse:collapse;width:100%}
+@media(max-width:800px){.pictures{grid-template-columns:1fr}body{padding:0 12px}.controls{gap:10px}}
+</style>
+<h1>AI BenchGauge · 原生窗口对照</h1>
+<p>相同测试数据与内容尺寸，逐张查看打开、刷新和稳定后的画面。图片来自实际 WPF 窗口与 AppKit / SwiftUI 窗口。</p>
+<p class="note">Windows：Server 2022，实际缩放见下方。Mac / Windows：浅色与深色各三帧。此报告尚未覆盖 Windows 10/11、125%/150% 缩放及连续动画。</p>
+<div class="controls">
+  <label>页面状态<select id="case"></select></label>
+  <label>帧<select id="frame"><option value="0">① 打开后</option><option value="1">② 刷新后</option><option value="2" selected>③ 稳定后</option></select></label>
+  <label>外观<select id="theme"><option value="light">浅色</option><option value="dark">深色</option></select></label>
+  <label>对照方式<select id="view"><option value="side">并排</option><option value="overlay">叠加</option><option value="difference">像素差异</option></select></label>
+  <label id="blend-label" hidden>Windows 叠加透明度<input id="blend" type="range" min="0" max="100" value="50"></label>
+</div>
+<p id="metadata" class="note" aria-live="polite"></p>
+<div class="pictures" id="pictures">
+  <figure><figcaption>macOS</figcaption><img id="mac-image" alt="Mac 原生窗口截图"></figure>
+  <figure><figcaption>Windows</figcaption><img id="windows-image" alt="Windows 原生窗口截图"></figure>
+</div>
+<div class="overlay" id="overlay" hidden><img id="overlay-mac" alt="Mac 对照底图"><img id="overlay-windows" alt="Windows 叠加截图"></div>
+<figure id="diff-panel" hidden><figcaption>像素差异（包含系统字体、抗锯齿与原生控件差异，不能直接作为质量分数）</figcaption><canvas id="diff" style="width:100%;max-width:1100px;height:auto" aria-label="两端截图的像素差异图"></canvas></figure>
+<div class="findings">
+<h2>逐帧审查清单</h2>
+<p id="provenance" class="note"></p>
+<table><thead><tr><th>区域</th><th>每个受影响状态都要检查</th></tr></thead><tbody>
+<tr><td>榜单</td><td>表头、排名列、行高、列宽、公司色条、图标、滚动对齐和长名称截断。</td></tr>
+<tr><td>控件</td><td>分类、分组、语言和窗口模式的布局、字体、间距与点击区域。</td></tr>
+<tr><td>余量与空态</td><td>供应商图标、数值与单位、卡片间距，以及引导链接和占位区是否出现。</td></tr>
+<tr><td>刷新与错误</td><td>打开、刷新、稳定三帧之间是否跳位、丢失内容、被遮挡或出现异常空白。</td></tr>
+<tr><td>语言、主题与窗口</td><td>逐个查看已有语言、宽度、浅色和深色；记录有意保留的平台差异。</td></tr>
+</tbody></table>
+<p class="note">截图生成成功不等于样式合格。未覆盖的新状态需补测试场景；Windows 10/11 和实际显示缩放问题需在对应桌面补拍。</p>
+</div>
+<script>
+/* CAPTURE_DATA */
+const byId = id => document.getElementById(id);
+const picker = byId('case');
+for (const item of captures) { const option = document.createElement('option'); option.value = item.id; option.textContent = item.id; picker.append(option); }
+picker.value = captures.some(item => item.id === 'model-zh-900') ? 'model-zh-900' : captures[0].id;
+byId('provenance').textContent = coverage.sourceVerified ? `本次提交：${coverage.sourceCommit} · ${coverage.cases} 个状态 / ${coverage.windowsFrames + coverage.macosFrames} 帧 · 待人工审查` : '本地报告：未验证双端来源提交，不能用作发布审核凭据。';
+let revision = 0;
+async function render() {
+  const token = ++revision;
+  const item = captures.find(value => value.id === picker.value);
+  const frame = item.frames[Number(byId('frame').value)];
+  const theme = byId('theme').value;
+  const mode = byId('view').value;
+  const windowsImage = theme === 'dark' && frame.windowsDark ? frame.windowsDark : frame.windows;
+  byId('metadata').textContent = `${item.width} × ${item.height} 内容尺寸 · Windows ${Math.round(item.windows.dpiScale*100)}% · ${item.windows.os} · Mac ${item.macos.find(value=>value.theme===theme).os}`;
+  byId('pictures').hidden = mode !== 'side'; byId('overlay').hidden = mode !== 'overlay'; byId('diff-panel').hidden = mode !== 'difference';
+  byId('blend-label').hidden = mode !== 'overlay';
+  byId('mac-image').src = frame[theme]; byId('windows-image').src = windowsImage;
+  byId('overlay-mac').src = frame[theme]; byId('overlay-windows').src = windowsImage;
+  byId('overlay-windows').style.opacity = Number(byId('blend').value)/100;
+  if (mode === 'difference') {
+    const load = src => new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=src;});
+    const [mac,win] = await Promise.all([load(frame[theme]),load(windowsImage)]);
+    if(token!==revision)return;
+    const canvas = byId('diff');canvas.width=item.width;canvas.height=item.height;
+    const context=canvas.getContext('2d',{willReadFrequently:true});context.drawImage(mac,0,0,item.width,item.height);const a=context.getImageData(0,0,item.width,item.height);
+    context.drawImage(win,0,0,item.width,item.height);const b=context.getImageData(0,0,item.width,item.height);
+    for(let i=0;i<a.data.length;i+=4){const diff=Math.max(Math.abs(a.data[i]-b.data[i]),Math.abs(a.data[i+1]-b.data[i+1]),Math.abs(a.data[i+2]-b.data[i+2]));a.data[i]=diff>30?230:245;a.data[i+1]=diff>30?60:245;a.data[i+2]=diff>30?60:245;a.data[i+3]=255;}context.putImageData(a,0,0);
+  }
+}
+for(const id of ['case','frame','theme','view','blend'])byId(id).addEventListener('input',()=>render().catch(console.error));
+render().catch(console.error);
+</script>
+</html>
