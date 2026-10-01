@@ -245,11 +245,13 @@ public enum AccountQuotaFormatting {
     /// to show, which is also when the panel's chip has none.
     public static func menuBarText(
         forChips chips: [AccountQuotaChip],
-        maximumNameLength: Int = 24
+        maximumNameLength: Int = 24,
+        currentModelName: String? = nil
     ) -> AccountQuotaMenuBarText? {
         guard let current = chips.first(where: \.isCurrent),
               let quota = compactMenuBarQuota(for: current) else { return nil }
-        let fullName = current.modelName ?? current.shortName
+        let liveName = currentModelName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fullName = liveName.flatMap { $0.isEmpty ? nil : $0 } ?? current.modelName ?? current.shortName
         let name = fullName.count > maximumNameLength
             ? String(fullName.prefix(maximumNameLength - 1)) + "…"
             : fullName

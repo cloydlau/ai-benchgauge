@@ -197,6 +197,20 @@ public enum CCSwitchProviderStore {
         return trimmed.isEmpty ? nil : trimmed
     }
 
+    /// Optional live model metadata; missing Codex does not affect quota access.
+    public static func currentCodexModelConfiguration(
+        homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> CodexModelConfiguration? {
+        let root: URL
+        if let override = environment["CODEX_HOME"]?.trimmingCharacters(in: .whitespacesAndNewlines), !override.isEmpty {
+            root = URL(fileURLWithPath: override, isDirectory: true)
+        } else {
+            root = homeDirectory.appending(path: ".codex", directoryHint: .isDirectory)
+        }
+        return CodexModelConfiguration.load(from: root.appending(path: "config.toml"))
+    }
+
     private static func defaultAppPathsURL(in home: URL) -> URL {
         #if os(Windows)
         let roaming = ProcessInfo.processInfo.environment["APPDATA"].map { URL(fileURLWithPath: $0) }
