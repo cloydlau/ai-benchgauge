@@ -323,6 +323,13 @@ public struct LeaderboardPadView: View {
             Spacer(minLength: 0)
             Button { copyScreenshot() } label: { Image(systemName: "camera").frame(width: 44, height: 44) }
                 .accessibilityLabel(tr("Screenshot", "截图")).accessibilityIdentifier("share")
+            #if os(iOS)
+            PhoneMenuButton(title: languageLabel(store.language), identifier: "language-menu",
+                items: AppLanguage.allCases.map { language in
+                    PhoneMenuItem(title: languageLabel(language), identifier: "language-\(language.rawValue)",
+                        action: { store.language = language }, selected: language == store.language)
+                }, label: tr("Language", "语言")).frame(width: 44, height: 44)
+            #else
             Menu {
                 ForEach(AppLanguage.allCases, id: \.self) { language in
                     Button { store.language = language } label: {
@@ -332,6 +339,7 @@ public struct LeaderboardPadView: View {
                 }
             } label: { Text(languageLabel(store.language)).font(.caption).frame(minWidth: 40, minHeight: 44).contentShape(Rectangle()) }
                 .accessibilityLabel(tr("Language", "语言")).accessibilityIdentifier("language-menu")
+            #endif
         }.buttonStyle(.plain).foregroundStyle(.secondary).lineLimit(1)
     }
     private func languageLabel(_ language: AppLanguage) -> String {

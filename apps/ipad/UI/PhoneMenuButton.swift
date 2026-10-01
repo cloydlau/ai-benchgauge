@@ -7,6 +7,7 @@ struct PhoneMenuItem {
     let title: String
     let identifier: String
     let action: @MainActor () -> Void
+    var selected = false
 }
 
 /// A native primary-action menu provides a rectangular touch and accessibility
@@ -16,8 +17,9 @@ struct PhoneMenuButton: UIViewRepresentable {
     let title: String
     let identifier: String
     let items: [PhoneMenuItem]
-    let sourceTitle: String
-    let sources: [PhoneMenuItem]
+    var sourceTitle = ""
+    var sources: [PhoneMenuItem] = []
+    var label: String?
 
     func makeUIView(context: Context) -> UIButton {
         let button = UIButton(type: .system)
@@ -33,15 +35,17 @@ struct PhoneMenuButton: UIViewRepresentable {
     }
     func updateUIView(_ button: UIButton, context: Context) {
         button.setTitle(title, for: .normal)
-        button.accessibilityLabel = title
+        button.accessibilityLabel = label ?? title
         button.accessibilityIdentifier = identifier
         func menuAction(_ item: PhoneMenuItem) -> UIAction {
-            UIAction(title: item.title, identifier: UIAction.Identifier(rawValue: item.identifier)) { _ in
+            UIAction(title: item.title, identifier: UIAction.Identifier(rawValue: item.identifier), state: item.selected ? .on : .off) { _ in
                 MainActor.assumeIsolated { item.action() }
             }
         }
         var children: [UIMenuElement] = items.map(menuAction)
-        children.append(UIMenu(title: sourceTitle, options: .displayInline, children: sources.map(menuAction)))
+        if !sources.isEmpty {
+            children.append(UIMenu(title: sourceTitle, options: .displayInline, children: sources.map(menuAction)))
+        }
         button.menu = UIMenu(children: children)
     }
 }
