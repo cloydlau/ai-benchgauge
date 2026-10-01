@@ -15,7 +15,7 @@ enum NativeVisualCapture {
         let id: String; let name: String; let isCurrent: Bool; let runs: [Run]
     }
     struct State: Decodable { let boards: [Board]; let quotas: [Quota]; let quotaUpdatedAt: String? }
-    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int? }
+    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String? }
     struct Fixture: Decodable { let state: State; let cases: [Case] }
 
     static func run() async throws {

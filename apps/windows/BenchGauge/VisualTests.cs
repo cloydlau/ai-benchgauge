@@ -18,7 +18,7 @@ namespace BenchGauge;
 // reading accounts or using the privacy-redacted Copy command.
 static class VisualTests
 {
-    sealed record Case(string Id, string Language, int Width, int Height, string Scenario, string Mode, int? QuotaAgeSeconds);
+    sealed record Case(string Id, string Language, int Width, int Height, string Scenario, string Mode, int? QuotaAgeSeconds, string? VersionText);
     sealed record Fixture(DisplayState State, Case[] Cases);
     [StructLayout(LayoutKind.Sequential)] struct Rect { public int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Sequential)] struct Point { public int X, Y; }

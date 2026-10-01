@@ -954,6 +954,33 @@
       "scenario": "freshness",
       "mode": "clickToClose",
       "quotaAgeSeconds": -1
+    },
+    {
+      "id": "header-version-en-900",
+      "language": "en",
+      "width": 900,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "versionText": "v12.34.567 ↑"
+    },
+    {
+      "id": "header-version-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "versionText": "v12.34.567 ↑"
+    },
+    {
+      "id": "header-version-zh-Hant-900",
+      "language": "zh-Hant",
+      "width": 900,
+      "height": 820,
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "versionText": "v12.34.567 ↑"
     }
   ]
 }

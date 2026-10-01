@@ -25,6 +25,8 @@ sealed partial class MainWindow
     double renderedPanelWidth;
     bool panelMenuOpen;
     bool panelRefreshing;
+    string? visualVersionText;
+    public void SetVisualVersionText(string? text) { visualVersionText = text; }
     bool panelDark = ReadSystemDark();
     Brush PanelInk => Tint(panelDark ? "#ECECEF" : "#232325");
     Brush PanelMuted => Tint(panelDark ? "#A5A5AA" : "#77777B");
@@ -187,9 +189,13 @@ sealed partial class MainWindow
         var titleLine = new Grid(); titleLine.ColumnDefinitions.Add(new ColumnDefinition()); titleLine.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var brand = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         headerTitle = new TextBlock { Text = "AI BenchGauge", FontFamily = new FontFamily("Segoe Script"), FontWeight = FontWeights.Bold, FontSize = 21, Height = 27, Foreground = PanelInk };
+        CenterTextInk(headerTitle);
         brand.Children.Add(headerTitle);
-        updateButton = QuietButton("v" + config.Version + (availableUpdate is null ? "" : " ↑"), async () => await CheckUpdates(true));
-        updateButton.Foreground = Tint("#C6C6CA"); updateButton.Margin = new Thickness(8, 0, 0, 0); brand.Children.Add(updateButton);
+        updateButton = QuietButton(visualVersionText ?? ("v" + config.Version + (availableUpdate is null ? "" : " ↑")), async () => await CheckUpdates(true));
+        updateButton.Foreground = Tint("#C6C6CA");
+        updateButton.Content = Caption((string)updateButton.Content, updateButton.Foreground);
+        updateButton.Height = headerTitle.Height;
+        updateButton.Margin = new Thickness(8, 0, 0, 0); brand.Children.Add(updateButton);
         titleLine.Children.Add(brand);
         var freshness = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         freshness.Children.Add(Caption(Tr("UPDATED", "更新时间", "更新時間")));
