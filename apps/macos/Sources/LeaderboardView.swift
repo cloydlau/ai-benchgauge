@@ -323,7 +323,7 @@ struct LeaderboardView: View {
                 // name needs no font bundling or license.
                 .font(.custom("SnellRoundhand-Bold", size: 21))
                 .lineLimit(1)
-                .alignmentGuide(.center) { dimensions in
+                .alignmentGuide(VerticalAlignment.center) { dimensions in
                     Self.textInkCenter(dimensions, text: "AI BenchGauge",
                         font: NSFont(name: "SnellRoundhand-Bold", size: 21)!)
                 }
@@ -332,7 +332,7 @@ struct LeaderboardView: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
                 .monospacedDigit()
-                .alignmentGuide(.center) { dimensions in
+                .alignmentGuide(VerticalAlignment.center) { dimensions in
                     Self.textInkCenter(dimensions, text: versionLabel,
                         font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular))
                 }
@@ -345,7 +345,7 @@ struct LeaderboardView: View {
 
     // SwiftUI's line boxes retain different ascents/descents for the title
     // and small version. Align their native glyph centres instead.
-    private static func textInkCenter(_ dimensions: ViewDimensions, text: String, font: NSFont) -> CGFloat {
+    nonisolated private static func textInkCenter(_ dimensions: ViewDimensions, text: String, font: NSFont) -> CGFloat {
         let line = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: [.font: font]))
         let ink = CTLineGetImageBounds(line, nil)
         guard !ink.isNull, !ink.isEmpty else { return dimensions[VerticalAlignment.center] }
