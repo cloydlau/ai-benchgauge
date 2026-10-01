@@ -9,6 +9,7 @@ import AppKit
 @MainActor
 private final class PadPresentationState: ObservableObject {
     @Published var licenseSection: PadLicenseSection?
+    @Published var selectedLicenseSection: PadLicenseSection = .application
     @Published var note: String?
 }
 private enum PadLicenseSection: String, Identifiable {
@@ -161,9 +162,9 @@ public struct LeaderboardPadView: View {
                 }.accessibilityLabel("GitHub")
                 Text("Cloyd Lau")
                 Text("·")
-                Button(compact ? "MIT" : "MIT License") { presentation.licenseSection = .application }.accessibilityIdentifier("license")
+                Button(compact ? "MIT" : "MIT License") { openLicense(.application) }.accessibilityIdentifier("license")
                 Text("·")
-                Button(tr(compact ? "Notices" : "Open-source notices", "开源声明")) { presentation.licenseSection = .notices }
+                Button(tr(compact ? "Notices" : "Open-source notices", "开源声明")) { openLicense(.notices) }
                     .accessibilityIdentifier("open-source-notices")
             }.fixedSize()
             Spacer(minLength: 8)
@@ -193,15 +194,41 @@ public struct LeaderboardPadView: View {
         }.buttonStyle(.plain)
     }
 
+    private func openLicense(_ section: PadLicenseSection) {
+        presentation.selectedLicenseSection = section
+        presentation.licenseSection = section
+    }
     private func licenseSheet(_ section: PadLicenseSection) -> some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    if section == .application { Text(Self.license).font(.footnote).textSelection(.enabled) }
-                    else { Text(tr("No third-party software is bundled in this edition.", "此版本未打包第三方软件。")) }
-                }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
+            VStack(spacing: 0) {
+                Picker(tr("License section", "许可证分类"), selection: $presentation.selectedLicenseSection) {
+                    Text(tr("Application license", "本软件许可")).tag(PadLicenseSection.application)
+                    Text(tr("Open-source notices", "开源软件声明")).tag(PadLicenseSection.notices)
+                }.pickerStyle(.segmented).padding(20).accessibilityIdentifier("license-section")
+                Divider()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if presentation.selectedLicenseSection == .application {
+                            HStack {
+                                Text("AI BenchGauge").font(.headline)
+                                Spacer()
+                                Text("MIT").font(.caption.weight(.medium)).padding(.horizontal, 8).padding(.vertical, 3)
+                                    .background(.quaternary, in: Capsule())
+                            }
+                            Text(tr("Application license", "本软件的许可证")).foregroundStyle(.secondary)
+                            Link(tr("Project source", "项目源码"), destination: Self.repositoryURL)
+                            Text(Self.license).font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
+                        } else {
+                            Text(tr("No third-party open-source code libraries are bundled with this application.", "本应用目前未打包第三方开源代码库。"))
+                                .foregroundStyle(.secondary)
+                        }
+                    }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
-            .navigationTitle(section == .application ? "MIT License" : tr("Open-source notices", "开源声明"))
+            .navigationTitle(tr("Licenses & notices", "许可证与声明"))
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button(tr("Done", "完成")) { presentation.licenseSection = nil } } }
         }
     }
@@ -483,6 +510,7 @@ private struct PadSegmentedControl<Value: Hashable>: UIViewRepresentable {
         if control.selectedSegmentIndex != index { control.selectedSegmentIndex = index }
         control.setNeedsLayout()
     }
+    @MainActor
     final class Coordinator: NSObject {
         let values: [Value]
         var selection: Binding<Value>
