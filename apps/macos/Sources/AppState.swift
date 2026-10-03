@@ -9,6 +9,8 @@ private struct CCSwitchQuotaLoad: Sendable {
     var currentProviderID: String?
     var xaiAuthURL: URL
     var officialTargets: [CCSwitchQuotaTarget]
+    var ccSwitchTargets: [CCSwitchQuotaTarget]
+    var shouldAskClaudeKeychainConsent: Bool
 }
 
 private enum InactiveQuotaRefreshScope {
@@ -36,6 +38,8 @@ final class AppState: ObservableObject {
     @Published private(set) var quotaUpdatedAt: Date?
     @Published private(set) var quotaUnavailable = false
     @Published private(set) var ccSwitchEmptyState: CCSwitchState?
+    @Published private(set) var claudeKeychainConsent = ClaudeKeychainConsent.notDetermined
+    @Published private(set) var isClaudeKeychainConsentPending = false
     private let officialAccountStore = OfficialQuotaAccountStore()
 
     func officialAccounts() -> [OfficialQuotaAccount] {
@@ -107,6 +111,9 @@ final class AppState: ObservableObject {
     /// The current-provider selection this app last reacted to. CC Switch owns
     /// the value and rewrites its tiny settings file on every switch.
     private var lastCheckedQuotaProviderID: String?
+    /// Set only for the refresh immediately following an explicit user action;
+    /// background reads must never trigger macOS' Keychain authorization UI.
+    private var allowsKeychainAuthenticationUI = false
 
     init(
         cache: LeaderboardCache,
@@ -116,6 +123,7 @@ final class AppState: ObservableObject {
         self.cache = cache
         self.defaults = defaults
         self.configuration = configuration
+        claudeKeychainConsent = ClaudeKeychainConsentPreference.load(from: defaults)
         currentCodexModelConfiguration = CCSwitchProviderStore.currentCodexModelConfiguration()
         panelMode = PanelModePreference.load(from: defaults)
         quotaClient = AccountQuotaClient(
@@ -286,6 +294,20 @@ final class AppState: ObservableObject {
         language.save()
     }
 
+    func allowClaudeKeychainAccess() {
+        ClaudeKeychainConsentPreference.save(.allowed, to: defaults)
+        claudeKeychainConsent = .allowed
+        isClaudeKeychainConsentPending = false
+        allowsKeychainAuthenticationUI = true
+        refreshQuotas(minimumInterval: 0)
+    }
+
+    func declineClaudeKeychainAccess() {
+        ClaudeKeychainConsentPreference.save(.denied, to: defaults)
+        claudeKeychainConsent = .denied
+        isClaudeKeychainConsentPending = false
+    }
+
     func selectPanelMode(_ mode: PanelMode) {
         guard mode != panelMode else { return }
         panelMode = mode
@@ -417,14 +439,26 @@ final class AppState: ObservableObject {
         let isInstalled = NSWorkspace.shared.urlForApplication(
             withBundleIdentifier: CCSwitchProviderStore.bundleID
         ) != nil
+        let defaults = self.defaults
+        let officialAccountStore = self.officialAccountStore
+        let consent = ClaudeKeychainConsentPreference.load(from: defaults)
+        let includesClaudeKeychain = consent == .allowed
+        let allowsAuthenticationUI = self.allowsKeychainAuthenticationUI
+        self.allowsKeychainAuthenticationUI = false
 
         quotaTask = Task { [weak self] in
             guard let self else { return }
             let loaded = await Task.detached(priority: .utility) {
                 let install = CCSwitchProviderStore.resolveInstall()
                 var result = CCSwitchProviderStore.loadQuotaProviders(databaseURL: install.databaseURL)
+                var ccSwitchTargets: [CCSwitchQuotaTarget] = []
                 let officialTargets = OfficialQuotaDiscovery.merge(ccSwitch: [], official:
-                    ((try? self.officialAccountStore.load()) ?? []).compactMap(\.target) + OfficialQuotaDiscovery.targets())
+                    ((try? officialAccountStore.load()) ?? []).compactMap(\.target)
+                    + OfficialQuotaDiscovery.targets(
+                        includeKeychain: includesClaudeKeychain,
+                        allowKeychainAuthenticationUI: allowsAuthenticationUI,
+                        includedKeychainKinds: [.claude]
+                    ))
                 if case .absent = result, !officialTargets.isEmpty { result = .records([]) }
                 let currentID: String?
                 if case .records = result {
@@ -432,12 +466,25 @@ final class AppState: ObservableObject {
                 } else {
                     currentID = nil
                 }
+                if case let .records(records) = result {
+                    ccSwitchTargets = CCSwitchQuotaCatalog.targets(
+                        from: records,
+                        currentProviderID: currentID
+                    )
+                } else {
+                    ccSwitchTargets = []
+                }
+                let shouldAsk = consent == .notDetermined
+                    && ccSwitchTargets.contains { $0.kind == .claude && $0.accessToken == nil }
+                    && !officialTargets.contains { $0.kind == .claude }
                 return CCSwitchQuotaLoad(
                     result: result,
                     isInstalled: isInstalled,
                     currentProviderID: currentID,
                     xaiAuthURL: install.xaiAuthURL,
-                    officialTargets: officialTargets
+                    officialTargets: officialTargets,
+                    ccSwitchTargets: ccSwitchTargets,
+                    shouldAskClaudeKeychainConsent: shouldAsk
                 )
             }.value
             guard !Task.isCancelled, !self.isQuitting, generation == self.quotaGeneration else { return }
@@ -455,13 +502,14 @@ final class AppState: ObservableObject {
                 // Keep the last chips. The strip only notes that this read failed.
                 self.quotaUnavailable = true
                 self.ccSwitchEmptyState = nil
-            case let .records(records):
+            case .records:
                 self.quotaUnavailable = false
                 self.ccSwitchEmptyState = nil
-                let targets = OfficialQuotaDiscovery.merge(ccSwitch: CCSwitchQuotaCatalog.targets(
-                    from: records,
-                    currentProviderID: loaded.currentProviderID
-                ), official: loaded.officialTargets)
+                if loaded.shouldAskClaudeKeychainConsent { self.isClaudeKeychainConsentPending = true }
+                let targets = OfficialQuotaDiscovery.merge(
+                    ccSwitch: loaded.ccSwitchTargets,
+                    official: loaded.officialTargets
+                )
                 self.quotaTargetsByID = Dictionary(uniqueKeysWithValues: targets.map { ($0.id, $0) })
                 if targets.contains(where: { $0.kind == .xaiOAuth }) { self.xaiWebsiteSource.refreshIfConnected() }
                 guard !targets.isEmpty else {

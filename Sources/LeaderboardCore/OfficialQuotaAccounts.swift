@@ -65,12 +65,33 @@ public struct OfficialQuotaAccountStore: Sendable {
     }
 }
 
+public enum ClaudeKeychainConsent: String, Equatable, Sendable {
+    case notDetermined
+    case allowed
+    case denied
+}
+
+public enum ClaudeKeychainConsentPreference {
+    public static let userDefaultsKey = "AIBenchGauge.claudeKeychainConsent"
+
+    public static func load(from defaults: UserDefaults = .standard) -> ClaudeKeychainConsent {
+        guard let raw = defaults.string(forKey: userDefaultsKey) else { return .notDetermined }
+        return ClaudeKeychainConsent(rawValue: raw) ?? .notDetermined
+    }
+
+    public static func save(_ consent: ClaudeKeychainConsent, to defaults: UserDefaults = .standard) {
+        defaults.set(consent.rawValue, forKey: userDefaultsKey)
+    }
+}
+
 /// Explicit official locations only. Never scan arbitrary files, shells, or
 /// browser profiles. Refresh tokens remain owned by the official clients.
 public enum OfficialQuotaDiscovery {
     public static func targets(home: URL = FileManager.default.homeDirectoryForCurrentUser,
                                environment: [String: String] = ProcessInfo.processInfo.environment,
-                               includeKeychain: Bool = true) -> [CCSwitchQuotaTarget] {
+                               includeKeychain: Bool = false,
+                               allowKeychainAuthenticationUI: Bool = false,
+                               includedKeychainKinds: Set<CCSwitchQuotaKind>? = nil) -> [CCSwitchQuotaTarget] {
         var targets: [CCSwitchQuotaTarget] = []
         for (kind, directory, file, service) in [
             (CCSwitchQuotaKind.claude, ".claude", ".credentials.json", "Claude Code-credentials"),
@@ -82,7 +103,11 @@ public enum OfficialQuotaDiscovery {
             // CLAUDE_CONFIG_DIR is the actual configuration directory.
             let root = kind == .gemini ? (configuredRoot ?? home).appending(path: directory)
                 : (configuredRoot ?? home.appending(path: directory))
-            let token = (includeKeychain ? keychain(service).flatMap { oauthToken($0, kind: kind) } : nil)
+            let usesKeychain = includeKeychain && (includedKeychainKinds?.contains(kind) ?? true)
+            let token = (usesKeychain
+                ? keychain(service, allowsAuthenticationUI: allowKeychainAuthenticationUI)
+                    .flatMap { oauthToken($0, kind: kind) }
+                : nil)
                 ?? read(root.appending(path: file)).flatMap { oauthToken($0, kind: kind) }
             guard let token else { continue }
             targets.append(CCSwitchQuotaTarget(id: "official-local:\(kind.rawValue)",
@@ -222,12 +247,12 @@ public enum OfficialQuotaDiscovery {
         return value
     }
 
-    private static func keychain(_ service: String) -> Data? {
+    private static func keychain(_ service: String, allowsAuthenticationUI: Bool) -> Data? {
         #if canImport(Security)
         var result: CFTypeRef?
-        // Do not summon a permission dialog during background discovery.
+        // Only an explicit consent-triggered refresh may summon macOS' dialog.
         let context = LAContext()
-        context.interactionNotAllowed = true
+        context.interactionNotAllowed = !allowsAuthenticationUI
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service, kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne, kSecUseAuthenticationContext as String: context]

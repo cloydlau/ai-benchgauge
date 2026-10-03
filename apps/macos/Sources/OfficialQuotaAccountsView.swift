@@ -76,6 +76,21 @@ struct OfficialQuotaAccountsView: View {
                     }
                 }.frame(maxHeight: 130)
             }
+            Divider()
+            VStack(alignment: .leading, spacing: 6) {
+                Text(tr("Claude Code login", "Claude Code 登录")).fontWeight(.semibold)
+                Text(tr("Allow BenchGauge to read the Claude Code access token from macOS Keychain. It is used only for Anthropic's official usage query; the refresh token is not read or saved.",
+                        "允许 BenchGauge 读取 macOS 钥匙串中的 Claude Code access token。它只用于 Anthropic 官方用量查询；不会读取或保存 refresh token。"))
+                Button(tr("Allow Claude usage access", "允许读取 Claude 用量登录")) {
+                    state.allowClaudeKeychainAccess()
+                }
+                .disabled(form.busy || state.claudeKeychainConsent == .allowed)
+                if state.claudeKeychainConsent == .allowed {
+                    Text(tr("Allowed. macOS may still ask for Keychain permission.",
+                            "已允许。macOS 仍可能请求钥匙串权限。"))
+                }
+            }
+            .font(.caption).foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 6) {
                 Text(tr("Coverage and inclusion", "收录原则与范围")).fontWeight(.semibold)
                 Text(tr("We prioritize official providers in the General, Coding, Image and Video Top 20 lists from Artificial Analysis and Arena.",
