@@ -42,6 +42,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @MainActor
+enum ClaudeKeychainConsentAlert {
+    static func make(language: AppLanguage) -> NSAlert {
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = language.text(
+            "Show Claude usage?",
+            "查询 Claude 余量？"
+        )
+        alert.informativeText = language.text(
+            "BenchGauge reads the Claude Code Keychain token to query official Claude usage. It does not read or save the refresh token. macOS may ask again for system permission; skipping affects only this query.",
+            "为了让 Claude 余量自动显示，BenchGauge 会读取 Claude Code 的钥匙串访问令牌，仅用于 Anthropic 官方余量接口，也不会读取或保存刷新令牌。macOS 可能再显示系统授权；暂不开启只影响这项查询。"
+        )
+        alert.addButton(withTitle: language.text("Allow and continue", "允许并继续"))
+        alert.addButton(withTitle: language.text("Not now", "暂不"))
+        return alert
+    }
+}
+
+@MainActor
 final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
     @IBOutlet private var button: NSStatusBarButton?
     private static let statusItemSymbolName = "brain.head.profile"
@@ -439,18 +458,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
               window.isVisible, window.alphaValue > 0, window.attachedSheet == nil else { return }
         isPresentingClaudeKeychainConsent = true
         let language = state.selectedLanguage
-        let alert = NSAlert()
-        alert.alertStyle = .informational
-        alert.messageText = language.text(
-            "Connect Claude usage?",
-            "连接 Claude 用量？"
-        )
-        alert.informativeText = language.text(
-            "BenchGauge needs the Claude Code access token stored in macOS Keychain to check official Claude subscription usage. The token is sent only to Anthropic's official usage endpoint; the refresh token is not read or saved. macOS may show its own Keychain confirmation after this. Declining keeps every other feature available.",
-            "BenchGauge 需要读取 Claude Code 保存在 macOS 钥匙串中的 access token，用于查询 Claude 官方订阅用量。令牌只会发送给 Anthropic 官方用量接口；不会读取或保存 refresh token。确认后 macOS 可能还会显示一次系统钥匙串授权。拒绝不影响其他功能。"
-        )
-        alert.addButton(withTitle: language.text("Allow and continue", "允许并继续"))
-        alert.addButton(withTitle: language.text("Not now", "暂不"))
+        let alert = ClaudeKeychainConsentAlert.make(language: language)
         alert.beginSheetModal(for: window) { [weak self] response in
             guard let self else { return }
             self.isPresentingClaudeKeychainConsent = false

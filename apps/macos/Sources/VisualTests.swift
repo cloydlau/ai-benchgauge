@@ -100,6 +100,7 @@ enum NativeVisualCapture {
                 }
                 apply()
                 let size = NSSize(width: test.width, height: test.height)
+                let isClaudeConsentAlert = test.scenario == "claudeKeychainConsentAlert"
                 let view = test.scenario == "addModelDialog"
                     ? AnyView(OfficialQuotaAccountsView(state: state, usesVisualFixture: true))
                     : AnyView(LeaderboardView(state: state, maximumWidth: CGFloat(test.width), viewportSize: size, visualVersionText: test.versionText))
@@ -115,13 +116,21 @@ enum NativeVisualCapture {
                 window.appearance = NSAppearance(named: theme == "dark" ? .darkAqua : .aqua)
                 window.contentView = host
                 window.center(); window.orderFront(nil)
-                defer { window.close(); defaults.removePersistentDomain(forName: defaultsName) }
+                if isClaudeConsentAlert {
+                    let alert = ClaudeKeychainConsentAlert.make(language: AppLanguage(rawValue: test.language)!)
+                    alert.beginSheetModal(for: window) { _ in }
+                }
+                defer {
+                    if let sheet = window.attachedSheet { window.endSheet(sheet) }
+                    window.close(); defaults.removePersistentDomain(forName: defaultsName)
+                }
                 for frame in 0..<3 {
                     if frame == 1 { apply() }
                     try await Task.sleep(for: .milliseconds(300))
                     host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
-                    let png = (test.scenario == "addModelDialog" || test.scenario.hasPrefix("xaiSubscriptionDialog"))
-                        ? PanelScreenshot.captureForm(view: host)
+                    let captureView = isClaudeConsentAlert ? window.attachedSheet?.contentView : host
+                    let png = (test.scenario == "addModelDialog" || test.scenario.hasPrefix("xaiSubscriptionDialog") || isClaudeConsentAlert)
+                        ? captureView.flatMap { PanelScreenshot.captureForm(view: $0, minimumVariety: 1) }
                         : PanelScreenshot.capture(view: host)?.png
                     guard let png else { throw CaptureError.blankFrame(test.id) }
                     try png.write(to: output.appending(path: "\(test.id)-\(theme)-frame-\(frame).png"))
