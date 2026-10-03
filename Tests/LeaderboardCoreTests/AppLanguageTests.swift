@@ -36,6 +36,8 @@ struct AppLanguageTests {
         #expect((AppLanguage.chinese.quotaText("1个月 6.8%")) == ("1个月 6.8%"))
         #expect((AppLanguage.english.quotaText("余 ¥12.36")) == ("Balance ¥12.36"))
         #expect((AppLanguage.traditionalChinese.quotaText("余 ¥12.36")) == ("餘 ¥12.36"))
+        #expect((AppLanguage.english.quotaText(AccountQuotaMessage.autoRenewing)) == ("Auto-renew"))
+        #expect((AppLanguage.traditionalChinese.quotaText(AccountQuotaMessage.autoRenewing)) == ("自動續費"))
         #expect((AppLanguage.traditionalChinese.providerName(.zhipu)) == ("GLM"))
         #expect((AppLanguage.traditionalChinese.text("Screenshot", "截图")) == ("截圖"))
         #expect((AppLanguage.traditionalChinese.quotaText("7天 72% · 截至9月24日2时")) == ("7天 72% · 截至9月24日2時"))

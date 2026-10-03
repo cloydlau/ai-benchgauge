@@ -48,7 +48,7 @@ public enum QuotaAlerts {
     public static let expiringInterval: TimeInterval = 2 * 24 * 60 * 60
 
     public static func alerts(for chip: AccountQuotaChip, now: Date) -> [QuotaAlert] {
-        guard chip.isCurrent, isConclusive(chip.status) else { return [] }
+        guard chip.isCurrent || hasAutoRenewingPlan(chip.status), isConclusive(chip.status) else { return [] }
         let subjects = subjects(for: chip)
         var alerts: [QuotaAlert] = []
         if let alert = lowRemainingAlert(chip: chip, subjects: subjects) {
@@ -96,8 +96,9 @@ public enum QuotaAlerts {
         let remainingPercent: Double?
         let resetsAt: Date?
         let expiryEligible: Bool
-        /// A plan boundary has no remaining percent. Renewal is unknown.
+        /// A plan boundary has no remaining percent; renewal is explicit only.
         let expiresRatherThanResets: Bool
+        let isAutoRenewing: Bool
     }
 
     private static func isConclusive(_ status: AccountQuotaChip.Status) -> Bool {
@@ -108,6 +109,13 @@ public enum QuotaAlerts {
             return false
         case .windows, .balances, .qwenPlan, .qwenWebsite:
             return true
+        }
+    }
+
+    private static func hasAutoRenewingPlan(_ status: AccountQuotaChip.Status) -> Bool {
+        guard case let .windows(windows) = status else { return false }
+        return windows.contains {
+            $0.name == ParsedQuotaWindow.planExpiryName && $0.isAutoRenewing
         }
     }
 
@@ -122,7 +130,8 @@ public enum QuotaAlerts {
                     remainingPercent: isPlanExpiry ? nil : remainingPercent(utilization: window.utilization),
                     resetsAt: window.resetsAt,
                     expiryEligible: !isShortWindow(window.name),
-                    expiresRatherThanResets: isPlanExpiry
+                    expiresRatherThanResets: isPlanExpiry,
+                    isAutoRenewing: isPlanExpiry && window.isAutoRenewing
                 )
             }
         case let .qwenPlan(plan):
@@ -136,7 +145,8 @@ public enum QuotaAlerts {
                     remainingPercent: remainingPercent(plan),
                     resetsAt: plan.resetsAt,
                     expiryEligible: true,
-                    expiresRatherThanResets: false
+                    expiresRatherThanResets: false,
+                    isAutoRenewing: false
                 ),
             ]
             if plan.expiresAt != nil {
@@ -147,7 +157,8 @@ public enum QuotaAlerts {
                         remainingPercent: nil,
                         resetsAt: plan.expiresAt,
                         expiryEligible: true,
-                        expiresRatherThanResets: true
+                        expiresRatherThanResets: true,
+                        isAutoRenewing: false
                     )
                 )
             }
@@ -160,13 +171,14 @@ public enum QuotaAlerts {
                     remainingPercent: quota.remainingPercent,
                     resetsAt: quota.resetsAt,
                     expiryEligible: true,
-                    expiresRatherThanResets: false
+                    expiresRatherThanResets: false,
+                    isAutoRenewing: false
                 ),
             ]
             if let expiry = quota.expiresAt {
                 subjects.append(Subject(sourceID: ParsedQuotaWindow.planExpiryName, label: "",
                     remainingPercent: nil, resetsAt: expiry, expiryEligible: true,
-                    expiresRatherThanResets: true))
+                    expiresRatherThanResets: true, isAutoRenewing: false))
             }
             return subjects
         case .pending, .note, .balances, .message:
@@ -229,6 +241,9 @@ public enum QuotaAlerts {
         guard !qualifying.isEmpty else { return nil }
         let body = qualifying.map { subject, phrase in
             if subject.expiresRatherThanResets {
+                if subject.isAutoRenewing {
+                    return AccountQuotaMessage.autoRenewing
+                }
                 if let end = subject.resetsAt {
                     return AccountQuotaFormatting.periodEndPhrase(until: end, now: now)
                 }
