@@ -136,9 +136,10 @@ struct GrokQuotaTests {
             return try JSONSerialization.data(withJSONObject: ["subscriptions": [record]])
         }
         #expect(try await !client.captureXAIWebsiteSubscription(response(userID: "other-user")))
-        #expect(try await !client.captureXAIWebsiteSubscription(response(userID: nil)))
         #expect(try await !client.captureXAIWebsiteSubscription(response(userID: "canonical-user", date: "2026-09-01T12:00:00Z")))
         #expect(store.record(accountID: "test", now: now) == nil)
+        #expect(try await client.captureXAIWebsiteSubscription(response(userID: nil)))
+        #expect(store.record(accountID: "test", now: now)?.periodEnd == ISO8601DateFormatter().date(from: "2026-11-18T12:00:00Z"))
         #expect(try await client.captureXAIWebsiteSubscription(response(userID: "canonical-user")))
         let target = CCSwitchQuotaTarget(id: "xai", shortName: "xAI", websiteURL: nil, kind: .xaiOAuth, isCurrent: false, apiKey: nil, baseURL: nil)
         let chip = try #require(try await client.refresh(targets: [target]).first)

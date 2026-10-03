@@ -12,7 +12,7 @@ using Microsoft.Web.WebView2.Wpf;
 
 namespace BenchGauge;
 // Only the official site's subscription JSON crosses the local pipe. The
-// engine verifies xaiUserId against the live CLI account before storing a date.
+// engine verifies the response against the live CLI account before storing a date.
 sealed class XAIWebsiteSubscriptionWindow : Window
 {
     readonly WebView2 browser = new();
