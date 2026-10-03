@@ -219,6 +219,7 @@ public actor AccountQuotaClient {
     private let now: @Sendable () -> Date
     private let xaiTokens = XAIAccessTokens()
     private let xaiSubscriptionDateStore: XAISubscriptionDateStore
+    private var lastGoodXAISubscriptionDatesByAccountID: [String: Date] = [:]
 
     public init(
         transport: any AccountQuotaTransport = URLSessionAccountQuotaTransport(),
@@ -401,10 +402,15 @@ public actor AccountQuotaClient {
                    case let .account(account) = XAIAccessTokens.readLogin(at: authFileURL),
                    account.id == accountID {
                     if let end = windows.first(where: { $0.name == ParsedQuotaWindow.planExpiryName })?.resetsAt {
+                        lastGoodXAISubscriptionDatesByAccountID[accountID] = end
                         try? xaiSubscriptionDateStore.save(.init(accountID: accountID, periodEnd: end, source: .cached))
                     } else if let saved = xaiSubscriptionDateStore.record(accountID: accountID, now: now()) {
                         resolvedWindows.append(ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName,
                             utilization: 0, resetsAt: saved.periodEnd, dateSource: saved.source))
+                    } else if let end = lastGoodXAISubscriptionDatesByAccountID[accountID], end > now() {
+                        resolvedWindows.append(ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName,
+                            utilization: 0, resetsAt: end, dateSource: .cached))
+                        try? xaiSubscriptionDateStore.save(.init(accountID: accountID, periodEnd: end, source: .cached))
                     }
                 }
                 return AccountQuotaChip(
