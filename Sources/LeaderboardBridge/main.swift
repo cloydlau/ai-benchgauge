@@ -213,7 +213,8 @@ actor Engine {
         let install = CCSwitchProviderStore.resolveInstall()
         var loaded = CCSwitchProviderStore.loadQuotaProviders(databaseURL: install.databaseURL)
         let officialTargets = OfficialQuotaDiscovery.merge(ccSwitch: [], official:
-            ((try? officialAccountStore.load()) ?? []).compactMap(\.target) + OfficialQuotaDiscovery.targets())
+            ((try? officialAccountStore.load()) ?? []).compactMap(\.target)
+            + OfficialQuotaDiscovery.targets(includeKeychain: false))
         if case .absent = loaded, !officialTargets.isEmpty { loaded = .records([]) }
         switch loaded {
         case .absent:

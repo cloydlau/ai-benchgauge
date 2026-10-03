@@ -65,6 +65,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
     private var framePinInstalled = false
     private var framePinAttempts = 0
     private var framePinGeneration = 0
+    private var isPresentingClaudeKeychainConsent = false
 
     private var maximumWidth: CGFloat {
         let screen = statusItem.button?.window?.screen ?? NSScreen.main
@@ -108,6 +109,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
                 self?.updatePresentationMode()
                 self?.updatePanelWidth()
                 self?.updateDismissMonitor()
+                self?.presentClaudeKeychainConsentIfNeeded()
             }
         }
         appActivationObserver = NSWorkspace.shared.notificationCenter.addObserver(
@@ -126,6 +128,12 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
             self,
             selector: #selector(screenParametersChanged(_:)),
             name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowSheetDidEnd(_:)),
+            name: NSWindow.didEndSheetNotification,
             object: nil
         )
         AppUpdater.shared.activePresentationWindow = { [weak self] in
@@ -422,6 +430,42 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
         updateDismissMonitor()
         AppUpdater.shared.presentIfReady()
+        presentClaudeKeychainConsentIfNeeded()
+    }
+
+    private func presentClaudeKeychainConsentIfNeeded() {
+        guard state.isClaudeKeychainConsentPending, !isPresentingClaudeKeychainConsent,
+              let window = state.panelMode == .window ? leaderboardWindow : hosting.view.window,
+              window.isVisible, window.alphaValue > 0, window.attachedSheet == nil else { return }
+        isPresentingClaudeKeychainConsent = true
+        let language = state.selectedLanguage
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = language.text(
+            "Connect Claude usage?",
+            "连接 Claude 用量？"
+        )
+        alert.informativeText = language.text(
+            "BenchGauge needs the Claude Code access token stored in macOS Keychain to check official Claude subscription usage. The token is sent only to Anthropic's official usage endpoint; the refresh token is not read or saved. macOS may show its own Keychain confirmation after this. Declining keeps every other feature available.",
+            "BenchGauge 需要读取 Claude Code 保存在 macOS 钥匙串中的 access token，用于查询 Claude 官方订阅用量。令牌只会发送给 Anthropic 官方用量接口；不会读取或保存 refresh token。确认后 macOS 可能还会显示一次系统钥匙串授权。拒绝不影响其他功能。"
+        )
+        alert.addButton(withTitle: language.text("Allow and continue", "允许并继续"))
+        alert.addButton(withTitle: language.text("Not now", "暂不"))
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard let self else { return }
+            self.isPresentingClaudeKeychainConsent = false
+            if response == .alertFirstButtonReturn {
+                self.state.allowClaudeKeychainAccess()
+            } else {
+                self.state.declineClaudeKeychainAccess()
+            }
+        }
+    }
+
+    @objc private func windowSheetDidEnd(_ notification: Notification) {
+        Task { @MainActor [weak self] in
+            self?.presentClaudeKeychainConsentIfNeeded()
+        }
     }
 
     @objc private func togglePopover() {
@@ -558,6 +602,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
         if window.isMiniaturized { window.deminiaturize(nil) }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        presentClaudeKeychainConsentIfNeeded()
         // Hosting layout can recenter a previously hidden window when it is
         // shown again. Restore the user's frame once after that layout pass.
         // Subsequent moves/resizes are entirely owned by the user and macOS.
