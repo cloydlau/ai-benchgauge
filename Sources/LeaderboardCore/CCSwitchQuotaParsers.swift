@@ -421,10 +421,22 @@ public enum CCSwitchQuotaParsers {
             return ParsedQuotaWindow(
                 name: ParsedQuotaWindow.planExpiryName,
                 utilization: 0,
-                resetsAt: end
+                resetsAt: end,
+                isAutoRenewing: zhipuAutoRenewing(object)
             )
         }
         return nil
+    }
+
+    /// The subscription API reports this as boolean-like data, with `1` meaning
+    /// enabled. Unknown or absent values must not be inferred from the date.
+    private static func zhipuAutoRenewing(_ object: [String: Any]) -> Bool {
+        let value = object["autoRenew"]
+        guard let value else { return false }
+        if CCSwitchJSON.isBoolean(value) {
+            return (value as? Bool) ?? false
+        }
+        return jsonInt(value) == 1
     }
 
     public static func parseDeepSeek(_ data: Data) -> ProviderQuotaParseResult {

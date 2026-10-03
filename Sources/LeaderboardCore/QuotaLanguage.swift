@@ -34,6 +34,7 @@ public extension AppLanguage {
             "需要重新登录": "Sign in again", "未配置": "Not configured",
             "未登录": "Not signed in", "网络错误": "Network error",
             "无可用余额": "No balance", "未连接": "Connect",
+            AccountQuotaMessage.autoRenewing: "Auto-renew",
             "等待授权": "Waiting for authorization",
             "MiniMax Coding Plan 套餐额度，与海螺视频额度独立": "MiniMax Coding Plan quota; Hailuo video credits are separate",
             "Luma API 余额，与 Dream Machine 网页订阅额度独立": "Luma API balance; Dream Machine subscription credits are separate",

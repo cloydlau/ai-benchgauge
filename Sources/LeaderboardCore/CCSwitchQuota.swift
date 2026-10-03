@@ -108,6 +108,7 @@ public enum AccountQuotaMessage {
     public static let officialSummary = "查询中"
     public static let officialHelp = "正在查询官方用量"
     public static let emptyBalance = "无可用余额"
+    public static let autoRenewing = "自动续费"
     public static let connectOfficial = "未连接"
     public static let connectOfficialHelp = "只显示千问账号套餐剩余，多设备共用，不统计本机请求"
 }
@@ -125,12 +126,20 @@ public struct ParsedQuotaWindow: Equatable, Sendable {
     public let utilization: Double
     public let resetsAt: Date?
     public let dateSource: ParsedQuotaDateSource?
+    public let isAutoRenewing: Bool
 
-    public init(name: String, utilization: Double, resetsAt: Date?, dateSource: ParsedQuotaDateSource? = nil) {
+    public init(
+        name: String,
+        utilization: Double,
+        resetsAt: Date?,
+        dateSource: ParsedQuotaDateSource? = nil,
+        isAutoRenewing: Bool = false
+    ) {
         self.name = name
         self.utilization = utilization
         self.resetsAt = resetsAt
         self.dateSource = dateSource
+        self.isAutoRenewing = isAutoRenewing
     }
 }
 
@@ -774,7 +783,11 @@ public enum AccountQuotaFormatting {
     }
 
     private static func planPeriodEnd(_ windows: [ParsedQuotaWindow]) -> Date? {
-        windows.first(where: { $0.name == ParsedQuotaWindow.planExpiryName })?.resetsAt
+        planWindow(windows)?.resetsAt
+    }
+
+    private static func planWindow(_ windows: [ParsedQuotaWindow]) -> ParsedQuotaWindow? {
+        windows.first(where: { $0.name == ParsedQuotaWindow.planExpiryName })
     }
 
     private static func windowPeriodEnd(_ windows: [ParsedQuotaWindow]) -> Date? {
@@ -804,9 +817,9 @@ public enum AccountQuotaFormatting {
                 lines.append("\(label(forWindowName: window.name))重置\(date)")
             }
         }
-        if let end = planPeriodEnd(windows) {
-            lines.append(periodEndPhrase(until: end, now: now))
-            switch windows.first(where: { $0.name == ParsedQuotaWindow.planExpiryName })?.dateSource {
+        if let plan = planWindow(windows), let end = plan.resetsAt {
+            lines.append(plan.isAutoRenewing ? AccountQuotaMessage.autoRenewing : periodEndPhrase(until: end, now: now))
+            switch plan.dateSource {
             case .cached: lines.append("套餐日期来自已保存的查询结果；接口暂时不可用")
             case nil: break
             }
@@ -859,7 +872,14 @@ public enum AccountQuotaFormatting {
                 utilizationForTone: window.utilization
             ))
         }
-        if let end = windowPeriodEnd(windows) {
+        if let plan = planWindow(windows), let end = plan.resetsAt {
+            appendSeparator(&runs)
+            if plan.isAutoRenewing {
+                runs.append(QuotaTextRun(text: AccountQuotaMessage.autoRenewing, tone: .secondary))
+            } else {
+                runs.append(contentsOf: periodEndRuns(until: end, now: now))
+            }
+        } else if let end = windowPeriodEnd(windows) {
             appendSeparator(&runs)
             runs.append(contentsOf: periodEndRuns(until: end, now: now))
         }

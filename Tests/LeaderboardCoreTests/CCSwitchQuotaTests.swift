@@ -568,6 +568,42 @@ struct AccountQuotaFormattingTests {
         #expect(!(AccountQuotaFormatting.help(for: qwenWithoutEnd, now: now).contains("总到期")))
     }
 
+    @Test
+    func testAutoRenewingCodingPlanHidesOnlyThePlanDate() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let planEnd = now.addingTimeInterval((40 * 24 + 4) * 3600)
+        let autoRenewing = chip(
+            kind: .zhipu,
+            status: .windows([
+                ParsedQuotaWindow(name: "weekly_limit", utilization: 25, resetsAt: now.addingTimeInterval(3 * 86_400)),
+                ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: planEnd, isAutoRenewing: true),
+            ])
+        )
+        let planText = AccountQuotaFormatting.planExpiryPhrase(until: planEnd, now: now)!
+
+        #expect(AccountQuotaFormatting.plainSummary(for: autoRenewing, now: now) == "7d 75% · \(AccountQuotaMessage.autoRenewing)")
+        #expect(AccountQuotaFormatting.runs(for: autoRenewing, now: now).map(\.tone) == [.secondary, .remaining(75), .secondary, .secondary])
+        let help = AccountQuotaFormatting.help(for: autoRenewing, now: now)
+        #expect(help.contains(AccountQuotaMessage.autoRenewing))
+        #expect(!help.contains(planText))
+
+        let soonAutoEnd = now.addingTimeInterval(86_400)
+        let laterManualEnd = now.addingTimeInterval(10 * 86_400)
+        let soonAuto = chip(
+            kind: .zhipu,
+            status: .windows([ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: soonAutoEnd, isAutoRenewing: true)])
+        )
+        let laterManual = chip(
+            kind: .zhipu,
+            status: .windows([ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: laterManualEnd)])
+        )
+        #expect(AccountQuotaFormatting.sortedChips([laterManual, soonAuto]).map(\.id) == [soonAuto.id, laterManual.id])
+
+        let alerts = QuotaAlerts.alerts(for: soonAuto, now: now)
+        #expect(alerts.map(\.reason) == [.expiring])
+        #expect(alerts.map(\.body) == [AccountQuotaMessage.autoRenewing])
+    }
+
     /// The currency is whatever the provider reports, so a US account reads $.
     /// A mapped code becomes its symbol; an unmapped one keeps the ISO code
     /// behind the amount rather than losing the unit.
@@ -1174,6 +1210,36 @@ struct CCSwitchQuotaParserTests {
         ))
         #expect((otherDay?.resetsAt) == (formatter.date(from: "2026-10-03 00:00:00")))
         #expect((otherDay?.resetsAt) != (formatter.date(from: "2026-10-03 21:12:47")))
+    }
+
+    @Test
+    func testParsesZhipuAutoRenewalOnlyFromExplicitEnabledValues() {
+        func subscription(_ autoRenew: String) -> ParsedQuotaWindow? {
+            CCSwitchQuotaParsers.parseZhipuSubscription(Data(#"""
+            {"success":true,"data":[{"status":"VALID","inCurrentPeriod":true,"valid":"2026-10-03 10:00:00-2026-11-03 10:00:00","nextRenewTime":"2026-10-03","autoRenew":\#(autoRenew)}]}
+            """#.utf8))
+        }
+
+        #expect(subscription("true")?.isAutoRenewing == true)
+        #expect(subscription("1")?.isAutoRenewing == true)
+        #expect(subscription("false")?.isAutoRenewing == false)
+        #expect(subscription("0")?.isAutoRenewing == false)
+        #expect(subscription("2")?.isAutoRenewing == false)
+        #expect(subscription(#""1""#)?.isAutoRenewing == false)
+        #expect(subscription("null")?.isAutoRenewing == false)
+
+        let missing = CCSwitchQuotaParsers.parseZhipuSubscription(Data(#"""
+        {"success":true,"data":[{"status":"VALID","inCurrentPeriod":true,"valid":"2026-10-03 10:00:00-2026-11-03 10:00:00","nextRenewTime":"2026-10-03"}]}
+        """#.utf8))
+        #expect(missing?.isAutoRenewing == false)
+
+        let current = CCSwitchQuotaParsers.parseZhipuSubscription(Data(#"""
+        {"success":true,"data":[
+          {"status":"VALID","inCurrentPeriod":false,"valid":"2026-10-03 10:00:00-2026-11-03 10:00:00","nextRenewTime":"2026-10-03","autoRenew":1},
+          {"status":"VALID","inCurrentPeriod":true,"valid":"2026-10-03 10:00:00-2026-11-03 10:00:00","nextRenewTime":"2026-10-03","autoRenew":0}
+        ]}
+        """#.utf8))
+        #expect(current?.isAutoRenewing == false)
     }
 
     @Test
