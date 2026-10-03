@@ -166,6 +166,34 @@ struct GrokQuotaTests {
     }
 
     @Test
+    func testSubscriptionOutageReusesLastGoodDateForSameClientLogin() async throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "grok-outage-date-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let auth = directory.appending(path: "auth.json")
+        try Data(#"{"default_account_id":"test","accounts":{"test":{"account_id":"test","refresh_token":"test-refresh","requires_reauth":false}}}"#.utf8).write(to: auth)
+        let store = XAISubscriptionDateStore(fileURL: directory.appending(path: "dates.json"))
+        let fixedNow = now
+        let success = GrokFixtureTransport(status: 200, billingBody: credits(type: 2, end: "2026-10-05T12:00:00Z"), subscriptionEnd: "2026-11-18T12:00:00Z")
+        let outage = GrokFixtureTransport(status: 503, billingBody: credits(type: 2, end: "2026-10-05T12:00:00Z"))
+        let client = AccountQuotaClient(
+            transport: GrokSubscriptionOutageTransport(success: success, outage: outage),
+            authFileURL: auth,
+            now: { fixedNow },
+            xaiSubscriptionDateStore: store
+        )
+        let target = CCSwitchQuotaTarget(id: "xai", shortName: "xAI", websiteURL: nil, kind: .xaiOAuth, isCurrent: false, apiKey: nil, baseURL: nil)
+        let live = try #require(try await client.refresh(targets: [target]).first)
+        #expect(AccountQuotaFormatting.plainSummary(for: live, now: now) == "7d 75% · 至11月18日")
+        #expect(!AccountQuotaFormatting.requiresXAISubscriptionConnection(live))
+        try FileManager.default.removeItem(at: store.fileURL)
+        let retained = try #require(try await client.refresh(targets: [target]).first)
+        #expect(AccountQuotaFormatting.plainSummary(for: retained, now: now) == "7d 75% · 至11月18日")
+        #expect(AccountQuotaFormatting.requiresXAISubscriptionConnection(retained))
+        #expect(store.record(accountID: "test", now: now)?.periodEnd == ISO8601DateFormatter().date(from: "2026-11-18T12:00:00Z"))
+    }
+
+    @Test
     func testLegacyManualDateCannotSupplyAPlanDateAfterSubscriptionFailure() async throws {
         let directory = FileManager.default.temporaryDirectory.appending(path: "grok-manual-date-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -282,6 +310,26 @@ private struct GrokFixtureTransport: AccountQuotaTransport {
             recordFailure("unexpected quota endpoint")
             return AccountQuotaHTTPResponse(statusCode: 500, headers: [:], body: Data())
         }
+    }
+}
+
+private actor GrokSubscriptionOutageTransport: AccountQuotaTransport {
+    let success: GrokFixtureTransport
+    let outage: GrokFixtureTransport
+    private var hasSucceeded = false
+
+    init(success: GrokFixtureTransport, outage: GrokFixtureTransport) {
+        self.success = success
+        self.outage = outage
+    }
+
+    func data(for request: URLRequest) async throws -> AccountQuotaHTTPResponse {
+        let transport = request.url == XaiEndpointValidator.subscriptionsURL && hasSucceeded
+            ? outage
+            : success
+        let result = try await transport.data(for: request)
+        if request.url == XaiEndpointValidator.subscriptionsURL { hasSucceeded = true }
+        return result
     }
 }
 
