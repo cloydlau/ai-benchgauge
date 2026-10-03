@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 import Foundation
 import LeaderboardCore
 
@@ -173,12 +174,11 @@ final class AppState: ObservableObject {
     /// own intervals because they read different sources.
     private static let minimumLeaderboardRefreshInterval: TimeInterval = 30 * 60
     private static let inactiveQuotaRefreshInterval: TimeInterval = 60
-    /// Refresh the persistent menu bar quota every 30 minutes. Inactive xAI
-    /// gets a separate token renewal near its observed seven-day login
-    /// lifetime; other inactive chips are refreshed when the panel is opened.
-    /// A provider switch does not wait for this cadence; see the selection
-    /// check in tick().
-    private static let backgroundQuotaRefreshInterval: TimeInterval = 30 * 60
+    /// Automatic menu-bar quota refreshes run only while the Codex desktop
+    /// app is open and the user is active. xAI token renewal rides the same
+    /// quota pass. Explicit interactions and provider switches bypass this
+    /// cadence; see the selection check in tick().
+    private static let backgroundQuotaRefreshInterval = QuotaAutoRefreshPolicy.activeInterval
 
     func refreshFromMenuClick() {
         refreshCurrentModelName()
@@ -307,11 +307,18 @@ final class AppState: ObservableObject {
         guard !isQuitting else { return }
         refreshCurrentModelName()
         refreshQuotaSelectionIfChanged()
-        refreshQuotas(
-            minimumInterval: Self.backgroundQuotaRefreshInterval,
-            inactiveMinimumInterval: 0,
-            inactiveScope: .xaiOAuthOnly
-        )
+        if QuotaAutoRefreshPolicy.shouldRefreshAutomatically(
+            now: Date(),
+            lastAttemptAt: lastQuotaAttemptAt,
+            isCodexRunning: isCodexRunning,
+            secondsSinceLastUserInput: secondsSinceLastUserInput
+        ) {
+            refreshQuotas(
+                minimumInterval: Self.backgroundQuotaRefreshInterval,
+                inactiveMinimumInterval: 0,
+                inactiveScope: .xaiOAuthOnly
+            )
+        }
         if Date() >= schedule.giveUpAt {
             schedule = schedule.givingUp()
             return
@@ -350,6 +357,35 @@ final class AppState: ObservableObject {
         return CCSwitchProviderStore.currentCodexProviderID(
             settingsURL: CCSwitchProviderStore.resolveInstall().settingsURL
         )
+    }
+
+    /// Only the desktop app bundle counts. BenchGauge can launch the bundled
+    /// Codex CLI app-server helper, and that helper alone does not mean Codex
+    /// is open for the user.
+    private var isCodexRunning: Bool {
+        NSWorkspace.shared.runningApplications.contains {
+            QuotaAutoRefreshPolicy.isCodexBundleIdentifier($0.bundleIdentifier)
+        }
+    }
+
+    /// CGEventSource reports event timing without exposing event contents and
+    /// does not require Accessibility or Input Monitoring permission.
+    private var secondsSinceLastUserInput: TimeInterval? {
+        let eventTypes: [CGEventType] = [
+            .mouseMoved,
+            .leftMouseDown,
+            .leftMouseDragged,
+            .rightMouseDown,
+            .rightMouseDragged,
+            .otherMouseDown,
+            .otherMouseDragged,
+            .scrollWheel,
+            .keyDown,
+            .flagsChanged,
+        ]
+        return eventTypes
+            .map { CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: $0) }
+            .min()
     }
 
     /// Loads providers from the local CC Switch database and refreshes their
