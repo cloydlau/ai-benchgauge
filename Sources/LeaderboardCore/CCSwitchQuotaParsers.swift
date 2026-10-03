@@ -697,7 +697,11 @@ public enum GrokBillingParser {
         guard let body = CCSwitchJSON.object(data),
               let subscriptions = body["subscriptions"] as? [[String: Any]] else { return nil }
         let ends = subscriptions.compactMap { subscription -> Date? in
-            if let accountID, subscription["xaiUserId"] as? String != accountID { return nil }
+            // The identity endpoint establishes that the whole website response
+            // belongs to the current login. Some records omit the redundant user
+            // ID; an explicit mismatch is still fatal.
+            if let accountID, let recordAccountID = subscription["xaiUserId"] as? String,
+               recordAccountID != accountID { return nil }
             guard subscription["status"] as? String == "SUBSCRIPTION_STATUS_ACTIVE",
                   let tier = subscription["tier"] as? String,
                   tier.hasPrefix("SUBSCRIPTION_TIER_GROK_") || tier.hasPrefix("SUBSCRIPTION_TIER_SUPER_GROK_"),

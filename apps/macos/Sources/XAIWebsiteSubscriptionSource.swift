@@ -3,8 +3,8 @@ import WebKit
 import LeaderboardCore
 
 /// A dedicated official-site session. No Chrome cookies, credential export,
-/// DOM date guesses or handwritten deadlines. The core checks the response's
-/// xaiUserId against the selected OAuth account before accepting its date.
+/// DOM date guesses or handwritten deadlines. The core checks the response
+/// against the selected OAuth account before accepting its date.
 @MainActor
 final class XAIWebsiteSubscriptionSource: NSObject, WKNavigationDelegate, WKUIDelegate, NSWindowDelegate {
     private let webView: WKWebView
