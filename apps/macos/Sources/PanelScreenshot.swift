@@ -9,7 +9,7 @@ import SwiftUI
 enum PanelScreenshot {
     #if DEBUG
     /// Forms do not have the leaderboard regions used by the sharing capture.
-    static func captureForm(view: NSView) -> Data? {
+    static func captureForm(view: NSView, minimumVariety: Int = 3) -> Data? {
         view.layoutSubtreeIfNeeded()
         view.window?.displayIfNeeded()
         CATransaction.flush()
@@ -18,7 +18,7 @@ enum PanelScreenshot {
         let candidates = [cacheDisplayRepresentation(of: view), layerRepresentation(of: view)].compactMap { $0 }
         guard let rep = candidates.max(by: {
             regionVariety($0, xs: samples, ys: samples) < regionVariety($1, xs: samples, ys: samples)
-        }), regionVariety(rep, xs: samples, ys: samples) >= 3 else { return nil }
+        }), regionVariety(rep, xs: samples, ys: samples) >= minimumVariety else { return nil }
         return flattenedCapture(from: rep, view: view, replacingTopBandWith: nil,
                                 replacingFooterBandWith: nil)?.png
     }
