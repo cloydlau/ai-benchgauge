@@ -553,23 +553,16 @@ public enum CCSwitchQuotaParsers {
     }
 
     /// Page `getNextRenewTime`: `nextRenewTime`, else the end of `valid`.
-    /// A date-only renew time keeps that calendar day. If `valid` starts on
-    /// the same Shanghai day, its clock is the period boundary the chip can
-    /// print; it must not replace the day with `valid`'s end.
+    /// A date-only renew time keeps that calendar day and must not borrow a
+    /// clock from `valid`, which is not the day-granular date shown on the page.
     private static func zhipuPlanEnd(_ object: [String: Any]) -> Date? {
-        let range = (object["valid"] as? String).flatMap(zhipuValidRange)
         if let renew = object["nextRenewTime"] as? String {
             let trimmed = renew.trimmingCharacters(in: .whitespacesAndNewlines)
             if let date = zhipuRenewTime(trimmed) {
-                if trimmed.count == 10,
-                   let start = range?.start,
-                   sameShanghaiDay(start, date) {
-                    return start
-                }
                 return date
             }
         }
-        return range?.end
+        return (object["valid"] as? String).flatMap(zhipuValidRange)?.end
     }
 
     /// Date-only values are midnight in Shanghai, the calendar day the page
@@ -598,14 +591,6 @@ public enum CCSwitchQuotaParsers {
             return nil
         }
         return (start, end)
-    }
-
-    private static func sameShanghaiDay(_ lhs: Date, _ rhs: Date) -> Bool {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Asia/Shanghai")
-            ?? TimeZone(secondsFromGMT: 8 * 3_600)
-            ?? .current
-        return calendar.isDate(lhs, inSameDayAs: rhs)
     }
 
     private static func shanghaiTimestamp(_ text: String) -> Date? {

@@ -1189,11 +1189,19 @@ struct CCSwitchQuotaParserTests {
         #expect((window?.name) == (ParsedQuotaWindow.planExpiryName))
         #expect((window?.utilization) == (0))
         let formatter = shanghaiFormatter()
-        #expect((window?.resetsAt) == (formatter.date(from: "2026-10-03 10:00:00")))
-        #expect((window?.resetsAt) != (formatter.date(from: "2026-10-03 00:00:00")))
+        #expect((window?.resetsAt) == (formatter.date(from: "2026-10-03 00:00:00")))
+        #expect((window?.resetsAt) != (formatter.date(from: "2026-10-03 10:00:00")))
         #expect((window?.resetsAt) != (formatter.date(from: "2026-11-03 10:00:00")))
         #expect((window?.resetsAt) != (formatter.date(from: "2026-09-24 21:12:00")))
         #expect((window?.resetsAt) != (formatter.date(from: "2099-01-01 00:00:00")))
+
+        let sameDayAfternoon = Date(timeIntervalSince1970: 1_791_010_800)
+        let sameDayPhrase = AccountQuotaFormatting.periodEndPhrase(
+            until: window?.resetsAt ?? Date(),
+            now: sameDayAfternoon
+        )
+        #expect(sameDayPhrase == ("至10月3日"))
+        #expect(!(sameDayPhrase.contains("10时")))
 
         let timed = CCSwitchQuotaParsers.parseZhipuSubscription(Data(
             #"{"success":true,"data":[{"status":"VALID","inCurrentPeriod":true,"valid":"2026-10-03 10:00:00-2026-11-03 10:00:00","nextRenewTime":"2026-10-03 21:12:47"}]}"#.utf8
@@ -1701,13 +1709,17 @@ struct AccountQuotaClientTests {
                 ParsedQuotaWindow(
                     name: ParsedQuotaWindow.planExpiryName,
                     utilization: 0,
-                    resetsAt: formatter.date(from: "2026-10-03 10:00:00")
+                    resetsAt: formatter.date(from: "2026-10-03 00:00:00")
                 ),
             ]),
         ]))
-        let summary = AccountQuotaFormatting.plainSummary(for: chips[0], now: Date(timeIntervalSince1970: 1_758_600_000))
+        let summary = AccountQuotaFormatting.plainSummary(
+            for: chips[0],
+            now: Date(timeIntervalSince1970: 1_791_010_800)
+        )
         #expect(summary.hasPrefix("5h 100% · 7d 0%"))
         #expect(summary.contains("至10月3日"))
+        #expect(!(summary.contains("10时")))
         #expect(!(summary.contains("总到期")))
         #expect(!(summary.contains("1mo")))
         #expect(!(summary.contains("unit-test-key")))
