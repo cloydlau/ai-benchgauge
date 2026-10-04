@@ -13,6 +13,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, statSync, 
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { avatarForModel, detectModelName } from './commit-identity.mjs'
+import { acquireCommitLock } from './commit-lock.mjs'
 import { materializeAvatar, notifyDesktop } from './desktop-notify.mjs'
 import { gitProxyArgs, gitProxyValue } from './git-network.mjs'
 import { nodeExecutable } from './node-executable.mjs'
@@ -24,6 +25,7 @@ const reportStatus = (state, message) => console.log(`[watch] ${workflowStatus(s
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const appPath = join(root, 'outputs', 'AI-BenchGauge.app')
+const watchLockPath = join(root, '.git', 'benchgauge-watch.lock')
 
 export function nextWaitMs({ now, lastChangeAt, lastRunAt = null, debounceMs, throttleMs }) {
   const sinceChange = Number(lastChangeAt)
@@ -357,6 +359,15 @@ async function main() {
     process.exit(1)
   }
 
+  const watchLock = acquireCommitLock({ lockPath: watchLockPath })
+  if (!watchLock.acquired) {
+    const owner = watchLock.owner || '未知'
+    reportStatus('manual', `已有 BenchGauge watcher（pid ${owner}），本次不重复启动`)
+    process.exitCode = 75
+    return
+  }
+
+  process.on('exit', () => watchLock.release())
   const commitEnabled = autocommitEnabled()
   const pushEnabled = autopushEnabled()
   const deployEnabled = autodeployEnabled()
@@ -595,6 +606,12 @@ async function main() {
         ? '[watch] 启动时应用缺失或源码较新，立即重建并启动'
         : '[watch] 启动时构建已是最新，立即重新打开应用')
   }
+  reportStatus(
+    'running',
+    deployEnabled
+      ? '启动自检中；测试通过后将启动或更新菜单栏应用'
+      : '启动自检中；测试通过后进入监听',
+  )
   const initialTest = await runTestGate()
   lastTestPass = initialTest.signature
   const testedInitial = snapshot()
@@ -695,6 +712,7 @@ async function main() {
     clearTimer()
     clearInterval(poll)
     console.log('\n[watch] 已停止')
+    watchLock.release()
     process.exit(0)
   }
   process.on('SIGINT', stop)

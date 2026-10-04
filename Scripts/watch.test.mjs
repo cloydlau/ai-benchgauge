@@ -28,11 +28,12 @@ function watcherFixture(t, { binary = 'fresh', restartFails = false, testsFail =
   const scripts = join(root, 'Scripts')
   const app = join(root, 'outputs', 'AI-BenchGauge.app')
   mkdirSync(scripts)
+  mkdirSync(join(root, '.git'))
   mkdirSync(join(root, 'Sources'))
   mkdirSync(join(root, 'Tests'))
   mkdirSync(join(app, 'Contents', 'MacOS'), { recursive: true })
   const original = dirname(fileURLToPath(import.meta.url))
-  for (const name of ['calmmit.mjs', 'watch.mjs', 'commit-identity.mjs', 'desktop-notify.mjs', 'git-network.mjs', 'node-executable.mjs']) {
+  for (const name of ['calmmit.mjs', 'watch.mjs', 'commit-identity.mjs', 'commit-lock.mjs', 'desktop-notify.mjs', 'git-network.mjs', 'node-executable.mjs']) {
     copyFileSync(join(original, name), join(scripts, name))
   }
   const config = JSON.parse(readFileSync(join(original, '../calmmit.config.json'), 'utf8'))
@@ -108,7 +109,7 @@ exit 0
     rmSync(root, { recursive: true, force: true })
   })
   return {
-    source, testFile, root, exited,
+    source, testFile, root, child, exited,
     output: () => output,
     events: () => existsSync(join(root, 'events')) ? readFileSync(join(root, 'events'), 'utf8').trim().split('\n') : [],
   }
@@ -125,7 +126,39 @@ async function waitUntil(fixture, predicate) {
 test('startup launches a current executable immediately despite an old bundle directory', async (t) => {
   const fixture = watcherFixture(t)
   await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
+  assert.match(fixture.output(), /【自动处理中】 启动自检中；测试通过后将启动或更新菜单栏应用/)
   assert.deepEqual(fixture.events(), ['test', 'restart'])
+})
+
+test('a second watcher exits without testing or launching the app again', async (t) => {
+  const fixture = watcherFixture(t)
+  await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
+  const before = fixture.events().length
+
+  const duplicate = spawn(process.execPath, [join(fixture.root, 'Scripts', 'watch.mjs')], {
+    cwd: fixture.root,
+    env: { ...process.env, WATCH_AUTOCOMMIT: '0', DESKTOP_NOTIFY: '0' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  let output = ''
+  duplicate.stdout.setEncoding('utf8')
+  duplicate.stderr.setEncoding('utf8')
+  duplicate.stdout.on('data', (data) => { output += data })
+  duplicate.stderr.on('data', (data) => { output += data })
+  const exited = new Promise((resolve) => duplicate.once('exit', resolve))
+  t.after(async () => {
+    if (duplicate.exitCode == null) duplicate.kill('SIGTERM')
+    await exited
+  })
+
+  assert.equal(await exited, 75)
+  assert.match(output, /⚠【需人工介入】 已有 BenchGauge watcher（pid \d+），本次不重复启动/)
+  await new Promise((resolve) => setTimeout(resolve, 200))
+  assert.equal(fixture.events().length, before)
+
+  fixture.child.kill('SIGTERM')
+  await fixture.exited
+  assert.equal(existsSync(join(fixture.root, '.git', 'benchgauge-watch.lock')), false)
 })
 
 test('startup rebuilds a stale executable even when the bundle directory looks newer', async (t) => {
