@@ -58,7 +58,15 @@ public struct LeaderboardCache {
         #if os(Windows)
         try? data.write(to: fileURL, options: .atomic)
         #else
-        try? data.write(to: fileURL, options: [.atomic, .completeFileProtection])
+        // Atomic replacement plus complete protection is rejected on some volumes
+        // (including temporary directories) with NSFileWriteNoPermissionError. The
+        // protected write stays the first choice; persistence must not be discarded
+        // when that class cannot be applied.
+        do {
+            try data.write(to: fileURL, options: [.atomic, .completeFileProtection])
+        } catch {
+            try? data.write(to: fileURL, options: .atomic)
+        }
         #endif
     }
 }
