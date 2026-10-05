@@ -359,7 +359,13 @@ async function main() {
     process.exit(1)
   }
 
-  const watchLock = acquireCommitLock({ lockPath: watchLockPath })
+  // 记下启动器 pid。启动器已死而监听器仍在时回收孤儿锁，避免永久挡住下次 dev。
+  const watchLock = acquireCommitLock({
+    lockPath: watchLockPath,
+    launcherPid: process.ppid > 1 ? process.ppid : 0,
+    reclaimOrphans: true,
+    warn: (message) => console.warn(`[watch] ${message}`),
+  })
   if (!watchLock.acquired) {
     const owner = watchLock.owner || '未知'
     reportStatus('manual', `已有 BenchGauge watcher（pid ${owner}），本次不重复启动`)
