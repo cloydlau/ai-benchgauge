@@ -133,6 +133,10 @@ test('startup launches a current executable immediately despite an old bundle di
 test('a second watcher exits without testing or launching the app again', async (t) => {
   const fixture = watcherFixture(t)
   await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
+  assert.equal(
+    readFileSync(join(fixture.root, '.git', 'benchgauge-watch.lock'), 'utf8'),
+    `${fixture.child.pid}\nlauncher ${process.pid}\n`,
+  )
   const before = fixture.events().length
 
   const duplicate = spawn(process.execPath, [join(fixture.root, 'Scripts', 'watch.mjs')], {
