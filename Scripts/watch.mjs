@@ -364,7 +364,7 @@ async function main() {
     lockPath: watchLockPath,
     launcherPid: process.ppid > 1 ? process.ppid : 0,
     reclaimOrphans: true,
-    warn: (message) => console.warn(`[watch] ${message}`),
+    warn: (message) => reportStatus('running', message),
   })
   if (!watchLock.acquired) {
     const owner = watchLock.owner || '未知'
