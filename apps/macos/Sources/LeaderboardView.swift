@@ -629,7 +629,8 @@ struct LeaderboardView: View {
             rightCountryOptions: countryOptions(for: selectedCategory.rightKind),
             onCountryFilter: { kind, filter in
                 state.selectCountryFilter(filter, for: kind)
-            }
+            },
+            showsSkeleton: needsSkeleton
         ))
         .id(contentWidth)
         .redacted(reason: needsSkeleton ? .placeholder : [])
@@ -1221,6 +1222,7 @@ private struct TableChrome: NSViewRepresentable {
     let leftCountryOptions: [CountryFilter]
     let rightCountryOptions: [CountryFilter]
     let onCountryFilter: (LeaderboardKind, CountryFilter) -> Void
+    let showsSkeleton: Bool
 
     func makeNSView(context: Context) -> ProbeView {
         let view = ProbeView()
@@ -1229,7 +1231,7 @@ private struct TableChrome: NSViewRepresentable {
             leftKind: leftKind, rightKind: rightKind,
             language: language, leftFilter: leftFilter, rightFilter: rightFilter,
             leftCountryOptions: leftCountryOptions, rightCountryOptions: rightCountryOptions,
-            onCountryFilter: onCountryFilter
+            onCountryFilter: onCountryFilter, showsSkeleton: showsSkeleton
         )
         return view
     }
@@ -1240,7 +1242,7 @@ private struct TableChrome: NSViewRepresentable {
             leftKind: leftKind, rightKind: rightKind,
             language: language, leftFilter: leftFilter, rightFilter: rightFilter,
             leftCountryOptions: leftCountryOptions, rightCountryOptions: rightCountryOptions,
-            onCountryFilter: onCountryFilter
+            onCountryFilter: onCountryFilter, showsSkeleton: showsSkeleton
         )
     }
 
@@ -1257,6 +1259,7 @@ private struct TableChrome: NSViewRepresentable {
         private var leftCountryOptions: [CountryFilter] = []
         private var rightCountryOptions: [CountryFilter] = []
         private var onCountryFilter: ((LeaderboardKind, CountryFilter) -> Void)?
+        private var showsSkeleton = false
 
         func configure(
             left: SourceLensDescription,
@@ -1270,7 +1273,8 @@ private struct TableChrome: NSViewRepresentable {
             rightFilter: CountryFilter,
             leftCountryOptions: [CountryFilter],
             rightCountryOptions: [CountryFilter],
-            onCountryFilter: @escaping (LeaderboardKind, CountryFilter) -> Void
+            onCountryFilter: @escaping (LeaderboardKind, CountryFilter) -> Void,
+            showsSkeleton: Bool
         ) {
             self.left = left
             self.right = right
@@ -1284,6 +1288,7 @@ private struct TableChrome: NSViewRepresentable {
             self.leftCountryOptions = leftCountryOptions
             self.rightCountryOptions = rightCountryOptions
             self.onCountryFilter = onCountryFilter
+            self.showsSkeleton = showsSkeleton
             updateTable()
         }
 
@@ -1354,7 +1359,7 @@ private struct TableChrome: NSViewRepresentable {
                 leftKind: leftKind, rightKind: rightKind,
                 leftFilter: leftFilter, rightFilter: rightFilter,
                 leftCountryOptions: leftCountryOptions, rightCountryOptions: rightCountryOptions,
-                onCountryFilter: onCountryFilter
+                onCountryFilter: onCountryFilter, showsSkeleton: showsSkeleton
             )
             tableView.tableColumns[1].headerToolTip = leftHelp
             tableView.tableColumns[4].headerToolTip = rightHelp
@@ -1377,8 +1382,14 @@ private final class SourceTableHeaderView: NSTableHeaderView {
     private var leftCountryOptions: [CountryFilter] = []
     private var rightCountryOptions: [CountryFilter] = []
     private var onCountryFilter: ((LeaderboardKind, CountryFilter) -> Void)?
+    private var showsSkeleton = false
     private var menuChoices: [CountryFilter] = []
     private var menuKind: LeaderboardKind?
+
+    /// Body capsules are the label composited at 35/255. Header titles drawn in
+    /// `labelColor` are redacted as a solid block of that color instead, so the
+    /// loading bar is near-black in light mode and near-white in dark mode.
+    static let placeholderAlpha: CGFloat = 35.0 / 255.0
 
     static func requiredNameColumnWidth(title: String, summary: SourceLensDescription) -> CGFloat {
         ceil(headerText(
@@ -1397,7 +1408,8 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         rightFilter: CountryFilter,
         leftCountryOptions: [CountryFilter],
         rightCountryOptions: [CountryFilter],
-        onCountryFilter: ((LeaderboardKind, CountryFilter) -> Void)?
+        onCountryFilter: ((LeaderboardKind, CountryFilter) -> Void)?,
+        showsSkeleton: Bool
     ) {
         self.left = left
         self.right = right
@@ -1409,10 +1421,12 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         self.leftCountryOptions = leftCountryOptions
         self.rightCountryOptions = rightCountryOptions
         self.onCountryFilter = onCountryFilter
+        self.showsSkeleton = showsSkeleton
         needsDisplay = true
     }
 
     override func mouseDown(with event: NSEvent) {
+        guard !showsSkeleton else { return }
         let point = convert(event.locationInWindow, from: nil)
         let column = column(at: point)
         guard column == 3 || column == 6 else {
@@ -1457,6 +1471,21 @@ private final class SourceTableHeaderView: NSTableHeaderView {
 
         for index in tableView.tableColumns.indices {
             let columnRect = headerRect(ofColumn: index)
+            if showsSkeleton {
+                switch index {
+                case 1, 4:
+                    drawSkeletonNameHeader(
+                        tableView.tableColumns[index].headerCell.stringValue,
+                        in: columnRect
+                    )
+                case 3, 6:
+                    drawSkeletonMark(in: columnRect, width: 28)
+                default:
+                    // Rank and score already come back as the light placeholder.
+                    tableView.tableColumns[index].headerCell.draw(withFrame: columnRect, in: self)
+                }
+                continue
+            }
             switch index {
             case 1:
                 drawBoardHeader(
@@ -1484,6 +1513,30 @@ private final class SourceTableHeaderView: NSTableHeaderView {
 
         NSColor.separatorColor.setFill()
         NSRect(x: 0, y: isFlipped ? bounds.height - 1 : 0, width: bounds.width, height: 1).fill()
+    }
+
+    private static var placeholderColor: NSColor {
+        NSColor.labelColor.withAlphaComponent(placeholderAlpha)
+    }
+
+    /// Same capsule as a redacted body name, not the opaque label block SwiftUI
+    /// substitutes for this header's title run.
+    private func drawSkeletonNameHeader(_ title: String, in rect: NSRect) {
+        let font = NSFont.systemFont(ofSize: 11, weight: .medium)
+        let measured = (title as NSString).size(withAttributes: [.font: font]).width
+        let width = min(max(measured, 48), max(48, rect.width - 12))
+        drawSkeletonMark(in: rect, width: width, centered: false)
+    }
+
+    private func drawSkeletonMark(in rect: NSRect, width: CGFloat, centered: Bool = true) {
+        let titleRect = NSTableHeaderCell(textCell: "").titleRect(forBounds: rect)
+        let height: CGFloat = 8
+        let barWidth = min(width, titleRect.width)
+        guard barWidth > 1, titleRect.height > 1 else { return }
+        let x = centered ? titleRect.midX - barWidth / 2 : titleRect.minX
+        let bar = NSRect(x: x, y: titleRect.midY - height / 2, width: barWidth, height: height)
+        Self.placeholderColor.setFill()
+        NSBezierPath(roundedRect: bar, xRadius: height / 2, yRadius: height / 2).fill()
     }
 
     /// The label stays on the column centre shared with the flags below, and
