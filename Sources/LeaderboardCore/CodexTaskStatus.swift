@@ -18,17 +18,20 @@ public struct CodexTaskCounts: Equatable, Sendable, Codable {
     }
 
     public static func menuBarText(_ counts: Self?) -> String {
-        guard let counts else { return "▶ —  ✓ —  ! —" }
-        return "▶ \(counts.running)  ✓ \(counts.unread)  ! \(counts.failed)"
+        guard let counts else { return "▶ —  ✓ —" }
+        let text = "▶ \(counts.running)  ✓ \(counts.unread)"
+        return counts.failed > 0 ? "\(text)  ! \(counts.failed)" : text
     }
 
     public static func help(_ counts: Self?, chinese: Bool) -> String {
         guard let counts else {
             return chinese ? "Codex 任务状态暂不可用" : "Codex task status unavailable"
         }
-        return chinese
-            ? "Codex · 执行中 \(counts.running) · 已完成待查看 \(counts.unread) · 报错 \(counts.failed)"
-            : "Codex · Running \(counts.running) · Completed unread \(counts.unread) · Failed \(counts.failed)"
+        let text = chinese
+            ? "Codex · 执行中 \(counts.running) · 已完成待查看 \(counts.unread)"
+            : "Codex · Running \(counts.running) · Completed unread \(counts.unread)"
+        guard counts.failed > 0 else { return text }
+        return text + (chinese ? " · 报错 \(counts.failed)" : " · Failed \(counts.failed)")
     }
 }
 
