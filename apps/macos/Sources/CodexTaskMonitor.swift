@@ -61,6 +61,7 @@ actor CodexTaskMonitor {
     func setDesktopRunning(_ running: Bool) {
         guard continuation != nil, desktopRunning != running else { return }
         desktopRunning = running
+        Self.logger.notice("Task monitor desktop presence changed: \(running, privacy: .public)")
         nextConnectAttempt = .distantPast
         connectionFailures = 0
         refreshFromStore()

@@ -384,6 +384,10 @@ final class AppState: ObservableObject {
 
     private func tick() {
         guard !isQuitting else { return }
+        // Workspace notifications can be missed during app startup. Recheck
+        // cheap process metadata here; the monitor ignores unchanged values.
+        let desktopRunning = isCodexRunning
+        Task { [weak self] in await self?.codexTaskMonitor.setDesktopRunning(desktopRunning) }
         refreshCurrentModelName()
         refreshQuotaSelectionIfChanged()
         startXAIKeepAliveIfNeeded()
