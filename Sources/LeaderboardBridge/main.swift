@@ -163,6 +163,11 @@ actor Engine {
             case "refreshBoards": await refreshBoards(category)
             case "refreshQuotas", "refreshCurrentQuota":
                 try await refreshQuotas(onlyCurrent: request.command == "refreshCurrentQuota")
+            case "retryQuota":
+                guard let id = request.providerID, targets[id]?.kind == .zhipu else {
+                    throw OpenAIConnectionError.invalidResponse
+                }
+                try await refreshQuotas(onlyCurrent: false, requestedProviderID: id)
             case "connectOpenAI":
                 guard let id = request.providerID, let target = targets[id] else { throw OpenAIConnectionError.invalidResponse }
                 let attempt = try await official.startLogin(for: target)
@@ -203,13 +208,13 @@ actor Engine {
         }
         cache.save(snapshot)
     }
-    private func refreshQuotas(onlyCurrent: Bool) async throws {
+    private func refreshQuotas(onlyCurrent: Bool, requestedProviderID: String? = nil) async throws {
         guard !refreshingQuotas else { return }
         let now = Date()
-        if let previous = lastQuotaRefresh, now.timeIntervalSince(previous) < (onlyCurrent ? 1800 : 10) { return }
+        if requestedProviderID == nil, let previous = lastQuotaRefresh, now.timeIntervalSince(previous) < (onlyCurrent ? 1800 : 10) { return }
         refreshingQuotas = true
         defer { refreshingQuotas = false }
-        lastQuotaRefresh = now
+        if requestedProviderID == nil || requestedProviderID.flatMap { targets[$0] }?.isCurrent == true { lastQuotaRefresh = now }
         let install = CCSwitchProviderStore.resolveInstall()
         var loaded = CCSwitchProviderStore.loadQuotaProviders(databaseURL: install.databaseURL)
         let officialTargets = OfficialQuotaDiscovery.merge(ccSwitch: [], official:
@@ -255,12 +260,13 @@ actor Engine {
                 xaiKeepAliveAccountID = nil
                 nextXAIKeepAliveAt = nil
             }
-            let includeInactive = !onlyCurrent && (
+            let includeInactive = requestedProviderID == nil && !onlyCurrent && (
                 lastInactiveRefresh.map {
                     now.timeIntervalSince($0) >= Self.inactiveQuotaRefreshInterval
                 } ?? true
             )
             let refreshing = list.filter { target in
+                if let requestedProviderID { return target.id == requestedProviderID }
                 if target.isCurrent { return true }
                 return includeInactive
             }
@@ -364,6 +370,7 @@ actor Engine {
             // to the provider's product page, which has no sign-in entry.
             let ccSwitchSignIn = AccountQuotaFormatting.requiresCCSwitchSignIn(chip)
             let xaiSubscription = AccountQuotaFormatting.requiresXAISubscriptionConnection(chip)
+            let glmAction = AccountQuotaFormatting.glmRecoveryAction(for: chip)
             return Quota(id: chip.id, name: chip.shortName, isCurrent: chip.isCurrent, isStale: chip.isStale,
                     // Help is one fixed phrase or one composed value per line,
                     // and `quotaText` exact-matches a whole line only. Translating
@@ -372,9 +379,9 @@ actor Engine {
                         .components(separatedBy: "\n")
                         .map(language.quotaText)
                         .joined(separator: "\n"),
-                    url: ccSwitchSignIn ? nil : chip.websiteURL?.absoluteString,
-                    canConnect: chip.kind == .officialNote || chip.kind == .qwen || ccSwitchSignIn || xaiSubscription,
-                    connection: chip.kind == .officialNote ? "openai" : (chip.kind == .qwen ? "qwen" : (ccSwitchSignIn ? "ccswitch" : (xaiSubscription ? "xaiSubscription" : nil))),
+                    url: ccSwitchSignIn || glmAction != nil ? nil : chip.websiteURL?.absoluteString,
+                    canConnect: glmAction != nil || chip.kind == .officialNote || chip.kind == .qwen || ccSwitchSignIn || xaiSubscription,
+                    connection: glmAction.map { $0 == .configure ? "glmConfiguration" : "glmRetry" } ?? (chip.kind == .officialNote ? "openai" : (chip.kind == .qwen ? "qwen" : (ccSwitchSignIn ? "ccswitch" : (xaiSubscription ? "xaiSubscription" : nil)))),
                     runs: AccountQuotaFormatting.runs(for: chip, now: now).map { run in
                 Run(text: language.quotaText(run.text), light: color(run.tone, dark: false), dark: color(run.tone, dark: true))
             }, accentLight: AccountQuotaFormatting.cardColorLevel(for: chip, now: now).map { color(.remaining($0), dark: false) })

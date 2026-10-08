@@ -15,6 +15,7 @@ struct QuotaStrip: View {
     let onConnectQwen: () -> Void
     let onConnectOpenAI: (AccountQuotaChip) -> Void
     let onConnectXAI: (AccountQuotaChip) -> Void
+    let onRecoverGLM: (AccountQuotaChip) -> Void
     let onAddModel: () -> Void
     let connectingOpenAIProviderID: String?
 
@@ -32,6 +33,7 @@ struct QuotaStrip: View {
                         onConnectQwen: needsQwenConnection(chip) ? onConnectQwen : nil,
                         onConnectOpenAI: { onConnectOpenAI(chip) },
                         onConnectXAI: { onConnectXAI(chip) },
+                        onRecoverGLM: { onRecoverGLM(chip) },
                         isConnectingOpenAI: connectingOpenAIProviderID == chip.id
                     )
                 }
@@ -85,12 +87,15 @@ private struct QuotaChipView: View {
     let onConnectQwen: (() -> Void)?
     let onConnectOpenAI: () -> Void
     let onConnectXAI: () -> Void
+    let onRecoverGLM: () -> Void
     let isConnectingOpenAI: Bool
 
     var body: some View {
         if isClickable {
             Button {
-                if requiresOpenAISignIn {
+                if AccountQuotaFormatting.glmRecoveryAction(for: chip) != nil {
+                    onRecoverGLM()
+                } else if requiresOpenAISignIn {
                     onConnectOpenAI()
                 } else if requiresCCSwitchSignIn || AccountQuotaFormatting.requiresXAISubscriptionConnection(chip) {
                     onConnectXAI()
@@ -104,14 +109,14 @@ private struct QuotaChipView: View {
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .disabled(isConnectingOpenAI)
+            .disabled(isConnectingOpenAI || (chip.kind == .zhipu && chip.status == .pending))
         } else {
             chipBody
         }
     }
 
     private var isClickable: Bool {
-        requiresOpenAISignIn || requiresCCSwitchSignIn || AccountQuotaFormatting.requiresXAISubscriptionConnection(chip) || onConnectQwen != nil || chip.websiteURL != nil
+        AccountQuotaFormatting.glmRecoveryAction(for: chip) != nil || requiresOpenAISignIn || requiresCCSwitchSignIn || AccountQuotaFormatting.requiresXAISubscriptionConnection(chip) || onConnectQwen != nil || chip.websiteURL != nil
     }
 
     private var requiresOpenAISignIn: Bool {

@@ -14,7 +14,7 @@ enum NativeVisualCapture {
         struct Run: Decodable { let text: String }
         struct Balance: Decodable { let currency: String; let amount: Double }
         struct Window: Decodable { let name: String; let utilization: Double; let resetsAt: String?; let dateSource: ParsedQuotaDateSource? }
-        let id: String; let name: String; let isCurrent: Bool; let runs: [Run]; let status: String?; let modelName: String?
+        let id: String; let name: String; let isCurrent: Bool; let runs: [Run]; let status: String?; let modelName: String?; let failureReason: String?
         let windows: [Window]?
         let balances: [Balance]?
     }
@@ -50,7 +50,10 @@ enum NativeVisualCapture {
             switch quota.status {
             case "reauth": status = .message(AccountQuotaMessage.reauthRequired)
             case "pending": status = .pending
-            case "queryFailed": status = .message(AccountQuotaMessage.queryFailed)
+            case "queryFailed":
+                status = quota.name == "GLM" && quota.failureReason == "noCodingPlan"
+                    ? .note(text: AccountQuotaMessage.glmNoCodingPlan, help: AccountQuotaMessage.glmNoCodingPlanHelp)
+                    : .message(AccountQuotaMessage.queryFailed)
             case "notConfigured": status = .note(text: AccountQuotaMessage.notConfigured, help: AccountQuotaMessage.notConfiguredHelp)
             default:
                 if let balances = quota.balances {

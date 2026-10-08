@@ -214,6 +214,7 @@ struct LeaderboardView: View {
                     onConnectQwen: state.connectQwenWebsite,
                     onConnectOpenAI: state.connectOpenAI,
                     onConnectXAI: state.connectXAI,
+                    onRecoverGLM: state.recoverGLMQuota,
                     onAddModel: { screenshot.showOfficialAccounts = true },
                     connectingOpenAIProviderID: state.connectingOpenAIProviderID
                 )
