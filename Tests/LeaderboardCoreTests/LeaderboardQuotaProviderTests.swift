@@ -165,6 +165,44 @@ struct LeaderboardQuotaProviderTests {
         #expect(overridden.first(where: { $0.kind == .gemini })?.accessToken == "fake-custom-gemini")
     }
 
+    @Test func sameOpenAIAccountUsesRenewedCodexTokenWithoutChangingSelection() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        func token(expiry: Double) -> String {
+            let data = try! JSONSerialization.data(withJSONObject: ["exp": expiry])
+            return "eyJhbGciOiJIUzI1NiJ9." + data.base64EncodedString()
+                .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
+                .replacingOccurrences(of: "=", with: "") + ".fixture"
+        }
+        func target(id: String, account: String?, expiry: Double, current: Bool = false) -> CCSwitchQuotaTarget {
+            CCSwitchQuotaTarget(id: id, shortName: "OpenAI", modelName: "gpt-6-astra",
+                websiteURL: nil, kind: .officialNote, isCurrent: current, apiKey: nil, baseURL: nil,
+                accessToken: token(expiry: expiry), accountID: account)
+        }
+        let old = target(id: "selected", account: "same", expiry: 1_799_999_999, current: true)
+        let renewed = target(id: "official-local:openai", account: "same", expiry: 1_800_003_600)
+        let result = OfficialQuotaDiscovery.merge(ccSwitch: [old], official: [renewed], now: now)
+        #expect(result.count == 1)
+        #expect(result.first?.accessToken == renewed.accessToken)
+        #expect(result.first?.id == old.id)
+        #expect(result.first?.isCurrent == true)
+        #expect(result.first?.accountID == old.accountID)
+        #expect(result.first?.modelName == old.modelName)
+        #expect(OfficialQuotaDiscovery.merge(ccSwitch: result, official: [renewed], now: now) == result)
+
+        let newer = target(id: "selected", account: "same", expiry: 1_800_007_200, current: true)
+        #expect(OfficialQuotaDiscovery.merge(ccSwitch: [newer], official: [renewed], now: now) == [newer])
+        let expiredLocal = target(id: "official-local:openai", account: "same", expiry: 1_799_999_998)
+        #expect(OfficialQuotaDiscovery.merge(ccSwitch: [old], official: [expiredLocal], now: now) == [old])
+        let different = target(id: "official-local:openai", account: "other", expiry: 1_800_003_600)
+        #expect(OfficialQuotaDiscovery.merge(ccSwitch: [old], official: [different], now: now) == [old, different])
+        let noAccount = target(id: "official-local:openai", account: nil, expiry: 1_800_003_600)
+        #expect(OfficialQuotaDiscovery.merge(ccSwitch: [old], official: [noAccount], now: now) == [old, noAccount])
+        let unverified = CCSwitchQuotaTarget(id: "official-local:openai", shortName: "OpenAI",
+            websiteURL: nil, kind: .officialNote, isCurrent: false, apiKey: nil, baseURL: nil,
+            accessToken: "opaque-fixture-token", accountID: "same")
+        #expect(OfficialQuotaDiscovery.merge(ccSwitch: [old], official: [unverified], now: now) == [old])
+    }
+
     @Test func officialAccountsPersistPrivatelyAndSameProviderAccountsStayDistinct() throws {
         let root = temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
         let store = OfficialQuotaAccountStore(fileURL: root.appending(path: "accounts.json"))
