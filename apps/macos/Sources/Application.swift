@@ -12,12 +12,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task {
                 let monitor = CodexTaskMonitor()
                 var counts: CodexTaskCounts?
-                for _ in 0..<6 {
-                    counts = await monitor.poll(desktopRunning: NSWorkspace.shared.runningApplications.contains {
-                        QuotaAutoRefreshPolicy.isCodexBundleIdentifier($0.bundleIdentifier)
-                    })
-                    try? await Task.sleep(for: .seconds(1))
+                let updates = await monitor.updates(desktopRunning: NSWorkspace.shared.runningApplications.contains {
+                    QuotaAutoRefreshPolicy.isCodexBundleIdentifier($0.bundleIdentifier)
+                })
+                let timeout = Task {
+                    do { try await Task.sleep(for: .seconds(10)) } catch { return }
+                    await monitor.stop()
                 }
+                for await value in updates { if let value { counts = value; break } }
+                timeout.cancel()
                 await monitor.stop()
                 if let counts, let data = try? JSONEncoder().encode(counts) {
                     FileHandle.standardOutput.write(data + Data("\n".utf8))

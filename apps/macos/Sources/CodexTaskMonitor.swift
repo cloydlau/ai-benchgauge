@@ -7,6 +7,7 @@ import LeaderboardCore
 /// The private desktop protocol is versioned: incompatible data is unavailable.
 actor CodexTaskMonitor {
     private let root: URL
+    private let readStore: @Sendable (URL) throws -> [String: CodexStoredTask]
     private var socketFD: Int32 = -1
     private var clientID: String?
     private var input = Data()
@@ -15,8 +16,55 @@ actor CodexTaskMonitor {
     private var pendingSnapshots = Set<String>()
     private var connectedAt = Date.distantPast
     private var lastSnapshotRequest: [String: Date] = [:]
+    private var storedTasks: [String: CodexStoredTask] = [:]
+    private var continuation: AsyncStream<CodexTaskCounts?>.Continuation?
+    private var lastPublished: CodexTaskCounts?
+    private var desktopRunning = false
+    private var readSource: (any DispatchSourceRead)?
+    private var socketGeneration = 0
+    private let eventQueue = DispatchQueue(label: "benchgauge.codex-task-events", qos: .utility)
+    private struct FileObserver {
+        let inode: UInt64
+        let source: any DispatchSourceFileSystemObject
+    }
+    private var fileObservers: [String: FileObserver] = [:]
+    private var fileRefreshTask: Task<Void, Never>?
+    private var fallbackTask: Task<Void, Never>?
+    private var fallbackDelay: TimeInterval?
+    private var warmupTask: Task<Void, Never>?
+    private var lastStoreRefresh = Date.distantPast
+    private var nextConnectAttempt = Date.distantPast
+    private var connectionFailures = 0
+    private var lifecycleGeneration = 0
 
-    init(root: URL? = nil) {
+    /// Stream events wake the reader even while there are no executing tasks.
+    /// Files cover unread markers/new threads; timers only reconcile missed
+    /// filesystem events and retry a broken connection.
+    func updates(desktopRunning: Bool) -> AsyncStream<CodexTaskCounts?> {
+        stop()
+        let stream = AsyncStream<CodexTaskCounts?>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        continuation = stream.continuation
+        let generation = lifecycleGeneration
+        continuation?.onTermination = { [weak self] _ in
+            Task { await self?.streamTerminated(generation: generation) }
+        }
+        continuation?.yield(nil)
+        self.desktopRunning = desktopRunning
+        installFileObservers()
+        refreshFromStore()
+        return stream.stream
+    }
+
+    func setDesktopRunning(_ running: Bool) {
+        guard continuation != nil, desktopRunning != running else { return }
+        desktopRunning = running
+        nextConnectAttempt = .distantPast
+        connectionFailures = 0
+        refreshFromStore()
+    }
+
+    init(root: URL? = nil, readStore: @escaping @Sendable (URL) throws -> [String: CodexStoredTask] = { try CodexTaskStore.read(root: $0) }) {
+        self.readStore = readStore
         self.root = root ?? ProcessInfo.processInfo.environment["CODEX_HOME"].map { URL(fileURLWithPath: $0) }
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex")
     }
@@ -28,8 +76,12 @@ actor CodexTaskMonitor {
         #endif
         guard desktopRunning else { disconnect(); return nil }
         do {
-            let stored = try CodexTaskStore.read(root: root)
-            if socketFD < 0 { try connect() }
+            let stored = try readStore(root)
+            storedTasks = stored
+            if socketFD < 0 {
+                guard Date() >= nextConnectAttempt else { return nil }
+                try connect()
+            }
             try drain()
             if clientID != nil {
                 for id in Set(stored.keys).subtracting(subscriptions) {
@@ -53,6 +105,7 @@ actor CodexTaskMonitor {
             #endif
             guard clientID != nil, Date().timeIntervalSince(connectedAt) >= 2 else { return nil }
             guard pendingSnapshots.isEmpty, input.isEmpty else { return nil }
+            connectionFailures = 0
             return projection.counts(stored: stored)
         } catch {
             #if DEBUG
@@ -61,11 +114,162 @@ actor CodexTaskMonitor {
             }
             #endif
             disconnect()
+            connectionFailures += 1
+            nextConnectAttempt = Date().addingTimeInterval(Self.retryDelay(failures: connectionFailures))
             return nil
         }
     }
 
-    func stop() { disconnect() }
+    static func reconciliationDelay(running: Int) -> TimeInterval { running > 0 ? 5 : 30 }
+    static func retryDelay(failures: Int) -> TimeInterval { min(30, pow(2, Double(min(5, max(1, failures))))) }
+
+    func stop() {
+        lifecycleGeneration += 1
+        fallbackTask?.cancel()
+        fallbackTask = nil
+        fallbackDelay = nil
+        fileRefreshTask?.cancel()
+        fileRefreshTask = nil
+        for observer in fileObservers.values { observer.source.cancel() }
+        fileObservers.removeAll()
+        disconnect()
+        continuation?.finish()
+        continuation = nil
+        lastPublished = nil
+        desktopRunning = false
+        nextConnectAttempt = .distantPast
+        connectionFailures = 0
+    }
+
+    private func streamTerminated(generation: Int) {
+        if lifecycleGeneration == generation { stop() }
+    }
+
+    private func refreshFromStore() {
+        guard continuation != nil else { return }
+        lastStoreRefresh = Date()
+        _ = poll(desktopRunning: desktopRunning)
+        installFileObservers()
+        publishCurrent()
+        scheduleFallback()
+    }
+
+    private func publishCurrent() {
+        guard continuation != nil else { return }
+        // A split frame is still being delivered; wait for its readable event
+        // rather than briefly replacing a valid count with loading dashes.
+        if !input.isEmpty && pendingSnapshots.isEmpty { return }
+        let counts: CodexTaskCounts? = desktopRunning && clientID != nil
+            && Date().timeIntervalSince(connectedAt) >= 2 && pendingSnapshots.isEmpty
+            ? projection.counts(stored: storedTasks) : nil
+        if counts != nil { connectionFailures = 0 }
+        guard counts != lastPublished else { return }
+        lastPublished = counts
+        continuation?.yield(counts)
+        scheduleFallback()
+    }
+
+    private func scheduleFallback() {
+        guard continuation != nil, desktopRunning else {
+            fallbackTask?.cancel(); fallbackTask = nil; fallbackDelay = nil
+            return
+        }
+        let delay = socketFD < 0
+            ? max(0.1, nextConnectAttempt.timeIntervalSinceNow)
+            : (!pendingSnapshots.isEmpty || clientID == nil ? 2 : Self.reconciliationDelay(running: lastPublished?.running ?? 0))
+        guard fallbackTask == nil || fallbackDelay != delay else { return }
+        fallbackTask?.cancel()
+        fallbackDelay = delay
+        fallbackTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+            guard !Task.isCancelled else { return }
+            await self?.fallbackFired()
+        }
+    }
+
+    private func fallbackFired() {
+        guard !Task.isCancelled else { return }
+        fallbackTask = nil
+        fallbackDelay = nil
+        refreshFromStore()
+    }
+
+    private func fileChanged() {
+        guard continuation != nil, desktopRunning, fileRefreshTask == nil else { return }
+        // Continuous WAL writes must not postpone refresh indefinitely, nor
+        // cause a database read for every token. Coalesce at most four reads/s.
+        let delay = max(0.05, 0.25 - Date().timeIntervalSince(lastStoreRefresh))
+        fileRefreshTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+            guard !Task.isCancelled else { return }
+            await self?.fileRefreshFired()
+        }
+    }
+
+    private func fileRefreshFired() {
+        guard !Task.isCancelled else { return }
+        fileRefreshTask = nil
+        refreshFromStore()
+    }
+
+    private func warmupFired(generation: Int) {
+        guard socketGeneration == generation else { return }
+        publishCurrent()
+    }
+
+    private func handshakeDeadline(generation: Int) {
+        guard socketGeneration == generation, clientID == nil else { return }
+        disconnect()
+        connectionFailures += 1
+        nextConnectAttempt = Date().addingTimeInterval(Self.retryDelay(failures: connectionFailures))
+        publishCurrent()
+        scheduleFallback()
+    }
+
+    private func installFileObservers() {
+        guard continuation != nil else { return }
+        let paths = [root.path, root.appendingPathComponent("ipc").path] + [
+            "state_5.sqlite", "state_5.sqlite-wal", "thread_history_1.sqlite", "thread_history_1.sqlite-wal", ".codex-global-state.json",
+        ].map { root.appendingPathComponent($0).path }
+        for path in paths {
+            var info = stat()
+            guard lstat(path, &info) == 0 else {
+                fileObservers.removeValue(forKey: path)?.source.cancel()
+                continue
+            }
+            if fileObservers[path]?.inode == info.st_ino { continue }
+            fileObservers.removeValue(forKey: path)?.source.cancel()
+            let fd = Darwin.open(path, O_EVTONLY | O_CLOEXEC)
+            guard fd >= 0 else { continue }
+            let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd,
+                eventMask: [.write, .extend, .rename, .delete, .revoke], queue: eventQueue)
+            source.setEventHandler { [weak self] in Task { await self?.fileChanged() } }
+            source.setCancelHandler { Darwin.close(fd) }
+            fileObservers[path] = FileObserver(inode: info.st_ino, source: source)
+            source.activate()
+        }
+    }
+
+    private func socketReadable(generation: Int) {
+        guard continuation != nil, socketGeneration == generation, socketFD >= 0 else { return }
+        do {
+            try drain(waitForChunks: false)
+            // Initialization can arrive after the first database refresh.
+            if clientID != nil {
+                for id in Set(storedTasks.keys).subtracting(subscriptions) {
+                    try follow(id, enabled: true)
+                    subscriptions.insert(id)
+                }
+            }
+            publishCurrent()
+        } catch {
+            disconnect()
+            connectionFailures += 1
+            nextConnectAttempt = Date().addingTimeInterval(Self.retryDelay(failures: connectionFailures))
+            publishCurrent()
+            scheduleFallback()
+        }
+    }
 
     private enum StreamError: Error { case unavailable, invalid }
     private func connect() throws {
@@ -94,6 +298,34 @@ actor CodexTaskMonitor {
         connectedAt = Date()
         try send(["type": "request", "requestId": UUID().uuidString, "sourceClientId": "initializing-client",
                   "version": 0, "method": "initialize", "params": ["clientType": "benchgauge"]])
+        if continuation != nil {
+            socketGeneration += 1
+            let generation = socketGeneration
+            let source = DispatchSource.makeReadSource(fileDescriptor: socketFD, queue: eventQueue)
+            let observedFD = socketFD
+            source.setCancelHandler { Darwin.close(observedFD) }
+            // Suspend until this delivery is consumed, so one readable socket
+            // cannot queue hundreds of actor tasks while a snapshot is parsed.
+            source.setEventHandler { [weak self, weak source] in
+                guard let source else { return }
+                source.suspend()
+                Task {
+                    await self?.socketReadable(generation: generation)
+                    source.resume()
+                }
+            }
+            readSource = source
+            source.activate()
+            warmupTask = Task { [weak self] in
+                do { try await Task.sleep(for: .seconds(2)) } catch { return }
+                guard !Task.isCancelled else { return }
+                await self?.warmupFired(generation: generation)
+                // An open but unresponsive router must also enter retry backoff.
+                do { try await Task.sleep(for: .seconds(3)) } catch { return }
+                guard !Task.isCancelled else { return }
+                await self?.handshakeDeadline(generation: generation)
+            }
+        }
     }
 
     private func follow(_ id: String, enabled: Bool) throws {
@@ -118,7 +350,7 @@ actor CodexTaskMonitor {
         }
     }
 
-    private func drain() throws {
+    private func drain(waitForChunks: Bool = true) throws {
         var buffer = [UInt8](repeating: 0, count: 65_536)
         let deadline = Date().addingTimeInterval(0.25)
         // Bound work per poll, without ever dropping a partial frame.
@@ -131,7 +363,7 @@ actor CodexTaskMonitor {
                     // socket backpressure. Keep draining an unfinished frame so
                     // one menu refresh does not consume just one 16 KB chunk.
                     var descriptor = pollfd(fd: socketFD, events: Int16(POLLIN), revents: 0)
-                    if Date() < deadline, Darwin.poll(&descriptor, 1, 10) > 0 { continue }
+                    if waitForChunks, Date() < deadline, Darwin.poll(&descriptor, 1, 10) > 0 { continue }
                     break
                 }
                 if errno == EINTR { continue }
@@ -159,6 +391,17 @@ actor CodexTaskMonitor {
             try send(["type": "client-discovery-response", "requestId": id, "response": ["canHandle": false]])
         } else if message["type"] as? String == "broadcast" {
             let params = message["params"] as? [String: Any] ?? [:]
+            if params["hostId"] as? String == "local" {
+                if message["method"] as? String == "thread-stream-following-status-requested",
+                   let id = params["conversationId"] as? String, subscriptions.contains(id) {
+                    // A replacement desktop owner discovers existing followers
+                    // this way; reply immediately even during the idle cadence.
+                    try follow(id, enabled: true)
+                }
+                if ["thread-read-state-changed", "thread-archived", "thread-unarchived"].contains(message["method"] as? String ?? "") {
+                    fileChanged()
+                }
+            }
             if message["method"] as? String == "client-status-changed", params["status"] as? String == "disconnected",
                let owner = params["clientId"] as? String { projection.removeOwner(owner) }
             if message["method"] as? String == "thread-stream-state-changed", params["hostId"] as? String == "local",
@@ -177,7 +420,16 @@ actor CodexTaskMonitor {
     }
 
     private func disconnect() {
-        if socketFD >= 0 { Darwin.close(socketFD) }
+        socketGeneration += 1
+        warmupTask?.cancel()
+        warmupTask = nil
+        if let source = readSource {
+            source.setEventHandler(handler: nil)
+            source.cancel()
+            readSource = nil
+            // The cancellation handler closes the descriptor after any queued
+            // delivery. Closing now could let a new socket reuse its number.
+        } else if socketFD >= 0 { Darwin.close(socketFD) }
         socketFD = -1
         clientID = nil
         input.removeAll()
