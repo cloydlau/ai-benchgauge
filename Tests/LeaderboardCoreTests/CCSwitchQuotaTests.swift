@@ -914,6 +914,62 @@ struct AccountQuotaFormattingTests {
     }
 
     @Test
+    func testFourBillingGroupsSortCorrectlyForEveryInputOrder() {
+        let groups = [
+            // A subscribed plan with no quota left still belongs to plans.
+            quotaChip(id: "plan", kind: .kimi, status: .windows([
+                ParsedQuotaWindow(name: "weekly_limit", utilization: 100, resetsAt: nil)])),
+            quotaChip(id: "metered", kind: .deepseek, status: .balances([
+                ParsedBalance(currency: "CNY", amount: 12)])),
+            quotaChip(id: "notSubscribed", kind: .qwen, isCurrent: true, status: .note(
+                text: AccountQuotaMessage.qwenNoPlan, help: AccountQuotaMessage.qwenNoPlanHelp)),
+            quotaChip(id: "zeroBalance", kind: .deepseek, status: .balances([
+                ParsedBalance(currency: "CNY", amount: 0)])),
+        ]
+        for a in 0..<4 {
+            for b in 0..<4 where b != a {
+                for c in 0..<4 where c != a && c != b {
+                    let d = (0..<4).first { $0 != a && $0 != b && $0 != c }!
+                    #expect(AccountQuotaFormatting.sortedChips([groups[a], groups[b], groups[c], groups[d]]).map(\.id)
+                        == ["plan", "metered", "notSubscribed", "zeroBalance"])
+                }
+            }
+        }
+    }
+
+    @Test
+    func testUnsubscribedPlansFollowMeteredIncludingUnknownAmounts() {
+        let unknownAmounts: [AccountQuotaChip.Status] = [
+            .pending, .message(AccountQuotaMessage.queryFailed), .message(AccountQuotaMessage.network),
+            .note(text: AccountQuotaMessage.notConfigured, help: ""), .balances([]),
+        ]
+        for kind in [CCSwitchQuotaKind.zhipu, .qwen] {
+            for missingPlan in [AccountQuotaChip.Status.note(text: AccountQuotaMessage.glmNoCodingPlan, help: ""),
+                                .message(AccountQuotaMessage.qwenNoPlan)] {
+                let plan = quotaChip(id: "notSubscribed", kind: kind, status: missingPlan)
+                for amount in unknownAmounts {
+                    let metered = quotaChip(id: "metered", kind: .deepseek, status: amount)
+                    #expect(AccountQuotaFormatting.sortedChips([plan, metered]).map(\.id) == ["metered", "notSubscribed"])
+                }
+            }
+        }
+    }
+
+    @Test
+    func testZeroBalanceGroupPreservesTiesAndChecksAllCurrencies() {
+        let chips = [
+            quotaChip(id: "zero", kind: .deepseek, status: .balances([ParsedBalance(currency: "CNY", amount: 0)])),
+            quotaChip(id: "noPlan", kind: .zhipu, status: .note(text: AccountQuotaMessage.glmNoCodingPlan, help: "")),
+            quotaChip(id: "multiCurrency", kind: .stepfun, status: .balances([
+                ParsedBalance(currency: "CNY", amount: 0), ParsedBalance(currency: "USD", amount: 1)])),
+            quotaChip(id: "overdrawn", kind: .luma, isCurrent: true, status: .balances([ParsedBalance(currency: "USD", amount: -1)])),
+            quotaChip(id: "balanceInOtherProvider", kind: .minimax, status: .balances([ParsedBalance(currency: "CNY", amount: 3)])),
+        ]
+        #expect(AccountQuotaFormatting.sortedChips(chips).map(\.id)
+            == ["multiCurrency", "balanceInOtherProvider", "noPlan", "zero", "overdrawn"])
+    }
+
+    @Test
     func testZhipuPlanExpiryIsTheCardExpiryForProviderOrder() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let weekly = now.addingTimeInterval(7 * 86_400)

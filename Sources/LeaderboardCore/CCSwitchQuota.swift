@@ -634,9 +634,9 @@ public enum AccountQuotaFormatting {
         return order.flatMap { grouped[$0] ?? [] } + rest
     }
 
-    /// Pay-as-you-go providers always follow quota/plan providers, including
-    /// pending, failed and undated plans. Within plans, soonest expiry comes
-    /// first. A chip sorts by the expiry its
+    /// Plans, metered balances, explicitly unsubscribed plans, then depleted
+    /// metered balances. Unknown amounts are not evidence of a zero balance.
+    /// Within plans, soonest expiry comes first. A chip sorts by the expiry its
     /// card shows: the plan end when there is one, otherwise a monthly quota
     /// reset. Shorter usage resets are not subscription deadlines. Missing
     /// expiry sorts after dated plans, ties keep the stored order, and the
@@ -644,15 +644,31 @@ public enum AccountQuotaFormatting {
     public static func sortedChips(_ chips: [AccountQuotaChip]) -> [AccountQuotaChip] {
         chips.enumerated()
             .sorted { lhs, rhs in
-                let leftMetered = isPayAsYouGo(lhs.element)
-                let rightMetered = isPayAsYouGo(rhs.element)
-                if leftMetered != rightMetered { return !leftMetered }
-                if !leftMetered, let ordered = compareExpiry(chipExpiry(lhs.element), chipExpiry(rhs.element), soonerFirst: true) {
+                let leftGroup = billingPriority(lhs.element)
+                let rightGroup = billingPriority(rhs.element)
+                if leftGroup != rightGroup { return leftGroup < rightGroup }
+                if leftGroup == 0, let ordered = compareExpiry(chipExpiry(lhs.element), chipExpiry(rhs.element), soonerFirst: true) {
                     return ordered
                 }
                 return lhs.offset < rhs.offset
             }
             .map(\.element)
+    }
+
+    private static func billingPriority(_ chip: AccountQuotaChip) -> Int {
+        if isPayAsYouGo(chip) {
+            if case let .balances(balances) = chip.status, !balances.isEmpty,
+               balances.allSatisfy({ $0.amount.isFinite && $0.amount <= 0 }) {
+                return 3
+            }
+            return 1
+        }
+        switch chip.status {
+        case let .note(text, _), let .message(text):
+            if text == AccountQuotaMessage.glmNoCodingPlan { return 2 }
+        default: break
+        }
+        return 0
     }
 
     private static func isPayAsYouGo(_ chip: AccountQuotaChip) -> Bool {
