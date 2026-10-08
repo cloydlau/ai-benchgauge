@@ -83,6 +83,7 @@ final class AppState: ObservableObject {
     @Published private(set) var codexTaskCounts: CodexTaskCounts?
     private let codexTaskMonitor = CodexTaskMonitor()
     private var codexTaskRefresh: Task<Void, Never>?
+    private var codexTaskWorkspaceObservers: [NSObjectProtocol] = []
     var menuBarQuota: AccountQuotaMenuBarText? {
         if let currentCodexModelConfiguration {
             return currentCodexModelConfiguration.menuBarText(for: quotaChips, targets: Array(quotaTargetsByID.values))
@@ -165,13 +166,26 @@ final class AppState: ObservableObject {
     }
 
     func start() {
+        let notifications = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification] {
+            codexTaskWorkspaceObservers.append(notifications.addObserver(forName: name, object: nil, queue: .main) { [weak self] notification in
+                guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                      QuotaAutoRefreshPolicy.isCodexBundleIdentifier(application.bundleIdentifier) else { return }
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    let running = NSWorkspace.shared.runningApplications.contains {
+                        !$0.isTerminated && QuotaAutoRefreshPolicy.isCodexBundleIdentifier($0.bundleIdentifier)
+                    }
+                    await self.codexTaskMonitor.setDesktopRunning(running)
+                }
+            })
+        }
         codexTaskRefresh = Task { [weak self] in
             guard let monitor = self?.codexTaskMonitor else { return }
-            while !Task.isCancelled {
-                guard let running = self?.isCodexRunning else { break }
-                let counts = await monitor.poll(desktopRunning: running)
+            let updates = await monitor.updates(desktopRunning: self?.isCodexRunning ?? false)
+            for await counts in updates {
+                guard !Task.isCancelled else { break }
                 if self?.codexTaskCounts != counts { self?.codexTaskCounts = counts }
-                do { try await Task.sleep(for: .seconds(1)) } catch { break }
             }
             await monitor.stop()
         }
@@ -290,6 +304,8 @@ final class AppState: ObservableObject {
         isQuitting = true
         codexTaskRefresh?.cancel()
         codexTaskRefresh = nil
+        for observer in codexTaskWorkspaceObservers { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
+        codexTaskWorkspaceObservers.removeAll()
         openAIConnection.cancel()
         xaiWebsiteSource.cancel()
         refreshPending = false
