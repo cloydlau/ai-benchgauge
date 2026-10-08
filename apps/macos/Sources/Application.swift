@@ -96,6 +96,7 @@ enum ClaudeKeychainConsentAlert {
 final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
     private static let taskLogger = Logger(subsystem: "com.cloydlau.ai-benchgauge", category: "CodexTaskStatusItem")
     private var loggedTaskCounts: CodexTaskCounts?
+    private var loggedCodexDesktopRunning: Bool?
     private var hasLoggedTaskCounts = false
     @IBOutlet private var button: NSStatusBarButton?
     private static let statusItemSymbolName = "brain.head.profile"
@@ -251,12 +252,19 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
             labels.append("\(quota.name) · \(quotaText)")
             help.append("\(quota.fullName) · \(quotaText)")
         }
-        labels.append(CodexTaskCounts.menuBarText(state.codexTaskCounts))
-        help.append(CodexTaskCounts.help(state.codexTaskCounts, chinese: state.selectedLanguage.rawValue == "zh"))
-        if !hasLoggedTaskCounts || loggedTaskCounts != state.codexTaskCounts {
+        if state.codexDesktopRunning {
+            labels.append(CodexTaskCounts.menuBarText(state.codexTaskCounts))
+            help.append(CodexTaskCounts.help(state.codexTaskCounts, chinese: state.selectedLanguage.rawValue == "zh"))
+        }
+        if !hasLoggedTaskCounts || loggedTaskCounts != state.codexTaskCounts || loggedCodexDesktopRunning != state.codexDesktopRunning {
             hasLoggedTaskCounts = true
             loggedTaskCounts = state.codexTaskCounts
-            Self.taskLogger.notice("Rendering task counts: \(CodexTaskCounts.menuBarText(self.state.codexTaskCounts), privacy: .public)")
+            loggedCodexDesktopRunning = state.codexDesktopRunning
+            if state.codexDesktopRunning {
+                Self.taskLogger.notice("Rendering task counts: \(CodexTaskCounts.menuBarText(self.state.codexTaskCounts), privacy: .public)")
+            } else {
+                Self.taskLogger.notice("Task counts hidden: Codex desktop is not running")
+            }
         }
         setStatusItemLabel(button, label: labels.joined(separator: " · "))
         button.toolTip = help.joined(separator: "\n")
