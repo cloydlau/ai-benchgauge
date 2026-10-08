@@ -30,6 +30,7 @@ private final class TaskIPCFixture: @unchecked Sendable {
     private var stopped = false
     private var following = Set<String>()
     private var revision = 0
+    private var owner = "fixture-owner"
     private var states: [String: (runtime: String, status: String)] = [:]
 
     init() throws {
@@ -97,17 +98,19 @@ private final class TaskIPCFixture: @unchecked Sendable {
             snapshotLocked(id, runtime: runtime, status: status)
         }
     }
-    func ownerChanged() {
+    func ownerChanged(runtime: String, status: String) {
         lock.withLock {
             sendLocked(["type": "broadcast", "method": "client-status-changed", "version": 0,
-                "params": ["status": "disconnected", "clientId": "fixture-owner"]])
+                "params": ["status": "disconnected", "clientId": owner]])
+            owner = "replacement-owner"
+            states["task"] = (runtime, status)
             sendLocked(["type": "broadcast", "method": "thread-stream-following-status-requested", "version": 1,
-                "sourceClientId": "replacement-owner", "params": ["hostId": "local", "conversationId": "task"]])
+                "sourceClientId": owner, "params": ["hostId": "local", "conversationId": "task"]])
         }
     }
     private func snapshotLocked(_ id: String, runtime: String, status: String) {
         revision += 1
-        sendLocked(["type": "broadcast", "method": "thread-stream-state-changed", "version": 11, "sourceClientId": "fixture-owner",
+        sendLocked(["type": "broadcast", "method": "thread-stream-state-changed", "version": 11, "sourceClientId": owner,
             "params": ["conversationId": id, "hostId": "local", "change": ["type": "snapshot", "revision": revision,
                 "conversationState": ["threadRuntimeStatus": ["type": runtime, "activeFlags": []], "turns": [["status": status]]]]]])
     }
@@ -198,8 +201,10 @@ struct CodexTaskMonitorTests {
         let failed = try await waitFor(.init(running: 0, unread: 0, failed: 1), recorder: recorder, timeout: 0.5)
         #expect(failed)
         let afterOwner = await recorder.values.count
-        fixture.ownerChanged()
-        let restored = try await waitFor(.init(running: 0, unread: 0, failed: 1), recorder: recorder, after: afterOwner, timeout: 0.5)
+        // The new owner has newer state. Re-following must retrieve it without
+        // waiting for the idle reconciliation timer or another store read.
+        fixture.ownerChanged(runtime: "active", status: "inProgress")
+        let restored = try await waitFor(.init(running: 1, unread: 0, failed: 0), recorder: recorder, after: afterOwner, timeout: 0.5)
         #expect(restored)
         #expect(reads.count == before)
         let after = await recorder.values.count
