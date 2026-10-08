@@ -1,0 +1,316 @@
+{
+  "state": {
+    "boards": [],
+    "quotas": []
+  },
+  "quotaScenarios": {
+    "menuBarProxyKimi": [
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "modelName": "gpt-5.6-sol",
+        "isCurrent": true,
+        "runs": [],
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 96
+          }
+        ],
+        "baseURL": null
+      },
+      {
+        "id": "kimi",
+        "name": "Kimi",
+        "modelName": "kimi-k3",
+        "isCurrent": false,
+        "runs": [],
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 23
+          }
+        ],
+        "baseURL": "https://api.kimi.com/coding/v1"
+      }
+    ],
+    "menuBarProxyKimiPending": [
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "modelName": "gpt-5.6-sol",
+        "isCurrent": true,
+        "runs": [],
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 96
+          }
+        ],
+        "baseURL": null
+      },
+      {
+        "id": "kimi",
+        "name": "Kimi",
+        "modelName": "kimi-k3",
+        "isCurrent": false,
+        "runs": [],
+        "windows": null,
+        "baseURL": "https://api.kimi.com/coding/v1",
+        "status": "pending"
+      }
+    ],
+    "menuBarProxyKimiReauth": [
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "modelName": "gpt-5.6-sol",
+        "isCurrent": true,
+        "runs": [],
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 96
+          }
+        ],
+        "baseURL": null
+      },
+      {
+        "id": "kimi",
+        "name": "Kimi",
+        "modelName": "kimi-k3",
+        "isCurrent": false,
+        "runs": [],
+        "windows": null,
+        "baseURL": "https://api.kimi.com/coding/v1",
+        "status": "reauth"
+      }
+    ],
+    "menuBarProxyAmbiguous": [
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "modelName": "gpt-5.6-sol",
+        "isCurrent": true,
+        "runs": [],
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 96
+          }
+        ],
+        "baseURL": null
+      },
+      {
+        "id": "kimi",
+        "name": "Kimi",
+        "modelName": "kimi-k3",
+        "isCurrent": false,
+        "runs": [],
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 23
+          }
+        ],
+        "baseURL": "https://api.kimi.com/coding/v1"
+      },
+      {
+        "id": "kimi-2",
+        "name": "Kimi",
+        "modelName": "kimi-k3",
+        "isCurrent": false,
+        "runs": [],
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 23
+          }
+        ],
+        "baseURL": "https://api.kimi.com/coding/v1"
+      }
+    ],
+    "menuBarProxyUnknown": [
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "modelName": "gpt-5.6-sol",
+        "isCurrent": true,
+        "runs": [],
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 96
+          }
+        ],
+        "baseURL": null
+      },
+      {
+        "id": "kimi",
+        "name": "Kimi",
+        "modelName": "kimi-k3",
+        "isCurrent": false,
+        "runs": [],
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 23
+          }
+        ],
+        "baseURL": "https://api.kimi.com/coding/v1"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "menuBarProxyKimi-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarProxyKimi",
+      "codexModel": "kimi-k3",
+      "codexProvider": "custom",
+      "codexBaseURL": "http://127.0.0.1:15721/v1"
+    },
+    {
+      "id": "menuBarProxyKimi-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarProxyKimi",
+      "codexModel": "kimi-k3",
+      "codexProvider": "custom",
+      "codexBaseURL": "http://127.0.0.1:15721/v1"
+    },
+    {
+      "id": "menuBarProxyKimi-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarProxyKimi",
+      "codexModel": "kimi-k3",
+      "codexProvider": "custom",
+      "codexBaseURL": "http://127.0.0.1:15721/v1"
+    },
+    {
+      "id": "menuBarProxyKimiPending-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarProxyKimiPending",
+      "codexModel": "kimi-k3",
+      "codexProvider": "custom",
+      "codexBaseURL": "http://127.0.0.1:15721/v1"
+    },
+    {
+      "id": "menuBarProxyKimiPending-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarProxyKimiPending",
+      "codexModel": "kimi-k3",
+      "codexProvider": "custom",
+      "codexBaseURL": "http://127.0.0.1:15721/v1"
+    },
+    {
+      "id": "menuBarProxyKimiPending-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarProxyKimiPending",
+      "codexModel": "kimi-k3",
+      "codexProvider": "custom",
+      "codexBaseURL": "http://127.0.0.1:15721/v1"
+    },
+    {
+      "id": "menuBarProxyKimiReauth-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarProxyKimiReauth",
+      "codexModel": "kimi-k3",
+      "codexProvider": "custom",
+      "codexBaseURL": "http://127.0.0.1:15721/v1"
+    },
+    {
+      "id": "menuBarProxyKimiReauth-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarProxyKimiReauth",
+      "codexModel": "kimi-k3",
+      "codexProvider": "custom",
+      "codexBaseURL": "http://127.0.0.1:15721/v1"
+    },
+    {
+      "id": "menuBarProxyKimiReauth-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarProxyKimiReauth",
+      "codexModel": "kimi-k3",
+      "codexProvider": "custom",
+      "codexBaseURL": "http://127.0.0.1:15721/v1"
+    },
+    {
+      "id": "menuBarProxyAmbiguous-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarProxyAmbiguous",
+      "codexModel": "kimi-k3",
+      "codexProvider": "custom",
+      "codexBaseURL": "http://127.0.0.1:15721/v1"
+    },
+    {
+      "id": "menuBarProxyAmbiguous-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarProxyAmbiguous",
+      "codexModel": "kimi-k3",
+      "codexProvider": "custom",
+      "codexBaseURL": "http://127.0.0.1:15721/v1"
+    },
+    {
+      "id": "menuBarProxyAmbiguous-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarProxyAmbiguous",
+      "codexModel": "kimi-k3",
+      "codexProvider": "custom",
+      "codexBaseURL": "http://127.0.0.1:15721/v1"
+    },
+    {
+      "id": "menuBarProxyUnknown-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarProxyUnknown",
+      "codexModel": "unknown-proxy-model",
+      "codexProvider": "custom",
+      "codexBaseURL": "http://127.0.0.1:15721/v1"
+    },
+    {
+      "id": "menuBarProxyUnknown-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarProxyUnknown",
+      "codexModel": "unknown-proxy-model",
+      "codexProvider": "custom",
+      "codexBaseURL": "http://127.0.0.1:15721/v1"
+    },
+    {
+      "id": "menuBarProxyUnknown-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarProxyUnknown",
+      "codexModel": "unknown-proxy-model",
+      "codexProvider": "custom",
+      "codexBaseURL": "http://127.0.0.1:15721/v1"
+    }
+  ]
+}
