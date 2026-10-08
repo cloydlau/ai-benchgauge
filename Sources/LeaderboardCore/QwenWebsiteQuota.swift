@@ -48,7 +48,7 @@ public enum QwenWebsiteQuotaParser {
             )
         }
         guard let text = String(data: data, encoding: .utf8),
-              let headers = try? NSRegularExpression(pattern: #"7\s*天限额|月额度"#) else { return nil }
+              let headers = try? NSRegularExpression(pattern: #"7\s*天限[额額]|月[额額]度|7 Days Usage Limit|Monthly Quota"#) else { return nil }
         let range = NSRange(text.startIndex..., in: text)
         let matches = headers.matches(in: text, range: range)
         var pools: [QwenWebsiteQuota] = []
@@ -57,12 +57,13 @@ public enum QwenWebsiteQuotaParser {
             let sectionRange = NSRange(location: header.range.location, length: end - header.range.location)
             guard let swiftRange = Range(sectionRange, in: text),
                   let labelRange = Range(header.range, in: text) else { continue }
-            let section = String(text[swiftRange])
-            guard let percentText = capture(#"剩余量\s*([0-9]+(?:\.[0-9]+)?)\s*%"#, in: String(section.prefix(120))),
+            let section = String(text[swiftRange]).components(separatedBy: "加油包")[0]
+                .components(separatedBy: "Credit Pack")[0]
+            guard let percentText = capture(#"(?:剩[余餘]量|Remaining)\s*([0-9]+(?:\.[0-9]+)?)\s*%"#, in: String(section.prefix(240))),
                   let percent = Double(percentText), percent.isFinite, (0...100).contains(percent) else { continue }
-            let reset = capture(#"重置时间\s*([0-9]{4}-[0-9]{2}-[0-9]{2}\s+[0-9]{2}:[0-9]{2}:[0-9]{2})"#, in: section).flatMap(shanghaiDate)
+            let reset = capture(#"(?:重置[时時][间間]|Reset time)\s*([0-9]{4}-[0-9]{2}-[0-9]{2}\s+[0-9]{2}:[0-9]{2}:[0-9]{2})"#, in: section).flatMap(shanghaiDate)
             pools.append(QwenWebsiteQuota(
-                periodLabel: text[labelRange].contains("月") ? "1mo" : "7d",
+                periodLabel: text[labelRange].contains("月") || text[labelRange] == "Monthly Quota" ? "1mo" : "7d",
                 remainingPercent: percent,
                 resetsAt: reset
             ))
