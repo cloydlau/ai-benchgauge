@@ -73,7 +73,7 @@ sealed partial class MainWindow : Window
                 try { await engine.Request("keepAliveXAI", prefs); }
                 catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException) { }
             }
-            if (IsVisible && !modalOpen && !(panelMenuOpen || dropdowns.Any(box => box.IsDropDownOpen))) await Refresh("state");
+            if (!modalOpen && !(panelMenuOpen || dropdowns.Any(box => box.IsDropDownOpen))) await Refresh("state");
         };
         updateTimer.Tick += async (_, _) => await CheckUpdates(false);
         Activated += (_, _) => Dispatcher.BeginInvoke(TryPresentPreparedUpdate, DispatcherPriority.Background);
