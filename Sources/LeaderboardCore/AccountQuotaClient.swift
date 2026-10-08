@@ -36,10 +36,9 @@ public enum XAIOAuthKeepAliveOutcome: Equatable, Sendable {
 }
 
 public enum XAIOAuthKeepAlivePolicy {
-    /// xAI does not disclose the refresh-token lifetime. Local failures have
-    /// consistently appeared near seven days, so renew shortly before that
-    /// observed boundary rather than using the one-hour access-token lifetime.
-    public static let successInterval: TimeInterval = 7 * 24 * 60 * 60 - 12 * 60 * 60
+    /// xAI does not disclose its idle-session lifetime. Renew well inside the
+    /// reported one-day idle failures, independently of quota refresh activity.
+    public static let successInterval: TimeInterval = 6 * 60 * 60
     /// A failed renewal gets a short backoff without making successful logins
     /// refresh hourly.
     public static let failureRetryInterval: TimeInterval = 60 * 60
@@ -48,10 +47,14 @@ public enum XAIOAuthKeepAlivePolicy {
 public struct XAIOAuthKeepAliveSchedule: Codable, Equatable, Sendable {
     public var accountID: String?
     public var nextAt: Date
+    // Missing in legacy schedules. A policy change makes those schedules due
+    // immediately instead of retaining a renewal several days in the future.
+    public var renewalInterval: TimeInterval?
 
     public init(accountID: String? = nil, nextAt: Date) {
         self.accountID = accountID
         self.nextAt = nextAt
+        renewalInterval = XAIOAuthKeepAlivePolicy.successInterval
     }
 }
 
@@ -69,7 +72,8 @@ public struct XAIOAuthKeepAliveScheduleStore {
     public func nextDate(accountID: String?) -> Date? {
         guard let data = try? Data(contentsOf: fileURL),
               let schedule = try? decoder.decode(XAIOAuthKeepAliveSchedule.self, from: data),
-              schedule.accountID == accountID else { return nil }
+              schedule.accountID == accountID,
+              schedule.renewalInterval == XAIOAuthKeepAlivePolicy.successInterval else { return nil }
         return schedule.nextAt
     }
 
@@ -845,6 +849,7 @@ private actor XAIAccessTokens {
 
     private var cached: CachedToken?
     private var tokenEndpoint: URL?
+    private var inFlightRefresh: (id: UUID, account: XaiAuthFile.Account, url: URL, task: Task<XAITokenResult, Error>)?
 
     func forceRefresh(
         transport: any AccountQuotaTransport,
@@ -859,7 +864,7 @@ private actor XAIAccessTokens {
             cached = nil
             return .failure(.reauth)
         case let .account(account):
-            return try await performRefresh(
+            return try await coordinatedRefresh(
                 account: account,
                 transport: transport,
                 authFileURL: authFileURL,
@@ -956,12 +961,37 @@ private actor XAIAccessTokens {
             return .token(cached.token)
         }
 
-        return try await performRefresh(
+        return try await coordinatedRefresh(
             account: account,
             transport: transport,
             authFileURL: authFileURL,
             now: now
         )
+    }
+
+    private func coordinatedRefresh(
+        account: XaiAuthFile.Account,
+        transport: any AccountQuotaTransport,
+        authFileURL: URL,
+        now: Date
+    ) async throws -> XAITokenResult {
+        if let inFlightRefresh {
+            let result = try await inFlightRefresh.task.value
+            if inFlightRefresh.account == account, inFlightRefresh.url == authFileURL { return result }
+            // Another login/file was being renewed; re-read its current token
+            // rather than issuing a request with the pre-await snapshot.
+            if self.inFlightRefresh?.id == inFlightRefresh.id { self.inFlightRefresh = nil }
+            return try await forceRefresh(transport: transport, authFileURL: authFileURL, now: now)
+        }
+        // Once rotation starts, finish saving the replacement even if the
+        // requesting quota view is cancelled. Both callers await the same task.
+        let task = Task {
+            try await self.performRefresh(account: account, transport: transport, authFileURL: authFileURL, now: now)
+        }
+        let id = UUID()
+        inFlightRefresh = (id, account, authFileURL, task)
+        defer { if inFlightRefresh?.id == id { inFlightRefresh = nil } }
+        return try await task.value
     }
 
     private func performRefresh(
@@ -1010,13 +1040,20 @@ private actor XAIAccessTokens {
         guard let payload = Self.tokenPayload(response.body) else {
             return .failure(.failed)
         }
+        guard case let .account(current) = Self.readLogin(at: authFileURL), current == account else {
+            cached = nil
+            return .failure(.failed)
+        }
         if let rotated = payload.refreshToken, rotated != account.refreshToken {
-            XaiAuthFile.commitRefreshTokenReplacement(
+            guard XaiAuthFile.commitRefreshTokenReplacement(
                 at: authFileURL,
                 accountID: account.id,
                 oldToken: account.refreshToken,
                 newToken: rotated
-            )
+            ) else {
+                cached = nil
+                return .failure(.failed)
+            }
         }
         let lifetime = max(payload.expiresIn ?? 3600, 1)
         cached = CachedToken(

@@ -1735,7 +1735,7 @@ struct AccountQuotaClientTests {
                 return AccountQuotaHTTPResponse(
                     statusCode: 200,
                     headers: [:],
-                    body: Data(#"{"access_token":"unit-test-access","expires_in":3600}"#.utf8)
+                    body: Data(#"{"access_token":"unit-test-access","refresh_token":"unit-test-rotated","expires_in":3600}"#.utf8)
                 )
             case "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig":
                 return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data())
@@ -1751,8 +1751,13 @@ struct AccountQuotaClientTests {
         let outcome = try await client.keepAliveXAI(authFileURL: authURL)
 
         #expect((outcome) == (.renewed))
+        let persisted = try #require(XaiAuthFile.parse(Data(contentsOf: authURL)))
+        #expect(XaiAuthFile.selectedAccount(persisted)?.refreshToken == "unit-test-rotated")
+        #expect(XaiAuthFile.selectedAccount(persisted)?.requiresReauth == false)
+        let tokenRequests = transport.requests.filter { $0.url?.absoluteString == "https://auth.x.ai/oauth2/token" }
+        #expect(String(data: tokenRequests[1].httpBody ?? Data(), encoding: .utf8)?.contains("refresh_token=unit-test-rotated") == true)
         #expect((transport.requests.filter { $0.url?.absoluteString == "https://auth.x.ai/oauth2/token" }.count) == 2)
-        #expect((XAIOAuthKeepAlivePolicy.successInterval) == (6.5 * 24 * 60 * 60))
+        #expect((XAIOAuthKeepAlivePolicy.successInterval) == (6 * 60 * 60))
         #expect((XAIOAuthKeepAlivePolicy.failureRetryInterval) == (60 * 60))
 
         let scheduleURL = directory.appending(path: "keepalive-schedule.json")
@@ -1761,6 +1766,76 @@ struct AccountQuotaClientTests {
         scheduleStore.save(accountID: "acct-1", nextAt: next)
         #expect(scheduleStore.nextDate(accountID: "acct-1").map { abs($0.timeIntervalSince(next)) < 1 } == true)
         #expect((scheduleStore.nextDate(accountID: "acct-2")) == (nil))
+    }
+
+    @Test
+    func testXAIKeepAliveMigratesLegacySchedulesAndRetainsRetryBackoff() throws {
+        let url = FileManager.default.temporaryDirectory.appending(path: "xai-schedule-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let now = Date(timeIntervalSince1970: 1_791_360_000)
+        let legacyNext = now.addingTimeInterval(6.5 * 24 * 60 * 60)
+        let legacy: [String: Any] = ["accountID": "acct-1", "nextAt": legacyNext.timeIntervalSinceReferenceDate]
+        try JSONSerialization.data(withJSONObject: legacy).write(to: url)
+        let store = XAIOAuthKeepAliveScheduleStore(fileURL: url)
+        #expect(store.nextDate(accountID: "acct-1") == nil)
+
+        let next = now.addingTimeInterval(XAIOAuthKeepAlivePolicy.successInterval)
+        store.save(accountID: "acct-1", nextAt: next)
+        #expect(store.nextDate(accountID: "acct-1") == next)
+        #expect(store.nextDate(accountID: "acct-2") == nil)
+        let retry = now.addingTimeInterval(XAIOAuthKeepAlivePolicy.failureRetryInterval)
+        store.save(accountID: "acct-1", nextAt: retry)
+        #expect(store.nextDate(accountID: "acct-1") == retry)
+    }
+
+    @Test
+    func testXAIKeepAliveDoesNotReportRenewedWhenLoginChangesDuringRotation() async throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "xai-renew-race-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let authURL = directory.appending(path: "auth.json")
+        try Data(xaiAuthJSON(requiresReauth: false).utf8).write(to: authURL)
+        let transport = ScriptedQuotaTransport { request in
+            if request.url == XaiEndpointValidator.discoveryURL {
+                return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(
+                    #"{"issuer":"https://auth.x.ai","token_endpoint":"https://auth.x.ai/oauth2/token"}"#.utf8))
+            }
+            #expect(request.url?.absoluteString == "https://auth.x.ai/oauth2/token")
+            try Data(xaiAuthJSON(requiresReauth: true).utf8).write(to: authURL)
+            return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(
+                #"{"access_token":"unit-test-access","refresh_token":"unit-test-rotated","expires_in":3600}"#.utf8))
+        }
+        let client = AccountQuotaClient(transport: transport, authFileURL: authURL)
+        #expect(try await client.keepAliveXAI(authFileURL: authURL) == .retry)
+        let snapshot = try #require(XaiAuthFile.parse(Data(contentsOf: authURL)))
+        let account = try #require(XaiAuthFile.selectedAccount(snapshot))
+        #expect(account.requiresReauth)
+        #expect(account.refreshToken == "unit-test-refresh")
+        let count = transport.requests.count
+        #expect(try await client.keepAliveXAI(authFileURL: authURL) == .loginRequired)
+        #expect(transport.requests.count == count)
+    }
+
+    @Test
+    func testXAIConcurrentKeepAliveSharesOneTokenRotation() async throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "xai-renew-concurrent-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let authURL = directory.appending(path: "auth.json")
+        try Data(xaiAuthJSON(requiresReauth: false).utf8).write(to: authURL)
+        let transport = ConcurrentXAIQuotaTransport()
+        let client = AccountQuotaClient(transport: transport, authFileURL: authURL)
+        let results = try await withThrowingTaskGroup(of: XAIOAuthKeepAliveOutcome.self) { group in
+            for _ in 0..<10 { group.addTask { try await client.keepAliveXAI(authFileURL: authURL) } }
+            var results: [XAIOAuthKeepAliveOutcome] = []
+            for try await result in group { results.append(result) }
+            return results
+        }
+        #expect(results.count == 10)
+        #expect(results.allSatisfy { $0 == .renewed })
+        #expect(await transport.tokenRequestCount == 1)
+        let persisted = try #require(XaiAuthFile.parse(Data(contentsOf: authURL)))
+        #expect(XaiAuthFile.selectedAccount(persisted)?.refreshToken == "unit-test-rotated")
     }
 
     @Test
@@ -2608,5 +2683,21 @@ private func runSQLite(_ sql: String, database: URL) throws {
     guard result == SQLITE_OK else {
         recordFailure("sqlite3 fixture failed: \(error.map { String(cString: $0) } ?? "unknown error")")
         throw CocoaError(.fileWriteUnknown)
+    }
+}
+
+private actor ConcurrentXAIQuotaTransport: AccountQuotaTransport {
+    private(set) var tokenRequestCount = 0
+
+    func data(for request: URLRequest) async throws -> AccountQuotaHTTPResponse {
+        if request.url == XaiEndpointValidator.discoveryURL {
+            return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(
+                #"{"issuer":"https://auth.x.ai","token_endpoint":"https://auth.x.ai/oauth2/token"}"#.utf8))
+        }
+        #expect(request.url?.absoluteString == "https://auth.x.ai/oauth2/token")
+        tokenRequestCount += 1
+        try await Task.sleep(for: .milliseconds(100))
+        return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(
+            #"{"access_token":"unit-test-access","refresh_token":"unit-test-rotated","expires_in":3600}"#.utf8))
     }
 }

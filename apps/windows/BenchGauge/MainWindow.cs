@@ -67,6 +67,12 @@ sealed partial class MainWindow : Window
         boardTimer.Tick += async (_, _) => { await Refresh("refreshBoards"); await Refresh("refreshCurrentQuota"); };
         quotaClockTimer.Tick += async (_, _) =>
         {
+            // OAuth renewal must continue with the panel hidden and no user activity.
+            if (engine is not null)
+            {
+                try { await engine.Request("keepAliveXAI", prefs); }
+                catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException) { }
+            }
             if (IsVisible && !modalOpen && !(panelMenuOpen || dropdowns.Any(box => box.IsDropDownOpen))) await Refresh("state");
         };
         updateTimer.Tick += async (_, _) => await CheckUpdates(false);
