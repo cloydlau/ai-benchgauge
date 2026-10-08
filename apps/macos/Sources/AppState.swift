@@ -172,11 +172,14 @@ final class AppState: ObservableObject {
     /// timers, network requests, authentication or account refreshes.
     func applyVisualFixture(snapshot: LeaderboardSnapshot, chips: [AccountQuotaChip],
                             language: AppLanguage, errors: [LeaderboardKind: String],
-                            emptyState: CCSwitchState?, panelMode: PanelMode = .clickToClose, quotaUpdatedAt: Date? = nil, quotaUnavailable: Bool = false) {
+                            emptyState: CCSwitchState?, panelMode: PanelMode = .clickToClose, quotaUpdatedAt: Date? = nil, quotaUnavailable: Bool = false,
+                            modelConfiguration: CodexModelConfiguration? = nil, targets: [CCSwitchQuotaTarget] = []) {
         self.snapshot = snapshot
         self.quotaUpdatedAt = quotaUpdatedAt
         self.quotaUnavailable = quotaUnavailable
         quotaChips = chips
+        currentCodexModelConfiguration = modelConfiguration
+        quotaTargetsByID = Dictionary(uniqueKeysWithValues: targets.map { ($0.id, $0) })
         selectedLanguage = language
         selectedCategory = .general
         selectedGrouping = .model

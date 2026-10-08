@@ -14,12 +14,12 @@ enum NativeVisualCapture {
         struct Run: Decodable { let text: String }
         struct Balance: Decodable { let currency: String; let amount: Double }
         struct Window: Decodable { let name: String; let utilization: Double; let resetsAt: String?; let dateSource: ParsedQuotaDateSource? }
-        let id: String; let name: String; let isCurrent: Bool; let runs: [Run]; let status: String?; let modelName: String?; let failureReason: String?
+        let id: String; let name: String; let isCurrent: Bool; let runs: [Run]; let status: String?; let modelName: String?; let failureReason: String?; let baseURL: String?
         let windows: [Window]?
         let balances: [Balance]?
     }
     struct State: Decodable { let boards: [Board]; let quotas: [Quota]; let quotaUpdatedAt: String? }
-    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String? }
+    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String?; let codexModel: String?; let codexProvider: String?; let codexBaseURL: String? }
     struct Fixture: Decodable { let state: State; let cases: [Case]; let quotaScenarios: [String: [Quota]]? }
 
     static func run() async throws {
@@ -103,7 +103,13 @@ enum NativeVisualCapture {
                     state.applyVisualFixture(snapshot: LeaderboardSnapshot(boards: fetchedBoards), chips: shownChips,
                         language: AppLanguage(rawValue: test.language)!, errors: errors,
                         emptyState: test.scenario == "empty" ? .notInstalled : (test.scenario == "installedEmpty" ? .installedEmpty : nil),
-                        panelMode: test.scenario == "window" ? .window : .clickToClose, quotaUpdatedAt: quotaDate, quotaUnavailable: stale)
+                        panelMode: test.scenario == "window" ? .window : .clickToClose, quotaUpdatedAt: quotaDate, quotaUnavailable: stale,
+                        modelConfiguration: test.codexModel.map { CodexModelConfiguration(model: $0, provider: test.codexProvider, baseURL: test.codexBaseURL) },
+                        targets: visibleChips.map { value in
+                            CCSwitchQuotaTarget(id: value.id, shortName: value.shortName, modelName: value.modelName,
+                                websiteURL: nil, kind: value.kind, isCurrent: value.isCurrent, apiKey: nil,
+                                baseURL: (fixture.quotaScenarios?[test.scenario] ?? fixture.state.quotas).first { $0.id == value.id }?.baseURL)
+                        })
                 }
                 apply()
                 if test.scenario.hasPrefix("menuBar") {
