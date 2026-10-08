@@ -1833,8 +1833,8 @@ struct AccountQuotaClientTests {
         #expect(AccountQuotaFormatting.glmRecoveryAction(for: chip(kind: .zhipu, status: .windows([
             ParsedQuotaWindow(name: "five_hour", utilization: 25, resetsAt: nil)
         ]))) == nil)
-        #expect(AppLanguage.english.quotaText(AccountQuotaMessage.glmNoCodingPlan) == "Coding Plan not found")
-        #expect(AppLanguage.traditionalChinese.quotaText(AccountQuotaMessage.glmNoCodingPlan) == "未找到 Coding Plan")
+        #expect(AppLanguage.english.quotaText(AccountQuotaMessage.glmNoCodingPlan) == "Not subscribed")
+        #expect(AppLanguage.traditionalChinese.quotaText(AccountQuotaMessage.glmNoCodingPlan) == "未訂購")
     }
 
     @Test

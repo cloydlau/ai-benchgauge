@@ -1,5 +1,13 @@
 # Native visual comparison
 
+## GLM subscription copy (2026-10-08)
+
+The specific missing-plan status is shortened to `未订购` / `未訂購` / `Not subscribed`. Help explains that the plan may have expired or not been purchased, and directs the user to check the GLM key and subscription account in CC Switch. Recovery routing is unchanged.
+
+Ignored `work/glm-copy-review/` preserves 54 before and 54 after native Mac frames using the same GLM recovery fixture, three languages, both themes and shown/refreshed/settled checkpoints. The baseline reuses the previous GLM review's saved captures. Metadata records fixture SHA-256 `252812ddcc44cff5e6b32d6b618f11381c0852012c699d0e25d5f4533477fc0d`, macOS 26.6.2 (25G83), actual 2× scale and 900×820-point content. All 18 checkpoint groups are stable per phase. Original-pixel quota bands show the shortened labels and adjacent controls fitting without clipping. The saved baseline also has raster differences in some unchanged table/footer content; this comparison is not pixel-identical outside the edited label. Windows native captures and a source-matched CI artifact remain unavailable; no cross-platform visual sign-off is claimed.
+
+Validation: 97 script tests, 224 Swift tests and 39 Windows harness cases pass with the final wording. Syntax validation passes.
+
 ## GLM query diagnosis and recovery (2026-10-08)
 
 The actual CC Switch GLM key received HTTP 200 with `success=false`, business code 500, and the monitor API's fixed reason that this account has no Coding Plan. The app previously collapsed that into a generic query failure, and the card's default click opened the provider homepage. No credentials were changed during diagnosis.
