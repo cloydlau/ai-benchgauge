@@ -77,6 +77,7 @@ actor Engine {
     private var client: AccountQuotaClient?
     private var lastBoardRefresh: [LeaderboardCategory: Date] = [:]
     private var lastQuotaRefresh: Date?
+    private var lastCheckedModelConfiguration: CodexModelConfiguration?
     private var quotaUpdatedAt: Date?
     private var lastInactiveRefresh: Date?
     private let xaiKeepAliveScheduleStore = XAIOAuthKeepAliveScheduleStore()
@@ -140,7 +141,12 @@ actor Engine {
                 lastQuotaRefresh = nil
                 lastInactiveRefresh = nil
                 try await refreshQuotas(onlyCurrent: false)
-            case "state": break
+            case "state":
+                if allowsAccountAccess, CCSwitchProviderStore.currentCodexModelConfiguration() != lastCheckedModelConfiguration {
+                    lastQuotaRefresh = nil
+                    lastInactiveRefresh = nil
+                    try await refreshQuotas(onlyCurrent: false)
+                }
             case "captureQwen":
                 guard let text = request.pageText, text.utf8.count <= 50000 else {
                     return Response(id: request.id, error: "No quota found")
@@ -273,8 +279,10 @@ actor Engine {
             }
         case .records(let records):
             unavailable = false; needsCCSwitch = false
-            let list = OfficialQuotaDiscovery.merge(ccSwitch: CCSwitchQuotaCatalog.targets(from: records,
+            let discovered = OfficialQuotaDiscovery.merge(ccSwitch: CCSwitchQuotaCatalog.targets(from: records,
                 currentProviderID: CCSwitchProviderStore.currentCodexProviderID(settingsURL: install.settingsURL)), official: officialTargets)
+            lastCheckedModelConfiguration = CCSwitchProviderStore.currentCodexModelConfiguration()
+            let list = lastCheckedModelConfiguration?.selectingCurrentTarget(in: discovered) ?? discovered
             targets = Dictionary(uniqueKeysWithValues: list.map { ($0.id, $0) })
             let prior = Dictionary(uniqueKeysWithValues: chips.map { ($0.id, $0) })
             if !list.contains(where: { prior[$0.id] != nil }) { quotaUpdatedAt = nil }
@@ -434,11 +442,11 @@ actor Engine {
         delivered = QuotaAlerts.retainedKeys(delivered, evaluatedChips: displayChips, activeKeys: activeKeys)
         let pending = QuotaAlerts.pendingAlerts(alerts, delivered: delivered)
         for alert in pending { delivered.formUnion(alert.componentKeys) }
-        let liveModel = allowsAccountAccess ? displayChips.first(where: \.isCurrent)
-            .flatMap { targets[$0.id] }
-            .flatMap { CCSwitchProviderStore.currentCodexModelConfiguration()?.modelName(matching: $0) } : nil
+        let liveModel = allowsAccountAccess ? CCSwitchProviderStore.currentCodexModelConfiguration() : nil
+        let menuText = liveModel?.menuBarText(for: displayChips, targets: Array(targets.values))
+            ?? AccountQuotaFormatting.menuBarText(forChips: displayChips)
         return State(boards: boards, quotas: quotas, quotaNeedsCCSwitch: needsCCSwitch, quotaUnavailable: unavailable,
-                     trayText: AccountQuotaFormatting.menuBarText(forChips: displayChips, currentModelName: liveModel).map { "\($0.name) · \(language.quotaText($0.quota))" },
+                     trayText: menuText.map { "\($0.name) · \(language.quotaText($0.quota))" },
                      alerts: pending.map { Alert(title: language.quotaText($0.subtitle), body: language.quotaText($0.body)) },
                      layoutEntries: layoutEntries, quotaUpdatedAt: quotaUpdatedAt.map { ISO8601DateFormatter().string(from: $0) })
     }

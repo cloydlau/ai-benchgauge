@@ -74,4 +74,80 @@ struct CodexModelConfigurationTests {
         try Data("model = broken".utf8).write(to: file)
         #expect(CCSwitchProviderStore.currentCodexModelConfiguration(homeDirectory: home, environment: [:]) == nil)
     }
+    private func proxyTargets() -> [CCSwitchQuotaTarget] {
+        [CCSwitchQuotaTarget(id: "openai", shortName: "OpenAI", modelName: "gpt-5.6-sol",
+            websiteURL: nil, kind: .officialNote, isCurrent: true, apiKey: nil, baseURL: nil,
+            accessToken: "unit-test-access", accountID: "unit-test-account"),
+         CCSwitchQuotaTarget(id: "kimi", shortName: "Kimi", modelName: "kimi-k3",
+            websiteURL: URL(string: "https://kimi.com"), kind: .kimi, isCurrent: false,
+            apiKey: "unit-test-kimi-key", baseURL: "https://api.kimi.com/coding/v1")]
+    }
+
+    private func proxyChips(kimiStatus: AccountQuotaChip.Status) -> [AccountQuotaChip] {
+        proxyTargets().map { target in
+            AccountQuotaChip(id: target.id, shortName: target.shortName, modelName: target.modelName,
+                websiteURL: target.websiteURL, kind: target.kind, isCurrent: target.isCurrent,
+                status: target.kind == .kimi ? kimiStatus : .windows([
+                    ParsedQuotaWindow(name: "five_hour", utilization: 96, resetsAt: nil)
+                ]))
+        }
+    }
+
+    @Test func loopbackProxySelectsUniqueKimiWithItsOwnQuotaAndCredentials() throws {
+        let original = proxyTargets()
+        for url in ["http://127.0.0.1:15721/v1", "http://localhost:15721/v1", "http://[::1]:15721/v1"] {
+            let config = CodexModelConfiguration(model: "kimi-k3", provider: "custom", baseURL: url)
+            let selected = config.selectingCurrentTarget(in: original)
+            #expect(selected.filter(\.isCurrent).map(\.id) == ["kimi"])
+            #expect(selected[1].apiKey == original[1].apiKey)
+            #expect(selected[1].baseURL == original[1].baseURL)
+            #expect(selected[1].websiteURL == original[1].websiteURL)
+            #expect(selected[0].accessToken == original[0].accessToken)
+            #expect(selected[0].accountID == original[0].accountID)
+            #expect(config.modelName(matching: selected[1]) == "kimi-k3")
+            #expect(config.modelName(matching: selected[0]) == nil)
+            let menu = try #require(config.menuBarText(for: proxyChips(kimiStatus: .windows([
+                ParsedQuotaWindow(name: "five_hour", utilization: 23, resetsAt: nil)
+            ])), targets: original))
+            #expect(menu.fullName == "kimi-k3")
+            #expect(menu.quota == "5h 77%")
+        }
+        #expect(original.first?.isCurrent == true)
+    }
+
+    @Test func proxyModelKeepsKimiPendingAndLoginFailureInsteadOfOpenAIQuota() throws {
+        let config = CodexModelConfiguration(model: "kimi-k3", provider: "custom", baseURL: "http://localhost:15721/v1")
+        for (status, expected) in [(AccountQuotaChip.Status.pending, AccountQuotaMessage.querying),
+                                  (.message(AccountQuotaMessage.reauthRequired), AccountQuotaMessage.reauthRequired)] {
+            let menu = try #require(config.menuBarText(for: proxyChips(kimiStatus: status), targets: proxyTargets()))
+            #expect(menu.name == "kimi-k3")
+            #expect(menu.quota == expected)
+        }
+    }
+
+    @Test func ambiguousAndUnknownProxyRoutesNeverBorrowAnotherAccountQuota() throws {
+        let existing = proxyTargets()
+        let duplicate = CCSwitchQuotaTarget(id: "kimi-2", shortName: "Kimi second", modelName: "kimi-k3",
+            websiteURL: nil, kind: .kimi, isCurrent: false, apiKey: "unit-test-other-key", baseURL: "https://api.kimi.com/coding/v1")
+        let config = CodexModelConfiguration(model: "kimi-k3", provider: "custom", baseURL: "http://localhost:15721/v1")
+        #expect(config.selectingCurrentTarget(in: existing + [duplicate]).allSatisfy { !$0.isCurrent })
+        let ambiguous = try #require(config.menuBarText(for: proxyChips(kimiStatus: .pending), targets: existing + [duplicate]))
+        #expect(ambiguous.fullName == "kimi-k3")
+        #expect(ambiguous.quota == AccountQuotaMessage.queryFailed)
+        let unknown = CodexModelConfiguration(model: "unknown-proxy-model", provider: "custom", baseURL: "http://localhost:15721/v1")
+        #expect(unknown.selectingCurrentTarget(in: existing).allSatisfy { !$0.isCurrent })
+        #expect(unknown.menuBarText(for: proxyChips(kimiStatus: .pending), targets: existing)?.fullName == "unknown-proxy-model")
+        #expect(unknown.menuBarText(for: [], targets: [])?.quota == AccountQuotaMessage.queryFailed)
+    }
+
+    @Test func directRoutesRemainStrictAndOfficialSelectionIsRetained() {
+        let targets = proxyTargets()
+        let direct = CodexModelConfiguration(model: "kimi-k3", provider: "custom", baseURL: "https://api.kimi.com/coding/v1/")
+        #expect(direct.selectingCurrentTarget(in: targets).filter(\.isCurrent).map(\.id) == ["kimi"])
+        let remote = CodexModelConfiguration(model: "kimi-k3", provider: "custom", baseURL: "https://other.example/v1")
+        #expect(remote.selectingCurrentTarget(in: targets).allSatisfy { !$0.isCurrent })
+        let official = CodexModelConfiguration(model: "gpt-6.1-sol")
+        #expect(official.selectingCurrentTarget(in: targets).filter(\.isCurrent).map(\.id) == ["openai"])
+    }
+
 }
