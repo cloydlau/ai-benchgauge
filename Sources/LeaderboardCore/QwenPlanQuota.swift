@@ -53,6 +53,13 @@ public enum QwenPlanQuotaParser {
 
 public protocol QwenQuotaSource: Sendable {
     func loadSummary() async -> Data?
+    func unavailableStatus() async -> AccountQuotaChip.Status
+}
+
+public extension QwenQuotaSource {
+    func unavailableStatus() async -> AccountQuotaChip.Status {
+        .note(text: AccountQuotaMessage.connectOfficial, help: AccountQuotaMessage.connectOfficialHelp)
+    }
 }
 
 /// Uses the user's own 千问 AI 平台 login. The CLI keeps its credentials in

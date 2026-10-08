@@ -136,8 +136,14 @@ final class AppState: ObservableObject {
             return (try? await client.captureXAIWebsiteSubscription(data, authFileURL: authURL)) == true
         }
         xaiWebsiteSource.onUpdated = { [weak self] in self?.refreshQuotas(minimumInterval: 0) }
-        qwenWebsiteSource.onConnected = { [weak self] in
-            self?.refreshQuotas(minimumInterval: 0)
+        qwenWebsiteSource.onUpdated = { [weak self] status in
+            guard let self, !self.isQuitting else { return }
+            self.quotaChips = self.quotaChips.map { chip in
+                guard chip.kind == .qwen else { return chip }
+                return AccountQuotaChip(id: chip.id, shortName: chip.shortName, modelName: chip.modelName,
+                    websiteURL: chip.websiteURL, kind: chip.kind, isCurrent: chip.isCurrent, status: status)
+            }
+            if case .qwenWebsite = status { self.quotaUpdatedAt = Date() }
         }
         openAIConnection.onConnected = { [weak self] in
             self?.refreshQuotas(minimumInterval: 0)

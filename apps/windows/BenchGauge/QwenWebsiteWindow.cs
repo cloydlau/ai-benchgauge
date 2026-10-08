@@ -72,12 +72,19 @@ sealed class QwenWebsiteWindow : Window
         {
             var json = await browser.CoreWebView2.ExecuteScriptAsync("document.body.innerText.slice(0, 40000)");
             var text = JsonSerializer.Deserialize<string>(json);
-            if (text is null || !text.Contains("剩余量")) return false;
+            if (text is null) return false;
             var result = await engine.Request("captureQwen", prefs, pageText: text);
-            prefs.QwenWebsiteConnected = true; prefs.Save();
+            // The shared parser distinguishes a quota from a rendered login,
+            // missing-plan or query failure; a successful request isn't proof
+            // that authentication succeeded.
+            var captured = result.QwenQuotaCaptured == true;
+            if (result.QwenAuthenticated == true)
+            {
+                prefs.QwenWebsiteConnected = true; prefs.Save();
+            }
             if (result.Result is { } state) update(state);
-            if (IsVisible && Opacity == 1) { poll.Stop(); Hide(); }
-            return true;
+            if (captured && IsVisible && Opacity == 1) { poll.Stop(); Hide(); }
+            return captured;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException or TimeoutException or JsonException or System.Runtime.InteropServices.COMException) { return false; }
         finally { busy = false; }

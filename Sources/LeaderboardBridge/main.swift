@@ -16,6 +16,7 @@ struct Request: Decodable, Sendable {
     var officialProvider: String?
     var accountLabel: String?
     var apiKey: String?
+    var qwenWebsiteConnected: Bool?
 }
 struct Response: Encodable {
     var id: Int
@@ -25,6 +26,8 @@ struct Response: Encodable {
     var error: String?
     var officialAccounts: [OfficialAccountSummary]?
     var officialProviders: [OfficialProviderSummary]?
+    var qwenAuthenticated: Bool?
+    var qwenQuotaCaptured: Bool?
 }
 struct State: Encodable {
     var boards: [Board]
@@ -83,6 +86,8 @@ actor Engine {
     private var activeBoardRefreshes = Set<LeaderboardCategory>()
     private var refreshingQuotas = false
     private var qwenWebsite: QwenWebsiteQuota?
+    private var qwenWebsiteConnected = false
+    private var qwenWebsiteFailure: AccountQuotaChip.Status?
     private let allowsAccountAccess: Bool
     private var qwenCapturedAt: Date?
     private let qwenCacheFile = PlatformPaths.applicationSupport.appending(path: "qwen-website-quota.json")
@@ -103,6 +108,7 @@ actor Engine {
             guard allowsAccountAccess || ["state", "refreshBoards"].contains(request.command) else {
                 return Response(id: request.id, error: "Account access disabled for offline fixtures")
             }
+            if let connected = request.qwenWebsiteConnected { qwenWebsiteConnected = connected }
             switch request.command {
             case "officialAccounts":
                 return Response(id: request.id, officialAccounts: try officialAccountStore.load().map {
@@ -136,10 +142,26 @@ actor Engine {
                 try await refreshQuotas(onlyCurrent: false)
             case "state": break
             case "captureQwen":
-                guard let text = request.pageText, text.utf8.count <= 50000,
-                      let quota = QwenWebsiteQuotaParser.parse(Data(text.utf8)) else {
+                guard let text = request.pageText, text.utf8.count <= 50000 else {
                     return Response(id: request.id, error: "No quota found")
                 }
+                let data = Data(text.utf8)
+                guard let quota = QwenWebsiteQuotaParser.parse(data) else {
+                    guard let failure = QwenWebsiteQuotaParser.failureStatus(in: data) else {
+                        return Response(id: request.id, error: "No quota found")
+                    }
+                    qwenWebsiteFailure = failure
+                    if failure != .message(AccountQuotaMessage.queryFailed) {
+                        qwenWebsite = nil; qwenCapturedAt = nil
+                        if FileManager.default.fileExists(atPath: qwenCacheFile.path) {
+                            try FileManager.default.removeItem(at: qwenCacheFile)
+                        }
+                    }
+                    if case .note = failure { qwenWebsiteConnected = true }
+                    return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language),
+                        qwenAuthenticated: { if case .note = failure { return true }; return nil }(), qwenQuotaCaptured: false)
+                }
+                qwenWebsiteFailure = nil; qwenWebsiteConnected = true
                 qwenWebsite = quota; qwenCapturedAt = Date(); quotaUpdatedAt = qwenCapturedAt
                 if let stored = QwenWebsiteQuotaParser.persistedData(for: quota) {
                     try FileManager.default.createDirectory(at: qwenCacheFile.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -148,6 +170,8 @@ actor Engine {
                     try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: qwenCacheFile.path)
                     #endif
                 }
+                return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language),
+                    qwenAuthenticated: true, qwenQuotaCaptured: true)
             case "captureXAI":
                 guard let text = request.pageText, text.utf8.count <= 1_048_576 else { return Response(id: request.id, error: "No matching plan date") }
                 if client == nil { client = AccountQuotaClient(officialQuotaSource: official) }
@@ -356,8 +380,20 @@ actor Engine {
             }
         }
         let displayChips = chips.map { chip -> AccountQuotaChip in
-            guard chip.kind == .qwen, let website = qwenWebsite, let captured = qwenCapturedAt,
-                  now.timeIntervalSince(captured) < 86400 else { return chip }
+            guard chip.kind == .qwen else { return chip }
+            guard let website = qwenWebsite, let captured = qwenCapturedAt,
+                  (0..<86400).contains(now.timeIntervalSince(captured)),
+                  website.resetsAt.map({ $0 > now }) ?? true else {
+                let fallback: AccountQuotaChip.Status?
+                if let failure = qwenWebsiteFailure { fallback = failure }
+                else if qwenWebsiteConnected,
+                        case .note(let text, _) = chip.status, text == AccountQuotaMessage.connectOfficial {
+                    fallback = .message(AccountQuotaMessage.queryFailed)
+                } else { fallback = nil }
+                guard let fallback else { return chip }
+                return AccountQuotaChip(id: chip.id, shortName: chip.shortName, modelName: chip.modelName,
+                    websiteURL: chip.websiteURL, kind: chip.kind, isCurrent: chip.isCurrent, status: fallback)
+            }
             let quota = QwenWebsiteQuota(periodLabel: website.periodLabel, remainingPercent: website.remainingPercent,
                                          resetsAt: website.resetsAt, expiresAt: website.expiresAt,
                                          isCached: now.timeIntervalSince(captured) > 60, capturedAt: captured)
