@@ -31,7 +31,7 @@ public extension AppLanguage {
         guard self == .english else { return value }
         let exact: [String: String] = [
             "查询中": "Checking", "查询失败": "Check failed",
-            "需要重新登录": "Sign in again", "未配置": "Not configured",
+            "登录失效": "Login expired", "未配置": "Not configured",
             "未登录": "Not signed in", "网络错误": "Network error",
             "无可用余额": "No balance", "未连接": "Connect",
             AccountQuotaMessage.autoRenewing: "Auto-renew",

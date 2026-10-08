@@ -1967,7 +1967,7 @@ struct AccountQuotaClientTests {
         #expect(!(AccountQuotaFormatting.requiresCCSwitchSignIn(openAIReauth)))
 
         let reauthHelp = AccountQuotaFormatting.help(for: reauth, now: now)
-        #expect(reauthHelp.contains("需要重新登录"))
+        #expect(reauthHelp.contains("登录失效"))
         #expect(reauthHelp.contains(AccountQuotaMessage.xaiSignInHelp))
         #expect(!(reauthHelp.contains("https://example.com")))
         #expect(AccountQuotaFormatting.help(for: loggedOut, now: now).contains(AccountQuotaMessage.xaiSignInHelp))

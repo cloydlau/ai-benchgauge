@@ -1,5 +1,11 @@
 # Native visual comparison
 
+## Login-expiry wording (2026-10-08)
+
+The shared expired-login state is now `登录失效`, with `登錄失效` in traditional Chinese and `Login expired` in English. The menu-bar label, quota cards, help assertions, shared WPF visual fixture and current README/architecture descriptions use the same state. The login actions and model retention behavior are unchanged. `work/login-expiry-review/before/` preserves the previous native Mac fixture frames; `after/` captures the new wording with the same `Tests/fixtures/menubar-state.json`. The original menu-bar capture limitations above remain: missing Windows native/CI comparison coverage, intrinsic button heights rather than matched-height viewports, and dark-background contrast not certified. This wording change is not full visual sign-off or protected release approval.
+
+The full checks pass (97 script tests, 222 Swift tests and 39 Windows harness cases), as do syntax validation and signed Mac packaging. The freshly built local app was restarted.
+
 ## Current model and quota recovery (2026-10-08)
 
 CC Switch held an expired OpenAI token while the same Codex account had a renewed one. Account deduplication discarded the renewed login. The shared merger now retains the selected CC Switch provider ID/model metadata and uses an unexpired Codex token only when its exact account ID matches and its expiry is newer. It does not write either client's credentials; app-managed login precedence remains intact. The menu bar retains the current model with localized checking, sign-in or failure state when no amount is available. A live shared-engine query after the local packaged app was restarted returned `gpt-6.1-sol · 7d 96%`.
