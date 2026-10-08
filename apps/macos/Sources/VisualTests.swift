@@ -125,6 +125,7 @@ enum NativeVisualCapture {
                     button.appearance = NSAppearance(named: theme == "dark" ? .darkAqua : .aqua)
                     var statusLabels = [String]()
                     var statusHelp = [String]()
+                    var taskHighlights = [String]()
                     for frame in 0..<3 {
                         if frame == 1 { apply(refreshed: true) }
                         try await Task.sleep(for: .milliseconds(300))
@@ -137,7 +138,16 @@ enum NativeVisualCapture {
                         }
                         statusLabels.append(label)
                         statusHelp.append(help)
-                        guard let png = PanelScreenshot.captureForm(view: button, minimumVariety: 1) else {
+                        if test.scenario == "menuBarTaskColors" {
+                            taskHighlights.append(try taskHighlightMetadata(button: button, state: state))
+                        }
+                        var captured: Data?
+                        // Resolve dynamic background colors inside the same
+                        // appearance context as the native status-button text.
+                        button.effectiveAppearance.performAsCurrentDrawingAppearance {
+                            captured = PanelScreenshot.captureForm(view: button, minimumVariety: 1)
+                        }
+                        guard let png = captured else {
                             throw CaptureError.blankFrame(test.id)
                         }
                         try png.write(to: output.appending(path: "\(test.id)-\(theme)-frame-\(frame).png"))
@@ -149,6 +159,7 @@ enum NativeVisualCapture {
                         "backingScale": String(describing: button.window?.backingScaleFactor ?? 1),
                         "shownStatusLabel": statusLabels[0], "refreshedStatusLabel": statusLabels[1], "settledStatusLabel": statusLabels[2],
                         "shownStatusHelp": statusHelp[0], "refreshedStatusHelp": statusHelp[1], "settledStatusHelp": statusHelp[2],
+                        "taskHighlights": taskHighlights.joined(separator: "\n"),
                         "capture": "native-status-button", "os": ProcessInfo.processInfo.operatingSystemVersionString])
                     continue
                 }
@@ -203,6 +214,29 @@ enum NativeVisualCapture {
             }
         }
         try JSONSerialization.data(withJSONObject: metadata, options: [.prettyPrinted, .sortedKeys]).write(to: output.appending(path: "metadata.json"))
+    }
+
+    private static func taskHighlightMetadata(button: NSStatusBarButton, state: AppState) throws -> String {
+        let title = button.attributedTitle
+        var segments = [[String: String]]()
+        title.enumerateAttribute(.foregroundColor, in: NSRange(location: 0, length: title.length)) { value, range, _ in
+            guard let color = value as? NSColor else { return }
+            var rgb = ""
+            button.effectiveAppearance.performAsCurrentDrawingAppearance {
+                if let resolved = color.usingColorSpace(.sRGB) {
+                    rgb = String(format: "#%02X%02X%02X", Int((resolved.redComponent * 255).rounded()),
+                        Int((resolved.greenComponent * 255).rounded()), Int((resolved.blueComponent * 255).rounded()))
+                }
+            }
+            segments.append(["text": (title.string as NSString).substring(with: range), "color": rgb])
+        }
+        let expected = state.codexDesktopRunning ? state.codexTaskCounts.map {
+            [$0.running, $0.unread, $0.failed].filter { $0 > 0 }.map(String.init)
+        } ?? [] : []
+        guard segments.compactMap({ $0["text"] }) == expected else {
+            throw CaptureError.blankFrame("incorrect nonzero task highlights")
+        }
+        return String(decoding: try JSONSerialization.data(withJSONObject: segments, options: [.sortedKeys]), as: UTF8.self)
     }
 
     private static func verifyAccountSheetDismissal(state: AppState, checking: Bool) async throws {
