@@ -166,7 +166,7 @@ struct LeaderboardView: View {
             LicenseNoticesView(section: section, language: language)
         }
         .sheet(isPresented: $screenshot.showOfficialAccounts) {
-            OfficialQuotaAccountsView(state: state)
+            OfficialQuotaAccountsView(state: state, onClose: { screenshot.showOfficialAccounts = false })
         }
         .overlay(alignment: .bottom) {
             if let note = screenshot.note, !state.isQuitting {

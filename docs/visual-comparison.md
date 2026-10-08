@@ -1,5 +1,15 @@
 # Native visual comparison
 
+## Add-model dismissal (2026-10-08)
+
+The Mac add-model form disabled its Done button while an account request was pending. Done now remains available, Escape closes the sheet, and dismissal explicitly clears the parent presentation state. Closing or leaving the form cancels its owned verification task and clears the key. Cancelled or late results cannot update a reopened form; the account-saving path also checks cancellation after verification before persisting anything.
+
+`Tests/fixtures/add-model-dismissal.json` covers idle and checking forms in English, simplified/traditional Chinese and both appearances at 480 × 560 points. Ignored `work/add-model-dismissal/` holds original native before/after Mac frames and the comparison report. The baseline uses the saved pre-fix native bundle; after uses the changed local source. Fixture SHA-256: `575986046fa059a6331447b74a20a08ca321f8a2de1f8c32b70b86175a21de04`; actual macOS 27.0 (26A428), 1× backing scale. The app-bundle suite also opens a real SwiftUI sheet and sends mouse and Escape events: all 24 dismissal checks pass across the 12 language/theme/state combinations. These interaction checks run in the native app bundle because the Command Line Tools testing helper has no Launch Services bundle proxy for SwiftUI sheets. The form lifecycle regressions remain in the Swift Testing suite.
+
+Current-change Windows native captures and a source-matched CI artifact are unavailable; no Windows visual sign-off or protected release approval is claimed. This change fixes Mac presentation only.
+
+The 36 before/after pairs use the same fixture; shown/refreshed/settled frames are stable in all 12 groups. Idle frames are unchanged, and checking-state differences stay within the Done button. Original-pixel review confirms the available close control and intact descriptions/spacing in all languages and themes. Full script, Swift and Windows harness tests, syntax checks and signed local Mac packaging pass.
+
 ## Four billing/status groups (2026-10-08)
 
 The shared sorter now orders cards as plans, metered providers, explicitly unsubscribed plans, then metered providers with known nonpositive balances in every currency. A subscribed plan with exhausted usage stays in the first group. Missing/failed/pending amounts are not treated as zero, and a positive balance in any currency keeps the provider in the metered group. Plan expiry ordering and stable within-group ties remain; the current provider is not pinned. Mac and Windows share the sorter.

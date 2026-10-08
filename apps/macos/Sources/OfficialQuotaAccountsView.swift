@@ -2,21 +2,50 @@ import SwiftUI
 import LeaderboardCore
 
 @MainActor
-private final class OfficialAccountsForm: ObservableObject {
+final class OfficialAccountsForm: ObservableObject {
     @Published var providerID = "kimi"
     @Published var apiKey = ""
     @Published var busy = false
     @Published var failed = false
     @Published var accounts: [OfficialQuotaAccount] = []
+    private var verificationTask: Task<Void, Never>?
+
+    func startVerification(
+        verify: @escaping @MainActor (String, String) async -> Bool,
+        loadAccounts: @escaping @MainActor () -> [OfficialQuotaAccount]
+    ) {
+        guard !busy else { return }
+        let provider = providerID
+        let key = apiKey
+        busy = true; failed = false
+        verificationTask = Task { [weak self] in
+            guard !Task.isCancelled else { return }
+            let success = await verify(provider, key)
+            guard !Task.isCancelled, let self else { return }
+            verificationTask = nil
+            busy = false; failed = !success
+            if success {
+                apiKey = ""; accounts = loadAccounts()
+            }
+        }
+    }
+
+    func cancelVerification() {
+        verificationTask?.cancel()
+        verificationTask = nil
+        busy = false
+        apiKey = ""
+    }
 }
 
 struct OfficialQuotaAccountsView: View {
     @ObservedObject var state: AppState
+    var onClose: () -> Void
     #if DEBUG
     var usesVisualFixture = false
+    var visualVerificationPending = false
     #endif
     @StateObject private var form = OfficialAccountsForm()
-    @Environment(\.dismiss) private var dismiss
     private var language: AppLanguage { state.selectedLanguage }
     private func tr(_ en: String, _ zh: String) -> String { language.text(en, zh) }
 
@@ -44,19 +73,17 @@ struct OfficialQuotaAccountsView: View {
             }
             HStack {
                 Button(form.busy ? tr("Checking…", "验证中…") : tr("Verify and add", "验证并添加")) {
-                    form.busy = true; form.failed = false
-                    Task {
-                        let success = await state.addOfficialAccount(providerID: form.providerID,
-                            label: "", apiKey: form.apiKey)
-                        form.busy = false; form.failed = !success
-                        if success {
-                            form.apiKey = ""; form.accounts = state.officialAccounts()
-                        }
-                    }
+                    form.startVerification(verify: { provider, key in
+                        await state.addOfficialAccount(providerID: provider, label: "", apiKey: key)
+                    }, loadAccounts: { state.officialAccounts() })
                 }
                 .disabled(form.busy || form.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 Spacer()
-                Button(tr("Done", "完成")) { dismiss() }.disabled(form.busy)
+                Button(tr("Done", "完成")) { close() }
+                    #if DEBUG
+                    .background(AccountDoneButtonAnchor())
+                    #endif
+                    .keyboardShortcut(.cancelAction)
             }
             if !form.accounts.isEmpty {
                 Divider()
@@ -106,10 +133,17 @@ struct OfficialQuotaAccountsView: View {
         .padding(22).frame(width: 480)
         .onAppear {
             #if DEBUG
-            if usesVisualFixture { form.accounts = []; return }
+            if usesVisualFixture { form.accounts = []; form.busy = visualVerificationPending; return }
             #endif
             form.accounts = state.officialAccounts()
         }
+        .onDisappear { form.cancelVerification() }
+        .onExitCommand { close() }
+    }
+
+    private func close() {
+        form.cancelVerification()
+        onClose()
     }
 
     private func description(_ provider: OfficialQuotaProvider) -> String {
@@ -122,3 +156,22 @@ struct OfficialQuotaAccountsView: View {
         }
     }
 }
+
+#if DEBUG
+/// A noninteractive native geometry marker for the app-bundle interaction suite.
+struct AccountDoneButtonAnchor: NSViewRepresentable {
+    static let identifier = NSUserInterfaceItemIdentifier("benchgauge-add-model-done")
+
+    func makeNSView(context: Context) -> NSView {
+        let view = AccountDoneButtonAnchorView()
+        view.identifier = Self.identifier
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+private final class AccountDoneButtonAnchorView: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+#endif

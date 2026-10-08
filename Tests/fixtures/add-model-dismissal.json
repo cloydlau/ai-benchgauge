@@ -1,0 +1,56 @@
+{
+  "state": {
+    "boards": [],
+    "quotas": []
+  },
+  "cases": [
+    {
+      "id": "add-model-en-idle",
+      "language": "en",
+      "width": 480,
+      "height": 560,
+      "scenario": "addModelDialog",
+      "officialAccountChecking": false
+    },
+    {
+      "id": "add-model-en-checking",
+      "language": "en",
+      "width": 480,
+      "height": 560,
+      "scenario": "addModelDialog",
+      "officialAccountChecking": true
+    },
+    {
+      "id": "add-model-zh-idle",
+      "language": "zh",
+      "width": 480,
+      "height": 560,
+      "scenario": "addModelDialog",
+      "officialAccountChecking": false
+    },
+    {
+      "id": "add-model-zh-checking",
+      "language": "zh",
+      "width": 480,
+      "height": 560,
+      "scenario": "addModelDialog",
+      "officialAccountChecking": true
+    },
+    {
+      "id": "add-model-zh-Hant-idle",
+      "language": "zh-Hant",
+      "width": 480,
+      "height": 560,
+      "scenario": "addModelDialog",
+      "officialAccountChecking": false
+    },
+    {
+      "id": "add-model-zh-Hant-checking",
+      "language": "zh-Hant",
+      "width": 480,
+      "height": 560,
+      "scenario": "addModelDialog",
+      "officialAccountChecking": true
+    }
+  ]
+}
