@@ -150,10 +150,22 @@ public enum OfficialQuotaDiscovery {
         return targets
     }
 
-    public static func merge(ccSwitch: [CCSwitchQuotaTarget], official: [CCSwitchQuotaTarget]) -> [CCSwitchQuotaTarget] {
+    public static func merge(ccSwitch: [CCSwitchQuotaTarget], official: [CCSwitchQuotaTarget], now: Date = Date()) -> [CCSwitchQuotaTarget] {
         // Identity is a credential/account, not merely a provider name.
         var remaining = official
         var result = ccSwitch.map { target in
+            // Codex renews its own login while CC Switch keeps a saved snapshot.
+            // Use a newer, unexpired token only for the exact same account;
+            // retain the selected provider's ID and display metadata.
+            if target.kind == .officialNote, let accountID = target.accountID, !accountID.isEmpty,
+               let login = official.first(where: {
+                   $0.id == "official-local:openai" && $0.kind == .officialNote && $0.accountID == accountID
+               }), let expiry = tokenExpiry(login.accessToken), expiry > now,
+               tokenExpiry(target.accessToken).map({ expiry > $0 }) ?? true {
+                return CCSwitchQuotaTarget(id: target.id, shortName: target.shortName, modelName: target.modelName,
+                    websiteURL: target.websiteURL ?? login.websiteURL, kind: target.kind, isCurrent: target.isCurrent,
+                    apiKey: target.apiKey, baseURL: target.baseURL, accessToken: login.accessToken, accountID: accountID)
+            }
             let usesLocalLogin = [.claude, .gemini].contains(target.kind)
                 || (target.kind == .kimi && usable(target.apiKey) == nil)
             guard usesLocalLogin, target.accessToken == nil,
@@ -220,6 +232,21 @@ public enum OfficialQuotaDiscovery {
                 isCurrent: target.isCurrent, apiKey: target.apiKey, baseURL: target.baseURL,
                 accessToken: target.accessToken, accountID: target.accountID)
         }
+    }
+
+    /// JWT expiry is only a freshness hint. Account matching above controls
+    /// which saved login may replace the snapshot; the server validates tokens.
+    private static func tokenExpiry(_ token: String?) -> Date? {
+        guard let token = usable(token) else { return nil }
+        let parts = token.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 3 else { return nil }
+        var payload = String(parts[1]).replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        payload += String(repeating: "=", count: (4 - payload.count % 4) % 4)
+        guard let data = Data(base64Encoded: payload),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let expiry = object["exp"] as? Double, expiry.isFinite else { return nil }
+        return Date(timeIntervalSince1970: expiry)
     }
 
     private static func read(_ url: URL) -> Data? {
