@@ -272,8 +272,12 @@ struct CodexTaskMonitorTests {
         }
         let afterLock = await recorder.values.count
         try fixture.markUnread(true)
-        #expect(try await waitFor(nil, recorder: recorder, after: afterLock))
+        // Exercise the next store reconciliation explicitly. Filesystem event
+        // delivery is covered separately and may be coalesced by macOS under
+        // CI load; this regression is about preserving IPC across a read error.
+        #expect(await monitor.poll(desktopRunning: true) == nil)
         fixture.snapshot(runtime: "active", status: "inProgress")
+        #expect(try await waitFor(nil, recorder: recorder, after: afterLock))
         #expect(sqlite3_exec(writer, "ROLLBACK", nil, nil, nil) == SQLITE_OK)
         // ROLLBACK doesn't change the database file. Recovery must come from
         // the short store retry, preserving the state pushed while locked.
