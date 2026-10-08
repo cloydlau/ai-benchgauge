@@ -92,9 +92,17 @@ public struct CCSwitchQuotaTarget: Equatable, Sendable, Identifiable {
     }
 }
 
+public enum GLMQuotaRecoveryAction: Sendable {
+    case retry, configure
+}
+
 public enum AccountQuotaMessage {
     public static let querying = "查询中"
     public static let queryFailed = "查询失败"
+    public static let glmNoCodingPlan = "未找到 Coding Plan"
+    public static let glmNoCodingPlanHelp = "当前 GLM Key 对应账号未找到 Coding Plan；请在 CC Switch 检查 GLM Key 与套餐账号。"
+    public static let glmConfigurationHelp = "点击打开 CC Switch，检查 GLM Key 与 Coding Plan 套餐账号；修改后重新打开本面板刷新余量。"
+    public static let glmRetryHelp = "点击重新读取 GLM 配置并重试余量查询。"
     public static let reauthRequired = "登录失效"
     public static let notConfigured = "未配置"
     public static let notConfiguredHelp = "没有可用的 API Key 或供应商令牌，未发起查询"
@@ -416,6 +424,19 @@ public enum AccountQuotaFormatting {
             return text == AccountQuotaMessage.notLoggedIn
         case .pending, .windows, .balances, .qwenPlan, .qwenWebsite:
             return false
+        }
+    }
+
+    public static func glmRecoveryAction(for chip: AccountQuotaChip) -> GLMQuotaRecoveryAction? {
+        guard chip.kind == .zhipu else { return nil }
+        switch chip.status {
+        case let .note(text, _) where [AccountQuotaMessage.glmNoCodingPlan, AccountQuotaMessage.notConfigured].contains(text):
+            return .configure
+        case let .message(text) where text == AccountQuotaMessage.reauthRequired:
+            return .configure
+        case let .message(text) where [AccountQuotaMessage.queryFailed, AccountQuotaMessage.network].contains(text):
+            return .retry
+        default: return nil
         }
     }
 
@@ -741,7 +762,9 @@ public enum AccountQuotaFormatting {
         }
         // A login-required xAI chip must not advertise the stored provider
         // website: that product page has no sign-in entry.
-        if requiresCCSwitchSignIn(chip) {
+        if let action = glmRecoveryAction(for: chip) {
+            lines.append(action == .configure ? AccountQuotaMessage.glmConfigurationHelp : AccountQuotaMessage.glmRetryHelp)
+        } else if requiresCCSwitchSignIn(chip) {
             lines.append(AccountQuotaMessage.xaiSignInHelp)
         } else {
             if requiresXAISubscriptionConnection(chip) {

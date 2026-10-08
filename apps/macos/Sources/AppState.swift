@@ -223,6 +223,15 @@ final class AppState: ObservableObject {
         xaiWebsiteSource.connect(language: selectedLanguage)
     }
 
+    func recoverGLMQuota(_ chip: AccountQuotaChip) {
+        guard !isQuitting, let action = AccountQuotaFormatting.glmRecoveryAction(for: chip) else { return }
+        if action == .configure {
+            openCCSwitch()
+        } else {
+            refreshQuotas(minimumInterval: 0, requestedProviderID: chip.id)
+        }
+    }
+
     func openCCSwitch() {
         guard !isQuitting else { return }
         if let appURL = NSWorkspace.shared.urlForApplication(
@@ -419,7 +428,8 @@ final class AppState: ObservableObject {
     private func refreshQuotas(
         minimumInterval: TimeInterval,
         inactiveMinimumInterval: TimeInterval = 0,
-        inactiveScope: InactiveQuotaRefreshScope = .all
+        inactiveScope: InactiveQuotaRefreshScope = .all,
+        requestedProviderID: String? = nil
     ) {
         if let preview = configuration.previewCCSwitchState, preview != .configured {
             quotaTask?.cancel()
@@ -432,7 +442,16 @@ final class AppState: ObservableObject {
            Date().timeIntervalSince(lastQuotaAttemptAt) < minimumInterval {
             return
         }
-        lastQuotaAttemptAt = Date()
+        if requestedProviderID == nil || requestedProviderID.flatMap { quotaTargetsByID[$0] }?.isCurrent == true {
+            lastQuotaAttemptAt = Date()
+        }
+        if let requestedProviderID {
+            quotaChips = quotaChips.map { chip in
+                guard chip.id == requestedProviderID else { return chip }
+                return AccountQuotaChip(id: chip.id, shortName: chip.shortName, modelName: chip.modelName,
+                    websiteURL: chip.websiteURL, kind: chip.kind, isCurrent: chip.isCurrent, status: .pending)
+            }
+        }
         quotaGeneration += 1
         let generation = quotaGeneration
         quotaTask?.cancel()
@@ -543,6 +562,7 @@ final class AppState: ObservableObject {
                 self.quotaChips = previous
                 let now = Date()
                 let targetsToRefresh = targets.filter { target in
+                    if let requestedProviderID { return target.id == requestedProviderID }
                     if target.isCurrent { return true }
                     if inactiveScope == .xaiOAuthOnly {
                         return false

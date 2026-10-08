@@ -305,6 +305,28 @@ sealed partial class MainWindow : Window
 
     async Task Connect(Quota quota)
     {
+        if (quota.Connection == "glmConfiguration")
+        {
+            OpenCCSwitch();
+            status.Text = Tr("Check the GLM key and Coding Plan account in CC Switch.", "请在 CC Switch 检查 GLM Key 与 Coding Plan 套餐账号。", "請在 CC Switch 檢查 GLM Key 與 Coding Plan 套餐帳號。");
+            return;
+        }
+        if (quota.Connection == "glmRetry")
+        {
+            if (engine is null || panelRefreshing) return;
+            panelRefreshing = true;
+            status.Text = Tr("Retrying GLM quota…", "正在重试 GLM 余量…", "正在重試 GLM 餘量…");
+            try
+            {
+                var result = await engine.Request("retryQuota", prefs, providerID: quota.Id);
+                if (result.Result is { } refreshed) { SetState(refreshed); status.Text = ""; }
+                else status.Text = result.Error ?? Tr("GLM quota query failed.", "GLM 余量查询失败。", "GLM 餘量查詢失敗。");
+            }
+            catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException)
+            { status.Text = Tr("GLM quota query failed. Try again.", "GLM 余量查询失败，请重试。", "GLM 餘量查詢失敗，請重試。"); }
+            finally { panelRefreshing = false; }
+            return;
+        }
         // A Grok sign-in can only happen inside CC Switch, which owns the auth
         // file this quota reads. The provider website has no sign-in entry.
         if (quota.Connection == "ccswitch")

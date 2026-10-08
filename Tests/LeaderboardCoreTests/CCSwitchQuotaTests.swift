@@ -1781,6 +1781,63 @@ struct AccountQuotaClientTests {
     }
 
     @Test
+    func testZhipuNoCodingPlanKeepsAnActionableAccountReason() async throws {
+        let transport = ScriptedQuotaTransport { request in
+            #expect(request.url?.path == "/api/monitor/usage/quota/limit")
+            return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(
+                #"{"success":false,"code":500,"msg":"当前用户不存在coding plan"}"#.utf8))
+        }
+        let result = try await AccountQuotaClient(transport: transport).refresh(targets: [
+            quotaTarget(id: "glm", name: "GLM", kind: .zhipu, key: "unit-test-key", baseURL: "https://open.bigmodel.cn/api/coding/paas/v4")
+        ])
+        let current = try #require(result.first)
+        #expect(current.status == .note(text: AccountQuotaMessage.glmNoCodingPlan, help: AccountQuotaMessage.glmNoCodingPlanHelp))
+        #expect(AccountQuotaFormatting.glmRecoveryAction(for: current) == .configure)
+        let help = AccountQuotaFormatting.help(for: current, now: Date())
+        #expect(help.contains("CC Switch"))
+        #expect(!help.contains("unit-test-key"))
+        #expect(!help.contains("https://open.bigmodel.cn"))
+        #expect(transport.requests.count == 1)
+
+        for payload in [#"{"success":false,"msg":"unrelated error unit-test-key"}"#,
+                        #"{"success":true,"data":{"limits":[]}}"#] {
+            let unexpected = ScriptedQuotaTransport { _ in
+                AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(payload.utf8))
+            }
+            let failed = try await AccountQuotaClient(transport: unexpected).refresh(targets: [
+                quotaTarget(id: "glm", name: "GLM", kind: .zhipu, key: "unit-test-key")
+            ])
+            #expect(failed.first?.status == .message(AccountQuotaMessage.queryFailed))
+            #expect(failed.first.flatMap(AccountQuotaFormatting.glmRecoveryAction) == .retry)
+            #expect(unexpected.requests.count == 1)
+        }
+    }
+
+    @Test
+    func testGLMRecoveryDoesNotHijackOtherProvidersOrHealthyQuotas() {
+        let configurationStates: [AccountQuotaChip.Status] = [
+            .note(text: AccountQuotaMessage.glmNoCodingPlan, help: AccountQuotaMessage.glmNoCodingPlanHelp),
+            .note(text: AccountQuotaMessage.notConfigured, help: AccountQuotaMessage.notConfiguredHelp),
+            .message(AccountQuotaMessage.reauthRequired)
+        ]
+        for status in configurationStates {
+            #expect(AccountQuotaFormatting.glmRecoveryAction(for: chip(kind: .zhipu, status: status)) == .configure)
+            #expect(AccountQuotaFormatting.glmRecoveryAction(for: chip(kind: .kimi, status: status)) == nil)
+        }
+        for message in [AccountQuotaMessage.queryFailed, AccountQuotaMessage.network] {
+            let failed = chip(kind: .zhipu, status: .message(message))
+            #expect(AccountQuotaFormatting.glmRecoveryAction(for: failed) == .retry)
+            #expect(AccountQuotaFormatting.help(for: failed, now: Date()).contains(AccountQuotaMessage.glmRetryHelp))
+        }
+        #expect(AccountQuotaFormatting.glmRecoveryAction(for: chip(kind: .zhipu, status: .pending)) == nil)
+        #expect(AccountQuotaFormatting.glmRecoveryAction(for: chip(kind: .zhipu, status: .windows([
+            ParsedQuotaWindow(name: "five_hour", utilization: 25, resetsAt: nil)
+        ]))) == nil)
+        #expect(AppLanguage.english.quotaText(AccountQuotaMessage.glmNoCodingPlan) == "Coding Plan not found")
+        #expect(AppLanguage.traditionalChinese.quotaText(AccountQuotaMessage.glmNoCodingPlan) == "未找到 Coding Plan")
+    }
+
+    @Test
     func testZhipuDoesNotQuerySubscriptionWhenQuotaFails() async throws {
         let rejected = ScriptedQuotaTransport { request in
             #expect((request.url?.path) == ("/api/monitor/usage/quota/limit"))

@@ -513,10 +513,21 @@ public actor AccountQuotaClient {
         body: Data,
         transport: any AccountQuotaTransport
     ) async throws -> AccountQuotaChip {
+        // The monitor endpoint reports this account-level error as HTTP 200.
+        // Keep a fixed, actionable reason rather than exposing arbitrary upstream text.
+        if let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+           object["success"] as? Bool == false,
+           let message = (object["msg"] ?? object["message"]) as? String,
+           message.lowercased().filter({ !$0.isWhitespace }) == "当前用户不存在codingplan" {
+            return AccountQuotaChip(id: target.id, shortName: target.shortName, modelName: target.modelName,
+                websiteURL: target.websiteURL, kind: target.kind, isCurrent: target.isCurrent,
+                status: .note(text: AccountQuotaMessage.glmNoCodingPlan, help: AccountQuotaMessage.glmNoCodingPlanHelp))
+        }
         let parsed = CCSwitchQuotaParsers.parseZhipu(body)
         guard case let .windows(quotaWindows) = parsed else {
             return chip(target, parsed: parsed)
         }
+        guard !quotaWindows.isEmpty else { return chip(target, .failed) }
         var windows = quotaWindows
         if let expiry = try await zhipuPlanExpiry(target, apiKey: apiKey, transport: transport) {
             windows.append(expiry)
