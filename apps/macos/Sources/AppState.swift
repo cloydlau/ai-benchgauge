@@ -47,11 +47,12 @@ final class AppState: ObservableObject {
     }
 
     func addOfficialAccount(providerID: String, label: String, apiKey: String) async -> Bool {
+        guard !Task.isCancelled else { return false }
         let account = OfficialQuotaAccount(providerID: providerID, label: String(label.prefix(80)),
                                            apiKey: apiKey.trimmingCharacters(in: .whitespacesAndNewlines))
         guard let target = account.target, let client = quotaClient,
               let result = try? await client.refresh(targets: [target], previous: [], authFileURL: URL(fileURLWithPath: "/unused")),
-              let chip = result.first else { return false }
+              let chip = result.first, !Task.isCancelled else { return false }
         switch chip.status {
         case let .windows(windows): guard !windows.isEmpty else { return false }
         case let .balances(balances): guard !balances.isEmpty else { return false }

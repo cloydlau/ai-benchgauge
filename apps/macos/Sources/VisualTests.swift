@@ -19,7 +19,7 @@ enum NativeVisualCapture {
         let balances: [Balance]?
     }
     struct State: Decodable { let boards: [Board]; let quotas: [Quota]; let quotaUpdatedAt: String? }
-    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String?; let codexModel: String?; let codexProvider: String?; let codexBaseURL: String?; let taskCounts: CodexTaskCounts?; let refreshedTaskCounts: CodexTaskCounts?; let codexDesktopRunning: Bool?; let refreshedCodexDesktopRunning: Bool? }
+    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String?; let codexModel: String?; let codexProvider: String?; let codexBaseURL: String?; let taskCounts: CodexTaskCounts?; let refreshedTaskCounts: CodexTaskCounts?; let codexDesktopRunning: Bool?; let refreshedCodexDesktopRunning: Bool?; let officialAccountChecking: Bool? }
     struct Fixture: Decodable { let state: State; let cases: [Case]; let quotaScenarios: [String: [Quota]]? }
 
     static func run() async throws {
@@ -155,7 +155,8 @@ enum NativeVisualCapture {
                 let size = NSSize(width: test.width, height: test.height)
                 let isClaudeConsentAlert = test.scenario == "claudeKeychainConsentAlert"
                 let view = test.scenario == "addModelDialog"
-                    ? AnyView(OfficialQuotaAccountsView(state: state, usesVisualFixture: true))
+                    ? AnyView(OfficialQuotaAccountsView(state: state, onClose: {}, usesVisualFixture: true,
+                        visualVerificationPending: test.officialAccountChecking ?? false))
                     : AnyView(LeaderboardView(state: state, maximumWidth: CGFloat(test.width), viewportSize: size, visualVersionText: test.versionText))
                 let host: NSView = test.scenario.hasPrefix("xaiSubscriptionDialog")
                     ? XAIWebsiteSubscriptionSource(defaults: defaults, usesVisualFixture: true).makeContent(language: AppLanguage(rawValue: test.language)!, fixture: true, fixtureState: test.scenario.replacingOccurrences(of: "xaiSubscriptionDialog-", with: ""))
@@ -188,6 +189,12 @@ enum NativeVisualCapture {
                     guard let png else { throw CaptureError.blankFrame(test.id) }
                     try png.write(to: output.appending(path: "\(test.id)-\(theme)-frame-\(frame).png"))
                 }
+                if test.scenario == "addModelDialog" {
+                    // SwiftUI sheets require an actual app bundle. SwiftPM's
+                    // standalone testing helper has no Launch Services proxy.
+                    try await verifyAccountSheetDismissal(state: state,
+                        checking: test.officialAccountChecking ?? false)
+                }
                 metadata.append(["id": test.id, "theme": theme, "width": String(test.width), "height": String(test.height),
                     "fixtureHash": fixtureHash, "timezone": TimeZone.current.identifier,
                     "sourceCommit": ProcessInfo.processInfo.environment["GITHUB_SHA"] ?? "local-uncommitted",
@@ -196,6 +203,90 @@ enum NativeVisualCapture {
             }
         }
         try JSONSerialization.data(withJSONObject: metadata, options: [.prettyPrinted, .sortedKeys]).write(to: output.appending(path: "metadata.json"))
+    }
+
+    private static func verifyAccountSheetDismissal(state: AppState, checking: Bool) async throws {
+        for escape in [false, true] {
+            let presentation = AccountSheetPresentation()
+            let host = NSHostingView(rootView: AccountSheetTestView(state: state,
+                presentation: presentation, checking: checking))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 640),
+                styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.contentView = host
+            window.makeKeyAndOrderFront(nil)
+            defer { if let sheet = window.attachedSheet { window.endSheet(sheet) }; window.close() }
+            presentation.isPresented = true
+            guard await waitFor({ window.attachedSheet != nil }), let sheet = window.attachedSheet else {
+                throw CaptureError.blankFrame("add-model: sheet did not open")
+            }
+            try await Task.sleep(for: .milliseconds(200))
+            sheet.contentView?.layoutSubtreeIfNeeded()
+            sheet.displayIfNeeded()
+            if escape {
+                sheet.makeKey()
+                guard let event = NSEvent.keyEvent(with: .keyDown, location: .zero,
+                    modifierFlags: [], timestamp: 0, windowNumber: sheet.windowNumber, context: nil,
+                    characters: "\u{1B}", charactersIgnoringModifiers: "\u{1B}", isARepeat: false, keyCode: 53) else {
+                    throw CaptureError.blankFrame("add-model: Escape event unavailable")
+                }
+                sheet.sendEvent(event)
+            } else {
+                guard let marker = findDoneButtonAnchor(sheet.contentView),
+                      marker.bounds.width > 0, marker.bounds.height > 0 else {
+                    throw CaptureError.blankFrame("add-model: Done geometry unavailable")
+                }
+                let point = marker.convert(NSPoint(x: marker.bounds.midX, y: marker.bounds.midY), to: nil)
+                for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                    guard let click = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
+                        timestamp: 0, windowNumber: sheet.windowNumber, context: nil,
+                        eventNumber: 0, clickCount: 1, pressure: 1) else {
+                        throw CaptureError.blankFrame("add-model: mouse event unavailable")
+                    }
+                    sheet.sendEvent(click)
+                }
+            }
+            guard await waitFor({ !presentation.isPresented && window.attachedSheet == nil }) else {
+                throw CaptureError.blankFrame("add-model: \(escape ? "Escape" : "Done") did not dismiss; checking=\(checking)")
+            }
+        }
+    }
+
+    private static func waitFor(_ predicate: () -> Bool) async -> Bool {
+        for _ in 0..<200 {
+            if predicate() { return true }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        return predicate()
+    }
+
+    private static func findDoneButtonAnchor(_ view: NSView?) -> NSView? {
+        guard let view else { return nil }
+        if view.identifier == AccountDoneButtonAnchor.identifier { return view }
+        for child in view.subviews {
+            if let found = findDoneButtonAnchor(child) { return found }
+        }
+        return nil
+    }
+}
+
+@MainActor
+private final class AccountSheetPresentation: ObservableObject {
+    @Published var isPresented = false
+}
+
+private struct AccountSheetTestView: View {
+    let state: AppState
+    @ObservedObject var presentation: AccountSheetPresentation
+    let checking: Bool
+
+    var body: some View {
+        Text("Account sheet test")
+            .sheet(isPresented: $presentation.isPresented) {
+                OfficialQuotaAccountsView(state: state,
+                    onClose: { presentation.isPresented = false },
+                    usesVisualFixture: true, visualVerificationPending: checking)
+            }
     }
 }
 
