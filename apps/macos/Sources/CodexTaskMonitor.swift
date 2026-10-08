@@ -1,11 +1,13 @@
 import Darwin
 import Foundation
 import LeaderboardCore
+import OSLog
 
 /// A passive follower of the local desktop's existing stream. It never starts
 /// an app-server, resumes a thread, marks it read, or responds to an approval.
 /// The private desktop protocol is versioned: incompatible data is unavailable.
 actor CodexTaskMonitor {
+    private static let logger = Logger(subsystem: "com.cloydlau.ai-benchgauge", category: "CodexTaskMonitor")
     private let root: URL
     private let readStore: @Sendable (URL) throws -> [String: CodexStoredTask]
     private var socketFD: Int32 = -1
@@ -50,6 +52,7 @@ actor CodexTaskMonitor {
         }
         continuation?.yield(nil)
         self.desktopRunning = desktopRunning
+        Self.logger.notice("Task monitor started: desktop running=\(desktopRunning, privacy: .public)")
         installFileObservers()
         refreshFromStore()
         return stream.stream
@@ -108,6 +111,7 @@ actor CodexTaskMonitor {
             connectionFailures = 0
             return projection.counts(stored: stored)
         } catch {
+            Self.logger.error("Task source read failed: \(String(describing: type(of: error)), privacy: .public), code=\((error as NSError).code, privacy: .public)")
             #if DEBUG
             if CommandLine.arguments.contains("--codex-task-status") {
                 FileHandle.standardError.write(Data("Codex status read failed: \(type(of: error)) \(error)\n".utf8))
@@ -165,6 +169,11 @@ actor CodexTaskMonitor {
         if counts != nil { connectionFailures = 0 }
         guard counts != lastPublished else { return }
         lastPublished = counts
+        if let counts {
+            Self.logger.notice("Task counts updated: running=\(counts.running, privacy: .public), unread=\(counts.unread, privacy: .public), failed=\(counts.failed, privacy: .public)")
+        } else {
+            Self.logger.notice("Task counts unavailable: desktop=\(self.desktopRunning, privacy: .public), initialized=\(self.clientID != nil, privacy: .public), resync=\(self.pendingSnapshots.count, privacy: .public), partialBytes=\(self.input.count, privacy: .public)")
+        }
         continuation?.yield(counts)
         scheduleFallback()
     }
@@ -263,6 +272,7 @@ actor CodexTaskMonitor {
             }
             publishCurrent()
         } catch {
+            Self.logger.error("Task socket delivery failed: \(String(describing: type(of: error)), privacy: .public), code=\((error as NSError).code, privacy: .public)")
             disconnect()
             connectionFailures += 1
             nextConnectAttempt = Date().addingTimeInterval(Self.retryDelay(failures: connectionFailures))

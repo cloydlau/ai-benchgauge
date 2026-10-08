@@ -2,24 +2,32 @@ import AppKit
 import Combine
 import SwiftUI
 import LeaderboardCore
+import OSLog
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var stateController: StatusBarController?
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if DEBUG
-        if CommandLine.arguments.contains("--codex-task-status") {
+        if CommandLine.arguments.contains("--codex-task-status") || CommandLine.arguments.contains("--codex-task-watch") {
             Task {
+                let watch = CommandLine.arguments.contains("--codex-task-watch")
                 let monitor = CodexTaskMonitor()
                 var counts: CodexTaskCounts?
                 let updates = await monitor.updates(desktopRunning: NSWorkspace.shared.runningApplications.contains {
                     QuotaAutoRefreshPolicy.isCodexBundleIdentifier($0.bundleIdentifier)
                 })
                 let timeout = Task {
-                    do { try await Task.sleep(for: .seconds(10)) } catch { return }
+                    do { try await Task.sleep(for: .seconds(watch ? 30 : 10)) } catch { return }
                     await monitor.stop()
                 }
-                for await value in updates { if let value { counts = value; break } }
+                for await value in updates {
+                    if watch {
+                        let data = (try? JSONEncoder().encode(value)) ?? Data("null".utf8)
+                        FileHandle.standardOutput.write(data + Data("\n".utf8))
+                    }
+                    if let value { counts = value; if !watch { break } }
+                }
                 timeout.cancel()
                 await monitor.stop()
                 if let counts, let data = try? JSONEncoder().encode(counts) {
@@ -86,6 +94,9 @@ enum ClaudeKeychainConsentAlert {
 
 @MainActor
 final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
+    private static let taskLogger = Logger(subsystem: "com.cloydlau.ai-benchgauge", category: "CodexTaskStatusItem")
+    private var loggedTaskCounts: CodexTaskCounts?
+    private var hasLoggedTaskCounts = false
     @IBOutlet private var button: NSStatusBarButton?
     private static let statusItemSymbolName = "brain.head.profile"
     private let popover = NSPopover()
@@ -242,6 +253,11 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
         }
         labels.append(CodexTaskCounts.menuBarText(state.codexTaskCounts))
         help.append(CodexTaskCounts.help(state.codexTaskCounts, chinese: state.selectedLanguage.rawValue == "zh"))
+        if !hasLoggedTaskCounts || loggedTaskCounts != state.codexTaskCounts {
+            hasLoggedTaskCounts = true
+            loggedTaskCounts = state.codexTaskCounts
+            Self.taskLogger.notice("Rendering task counts: \(CodexTaskCounts.menuBarText(self.state.codexTaskCounts), privacy: .public)")
+        }
         setStatusItemLabel(button, label: labels.joined(separator: " · "))
         button.toolTip = help.joined(separator: "\n")
     }
