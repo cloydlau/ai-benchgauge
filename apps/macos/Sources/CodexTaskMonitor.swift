@@ -19,6 +19,8 @@ actor CodexTaskMonitor {
     private var connectedAt = Date.distantPast
     private var lastSnapshotRequest: [String: Date] = [:]
     private var storedTasks: [String: CodexStoredTask] = [:]
+    private var storeAvailable = false
+    private var lastStoreError: String?
     private var continuation: AsyncStream<CodexTaskCounts?>.Continuation?
     private var lastPublished: CodexTaskCounts?
     private var desktopRunning = false
@@ -79,15 +81,30 @@ actor CodexTaskMonitor {
         if diagnostic && !desktopRunning { FileHandle.standardError.write(Data("Codex desktop is closed\n".utf8)) }
         #endif
         guard desktopRunning else { disconnect(); return nil }
+        // Database/file availability and IPC availability are independent.
+        // A busy database must not destroy live subscriptions and trigger the
+        // socket's increasing retry delay for every subsequent store read.
         do {
-            let stored = try readStore(root)
-            storedTasks = stored
+            storedTasks = try readStore(root)
+            storeAvailable = true
+            if lastStoreError != nil { Self.logger.notice("Task store recovered") }
+            lastStoreError = nil
+        } catch {
+            storeAvailable = false
+            let reason = (error as? CodexTaskStore.ReadError)?.description ?? String(describing: type(of: error))
+            if reason != lastStoreError {
+                Self.logger.error("Task store unavailable: \(reason, privacy: .public)")
+                lastStoreError = reason
+            }
+        }
+        do {
+            let stored = storedTasks
             if socketFD < 0 {
                 guard Date() >= nextConnectAttempt else { return nil }
                 try connect()
             }
             try drain()
-            if clientID != nil {
+            if clientID != nil, storeAvailable {
                 for id in Set(stored.keys).subtracting(subscriptions) {
                     try follow(id, enabled: true)
                     subscriptions.insert(id)
@@ -107,7 +124,7 @@ actor CodexTaskMonitor {
             #if DEBUG
             if diagnostic { FileHandle.standardError.write(Data("Status stream: initialized=\(clientID != nil), warm=\(Date().timeIntervalSince(connectedAt) >= 2), resync=\(pendingSnapshots.count), partialBytes=\(input.count)\n".utf8)) }
             #endif
-            guard clientID != nil, Date().timeIntervalSince(connectedAt) >= 2 else { return nil }
+            guard storeAvailable, clientID != nil, Date().timeIntervalSince(connectedAt) >= 2 else { return nil }
             guard pendingSnapshots.isEmpty, input.isEmpty else { return nil }
             connectionFailures = 0
             return projection.counts(stored: stored)
@@ -144,6 +161,8 @@ actor CodexTaskMonitor {
         desktopRunning = false
         nextConnectAttempt = .distantPast
         connectionFailures = 0
+        storeAvailable = false
+        lastStoreError = nil
     }
 
     private func streamTerminated(generation: Int) {
@@ -164,7 +183,7 @@ actor CodexTaskMonitor {
         // A split frame is still being delivered; wait for its readable event
         // rather than briefly replacing a valid count with loading dashes.
         if !input.isEmpty && pendingSnapshots.isEmpty { return }
-        let counts: CodexTaskCounts? = desktopRunning && clientID != nil
+        let counts: CodexTaskCounts? = desktopRunning && storeAvailable && clientID != nil
             && Date().timeIntervalSince(connectedAt) >= 2 && pendingSnapshots.isEmpty
             ? projection.counts(stored: storedTasks) : nil
         if counts != nil { connectionFailures = 0 }
@@ -173,7 +192,7 @@ actor CodexTaskMonitor {
         if let counts {
             Self.logger.notice("Task counts updated: running=\(counts.running, privacy: .public), unread=\(counts.unread, privacy: .public), failed=\(counts.failed, privacy: .public)")
         } else {
-            Self.logger.notice("Task counts unavailable: desktop=\(self.desktopRunning, privacy: .public), initialized=\(self.clientID != nil, privacy: .public), resync=\(self.pendingSnapshots.count, privacy: .public), partialBytes=\(self.input.count, privacy: .public)")
+            Self.logger.notice("Task counts unavailable: desktop=\(self.desktopRunning, privacy: .public), store=\(self.storeAvailable, privacy: .public), initialized=\(self.clientID != nil, privacy: .public), resync=\(self.pendingSnapshots.count, privacy: .public), partialBytes=\(self.input.count, privacy: .public)")
         }
         continuation?.yield(counts)
         scheduleFallback()
@@ -186,7 +205,7 @@ actor CodexTaskMonitor {
         }
         let delay = socketFD < 0
             ? max(0.1, nextConnectAttempt.timeIntervalSinceNow)
-            : (!pendingSnapshots.isEmpty || clientID == nil ? 2 : Self.reconciliationDelay(running: lastPublished?.running ?? 0))
+            : (!storeAvailable ? 1 : (!pendingSnapshots.isEmpty || clientID == nil ? 2 : Self.reconciliationDelay(running: lastPublished?.running ?? 0)))
         guard fallbackTask == nil || fallbackDelay != delay else { return }
         fallbackTask?.cancel()
         fallbackDelay = delay

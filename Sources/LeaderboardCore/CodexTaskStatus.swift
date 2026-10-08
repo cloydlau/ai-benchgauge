@@ -49,23 +49,34 @@ public enum CodexTaskStore {
         defer { sqlite3_close(state) }
         let history = try database(root.appendingPathComponent("thread_history_1.sqlite"))
         defer { sqlite3_close(history) }
-        let data = try Data(contentsOf: root.appendingPathComponent(".codex-global-state.json"))
-        let global = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        guard let readState = global?["electron-thread-read-state-v1"] as? [String: Any],
-              readState["version"] as? Int == 1,
-              let identities = readState["unreadByIdentity"] as? [String: [String: [String]]] else {
-            throw ReadError.schema
+        let data: Data
+        do { data = try Data(contentsOf: root.appendingPathComponent(".codex-global-state.json")) }
+        catch { throw ReadError.schema(stage: "read-state-file") }
+        guard let global = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+            throw ReadError.schema(stage: "global-json")
+        }
+        // The desktop itself defaults a missing read-state entry to an empty
+        // map. Missing is valid; a present incompatible entry is not.
+        var identities: [String: [String: [String]]] = [:]
+        if let raw = global["electron-thread-read-state-v1"] {
+            guard let readState = raw as? [String: Any], readState["version"] as? Int == 1,
+                  let parsed = readState["unreadByIdentity"] as? [String: [String: [String]]] else {
+                throw ReadError.schema(stage: "unread-state-v1")
+            }
+            identities = parsed
         }
         let unreadByAccount = identities.mapValues { hosts in
             Set(hosts.filter { $0.key.hasPrefix("local:") }.values.flatMap { $0 })
         }
         let legacyUnread = Set(unreadByAccount.values.flatMap { $0 })
         var rows: OpaquePointer?
-        guard sqlite3_prepare_v2(state, "SELECT id, creator_account_id, creator_user_id FROM threads WHERE archived = 0 AND source = 'vscode' AND originator = 'Codex Desktop' AND (thread_source IS NULL OR thread_source = 'user')", -1, &rows, nil) == SQLITE_OK else { throw ReadError.schema }
+        let stateCode = sqlite3_prepare_v2(state, "SELECT id, creator_account_id, creator_user_id FROM threads WHERE archived = 0 AND source = 'vscode' AND originator = 'Codex Desktop' AND (thread_source IS NULL OR thread_source = 'user')", -1, &rows, nil)
         defer { sqlite3_finalize(rows) }
+        guard stateCode == SQLITE_OK else { throw ReadError.database(stage: "threads-prepare", code: stateCode) }
         var latest: OpaquePointer?
-        guard sqlite3_prepare_v2(history, "SELECT status FROM thread_turns WHERE thread_id = ? ORDER BY rollout_ordinal DESC LIMIT 1", -1, &latest, nil) == SQLITE_OK else { throw ReadError.schema }
+        let historyCode = sqlite3_prepare_v2(history, "SELECT status FROM thread_turns WHERE thread_id = ? ORDER BY rollout_ordinal DESC LIMIT 1", -1, &latest, nil)
         defer { sqlite3_finalize(latest) }
+        guard historyCode == SQLITE_OK else { throw ReadError.database(stage: "history-prepare", code: historyCode) }
         var result: [String: CodexStoredTask] = [:]
         var step = sqlite3_step(rows)
         while step == SQLITE_ROW {
@@ -75,19 +86,32 @@ public enum CodexTaskStore {
             sqlite3_reset(latest)
             sqlite3_clear_bindings(latest)
             let bound = id.withCString { sqlite3_bind_text(latest, 1, $0, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self)) }
-            guard bound == SQLITE_OK else { throw ReadError.read }
+            guard bound == SQLITE_OK else { throw ReadError.database(stage: "history-bind", code: bound) }
             let statusStep = sqlite3_step(latest)
-            guard statusStep == SQLITE_ROW || statusStep == SQLITE_DONE else { throw ReadError.read }
+            guard statusStep == SQLITE_ROW || statusStep == SQLITE_DONE else { throw ReadError.database(stage: "history-step", code: statusStep) }
             let identity = try account.flatMap { account in try user.map { try readIdentityKey(account: account, user: $0) } }
             let unread = identity.map { unreadByAccount[$0, default: []].contains(id) } ?? legacyUnread.contains(id)
             result[id] = CodexStoredTask(status: statusStep == SQLITE_ROW ? string(latest, 0) : nil, unread: unread)
             step = sqlite3_step(rows)
         }
-        guard step == SQLITE_DONE else { throw ReadError.read }
+        guard step == SQLITE_DONE else { throw ReadError.database(stage: "threads-step", code: step) }
         return result
     }
 
-    private enum ReadError: Error { case schema, read }
+    public enum ReadError: Error, CustomStringConvertible {
+        case schema(stage: String)
+        case database(stage: String, code: Int32)
+        case read
+
+        // Only stage names and SQLite result codes, never SQL values or paths.
+        public var description: String {
+            switch self {
+            case .schema(let stage): "schema:\(stage)"
+            case .database(let stage, let code): "database:\(stage):\(code)"
+            case .read: "read"
+            }
+        }
+    }
     /// Desktop read-state identities are hashes of [kind, account, user], not
     /// raw account IDs. These metadata fields do not contain authentication.
     public static func readIdentityKey(account: String, user: String) throws -> String {
@@ -103,9 +127,10 @@ public enum CodexTaskStore {
     }
     private static func database(_ url: URL) throws -> OpaquePointer {
         var db: OpaquePointer?
-        guard sqlite3_open_v2(url.path, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK, let db else {
+        let code = sqlite3_open_v2(url.path, &db, SQLITE_OPEN_READONLY, nil)
+        guard code == SQLITE_OK, let db else {
             sqlite3_close(db)
-            throw ReadError.read
+            throw ReadError.database(stage: url.lastPathComponent == "state_5.sqlite" ? "threads-open" : "history-open", code: code)
         }
         sqlite3_busy_timeout(db, 250)
         return db

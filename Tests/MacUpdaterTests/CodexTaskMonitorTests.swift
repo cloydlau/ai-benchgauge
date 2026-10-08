@@ -248,4 +248,39 @@ struct CodexTaskMonitorTests {
         #expect(CodexTaskMonitor.reconciliationDelay(running: 0) == 30)
         #expect((1...8).map(CodexTaskMonitor.retryDelay) == [2, 4, 8, 16, 30, 30, 30, 30])
     }
+
+    @Test func lockedStoreKeepsLiveConnectionAndRecoversWithoutAnotherFileEvent() async throws {
+        let fixture = try TaskIPCFixture()
+        defer { fixture.stop() }
+        let monitor = CodexTaskMonitor(root: fixture.root)
+        let updates = await monitor.updates(desktopRunning: true)
+        let recorder = TaskCountRecorder()
+        let listener = Task { for await count in updates { await recorder.record(count) } }
+        #expect(try await waitFor(.init(running: 0, unread: 0, failed: 0), recorder: recorder, timeout: 4))
+
+        // Lock the real history database, as another writer can do. The IPC
+        // fixture accepts just one client, so reconnecting loses this stream.
+        var writer: OpaquePointer?
+        #expect(sqlite3_open(fixture.root.appendingPathComponent("thread_history_1.sqlite").path, &writer) == SQLITE_OK)
+        defer { sqlite3_close(writer) }
+        #expect(sqlite3_exec(writer, "BEGIN EXCLUSIVE", nil, nil, nil) == SQLITE_OK)
+        do {
+            _ = try CodexTaskStore.read(root: fixture.root)
+            Issue.record("Exclusive writer must block the read-only store")
+        } catch let error as CodexTaskStore.ReadError {
+            #expect(error.description == "database:history-prepare:5")
+        }
+        let afterLock = await recorder.values.count
+        try fixture.markUnread(true)
+        #expect(try await waitFor(nil, recorder: recorder, after: afterLock))
+        fixture.snapshot(runtime: "active", status: "inProgress")
+        #expect(sqlite3_exec(writer, "ROLLBACK", nil, nil, nil) == SQLITE_OK)
+        // ROLLBACK doesn't change the database file. Recovery must come from
+        // the short store retry, preserving the state pushed while locked.
+        #expect(try await waitFor(.init(running: 1, unread: 0, failed: 0), recorder: recorder, after: afterLock, timeout: 2))
+        fixture.snapshot(runtime: "idle", status: "completed")
+        #expect(try await waitFor(.init(running: 0, unread: 1, failed: 0), recorder: recorder, after: afterLock))
+        await monitor.stop()
+        await listener.value
+    }
 }
