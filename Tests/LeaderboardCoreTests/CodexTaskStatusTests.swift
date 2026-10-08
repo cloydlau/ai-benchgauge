@@ -134,6 +134,12 @@ struct CodexTaskStatusTests {
         #expect(CodexTaskProjection().counts(stored: records) == CodexTaskCounts(running: 0, unread: 1, failed: 1))
         #expect(try Data(contentsOf: file) == before)
         try Data("{}".utf8).write(to: file)
+        let missingReadState = try CodexTaskStore.read(root: root)
+        #expect(missingReadState.values.allSatisfy { !$0.unread })
+        #expect(CodexTaskProjection().counts(stored: missingReadState) == CodexTaskCounts(running: 0, unread: 0, failed: 1))
+        try Data("{\"electron-thread-read-state-v1\":{\"version\":1,\"unreadByIdentity\":{}}}".utf8).write(to: file)
+        #expect(try CodexTaskStore.read(root: root).values.allSatisfy { !$0.unread })
+        try Data("{\"electron-thread-read-state-v1\":{\"version\":2,\"unreadByIdentity\":{}}}".utf8).write(to: file)
         #expect(throws: (any Error).self) { try CodexTaskStore.read(root: root) }
         #expect(throws: (any Error).self) { try CodexTaskStore.read(root: root.appendingPathComponent("missing")) }
         #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("missing/state_5.sqlite").path))
