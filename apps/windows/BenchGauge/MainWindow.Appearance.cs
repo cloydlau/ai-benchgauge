@@ -331,22 +331,42 @@ sealed partial class MainWindow
     {
         var line = new Grid { Height = 18, VerticalAlignment = VerticalAlignment.Center };
         line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); line.ColumnDefinitions.Add(new ColumnDefinition());
-        var text = Caption("", PanelInk); text.Inlines.Clear(); text.ToolTip = quota.Help;
+        var text = Caption("", quota.IsDimmed ? PanelMuted : PanelInk); text.Inlines.Clear(); text.ToolTip = quota.Help;
         if (ProviderLogo(quota.Name) is { } key && Logo(key, 16) is { } image)
         {
+            if (quota.IsDimmed) { image.Source = Monochrome(image.Source); image.Opacity = 0.55; }
             var mark = new Border { Child = image, Width = 18, Height = 18, VerticalAlignment = VerticalAlignment.Center,
                 Background = Brushes.White, CornerRadius = new CornerRadius(3), Margin = new Thickness(0, 0, 5, 0) };
             AddCell(line, mark, 0);
         }
         text.Inlines.Add(new TextRun(quota.Name + "  ") { FontWeight = quota.IsCurrent ? FontWeights.SemiBold : FontWeights.Medium });
-        foreach (var run in quota.Runs) text.Inlines.Add(new TextRun(run.Text) { Foreground = Tint(panelDark ? run.Dark : run.Light) });
+        foreach (var run in quota.Runs) text.Inlines.Add(new TextRun(run.Text) { Foreground = quota.IsDimmed ? PanelMuted : Tint(panelDark ? run.Dark : run.Light) });
         if (quota.IsStale) text.Inlines.Add(new TextRun(" · " + Tr("saved", "缓存", "快取")) { Foreground = PanelMuted });
-        var fill = quota.AccentLight is { } accent ? Tint(accent, quota.IsCurrent ? 0.12 : 0.06) : PanelSurface;
+        var fill = quota.IsDimmed ? Tint(panelDark ? "#272728" : "#F5F5F5")
+            : quota.AccentLight is { } accent ? Tint(accent, quota.IsCurrent ? 0.12 : 0.06) : PanelSurface;
         AddCell(line, text, 1);
         var card = new Border { Child = line, Height = 24, Padding = new Thickness(7, 2, 7, 2), CornerRadius = new CornerRadius(5), Background = fill,
-            Margin = new Thickness(0, 0, 6, 6), BorderThickness = new Thickness(quota.IsCurrent ? 1 : 0), BorderBrush = Tint("#238D50") };
+            Margin = new Thickness(0, 0, 6, 6), BorderThickness = new Thickness(quota.IsCurrent ? 1 : 0), BorderBrush = quota.IsDimmed ? PanelLine : Tint("#238D50") };
         if (quota.CanConnect || quota.Url is not null) { card.Cursor = Cursors.Hand; card.MouseLeftButtonUp += async (_, _) => { if (quota.CanConnect) await Connect(quota); else if (quota.Url is { } url) Open(url); }; }
         return card;
+    }
+
+    static ImageSource Monochrome(ImageSource source)
+    {
+        if (source is not BitmapSource bitmap) return source;
+        var converted = new FormatConvertedBitmap(bitmap, PixelFormats.Pbgra32, null, 0);
+        var stride = converted.PixelWidth * 4;
+        var pixels = new byte[stride * converted.PixelHeight];
+        converted.CopyPixels(pixels, stride, 0);
+        for (var i = 0; i < pixels.Length; i += 4)
+        {
+            var gray = (byte)Math.Round(pixels[i] * 0.0722 + pixels[i + 1] * 0.7152 + pixels[i + 2] * 0.2126);
+            pixels[i] = pixels[i + 1] = pixels[i + 2] = gray;
+        }
+        var result = BitmapSource.Create(converted.PixelWidth, converted.PixelHeight, converted.DpiX, converted.DpiY,
+            PixelFormats.Pbgra32, null, pixels, stride);
+        result.Freeze();
+        return result;
     }
     static string? ProviderLogo(string name)
     {

@@ -421,6 +421,20 @@ public enum AccountQuotaFormatting {
         }
     }
 
+    /// Unpurchased plans and unfunded wallets use a neutral, dimmed card.
+    /// An unknown/querying balance is not evidence of zero funds. Usage-window
+    /// exhaustion retains its existing warning presentation.
+    public static func isDimmed(_ chip: AccountQuotaChip) -> Bool {
+        switch chip.status {
+        case let .note(text, _), let .message(text):
+            return text == AccountQuotaMessage.glmNoCodingPlan || text == AccountQuotaMessage.qwenNoPlan
+        case let .balances(balances):
+            return !balances.isEmpty && balances.allSatisfy { $0.amount.isFinite && $0.amount <= 0 }
+        case .pending, .windows, .qwenPlan, .qwenWebsite:
+            return false
+        }
+    }
+
     /// CC Switch owns the Grok login, so `requires_reauth` and a missing auth
     /// file are cleared only by signing in there again. Both surfaces send such
     /// a chip to CC Switch instead of to the provider's product page.

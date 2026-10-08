@@ -1370,6 +1370,102 @@
       "height": 820,
       "scenario": "payAsYouGoLast-reauth",
       "mode": "clickToClose"
+    },
+    {
+      "id": "inactiveQuotas-en-600",
+      "language": "en",
+      "width": 600,
+      "height": 820,
+      "scenario": "inactiveQuotas",
+      "mode": "popover"
+    },
+    {
+      "id": "inactiveQuotas-en-900",
+      "language": "en",
+      "width": 900,
+      "height": 820,
+      "scenario": "inactiveQuotas",
+      "mode": "popover"
+    },
+    {
+      "id": "inactiveQuotas-zh-600",
+      "language": "zh",
+      "width": 600,
+      "height": 820,
+      "scenario": "inactiveQuotas",
+      "mode": "popover"
+    },
+    {
+      "id": "inactiveQuotas-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 820,
+      "scenario": "inactiveQuotas",
+      "mode": "popover"
+    },
+    {
+      "id": "inactiveQuotas-zh-Hant-600",
+      "language": "zh-Hant",
+      "width": 600,
+      "height": 820,
+      "scenario": "inactiveQuotas",
+      "mode": "popover"
+    },
+    {
+      "id": "inactiveQuotas-zh-Hant-900",
+      "language": "zh-Hant",
+      "width": 900,
+      "height": 820,
+      "scenario": "inactiveQuotas",
+      "mode": "popover"
+    },
+    {
+      "id": "restoredQuotas-en-600",
+      "language": "en",
+      "width": 600,
+      "height": 820,
+      "scenario": "restoredQuotas",
+      "mode": "popover"
+    },
+    {
+      "id": "restoredQuotas-en-900",
+      "language": "en",
+      "width": 900,
+      "height": 820,
+      "scenario": "restoredQuotas",
+      "mode": "popover"
+    },
+    {
+      "id": "restoredQuotas-zh-600",
+      "language": "zh",
+      "width": 600,
+      "height": 820,
+      "scenario": "restoredQuotas",
+      "mode": "popover"
+    },
+    {
+      "id": "restoredQuotas-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 820,
+      "scenario": "restoredQuotas",
+      "mode": "popover"
+    },
+    {
+      "id": "restoredQuotas-zh-Hant-600",
+      "language": "zh-Hant",
+      "width": 600,
+      "height": 820,
+      "scenario": "restoredQuotas",
+      "mode": "popover"
+    },
+    {
+      "id": "restoredQuotas-zh-Hant-900",
+      "language": "zh-Hant",
+      "width": 900,
+      "height": 820,
+      "scenario": "restoredQuotas",
+      "mode": "popover"
     }
   ],
   "quotaScenarios": {
@@ -2200,6 +2296,334 @@
             "amount": 12.36
           }
         ]
+      }
+    ],
+    "inactiveQuotas": [
+      {
+        "id": "glm",
+        "name": "GLM",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "未订购",
+            "light": "#C33030",
+            "dark": "#FF8A80"
+          }
+        ],
+        "status": "queryFailed",
+        "failureReason": "noCodingPlan",
+        "isDimmed": true
+      },
+      {
+        "id": "qwen",
+        "name": "Qwen",
+        "isCurrent": true,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "未订购",
+            "light": "#C33030",
+            "dark": "#FF8A80"
+          }
+        ],
+        "status": "queryFailed",
+        "failureReason": "noPlan",
+        "isDimmed": true
+      },
+      {
+        "id": "zero",
+        "name": "DeepSeek",
+        "isCurrent": true,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "¥0",
+            "light": "#C33030",
+            "dark": "#FF8A80"
+          }
+        ],
+        "balances": [
+          {
+            "currency": "CNY",
+            "amount": 0
+          }
+        ],
+        "isDimmed": true,
+        "accentLight": "#C33030"
+      },
+      {
+        "id": "owed",
+        "name": "DeepSeek",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "-$1",
+            "light": "#C33030",
+            "dark": "#FF8A80"
+          }
+        ],
+        "balances": [
+          {
+            "currency": "USD",
+            "amount": -1
+          }
+        ],
+        "isDimmed": true,
+        "accentLight": "#C33030"
+      },
+      {
+        "id": "mixed",
+        "name": "DeepSeek",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "¥5",
+            "light": "#C87816",
+            "dark": "#F2AF50"
+          }
+        ],
+        "balances": [
+          {
+            "currency": "USD",
+            "amount": 0
+          },
+          {
+            "currency": "CNY",
+            "amount": 5
+          }
+        ]
+      },
+      {
+        "id": "healthy",
+        "name": "Kimi",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "70%",
+            "light": "#238D50",
+            "dark": "#73D994"
+          }
+        ],
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 30
+          }
+        ]
+      },
+      {
+        "id": "error",
+        "name": "OpenAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "查询失败",
+            "light": "#C33030",
+            "dark": "#FF8A80"
+          }
+        ],
+        "status": "queryFailed"
+      }
+    ],
+    "restoredQuotas": [
+      {
+        "id": "glm",
+        "name": "GLM",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "70%",
+            "light": "#238D50",
+            "dark": "#73D994"
+          }
+        ],
+        "isDimmed": false,
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 30
+          }
+        ]
+      },
+      {
+        "id": "qwen",
+        "name": "Qwen",
+        "isCurrent": true,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "70%",
+            "light": "#238D50",
+            "dark": "#73D994"
+          }
+        ],
+        "isDimmed": false,
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 30
+          }
+        ]
+      },
+      {
+        "id": "zero",
+        "name": "DeepSeek",
+        "isCurrent": true,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "100",
+            "light": "#238D50",
+            "dark": "#73D994"
+          }
+        ],
+        "balances": [
+          {
+            "currency": "CNY",
+            "amount": 100
+          }
+        ],
+        "isDimmed": false,
+        "accentLight": "#238D50"
+      },
+      {
+        "id": "owed",
+        "name": "DeepSeek",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "100",
+            "light": "#238D50",
+            "dark": "#73D994"
+          }
+        ],
+        "balances": [
+          {
+            "currency": "USD",
+            "amount": 100
+          }
+        ],
+        "isDimmed": false,
+        "accentLight": "#238D50"
+      },
+      {
+        "id": "mixed",
+        "name": "DeepSeek",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "¥5",
+            "light": "#C87816",
+            "dark": "#F2AF50"
+          }
+        ],
+        "balances": [
+          {
+            "currency": "USD",
+            "amount": 0
+          },
+          {
+            "currency": "CNY",
+            "amount": 5
+          }
+        ]
+      },
+      {
+        "id": "healthy",
+        "name": "Kimi",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "70%",
+            "light": "#238D50",
+            "dark": "#73D994"
+          }
+        ],
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 30
+          }
+        ]
+      },
+      {
+        "id": "error",
+        "name": "OpenAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "查询失败",
+            "light": "#C33030",
+            "dark": "#FF8A80"
+          }
+        ],
+        "status": "queryFailed"
       }
     ]
   }
