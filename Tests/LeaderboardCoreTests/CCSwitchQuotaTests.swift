@@ -378,6 +378,29 @@ struct AccountQuotaFormattingTests {
     }
 
     @Test
+    func testMenuBarKeepsCurrentModelWhenQuotaIsUnavailable() {
+        let statuses: [(AccountQuotaChip.Status, String)] = [
+            (.pending, AccountQuotaMessage.querying),
+            (.message(AccountQuotaMessage.reauthRequired), AccountQuotaMessage.reauthRequired),
+            (.message(AccountQuotaMessage.queryFailed), AccountQuotaMessage.queryFailed),
+            (.message(AccountQuotaMessage.network), AccountQuotaMessage.network),
+            (.note(text: AccountQuotaMessage.notConfigured, help: "fixture"), AccountQuotaMessage.notConfigured),
+            (.windows([]), AccountQuotaMessage.queryFailed),
+        ]
+        for (status, expected) in statuses {
+            let current = AccountQuotaChip(id: "selected", shortName: "OpenAI", modelName: "gpt-6-astra",
+                websiteURL: nil, kind: .officialNote, isCurrent: true, status: status)
+            let unrelated = chip(kind: .kimi, status: .windows([
+                ParsedQuotaWindow(name: "five_hour", utilization: 0, resetsAt: nil)
+            ]))
+            let text = AccountQuotaFormatting.menuBarText(forChips: [unrelated, current], currentModelName: "gpt-6.1-sol")
+            #expect(text?.name == "gpt-6.1-sol")
+            #expect(text?.quota == expected)
+            #expect(AccountQuotaFormatting.menuBarText(forChips: [unrelated]) == nil)
+        }
+    }
+
+    @Test
     func testFormatsQuotasWithSeparateResetAndExpiryDates() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let kimi = chip(

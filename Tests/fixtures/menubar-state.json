@@ -1,0 +1,238 @@
+{
+  "state": {
+    "boards": [],
+    "quotas": []
+  },
+  "quotaScenarios": {
+    "menuBarHealthy": [
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "modelName": "gpt-6.1-sol",
+        "runs": [],
+        "status": null,
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 25
+          },
+          {
+            "name": "seven_day",
+            "utilization": 60
+          }
+        ]
+      }
+    ],
+    "menuBarReauth": [
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "modelName": "gpt-6.1-sol",
+        "runs": [],
+        "status": "reauth"
+      }
+    ],
+    "menuBarPending": [
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "modelName": "gpt-6.1-sol",
+        "runs": [],
+        "status": "pending"
+      }
+    ],
+    "menuBarFailed": [
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "modelName": "gpt-6.1-sol",
+        "runs": [],
+        "status": "queryFailed"
+      }
+    ],
+    "menuBarNotConfigured": [
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "modelName": "gpt-6.1-sol",
+        "runs": [],
+        "status": "notConfigured"
+      }
+    ],
+    "menuBarLongName": [
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "modelName": "gpt-6.1-sol-with-a-very-long-model-name",
+        "runs": [],
+        "status": null,
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 25
+          },
+          {
+            "name": "seven_day",
+            "utilization": 60
+          }
+        ]
+      }
+    ],
+    "menuBarNoCurrent": []
+  },
+  "cases": [
+    {
+      "id": "menuBarHealthy-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarHealthy"
+    },
+    {
+      "id": "menuBarHealthy-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarHealthy"
+    },
+    {
+      "id": "menuBarHealthy-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarHealthy"
+    },
+    {
+      "id": "menuBarReauth-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarReauth"
+    },
+    {
+      "id": "menuBarReauth-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarReauth"
+    },
+    {
+      "id": "menuBarReauth-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarReauth"
+    },
+    {
+      "id": "menuBarPending-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPending"
+    },
+    {
+      "id": "menuBarPending-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPending"
+    },
+    {
+      "id": "menuBarPending-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPending"
+    },
+    {
+      "id": "menuBarFailed-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarFailed"
+    },
+    {
+      "id": "menuBarFailed-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarFailed"
+    },
+    {
+      "id": "menuBarFailed-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarFailed"
+    },
+    {
+      "id": "menuBarNotConfigured-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarNotConfigured"
+    },
+    {
+      "id": "menuBarNotConfigured-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarNotConfigured"
+    },
+    {
+      "id": "menuBarNotConfigured-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarNotConfigured"
+    },
+    {
+      "id": "menuBarLongName-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarLongName"
+    },
+    {
+      "id": "menuBarLongName-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarLongName"
+    },
+    {
+      "id": "menuBarLongName-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarLongName"
+    },
+    {
+      "id": "menuBarNoCurrent-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarNoCurrent"
+    },
+    {
+      "id": "menuBarNoCurrent-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarNoCurrent"
+    },
+    {
+      "id": "menuBarNoCurrent-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarNoCurrent"
+    }
+  ]
+}
