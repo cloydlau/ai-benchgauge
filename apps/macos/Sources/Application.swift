@@ -8,6 +8,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var stateController: StatusBarController?
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if DEBUG
+        if CommandLine.arguments.contains("--codex-task-status") {
+            Task {
+                let monitor = CodexTaskMonitor()
+                var counts: CodexTaskCounts?
+                for _ in 0..<6 {
+                    counts = await monitor.poll(desktopRunning: NSWorkspace.shared.runningApplications.contains {
+                        QuotaAutoRefreshPolicy.isCodexBundleIdentifier($0.bundleIdentifier)
+                    })
+                    try? await Task.sleep(for: .seconds(1))
+                }
+                await monitor.stop()
+                if let counts, let data = try? JSONEncoder().encode(counts) {
+                    FileHandle.standardOutput.write(data + Data("\n".utf8))
+                } else {
+                    FileHandle.standardOutput.write(Data("Codex task status unavailable\n".utf8))
+                    exit(1)
+                }
+                NSApp.terminate(nil)
+            }
+            return
+        }
         if CommandLine.arguments.contains("--visual-test") {
             Task { @MainActor in
                 do { try await NativeVisualCapture.run(); NSApp.terminate(nil) }
@@ -209,14 +230,17 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
     /// hold an amount older than the chip the panel is showing.
     private func updateStatusItem() {
         guard let button = statusItem.button else { return }
-        guard let quota = state.menuBarQuota else {
-            button.toolTip = "AI BenchGauge"
-            setStatusItemLabel(button, label: nil)
-            return
+        var labels = [String]()
+        var help = ["AI BenchGauge"]
+        if let quota = state.menuBarQuota {
+            let quotaText = state.selectedLanguage.quotaText(quota.quota)
+            labels.append("\(quota.name) · \(quotaText)")
+            help.append("\(quota.fullName) · \(quotaText)")
         }
-        let quotaText = state.selectedLanguage.quotaText(quota.quota)
-        setStatusItemLabel(button, label: "\(quota.name) · \(quotaText)")
-        button.toolTip = "AI BenchGauge · \(quota.fullName) · \(quotaText)"
+        labels.append(CodexTaskCounts.menuBarText(state.codexTaskCounts))
+        help.append(CodexTaskCounts.help(state.codexTaskCounts, chinese: state.selectedLanguage.rawValue == "zh"))
+        setStatusItemLabel(button, label: labels.joined(separator: " · "))
+        button.toolTip = help.joined(separator: "\n")
     }
 
     /// AppKit centers `button.image` in the status item but lays the title out on

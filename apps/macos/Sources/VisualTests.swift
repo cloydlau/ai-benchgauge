@@ -19,7 +19,7 @@ enum NativeVisualCapture {
         let balances: [Balance]?
     }
     struct State: Decodable { let boards: [Board]; let quotas: [Quota]; let quotaUpdatedAt: String? }
-    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String?; let codexModel: String?; let codexProvider: String?; let codexBaseURL: String? }
+    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String?; let codexModel: String?; let codexProvider: String?; let codexBaseURL: String?; let taskCounts: CodexTaskCounts?; let refreshedTaskCounts: CodexTaskCounts? }
     struct Fixture: Decodable { let state: State; let cases: [Case]; let quotaScenarios: [String: [Quota]]? }
 
     static func run() async throws {
@@ -99,7 +99,7 @@ enum NativeVisualCapture {
                     AccountQuotaChip(id: chip.id, shortName: chip.shortName, websiteURL: chip.websiteURL,
                                      kind: chip.kind, isCurrent: chip.isCurrent, status: chip.status, isStale: true)
                 } : visibleChips
-                func apply() {
+                func apply(refreshed: Bool = false) {
                     state.applyVisualFixture(snapshot: LeaderboardSnapshot(boards: fetchedBoards), chips: shownChips,
                         language: AppLanguage(rawValue: test.language)!, errors: errors,
                         emptyState: test.scenario == "empty" ? .notInstalled : (test.scenario == "installedEmpty" ? .installedEmpty : nil),
@@ -109,7 +109,7 @@ enum NativeVisualCapture {
                             CCSwitchQuotaTarget(id: value.id, shortName: value.shortName, modelName: value.modelName,
                                 websiteURL: nil, kind: value.kind, isCurrent: value.isCurrent, apiKey: nil,
                                 baseURL: (fixture.quotaScenarios?[test.scenario] ?? fixture.state.quotas).first { $0.id == value.id }?.baseURL)
-                        })
+                        }, taskCounts: refreshed ? (test.refreshedTaskCounts ?? test.taskCounts) : test.taskCounts)
                 }
                 apply()
                 if test.scenario.hasPrefix("menuBar") {
@@ -123,7 +123,7 @@ enum NativeVisualCapture {
                     }
                     button.appearance = NSAppearance(named: theme == "dark" ? .darkAqua : .aqua)
                     for frame in 0..<3 {
-                        if frame == 1 { apply() }
+                        if frame == 1 { apply(refreshed: true) }
                         try await Task.sleep(for: .milliseconds(300))
                         _ = controller.visualStatusButton(width: CGFloat(test.width))
                         guard let png = PanelScreenshot.captureForm(view: button, minimumVariety: 1) else {

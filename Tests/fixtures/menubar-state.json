@@ -84,7 +84,87 @@
         ]
       }
     ],
-    "menuBarNoCurrent": []
+    "menuBarNoCurrent": [],
+    "menuBarTasksZero": [
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "modelName": "gpt-6.1-sol",
+        "runs": [],
+        "status": null,
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 25
+          },
+          {
+            "name": "seven_day",
+            "utilization": 60
+          }
+        ]
+      }
+    ],
+    "menuBarTasksLifecycle": [
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "modelName": "gpt-6.1-sol",
+        "runs": [],
+        "status": null,
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 25
+          },
+          {
+            "name": "seven_day",
+            "utilization": 60
+          }
+        ]
+      }
+    ],
+    "menuBarTasksLarge": [
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "modelName": "gpt-6.1-sol",
+        "runs": [],
+        "status": null,
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 25
+          },
+          {
+            "name": "seven_day",
+            "utilization": 60
+          }
+        ]
+      }
+    ],
+    "menuBarTasksUnavailable": [
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "modelName": "gpt-6.1-sol",
+        "runs": [],
+        "status": null,
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 25
+          },
+          {
+            "name": "seven_day",
+            "utilization": 60
+          }
+        ]
+      }
+    ]
   },
   "cases": [
     {
@@ -233,6 +313,104 @@
       "width": 420,
       "height": 24,
       "scenario": "menuBarNoCurrent"
+    },
+    {
+      "id": "menuBarTasksZero-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarTasksZero",
+      "taskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 0
+      }
+    },
+    {
+      "id": "menuBarTasksZero-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarTasksZero",
+      "taskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 0
+      }
+    },
+    {
+      "id": "menuBarTasksLifecycle-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarTasksLifecycle",
+      "taskCounts": {
+        "running": 3,
+        "unread": 0,
+        "failed": 0
+      },
+      "refreshedTaskCounts": {
+        "running": 1,
+        "unread": 1,
+        "failed": 1
+      }
+    },
+    {
+      "id": "menuBarTasksLifecycle-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarTasksLifecycle",
+      "taskCounts": {
+        "running": 3,
+        "unread": 0,
+        "failed": 0
+      },
+      "refreshedTaskCounts": {
+        "running": 1,
+        "unread": 1,
+        "failed": 1
+      }
+    },
+    {
+      "id": "menuBarTasksLarge-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarTasksLarge",
+      "taskCounts": {
+        "running": 1234,
+        "unread": 567,
+        "failed": 89
+      }
+    },
+    {
+      "id": "menuBarTasksLarge-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarTasksLarge",
+      "taskCounts": {
+        "running": 1234,
+        "unread": 567,
+        "failed": 89
+      }
+    },
+    {
+      "id": "menuBarTasksUnavailable-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarTasksUnavailable",
+      "taskCounts": null
+    },
+    {
+      "id": "menuBarTasksUnavailable-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarTasksUnavailable",
+      "taskCounts": null
     }
   ]
 }

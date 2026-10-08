@@ -80,6 +80,9 @@ final class AppState: ObservableObject {
     /// a refresh triggered inside the panel moves the menu bar at the same
     /// moment instead of waiting for the slower background cadence.
     @Published private(set) var currentCodexModelConfiguration: CodexModelConfiguration?
+    @Published private(set) var codexTaskCounts: CodexTaskCounts?
+    private let codexTaskMonitor = CodexTaskMonitor()
+    private var codexTaskRefresh: Task<Void, Never>?
     var menuBarQuota: AccountQuotaMenuBarText? {
         if let currentCodexModelConfiguration {
             return currentCodexModelConfiguration.menuBarText(for: quotaChips, targets: Array(quotaTargetsByID.values))
@@ -162,6 +165,16 @@ final class AppState: ObservableObject {
     }
 
     func start() {
+        codexTaskRefresh = Task { [weak self] in
+            guard let monitor = self?.codexTaskMonitor else { return }
+            while !Task.isCancelled {
+                guard let running = self?.isCodexRunning else { break }
+                let counts = await monitor.poll(desktopRunning: running)
+                if self?.codexTaskCounts != counts { self?.codexTaskCounts = counts }
+                do { try await Task.sleep(for: .seconds(1)) } catch { break }
+            }
+            await monitor.stop()
+        }
         refreshNow()
         refreshQuotas(minimumInterval: 0)
         startXAIKeepAliveIfNeeded()
@@ -176,11 +189,12 @@ final class AppState: ObservableObject {
     func applyVisualFixture(snapshot: LeaderboardSnapshot, chips: [AccountQuotaChip],
                             language: AppLanguage, errors: [LeaderboardKind: String],
                             emptyState: CCSwitchState?, panelMode: PanelMode = .clickToClose, quotaUpdatedAt: Date? = nil, quotaUnavailable: Bool = false,
-                            modelConfiguration: CodexModelConfiguration? = nil, targets: [CCSwitchQuotaTarget] = []) {
+                            modelConfiguration: CodexModelConfiguration? = nil, targets: [CCSwitchQuotaTarget] = [], taskCounts: CodexTaskCounts? = nil) {
         self.snapshot = snapshot
         self.quotaUpdatedAt = quotaUpdatedAt
         self.quotaUnavailable = quotaUnavailable
         quotaChips = chips
+        codexTaskCounts = taskCounts
         currentCodexModelConfiguration = modelConfiguration
         quotaTargetsByID = Dictionary(uniqueKeysWithValues: targets.map { ($0.id, $0) })
         selectedLanguage = language
@@ -274,6 +288,8 @@ final class AppState: ObservableObject {
     func beginQuitting() -> Bool {
         guard !isQuitting else { return false }
         isQuitting = true
+        codexTaskRefresh?.cancel()
+        codexTaskRefresh = nil
         openAIConnection.cancel()
         xaiWebsiteSource.cancel()
         refreshPending = false
