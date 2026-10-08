@@ -282,25 +282,47 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
             return
         }
         let font = button.font ?? NSFont.menuBarFont(ofSize: 0)
-        guard let symbol = statusItemSymbol(for: button) else {
-            button.image = nil
-            button.title = label
-            return
+        let title = NSMutableAttributedString(string: "")
+        if let symbol = statusItemSymbol(for: button) {
+            let attachment = NSTextAttachment()
+            attachment.image = symbol
+            // Keep the icon on the same baseline as the status text.
+            attachment.bounds = CGRect(x: 0, y: -symbol.alignmentRect.minY,
+                width: symbol.size.width, height: symbol.size.height)
+            title.append(NSAttributedString(attachment: attachment))
+            title.append(NSAttributedString(string: " ", attributes: [.font: font]))
         }
-        let attachment = NSTextAttachment()
-        attachment.image = symbol
-        // A symbol's alignment rect bottom is its baseline, so this drops the
-        // icon onto the label's baseline instead of floating above or below it.
-        attachment.bounds = CGRect(
-            x: 0,
-            y: -symbol.alignmentRect.minY,
-            width: symbol.size.width,
-            height: symbol.size.height
-        )
-        let title = NSMutableAttributedString(attachment: attachment)
-        title.append(NSAttributedString(string: " \(label)", attributes: [.font: font]))
+        title.append(NSAttributedString(string: label, attributes: [.font: font]))
+        if state.codexDesktopRunning, let counts = state.codexTaskCounts {
+            let taskText = CodexTaskCounts.menuBarText(counts)
+            // Scope styling to the task suffix, never model names or quota amounts.
+            if title.string.hasSuffix(taskText) {
+                let taskRange = NSRange(location: title.length - taskText.utf16.count, length: taskText.utf16.count)
+                let highlights: [(String, Int, NSColor)] = [
+                    ("▶", counts.running, Self.taskCountColor(light: 0xA65B00, dark: 0xFFBA54)),
+                    ("✓", counts.unread, Self.taskCountColor(light: 0x1C7A46, dark: 0x62D99B)),
+                    ("!", counts.failed, Self.taskCountColor(light: 0xC23F3F, dark: 0xFF8279)),
+                ]
+                for (symbol, count, color) in highlights where count > 0 {
+                    let digits = String(count)
+                    let segment = (title.string as NSString).range(of: "\(symbol) \(digits)", range: taskRange)
+                    guard segment.location != NSNotFound else { continue }
+                    let range = NSRange(location: NSMaxRange(segment) - digits.utf16.count, length: digits.utf16.count)
+                    title.addAttributes([.foregroundColor: color,
+                        .font: NSFont.systemFont(ofSize: font.pointSize, weight: .semibold)], range: range)
+                }
+            }
+        }
         button.image = nil
         button.attributedTitle = title
+    }
+
+    private static func taskCountColor(light: UInt32, dark: UInt32) -> NSColor {
+        NSColor(name: nil) { appearance in
+            let rgb = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+            return NSColor(srgbRed: Double((rgb >> 16) & 0xff) / 255,
+                green: Double((rgb >> 8) & 0xff) / 255, blue: Double(rgb & 0xff) / 255, alpha: 1)
+        }
     }
 
     private func statusItemSymbol(for button: NSStatusBarButton) -> NSImage? {

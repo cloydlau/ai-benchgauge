@@ -1,0 +1,314 @@
+{
+  "state": {
+    "boards": [],
+    "quotas": []
+  },
+  "cases": [
+    {
+      "id": "zero-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 0
+      }
+    },
+    {
+      "id": "running-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 4,
+        "unread": 0,
+        "failed": 0
+      },
+      "refreshedTaskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 0
+      }
+    },
+    {
+      "id": "unread-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 0,
+        "unread": 3,
+        "failed": 0
+      },
+      "refreshedTaskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 0
+      }
+    },
+    {
+      "id": "errors-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 2
+      },
+      "refreshedTaskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 0
+      }
+    },
+    {
+      "id": "all-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 12,
+        "unread": 24,
+        "failed": 3
+      }
+    },
+    {
+      "id": "unavailable-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": true,
+      "taskCounts": null
+    },
+    {
+      "id": "closed-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": false,
+      "taskCounts": {
+        "running": 4,
+        "unread": 3,
+        "failed": 2
+      }
+    },
+    {
+      "id": "zero-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 0
+      }
+    },
+    {
+      "id": "running-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 4,
+        "unread": 0,
+        "failed": 0
+      },
+      "refreshedTaskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 0
+      }
+    },
+    {
+      "id": "unread-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 0,
+        "unread": 3,
+        "failed": 0
+      },
+      "refreshedTaskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 0
+      }
+    },
+    {
+      "id": "errors-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 2
+      },
+      "refreshedTaskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 0
+      }
+    },
+    {
+      "id": "all-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 12,
+        "unread": 24,
+        "failed": 3
+      }
+    },
+    {
+      "id": "unavailable-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": true,
+      "taskCounts": null
+    },
+    {
+      "id": "closed-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": false,
+      "taskCounts": {
+        "running": 4,
+        "unread": 3,
+        "failed": 2
+      }
+    },
+    {
+      "id": "zero-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 0
+      }
+    },
+    {
+      "id": "running-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 4,
+        "unread": 0,
+        "failed": 0
+      },
+      "refreshedTaskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 0
+      }
+    },
+    {
+      "id": "unread-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 0,
+        "unread": 3,
+        "failed": 0
+      },
+      "refreshedTaskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 0
+      }
+    },
+    {
+      "id": "errors-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 2
+      },
+      "refreshedTaskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 0
+      }
+    },
+    {
+      "id": "all-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 12,
+        "unread": 24,
+        "failed": 3
+      }
+    },
+    {
+      "id": "unavailable-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": true,
+      "taskCounts": null
+    },
+    {
+      "id": "closed-zh-Hant",
+      "language": "zh-Hant",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarTaskColors",
+      "codexDesktopRunning": false,
+      "taskCounts": {
+        "running": 4,
+        "unread": 3,
+        "failed": 2
+      }
+    }
+  ]
+}
