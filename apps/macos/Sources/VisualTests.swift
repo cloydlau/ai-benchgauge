@@ -50,8 +50,12 @@ enum NativeVisualCapture {
             switch quota.status {
             case "reauth": status = .message(AccountQuotaMessage.reauthRequired)
             case "pending": status = .pending
+            case "unconnected": status = .note(text: AccountQuotaMessage.connectOfficial, help: AccountQuotaMessage.connectOfficialHelp)
+            case "qwenWebsite": status = .qwenWebsite(QwenWebsiteQuota(periodLabel: "1mo", remainingPercent: 42, resetsAt: nil))
             case "queryFailed":
-                status = quota.name == "GLM" && quota.failureReason == "noCodingPlan"
+                status = quota.name == "Qwen" && quota.failureReason == "noPlan"
+                    ? .note(text: AccountQuotaMessage.qwenNoPlan, help: AccountQuotaMessage.qwenNoPlanHelp)
+                    : quota.name == "GLM" && quota.failureReason == "noCodingPlan"
                     ? .note(text: AccountQuotaMessage.glmNoCodingPlan, help: AccountQuotaMessage.glmNoCodingPlanHelp)
                     : .message(AccountQuotaMessage.queryFailed)
             case "notConfigured": status = .note(text: AccountQuotaMessage.notConfigured, help: AccountQuotaMessage.notConfiguredHelp)

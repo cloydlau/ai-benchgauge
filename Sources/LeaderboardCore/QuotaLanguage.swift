@@ -36,6 +36,7 @@ public extension AppLanguage {
             "无可用余额": "No balance", "未连接": "Connect",
             AccountQuotaMessage.glmNoCodingPlan: "Not subscribed",
             AccountQuotaMessage.glmNoCodingPlanHelp: "The plan may have expired or not been purchased. Check the GLM key and subscription account in CC Switch.",
+            AccountQuotaMessage.qwenNoPlanHelp: "The Qwen site shows no active individual plan. Check the plan and signed-in account.",
             AccountQuotaMessage.glmConfigurationHelp: "Click to open CC Switch and check the GLM key and Coding Plan account. Reopen this panel after changing the configuration to refresh usage.",
             AccountQuotaMessage.glmRetryHelp: "Click to reload the GLM configuration and retry the quota query.",
             AccountQuotaMessage.autoRenewing: "Auto-renew",

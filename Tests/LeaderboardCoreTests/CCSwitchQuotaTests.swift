@@ -990,6 +990,34 @@ struct CCSwitchQuotaParserTests {
     }
 
     @Test
+    func testParsesCurrentBilingualQwenUsageWithoutMixingPools() {
+        for text in [
+            "7 Days Usage Limit\nReset time 2026-10-10 00:00:00\nRemaining\n80.0%\nPlan quota 1,000\nMonthly Quota\nReset time 2026-10-24 00:00:00\nRemaining\n25.5%\nPlan quota 10,000",
+            "7 天限額\n重置時間 2026-10-10 00:00:00\n剩餘量\n80.0%\n套餐額度 1,000\n月額度\n重置時間 2026-10-24 00:00:00\n剩餘量\n25.5%",
+        ] {
+            let quota = QwenWebsiteQuotaParser.parse(Data(text.utf8))
+            #expect(quota?.periodLabel == "1mo")
+            #expect(quota?.remainingPercent == 25.5)
+            #expect(quota?.resetsAt == ISO8601DateFormatter().date(from: "2026-10-23T16:00:00Z"))
+        }
+        #expect(QwenWebsiteQuotaParser.parse(Data("Monthly Quota\nRemaining\n101%".utf8)) == nil)
+        #expect(QwenWebsiteQuotaParser.parse(Data("Monthly Quota\nPlan quota 1,000\nCredit Pack\nRemaining 70%".utf8)) == nil)
+    }
+
+    @Test
+    func testQwenSiteFailureRequiresAnExplicitMessage() {
+        for text in ["暂无个人版套餐", "套餐已失效", "No Individual Plan", "Plan expired"] {
+            #expect(QwenWebsiteQuotaParser.failureStatus(in: Data(text.utf8)) == .note(
+                text: AccountQuotaMessage.qwenNoPlan, help: AccountQuotaMessage.qwenNoPlanHelp))
+        }
+        for text in ["您当前还未登录，登录后可使用完整服务", "You are currently not logged in. Log in to access all services."] {
+            #expect(QwenWebsiteQuotaParser.failureStatus(in: Data(text.utf8)) == .message(AccountQuotaMessage.reauthRequired))
+        }
+        #expect(QwenWebsiteQuotaParser.failureStatus(in: Data("用量加载失败，请稍后重试".utf8)) == .message(AccountQuotaMessage.queryFailed))
+        #expect(QwenWebsiteQuotaParser.failureStatus(in: Data("Individual Plan\nLoading...\nLog in\nPlan expired documentation".utf8)) == nil)
+    }
+
+    @Test
     func testParsesKimiZhipuAndDeepSeekBodiesWithoutKeepingRawText() {
         let kimi = CCSwitchQuotaParsers.parseKimi(Data(#"""
         {"limits":[{"detail":{"limit":100,"remaining":100,"resetTime":"2026-09-22T08:37:00Z"}}],"usage":{"limit":200,"remaining":50,"resetTime":1760000000}}
@@ -2076,6 +2104,25 @@ struct AccountQuotaClientTests {
                 resetsAt: nil
             ))))
     }
+
+    @Test
+    func testConnectedQwenQueryFailureDoesNotAskToConnectAgain() async throws {
+        let client = AccountQuotaClient(qwenQuotaSource: FixedQwenQuotaSource(
+            data: nil, fallback: .message(AccountQuotaMessage.queryFailed)))
+        let chips = try await client.refresh(targets: [quotaTarget(id: "qwen", name: "Qwen", kind: .qwen, key: "unused")])
+        #expect(chips.first?.status == .message(AccountQuotaMessage.queryFailed))
+    }
+
+    @Test
+    func testQwenWebsiteDistinguishesLoggedInWithoutPlanFromExpiredLogin() async throws {
+        for text in ["No Individual Plan", "You are currently not logged in. Log in to access all services."] {
+            let data = Data(text.utf8)
+            let client = AccountQuotaClient(qwenQuotaSource: FixedQwenQuotaSource(data: data))
+            let chips = try await client.refresh(targets: [quotaTarget(id: "qwen", name: "Qwen", kind: .qwen, key: "unused")])
+            #expect(chips.first?.status == QwenWebsiteQuotaParser.failureStatus(in: data))
+            #expect(chips.first?.status != .note(text: AccountQuotaMessage.connectOfficial, help: AccountQuotaMessage.connectOfficialHelp))
+        }
+    }
 }
 
 struct CCSwitchProviderStoreTests {
@@ -2349,8 +2396,10 @@ private final class ScriptedQuotaTransport: AccountQuotaTransport, @unchecked Se
 
 private struct FixedQwenQuotaSource: QwenQuotaSource {
     let data: Data?
+    var fallback: AccountQuotaChip.Status = .note(text: AccountQuotaMessage.connectOfficial, help: AccountQuotaMessage.connectOfficialHelp)
 
     func loadSummary() async -> Data? { data }
+    func unavailableStatus() async -> AccountQuotaChip.Status { fallback }
 }
 
 private func record(

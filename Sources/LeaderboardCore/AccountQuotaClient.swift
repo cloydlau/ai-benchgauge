@@ -277,7 +277,10 @@ public actor AccountQuotaClient {
                 return .qwenWebsite(website)
             }
             return QwenPlanQuotaParser.parse(data).map(AccountQuotaChip.Status.qwenPlan)
+                ?? QwenWebsiteQuotaParser.failureStatus(in: data)
         }
+        let qwenFallback = resolvedQwenStatus == nil && !qwenTargets.isEmpty
+            ? await qwenQuotaSource.unavailableStatus() : nil
         let qwenChips = qwenTargets.map { target in
             AccountQuotaChip(
                 id: target.id,
@@ -286,11 +289,7 @@ public actor AccountQuotaClient {
                 websiteURL: target.websiteURL,
                 kind: target.kind,
                 isCurrent: target.isCurrent,
-                status: resolvedQwenStatus
-                    ?? .note(
-                        text: AccountQuotaMessage.connectOfficial,
-                        help: AccountQuotaMessage.connectOfficialHelp
-                    )
+                status: resolvedQwenStatus ?? qwenFallback ?? .message(AccountQuotaMessage.queryFailed)
             )
         }
         let resolvedOfficial = try await officialChips

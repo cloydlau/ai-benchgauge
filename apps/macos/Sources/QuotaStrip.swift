@@ -46,10 +46,10 @@ struct QuotaStrip: View {
 
     private func needsQwenConnection(_ chip: AccountQuotaChip) -> Bool {
         guard chip.kind == .qwen else { return false }
-        if case let .note(text, _) = chip.status, text == AccountQuotaMessage.connectOfficial {
-            return true
+        switch chip.status {
+        case .note, .message: return true
+        case .pending, .windows, .balances, .qwenPlan, .qwenWebsite: return false
         }
-        return false
     }
 }
 

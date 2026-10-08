@@ -73,6 +73,26 @@ public enum QwenWebsiteQuotaParser {
         return QwenWebsiteQuota(periodLabel: selected.periodLabel, remainingPercent: selected.remainingPercent, resetsAt: selected.resetsAt, expiresAt: expiry)
     }
 
+    /// Only fixed, rendered site messages determine failures. Missing quota
+    /// text alone is never evidence that the account is signed out.
+    public static func failureStatus(in data: Data) -> AccountQuotaChip.Status? {
+        guard let text = String(data: data, encoding: .utf8) else { return nil }
+        let lines = Set(text.components(separatedBy: .newlines).map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
+        })
+        if !lines.isDisjoint(with: ["您当前还未登录，登录后可使用完整服务",
+                                   "You are currently not logged in. Log in to access all services."]) {
+            return .message(AccountQuotaMessage.reauthRequired)
+        }
+        if !lines.isDisjoint(with: ["暂无个人版套餐", "套餐已失效", "No Individual Plan", "Plan expired"]) {
+            return .note(text: AccountQuotaMessage.qwenNoPlan, help: AccountQuotaMessage.qwenNoPlanHelp)
+        }
+        if !lines.isDisjoint(with: ["用量加载失败，请稍后重试", "Failed to load usage. Please try again later."]) {
+            return .message(AccountQuotaMessage.queryFailed)
+        }
+        return nil
+    }
+
     /// Stores parsed fields only; authenticated page text is never saved.
     public static func persistedData(for quota: QwenWebsiteQuota, capturedAt: Date = Date()) -> Data? {
         try? JSONEncoder().encode(StoredQuota(version: 2, periodLabel: quota.periodLabel,

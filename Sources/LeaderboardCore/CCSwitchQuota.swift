@@ -119,6 +119,8 @@ public enum AccountQuotaMessage {
     public static let autoRenewing = "自动续费"
     public static let connectOfficial = "未连接"
     public static let connectOfficialHelp = "只显示千问账号套餐剩余，多设备共用，不统计本机请求"
+    public static let qwenNoPlan = "未订购"
+    public static let qwenNoPlanHelp = "千问官网未显示有效个人版套餐；请检查套餐与登录账号。"
 }
 
 public enum ParsedQuotaDateSource: String, Codable, Sendable {
