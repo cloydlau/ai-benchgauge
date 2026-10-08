@@ -95,7 +95,7 @@ public struct CCSwitchQuotaTarget: Equatable, Sendable, Identifiable {
 public enum AccountQuotaMessage {
     public static let querying = "查询中"
     public static let queryFailed = "查询失败"
-    public static let reauthRequired = "需要重新登录"
+    public static let reauthRequired = "登录失效"
     public static let notConfigured = "未配置"
     public static let notConfiguredHelp = "没有可用的 API Key 或供应商令牌，未发起查询"
     public static let notLoggedIn = "未登录"

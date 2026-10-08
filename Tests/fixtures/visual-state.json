@@ -1411,7 +1411,7 @@
         "connection": null,
         "runs": [
           {
-            "text": "需要重新登录",
+            "text": "登录失效",
             "light": "#666666",
             "dark": "#AAAAAA"
           }
@@ -1522,7 +1522,7 @@
         "connection": null,
         "runs": [
           {
-            "text": "需要重新登录",
+            "text": "登录失效",
             "light": "#666666",
             "dark": "#AAAAAA"
           }
@@ -2169,7 +2169,7 @@
         "connection": null,
         "runs": [
           {
-            "text": "需要重新登录",
+            "text": "登录失效",
             "light": "#666666",
             "dark": "#AAAAAA"
           }

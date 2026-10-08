@@ -95,7 +95,7 @@ CC Switch 优先读取：兼容其本地数据库的不同应用配置、启用�
 Kimi 同时读取 OpenCode 的 `options.apiKey` / `options.baseURL` 和 Codex 配置。
 同一 Key 在不同工具中只显示一次，优先保留当前供应商的模型与标识；不同 Key 保留独立条目，
 并标注 OpenCode / Codex 等来源。有配置 Key 时，自动发现的 Kimi CLI OAuth 仅作为备用来源，
-不会再额外列出旧登录；没有 Key 的条目可复用本地登录，避免“未配置”和“需要重新登录”并列。
+不会再额外列出旧登录；没有 Key 的条目可复用本地登录，避免“未配置”和“登录失效”并列。
 API Key 查询不需要 OAuth 保活。Kimi 官方 CLI 使用 refresh token 自动续期；本应用继续只读
 其登录文件，不与官方客户端并发轮换令牌。
 
@@ -118,7 +118,7 @@ DeepSeek、StepFun、Black Forest Labs、Luma 的按量类型由供应商决定�
 分组；其他明确返回余额的来源也归入按量组。组内相同日期或没有日期时保持原始顺序，
 当前供应商不额外置顶。Mac 卡片与 Windows 引擎投影共用同一排序函数。
 
-Claude、Gemini、Kimi 的官方 OAuth 登录只读，续期由官方客户端负责；过期时显示需要重新登录。
+Claude、Gemini、Kimi 的官方 OAuth 登录只读，续期由官方客户端负责；过期时显示登录失效。
 Gemini Code Assist 不代表 Google 图片／视频计费，MiniMax Coding Plan 不代表海螺视频额度，
 Luma API 不代表 Dream Machine 网页订阅。卡片和添加表单明确显示查询范围。
 手动添加的 Key 保存在独立本地账号文件，macOS 写入前即设置 0600 权限，Windows 继承
