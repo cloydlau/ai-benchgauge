@@ -19,7 +19,7 @@ enum NativeVisualCapture {
         let balances: [Balance]?
     }
     struct State: Decodable { let boards: [Board]; let quotas: [Quota]; let quotaUpdatedAt: String? }
-    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String?; let codexModel: String?; let codexProvider: String?; let codexBaseURL: String?; let taskCounts: CodexTaskCounts?; let refreshedTaskCounts: CodexTaskCounts? }
+    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String?; let codexModel: String?; let codexProvider: String?; let codexBaseURL: String?; let taskCounts: CodexTaskCounts?; let refreshedTaskCounts: CodexTaskCounts?; let codexDesktopRunning: Bool?; let refreshedCodexDesktopRunning: Bool? }
     struct Fixture: Decodable { let state: State; let cases: [Case]; let quotaScenarios: [String: [Quota]]? }
 
     static func run() async throws {
@@ -109,7 +109,8 @@ enum NativeVisualCapture {
                             CCSwitchQuotaTarget(id: value.id, shortName: value.shortName, modelName: value.modelName,
                                 websiteURL: nil, kind: value.kind, isCurrent: value.isCurrent, apiKey: nil,
                                 baseURL: (fixture.quotaScenarios?[test.scenario] ?? fixture.state.quotas).first { $0.id == value.id }?.baseURL)
-                        }, taskCounts: refreshed ? (test.refreshedTaskCounts ?? test.taskCounts) : test.taskCounts)
+                        }, taskCounts: refreshed ? (test.refreshedTaskCounts ?? test.taskCounts) : test.taskCounts,
+                        codexDesktopRunning: refreshed ? (test.refreshedCodexDesktopRunning ?? test.codexDesktopRunning ?? true) : (test.codexDesktopRunning ?? true))
                 }
                 apply()
                 if test.scenario.hasPrefix("menuBar") {
@@ -122,10 +123,20 @@ enum NativeVisualCapture {
                         throw CaptureError.blankFrame(test.id)
                     }
                     button.appearance = NSAppearance(named: theme == "dark" ? .darkAqua : .aqua)
+                    var statusLabels = [String]()
+                    var statusHelp = [String]()
                     for frame in 0..<3 {
                         if frame == 1 { apply(refreshed: true) }
                         try await Task.sleep(for: .milliseconds(300))
                         _ = controller.visualStatusButton(width: CGFloat(test.width))
+                        let label = button.attributedTitle.string
+                        let help = button.toolTip ?? ""
+                        guard label.contains("▶") == state.codexDesktopRunning,
+                              state.codexDesktopRunning || !help.contains("Codex") else {
+                            throw CaptureError.blankFrame("\(test.id): incorrect task-block visibility")
+                        }
+                        statusLabels.append(label)
+                        statusHelp.append(help)
                         guard let png = PanelScreenshot.captureForm(view: button, minimumVariety: 1) else {
                             throw CaptureError.blankFrame(test.id)
                         }
@@ -136,6 +147,8 @@ enum NativeVisualCapture {
                         "timezone": TimeZone.current.identifier,
                         "sourceCommit": ProcessInfo.processInfo.environment["GITHUB_SHA"] ?? "local-uncommitted",
                         "backingScale": String(describing: button.window?.backingScaleFactor ?? 1),
+                        "shownStatusLabel": statusLabels[0], "refreshedStatusLabel": statusLabels[1], "settledStatusLabel": statusLabels[2],
+                        "shownStatusHelp": statusHelp[0], "refreshedStatusHelp": statusHelp[1], "settledStatusHelp": statusHelp[2],
                         "capture": "native-status-button", "os": ProcessInfo.processInfo.operatingSystemVersionString])
                     continue
                 }

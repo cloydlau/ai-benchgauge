@@ -1,0 +1,167 @@
+{
+  "state": {
+    "boards": [],
+    "quotas": []
+  },
+  "quotaScenarios": {
+    "menuBarPresence": [
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "modelName": "gpt-6.1-sol",
+        "runs": [],
+        "status": null,
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 25
+          },
+          {
+            "name": "seven_day",
+            "utilization": 60
+          }
+        ]
+      }
+    ],
+    "menuBarPresenceIconOnly": []
+  },
+  "cases": [
+    {
+      "id": "not-installed-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPresence",
+      "codexDesktopRunning": false,
+      "taskCounts": null
+    },
+    {
+      "id": "not-installed-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPresence",
+      "codexDesktopRunning": false,
+      "taskCounts": null
+    },
+    {
+      "id": "stopped-zero-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPresence",
+      "codexDesktopRunning": false,
+      "taskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 0
+      }
+    },
+    {
+      "id": "stopped-zero-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPresence",
+      "codexDesktopRunning": false,
+      "taskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 0
+      }
+    },
+    {
+      "id": "terminated-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPresence",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 3,
+        "unread": 1,
+        "failed": 2
+      },
+      "refreshedCodexDesktopRunning": false
+    },
+    {
+      "id": "terminated-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPresence",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 3,
+        "unread": 1,
+        "failed": 2
+      },
+      "refreshedCodexDesktopRunning": false
+    },
+    {
+      "id": "started-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPresence",
+      "codexDesktopRunning": false,
+      "taskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 0
+      },
+      "refreshedCodexDesktopRunning": true
+    },
+    {
+      "id": "started-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPresence",
+      "codexDesktopRunning": false,
+      "taskCounts": {
+        "running": 0,
+        "unread": 0,
+        "failed": 0
+      },
+      "refreshedCodexDesktopRunning": true
+    },
+    {
+      "id": "running-unavailable-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPresence",
+      "codexDesktopRunning": true,
+      "taskCounts": null
+    },
+    {
+      "id": "running-unavailable-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPresence",
+      "codexDesktopRunning": true,
+      "taskCounts": null
+    },
+    {
+      "id": "icon-only-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPresenceIconOnly",
+      "codexDesktopRunning": false,
+      "taskCounts": null
+    },
+    {
+      "id": "icon-only-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPresenceIconOnly",
+      "codexDesktopRunning": false,
+      "taskCounts": null
+    }
+  ]
+}

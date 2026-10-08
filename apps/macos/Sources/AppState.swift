@@ -81,6 +81,7 @@ final class AppState: ObservableObject {
     /// moment instead of waiting for the slower background cadence.
     @Published private(set) var currentCodexModelConfiguration: CodexModelConfiguration?
     @Published private(set) var codexTaskCounts: CodexTaskCounts?
+    @Published private(set) var codexDesktopRunning = false
     private let codexTaskMonitor = CodexTaskMonitor()
     private var codexTaskRefresh: Task<Void, Never>?
     private var codexTaskWorkspaceObservers: [NSObjectProtocol] = []
@@ -163,9 +164,11 @@ final class AppState: ObservableObject {
         }
         selectedCategory = CategoryPreference.load()
         selectedGrouping = GroupingPreference.load()
+        codexDesktopRunning = isCodexRunning
     }
 
     func start() {
+        updateCodexDesktopPresence(isCodexRunning)
         let notifications = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification] {
             codexTaskWorkspaceObservers.append(notifications.addObserver(forName: name, object: nil, queue: .main) { [weak self] notification in
@@ -176,6 +179,7 @@ final class AppState: ObservableObject {
                     let running = NSWorkspace.shared.runningApplications.contains {
                         !$0.isTerminated && QuotaAutoRefreshPolicy.isCodexBundleIdentifier($0.bundleIdentifier)
                     }
+                    self.updateCodexDesktopPresence(running)
                     await self.codexTaskMonitor.setDesktopRunning(running)
                 }
             })
@@ -185,7 +189,9 @@ final class AppState: ObservableObject {
             let updates = await monitor.updates(desktopRunning: self?.isCodexRunning ?? false)
             for await counts in updates {
                 guard !Task.isCancelled else { break }
-                if self?.codexTaskCounts != counts { self?.codexTaskCounts = counts }
+                guard let self else { break }
+                let visibleCounts = self.codexDesktopRunning ? counts : nil
+                if self.codexTaskCounts != visibleCounts { self.codexTaskCounts = visibleCounts }
             }
             await monitor.stop()
         }
@@ -203,12 +209,14 @@ final class AppState: ObservableObject {
     func applyVisualFixture(snapshot: LeaderboardSnapshot, chips: [AccountQuotaChip],
                             language: AppLanguage, errors: [LeaderboardKind: String],
                             emptyState: CCSwitchState?, panelMode: PanelMode = .clickToClose, quotaUpdatedAt: Date? = nil, quotaUnavailable: Bool = false,
-                            modelConfiguration: CodexModelConfiguration? = nil, targets: [CCSwitchQuotaTarget] = [], taskCounts: CodexTaskCounts? = nil) {
+                            modelConfiguration: CodexModelConfiguration? = nil, targets: [CCSwitchQuotaTarget] = [], taskCounts: CodexTaskCounts? = nil,
+                            codexDesktopRunning: Bool = true) {
         self.snapshot = snapshot
         self.quotaUpdatedAt = quotaUpdatedAt
         self.quotaUnavailable = quotaUnavailable
         quotaChips = chips
         codexTaskCounts = taskCounts
+        self.codexDesktopRunning = codexDesktopRunning
         currentCodexModelConfiguration = modelConfiguration
         quotaTargetsByID = Dictionary(uniqueKeysWithValues: targets.map { ($0.id, $0) })
         selectedLanguage = language
@@ -387,6 +395,7 @@ final class AppState: ObservableObject {
         // Workspace notifications can be missed during app startup. Recheck
         // cheap process metadata here; the monitor ignores unchanged values.
         let desktopRunning = isCodexRunning
+        updateCodexDesktopPresence(desktopRunning)
         Task { [weak self] in await self?.codexTaskMonitor.setDesktopRunning(desktopRunning) }
         refreshCurrentModelName()
         refreshQuotaSelectionIfChanged()
@@ -449,8 +458,13 @@ final class AppState: ObservableObject {
     /// is open for the user.
     private var isCodexRunning: Bool {
         NSWorkspace.shared.runningApplications.contains {
-            QuotaAutoRefreshPolicy.isCodexBundleIdentifier($0.bundleIdentifier)
+            !$0.isTerminated && QuotaAutoRefreshPolicy.isCodexBundleIdentifier($0.bundleIdentifier)
         }
+    }
+
+    private func updateCodexDesktopPresence(_ running: Bool) {
+        if codexDesktopRunning != running { codexDesktopRunning = running }
+        if !running, codexTaskCounts != nil { codexTaskCounts = nil }
     }
 
     /// CGEventSource reports event timing without exposing event contents and
