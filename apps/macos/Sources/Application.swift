@@ -188,6 +188,23 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
         }
     }
 
+    #if DEBUG
+    /// Capture the production status button using public fixture data only.
+    func visualStatusButton(width: CGFloat) -> NSStatusBarButton? {
+        statusItem.length = width
+        updateStatusItem()
+        return statusItem.button
+    }
+
+    func finishVisualStatusCapture() {
+        NSStatusBar.system.removeStatusItem(statusItem)
+        if let appActivationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(appActivationObserver)
+        }
+        NotificationCenter.default.removeObserver(self)
+    }
+    #endif
+
     /// Reads the projection instead of re-deriving one, so the item can never
     /// hold an amount older than the chip the panel is showing.
     private func updateStatusItem() {
@@ -197,8 +214,9 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
             setStatusItemLabel(button, label: nil)
             return
         }
-        setStatusItemLabel(button, label: "\(quota.name) · \(quota.quota)")
-        button.toolTip = "AI BenchGauge · \(quota.fullName) · \(quota.quota)"
+        let quotaText = state.selectedLanguage.quotaText(quota.quota)
+        setStatusItemLabel(button, label: "\(quota.name) · \(quotaText)")
+        button.toolTip = "AI BenchGauge · \(quota.fullName) · \(quotaText)"
     }
 
     /// AppKit centers `button.image` in the status item but lays the title out on

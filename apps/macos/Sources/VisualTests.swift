@@ -14,7 +14,7 @@ enum NativeVisualCapture {
         struct Run: Decodable { let text: String }
         struct Balance: Decodable { let currency: String; let amount: Double }
         struct Window: Decodable { let name: String; let utilization: Double; let resetsAt: String?; let dateSource: ParsedQuotaDateSource? }
-        let id: String; let name: String; let isCurrent: Bool; let runs: [Run]; let status: String?
+        let id: String; let name: String; let isCurrent: Bool; let runs: [Run]; let status: String?; let modelName: String?
         let windows: [Window]?
         let balances: [Balance]?
     }
@@ -63,7 +63,7 @@ enum NativeVisualCapture {
                     status = .windows([ParsedQuotaWindow(name: "seven_day", utilization: 100 - percent, resetsAt: nil)])
                 }
             }
-            return AccountQuotaChip(id: quota.id, shortName: quota.name, websiteURL: nil,
+            return AccountQuotaChip(id: quota.id, shortName: quota.name, modelName: quota.modelName, websiteURL: nil,
                 kind: kinds[quota.name] ?? .kimi, isCurrent: quota.isCurrent, status: status)
         }
         let chips = fixture.state.quotas.map(chip)
@@ -99,6 +99,33 @@ enum NativeVisualCapture {
                         panelMode: test.scenario == "window" ? .window : .clickToClose, quotaUpdatedAt: quotaDate, quotaUnavailable: stale)
                 }
                 apply()
+                if test.scenario.hasPrefix("menuBar") {
+                    let controller = StatusBarController(state: state)
+                    defer {
+                        controller.finishVisualStatusCapture()
+                        defaults.removePersistentDomain(forName: defaultsName)
+                    }
+                    guard let button = controller.visualStatusButton(width: CGFloat(test.width)) else {
+                        throw CaptureError.blankFrame(test.id)
+                    }
+                    button.appearance = NSAppearance(named: theme == "dark" ? .darkAqua : .aqua)
+                    for frame in 0..<3 {
+                        if frame == 1 { apply() }
+                        try await Task.sleep(for: .milliseconds(300))
+                        _ = controller.visualStatusButton(width: CGFloat(test.width))
+                        guard let png = PanelScreenshot.captureForm(view: button, minimumVariety: 1) else {
+                            throw CaptureError.blankFrame(test.id)
+                        }
+                        try png.write(to: output.appending(path: "\(test.id)-\(theme)-frame-\(frame).png"))
+                    }
+                    metadata.append(["id": test.id, "theme": theme, "width": String(test.width),
+                        "height": String(describing: button.bounds.height), "fixtureHash": fixtureHash,
+                        "timezone": TimeZone.current.identifier,
+                        "sourceCommit": ProcessInfo.processInfo.environment["GITHUB_SHA"] ?? "local-uncommitted",
+                        "backingScale": String(describing: button.window?.backingScaleFactor ?? 1),
+                        "capture": "native-status-button", "os": ProcessInfo.processInfo.operatingSystemVersionString])
+                    continue
+                }
                 let size = NSSize(width: test.width, height: test.height)
                 let isClaudeConsentAlert = test.scenario == "claudeKeychainConsentAlert"
                 let view = test.scenario == "addModelDialog"
