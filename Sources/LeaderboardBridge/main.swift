@@ -184,6 +184,13 @@ actor Engine {
                 let byID = Dictionary(uniqueKeysWithValues: refreshed.map { ($0.id, $0) })
                 chips = chips.map { byID[$0.id] ?? $0 }
                 quotaUpdatedAt = QuotaFreshness.updatedAt(afterRefreshing: refreshed, previous: quotaUpdatedAt, now: Date())
+            case "keepAliveXAI":
+                let authURL = CCSwitchProviderStore.resolveInstall().xaiAuthURL
+                if Self.selectedXAIAuthAccountID(at: authURL) != nil {
+                    if client == nil { client = AccountQuotaClient(officialQuotaSource: official) }
+                    await refreshXAIKeepAliveIfDue(authFileURL: authURL)
+                }
+                return Response(id: request.id)
             case "refreshBoards": await refreshBoards(category)
             case "refreshQuotas", "refreshCurrentQuota":
                 try await refreshQuotas(onlyCurrent: request.command == "refreshCurrentQuota")

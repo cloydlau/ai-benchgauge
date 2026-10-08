@@ -100,6 +100,7 @@ final class AppState: ObservableObject {
     private var updateTimer: Timer?
     private var refreshTask: Task<Void, Never>?
     private var quotaTask: Task<Void, Never>?
+    private var xaiKeepAliveTask: Task<Void, Never>?
     private var refreshPending = false
     private var lastLeaderboardAttemptAtByCategory: [LeaderboardCategory: Date] = [:]
     private var lastQuotaAttemptAt: Date?
@@ -161,6 +162,7 @@ final class AppState: ObservableObject {
     func start() {
         refreshNow()
         refreshQuotas(minimumInterval: 0)
+        startXAIKeepAliveIfNeeded()
         lastCheckedQuotaProviderID = currentQuotaProviderSelection()
         startTimer()
     }
@@ -276,6 +278,8 @@ final class AppState: ObservableObject {
         quotaTask?.cancel()
         quotaTask = nil
         quotaGeneration += 1
+        xaiKeepAliveTask?.cancel()
+        xaiKeepAliveTask = nil
         return true
     }
 
@@ -344,6 +348,7 @@ final class AppState: ObservableObject {
         guard !isQuitting else { return }
         refreshCurrentModelName()
         refreshQuotaSelectionIfChanged()
+        startXAIKeepAliveIfNeeded()
         if QuotaAutoRefreshPolicy.shouldRefreshAutomatically(
             now: Date(),
             lastAttemptAt: lastQuotaAttemptAt,
@@ -544,7 +549,7 @@ final class AppState: ObservableObject {
                     return
                 }
                 if targets.contains(where: { $0.kind == .xaiOAuth }) {
-                    await self.refreshXAIKeepAliveIfDue(authFileURL: loaded.xaiAuthURL)
+                    self.startXAIKeepAliveIfNeeded()
                 } else {
                     self.xaiKeepAliveAccountID = nil
                     self.nextXAIKeepAliveAt = nil
@@ -617,8 +622,21 @@ final class AppState: ObservableObject {
     }
 
     /// Forces a refresh-token exchange rather than relying on a quota request.
-    /// xAI does not publish the login lifetime, so this uses the observed
-    /// seven-day boundary minus a safety margin.
+    /// Runs while the panel is hidden or Codex/user activity is idle. This task
+    /// is separate from quotaTask so ordinary quota refresh cancellation cannot
+    /// postpone renewal or interrupt saving a rotated token.
+    private func startXAIKeepAliveIfNeeded() {
+        guard !isQuitting, configuration.previewCCSwitchState == nil,
+              xaiKeepAliveTask == nil else { return }
+        let authURL = CCSwitchProviderStore.resolveInstall().xaiAuthURL
+        guard Self.selectedXAIAuthAccountID(at: authURL) != nil else { return }
+        xaiKeepAliveTask = Task { [weak self] in
+            guard let self else { return }
+            defer { self.xaiKeepAliveTask = nil }
+            await self.refreshXAIKeepAliveIfDue(authFileURL: authURL)
+        }
+    }
+
     private func refreshXAIKeepAliveIfDue(authFileURL: URL) async {
         guard !isXAIKeepAliveRefreshing else { return }
         let accountID = Self.selectedXAIAuthAccountID(at: authFileURL)
