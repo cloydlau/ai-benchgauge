@@ -50,15 +50,54 @@ public struct CodexModelConfiguration: Equatable, Sendable {
         return Self(model: model, provider: provider, baseURL: provider.flatMap { urls[$0] })
     }
 
+    /// Resolve the active quota source from live routing metadata, not a stale
+    /// CC Switch selection. A loopback proxy hides its upstream URL, so only an
+    /// exact, unique saved model match may identify the account behind it.
+    public func selectingCurrentTarget(in targets: [CCSwitchQuotaTarget]) -> [CCSwitchQuotaTarget] {
+        let matches = targets.filter { matchesRoute(to: $0) }
+        let selected: CCSwitchQuotaTarget?
+        if isLoopbackProxy {
+            selected = matches.count == 1 ? matches.first : nil
+        } else {
+            let current = matches.filter(\.isCurrent)
+            selected = current.count == 1 ? current.first : matches.count == 1 ? matches.first : nil
+        }
+        return targets.map { target in
+            CCSwitchQuotaTarget(id: target.id, shortName: target.shortName, modelName: target.modelName,
+                websiteURL: target.websiteURL, kind: target.kind, isCurrent: target.id == selected?.id,
+                apiKey: target.apiKey, baseURL: target.baseURL, accessToken: target.accessToken, accountID: target.accountID)
+        }
+    }
+
+    /// Project both the model label and its account's quota together. If the
+    /// route is ambiguous/unknown, retain the live model without another
+    /// provider's amount. Query credentials are never replaced here.
+    public func menuBarText(for chips: [AccountQuotaChip], targets: [CCSwitchQuotaTarget]) -> AccountQuotaMenuBarText? {
+        let selectedID = selectingCurrentTarget(in: targets).first(where: \.isCurrent)?.id
+        let display = chips.map { chip in
+            AccountQuotaChip(id: chip.id, shortName: chip.shortName, modelName: chip.modelName,
+                websiteURL: chip.websiteURL, kind: chip.kind, isCurrent: chip.id == selectedID,
+                status: chip.status, isStale: chip.isStale)
+        }
+        return AccountQuotaFormatting.menuBarText(forChips: display, currentModelName: model)
+    }
+
     /// A live OpenAI model must not rename a Kimi/Grok/GLM provider, or vice versa.
     public func modelName(matching target: CCSwitchQuotaTarget) -> String? {
-        guard target.isCurrent else { return nil }
-        if provider == nil || provider == "openai" {
-            return target.kind == .officialNote ? model : nil
-        }
-        guard target.kind != .officialNote, let baseURL, let targetURL = target.baseURL,
-              normalizedURL(baseURL) == normalizedURL(targetURL) else { return nil }
-        return model
+        target.isCurrent && matchesRoute(to: target) ? model : nil
+    }
+
+    private var isLoopbackProxy: Bool {
+        guard provider != nil, provider != "openai", let baseURL, let url = URL(string: baseURL),
+              ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return false }
+        return ["localhost", "127.0.0.1", "[::1]", "::1"].contains(url.host?.lowercased() ?? "")
+    }
+
+    private func matchesRoute(to target: CCSwitchQuotaTarget) -> Bool {
+        if provider == nil || provider == "openai" { return target.kind == .officialNote }
+        if isLoopbackProxy { return target.modelName == model }
+        guard target.kind != .officialNote, let baseURL, let targetURL = target.baseURL else { return false }
+        return normalizedURL(baseURL) == normalizedURL(targetURL)
     }
 
     private func normalizedURL(_ value: String) -> String {

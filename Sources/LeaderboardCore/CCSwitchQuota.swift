@@ -261,13 +261,20 @@ public enum AccountQuotaFormatting {
     /// Both surfaces read one snapshot, so a refresh that reaches the panel
     /// reaches the menu bar in the same instant instead of waiting for the
     /// slower background cadence. Keep the model visible with its query state
-    /// when no amount is available. Nil only when there is no current chip.
+    /// when no amount is available. Nil only when neither an active model nor
+    /// a current chip is known.
     public static func menuBarText(
         forChips chips: [AccountQuotaChip],
         maximumNameLength: Int = 24,
         currentModelName: String? = nil
     ) -> AccountQuotaMenuBarText? {
-        guard let current = chips.first(where: \.isCurrent) else { return nil }
+        guard let current = chips.first(where: \.isCurrent) else {
+            guard let fullName = currentModelName?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !fullName.isEmpty else { return nil }
+            let name = fullName.count > maximumNameLength
+                ? String(fullName.prefix(maximumNameLength - 1)) + "…" : fullName
+            return AccountQuotaMenuBarText(name: name, fullName: fullName, quota: AccountQuotaMessage.queryFailed)
+        }
         let quota: String
         if let amount = compactMenuBarQuota(for: current) {
             quota = amount

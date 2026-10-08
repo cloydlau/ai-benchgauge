@@ -81,9 +81,10 @@ final class AppState: ObservableObject {
     /// moment instead of waiting for the slower background cadence.
     @Published private(set) var currentCodexModelConfiguration: CodexModelConfiguration?
     var menuBarQuota: AccountQuotaMenuBarText? {
-        let target = quotaChips.first(where: \.isCurrent).flatMap { quotaTargetsByID[$0.id] }
-        let model = target.flatMap { currentCodexModelConfiguration?.modelName(matching: $0) }
-        return AccountQuotaFormatting.menuBarText(forChips: quotaChips, currentModelName: model)
+        if let currentCodexModelConfiguration {
+            return currentCodexModelConfiguration.menuBarText(for: quotaChips, targets: Array(quotaTargetsByID.values))
+        }
+        return AccountQuotaFormatting.menuBarText(forChips: quotaChips)
     }
 
     private let fetcher = LeaderboardFetcher()
@@ -112,6 +113,7 @@ final class AppState: ObservableObject {
     /// The current-provider selection this app last reacted to. CC Switch owns
     /// the value and rewrites its tiny settings file on every switch.
     private var lastCheckedQuotaProviderID: String?
+    private var lastCheckedCodexModelConfiguration: CodexModelConfiguration?
     /// Set only for the refresh immediately following an explicit user action;
     /// background reads must never trigger macOS' Keychain authorization UI.
     private var allowsKeychainAuthenticationUI = false
@@ -164,6 +166,7 @@ final class AppState: ObservableObject {
         refreshQuotas(minimumInterval: 0)
         startXAIKeepAliveIfNeeded()
         lastCheckedQuotaProviderID = currentQuotaProviderSelection()
+        lastCheckedCodexModelConfiguration = currentCodexModelConfiguration
         startTimer()
     }
 
@@ -194,8 +197,8 @@ final class AppState: ObservableObject {
     private static let minimumLeaderboardRefreshInterval: TimeInterval = 30 * 60
     private static let inactiveQuotaRefreshInterval: TimeInterval = 60
     /// Automatic menu-bar quota refreshes run only while the Codex desktop
-    /// app is open and the user is active. xAI token renewal rides the same
-    /// quota pass. Explicit interactions and provider switches bypass this
+    /// app is open and the user is active. xAI token renewal runs independently.
+    /// Explicit interactions and provider/model switches bypass this
     /// cadence; see the selection check in tick().
     private static let backgroundQuotaRefreshInterval = QuotaAutoRefreshPolicy.activeInterval
 
@@ -387,8 +390,9 @@ final class AppState: ObservableObject {
     private func refreshQuotaSelectionIfChanged() {
         guard !isQuitting, connectingOpenAIProviderID == nil else { return }
         let selection = currentQuotaProviderSelection()
-        guard selection != lastCheckedQuotaProviderID else { return }
+        guard selection != lastCheckedQuotaProviderID || currentCodexModelConfiguration != lastCheckedCodexModelConfiguration else { return }
         lastCheckedQuotaProviderID = selection
+        lastCheckedCodexModelConfiguration = currentCodexModelConfiguration
         refreshQuotas(
             minimumInterval: 0,
             inactiveMinimumInterval: Self.backgroundQuotaRefreshInterval,
@@ -539,10 +543,11 @@ final class AppState: ObservableObject {
                 self.quotaUnavailable = false
                 self.ccSwitchEmptyState = nil
                 if loaded.shouldAskClaudeKeychainConsent { self.isClaudeKeychainConsentPending = true }
-                let targets = OfficialQuotaDiscovery.merge(
+                let discovered = OfficialQuotaDiscovery.merge(
                     ccSwitch: loaded.ccSwitchTargets,
                     official: loaded.officialTargets
                 )
+                let targets = self.currentCodexModelConfiguration?.selectingCurrentTarget(in: discovered) ?? discovered
                 self.quotaTargetsByID = Dictionary(uniqueKeysWithValues: targets.map { ($0.id, $0) })
                 if targets.contains(where: { $0.kind == .xaiOAuth }) { self.xaiWebsiteSource.refreshIfConnected() }
                 guard !targets.isEmpty else {
