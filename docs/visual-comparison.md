@@ -1,5 +1,15 @@
 # Native visual comparison
 
+## Nonzero menu-bar task counts (2026-10-08)
+
+Mac menu-bar task digits now use semibold orange for running, green for completed unread, and red for errors when positive. Dynamic colors adapt to the native light/dark appearance. Zero and unavailable counts keep their default text appearance; zero errors and the entire task block when Codex is closed remain hidden. Each update rebuilds the attributed title so a count returning to zero loses its highlight.
+
+`Tests/fixtures/codex-task-colors.json` covers zero, each positive count separately, all positive counts, unavailable counts and Codex closed in three languages and both appearances. Running/unread/error scenarios refresh to zero. Ignored `work/codex-task-colors/` preserves 126 original before and 126 after native status-button frames and `review.json`. Fixture SHA-256: `c4640d19e461d15dd4c382e453ee72bf8beb3d40fb59bb90f8334244355121b8`; actual macOS 27.0 (26A428), 1× backing scale, local-source captures. Content width is 420 points; native text buttons are 22 points high and icon-only buttons retain their intrinsic 31-point capture height. The baseline uses the saved pre-change native bundle; after uses the changed local source.
+
+All 42 groups per phase have stable refreshed/settled frames; static states also match their shown frame. Native attributed-title checks verify that only positive digits receive explicit colors, and refreshed zero/unavailable/closed states have no stale highlights. Original-pixel inspection confirms readable digits, symbols and spacing in both appearances. Light differences remain within the centered label, whose width changes slightly with semibold digits. The baseline dark capture flattened white native text against a light background; the capture harness now resolves its dynamic background inside the button's appearance context. Thus dark before/after pixel differences include that capture correction and are not exclusively product changes.
+
+Syntax checks, the full script/Swift/Windows harness test gates and signed local Mac packaging pass; the local application was restarted. Current-change Windows native captures and a source-matched CI artifact are unavailable; this Mac menu-bar change does not claim Windows visual verification or protected release approval.
+
 ## Add-model dismissal (2026-10-08)
 
 The Mac add-model form disabled its Done button while an account request was pending. Done now remains available, Escape closes the sheet, and dismissal explicitly clears the parent presentation state. Closing or leaving the form cancels its owned verification task and clears the key. Cancelled or late results cannot update a reopened form; the account-saving path also checks cancellation after verification before persisting anything.
