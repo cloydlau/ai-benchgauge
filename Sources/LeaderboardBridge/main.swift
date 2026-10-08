@@ -54,6 +54,7 @@ struct Quota: Encodable {
     var id: String; var name: String; var isCurrent: Bool; var isStale: Bool
     var help: String; var url: String?; var canConnect: Bool; var connection: String?; var runs: [Run]
     var accentLight: String?
+    var isDimmed: Bool
 }
 struct Run: Encodable { var text: String; var light: String; var dark: String }
 struct Alert: Encodable { var title: String; var body: String }
@@ -435,7 +436,8 @@ actor Engine {
                     connection: glmAction.map { $0 == .configure ? "glmConfiguration" : "glmRetry" } ?? (chip.kind == .officialNote ? "openai" : (chip.kind == .qwen ? "qwen" : (ccSwitchSignIn ? "ccswitch" : (xaiSubscription ? "xaiSubscription" : nil)))),
                     runs: AccountQuotaFormatting.runs(for: chip, now: now).map { run in
                 Run(text: language.quotaText(run.text), light: color(run.tone, dark: false), dark: color(run.tone, dark: true))
-            }, accentLight: AccountQuotaFormatting.cardColorLevel(for: chip, now: now).map { color(.remaining($0), dark: false) })
+            }, accentLight: AccountQuotaFormatting.cardColorLevel(for: chip, now: now).map { color(.remaining($0), dark: false) },
+                isDimmed: AccountQuotaFormatting.isDimmed(chip))
         }
         let alerts = displayChips.flatMap { QuotaAlerts.alerts(for: $0, now: now) }
         let activeKeys = Set(alerts.flatMap(\.componentKeys))

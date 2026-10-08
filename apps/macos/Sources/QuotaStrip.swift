@@ -1,4 +1,5 @@
 import AppKit
+import CoreImage
 import SwiftUI
 import LeaderboardCore
 
@@ -129,11 +130,14 @@ private struct QuotaChipView: View {
         AccountQuotaFormatting.requiresCCSwitchSignIn(chip)
     }
 
-    /// Any window at zero remaining makes the whole provider unusable, so
-    /// the chip wears the failure, not just the 0% run: red wash,
-    /// struck-through name, and a dimmed monochrome logo.
+    /// Usage-window exhaustion retains its red warning. Unpurchased plans
+    /// and empty wallets use the neutral dimmed presentation below.
     private var isExhausted: Bool {
         AccountQuotaFormatting.isExhausted(chip)
+    }
+
+    private var isDimmed: Bool {
+        AccountQuotaFormatting.isDimmed(chip)
     }
 
     private var chipBody: some View {
@@ -142,19 +146,19 @@ private struct QuotaChipView: View {
         }
         return HStack(spacing: 5) {
             logo
-                .saturation(isExhausted ? 0 : 1)
-                .opacity(isExhausted ? 0.55 : 1)
+                .saturation(isExhausted || isDimmed ? 0 : 1)
+                .opacity(isExhausted || isDimmed ? 0.55 : 1)
             Text(language.providerName(chip.kind) + providerSuffix)
                 .font(.system(size: 11, weight: chip.isCurrent ? .semibold : .medium))
-                .foregroundStyle(isExhausted ? .secondary : .primary)
-                .strikethrough(isExhausted, color: exhaustedAccent)
+                .foregroundStyle(isExhausted || isDimmed ? .secondary : .primary)
+                .strikethrough(isExhausted && !isDimmed, color: exhaustedAccent)
                 .lineLimit(1)
             if isConnectingOpenAI {
                 Text(language.text("Waiting for authorization", "等待授权"))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             } else {
-                QuotaRunsText(runs: runs)
+                QuotaRunsText(runs: runs, dimmed: isDimmed)
             }
         }
         .padding(.horizontal, 7)
@@ -252,8 +256,17 @@ private struct QuotaChipView: View {
         guard let key = OrganizationLogoCatalog.bundledLogoKey(forOrganization: organizationName),
               let resourceURL = Bundle.main.resourceURL else { return nil }
         let url = resourceURL.appending(path: "logos/\(key).png")
-        return NSImage(contentsOf: url)
+        guard let image = NSImage(contentsOf: url) else { return nil }
+        guard isDimmed || isExhausted,
+              let original = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return image }
+        // Rasterize the monochrome mark so native captures and the live view
+        // both render it without depending on a compositing-only color effect.
+        let filtered = CIImage(cgImage: original).applyingFilter("CIColorControls", parameters: [kCIInputSaturationKey: 0])
+        guard let gray = Self.logoImageContext.createCGImage(filtered, from: filtered.extent) else { return image }
+        return NSImage(cgImage: gray, size: image.size)
     }
+
+    private static let logoImageContext = CIContext()
 
     /// "In use" is a status, not a brand. xAI and Z.ai marks are near-black, so a
     /// brand wash disappears into the logo and reads as a clipped icon.
@@ -292,7 +305,9 @@ private struct QuotaChipView: View {
 
     private var chipBackground: some View {
         let fill: Color
-        if let quotaAccent {
+        if isDimmed {
+            fill = Color.primary.opacity(0.04)
+        } else if let quotaAccent {
             fill = quotaAccent.opacity(chip.isCurrent
                 ? (colorScheme == .dark ? 0.20 : 0.12)
                 : (colorScheme == .dark ? 0.12 : 0.06))
@@ -310,7 +325,9 @@ private struct QuotaChipView: View {
     @ViewBuilder
     private var chipStroke: some View {
         if chip.isCurrent {
-            let color = if let quotaAccent {
+            let color = if isDimmed {
+                Color.secondary.opacity(colorScheme == .dark ? 0.45 : 0.30)
+            } else if let quotaAccent {
                 quotaAccent.opacity(colorScheme == .dark ? 0.90 : 0.72)
             } else if isExhausted {
                 exhaustedAccent.opacity(colorScheme == .dark ? 0.95 : 0.80)
@@ -325,6 +342,7 @@ private struct QuotaChipView: View {
 
 private struct QuotaRunsText: View {
     let runs: [QuotaTextRun]
+    var dimmed = false
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -332,7 +350,7 @@ private struct QuotaRunsText: View {
             partial + Text(run.text)
                 .font(.system(size: 11))
                 .monospacedDigit()
-                .foregroundStyle(color(for: run.tone))
+                .foregroundStyle(dimmed ? .secondary : color(for: run.tone))
         }
         .lineLimit(1)
     }

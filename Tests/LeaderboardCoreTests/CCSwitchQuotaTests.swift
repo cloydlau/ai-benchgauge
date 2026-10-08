@@ -784,6 +784,30 @@ struct AccountQuotaFormattingTests {
     }
 
     @Test
+    func testDimsOnlyUnsubscribedPlansAndConfirmedUnfundedWallets() {
+        for kind in [CCSwitchQuotaKind.zhipu, .qwen] {
+            let missing = chip(kind: kind, status: .note(text: AccountQuotaMessage.glmNoCodingPlan, help: ""))
+            #expect(AccountQuotaFormatting.isDimmed(missing))
+            let restored = chip(kind: kind, status: .windows([ParsedQuotaWindow(name: "weekly_limit", utilization: 20, resetsAt: nil)]))
+            #expect(!AccountQuotaFormatting.isDimmed(restored))
+        }
+        for amounts in [[0.0], [-1.0], [0.0, -1.0]] {
+            let empty = chip(kind: .deepseek, isCurrent: true, status: .balances(amounts.map { ParsedBalance(currency: "USD", amount: $0) }))
+            #expect(AccountQuotaFormatting.isDimmed(empty))
+        }
+        for amounts in [[], [Double.nan], [0.0, Double.nan], [0.0, 0.01], [-1.0, 1.0]] {
+            let unknownOrFunded = chip(kind: .deepseek, status: .balances(amounts.map { ParsedBalance(currency: "USD", amount: $0) }))
+            #expect(!AccountQuotaFormatting.isDimmed(unknownOrFunded))
+        }
+        for status in [AccountQuotaChip.Status.pending, .message(AccountQuotaMessage.queryFailed), .message(AccountQuotaMessage.network),
+                       .note(text: AccountQuotaMessage.notConfigured, help: ""),
+                       .windows([ParsedQuotaWindow(name: "weekly_limit", utilization: 100, resetsAt: nil)])] {
+            let other = chip(kind: .zhipu, status: status)
+            #expect(!AccountQuotaFormatting.isDimmed(other))
+        }
+    }
+
+    @Test
     func testSortsWindowsByLatestResetFirst() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let soon = now.addingTimeInterval(3_600)
