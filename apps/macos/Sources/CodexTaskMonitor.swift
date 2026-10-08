@@ -76,6 +76,13 @@ actor CodexTaskMonitor {
     }
 
     func poll(desktopRunning: Bool) -> CodexTaskCounts? {
+        // Every poll changes the state observed by the stream, including early
+        // returns on store failure. Publish it and update the retry cadence
+        // without relying on another filesystem or socket event.
+        defer {
+            publishCurrent()
+            scheduleFallback()
+        }
         #if DEBUG
         let diagnostic = CommandLine.arguments.contains("--codex-task-status")
         if diagnostic && !desktopRunning { FileHandle.standardError.write(Data("Codex desktop is closed\n".utf8)) }
@@ -96,6 +103,9 @@ actor CodexTaskMonitor {
                 Self.logger.error("Task store unavailable: \(reason, privacy: .public)")
                 lastStoreError = reason
             }
+            // Invalidate immediately, before any socket reconciliation work.
+            // Store recovery must not wait for another incoming IPC frame.
+            publishCurrent()
         }
         do {
             let stored = storedTasks
@@ -103,7 +113,7 @@ actor CodexTaskMonitor {
                 guard Date() >= nextConnectAttempt else { return nil }
                 try connect()
             }
-            try drain()
+            try drain(waitForChunks: storeAvailable)
             if clientID != nil, storeAvailable {
                 for id in Set(stored.keys).subtracting(subscriptions) {
                     try follow(id, enabled: true)
