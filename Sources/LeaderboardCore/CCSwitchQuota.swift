@@ -99,8 +99,8 @@ public enum GLMQuotaRecoveryAction: Sendable {
 public enum AccountQuotaMessage {
     public static let querying = "查询中"
     public static let queryFailed = "查询失败"
-    public static let glmNoCodingPlan = "未找到 Coding Plan"
-    public static let glmNoCodingPlanHelp = "当前 GLM Key 对应账号未找到 Coding Plan；请在 CC Switch 检查 GLM Key 与套餐账号。"
+    public static let glmNoCodingPlan = "未订购"
+    public static let glmNoCodingPlanHelp = "套餐可能已过期或未订购；请在 CC Switch 检查 GLM Key 与套餐账号。"
     public static let glmConfigurationHelp = "点击打开 CC Switch，检查 GLM Key 与 Coding Plan 套餐账号；修改后重新打开本面板刷新余量。"
     public static let glmRetryHelp = "点击重新读取 GLM 配置并重试余量查询。"
     public static let reauthRequired = "登录失效"
