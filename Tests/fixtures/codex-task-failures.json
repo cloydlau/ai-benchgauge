@@ -1,0 +1,121 @@
+{
+  "state": {
+    "boards": [],
+    "quotas": []
+  },
+  "quotaScenarios": {
+    "menuBarPresence": [
+      {
+        "id": "openai",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "modelName": "gpt-6.1-sol",
+        "runs": [],
+        "status": null,
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 25
+          },
+          {
+            "name": "seven_day",
+            "utilization": 60
+          }
+        ]
+      }
+    ],
+    "menuBarPresenceIconOnly": []
+  },
+  "cases": [
+    {
+      "id": "error-appears-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPresence",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 1,
+        "unread": 2,
+        "failed": 0
+      },
+      "refreshedTaskCounts": {
+        "running": 1,
+        "unread": 2,
+        "failed": 2
+      }
+    },
+    {
+      "id": "error-appears-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPresence",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 1,
+        "unread": 2,
+        "failed": 0
+      },
+      "refreshedTaskCounts": {
+        "running": 1,
+        "unread": 2,
+        "failed": 2
+      }
+    },
+    {
+      "id": "error-clears-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPresence",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 1,
+        "unread": 2,
+        "failed": 2
+      },
+      "refreshedTaskCounts": {
+        "running": 1,
+        "unread": 2,
+        "failed": 0
+      }
+    },
+    {
+      "id": "error-clears-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPresence",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 1,
+        "unread": 2,
+        "failed": 2
+      },
+      "refreshedTaskCounts": {
+        "running": 1,
+        "unread": 2,
+        "failed": 0
+      }
+    },
+    {
+      "id": "unavailable-en",
+      "language": "en",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPresence",
+      "codexDesktopRunning": true,
+      "taskCounts": null
+    },
+    {
+      "id": "unavailable-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 24,
+      "scenario": "menuBarPresence",
+      "codexDesktopRunning": true,
+      "taskCounts": null
+    }
+  ]
+}
