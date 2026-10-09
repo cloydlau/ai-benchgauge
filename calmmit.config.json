@@ -12,7 +12,8 @@
     "audit": false,
     "secrets": true,
     "media": true,
-    "alint": false
+    "alint": false,
+    "worktrees": true
   },
   "commands": {
     "lint": ["node", "Scripts/check-syntax.mjs"],
