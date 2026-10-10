@@ -146,7 +146,7 @@ struct GrokQuotaTests {
         #expect(AccountQuotaFormatting.plainSummary(for: chip, now: now) == "7d 75% · 至11月18日")
         #expect(AccountQuotaFormatting.requiresXAISubscriptionConnection(chip))
         #expect(AccountQuotaFormatting.help(for: chip, now: now).contains(AccountQuotaMessage.xaiSubscriptionHelp))
-        #expect(!AccountQuotaFormatting.requiresCCSwitchSignIn(chip))
+        #expect(!AccountQuotaFormatting.requiresXAISignIn(chip))
     }
 
     @Test

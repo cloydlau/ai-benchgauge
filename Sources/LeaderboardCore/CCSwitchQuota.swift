@@ -108,9 +108,8 @@ public enum AccountQuotaMessage {
     public static let notConfiguredHelp = "没有可用的 API Key 或供应商令牌，未发起查询"
     public static let notLoggedIn = "未登录"
     public static let notLoggedInHelp = "没有可用的 xAI 登录，未发起查询"
-    /// CC Switch owns the Grok login, so neither `requires_reauth` nor a
-    /// missing auth file can be cleared from a web page.
-    public static let xaiSignInHelp = "Grok 登录在 CC Switch 中完成，请在 CC Switch 中登录"
+    /// Browser device authorization updates the shared CC Switch login.
+    public static let xaiSignInHelp = "点击在浏览器中登录 Grok，授权成功后自动刷新余量"
     public static let xaiSubscriptionHelp = "点击在应用内连接 xAI 套餐；连接后自动查询日期，并核对额度账号"
     public static let network = "网络错误"
     public static let officialSummary = "查询中"
@@ -435,10 +434,8 @@ public enum AccountQuotaFormatting {
         }
     }
 
-    /// CC Switch owns the Grok login, so `requires_reauth` and a missing auth
-    /// file are cleared only by signing in there again. Both surfaces send such
-    /// a chip to CC Switch instead of to the provider's product page.
-    public static func requiresCCSwitchSignIn(_ chip: AccountQuotaChip) -> Bool {
+    /// Missing or expired usage OAuth opens the app's device authorization flow.
+    public static func requiresXAISignIn(_ chip: AccountQuotaChip) -> Bool {
         guard chip.kind == .xaiOAuth else { return false }
         switch chip.status {
         case .message(let text):
@@ -803,7 +800,7 @@ public enum AccountQuotaFormatting {
         // website: that product page has no sign-in entry.
         if let action = glmRecoveryAction(for: chip) {
             lines.append(action == .configure ? AccountQuotaMessage.glmConfigurationHelp : AccountQuotaMessage.glmRetryHelp)
-        } else if requiresCCSwitchSignIn(chip) {
+        } else if requiresXAISignIn(chip) {
             lines.append(AccountQuotaMessage.xaiSignInHelp)
         } else {
             if requiresXAISubscriptionConnection(chip) {

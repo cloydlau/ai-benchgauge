@@ -50,7 +50,7 @@ public extension AppLanguage {
             "正在查询官方用量": "Checking official usage",
             "没有可用的 API Key 或供应商令牌，未发起查询": "No API key or provider token; no query sent",
             "没有可用的 xAI 登录，未发起查询": "No xAI sign-in; no query sent",
-            "Grok 登录在 CC Switch 中完成，请在 CC Switch 中登录": "Grok sign-in is completed in CC Switch; sign in there",
+            "点击在浏览器中登录 Grok，授权成功后自动刷新余量": "Click to sign in to Grok in your browser; quota refreshes automatically after authorization",
             AccountQuotaMessage.xaiSubscriptionHelp: "Click to connect the xAI plan inside the app; dates refresh automatically and are checked against the quota account",
             "只显示千问账号套餐剩余，多设备共用，不统计本机请求": "Shows the Qwen account plan balance shared across devices",
             "当前供应商": "Current provider",

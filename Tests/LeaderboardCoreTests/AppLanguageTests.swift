@@ -41,8 +41,8 @@ struct AppLanguageTests {
         #expect((AppLanguage.traditionalChinese.providerName(.zhipu)) == ("GLM"))
         #expect((AppLanguage.traditionalChinese.text("Screenshot", "截图")) == ("截圖"))
         #expect((AppLanguage.traditionalChinese.quotaText("7天 72% · 截至9月24日2时")) == ("7天 72% · 截至9月24日2時"))
-        #expect((AppLanguage.english.quotaText(AccountQuotaMessage.xaiSignInHelp)) == ("Grok sign-in is completed in CC Switch; sign in there"))
+        #expect((AppLanguage.english.quotaText(AccountQuotaMessage.xaiSignInHelp)) == ("Click to sign in to Grok in your browser; quota refreshes automatically after authorization"))
         #expect((AppLanguage.chinese.quotaText(AccountQuotaMessage.xaiSignInHelp)) == (AccountQuotaMessage.xaiSignInHelp))
-        #expect((AppLanguage.traditionalChinese.quotaText(AccountQuotaMessage.xaiSignInHelp)) == ("Grok 登錄在 CC Switch 中完成，請在 CC Switch 中登錄"))
+        #expect((AppLanguage.traditionalChinese.quotaText(AccountQuotaMessage.xaiSignInHelp)) == ("點擊在瀏覽器中登錄 Grok，授權成功後自動刷新餘量"))
     }
 }

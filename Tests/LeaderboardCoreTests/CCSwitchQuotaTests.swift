@@ -8,6 +8,41 @@ import Testing
 
 struct CCSwitchQuotaCatalogTests {
     @Test
+    func testXAIUsesNewSharedLoginInsteadOfCachedAccessFromTheSameAccount() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "xai-shared-cache-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let authURL = root.appending(path: "xai_oauth_auth.json")
+        try Data(xaiAuthJSON(requiresReauth: false).utf8).write(to: authURL)
+        let transport = ScriptedQuotaTransport { request in
+            switch request.url?.absoluteString {
+            case "https://auth.x.ai/.well-known/openid-configuration":
+                return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(#"{"issuer":"https://auth.x.ai","token_endpoint":"https://auth.x.ai/oauth2/token"}"#.utf8))
+            case "https://auth.x.ai/oauth2/token":
+                let body = String(decoding: request.httpBody ?? Data(), as: UTF8.self)
+                let token = body.contains("refresh_token=fresh-shared-login") ? "new-access" : "old-access"
+                return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data("{\"access_token\":\"\(token)\",\"expires_in\":3600}".utf8))
+            default: return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data())
+            }
+        }
+        let client = AccountQuotaClient(transport: transport, authFileURL: authURL)
+        let target = quotaTarget(id: "xai", name: "xAI", kind: .xaiOAuth, key: nil)
+        _ = try await client.refresh(targets: [target])
+        let before = try Data(contentsOf: authURL)
+        let original = try #require(XaiAuthFile.parse(before).flatMap(XaiAuthFile.selectedAccount))
+        let updated = try #require(XaiAuthFile.replacingRefreshToken(in: before, accountID: original.id,
+            oldToken: original.refreshToken, newToken: "fresh-shared-login"))
+        try updated.write(to: authURL, options: .atomic)
+        _ = try await client.refresh(targets: [target])
+        let requests = transport.requests
+        let refreshes = requests.filter { $0.url?.host == "auth.x.ai" && $0.httpMethod == "POST" }
+        #expect(refreshes.count == 2)
+        let billing = requests.filter { $0.url == XaiEndpointValidator.billingURL }
+        #expect(billing.first?.value(forHTTPHeaderField: "Authorization") == "Bearer old-access")
+        #expect(billing.last?.value(forHTTPHeaderField: "Authorization") == "Bearer new-access")
+    }
+
+    @Test
     func testBuildsVisibleProvidersInCCSwitchOrderAndMarksTheSelectedOneCurrent() {
         let records = [
             record(
@@ -2185,10 +2220,9 @@ struct AccountQuotaClientTests {
         #expect(!(transport.requests.contains { $0.url?.host == "grok.com" }))
     }
 
-    /// CC Switch owns the Grok login, so a login-required chip sends the user
-    /// there. The stored provider website is a product page with no sign-in.
+    /// Login-required chips launch browser device authorization; healthy chips keep their website.
     @Test
-    func testXaiSignInChipsPointAtCCSwitchInsteadOfTheWebsite() {
+    func testXaiSignInChipsLaunchDeviceAuthorizationInsteadOfTheWebsite() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let reauth = chip(kind: .xaiOAuth, status: .message(AccountQuotaMessage.reauthRequired))
         let loggedOut = chip(
@@ -2201,10 +2235,10 @@ struct AccountQuotaClientTests {
         )
         let openAIReauth = chip(kind: .officialNote, status: .message(AccountQuotaMessage.reauthRequired))
 
-        #expect(AccountQuotaFormatting.requiresCCSwitchSignIn(reauth))
-        #expect(AccountQuotaFormatting.requiresCCSwitchSignIn(loggedOut))
-        #expect(!(AccountQuotaFormatting.requiresCCSwitchSignIn(signedIn)))
-        #expect(!(AccountQuotaFormatting.requiresCCSwitchSignIn(openAIReauth)))
+        #expect(AccountQuotaFormatting.requiresXAISignIn(reauth))
+        #expect(AccountQuotaFormatting.requiresXAISignIn(loggedOut))
+        #expect(!(AccountQuotaFormatting.requiresXAISignIn(signedIn)))
+        #expect(!(AccountQuotaFormatting.requiresXAISignIn(openAIReauth)))
 
         let reauthHelp = AccountQuotaFormatting.help(for: reauth, now: now)
         #expect(reauthHelp.contains("登录失效"))

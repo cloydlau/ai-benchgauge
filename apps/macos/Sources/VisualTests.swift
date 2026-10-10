@@ -169,7 +169,9 @@ enum NativeVisualCapture {
                     ? AnyView(OfficialQuotaAccountsView(state: state, onClose: {}, usesVisualFixture: true,
                         visualVerificationPending: test.officialAccountChecking ?? false))
                     : AnyView(LeaderboardView(state: state, maximumWidth: CGFloat(test.width), viewportSize: size, visualVersionText: test.versionText))
-                let host: NSView = test.scenario.hasPrefix("xaiSubscriptionDialog")
+                let host: NSView = test.scenario.hasPrefix("xaiDeviceDialog")
+                    ? XAIAccountConnection().makeContent(language: AppLanguage(rawValue: test.language)!, fixtureState: test.scenario.replacingOccurrences(of: "xaiDeviceDialog-", with: ""))
+                    : test.scenario.hasPrefix("xaiSubscriptionDialog")
                     ? XAIWebsiteSubscriptionSource(defaults: defaults, usesVisualFixture: true).makeContent(language: AppLanguage(rawValue: test.language)!, fixture: true, fixtureState: test.scenario.replacingOccurrences(of: "xaiSubscriptionDialog-", with: ""))
                     : NSHostingView(rootView: view
                     .frame(width: size.width, height: size.height, alignment: .topLeading)
@@ -194,7 +196,7 @@ enum NativeVisualCapture {
                     try await Task.sleep(for: .milliseconds(300))
                     host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
                     let captureView = isClaudeConsentAlert ? window.attachedSheet?.contentView : host
-                    let png = (test.scenario == "addModelDialog" || test.scenario.hasPrefix("xaiSubscriptionDialog") || isClaudeConsentAlert)
+                    let png = (test.scenario == "addModelDialog" || test.scenario.hasPrefix("xaiSubscriptionDialog") || test.scenario.hasPrefix("xaiDeviceDialog") || isClaudeConsentAlert)
                         ? captureView.flatMap { PanelScreenshot.captureForm(view: $0, minimumVariety: 1) }
                         : PanelScreenshot.capture(view: host)?.png
                     guard let png else { throw CaptureError.blankFrame(test.id) }
