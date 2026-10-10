@@ -98,7 +98,7 @@ private struct QuotaChipView: View {
                     onRecoverGLM()
                 } else if requiresOpenAISignIn {
                     onConnectOpenAI()
-                } else if requiresCCSwitchSignIn || AccountQuotaFormatting.requiresXAISubscriptionConnection(chip) {
+                } else if requiresXAISignIn || AccountQuotaFormatting.requiresXAISubscriptionConnection(chip) {
                     onConnectXAI()
                 } else if let onConnectQwen {
                     onConnectQwen()
@@ -117,17 +117,16 @@ private struct QuotaChipView: View {
     }
 
     private var isClickable: Bool {
-        AccountQuotaFormatting.glmRecoveryAction(for: chip) != nil || requiresOpenAISignIn || requiresCCSwitchSignIn || AccountQuotaFormatting.requiresXAISubscriptionConnection(chip) || onConnectQwen != nil || chip.websiteURL != nil
+        AccountQuotaFormatting.glmRecoveryAction(for: chip) != nil || requiresOpenAISignIn || requiresXAISignIn || AccountQuotaFormatting.requiresXAISubscriptionConnection(chip) || onConnectQwen != nil || chip.websiteURL != nil
     }
 
     private var requiresOpenAISignIn: Bool {
         chip.kind == .officialNote && (isConnectingOpenAI || chip.status == .message(AccountQuotaMessage.reauthRequired))
     }
 
-    /// Missing usage OAuth still goes to CC Switch. A missing subscription
-    /// date uses the app-owned official-site connection instead.
-    private var requiresCCSwitchSignIn: Bool {
-        AccountQuotaFormatting.requiresCCSwitchSignIn(chip)
+    /// Usage OAuth and the subscription-date website session have separate flows.
+    private var requiresXAISignIn: Bool {
+        AccountQuotaFormatting.requiresXAISignIn(chip)
     }
 
     /// Usage-window exhaustion retains its red warning. Unpurchased plans
@@ -179,10 +178,10 @@ private struct QuotaChipView: View {
                 "点击在浏览器中授权 OpenAI；登录成功后，余量会自动刷新。"
             )
         }
-        if requiresCCSwitchSignIn {
+        if requiresXAISignIn {
             return language.text(
-                "Click to open CC Switch and sign in to Grok. The quota refreshes when this panel is reopened.",
-                "点击打开 CC Switch 登录 Grok；重新打开本面板时会刷新余量。"
+                "Click to sign in to Grok in your browser. Your quota refreshes automatically after authorization.",
+                "点击在浏览器中登录 Grok；授权成功后，余量会自动刷新。"
             )
         }
         let help = AccountQuotaFormatting.help(for: chip, now: now)

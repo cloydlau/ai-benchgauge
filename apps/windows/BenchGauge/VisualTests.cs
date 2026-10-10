@@ -101,14 +101,17 @@ static class VisualTests
             Window window = test.Scenario == "addModelDialog"
                 ? panel.CreateOfficialAccountsWindow(new EngineResponse(0, null, null, null, null,
                     OfficialAccounts: [], OfficialProviders: [new OfficialProviderSummary("kimi", "Kimi Code", "Kimi Code plan")]))
+                : test.Scenario.StartsWith("xaiDeviceDialog", StringComparison.Ordinal)
+                    ? new XAIAccountConnectionWindow(null, new Preferences { Language = test.Language }, null, test.Scenario.Replace("xaiDeviceDialog-", ""))
                 : test.Scenario.StartsWith("xaiSubscriptionDialog", StringComparison.Ordinal)
                     ? new XAIWebsiteSubscriptionWindow(null, new Preferences { Language = test.Language }, null, fixture: true, fixtureState: test.Scenario.Replace("xaiSubscriptionDialog-", ""))
                     : panel;
             try
             {
                 panel.SetVisualAppearance(theme == "dark");
+                if (window is XAIAccountConnectionWindow xaiLogin) xaiLogin.SetAppearance(theme == "dark");
                 panel.SetState(state);
-                if (test.Scenario == "addModelDialog" || test.Scenario.StartsWith("xaiSubscriptionDialog", StringComparison.Ordinal))
+                if (test.Scenario == "addModelDialog" || test.Scenario.StartsWith("xaiSubscriptionDialog", StringComparison.Ordinal) || test.Scenario.StartsWith("xaiDeviceDialog", StringComparison.Ordinal))
                 {
                     window.SizeToContent = SizeToContent.Manual; window.WindowStyle = WindowStyle.None;
                     window.Width = test.Width; window.Height = test.Height; window.Show();

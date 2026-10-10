@@ -28,6 +28,10 @@ struct Response: Encodable {
     var officialProviders: [OfficialProviderSummary]?
     var qwenAuthenticated: Bool?
     var qwenQuotaCaptured: Bool?
+    var userCode: String?
+    var loginState: String?
+    var pollInterval: Double?
+    var expiresIn: Double?
 }
 struct State: Encodable {
     var boards: [Board]
@@ -81,6 +85,8 @@ actor Engine {
     private var lastCheckedModelConfiguration: CodexModelConfiguration?
     private var quotaUpdatedAt: Date?
     private var lastInactiveRefresh: Date?
+    private var sharedXAILoginRevision: XAISharedLoginRevision?
+    private let xaiLogin = XAIDeviceLogin()
     private let xaiKeepAliveScheduleStore = XAIOAuthKeepAliveScheduleStore()
     private var xaiKeepAliveAccountID: String?
     private var nextXAIKeepAliveAt: Date?
@@ -206,6 +212,31 @@ actor Engine {
                     throw OpenAIConnectionError.invalidResponse
                 }
                 try await refreshQuotas(onlyCurrent: false, requestedProviderID: id)
+            case "watchXAILogin":
+                guard allowsAccountAccess else { throw XAIDeviceLoginError.cancelled }
+                let url = CCSwitchProviderStore.resolveInstall().xaiAuthURL
+                let revision = XAISharedLoginRevision(url: url)
+                guard sharedXAILoginRevision != revision else { return Response(id: request.id) }
+                sharedXAILoginRevision = revision
+                if let target = targets.values.first(where: { $0.kind == .xaiOAuth }) {
+                    try await refreshQuotas(onlyCurrent: false, requestedProviderID: target.id)
+                }
+            case "connectXAI":
+                guard allowsAccountAccess else { throw XAIDeviceLoginError.cancelled }
+                let attempt = try await xaiLogin.start(authFileURL: CCSwitchProviderStore.resolveInstall().xaiAuthURL)
+                return Response(id: request.id, authorizationURL: attempt.authorizationURL.absoluteString,
+                    loginID: attempt.id, userCode: attempt.userCode, loginState: "waiting",
+                    pollInterval: attempt.interval, expiresIn: max(0, attempt.expiresAt.timeIntervalSinceNow))
+            case "pollXAI":
+                guard let id = request.loginID else { throw XAIDeviceLoginError.cancelled }
+                switch try await xaiLogin.poll(id: id) {
+                case let .waiting(interval): return Response(id: request.id, loginState: "waiting", pollInterval: interval)
+                case .connected:
+                    lastQuotaRefresh = nil
+                    try? await refreshQuotas(onlyCurrent: false)
+                    return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language), loginState: "saved")
+                }
+            case "cancelXAI": await xaiLogin.cancel()
             case "connectOpenAI":
                 guard let id = request.providerID, let target = targets[id] else { throw OpenAIConnectionError.invalidResponse }
                 let attempt = try await official.startLogin(for: target)
@@ -222,6 +253,8 @@ actor Engine {
             default: return Response(id: request.id, error: "Unknown command")
             }
             return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language))
+        } catch let error as XAIDeviceLoginError {
+            return Response(id: request.id, loginState: error.state)
         } catch {
             // Never serialize upstream messages, tokens, paths or account IDs.
             return Response(id: request.id, error: language.text("Could not complete this request. Check the connection and try again.", "请求未完成，请检查连接后重试。"))
@@ -418,9 +451,8 @@ actor Engine {
                                     kind: chip.kind, isCurrent: chip.isCurrent, status: .qwenWebsite(quota))
         }
         let quotas = AccountQuotaFormatting.sortedChips(displayChips).map { chip in
-            // A Grok sign-in lives in CC Switch, so the card must not fall back
-            // to the provider's product page, which has no sign-in entry.
-            let ccSwitchSignIn = AccountQuotaFormatting.requiresCCSwitchSignIn(chip)
+            // Login-required Grok cards launch device authorization, not the product page.
+            let xaiSignIn = AccountQuotaFormatting.requiresXAISignIn(chip)
             let xaiSubscription = AccountQuotaFormatting.requiresXAISubscriptionConnection(chip)
             let glmAction = AccountQuotaFormatting.glmRecoveryAction(for: chip)
             return Quota(id: chip.id, name: chip.shortName, isCurrent: chip.isCurrent, isStale: chip.isStale,
@@ -431,9 +463,9 @@ actor Engine {
                         .components(separatedBy: "\n")
                         .map(language.quotaText)
                         .joined(separator: "\n"),
-                    url: ccSwitchSignIn || glmAction != nil ? nil : chip.websiteURL?.absoluteString,
-                    canConnect: glmAction != nil || chip.kind == .officialNote || chip.kind == .qwen || ccSwitchSignIn || xaiSubscription,
-                    connection: glmAction.map { $0 == .configure ? "glmConfiguration" : "glmRetry" } ?? (chip.kind == .officialNote ? "openai" : (chip.kind == .qwen ? "qwen" : (ccSwitchSignIn ? "ccswitch" : (xaiSubscription ? "xaiSubscription" : nil)))),
+                    url: xaiSignIn || glmAction != nil ? nil : chip.websiteURL?.absoluteString,
+                    canConnect: glmAction != nil || chip.kind == .officialNote || chip.kind == .qwen || xaiSignIn || xaiSubscription,
+                    connection: glmAction.map { $0 == .configure ? "glmConfiguration" : "glmRetry" } ?? (chip.kind == .officialNote ? "openai" : (chip.kind == .qwen ? "qwen" : (xaiSignIn ? "xai" : (xaiSubscription ? "xaiSubscription" : nil)))),
                     runs: AccountQuotaFormatting.runs(for: chip, now: now).map { run in
                 Run(text: language.quotaText(run.text), light: color(run.tone, dark: false), dark: color(run.tone, dark: true))
             }, accentLight: AccountQuotaFormatting.cardColorLevel(for: chip, now: now).map { color(.remaining($0), dark: false) },

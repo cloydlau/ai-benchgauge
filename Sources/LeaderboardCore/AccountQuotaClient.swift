@@ -843,6 +843,7 @@ private enum XAIBillingResult: Sendable {
 private actor XAIAccessTokens {
     private struct CachedToken {
         var accountID: String
+        var refreshToken: String
         var token: String
         var validUntil: Date
     }
@@ -957,7 +958,7 @@ private actor XAIAccessTokens {
         case let .account(value):
             account = value
         }
-        if let cached, cached.accountID == account.id, now < cached.validUntil {
+        if let cached, cached.accountID == account.id, cached.refreshToken == account.refreshToken, now < cached.validUntil {
             return .token(cached.token)
         }
 
@@ -1058,6 +1059,7 @@ private actor XAIAccessTokens {
         let lifetime = max(payload.expiresIn ?? 3600, 1)
         cached = CachedToken(
             accountID: account.id,
+            refreshToken: payload.refreshToken ?? account.refreshToken,
             token: payload.accessToken,
             validUntil: now.addingTimeInterval(TimeInterval(lifetime - 60))
         )

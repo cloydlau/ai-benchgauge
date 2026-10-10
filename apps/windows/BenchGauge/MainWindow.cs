@@ -28,6 +28,9 @@ sealed partial class MainWindow : Window
     readonly TextBlock status = new() { FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(4) };
     readonly DispatcherTimer boardTimer = new() { Interval = TimeSpan.FromMinutes(30) };
     readonly DispatcherTimer quotaClockTimer = new() { Interval = TimeSpan.FromMinutes(1) };
+    readonly DispatcherTimer sharedXAILoginTimer = new() { Interval = TimeSpan.FromSeconds(2) };
+    bool checkingSharedXAILogin;
+    XAIAccountConnectionWindow? xaiLoginWindow;
     readonly DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromHours(24) };
     readonly List<ComboBox> dropdowns = [];
     DisplayState? state;
@@ -75,13 +78,22 @@ sealed partial class MainWindow : Window
             }
             if (!modalOpen && !(panelMenuOpen || dropdowns.Any(box => box.IsDropDownOpen))) await Refresh("state");
         };
+        sharedXAILoginTimer.Tick += async (_, _) =>
+        {
+            if (engine is null || closing || checkingSharedXAILogin) return;
+            checkingSharedXAILogin = true;
+            try { var result = await engine.Request("watchXAILogin", prefs); if (result.Result is { } next) SetState(next); }
+            catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException) { }
+            finally { checkingSharedXAILogin = false; }
+        };
+        Closed += (_, _) => { sharedXAILoginTimer.Stop(); xaiLoginWindow?.CloseForShutdown(); };
         updateTimer.Tick += async (_, _) => await CheckUpdates(false);
         Activated += (_, _) => Dispatcher.BeginInvoke(TryPresentPreparedUpdate, DispatcherPriority.Background);
 
     }
     public async Task Start()
     {
-        boardTimer.Start(); quotaClockTimer.Start(); updateTimer.Start();
+        boardTimer.Start(); quotaClockTimer.Start(); updateTimer.Start(); sharedXAILoginTimer.Start();
         await Refresh("state");
         await Task.WhenAll(Refresh("refreshBoards"), Refresh("refreshQuotas"));
         await CheckUpdates(false);
@@ -333,16 +345,14 @@ sealed partial class MainWindow : Window
             finally { panelRefreshing = false; }
             return;
         }
-        // A Grok sign-in can only happen inside CC Switch, which owns the auth
-        // file this quota reads. The provider website has no sign-in entry.
-        if (quota.Connection == "ccswitch")
+        if (engine is null) return;
+        if (quota.Connection == "xai")
         {
-            status.Text = OpenCCSwitch()
-                ? Tr("Sign in to Grok in CC Switch.", "请在 CC Switch 中登录 Grok。", "請在 CC Switch 中登入 Grok。")
-                : Tr("Open CC Switch to sign in to Grok.", "请打开 CC Switch 登录 Grok。", "請開啟 CC Switch 登入 Grok。");
+            xaiLoginWindow ??= new XAIAccountConnectionWindow(engine, prefs, SetState) { Owner = this };
+            xaiLoginWindow.SetAppearance(panelDark);
+            xaiLoginWindow.Connect();
             return;
         }
-        if (engine is null) return;
         if (quota.Connection == "xaiSubscription")
         {
             xaiSubscriptionWindow ??= new XAIWebsiteSubscriptionWindow(engine, prefs, SetState);

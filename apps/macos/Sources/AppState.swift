@@ -98,6 +98,7 @@ final class AppState: ObservableObject {
     private let defaults: UserDefaults
     private let configuration: AppConfiguration
     private let qwenWebsiteSource = QwenWebsiteQuotaSource()
+    private let xaiConnection = XAIAccountConnection()
     private let xaiWebsiteSource = XAIWebsiteSubscriptionSource()
     private let openAIConnection = OpenAIAccountConnection()
     private var quotaTargetsByID: [String: CCSwitchQuotaTarget] = [:]
@@ -107,6 +108,8 @@ final class AppState: ObservableObject {
     private var updateTimer: Timer?
     private var refreshTask: Task<Void, Never>?
     private var quotaTask: Task<Void, Never>?
+    private var sharedXAILoginTimer: Timer?
+    private var sharedXAILoginRevision: XAISharedLoginRevision?
     private var xaiKeepAliveTask: Task<Void, Never>?
     private var refreshPending = false
     private var lastLeaderboardAttemptAtByCategory: [LeaderboardCategory: Date] = [:]
@@ -144,6 +147,7 @@ final class AppState: ObservableObject {
             let authURL = CCSwitchProviderStore.resolveInstall().xaiAuthURL
             return (try? await client.captureXAIWebsiteSubscription(data, authFileURL: authURL)) == true
         }
+        xaiConnection.onConnected = { [weak self] in self?.refreshQuotas(minimumInterval: 0) }
         xaiWebsiteSource.onUpdated = { [weak self] in self?.refreshQuotas(minimumInterval: 0) }
         qwenWebsiteSource.onUpdated = { [weak self] status in
             guard let self, !self.isQuitting else { return }
@@ -260,13 +264,12 @@ final class AppState: ObservableObject {
         openAIConnection.connect(target, language: selectedLanguage, after: previousTask)
     }
 
-    /// CC Switch owns usage OAuth; the app owns its separate, identity-checked
-    /// official-site session for subscription dates.
+    /// Usage OAuth is shared with CC Switch; plan dates use a separate site session.
     func connectXAI(_ chip: AccountQuotaChip) {
         guard !isQuitting, chip.kind == .xaiOAuth else { return }
         if AccountQuotaFormatting.requiresXAISubscriptionConnection(chip) {
             connectXAISubscription()
-        } else { openCCSwitch() }
+        } else { xaiConnection.connect(language: selectedLanguage) }
     }
 
     func connectXAISubscription() {
@@ -316,10 +319,13 @@ final class AppState: ObservableObject {
         for observer in codexTaskWorkspaceObservers { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
         codexTaskWorkspaceObservers.removeAll()
         openAIConnection.cancel()
+        xaiConnection.cancel()
         xaiWebsiteSource.cancel()
         refreshPending = false
         updateTimer?.invalidate()
         updateTimer = nil
+        sharedXAILoginTimer?.invalidate()
+        sharedXAILoginTimer = nil
         refreshTask?.cancel()
         refreshTask = nil
         quotaTask?.cancel()
@@ -389,6 +395,23 @@ final class AppState: ObservableObject {
         }
         RunLoop.main.add(timer, forMode: .common)
         updateTimer = timer
+        sharedXAILoginTimer?.invalidate()
+        sharedXAILoginRevision = XAISharedLoginRevision(url: CCSwitchProviderStore.resolveInstall().xaiAuthURL)
+        let sharedTimer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.refreshSharedXAILoginIfChanged() }
+        }
+        RunLoop.main.add(sharedTimer, forMode: .common)
+        sharedXAILoginTimer = sharedTimer
+    }
+
+    private func refreshSharedXAILoginIfChanged() {
+        guard !isQuitting else { return }
+        let revision = XAISharedLoginRevision(url: CCSwitchProviderStore.resolveInstall().xaiAuthURL)
+        guard revision != sharedXAILoginRevision else { return }
+        sharedXAILoginRevision = revision
+        guard let target = quotaTargetsByID.values.first(where: { $0.kind == .xaiOAuth }) else { return }
+        lastQuotaAttemptAtByID[target.id] = nil
+        refreshQuotas(minimumInterval: 0, requestedProviderID: target.id)
     }
 
     private func tick() {

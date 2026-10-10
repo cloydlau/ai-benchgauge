@@ -1,0 +1,1940 @@
+{
+  "state": {
+    "boards": [
+      {
+        "kind": "artificialAnalysis",
+        "title": "Artificial Analysis",
+        "url": "https://artificialanalysis.ai",
+        "updatedAt": "2026-09-29T00:00:00Z",
+        "error": null,
+        "entries": [
+          {
+            "rank": 1,
+            "name": "GPT-5.2 (high)",
+            "score": 98.5,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 2,
+            "name": "Claude Sonnet 4.5 (extended thinking)",
+            "score": 97.2,
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 3,
+            "name": "Gemini 3 Pro Preview",
+            "score": 95.9,
+            "organization": "Google",
+            "logo": "google",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 4,
+            "name": "Qwen3-Max-Thinking 长名称测试模型",
+            "score": 94.6,
+            "organization": "Alibaba",
+            "logo": "qwen",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 5,
+            "name": "DeepSeek-V3.2-Speciale",
+            "score": 93.3,
+            "organization": "DeepSeek",
+            "logo": "deepseek",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 6,
+            "name": "GLM-4.6",
+            "score": 92.0,
+            "organization": "Z.ai",
+            "logo": "zai",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 7,
+            "name": "Kimi K2 Thinking",
+            "score": 90.7,
+            "organization": "Moonshot AI",
+            "logo": "kimi",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 8,
+            "name": "Grok 4 Fast Reasoning",
+            "score": 89.4,
+            "organization": "xAI",
+            "logo": "spacexai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 9,
+            "name": "Mistral Large 3",
+            "score": 88.1,
+            "organization": "Mistral",
+            "logo": "mistral",
+            "country": "france",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 10,
+            "name": "Ideogram 3.0",
+            "score": 86.8,
+            "organization": "Ideogram",
+            "logo": "ideogram",
+            "country": "canada",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 11,
+            "name": "GPT-5.2 (high) · secondary evaluation",
+            "score": 85.5,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 12,
+            "name": "Claude Sonnet 4.5 (extended thinking) · secondary evaluation",
+            "score": 84.2,
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 13,
+            "name": "Gemini 3 Pro Preview · secondary evaluation",
+            "score": 82.9,
+            "organization": "Google",
+            "logo": "google",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 14,
+            "name": "Qwen3-Max-Thinking 长名称测试模型 · secondary evaluation",
+            "score": 81.6,
+            "organization": "Alibaba",
+            "logo": "qwen",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 15,
+            "name": "DeepSeek-V3.2-Speciale · secondary evaluation",
+            "score": 80.3,
+            "organization": "DeepSeek",
+            "logo": "deepseek",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 16,
+            "name": "GLM-4.6 · secondary evaluation",
+            "score": 79.0,
+            "organization": "Z.ai",
+            "logo": "zai",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 17,
+            "name": "Kimi K2 Thinking · secondary evaluation",
+            "score": 77.7,
+            "organization": "Moonshot AI",
+            "logo": "kimi",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 18,
+            "name": "Grok 4 Fast Reasoning · secondary evaluation",
+            "score": 76.4,
+            "organization": "xAI",
+            "logo": "spacexai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 19,
+            "name": "Mistral Large 3 · secondary evaluation",
+            "score": 75.1,
+            "organization": "Mistral",
+            "logo": "mistral",
+            "country": "france",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 20,
+            "name": "Ideogram 3.0 · secondary evaluation",
+            "score": 73.8,
+            "organization": "Ideogram",
+            "logo": "ideogram",
+            "country": "canada",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          }
+        ],
+        "fetchedAt": "2026-09-29T00:00:00Z"
+      },
+      {
+        "kind": "arenaText",
+        "title": "Arena",
+        "url": "https://arena.ai",
+        "updatedAt": "2026-09-29T00:00:00Z",
+        "error": null,
+        "entries": [
+          {
+            "rank": 1,
+            "name": "GPT-5.2 (high)",
+            "score": 101.7,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 2,
+            "name": "Claude Sonnet 4.5 (extended thinking)",
+            "score": 100.4,
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 3,
+            "name": "Gemini 3 Pro Preview",
+            "score": 99.10000000000001,
+            "organization": "Google",
+            "logo": "google",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 4,
+            "name": "Qwen3-Max-Thinking 长名称测试模型",
+            "score": 97.8,
+            "organization": "Alibaba",
+            "logo": "qwen",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 5,
+            "name": "DeepSeek-V3.2-Speciale",
+            "score": 96.5,
+            "organization": "DeepSeek",
+            "logo": "deepseek",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 6,
+            "name": "GLM-4.6",
+            "score": 95.2,
+            "organization": "Z.ai",
+            "logo": "zai",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 7,
+            "name": "Kimi K2 Thinking",
+            "score": 93.9,
+            "organization": "Moonshot AI",
+            "logo": "kimi",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 8,
+            "name": "Grok 4 Fast Reasoning",
+            "score": 92.60000000000001,
+            "organization": "xAI",
+            "logo": "spacexai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 9,
+            "name": "Mistral Large 3",
+            "score": 91.3,
+            "organization": "Mistral",
+            "logo": "mistral",
+            "country": "france",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 10,
+            "name": "Ideogram 3.0",
+            "score": 90.0,
+            "organization": "Ideogram",
+            "logo": "ideogram",
+            "country": "canada",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 11,
+            "name": "GPT-5.2 (high) · secondary evaluation",
+            "score": 88.7,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 12,
+            "name": "Claude Sonnet 4.5 (extended thinking) · secondary evaluation",
+            "score": 87.4,
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 13,
+            "name": "Gemini 3 Pro Preview · secondary evaluation",
+            "score": 86.10000000000001,
+            "organization": "Google",
+            "logo": "google",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 14,
+            "name": "Qwen3-Max-Thinking 长名称测试模型 · secondary evaluation",
+            "score": 84.8,
+            "organization": "Alibaba",
+            "logo": "qwen",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 15,
+            "name": "DeepSeek-V3.2-Speciale · secondary evaluation",
+            "score": 83.5,
+            "organization": "DeepSeek",
+            "logo": "deepseek",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 16,
+            "name": "GLM-4.6 · secondary evaluation",
+            "score": 82.2,
+            "organization": "Z.ai",
+            "logo": "zai",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 17,
+            "name": "Kimi K2 Thinking · secondary evaluation",
+            "score": 80.9,
+            "organization": "Moonshot AI",
+            "logo": "kimi",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 18,
+            "name": "Grok 4 Fast Reasoning · secondary evaluation",
+            "score": 79.60000000000001,
+            "organization": "xAI",
+            "logo": "spacexai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 19,
+            "name": "Mistral Large 3 · secondary evaluation",
+            "score": 78.3,
+            "organization": "Mistral",
+            "logo": "mistral",
+            "country": "france",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 20,
+            "name": "Ideogram 3.0 · secondary evaluation",
+            "score": 77.0,
+            "organization": "Ideogram",
+            "logo": "ideogram",
+            "country": "canada",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          }
+        ],
+        "fetchedAt": "2026-09-29T00:00:00Z"
+      }
+    ],
+    "quotas": [
+      {
+        "id": "fixture-0",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "88%",
+            "light": "#3D8437",
+            "dark": "#99D37C"
+          }
+        ],
+        "accentLight": "#3D8437"
+      },
+      {
+        "id": "fixture-1",
+        "name": "Kimi",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "20%",
+            "light": "#DB521D",
+            "dark": "#FF9153"
+          }
+        ],
+        "accentLight": "#DB521D"
+      },
+      {
+        "id": "fixture-2",
+        "name": "Qwen",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "99%",
+            "light": "#1C8541",
+            "dark": "#7FD68B"
+          }
+        ],
+        "accentLight": "#1C8541"
+      },
+      {
+        "id": "fixture-3",
+        "name": "DeepSeek",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "55%",
+            "light": "#9F8219",
+            "dark": "#EBCB4E"
+          }
+        ],
+        "accentLight": "#9F8219"
+      },
+      {
+        "id": "fixture-4",
+        "name": "GLM",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "10%",
+            "light": "#DB3D23",
+            "dark": "#FF825F"
+          }
+        ],
+        "accentLight": "#DB3D23"
+      },
+      {
+        "id": "fixture-5",
+        "name": "xAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "75%",
+            "light": "#63832B",
+            "dark": "#BAD06A"
+          }
+        ],
+        "accentLight": "#63832B"
+      }
+    ],
+    "quotaNeedsCCSwitch": false,
+    "quotaUnavailable": false,
+    "trayText": null,
+    "alerts": [],
+    "quotaUpdatedAt": "2026-09-29T00:00:00Z"
+  },
+  "cases": [
+    {
+      "id": "xai-device-waiting-en",
+      "language": "en",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-waiting",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-waiting-zh",
+      "language": "zh",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-waiting",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-waiting-zh-Hant",
+      "language": "zh-Hant",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-waiting",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-expired-en",
+      "language": "en",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-expired",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-expired-zh",
+      "language": "zh",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-expired",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-expired-zh-Hant",
+      "language": "zh-Hant",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-expired",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-denied-en",
+      "language": "en",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-denied",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-denied-zh",
+      "language": "zh",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-denied",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-denied-zh-Hant",
+      "language": "zh-Hant",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-denied",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-network-en",
+      "language": "en",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-network",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-network-zh",
+      "language": "zh",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-network",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-network-zh-Hant",
+      "language": "zh-Hant",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-network",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-accountMismatch-en",
+      "language": "en",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-accountMismatch",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-accountMismatch-zh",
+      "language": "zh",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-accountMismatch",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-accountMismatch-zh-Hant",
+      "language": "zh-Hant",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-accountMismatch",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-saved-en",
+      "language": "en",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-saved",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-saved-zh",
+      "language": "zh",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-saved",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-saved-zh-Hant",
+      "language": "zh-Hant",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-saved",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-starting-en",
+      "language": "en",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-starting",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-starting-zh",
+      "language": "zh",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-starting",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-starting-zh-Hant",
+      "language": "zh-Hant",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-starting",
+      "mode": "clickToClose"
+    }
+  ],
+  "quotaScenarios": {
+    "kimiConfigured": [
+      {
+        "id": "fixture-kimi-key",
+        "name": "Kimi",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "20%",
+            "light": "#DB521D",
+            "dark": "#FF9153"
+          }
+        ],
+        "accentLight": "#DB521D",
+        "status": null
+      }
+    ],
+    "kimiReauth": [
+      {
+        "id": "fixture-kimi-cli",
+        "name": "Kimi",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "登录失效",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "accentLight": null,
+        "status": "reauth"
+      }
+    ],
+    "kimiPending": [
+      {
+        "id": "fixture-kimi-key",
+        "name": "Kimi",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "查询中",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "accentLight": null,
+        "status": "pending"
+      }
+    ],
+    "kimiDistinctKeys": [
+      {
+        "id": "fixture-kimi-first",
+        "name": "Kimi · OpenCode",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "20%",
+            "light": "#DB521D",
+            "dark": "#FF9153"
+          }
+        ],
+        "accentLight": "#DB521D",
+        "status": null
+      },
+      {
+        "id": "fixture-kimi-second",
+        "name": "Kimi · Codex",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "20%",
+            "light": "#DB521D",
+            "dark": "#FF9153"
+          }
+        ],
+        "accentLight": "#DB521D",
+        "status": null
+      }
+    ],
+    "kimiDuplicateBefore": [
+      {
+        "id": "fixture-kimi-missing",
+        "name": "Kimi",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "未配置",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "accentLight": null,
+        "status": "notConfigured"
+      },
+      {
+        "id": "fixture-kimi-cli",
+        "name": "Kimi",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "登录失效",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "accentLight": null,
+        "status": "reauth"
+      }
+    ],
+    "xaiWeeklyReset": [
+      {
+        "id": "fixture-xaiWeeklyReset",
+        "name": "xAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "75%",
+            "light": "#63832B",
+            "dark": "#BAD06A"
+          }
+        ],
+        "accentLight": "#63832B",
+        "status": null,
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 25,
+            "resetsAt": "2026-10-05T12:26:54Z"
+          }
+        ]
+      }
+    ],
+    "xaiSubscriptionDate": [
+      {
+        "id": "fixture-xaiSubscriptionDate",
+        "name": "xAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "75%",
+            "light": "#63832B",
+            "dark": "#BAD06A"
+          },
+          {
+            "text": " · ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "至10月24日",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "accentLight": "#63832B",
+        "status": null,
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 25,
+            "resetsAt": "2026-10-05T12:26:54Z"
+          },
+          {
+            "name": "plan_expiry",
+            "utilization": 0,
+            "resetsAt": "2026-10-24T12:00:00Z"
+          }
+        ]
+      }
+    ],
+    "xaiNoDate": [
+      {
+        "id": "fixture-xaiNoDate",
+        "name": "xAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "75%",
+            "light": "#63832B",
+            "dark": "#BAD06A"
+          }
+        ],
+        "accentLight": "#63832B",
+        "status": null,
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 25,
+            "resetsAt": null
+          }
+        ]
+      }
+    ],
+    "xaiCachedDate": [
+      {
+        "id": "fixture-xaiCachedDate",
+        "name": "xAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; previously queried subscription date, endpoint unavailable",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "75%",
+            "light": "#63832B",
+            "dark": "#BAD06A"
+          },
+          {
+            "text": " · ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "至10月24日",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "accentLight": "#63832B",
+        "status": null,
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 25,
+            "resetsAt": "2026-10-05T12:26:54Z"
+          },
+          {
+            "name": "plan_expiry",
+            "utilization": 0,
+            "resetsAt": "2026-10-24T12:00:00Z",
+            "dateSource": "cached"
+          }
+        ]
+      }
+    ],
+    "xaiSubscriptionDialog": [
+      {
+        "id": "fixture-xaiNoDate",
+        "name": "xAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "75%",
+            "light": "#63832B",
+            "dark": "#BAD06A"
+          }
+        ],
+        "accentLight": "#63832B",
+        "status": null,
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 25,
+            "resetsAt": null
+          }
+        ]
+      }
+    ],
+    "xaiSubscriptionDialog-verification": [
+      {
+        "id": "fixture-xaiNoDate",
+        "name": "xAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "75%",
+            "light": "#63832B",
+            "dark": "#BAD06A"
+          }
+        ],
+        "accentLight": "#63832B",
+        "status": null,
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 25,
+            "resetsAt": null
+          }
+        ]
+      }
+    ],
+    "xaiSubscriptionDialog-mismatch": [
+      {
+        "id": "fixture-xaiNoDate",
+        "name": "xAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "75%",
+            "light": "#63832B",
+            "dark": "#BAD06A"
+          }
+        ],
+        "accentLight": "#63832B",
+        "status": null,
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 25,
+            "resetsAt": null
+          }
+        ]
+      }
+    ],
+    "xaiSubscriptionDialog-paused": [
+      {
+        "id": "fixture-xaiNoDate",
+        "name": "xAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "75%",
+            "light": "#63832B",
+            "dark": "#BAD06A"
+          }
+        ],
+        "accentLight": "#63832B",
+        "status": null,
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 25,
+            "resetsAt": null
+          }
+        ]
+      }
+    ],
+    "payAsYouGoLast-noDate": [
+      {
+        "id": "sort-kimi",
+        "name": "Kimi",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "75%",
+            "light": "#63832B",
+            "dark": "#BAD06A"
+          },
+          {
+            "text": " · ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": " · 至11月18日",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "accentLight": "#63832B",
+        "status": null,
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 25,
+            "resetsAt": "2026-10-05T12:26:54Z"
+          },
+          {
+            "name": "plan_expiry",
+            "utilization": 0,
+            "resetsAt": "2026-11-18T12:00:00Z"
+          }
+        ]
+      },
+      {
+        "id": "sort-xai",
+        "name": "xAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "75%",
+            "light": "#63832B",
+            "dark": "#BAD06A"
+          }
+        ],
+        "accentLight": "#63832B",
+        "status": null,
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 25,
+            "resetsAt": null
+          }
+        ]
+      },
+      {
+        "id": "sort-deepseek",
+        "name": "DeepSeek",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "¥12.36",
+            "light": "#3D8437",
+            "dark": "#99D37C"
+          }
+        ],
+        "accentLight": "#9F8219",
+        "balances": [
+          {
+            "currency": "CNY",
+            "amount": 12.36
+          }
+        ]
+      }
+    ],
+    "payAsYouGoLast-queryFailed": [
+      {
+        "id": "sort-kimi",
+        "name": "Kimi",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "75%",
+            "light": "#63832B",
+            "dark": "#BAD06A"
+          },
+          {
+            "text": " · ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": " · 至11月18日",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "accentLight": "#63832B",
+        "status": null,
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 25,
+            "resetsAt": "2026-10-05T12:26:54Z"
+          },
+          {
+            "name": "plan_expiry",
+            "utilization": 0,
+            "resetsAt": "2026-11-18T12:00:00Z"
+          }
+        ]
+      },
+      {
+        "id": "sort-xai",
+        "name": "xAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "查询失败",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "accentLight": null,
+        "status": "queryFailed"
+      },
+      {
+        "id": "sort-deepseek",
+        "name": "DeepSeek",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "¥12.36",
+            "light": "#3D8437",
+            "dark": "#99D37C"
+          }
+        ],
+        "accentLight": "#9F8219",
+        "balances": [
+          {
+            "currency": "CNY",
+            "amount": 12.36
+          }
+        ]
+      }
+    ],
+    "payAsYouGoLast-pending": [
+      {
+        "id": "sort-kimi",
+        "name": "Kimi",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "75%",
+            "light": "#63832B",
+            "dark": "#BAD06A"
+          },
+          {
+            "text": " · ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": " · 至11月18日",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "accentLight": "#63832B",
+        "status": null,
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 25,
+            "resetsAt": "2026-10-05T12:26:54Z"
+          },
+          {
+            "name": "plan_expiry",
+            "utilization": 0,
+            "resetsAt": "2026-11-18T12:00:00Z"
+          }
+        ]
+      },
+      {
+        "id": "sort-xai",
+        "name": "xAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "查询中",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "accentLight": null,
+        "status": "pending"
+      },
+      {
+        "id": "sort-deepseek",
+        "name": "DeepSeek",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "¥12.36",
+            "light": "#3D8437",
+            "dark": "#99D37C"
+          }
+        ],
+        "accentLight": "#9F8219",
+        "balances": [
+          {
+            "currency": "CNY",
+            "amount": 12.36
+          }
+        ]
+      }
+    ],
+    "payAsYouGoLast-reauth": [
+      {
+        "id": "sort-kimi",
+        "name": "Kimi",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "75%",
+            "light": "#63832B",
+            "dark": "#BAD06A"
+          },
+          {
+            "text": " · ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": " · 至11月18日",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "accentLight": "#63832B",
+        "status": null,
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 25,
+            "resetsAt": "2026-10-05T12:26:54Z"
+          },
+          {
+            "name": "plan_expiry",
+            "utilization": 0,
+            "resetsAt": "2026-11-18T12:00:00Z"
+          }
+        ]
+      },
+      {
+        "id": "sort-xai",
+        "name": "xAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "登录失效",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "accentLight": null,
+        "status": "reauth"
+      },
+      {
+        "id": "sort-deepseek",
+        "name": "DeepSeek",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "¥12.36",
+            "light": "#3D8437",
+            "dark": "#99D37C"
+          }
+        ],
+        "accentLight": "#9F8219",
+        "balances": [
+          {
+            "currency": "CNY",
+            "amount": 12.36
+          }
+        ]
+      }
+    ],
+    "inactiveQuotas": [
+      {
+        "id": "glm",
+        "name": "GLM",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "未订购",
+            "light": "#C33030",
+            "dark": "#FF8A80"
+          }
+        ],
+        "status": "queryFailed",
+        "failureReason": "noCodingPlan",
+        "isDimmed": true
+      },
+      {
+        "id": "qwen",
+        "name": "Qwen",
+        "isCurrent": true,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "未订购",
+            "light": "#C33030",
+            "dark": "#FF8A80"
+          }
+        ],
+        "status": "queryFailed",
+        "failureReason": "noPlan",
+        "isDimmed": true
+      },
+      {
+        "id": "zero",
+        "name": "DeepSeek",
+        "isCurrent": true,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "¥0",
+            "light": "#C33030",
+            "dark": "#FF8A80"
+          }
+        ],
+        "balances": [
+          {
+            "currency": "CNY",
+            "amount": 0
+          }
+        ],
+        "isDimmed": true,
+        "accentLight": "#C33030"
+      },
+      {
+        "id": "owed",
+        "name": "DeepSeek",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "-$1",
+            "light": "#C33030",
+            "dark": "#FF8A80"
+          }
+        ],
+        "balances": [
+          {
+            "currency": "USD",
+            "amount": -1
+          }
+        ],
+        "isDimmed": true,
+        "accentLight": "#C33030"
+      },
+      {
+        "id": "mixed",
+        "name": "DeepSeek",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "¥5",
+            "light": "#C87816",
+            "dark": "#F2AF50"
+          }
+        ],
+        "balances": [
+          {
+            "currency": "USD",
+            "amount": 0
+          },
+          {
+            "currency": "CNY",
+            "amount": 5
+          }
+        ]
+      },
+      {
+        "id": "healthy",
+        "name": "Kimi",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "70%",
+            "light": "#238D50",
+            "dark": "#73D994"
+          }
+        ],
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 30
+          }
+        ]
+      },
+      {
+        "id": "error",
+        "name": "OpenAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "查询失败",
+            "light": "#C33030",
+            "dark": "#FF8A80"
+          }
+        ],
+        "status": "queryFailed"
+      }
+    ],
+    "restoredQuotas": [
+      {
+        "id": "glm",
+        "name": "GLM",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "70%",
+            "light": "#238D50",
+            "dark": "#73D994"
+          }
+        ],
+        "isDimmed": false,
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 30
+          }
+        ]
+      },
+      {
+        "id": "qwen",
+        "name": "Qwen",
+        "isCurrent": true,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "70%",
+            "light": "#238D50",
+            "dark": "#73D994"
+          }
+        ],
+        "isDimmed": false,
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 30
+          }
+        ]
+      },
+      {
+        "id": "zero",
+        "name": "DeepSeek",
+        "isCurrent": true,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "100",
+            "light": "#238D50",
+            "dark": "#73D994"
+          }
+        ],
+        "balances": [
+          {
+            "currency": "CNY",
+            "amount": 100
+          }
+        ],
+        "isDimmed": false,
+        "accentLight": "#238D50"
+      },
+      {
+        "id": "owed",
+        "name": "DeepSeek",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "100",
+            "light": "#238D50",
+            "dark": "#73D994"
+          }
+        ],
+        "balances": [
+          {
+            "currency": "USD",
+            "amount": 100
+          }
+        ],
+        "isDimmed": false,
+        "accentLight": "#238D50"
+      },
+      {
+        "id": "mixed",
+        "name": "DeepSeek",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "¥5",
+            "light": "#C87816",
+            "dark": "#F2AF50"
+          }
+        ],
+        "balances": [
+          {
+            "currency": "USD",
+            "amount": 0
+          },
+          {
+            "currency": "CNY",
+            "amount": 5
+          }
+        ]
+      },
+      {
+        "id": "healthy",
+        "name": "Kimi",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "70%",
+            "light": "#238D50",
+            "dark": "#73D994"
+          }
+        ],
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 30
+          }
+        ]
+      },
+      {
+        "id": "error",
+        "name": "OpenAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "查询失败",
+            "light": "#C33030",
+            "dark": "#FF8A80"
+          }
+        ],
+        "status": "queryFailed"
+      }
+    ]
+  }
+}
