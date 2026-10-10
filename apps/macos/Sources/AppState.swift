@@ -402,7 +402,11 @@ final class AppState: ObservableObject {
         sharedXAILoginTimer?.invalidate()
         sharedXAILoginRevision = XAISharedLoginRevision(url: CCSwitchProviderStore.resolveInstall().xaiAuthURL)
         let sharedTimer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refreshSharedXAILoginIfChanged() }
+            Task { @MainActor in
+                guard let self, !self.isQuitting else { return }
+                self.refreshCurrentModelName()
+                self.refreshSharedXAILoginIfChanged()
+            }
         }
         RunLoop.main.add(sharedTimer, forMode: .common)
         sharedXAILoginTimer = sharedTimer

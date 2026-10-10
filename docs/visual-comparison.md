@@ -1,5 +1,13 @@
 # Native visual comparison
 
+## Session-backed Codex model metadata (2026-10-10)
+
+Model resolution now reads only model/provider metadata from the most recently user-interacted local desktop chat in `state_5.sqlite`, excluding archived chats, CLI/extension sessions and subagents. User recency takes precedence over background update times. This is not foreground-tab detection. Missing/locked/unsupported stores fall back to the global default. macOS reconciles the label every two seconds; credentials and quota query sources remain separate.
+
+Presentation is unchanged. `Tests/fixtures/codex-session-model.json` supplies an actual 6.1 model against a saved 5.6 account label, plus default fallback and unknown-route cases. Ignored `work/codex-session-model/macos` contains 30 original AppKit shown/refreshed/settled captures: three languages for 6.1, both themes, 420 × 22 points, macOS 27.0.1 (26A434), actual 2× backing scale, local uncommitted source based on `fb41b97`. Fixture SHA-256: `ed1090b0ec43fa6b2b00e18933f627ddd58f4d0441efb826707d2d732100bb6f`. All ten case/theme groups are pixel-stable across checkpoints; reviewed originals show readable labels/quota, intact spacing and no clipping. Unknown routing does not borrow OpenAI quota. These are post-change presentation captures, not a before/after style comparison or a screenshot of the user's live status bar; the live CUA read timed out.
+
+The debug `--codex-model-status` path reads the same production resolver without credentials/network calls and returned `model=gpt-6.1-sol provider=openai` from the local store. Six isolated SQLite regression tests include model switching, recency, filters, provider routes, old schema and database locks; all 102 script tests, 266 Swift tests and the Windows update harness pass. Current-change Windows WPF captures and source-matched CI artifacts remain unavailable. No Windows visual sign-off or protected release approval is claimed.
+
 ## Nonzero menu-bar task counts (2026-10-08)
 
 Mac menu-bar task digits now use semibold orange for running, green for completed unread, and red for errors when positive. Dynamic colors adapt to the native light/dark appearance. Zero and unavailable counts keep their default text appearance; zero errors and the entire task block when Codex is closed remain hidden. Each update rebuilds the attributed title so a count returning to zero loses its highlight.

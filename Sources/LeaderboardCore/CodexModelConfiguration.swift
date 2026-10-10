@@ -1,7 +1,7 @@
 import LeaderboardKit
 import Foundation
 
-/// Optional display metadata from the live Codex configuration. Never reads auth.json
+/// Optional display metadata from Codex sessions/configuration. Never reads auth.json
 /// or changes the credentials used to query a CC Switch provider's quota.
 public struct CodexModelConfiguration: Equatable, Sendable {
     public let model: String
@@ -21,6 +21,18 @@ public struct CodexModelConfiguration: Equatable, Sendable {
     }
 
     public static func parse(_ config: String) -> Self? {
+        parse(config, session: nil)
+    }
+
+    /// Session model/provider take precedence. Resolve only that provider's URL;
+    /// never attach the default provider's route to an unrelated session.
+    static func load(from url: URL, session: Self) -> Self {
+        guard let data = try? Data(contentsOf: url), data.count <= 1_048_576,
+              let config = String(data: data, encoding: .utf8) else { return session }
+        return parse(config, session: session) ?? session
+    }
+
+    private static func parse(_ config: String, session: Self?) -> Self? {
         var section = ""
         var root: [String: String] = [:]
         var urls: [String: String] = [:]
@@ -44,9 +56,9 @@ public struct CodexModelConfiguration: Equatable, Sendable {
                 urls[name] = value
             }
         }
-        guard let model = root["model"]?.trimmingCharacters(in: .whitespacesAndNewlines),
+        guard let model = (session?.model ?? root["model"])?.trimmingCharacters(in: .whitespacesAndNewlines),
               !model.isEmpty, model.count <= 128 else { return nil }
-        let provider = root["model_provider"]
+        let provider = session?.provider ?? root["model_provider"]
         return Self(model: model, provider: provider, baseURL: provider.flatMap { urls[$0] })
     }
 

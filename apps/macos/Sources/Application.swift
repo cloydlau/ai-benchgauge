@@ -9,6 +9,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var stateController: StatusBarController?
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if DEBUG
+        if CommandLine.arguments.contains("--codex-model-status") {
+            let configuration = CCSwitchProviderStore.currentCodexModelConfiguration()
+            FileHandle.standardOutput.write(Data("model=\(configuration?.model ?? "unavailable") provider=\(configuration?.provider ?? "default")\n".utf8))
+            NSApp.terminate(nil)
+            return
+        }
         if CommandLine.arguments.contains("--codex-task-status") || CommandLine.arguments.contains("--codex-task-watch") {
             Task {
                 let watch = CommandLine.arguments.contains("--codex-task-watch")

@@ -1,0 +1,17 @@
+{
+  "state": {
+    "boards": [],
+    "quotas": [{
+      "id": "openai", "name": "OpenAI", "isCurrent": true,
+      "modelName": "gpt-5.6-sol", "runs": [], "status": null,
+      "windows": [{"name": "five_hour", "utilization": 25}]
+    }]
+  },
+  "cases": [
+    {"id":"session-en","language":"en","width":420,"height":22,"scenario":"menuBarSession","codexModel":"gpt-6.1-sol","codexProvider":"openai","codexDesktopRunning":false},
+    {"id":"session-zh","language":"zh","width":420,"height":22,"scenario":"menuBarSession","codexModel":"gpt-6.1-sol","codexProvider":"openai","codexDesktopRunning":false},
+    {"id":"session-zhHant","language":"zh-Hant","width":420,"height":22,"scenario":"menuBarSession","codexModel":"gpt-6.1-sol","codexProvider":"openai","codexDesktopRunning":false},
+    {"id":"fallback-en","language":"en","width":420,"height":22,"scenario":"menuBarSession","codexModel":"gpt-5.6-sol","codexDesktopRunning":false},
+    {"id":"unknown-route-en","language":"en","width":420,"height":22,"scenario":"menuBarSession","codexModel":"other-model","codexProvider":"unknown","codexDesktopRunning":false}
+  ]
+}

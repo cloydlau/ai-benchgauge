@@ -197,7 +197,8 @@ public enum CCSwitchProviderStore {
         return trimmed.isEmpty ? nil : trimmed
     }
 
-    /// Optional live model metadata; missing Codex does not affect quota access.
+    /// Latest user-interacted desktop chat, falling back to the global default.
+    /// Missing Codex does not affect quota access; no messages/credentials are read.
     public static func currentCodexModelConfiguration(
         homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
         environment: [String: String] = ProcessInfo.processInfo.environment
@@ -208,7 +209,11 @@ public enum CCSwitchProviderStore {
         } else {
             root = homeDirectory.appending(path: ".codex", directoryHint: .isDirectory)
         }
-        return CodexModelConfiguration.load(from: root.appending(path: "config.toml"))
+        let configURL = root.appending(path: "config.toml")
+        if let session = CodexSessionModelStore.read(root: root) {
+            return CodexModelConfiguration.load(from: configURL, session: session)
+        }
+        return CodexModelConfiguration.load(from: configURL)
     }
 
     private static func defaultAppPathsURL(in home: URL) -> URL {
