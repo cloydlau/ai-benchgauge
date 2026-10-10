@@ -71,7 +71,7 @@ Mac 发布 `.dmg`，Windows 发布 `-setup.exe`，更新器按平台读取自己
 | Z.ai | GLM Coding Plan | 手动添加中国／国际区套餐 Key |
 | DeepSeek | 官方 API 余额 | 手动添加 API Key |
 | Alibaba | Qwen Token Plan | 现有 CC Switch 卡片中的官方页面登录／官方 CLI 备用来源；尚无独立添加入口 |
-| xAI | CC Switch 管理的 Grok OAuth 额度 | 当前仍依赖 CC Switch 登录 |
+| xAI | 与 CC Switch 共用的 Grok OAuth 额度 | 可直接在 BenchGauge 中发起浏览器设备码授权 |
 | MiniMax | Coding Plan | 手动添加中国／国际区套餐 Key |
 | StepFun | 官方 API 余额（CNY） | 手动添加 API Key |
 | Black Forest Labs | 官方 API credits（不换算美元） | 手动添加 API Key |
@@ -107,7 +107,12 @@ xAI OAuth 保活独立于额度刷新、面板可见性及 Codex／用户活动�
 成功后每 6 小时续期，失败后 1 小时重试；应用需运行且设备处于唤醒状态。
 旧的 6.5 天排期在升级后立即作废，下一次检查续期并保存新排期。
 额度查询与保活共享进行中的令牌轮换；服务端返回新 refresh token 时，必须成功写回
-CC Switch 登录文件才算续期成功。已被标记 `requires_reauth` 的登录仍需在 CC Switch 重新登录。
+CC Switch 登录文件才算续期成功。已被标记 `requires_reauth` 的登录可在任一应用重新授权。
+BenchGauge 的设备码授权和 CC Switch 共用同一登录文件、账号 ID、默认账号及 OAuth client，
+不创建独立账号副本。每两秒检查文件修改、原子替换、删除及配置目录变化；同一账号的
+refresh token 变化也使本地 access token 缓存失效。授权过程中账号或令牌变化会阻止旧流程写回。
+CC Switch 4.0.6 的 OAuth 管理器只在启动时读文件，运行中的反向同步仍需重启 CC Switch；
+Mac 授权完成页提供明确的重启按钮，不自动中断正在运行的代理。详见 [共享登录边界](xai-shared-login.md)。
 
 xAI 的周额度重置日只用于用量详情，不能补成套餐日期。套餐接口成功时使用并保存明确的
 套餐周期结束日；接口暂时不可用时，仅可复用同一登录账号尚未过期、此前实际查询成功的日期，

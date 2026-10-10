@@ -147,7 +147,11 @@ final class AppState: ObservableObject {
             let authURL = CCSwitchProviderStore.resolveInstall().xaiAuthURL
             return (try? await client.captureXAIWebsiteSubscription(data, authFileURL: authURL)) == true
         }
-        xaiConnection.onConnected = { [weak self] in self?.refreshQuotas(minimumInterval: 0) }
+        xaiConnection.onConnected = { [weak self] in
+            guard let self, !self.isQuitting else { return }
+            self.refreshQuotas(minimumInterval: 0)
+            await self.quotaTask?.value
+        }
         xaiWebsiteSource.onUpdated = { [weak self] in self?.refreshQuotas(minimumInterval: 0) }
         qwenWebsiteSource.onUpdated = { [weak self] status in
             guard let self, !self.isQuitting else { return }

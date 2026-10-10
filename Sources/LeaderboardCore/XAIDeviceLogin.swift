@@ -75,7 +75,8 @@ public actor XAIDeviceLogin {
               let expires = response["expires_in"] as? Double, expires.isFinite, expires > 0, expires <= 86_400 else {
             throw XAIDeviceLoginError.invalidResponse
         }
-        let interval = max(1, min((response["interval"] as? Double) ?? 5, 60))
+        let interval = (response["interval"] as? Double) ?? 5
+        guard interval.isFinite, interval > 0, interval <= 86_400 else { throw XAIDeviceLoginError.invalidResponse }
         let attempt = XAIDeviceLoginAttempt(id: UUID().uuidString, authorizationURL: url, userCode: userCode,
             expiresAt: now().addingTimeInterval(expires), interval: interval)
         pending = Pending(attempt: attempt, deviceCode: code, tokenEndpoint: token, userEndpoint: user,
@@ -207,7 +208,7 @@ public actor XAIDeviceLogin {
     }
 
     private static func snapshot(at url: URL) throws -> XaiAuthFile.Snapshot? {
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        guard FileManager.default.fileExists(atPath: PlatformPaths.fileSystemPath(url)) else { return nil }
         guard let data = try? Data(contentsOf: url), let snapshot = XaiAuthFile.parse(data) else { throw XAIDeviceLoginError.storage }
         return snapshot
     }
@@ -216,7 +217,7 @@ public actor XAIDeviceLogin {
         let url = entry.authURL
         let fm = FileManager.default
         let before: Data?
-        if fm.fileExists(atPath: url.path) {
+        if fm.fileExists(atPath: PlatformPaths.fileSystemPath(url)) {
             guard let data = try? Data(contentsOf: url), XaiAuthFile.parse(data) != nil else { throw XAIDeviceLoginError.storage }
             before = data
         } else { before = nil }
@@ -247,7 +248,7 @@ public actor XAIDeviceLogin {
         #else
         let attributes: [FileAttributeKey: Any] = [.posixPermissions: 0o600]
         #endif
-        guard fm.createFile(atPath: temp.path, contents: nil, attributes: attributes) else { throw XAIDeviceLoginError.storage }
+        guard fm.createFile(atPath: PlatformPaths.fileSystemPath(temp), contents: nil, attributes: attributes) else { throw XAIDeviceLoginError.storage }
         do {
             let handle = try FileHandle(forWritingTo: temp)
             defer { try? handle.close() }
@@ -258,7 +259,7 @@ public actor XAIDeviceLogin {
             if before == nil { try fm.moveItem(at: temp, to: url) }
             else { _ = try fm.replaceItemAt(url, withItemAt: temp) }
             #if !os(Windows)
-            try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+            try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: PlatformPaths.fileSystemPath(url))
             #endif
         } catch let error as XAIDeviceLoginError { throw error }
         catch { throw XAIDeviceLoginError.storage }
@@ -291,7 +292,7 @@ public enum XAIDeviceLoginText {
         case "accountMismatch": language.text("This is a different xAI account. Try again with the account used in CC Switch.", "登录的 xAI 账号与 CC Switch 中的账号不同，请使用原账号重试。")
         case "accountChanged": language.text("The shared login changed during authorization. Try again.", "授权期间共用登录发生了变化，请重新登录。")
         case "storage": language.text("Could not save the shared login. Check the CC Switch directory permissions and try again.", "共用登录未能保存，请检查 CC Switch 目录权限后重试。")
-        case "saved": language.text("Signed in. BenchGauge has refreshed. Restart a running CC Switch to load the shared login.", "登录成功，BenchGauge 已刷新。如 CC Switch 正在运行，请重启它以载入共用登录。")
+        case "saved": language.text("Signed in. BenchGauge refreshes automatically. Restart a running CC Switch to load the shared login.", "登录成功，BenchGauge 会自动刷新余量。如 CC Switch 正在运行，请重启它以载入共用登录。")
         default: language.text("Authorization did not finish. Try again.", "授权未完成，请重试。")
         }
     }

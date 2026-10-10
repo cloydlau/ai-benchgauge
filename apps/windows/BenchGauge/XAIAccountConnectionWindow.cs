@@ -124,7 +124,7 @@ sealed class XAIAccountConnectionWindow : Window
             "accountMismatch" => Tr("This is a different xAI account. Try again with the account used in CC Switch.", "登录的 xAI 账号与 CC Switch 中的账号不同，请使用原账号重试。", "登入的 xAI 帳號與 CC Switch 中的帳號不同，請使用原帳號重試。"),
             "accountChanged" => Tr("The shared login changed during authorization. Try again.", "授权期间共用登录发生了变化，请重新登录。", "授權期間共用登入發生了變化，請重新登入。"),
             "storage" => Tr("Could not save the shared login. Check the CC Switch directory permissions and try again.", "共用登录未能保存，请检查 CC Switch 目录权限后重试。", "共用登入未能保存，請檢查 CC Switch 目錄權限後重試。"),
-            "saved" => Tr("Signed in. BenchGauge has refreshed. Restart a running CC Switch to load the shared login.", "登录成功，BenchGauge 已刷新。如 CC Switch 正在运行，请重启它以载入共用登录。", "登入成功，BenchGauge 已刷新。如 CC Switch 正在運行，請重啟它以載入共用登入。"),
+            "saved" => Tr("Signed in. BenchGauge refreshes automatically. Restart a running CC Switch to load the shared login.", "登录成功，BenchGauge 会自动刷新余量。如 CC Switch 正在运行，请重启它以载入共用登录。", "登入成功，BenchGauge 會自動刷新餘量。如 CC Switch 正在運行，請重啟它以載入共用登入。"),
             _ => Tr("Authorization did not finish. Try again.", "授权未完成，请重试。", "授權未完成，請重試。")
         };
     }
