@@ -1,5 +1,13 @@
 # Native visual comparison
 
+## Querying quotas sort last (2026-10-10)
+
+Pending quota cards now form a final stable group after all resolved/error cards, including depleted balances. Pending cards retain their stored relative order regardless of provider or current selection; completed queries immediately rejoin the existing billing/expiry groups. The shared sorter serves both Mac cards and Windows engine projections. Query failures are not pending queries and keep their existing placement.
+
+`Tests/fixtures/quota-pending-last.json` covers current OpenAI and metered DeepSeek pending cards alongside healthy/exhausted plans, funded/zero balances, a missing plan and a failed query, at 600/900 × 820 points in all three languages and both themes. Ignored `work/quota-pending-last/before/macos` and `after/macos` preserve 36 original native AppKit/SwiftUI captures each, with shown/refreshed/settled checkpoints. `review.html` links every original side by side; `review.json` records stability and environment. Fixture SHA-256: `e7c24202348b4b53c3fca56795b3dcc82367f1e183aa91c25c582e03cb4fe3a2`. Actual environment: macOS 27.0.1 (26A434), 2× backing scale; saved pre-change native binary and after-change local source are based on `c4e2b7d`. All twelve case/theme groups in each phase have identical checkpoint pixels. Reviewed originals show pending chips after resolved cards, retained current-provider outline, readable quota labels and clean wrapping/add-model placement. Existing narrow leaderboard-name truncation is unchanged.
+
+Regression tests cover every provider/current-selection combination against resolved groups, mixed and all-pending stable order, and successful/failed query transitions. All 102 script tests, 268 Swift tests and the 39 Windows update harness cases pass; syntax checks pass. Current-change Windows WPF captures and source-matched CI/native-visual-comparison artifacts are unavailable. No Windows visual sign-off or protected release approval is claimed.
+
 ## Session-backed Codex model metadata (2026-10-10)
 
 Model resolution now reads only model/provider metadata from the most recently user-interacted local desktop chat in `state_5.sqlite`, excluding archived chats, CLI/extension sessions and subagents. User recency takes precedence over background update times. This is not foreground-tab detection. Missing/locked/unsupported stores fall back to the global default. macOS reconciles the label every two seconds; credentials and quota query sources remain separate.
