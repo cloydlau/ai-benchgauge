@@ -56,6 +56,7 @@ See [compatibility details, validation scope, and the Intel support assessment](
 | **License notices** | Footer links open a scrollable sheet for the app's MIT license and third-party notices, with full license text available offline. See the [notice inventory](docs/third-party-notices.md) for the current audit status. |
 | **Updates that stay out of the way** | Opening the panel checks for updates. Rankings update daily, retry hourly after a failed daily update, and remain available from the local cache when a source is temporarily down. |
 | **Codex task counts (macOS)** | See running and completed-unread task counts in the menu bar, plus failures when present. Appears while the ChatGPT/Codex desktop app is running; updates locally without model or quota API calls. |
+| **Codex model label** | Uses the most recently user-interacted local desktop chat's actual model/provider, excluding archived chats and subagents. Falls back to `config.toml` when session metadata is unavailable. macOS checks changes every two seconds; this is not foreground-tab detection. |
 
 ### Codex task counts
 
