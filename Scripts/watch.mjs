@@ -219,10 +219,20 @@ function readDeployedCommit() {
   }
 }
 
-function writeDeployReceipt(commit) {
+function deployedNotification() {
+  const commit = readDeployedCommit()
+  return deploymentNotification(commit, { readAuthor: (revision) => {
+    const receipt = JSON.parse(readFileSync(deployReceiptPath, 'utf8'))
+    // 显式空署名表示该次构建包含未提交代码；重启后也不能借用旧 HEAD。
+    return typeof receipt.author === 'string'
+      ? receipt.author : gitText(['show', '-s', '--format=%an', revision, '--'])
+  } })
+}
+
+function writeDeployReceipt(commit, author) {
   if (!commit) return
   mkdirSync(dirname(deployReceiptPath), { recursive: true })
-  writeFileSync(deployReceiptPath, `${JSON.stringify({ commit, deployedAt: new Date().toISOString() })}\n`)
+  writeFileSync(deployReceiptPath, `${JSON.stringify({ commit, author, deployedAt: new Date().toISOString() })}\n`)
 }
 
 function appChangedBetween(from, to) {
@@ -303,11 +313,12 @@ function runGit(args) {
   })
 }
 
-async function notify(ok, title, message) {
+async function notify(ok, title, message, { model } = {}) {
   if (process.env.DESKTOP_NOTIFY === '0') return
   let image = ''
   try {
-    image = materializeAvatar(avatarForModel(detectModelName()))
+    const identity = model ?? detectModelName()
+    if (identity) image = materializeAvatar(avatarForModel(identity))
   } catch {
     image = ''
   }
@@ -318,7 +329,26 @@ async function notify(ok, title, message) {
   }
 }
 
+export function deploymentNotification(commit, {
+  readAuthor = (revision) => gitText(['show', '-s', '--format=%an', revision, '--']),
+} = {}) {
+  // 通知归属已运行的代码版本；不能在构建结束后再用当前配置猜一次模型。
+  let model = ''
+  if (commit) {
+    try { model = String(readAuthor(commit) || '').trim() } catch { /* 署名缺失不阻断重启。 */ }
+  }
+  if (/[\r\n\x00-\x1f\x7f]/.test(model)) model = ''
+  return {
+    model,
+    message: `${model ? '提交署名：' + model + '\n' : ''}菜单栏应用已使用最新代码重新打开。`,
+  }
+}
+
 async function rebuild(testSignature) {
+  const buildSignature = signature(snapshot())
+  const head = currentHead()
+  const appStatus = gitText(['status', '--porcelain', '--untracked-files=all', '--', ...appDeployPaths])
+  const notification = deploymentNotification(appStatus === '' ? head : null)
   console.log('[watch] 开始重建…')
   const built = await run(join(root, 'Scripts', 'make-app.sh'), testSignature ? { BENCHGAUGE_TEST_PASS: testSignature } : {})
   if (built.status !== 0) {
@@ -327,10 +357,10 @@ async function rebuild(testSignature) {
     await notify(false, '构建失败', detail)
     return false
   }
-  return restartApp()
+  return restartApp(signature(snapshot()) === buildSignature ? notification : deploymentNotification(null), head)
 }
 
-async function restartApp() {
+async function restartApp(notification = deployedNotification(), head = readDeployedCommit()) {
   console.log('[watch] 开始重启…')
   const restarted = await run(join(root, 'Scripts', 'restart.sh'))
   if (restarted.status !== 0) {
@@ -340,9 +370,9 @@ async function restartApp() {
     return false
   }
   console.log('[watch] 已启动最新应用')
-  let model = ''
-  try { model = detectModelName() } catch { /* Model attribution is required for commits, not application startup. */ }
-  await notify(true, '已重启', `${model ? model + '\n' : ''}菜单栏应用已使用最新代码重新打开。`)
+  const { model, message } = notification
+  writeDeployReceipt(head || currentHead(), model)
+  await notify(true, '已重启', message, { model })
   return true
 }
 
@@ -545,11 +575,7 @@ async function main() {
         rebuiltOk = await rebuild(tested.signature)
         if (rebuiltOk) {
           lastRebuiltSignature = builtSignature
-          const head = currentHead()
-          if (head) {
-            writeDeployReceipt(head)
-            deployedHead = head
-          }
+          deployedHead = readDeployedCommit()
         }
         failedSignature = rebuiltOk ? null : builtSignature
       } else {
@@ -630,11 +656,7 @@ async function main() {
   if (started && deployEnabled) {
     started = needsInitialBuild ? await rebuild(initialTest.signature) : await restartApp()
     if (started) {
-      const head = currentHead()
-      if (head) {
-        writeDeployReceipt(head)
-        deployedHead = head
-      }
+      deployedHead = readDeployedCommit()
     }
   } else if (started) {
     console.log('[watch] 自动部署已关闭，跳过构建与重启')
