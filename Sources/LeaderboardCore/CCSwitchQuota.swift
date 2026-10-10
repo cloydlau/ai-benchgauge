@@ -653,7 +653,8 @@ public enum AccountQuotaFormatting {
     }
 
     /// Plans with remaining quota, funded metered balances, exhausted plans,
-    /// explicitly unsubscribed plans, then depleted metered balances. Unknown
+    /// explicitly unsubscribed plans, depleted metered balances, then pending
+    /// queries (in stored order regardless of provider/current selection). Unknown
     /// amounts are not evidence of a zero balance. Within plan groups, soonest
     /// expiry comes first. A chip sorts by the expiry its card shows: the plan
     /// end when there is one, otherwise a monthly quota reset. Shorter usage
@@ -676,6 +677,7 @@ public enum AccountQuotaFormatting {
     }
 
     private static func billingPriority(_ chip: AccountQuotaChip) -> Int {
+        if case .pending = chip.status { return 5 }
         if isPayAsYouGo(chip) {
             if case let .balances(balances) = chip.status, !balances.isEmpty,
                balances.allSatisfy({ $0.amount.isFinite && $0.amount <= 0 }) {

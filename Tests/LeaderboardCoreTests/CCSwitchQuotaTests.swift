@@ -927,7 +927,7 @@ struct AccountQuotaFormattingTests {
     @Test
     func testUndatedAndFailedPlansAlwaysPrecedePayAsYouGoProviders() {
         let plans: [AccountQuotaChip.Status] = [
-            .pending, .note(text: AccountQuotaMessage.notConfigured, help: ""),
+            .note(text: AccountQuotaMessage.notConfigured, help: ""),
             .message(AccountQuotaMessage.queryFailed), .message(AccountQuotaMessage.reauthRequired),
             .message(AccountQuotaMessage.notLoggedIn), .message(AccountQuotaMessage.network),
             .windows([ParsedQuotaWindow(name: "weekly_limit", utilization: 25,
@@ -935,7 +935,7 @@ struct AccountQuotaFormattingTests {
             .windows([]),
         ]
         let metered: [AccountQuotaChip.Status] = [
-            .pending, .message(AccountQuotaMessage.queryFailed),
+            .message(AccountQuotaMessage.queryFailed),
             .message(AccountQuotaMessage.notConfigured), .balances([]),
             .balances([ParsedBalance(currency: "CNY", amount: 0)]),
             .balances([ParsedBalance(currency: "CNY", amount: 12.36)]),
@@ -959,7 +959,7 @@ struct AccountQuotaFormattingTests {
         let soon = late.addingTimeInterval(-86_400)
         let chips = [
             quotaChip(id: "deepseek", kind: .deepseek, status: .message(AccountQuotaMessage.queryFailed)),
-            quotaChip(id: "xai", kind: .xaiOAuth, status: .pending),
+            quotaChip(id: "xai", kind: .xaiOAuth, status: .message(AccountQuotaMessage.queryFailed)),
             quotaChip(id: "luma", kind: .luma, status: .balances([ParsedBalance(currency: "USD", amount: 1)])),
             quotaChip(id: "late", kind: .kimi, isCurrent: true, status: .windows([
                 ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: late)])),
@@ -1027,7 +1027,7 @@ struct AccountQuotaFormattingTests {
     @Test
     func testUnsubscribedPlansFollowMeteredIncludingUnknownAmounts() {
         let unknownAmounts: [AccountQuotaChip.Status] = [
-            .pending, .message(AccountQuotaMessage.queryFailed), .message(AccountQuotaMessage.network),
+            .message(AccountQuotaMessage.queryFailed), .message(AccountQuotaMessage.network),
             .note(text: AccountQuotaMessage.notConfigured, help: ""), .balances([]),
         ]
         for kind in [CCSwitchQuotaKind.zhipu, .qwen] {
@@ -1040,6 +1040,64 @@ struct AccountQuotaFormattingTests {
                 }
             }
         }
+    }
+
+    @Test
+    func testPendingQueriesFollowEveryResolvedGroupForEveryProvider() {
+        let resolved = [
+            quotaChip(id: "plan", kind: .kimi, status: .windows([
+                ParsedQuotaWindow(name: "weekly_limit", utilization: 10, resetsAt: nil)])),
+            quotaChip(id: "metered", kind: .deepseek, status: .balances([
+                ParsedBalance(currency: "CNY", amount: 12)])),
+            quotaChip(id: "exhausted", kind: .kimi, status: .windows([
+                ParsedQuotaWindow(name: "weekly_limit", utilization: 100, resetsAt: nil)])),
+            quotaChip(id: "noPlan", kind: .zhipu, status: .message(AccountQuotaMessage.glmNoCodingPlan)),
+            quotaChip(id: "zero", kind: .deepseek, status: .balances([ParsedBalance(currency: "CNY", amount: 0)])),
+            quotaChip(id: "failed", kind: .xaiOAuth, status: .message(AccountQuotaMessage.queryFailed)),
+            quotaChip(id: "network", kind: .qwen, status: .message(AccountQuotaMessage.network)),
+            quotaChip(id: "login", kind: .officialNote, status: .message(AccountQuotaMessage.reauthRequired)),
+        ]
+        for kind in [CCSwitchQuotaKind.officialNote, .kimi, .zhipu, .deepseek, .qwen, .xaiOAuth,
+                     .minimax, .stepfun, .blackForestLabs, .luma, .claude, .gemini] {
+            for isCurrent in [false, true] {
+                let pending = quotaChip(id: "pending", kind: kind, isCurrent: isCurrent, status: .pending)
+                for chip in resolved {
+                    for input in [[pending, chip], [chip, pending]] {
+                        #expect(AccountQuotaFormatting.sortedChips(input).map(\.id) == [chip.id, "pending"])
+                    }
+                }
+                let expected = AccountQuotaFormatting.sortedChips(resolved).map(\.id) + ["pending"]
+                for index in 0...resolved.count {
+                    var input = resolved
+                    input.insert(pending, at: index)
+                    #expect(AccountQuotaFormatting.sortedChips(input).map(\.id) == expected)
+                }
+            }
+        }
+    }
+
+    @Test
+    func testPendingQueriesKeepStoredOrderAndRejoinNormalGroupsAfterQuery() {
+        let pendingPlan = quotaChip(id: "plan", kind: .kimi, isCurrent: true, status: .pending)
+        let pendingMetered = quotaChip(id: "metered", kind: .deepseek, status: .pending)
+        let zero = quotaChip(id: "zero", kind: .luma, status: .balances([ParsedBalance(currency: "USD", amount: 0)]))
+        #expect(AccountQuotaFormatting.sortedChips([pendingPlan, zero, pendingMetered]).map(\.id)
+            == ["zero", "plan", "metered"])
+        #expect(AccountQuotaFormatting.sortedChips([pendingMetered, pendingPlan, zero]).map(\.id)
+            == ["zero", "metered", "plan"])
+        #expect(AccountQuotaFormatting.sortedChips([pendingMetered, pendingPlan]).map(\.id) == ["metered", "plan"])
+        #expect(AccountQuotaFormatting.sortedChips([]).isEmpty)
+        let completedPlan = quotaChip(id: "plan", kind: .kimi, isCurrent: true, status: .windows([
+            ParsedQuotaWindow(name: "weekly_limit", utilization: 25, resetsAt: nil)]))
+        #expect(AccountQuotaFormatting.sortedChips([pendingMetered, zero, completedPlan]).map(\.id)
+            == ["plan", "zero", "metered"])
+        let completedMetered = quotaChip(id: "metered", kind: .deepseek, status: .balances([
+            ParsedBalance(currency: "CNY", amount: 12)]))
+        #expect(AccountQuotaFormatting.sortedChips([pendingPlan, zero, completedMetered]).map(\.id)
+            == ["metered", "zero", "plan"])
+        let failedPlan = quotaChip(id: "plan", kind: .kimi, status: .message(AccountQuotaMessage.queryFailed))
+        #expect(AccountQuotaFormatting.sortedChips([pendingMetered, zero, failedPlan]).map(\.id)
+            == ["plan", "zero", "metered"])
     }
 
     @Test
