@@ -11,10 +11,11 @@ import Foundation
 /// A window whose whole period is 2 days or less is not 临期. The 5-hour
 /// window is always inside that horizon, so treating it as expiring would
 /// notify on every cycle.
-public struct QuotaAlert: Equatable, Sendable {
-    public enum Reason: String, Equatable, Sendable {
+public struct QuotaAlert: Codable, Equatable, Sendable {
+    public enum Reason: String, Codable, Equatable, Sendable {
         case lowRemaining
         case expiring
+        case recovered
     }
 
     public let chipID: String
@@ -90,7 +91,7 @@ public enum QuotaAlerts {
         }
     }
 
-    private struct Subject {
+    struct Subject {
         let sourceID: String
         let label: String
         let remainingPercent: Double?
@@ -101,7 +102,7 @@ public enum QuotaAlerts {
         let isAutoRenewing: Bool
     }
 
-    private static func isConclusive(_ status: AccountQuotaChip.Status) -> Bool {
+    static func isConclusive(_ status: AccountQuotaChip.Status) -> Bool {
         switch status {
         case .pending, .note, .message:
             return false
@@ -119,7 +120,7 @@ public enum QuotaAlerts {
         }
     }
 
-    private static func subjects(for chip: AccountQuotaChip) -> [Subject] {
+    static func subjects(for chip: AccountQuotaChip) -> [Subject] {
         switch chip.status {
         case let .windows(windows):
             return AccountQuotaFormatting.displayWindows(windows, kind: chip.kind).map { window in

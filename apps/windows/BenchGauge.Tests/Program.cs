@@ -28,6 +28,13 @@ if (UpdateAge.Parse("invalid") is not null || UpdateAge.Format(null, ageNow, "zh
     UpdateAge.Parse("2026-10-01T20:00:00+08:00") != ageNow) throw new Exception("Incorrect unknown or offset update time");
 var oldState = JsonSerializer.Deserialize<DisplayState>("{\"boards\":[],\"quotas\":[],\"quotaNeedsCCSwitch\":false,\"quotaUnavailable\":false,\"alerts\":[]}", AppConfig.Json)!;
 if (oldState.QuotaUpdatedAt is not null) throw new Exception("Missing data timestamp must remain unknown");
+var recoveryResponse = JsonSerializer.Deserialize<EngineResponse>("""
+    {"id":1,"qwenQuotaRefreshNeeded":true,"result":{"boards":[],"quotas":[],"quotaNeedsCCSwitch":false,"quotaUnavailable":false,"alerts":[{"title":"GLM · Quota restored","body":"5h 100%"}]}}
+    """, AppConfig.Json)!;
+if (recoveryResponse.QwenQuotaRefreshNeeded != true || recoveryResponse.Result?.Alerts.Single().Title != "GLM · Quota restored")
+    throw new Exception("Recovery response lost provider identity or website refresh request");
+var oldResponse = JsonSerializer.Deserialize<EngineResponse>("{\"id\":2}", AppConfig.Json)!;
+if (oldResponse.QwenQuotaRefreshNeeded is not null) throw new Exception("Older responses must not request a website refresh");
 
 var keys = new Ed25519PrivateKeyParameters(new SecureRandom());
 var publicKey = Convert.ToBase64String(keys.GeneratePublicKey().GetEncoded());

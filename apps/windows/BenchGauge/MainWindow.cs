@@ -76,7 +76,11 @@ sealed partial class MainWindow : Window
                 try { await engine.Request("keepAliveXAI", prefs); }
                 catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException) { }
             }
-            if (!modalOpen && !(panelMenuOpen || dropdowns.Any(box => box.IsDropDownOpen))) await Refresh("state");
+            if (!modalOpen && !(panelMenuOpen || dropdowns.Any(box => box.IsDropDownOpen)))
+            {
+                await Refresh("refreshQuotaRecoveries");
+                await Refresh("state");
+            }
         };
         sharedXAILoginTimer.Tick += async (_, _) =>
         {
@@ -151,8 +155,17 @@ sealed partial class MainWindow : Window
             }
             var view = (prefs.Category, prefs.Grouping, prefs.Language);
             var response = await engine.Request(command, prefs);
-            if (view != (prefs.Category, prefs.Grouping, prefs.Language)) return;
+            if (view != (prefs.Category, prefs.Grouping, prefs.Language))
+            {
+                if (response.Result is { } previousView) ShowQuotaAlerts(previousView.Alerts);
+                return;
+            }
             if (response.Result is { } result) SetState(result);
+            if (response.QwenQuotaRefreshNeeded == true && prefs.QwenWebsiteConnected)
+            {
+                qwenWindow ??= new QwenWebsiteWindow(engine, prefs, SetState);
+                try { await qwenWindow.Refresh(); } catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException or System.ComponentModel.Win32Exception or Microsoft.Web.WebView2.Core.WebView2RuntimeNotFoundException) { }
+            }
             if ((command == "refreshQuotas" || command == "refreshCurrentQuota") && prefs.XaiSubscriptionWebsiteConnected)
             {
                 xaiSubscriptionWindow ??= new XAIWebsiteSubscriptionWindow(engine, prefs, SetState);
@@ -173,8 +186,13 @@ sealed partial class MainWindow : Window
         {
             var text = "AI BenchGauge" + (result.TrayText is { } quota ? " · " + quota : "");
             Tray.Text = text.Length <= 63 ? text : text[..60] + "…";
-            foreach (var alert in result.Alerts) Tray.ShowBalloonTip(5000, alert.Title, alert.Body, Forms.ToolTipIcon.Warning);
+            ShowQuotaAlerts(result.Alerts);
         }
+    }
+    void ShowQuotaAlerts(Alert[] alerts)
+    {
+        if (Tray is null) return;
+        foreach (var alert in alerts) Tray.ShowBalloonTip(5000, alert.Title, alert.Body, Forms.ToolTipIcon.Warning);
     }
     void Render() => RenderPanel(ManageOfficialAccounts);
     void Place(UIElement element, int row) { Grid.SetRow(element, row); content.Children.Add(element); }
