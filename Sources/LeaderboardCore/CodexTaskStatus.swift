@@ -227,7 +227,9 @@ public struct CodexTaskProjection {
                 if !current.flags.contains("waitingOnApproval") && !current.flags.contains("waitingOnUserInput") { result.running += 1 }
                 continue
             }
-            if live[id]?.runtime == "systemError" || (live[id]?.status ?? record.status) == "failed" {
+            // Runtime errors can occur outside a turn (for example, while
+            // loading a conversation). Only a failed latest turn is a task failure.
+            if (live[id]?.status ?? record.status) == "failed" {
                 result.failed += 1
             } else if (live[id]?.status ?? record.status) == "completed", record.unread {
                 result.unread += 1

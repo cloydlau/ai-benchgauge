@@ -55,6 +55,39 @@ struct CodexTaskStatusTests {
         #expect(projection.counts(stored: stored).running == 0)
     }
 
+    @Test func systemErrorCountsOnlyFailedLatestTurns() {
+        for status in ["completed", "interrupted", "inProgress", "failed"] {
+            var projection = CodexTaskProjection()
+            // A runtime error must not turn a successfully completed or
+            // interrupted turn into a failure, nor hide a real failed turn.
+            let received = projection.receive(snapshot(runtime: "systemError", status: status))
+            #expect(received)
+            let stored = ["task": CodexStoredTask(status: status, unread: true)]
+            #expect(projection.counts(stored: stored) == CodexTaskCounts(
+                running: 0, unread: status == "completed" ? 1 : 0, failed: status == "failed" ? 1 : 0))
+        }
+    }
+
+    @Test func systemErrorPatchesPreserveCompletedUnreadAndActualFailureRecovery() {
+        var projection = CodexTaskProjection()
+        let stored = ["task": CodexStoredTask(status: "completed", unread: true)]
+        let receivedSnapshot = projection.receive(snapshot(runtime: "idle", status: "completed"))
+        #expect(receivedSnapshot)
+        let runtimeError: [String: Any] = ["version": 11, "sourceClientId": "desktop",
+            "params": ["hostId": "local", "conversationId": "task", "change": [
+                "type": "patches", "baseRevision": 1, "revision": 2, "patches": [
+                    ["op": "replace", "path": ["threadRuntimeStatus", "type"], "value": "systemError"]]]]]
+        let receivedError = projection.receive(runtimeError)
+        #expect(receivedError)
+        #expect(projection.counts(stored: stored) == CodexTaskCounts(running: 0, unread: 1, failed: 0))
+        let receivedFailure = projection.receive(patch(base: 2, revision: 3, runtime: "systemError", status: "failed"))
+        #expect(receivedFailure)
+        #expect(projection.counts(stored: stored) == CodexTaskCounts(running: 0, unread: 0, failed: 1))
+        let receivedRecovery = projection.receive(patch(base: 3, revision: 4, runtime: "systemError", status: "completed"))
+        #expect(receivedRecovery)
+        #expect(projection.counts(stored: stored) == CodexTaskCounts(running: 0, unread: 1, failed: 0))
+    }
+
     @Test func approvalWaitAndUserInputAreNotExecutingAndToolErrorsAreNotFailedTasks() {
         var projection = CodexTaskProjection()
         let stored = ["task": CodexStoredTask(status: "inProgress", unread: false)]
