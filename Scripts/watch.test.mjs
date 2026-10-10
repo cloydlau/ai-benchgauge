@@ -5,7 +5,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpat
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { dirtyStatusSignature } from './watch.mjs'
+import { deploymentNotification, dirtyStatusSignature } from './watch.mjs'
 
 test('saving the same dirty file changes the commit retry signature', () => {
   const status = ' M Sources/example.swift\0'
@@ -21,9 +21,26 @@ test('staging a new version changes the commit retry signature', () => {
   assert.notEqual(before, after)
 })
 
+test('restart attribution stays with the deployed commit when the current model or HEAD changes', () => {
+  const authors = new Map([['deployed-grok', 'grok-4.7'], ['newer-gpt', 'gpt-6.1-sol']])
+  const notification = deploymentNotification('deployed-grok', { readAuthor: (revision) => authors.get(revision) })
+  assert.equal(notification.model, 'grok-4.7')
+  assert.match(notification.message, /^提交署名：grok-4\.7\n/)
+  assert.doesNotMatch(notification.message, /gpt/)
+})
+
+test('an uncommitted build or unreadable deployment never borrows the current model', () => {
+  const unknown = deploymentNotification(null, { readAuthor: () => { throw Error('must not read HEAD') } })
+  assert.equal(unknown.model, '')
+  assert.equal(unknown.message, '菜单栏应用已使用最新代码重新打开。')
+  for (const readAuthor of [() => null, () => { throw Error('missing commit') }, () => 'grok\nother']) {
+    assert.deepEqual(deploymentNotification('missing', { readAuthor }), unknown)
+  }
+})
+
 // Run the real watcher in an isolated project. The build/restart scripts only
 // record calls; these tests never launch the user's app or use its accounts.
-function watcherFixture(t, { binary = 'fresh', restartFails = false, testsFail = false, commitFails = false, initiallyBusy = false, gitWork = false, receiptCommit = null, env = {} } = {}) {
+function watcherFixture(t, { binary = 'fresh', restartFails = false, testsFail = false, commitFails = false, initiallyBusy = false, gitWork = false, receiptCommit = null, receiptAuthor = undefined, notificationAuthor = null, dirtyBuild = false, env = {} } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'benchgauge-watch-test-')))
   const scripts = join(root, 'Scripts')
   const app = join(root, 'outputs', 'AI-BenchGauge.app')
@@ -78,6 +95,25 @@ exit 0
 `, { mode: 0o755 })
     writeFileSync(join(scripts, 'commit.mjs'), `import { appendFileSync, writeFileSync } from 'node:fs'; appendFileSync('events', 'commit\\n'); if (${commitFails}) process.exit(2); writeFileSync('commit.done', 'done'); writeFileSync('head', 'fixture-head-2')`)
   }
+  if (notificationAuthor != null) {
+    // Isolate system notifications and Git from the user's desktop and checkout.
+    writeFileSync(join(scripts, 'desktop-notify.mjs'), `import { appendFileSync } from 'node:fs'
+export const materializeAvatar = (avatar) => avatar.provider
+export function notifyDesktop(root, title, message, options) {
+  appendFileSync(root + '/notifications.jsonl', JSON.stringify({ title, message, image: options.image }) + '\\n')
+}
+`)
+    mkdirSync(join(root, 'bin'), { recursive: true })
+    writeFileSync(join(root, 'bin', 'git'), `#!/bin/sh
+case "$1" in
+  status) if ${dirtyBuild}; then printf ' M Sources/example.swift\\0'; fi;;
+  show) printf '%s\\n' '${notificationAuthor}';;
+  rev-parse) echo newer-gpt;;
+  cat-file) exit 0;;
+  rev-list) echo '0 0';;
+esac
+`, { mode: 0o755 })
+  }
   const executable = join(app, 'Contents', 'MacOS', 'leaderboard-menu')
   if (binary !== 'missing') {
     writeFileSync(executable, '')
@@ -89,12 +125,12 @@ exit 0
   utimesSync(app, bundleDate, bundleDate)
   if (receiptCommit) {
     mkdirSync(join(root, 'work'), { recursive: true })
-    writeFileSync(join(root, 'work', '.last-app-deploy'), `${JSON.stringify({ commit: receiptCommit })}\n`)
+    writeFileSync(join(root, 'work', '.last-app-deploy'), `${JSON.stringify({ commit: receiptCommit, author: receiptAuthor })}\n`)
   }
   const child = spawn(process.execPath, [join(scripts, 'watch.mjs')], {
     cwd: root,
     env: { ...process.env, WATCH_AUTOCOMMIT: gitWork ? '1' : '0', DESKTOP_NOTIFY: '0', ...env,
-      ...(gitWork ? { PATH: join(root, 'bin') + ':' + process.env.PATH } : {}) },
+      ...((gitWork || notificationAuthor != null) ? { PATH: join(root, 'bin') + ':' + process.env.PATH } : {}) },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   let output = ''
@@ -110,6 +146,8 @@ exit 0
   })
   return {
     source, testFile, root, child, exited,
+    notifications: () => existsSync(join(root, 'notifications.jsonl'))
+      ? readFileSync(join(root, 'notifications.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line)) : [],
     output: () => output,
     events: () => existsSync(join(root, 'events')) ? readFileSync(join(root, 'events'), 'utf8').trim().split('\n') : [],
   }
@@ -128,6 +166,51 @@ test('startup launches a current executable immediately despite an old bundle di
   await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
   assert.match(fixture.output(), /【自动处理中】 启动自检中；测试通过后将启动或更新菜单栏应用/)
   assert.deepEqual(fixture.events(), ['test', 'restart'])
+})
+
+test('the real restart uses one deployed author for both the notification text and avatar', async (t) => {
+  const fixture = watcherFixture(t, {
+    receiptCommit: 'deployed-grok', notificationAuthor: 'grok-4.7',
+    env: { DESKTOP_NOTIFY: '1', MODEL_NAME: 'gpt-6.1-sol' },
+  })
+  await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
+  assert.deepEqual(fixture.notifications(), [{
+    title: '已重启',
+    message: '提交署名：grok-4.7\n菜单栏应用已使用最新代码重新打开。',
+    image: 'grok',
+  }])
+})
+
+test('restarting an uncommitted deployed build keeps its missing author and avatar', async (t) => {
+  const fixture = watcherFixture(t, {
+    receiptCommit: 'deployed-dirty', receiptAuthor: '', notificationAuthor: 'grok-4.7',
+    env: { DESKTOP_NOTIFY: '1', MODEL_NAME: 'gpt-6.1-sol' },
+  })
+  await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
+  assert.deepEqual(fixture.notifications(), [{
+    title: '已重启',
+    message: '菜单栏应用已使用最新代码重新打开。',
+    image: '',
+  }])
+  const receipt = JSON.parse(readFileSync(join(fixture.root, 'work', '.last-app-deploy'), 'utf8'))
+  assert.equal(receipt.author, '')
+  assert.equal(receipt.commit, 'deployed-dirty')
+})
+
+test('building dirty source omits the old author and persists that decision for the next restart', async (t) => {
+  const fixture = watcherFixture(t, {
+    binary: 'stale', dirtyBuild: true, notificationAuthor: 'grok-4.7',
+    env: { DESKTOP_NOTIFY: '1', MODEL_NAME: 'gpt-6.1-sol' },
+  })
+  await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
+  assert.deepEqual(fixture.events(), ['test', 'build', 'restart'])
+  assert.deepEqual(fixture.notifications(), [{
+    title: '已重启',
+    message: '菜单栏应用已使用最新代码重新打开。',
+    image: '',
+  }])
+  const receipt = JSON.parse(readFileSync(join(fixture.root, 'work', '.last-app-deploy'), 'utf8'))
+  assert.equal(receipt.author, '')
 })
 
 test('a second watcher exits without testing or launching the app again', async (t) => {
