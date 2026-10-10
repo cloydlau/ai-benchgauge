@@ -32,6 +32,7 @@ struct Response: Encodable {
     var loginState: String?
     var pollInterval: Double?
     var expiresIn: Double?
+    var qwenQuotaRefreshNeeded: Bool?
 }
 struct State: Encodable {
     var boards: [Board]
@@ -75,6 +76,9 @@ actor Engine {
     private var needsCCSwitch = false
     private var unavailable = false
     private var delivered = Set<String>()
+    private let recoveryStore: QuotaRecoveryStore?
+    private var recovery: QuotaRecoveryTracker
+    private var lastQuotaAttemptAtByID: [String: Date] = [:]
     private let fetcher = LeaderboardFetcher()
     private let cache: LeaderboardCache
     private let official = OpenAIManagedQuotaSource()
@@ -102,6 +106,8 @@ actor Engine {
 
     init(cacheFile: URL? = nil) throws {
         allowsAccountAccess = cacheFile == nil
+        recoveryStore = cacheFile == nil ? QuotaRecoveryStore() : nil
+        recovery = recoveryStore?.load() ?? QuotaRecoveryTracker()
         cache = LeaderboardCache(fileURL: try cacheFile ?? LeaderboardCache.defaultFileURL())
         snapshot = cache.load() ?? LeaderboardSnapshot()
         if cacheFile == nil, let saved = try? Data(contentsOf: qwenCacheFile), let quota = QwenWebsiteQuotaParser.parse(saved),
@@ -207,6 +213,19 @@ actor Engine {
             case "refreshBoards": await refreshBoards(category)
             case "refreshQuotas", "refreshCurrentQuota":
                 try await refreshQuotas(onlyCurrent: request.command == "refreshCurrentQuota")
+            case "refreshQuotaRecoveries":
+                guard !refreshingQuotas else { return Response(id: request.id) }
+                let now = Date()
+                let due = recovery.refreshDueChipIDs(now: now, lastAttempts: lastQuotaAttemptAtByID)
+                    .intersection(targets.keys)
+                let websiteIDs = Set(due.filter { targets[$0]?.kind == .qwen && qwenWebsiteConnected })
+                for id in websiteIDs { lastQuotaAttemptAtByID[id] = now }
+                let apiIDs = due.subtracting(websiteIDs)
+                if !apiIDs.isEmpty {
+                    try await refreshQuotas(onlyCurrent: false, requestedProviderIDs: apiIDs)
+                }
+                return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language),
+                    qwenQuotaRefreshNeeded: !websiteIDs.isEmpty)
             case "retryQuota":
                 guard let id = request.providerID, targets[id]?.kind == .zhipu else {
                     throw OpenAIConnectionError.invalidResponse
@@ -279,13 +298,13 @@ actor Engine {
         }
         cache.save(snapshot)
     }
-    private func refreshQuotas(onlyCurrent: Bool, requestedProviderID: String? = nil) async throws {
+    private func refreshQuotas(onlyCurrent: Bool, requestedProviderID: String? = nil, requestedProviderIDs: Set<String>? = nil) async throws {
         guard !refreshingQuotas else { return }
         let now = Date()
-        if requestedProviderID == nil, let previous = lastQuotaRefresh, now.timeIntervalSince(previous) < (onlyCurrent ? 1800 : 10) { return }
+        if requestedProviderID == nil, requestedProviderIDs == nil, let previous = lastQuotaRefresh, now.timeIntervalSince(previous) < (onlyCurrent ? 1800 : 10) { return }
         refreshingQuotas = true
         defer { refreshingQuotas = false }
-        if requestedProviderID == nil || requestedProviderID.flatMap { targets[$0] }?.isCurrent == true { lastQuotaRefresh = now }
+        if (requestedProviderID == nil && requestedProviderIDs == nil) || requestedProviderID.flatMap({ targets[$0] })?.isCurrent == true { lastQuotaRefresh = now }
         let install = CCSwitchProviderStore.resolveInstall()
         var loaded = CCSwitchProviderStore.loadQuotaProviders(databaseURL: install.databaseURL)
         let officialTargets = OfficialQuotaDiscovery.merge(ccSwitch: [], official:
@@ -333,12 +352,13 @@ actor Engine {
                 xaiKeepAliveAccountID = nil
                 nextXAIKeepAliveAt = nil
             }
-            let includeInactive = requestedProviderID == nil && !onlyCurrent && (
+            let includeInactive = requestedProviderID == nil && requestedProviderIDs == nil && !onlyCurrent && (
                 lastInactiveRefresh.map {
                     now.timeIntervalSince($0) >= Self.inactiveQuotaRefreshInterval
                 } ?? true
             )
             let refreshing = list.filter { target in
+                if let requestedProviderIDs { return requestedProviderIDs.contains(target.id) }
                 if let requestedProviderID { return target.id == requestedProviderID }
                 if target.isCurrent { return true }
                 return includeInactive
@@ -347,6 +367,7 @@ actor Engine {
                 lastInactiveRefresh = now
             }
             guard let client, !refreshing.isEmpty else { return }
+            for target in refreshing { lastQuotaAttemptAtByID[target.id] = now }
             let refreshed = try await client.refresh(targets: refreshing, previous: chips, authFileURL: install.xaiAuthURL)
             let result = Dictionary(uniqueKeysWithValues: refreshed.map { ($0.id, $0) })
             chips = chips.map { result[$0.id] ?? $0 }
@@ -441,7 +462,7 @@ actor Engine {
                 } else { fallback = nil }
                 guard let fallback else { return chip }
                 return AccountQuotaChip(id: chip.id, shortName: chip.shortName, modelName: chip.modelName,
-                    websiteURL: chip.websiteURL, kind: chip.kind, isCurrent: chip.isCurrent, status: fallback)
+                    websiteURL: chip.websiteURL, kind: chip.kind, isCurrent: chip.isCurrent, status: fallback, isStale: chip.isStale)
             }
             let quota = QwenWebsiteQuota(periodLabel: website.periodLabel, remainingPercent: website.remainingPercent,
                                          resetsAt: website.resetsAt, expiresAt: website.expiresAt,
@@ -471,17 +492,24 @@ actor Engine {
             }, accentLight: AccountQuotaFormatting.cardColorLevel(for: chip, now: now).map { color(.remaining($0), dark: false) },
                 isDimmed: AccountQuotaFormatting.isDimmed(chip))
         }
-        let alerts = displayChips.flatMap { QuotaAlerts.alerts(for: $0, now: now) }
+        let previousRecovery = recovery
+        let recovered = recovery.consider(chips: displayChips)
+        if previousRecovery != recovery { try? recoveryStore?.save(recovery) }
+        let alerts = displayChips.flatMap { QuotaAlerts.alerts(for: $0, now: now) } + recovered
         let activeKeys = Set(alerts.flatMap(\.componentKeys))
         delivered = QuotaAlerts.retainedKeys(delivered, evaluatedChips: displayChips, activeKeys: activeKeys)
         let pending = QuotaAlerts.pendingAlerts(alerts, delivered: delivered)
-        for alert in pending { delivered.formUnion(alert.componentKeys) }
+        for alert in pending where alert.reason != .recovered { delivered.formUnion(alert.componentKeys) }
+        if !recovered.isEmpty {
+            recovery.acknowledge(Set(recovered.flatMap(\.componentKeys)))
+            try? recoveryStore?.save(recovery)
+        }
         let liveModel = allowsAccountAccess ? CCSwitchProviderStore.currentCodexModelConfiguration() : nil
         let menuText = liveModel?.menuBarText(for: displayChips, targets: Array(targets.values))
             ?? AccountQuotaFormatting.menuBarText(forChips: displayChips)
         return State(boards: boards, quotas: quotas, quotaNeedsCCSwitch: needsCCSwitch, quotaUnavailable: unavailable,
                      trayText: menuText.map { "\($0.name) · \(language.quotaText($0.quota))" },
-                     alerts: pending.map { Alert(title: language.quotaText($0.subtitle), body: language.quotaText($0.body)) },
+                     alerts: pending.map { Alert(title: "\($0.title) · \(language.quotaText($0.subtitle))", body: language.quotaText($0.body)) },
                      layoutEntries: layoutEntries, quotaUpdatedAt: quotaUpdatedAt.map { ISO8601DateFormatter().string(from: $0) })
     }
     private func color(_ tone: QuotaTone, dark: Bool) -> String {

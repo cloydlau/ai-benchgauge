@@ -3,7 +3,7 @@ import Foundation
 import LeaderboardCore
 @preconcurrency import UserNotifications
 
-/// Posts current-provider quota alerts and remembers which reset cycles
+/// Posts quota alerts and remembers which reset cycles
 /// already produced a banner. A denied permission stays silent.
 @MainActor
 final class QuotaNotifier: NSObject, UNUserNotificationCenterDelegate {
@@ -13,16 +13,23 @@ final class QuotaNotifier: NSObject, UNUserNotificationCenterDelegate {
     private var delivered: Set<String>
     private var inFlight: Set<String> = []
     private var authorizationTask: Task<Bool, Never>?
+    private let recoveryStore: QuotaRecoveryStore
+    private var recovery: QuotaRecoveryTracker
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, recoveryStore: QuotaRecoveryStore = QuotaRecoveryStore()) {
         self.defaults = defaults
+        self.recoveryStore = recoveryStore
+        recovery = recoveryStore.load()
         delivered = Set(defaults.stringArray(forKey: Self.deliveredDefaultsKey) ?? [])
         super.init()
         UNUserNotificationCenter.current().delegate = self
     }
 
     func consider(chips: [AccountQuotaChip], now: Date = Date(), language: AppLanguage = .english) {
-        let alerts = chips.flatMap { QuotaAlerts.alerts(for: $0, now: now) }
+        let previousRecovery = recovery
+        let recovered = recovery.consider(chips: chips)
+        if previousRecovery != recovery { try? recoveryStore.save(recovery) }
+        let alerts = chips.flatMap { QuotaAlerts.alerts(for: $0, now: now) } + recovered
         let active = Set(alerts.flatMap(\.componentKeys))
         let retained = QuotaAlerts.retainedKeys(
             delivered,
@@ -51,9 +58,16 @@ final class QuotaNotifier: NSObject, UNUserNotificationCenterDelegate {
             }
             self.inFlight.subtract(keys)
             guard !sent.isEmpty else { return }
-            self.delivered.formUnion(sent)
+            self.recovery.acknowledge(sent)
+            try? self.recoveryStore.save(self.recovery)
+            let recoveryKeys = Set(recovered.flatMap(\.componentKeys))
+            self.delivered.formUnion(sent.subtracting(recoveryKeys))
             self.persist()
         }
+    }
+
+    func recoveryRefreshDueChipIDs(now: Date, lastAttempts: [String: Date]) -> Set<String> {
+        recovery.refreshDueChipIDs(now: now, lastAttempts: lastAttempts)
     }
 
     nonisolated func userNotificationCenter(

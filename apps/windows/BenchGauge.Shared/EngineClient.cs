@@ -42,7 +42,7 @@ public sealed class EngineClient : IDisposable
         pending[id] = completion;
         try
         {
-            var json = JsonSerializer.Serialize(new { id, command, prefs.Category, prefs.Grouping, prefs.Language, providerID, loginID, authorizationURL, pageText, officialProvider, accountLabel, apiKey }, AppConfig.Json);
+            var json = JsonSerializer.Serialize(new { id, command, prefs.Category, prefs.Grouping, prefs.Language, prefs.QwenWebsiteConnected, providerID, loginID, authorizationURL, pageText, officialProvider, accountLabel, apiKey }, AppConfig.Json);
             await writeLock.WaitAsync();
             try { await process.StandardInput.WriteLineAsync(json); await process.StandardInput.FlushAsync(); }
             finally { writeLock.Release(); }

@@ -52,6 +52,7 @@ See [compatibility details, validation scope, and the Intel support assessment](
 | **Models or companies** | See individual models, or rank each company by its highest-scoring listed model. Extra or weaker listings do not change that score. |
 | **Four display modes** | Choose Keep open, Always on top, Close on blur, or Window from the footer menu. Keep open stays visible when you click elsewhere; click the menu bar icon again to close. Always on top also keeps the panel above other application windows. The window first opens centered on the menu bar icon's screen at the same content size as the popover. It can be moved, resized, or tiled in macOS Split View, and retains your adjustments when switching modes. |
 | **CC Switch quotas** | Read the local CC Switch database, query supported providers, and show account quota status above the table. Percentage and monetary balance colors gradually change from green to red as the quota decreases. Monetary references are ¥0/10/30/100 and $0/2/5/20 for red/orange/yellow/green, with continuous transitions; hover for the currency's reference amounts. Codex does not need to be installed. |
+| **Quota recovery notifications** | Get a one-time notification when an exhausted provider becomes usable again—for example, after its 5-hour quota resets. Monitoring continues after switching providers and remembers exhaustion across app restarts. |
 | **Plan and API links** | Available plan and pay-as-you-go links appear only in company view. Simplified Chinese prefers mainland China sites; other interface languages prefer international sites. |
 | **License notices** | Footer links open a scrollable sheet for the app's MIT license and third-party notices, with full license text available offline. See the [notice inventory](docs/third-party-notices.md) for the current audit status. |
 | **Updates that stay out of the way** | Opening the panel checks for updates. Rankings update daily, retry hourly after a failed daily update, and remain available from the local cache when a source is temporarily down. |
@@ -70,7 +71,7 @@ Hover over the menu bar item for the labels. Counts follow local desktop tasks; 
 
 ### How account quotas work
 
-The app first identifies supported accounts from the **local CC Switch database**, including Claude and Gemini provider configurations, then supplements them with supported official local logins and manually added keys. It queries each account through its provider service. Account quotas stay above the rankings; they are not model scores. With notification permission, the current provider can produce quota alerts when the alert conditions are met.
+The app first identifies supported accounts from the **local CC Switch database**, including Claude and Gemini provider configurations, then supplements them with supported official local logins and manually added keys. It queries each account through its provider service. Account quotas stay above the rankings; they are not model scores. With notification permission, the current provider can produce low-quota and period-end alerts.
 
 - **No CC Switch?** Existing official OpenAI, Claude, Gemini and Kimi local logins are detected where supported. Use **Add model** to select a supported provider and verify an official API/plan key. If no account is available, the quota area shows the CC Switch setup link.
 - **Installed with no supported accounts?** Add an official account through **Add model**, or use Open CC Switch to configure a provider.
@@ -94,6 +95,12 @@ If OpenAI shows **Login expired**, clicking the card opens the official authoriz
 If xAI shows **Login expired** or **Not signed in**, click its card to authorize in your browser using a device code. The app opens the official xAI authorization link, shows the code and waits for completion; you can cancel or retry an expired code. The quota refreshes after authorization.
 
 BenchGauge and CC Switch use the same `xai_oauth_auth.json` in the actual CC Switch configuration directory, including a custom directory. Signing in through either app updates this shared login. BenchGauge checks for changes every two seconds and discards cached access tokens when the shared refresh token changes. CC Switch 4.0.6 reads its OAuth file at startup, so a running CC Switch must restart after BenchGauge sign-in; the Mac completion window has a **Restart CC Switch** button. This loads the shared login without another authorization. The app rejects a different account during reauthorization and preserves other stored accounts. Access tokens and device codes are never saved. See [xAI shared login](docs/xai-shared-login.md) for the protocol and runtime boundary.
+
+### Quota recovery notifications
+
+When a provider's 5-hour quota runs out, you can switch to another provider and keep working. BenchGauge rechecks at the reported reset time and sends a single **Quota restored** notification once a fresh query confirms that the provider is usable again. The notification names the provider and shows its remaining quota. If another pool, such as the weekly quota, is still exhausted, it waits until that limit clears too.
+
+Keep BenchGauge running and allow system notifications. Exhausted providers remain monitored after switching away, and their state survives app restarts. Checks retry every 5 minutes when needed; cached values and elapsed time alone do not trigger recovery notifications.
 
 ## Leaderboard sources
 

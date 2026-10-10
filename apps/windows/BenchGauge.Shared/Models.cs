@@ -24,7 +24,8 @@ public sealed record OfficialProviderSummary(string Id, string Name, string Desc
 public sealed record EngineResponse(int Id, DisplayState? Result, string? AuthorizationURL, string? LoginID, string? Error,
     OfficialAccountSummary[]? OfficialAccounts = null, OfficialProviderSummary[]? OfficialProviders = null,
     bool? QwenAuthenticated = null, bool? QwenQuotaCaptured = null,
-    string? UserCode = null, string? LoginState = null, double? PollInterval = null, double? ExpiresIn = null);
+    string? UserCode = null, string? LoginState = null, double? PollInterval = null, double? ExpiresIn = null,
+    bool? QwenQuotaRefreshNeeded = null);
 public sealed class Preferences
 {
     public string Category { get; set; } = "general";

@@ -161,6 +161,7 @@ final class AppState: ObservableObject {
                     websiteURL: chip.websiteURL, kind: chip.kind, isCurrent: chip.isCurrent, status: status)
             }
             if case .qwenWebsite = status { self.quotaUpdatedAt = Date() }
+            self.quotaNotifier.consider(chips: self.quotaChips.filter { $0.kind == .qwen }, language: self.selectedLanguage)
         }
         openAIConnection.onConnected = { [weak self] in
             self?.refreshQuotas(minimumInterval: 0)
@@ -432,7 +433,12 @@ final class AppState: ObservableObject {
         refreshCurrentModelName()
         refreshQuotaSelectionIfChanged()
         startXAIKeepAliveIfNeeded()
-        if QuotaAutoRefreshPolicy.shouldRefreshAutomatically(
+        let recoveryIDs = quotaNotifier.recoveryRefreshDueChipIDs(
+            now: Date(), lastAttempts: lastQuotaAttemptAtByID
+        ).intersection(quotaTargetsByID.keys)
+        if !recoveryIDs.isEmpty, quotaTask == nil {
+            refreshQuotas(minimumInterval: 0, requestedProviderIDs: recoveryIDs)
+        } else if QuotaAutoRefreshPolicy.shouldRefreshAutomatically(
             now: Date(),
             lastAttemptAt: lastQuotaAttemptAt,
             isCodexRunning: isCodexRunning,
@@ -529,7 +535,8 @@ final class AppState: ObservableObject {
         minimumInterval: TimeInterval,
         inactiveMinimumInterval: TimeInterval = 0,
         inactiveScope: InactiveQuotaRefreshScope = .all,
-        requestedProviderID: String? = nil
+        requestedProviderID: String? = nil,
+        requestedProviderIDs: Set<String>? = nil
     ) {
         if let preview = configuration.previewCCSwitchState, preview != .configured {
             quotaTask?.cancel()
@@ -542,7 +549,8 @@ final class AppState: ObservableObject {
            Date().timeIntervalSince(lastQuotaAttemptAt) < minimumInterval {
             return
         }
-        if requestedProviderID == nil || requestedProviderID.flatMap { quotaTargetsByID[$0] }?.isCurrent == true {
+        if (requestedProviderID == nil && requestedProviderIDs == nil)
+            || requestedProviderID.flatMap({ quotaTargetsByID[$0] })?.isCurrent == true {
             lastQuotaAttemptAt = Date()
         }
         if let requestedProviderID {
@@ -567,6 +575,7 @@ final class AppState: ObservableObject {
 
         quotaTask = Task { [weak self] in
             guard let self else { return }
+            defer { if generation == self.quotaGeneration { self.quotaTask = nil } }
             let loaded = await Task.detached(priority: .utility) {
                 let install = CCSwitchProviderStore.resolveInstall()
                 var result = CCSwitchProviderStore.loadQuotaProviders(databaseURL: install.databaseURL)
@@ -663,6 +672,7 @@ final class AppState: ObservableObject {
                 self.quotaChips = previous
                 let now = Date()
                 let targetsToRefresh = targets.filter { target in
+                    if let requestedProviderIDs { return requestedProviderIDs.contains(target.id) }
                     if let requestedProviderID { return target.id == requestedProviderID }
                     if target.isCurrent { return true }
                     if inactiveScope == .xaiOAuthOnly {
