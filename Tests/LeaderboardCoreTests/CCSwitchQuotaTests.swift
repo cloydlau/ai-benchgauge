@@ -973,27 +973,55 @@ struct AccountQuotaFormattingTests {
     }
 
     @Test
-    func testFourBillingGroupsSortCorrectlyForEveryInputOrder() {
+    func testFiveBillingGroupsSortCorrectlyForEveryInputOrder() {
         let groups = [
-            // A subscribed plan with no quota left still belongs to plans.
             quotaChip(id: "plan", kind: .kimi, status: .windows([
-                ParsedQuotaWindow(name: "weekly_limit", utilization: 100, resetsAt: nil)])),
+                ParsedQuotaWindow(name: "weekly_limit", utilization: 10, resetsAt: nil)])),
             quotaChip(id: "metered", kind: .deepseek, status: .balances([
                 ParsedBalance(currency: "CNY", amount: 12)])),
+            // A subscribed plan with no quota left sorts after funded metered
+            // balances, before unsubscribed plans and depleted balances.
+            quotaChip(id: "exhaustedPlan", kind: .kimi, status: .windows([
+                ParsedQuotaWindow(name: "weekly_limit", utilization: 100, resetsAt: nil)])),
             quotaChip(id: "notSubscribed", kind: .qwen, isCurrent: true, status: .note(
                 text: AccountQuotaMessage.qwenNoPlan, help: AccountQuotaMessage.qwenNoPlanHelp)),
             quotaChip(id: "zeroBalance", kind: .deepseek, status: .balances([
                 ParsedBalance(currency: "CNY", amount: 0)])),
         ]
-        for a in 0..<4 {
-            for b in 0..<4 where b != a {
-                for c in 0..<4 where c != a && c != b {
-                    let d = (0..<4).first { $0 != a && $0 != b && $0 != c }!
-                    #expect(AccountQuotaFormatting.sortedChips([groups[a], groups[b], groups[c], groups[d]]).map(\.id)
-                        == ["plan", "metered", "notSubscribed", "zeroBalance"])
+        let expected = ["plan", "metered", "exhaustedPlan", "notSubscribed", "zeroBalance"]
+        for a in 0..<5 {
+            for b in 0..<5 where b != a {
+                for c in 0..<5 where c != a && c != b {
+                    for d in 0..<5 where d != a && d != b && d != c {
+                        let e = (0..<5).first { $0 != a && $0 != b && $0 != c && $0 != d }!
+                        #expect(AccountQuotaFormatting.sortedChips(
+                            [groups[a], groups[b], groups[c], groups[d], groups[e]]).map(\.id) == expected)
+                    }
                 }
             }
         }
+    }
+
+    @Test
+    func testExhaustedPlansFollowFundedMeteredAndKeepExpiryOrder() {
+        let soon = Date(timeIntervalSince1970: 1_700_000_000)
+        let late = soon.addingTimeInterval(86_400)
+        let funded = quotaChip(id: "funded", kind: .deepseek, status: .balances([
+            ParsedBalance(currency: "CNY", amount: 5)]))
+        let exhaustedSoon = quotaChip(id: "exhaustedSoon", kind: .zhipu, status: .windows([
+            ParsedQuotaWindow(name: "five_hour", utilization: 100, resetsAt: nil),
+            ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: soon),
+        ]))
+        let exhaustedLate = quotaChip(id: "exhaustedLate", kind: .kimi, status: .windows([
+            ParsedQuotaWindow(name: "monthly", utilization: 100, resetsAt: late),
+        ]))
+        let exhaustedQwen = quotaChip(id: "exhaustedQwen", kind: .qwen, status: .qwenWebsite(
+            QwenWebsiteQuota(periodLabel: "1mo", remainingPercent: 0, resetsAt: nil)))
+        let unfunded = quotaChip(id: "unfunded", kind: .luma, status: .balances([
+            ParsedBalance(currency: "USD", amount: 0)]))
+        #expect(AccountQuotaFormatting.sortedChips(
+            [exhaustedLate, unfunded, exhaustedQwen, funded, exhaustedSoon]).map(\.id)
+            == ["funded", "exhaustedSoon", "exhaustedLate", "exhaustedQwen", "unfunded"])
     }
 
     @Test
