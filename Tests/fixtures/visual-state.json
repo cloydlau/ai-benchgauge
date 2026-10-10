@@ -1466,6 +1466,174 @@
       "height": 820,
       "scenario": "restoredQuotas",
       "mode": "popover"
+    },
+    {
+      "id": "xai-device-waiting-en",
+      "language": "en",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-waiting",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-waiting-zh",
+      "language": "zh",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-waiting",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-waiting-zh-Hant",
+      "language": "zh-Hant",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-waiting",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-expired-en",
+      "language": "en",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-expired",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-expired-zh",
+      "language": "zh",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-expired",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-expired-zh-Hant",
+      "language": "zh-Hant",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-expired",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-denied-en",
+      "language": "en",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-denied",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-denied-zh",
+      "language": "zh",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-denied",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-denied-zh-Hant",
+      "language": "zh-Hant",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-denied",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-network-en",
+      "language": "en",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-network",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-network-zh",
+      "language": "zh",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-network",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-network-zh-Hant",
+      "language": "zh-Hant",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-network",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-accountMismatch-en",
+      "language": "en",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-accountMismatch",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-accountMismatch-zh",
+      "language": "zh",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-accountMismatch",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-accountMismatch-zh-Hant",
+      "language": "zh-Hant",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-accountMismatch",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-saved-en",
+      "language": "en",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-saved",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-saved-zh",
+      "language": "zh",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-saved",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-saved-zh-Hant",
+      "language": "zh-Hant",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-saved",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-starting-en",
+      "language": "en",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-starting",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-starting-zh",
+      "language": "zh",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-starting",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "xai-device-starting-zh-Hant",
+      "language": "zh-Hant",
+      "width": 520,
+      "height": 320,
+      "scenario": "xaiDeviceDialog-starting",
+      "mode": "clickToClose"
     }
   ],
   "quotaScenarios": {
