@@ -5,7 +5,7 @@ import LeaderboardCore
 @MainActor
 final class XAIAccountConnection: NSObject, NSWindowDelegate {
     private let source = XAIDeviceLogin()
-    var onConnected: (() -> Void)?
+    var onConnected: (() async -> Void)?
     private var window: NSWindow?
     private var task: Task<Void, Never>?
     private var authorizationURL: URL?
@@ -98,8 +98,9 @@ final class XAIAccountConnection: NSObject, NSWindowDelegate {
                     switch try await source.poll(id: attempt.id) {
                     case .waiting(let next): interval = next
                     case .connected:
+                        await onConnected?()
+                        try Task.checkCancellation()
                         showState("saved"); authorizationURL = nil; task = nil
-                        onConnected?()
                         return
                     }
                 }

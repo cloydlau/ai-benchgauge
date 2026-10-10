@@ -90,7 +90,9 @@ Quota values and dates use independent colors on the same continuous green-to-re
 
 If OpenAI shows **Login expired**, clicking the card opens the official authorization flow. Authorize the same account and the quota refreshes automatically; later queries renew the login, with reauthorization needed only if renewal fails. Direct authorization requires an installed Codex CLI or ChatGPT/Codex desktop app. Reading an existing CC Switch login still works without Codex. The new login is saved in a separate local AI BenchGauge profile and requires no manual CC Switch sync.
 
-If xAI shows **Login expired** or **Not signed in**, clicking the card opens CC Switch, because CC Switch owns the Grok login that this quota reads; the provider's own site has no sign-in entry. Sign in there, then reopen the panel to refresh the quota.
+If xAI shows **Login expired** or **Not signed in**, click its card to authorize in your browser using a device code. The app opens the official xAI authorization link, shows the code and waits for completion; you can cancel or retry an expired code. The quota refreshes after authorization.
+
+BenchGauge and CC Switch use the same `xai_oauth_auth.json` in the actual CC Switch configuration directory, including a custom directory. Signing in through either app updates this shared login. BenchGauge checks for changes every two seconds and discards cached access tokens when the shared refresh token changes. CC Switch 4.0.6 reads its OAuth file at startup, so a running CC Switch must restart after BenchGauge sign-in; the Mac completion window has a **Restart CC Switch** button. This loads the shared login without another authorization. The app rejects a different account during reauthorization and preserves other stored accounts. Access tokens and device codes are never saved. See [xAI shared login](docs/xai-shared-login.md) for the protocol and runtime boundary.
 
 ## Leaderboard sources
 
