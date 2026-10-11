@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { setTimeout as delay } from 'node:timers/promises'
 import { acquireCommitLock } from './commit-lock.mjs'
 import { nodeExecutable } from './node-executable.mjs'
 
@@ -66,18 +67,30 @@ export function testCommands(root = testRoot, { coreOnly = false, scriptsOnly = 
 }
 
 export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly = false, coverage = false, gate = false,
-  env = process.env, commands, run, logger = console } = {}) {
+  env = process.env, commands, run, logger = console, lockWaitMs = 0 } = {}) {
   if (coreOnly && scriptsOnly) throw new Error('--core 和 --scripts 不能同时使用')
-  const before = testInputSignature(root, env)
+  let before = testInputSignature(root, env)
   if (gate && !coreOnly && !scriptsOnly && !coverage && env.BENCHGAUGE_TEST_PASS === before) {
     logger.log('[test] 当前代码已通过完整测试，沿用本次流程的结果')
     return { status: 0, signature: before, reused: true }
   }
   const directory = join(root, 'work', 'test-results')
   mkdirSync(directory, { recursive: true })
-  const lock = acquireCommitLock({ lockPath: join(directory, 'test.lock') })
-  if (!lock.acquired) return { status: 75, signature: null, error: '另一个测试进程正在运行，请稍后重试' }
+  const lockPath = join(directory, 'test.lock')
+  const waitStarted = Date.now()
+  let lock = acquireCommitLock({ lockPath })
+  let waited = false
+  while (!lock.acquired && ['busy', 'busy_unverifiable'].includes(lock.reason) && Date.now() - waitStarted < lockWaitMs) {
+    if (!waited) logger.log(`[test] 等待正在运行的测试释放锁（pid ${lock.owner || '未知'}，最多 ${Math.ceil(lockWaitMs / 1000)} 秒）`)
+    waited = true
+    await delay(Math.min(1000, Math.max(1, lockWaitMs - (Date.now() - waitStarted))))
+    lock = acquireCommitLock({ lockPath })
+  }
+  if (!lock.acquired) return { status: 75, signature: null,
+    error: `无法获取测试锁：${lockPath}（${lock.reason}，pid ${lock.owner || '未知'}${waited ? '，等待超时' : ''}）` }
   try {
+    // Edits made while waiting belong to the new run, not its previous owner.
+    if (waited) before = testInputSignature(root, env)
     let logPath = env.CI_CHECK_LOG || join(directory, 'latest.log')
     writeFileSync(logPath, '')
     const started = Date.now()
@@ -131,7 +144,8 @@ async function main() {
   if (args.includes('--gate') && args.length !== 1) throw new Error('--gate 必须运行完整测试')
   const result = args.includes('--gate')
     ? await (await import('./test-repair.mjs')).runTestGate()
-    : await runTests({ coreOnly: args.includes('--core'), scriptsOnly: args.includes('--scripts'), coverage: args.includes('--coverage') })
+    : await runTests({ coreOnly: args.includes('--core'), scriptsOnly: args.includes('--scripts'), coverage: args.includes('--coverage'), lockWaitMs: 120_000 })
+  if (result.error) console.error(`[test] ${result.error}`)
   process.exitCode = result.status
 }
 
