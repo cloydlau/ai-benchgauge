@@ -64,6 +64,13 @@ public struct LeaderboardPadView: View {
         width < 760
         #endif
     }
+    private var isPhone: Bool {
+        #if os(iOS)
+        UIDevice.current.userInterfaceIdiom == .phone
+        #else
+        false
+        #endif
+    }
     private func tr(_ en: String, _ zh: String) -> String { store.language.text(en, zh) }
 
     public var body: some View {
@@ -151,13 +158,37 @@ public struct LeaderboardPadView: View {
                 .accessibilityIdentifier("refresh")
             }
     }
-    private var compactHeader: some View {
+    @ViewBuilder private var compactHeader: some View {
+        if isPhone { phoneHeader }
+        else { existingCompactHeader }
+    }
+    private var existingCompactHeader: some View {
         ViewThatFits(in: .horizontal) {
             header.fixedSize(horizontal: true, vertical: false)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline) { appTitle; Spacer(); Text("v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")").font(.caption).foregroundStyle(.tertiary) }
                 updateButton
             }
+        }
+    }
+    private var phoneHeader: some View {
+        HStack(spacing: 8) {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    appTitle
+                    Text("v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")")
+                        .font(.caption).foregroundStyle(.tertiary)
+                }.fixedSize(horizontal: true, vertical: false)
+                appTitle.minimumScaleFactor(0.75)
+            }
+            Spacer(minLength: 0)
+            #if os(iOS)
+            let segmentWidth: CGFloat = store.language == .english ? 78 : 56
+            PadSegmentedControl(values: LeaderboardGrouping.allCases,
+                titles: [tr("Models", "模型"), tr("Companies", "公司")], selection: $store.grouping,
+                identifier: "grouping", label: tr("Grouping", "分组"), segmentWidth: segmentWidth)
+                .frame(width: segmentWidth * 2, height: 32).id(segmentWidth)
+            #endif
         }
     }
     private var appTitle: some View {
@@ -180,13 +211,17 @@ public struct LeaderboardPadView: View {
             VStack(alignment: .leading, spacing: 8) { groupingPicker.frame(width: 180); categoryPicker }
         }
     }
-    private func compactControls(width: CGFloat) -> some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 8) { groupingPicker.frame(width: 180); categoryPicker.frame(width: 360) }
-                .fixedSize(horizontal: true, vertical: false)
-            VStack(alignment: .leading, spacing: 6) {
-                groupingPicker.frame(width: 180)
-                categoryControl(segmentWidth: min(360, width) / 4).frame(width: min(360, width))
+    @ViewBuilder private func compactControls(width: CGFloat) -> some View {
+        if isPhone {
+            categoryControl(segmentWidth: min(360, width) / 4).frame(width: min(360, width))
+        } else {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { groupingPicker.frame(width: 180); categoryPicker.frame(width: 360) }
+                    .fixedSize(horizontal: true, vertical: false)
+                VStack(alignment: .leading, spacing: 6) {
+                    groupingPicker.frame(width: 180)
+                    categoryControl(segmentWidth: min(360, width) / 4).frame(width: min(360, width))
+                }
             }
         }
     }
