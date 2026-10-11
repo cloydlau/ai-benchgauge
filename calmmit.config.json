@@ -13,17 +13,54 @@
     "secrets": true,
     "media": true,
     "alint": false,
-    "worktrees": true
+    "worktrees": true,
+    "iosDeploy": true
   },
   "commands": {
-    "lint": ["node", "Scripts/check-syntax.mjs"],
-    "tests": ["node", "Scripts/test.mjs"],
-    "build": ["node", "Scripts/ci-build.mjs"]
+    "lint": [
+      [
+        "node",
+        "Scripts/ios-deploy.mjs",
+        "checkpoint"
+      ],
+      [
+        "node",
+        "Scripts/check-syntax.mjs"
+      ]
+    ],
+    "tests": [
+      "node",
+      "Scripts/test.mjs"
+    ],
+    "build": [
+      "node",
+      "Scripts/ci-build.mjs"
+    ],
+    "iosDeploy": [
+      "node",
+      "Scripts/ios-deploy.mjs",
+      "enqueue"
+    ]
   },
   "profiles": {
-    "commit": ["lint", "tests", "alint"],
-    "check": ["lint", "tests", "build", "alint"],
-    "push": ["lint", "tests"]
+    "commit": [
+      "lint",
+      "tests",
+      "alint",
+      "iosDeploy"
+    ],
+    "check": [
+      "lint",
+      "tests",
+      "build",
+      "alint",
+      "iosDeploy"
+    ],
+    "push": [
+      "lint",
+      "tests",
+      "iosDeploy"
+    ]
   },
   "identity": {
     "allowConfiguredModel": false,
@@ -80,8 +117,14 @@
       }
     ],
     "enabled": true,
-    "command": ["node", "Scripts/watch.mjs"],
+    "command": [
+      "node",
+      "Scripts/watch.mjs"
+    ],
     "themeColor": "#0070e3",
-    "update": ["node", "Scripts/dev-update-deps.mjs"]
+    "update": [
+      "node",
+      "Scripts/dev-update-deps.mjs"
+    ]
   }
 }

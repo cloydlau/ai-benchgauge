@@ -40,7 +40,7 @@ test('an uncommitted build or unreadable deployment never borrows the current mo
 
 // Run the real watcher in an isolated project. The build/restart scripts only
 // record calls; these tests never launch the user's app or use its accounts.
-function watcherFixture(t, { binary = 'fresh', restartFails = false, testsFail = false, commitFails = false, initiallyBusy = false, gitWork = false, receiptCommit = null, receiptAuthor = undefined, notificationAuthor = null, dirtyBuild = false, env = {} } = {}) {
+function watcherFixture(t, { binary = 'fresh', restartFails = false, testsFail = false, commitFails = false, initiallyBusy = false, gitWork = false, receiptCommit = null, receiptAuthor = undefined, notificationAuthor = null, dirtyBuild = false, phone = false, phoneFails = false, env = {} } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'benchgauge-watch-test-')))
   const scripts = join(root, 'Scripts')
   const app = join(root, 'outputs', 'AI-BenchGauge.app')
@@ -56,6 +56,14 @@ function watcherFixture(t, { binary = 'fresh', restartFails = false, testsFail =
   const config = JSON.parse(readFileSync(join(original, '../calmmit.config.json'), 'utf8'))
   config.library = resolve(original, '..', config.library)
   writeFileSync(join(root, 'calmmit.config.json'), JSON.stringify(config))
+  if (phone) {
+    writeFileSync(join(root, '.benchgauge-ios.local.json'), '{"enabled":true}')
+    writeFileSync(join(scripts, 'ios-deploy.mjs'), `import { appendFileSync, readFileSync } from 'node:fs'
+if (process.argv[2] !== 'checked' || process.env.BENCHGAUGE_TEST_PASS !== 'mock-pass') process.exit(2)
+appendFileSync('events', 'phone-check\\n')
+process.exit(${phoneFails} && readFileSync('Tests/example.swift', 'utf8') === 'phone-fail' ? 1 : 0)
+`)
+  }
   const source = join(root, 'Sources', 'example.swift')
   const testFile = join(root, 'Tests', 'example.swift')
   writeFileSync(testFile, testsFail ? 'fail' : 'pass')
@@ -380,4 +388,25 @@ test('startup retries a transient test lock without waiting for another edit', a
   await waitUntil(fixture, () => fixture.output().includes('【已完成】'))
   assert.deepEqual(fixture.events(), ['test', 'test', 'commit'])
   assert.doesNotMatch(fixture.output(), /⚠【需人工介入】/)
+})
+
+test('phone updates are checked at startup and after edits even with Mac deployment disabled', async (t) => {
+  const fixture = watcherFixture(t, { phone: true, env: { APP_AUTODEPLOY: '0', WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' } })
+  await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
+  assert.deepEqual(fixture.events(), ['test', 'phone-check'])
+  writeFileSync(fixture.source, '// phone update\n')
+  await waitUntil(fixture, () => fixture.events().length === 4)
+  assert.deepEqual(fixture.events(), ['test', 'phone-check', 'test', 'phone-check'])
+})
+test('a phone build check failure blocks later actions and a new edit can recover', async (t) => {
+  const fixture = watcherFixture(t, { phone: true, phoneFails: true, env: { WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' } })
+  await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
+  writeFileSync(fixture.testFile, 'phone-fail')
+  await waitUntil(fixture, () => fixture.output().includes('iPhone 构建检查失败'))
+  assert.deepEqual(fixture.events(), ['test', 'phone-check', 'restart', 'test', 'phone-check'])
+  await new Promise(resolve => setTimeout(resolve, 200))
+  assert.equal(fixture.events().length, 5)
+  writeFileSync(fixture.testFile, 'pass')
+  await waitUntil(fixture, () => fixture.events().length === 9)
+  assert.deepEqual(fixture.events().slice(-4), ['test', 'phone-check', 'build', 'restart'])
 })

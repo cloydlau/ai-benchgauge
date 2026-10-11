@@ -182,3 +182,7 @@ MODEL_NAME=实际模型名 Scripts/commit.sh -m "feat(menu): …"
 </details>
 
 两端目录和共享业务层见 [结构说明](docs/architecture.md)，统一发版见 [发版说明](docs/releasing.md)。
+
+### 本机 iPhone 自动更新
+
+BenchGauge 手机工程已接入 Calmmit：源码变更 → 语法检查、完整测试和 iOS 构建检查 → 开发签名编译 → 自动安装到已配对 iPhone。`./dev.sh` 启动和后续变更也会触发，独立于 Mac 自动部署开关。仅在本机 `.benchgauge-ios.local.json` 中启用，设备和 Apple Team 不入库；手机离线时排队重试，同一 Bundle ID 覆盖安装，源码变化或检查失败不会交付旧候选。状态：`node Scripts/ios-deploy.mjs status`，日志：`work/ios-deploy/deploy.log`。配置与暂停/重试说明见 [手机开发文档](apps/ios/README.md#local-iphone-auto-update-with-calmmit)。这条流程用于个人开发设备，不代替商店发行审核。
