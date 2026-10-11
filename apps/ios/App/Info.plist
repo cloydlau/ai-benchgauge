@@ -11,6 +11,7 @@
     <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
     <key>LSRequiresIPhoneOS</key><true/>
     <key>ITSAppUsesNonExemptEncryption</key><false/>
+    <key>NSPhotoLibraryAddUsageDescription</key><string>Save leaderboard images to your photo library.</string>
     <key>UILaunchScreen</key><dict/>
     <key>UIRequiresFullScreen</key><true/>
     <!-- Newer iPadOS controls windowing; use native resizing instead of scaling the whole UI. -->

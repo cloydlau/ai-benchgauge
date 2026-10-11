@@ -54,6 +54,10 @@ Simulator checks cover portrait/landscape. Before distribution, also verify on a
 
 ## Validation status
 
+### Screenshot actions (2026-10-12)
+
+On iOS, the screenshot button opens a native menu with **Copy image** and **Save to Photos**. Rendering happens only after choosing an action. Saving requests add-only Photos authorization, with localized permission text and success/failure feedback; denied access offers a link to Settings. iPhone and iPad use the same actions.
+
 ### Visible source introductions (2026-10-12)
 
 Each iOS board now shows the desktop's one-sentence source introduction below its short emphasis label. General, coding, image and video categories use the existing localized source descriptions, shared with the source-help sheet. Introductions wrap naturally on phones and also appear in the iPad layout and copied images; source-help and refresh-error controls remain available.

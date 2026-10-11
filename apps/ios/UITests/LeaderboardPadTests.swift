@@ -58,6 +58,10 @@ final class LeaderboardPadTests: XCTestCase {
         capture("notices")
         app.buttons["Done"].tap()
         app.buttons["share"].tap()
+        XCTAssertTrue(app.buttons["Copy image"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Save to Photos"].exists)
+        capture("screenshot-options")
+        app.buttons["Copy image"].tap()
         XCTAssertTrue(app.staticTexts["Copied to clipboard"].waitForExistence(timeout: 10))
         assertCategorySegments()
         capture("screenshot-feedback")
@@ -233,6 +237,10 @@ final class LeaderboardPhoneTests: XCTestCase {
         capture("iphone-notices")
         app.buttons["Done"].tap()
         app.buttons["share"].tap()
+        XCTAssertTrue(app.buttons["Copy image"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Save to Photos"].exists)
+        capture("iphone-screenshot-options")
+        app.buttons["Copy image"].tap()
         XCTAssertTrue(app.staticTexts["Copied to clipboard"].waitForExistence(timeout: 10))
         assertCategorySegments()
         capture("iphone-screenshot-feedback")
@@ -253,6 +261,42 @@ final class LeaderboardPhoneTests: XCTestCase {
         app.segmentedControls["category"].buttons["視頻"].tap()
         waitForFace("arenaTextToVideo")
         capture("iphone-traditional-video")
+    }
+    func testScreenshotPhotoSaveFeedback() {
+        app.launch()
+        waitForFace("artificialAnalysis")
+        app.buttons["share"].tap()
+        XCTAssertTrue(app.buttons["Copy image"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Save to Photos"].exists)
+        XCTAssertFalse(app.staticTexts["Copied to clipboard"].exists)
+        capture("iphone-photo-actions")
+        app.buttons["Save to Photos"].tap()
+
+        let permission = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
+        if permission.exists {
+            let allow = permission.buttons.matching(NSPredicate(format:
+                "NOT (label CONTAINS[c] %@ OR label CONTAINS %@)", "Don", "不允")).firstMatch
+            XCTAssertTrue(allow.exists, "The system must offer add-only Photos access")
+            allow.tap()
+        }
+        let denied = app.alerts["Cannot save to Photos"]
+        let saved = app.staticTexts["Saved to Photos"]
+        let feedback = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            saved.exists || denied.exists
+        }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [feedback], timeout: 15), .completed)
+        if saved.exists {
+            capture("iphone-photo-saved")
+        } else {
+            XCTAssertTrue(denied.exists)
+            XCTAssertTrue(app.buttons["Open Settings"].exists)
+            capture("iphone-photo-denied")
+            app.buttons["Cancel"].tap()
+        }
+        // Copy remains independent of the user's Photos permission.
+        app.buttons["share"].tap()
+        app.buttons["Copy image"].tap()
+        XCTAssertTrue(app.staticTexts["Copied to clipboard"].waitForExistence(timeout: 10))
     }
     func testLongBoardComparisonRankAndLandscape() {
         app.launchArguments += ["--full-board", "--dark", "--preview-zh"]
