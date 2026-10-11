@@ -740,7 +740,11 @@ private struct PadBoardCard: View {
     @ViewBuilder private var cardTitle: some View {
         if showsUpdateAge && !isImage {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Link(title, destination: kind.sourceURL).font(.subheadline.weight(.medium))
+                Link(destination: kind.sourceURL) {
+                    Text(title).multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }.font(.subheadline.weight(.medium)).buttonStyle(.plain).foregroundStyle(.tint)
                 Spacer(minLength: 0)
                 relativeUpdateButton
             }
