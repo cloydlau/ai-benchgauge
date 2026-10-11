@@ -1,2 +1,3 @@
 "CFBundleName" = "AI BenchGauge";
 "CFBundleDisplayName" = "AI BenchGauge";
+"NSPhotoLibraryAddUsageDescription" = "Save leaderboard images to your photo library.";

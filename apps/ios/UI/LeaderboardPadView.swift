@@ -2,6 +2,7 @@ import SwiftUI
 import LeaderboardKit
 #if os(iOS)
 import UIKit
+import Photos
 #else
 import AppKit
 #endif
@@ -11,6 +12,8 @@ private final class PadPresentationState: ObservableObject {
     @Published var licenseSection: PadLicenseSection?
     @Published var selectedLicenseSection: PadLicenseSection = .application
     @Published var note: String?
+    @Published var savingScreenshot = false
+    @Published var photoPermissionDenied = false
 }
 private enum PadLicenseSection: String, Identifiable {
     case application, notices
@@ -96,6 +99,16 @@ public struct LeaderboardPadView: View {
             }
         }
         .sheet(item: $presentation.licenseSection) { licenseSheet($0) }
+        #if os(iOS)
+        .alert(tr("Cannot save to Photos", "无法保存到相册"), isPresented: $presentation.photoPermissionDenied) {
+            Button(tr("Open Settings", "打开设置")) {
+                if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+            }
+            Button(tr("Cancel", "取消"), role: .cancel) { }
+        } message: {
+            Text(tr("Allow adding photos in Settings to save leaderboard images.", "请在系统设置中允许添加照片，以保存榜单图片。"))
+        }
+        #endif
         .task(id: store.category) { await store.refresh() }
         #if DEBUG && os(iOS)
         .task { await writeDebugExportIfRequested() }
@@ -352,8 +365,7 @@ public struct LeaderboardPadView: View {
             }.accessibilityIdentifier("attribution")
             #endif
             Spacer(minLength: 0)
-            Button { copyScreenshot() } label: { Image(systemName: "camera").frame(width: 44, height: 44) }
-                .accessibilityLabel(tr("Screenshot", "截图")).accessibilityIdentifier("share")
+            screenshotButton(compact: true).frame(width: 44, height: 44)
             #if os(iOS)
             PhoneMenuButton(title: languageLabel(store.language), identifier: "language-menu",
                 items: AppLanguage.allCases.map { language in
@@ -430,10 +442,7 @@ public struct LeaderboardPadView: View {
                     }
                 }
                 Text("·")
-                Button { copyScreenshot() } label: {
-                    if compact { Image(systemName: "camera") }
-                    else { Label(tr("Screenshot", "截图"), systemImage: "camera") }
-                }.accessibilityLabel(tr("Screenshot", "截图")).accessibilityIdentifier("share")
+                screenshotButton(compact: compact)
                 Text("·")
                 Picker(tr("Language", "语言"), selection: $store.language) {
                     Text("EN").tag(AppLanguage.english)
@@ -442,6 +451,28 @@ public struct LeaderboardPadView: View {
                 }.pickerStyle(.segmented).frame(width: 150).accessibilityIdentifier("language")
             }.fixedSize(horizontal: true, vertical: false)
         }.buttonStyle(.plain)
+    }
+
+    @ViewBuilder private func screenshotButton(compact: Bool) -> some View {
+        #if os(iOS)
+        Menu {
+            Button { copyScreenshot() } label: {
+                Label(tr("Copy image", "复制图片"), systemImage: "doc.on.doc")
+            }.accessibilityIdentifier("copy-screenshot")
+            Button { Task { await saveScreenshotToPhotos() } } label: {
+                Label(tr("Save to Photos", "保存到相册"), systemImage: "square.and.arrow.down")
+            }.accessibilityIdentifier("save-screenshot")
+        } label: { screenshotLabel(compact: compact) }
+        .disabled(presentation.savingScreenshot)
+        .accessibilityLabel(tr("Screenshot", "截图")).accessibilityIdentifier("share")
+        #else
+        Button { copyScreenshot() } label: { screenshotLabel(compact: compact) }
+            .accessibilityLabel(tr("Screenshot", "截图")).accessibilityIdentifier("share")
+        #endif
+    }
+    @ViewBuilder private func screenshotLabel(compact: Bool) -> some View {
+        if compact { Image(systemName: "camera") }
+        else { Label(tr("Screenshot", "截图"), systemImage: "camera") }
     }
 
     private func openLicense(_ section: PadLicenseSection) {
@@ -531,8 +562,33 @@ public struct LeaderboardPadView: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.writeObjects([NSImage(cgImage: cgImage, size: .zero)])
         #endif
-        showNote(tr("Copied to clipboard", "已复制到剪贴板"))
+        showNote(tr("Copied to clipboard", "已复制到剪贴板"), duration: 4)
     }
+    #if os(iOS)
+    private func saveScreenshotToPhotos() async {
+        guard !presentation.savingScreenshot else { return }
+        presentation.savingScreenshot = true
+        defer { presentation.savingScreenshot = false }
+        guard let cgImage = renderLeaderboardImage(scheme: colorScheme) else {
+            showNote(tr("Screenshot failed", "截图失败"))
+            return
+        }
+        let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+        guard status == .authorized || status == .limited else {
+            presentation.photoPermissionDenied = true
+            return
+        }
+        let image = UIImage(cgImage: cgImage, scale: 2, orientation: .up)
+        do {
+            try await PHPhotoLibrary.shared().performChanges { @Sendable in
+                PHAssetChangeRequest.creationRequestForAsset(from: image)
+            }
+            showNote(tr("Saved to Photos", "已保存到相册"), duration: 4)
+        } catch {
+            showNote(tr("Save failed. Try again.", "保存失败，请重试。"))
+        }
+    }
+    #endif
     #if DEBUG && os(iOS)
     private func writeDebugExportIfRequested() async {
         let arguments = ProcessInfo.processInfo.arguments
@@ -555,10 +611,10 @@ public struct LeaderboardPadView: View {
         #endif
         showNote(tr("Copied ", "已复制 ") + name)
     }
-    private func showNote(_ note: String) {
+    private func showNote(_ note: String, duration: Double = 2.4) {
         presentation.note = note
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(2.4))
+            try? await Task.sleep(for: .seconds(duration))
             if presentation.note == note { presentation.note = nil }
         }
     }

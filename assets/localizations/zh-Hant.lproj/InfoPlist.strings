@@ -1,2 +1,3 @@
 "CFBundleName" = "AI 天梯";
 "CFBundleDisplayName" = "AI 天梯";
+"NSPhotoLibraryAddUsageDescription" = "將榜單圖片儲存到你的相簿。";
