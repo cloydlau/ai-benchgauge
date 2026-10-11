@@ -377,21 +377,21 @@ public struct LeaderboardPadView: View {
         switch language { case .english: "EN"; case .chinese: "简中"; case .traditionalChinese: "繁中" }
     }
 
-    @ViewBuilder private func boardPair(wide: Bool, isImage: Bool = false) -> some View {
+    @ViewBuilder private func boardPair(wide: Bool, isImage: Bool = false, exportScheme: ColorScheme? = nil) -> some View {
         if wide {
             HStack(alignment: .top, spacing: 12) {
-                ForEach(store.category.boardKinds, id: \.self) { kind in boardCard(kind, isImage: isImage) }
+                ForEach(store.category.boardKinds, id: \.self) { kind in boardCard(kind, isImage: isImage, exportScheme: exportScheme) }
             }
         } else {
             VStack(spacing: 12) {
-                ForEach(store.category.boardKinds, id: \.self) { kind in boardCard(kind, isImage: isImage) }
+                ForEach(store.category.boardKinds, id: \.self) { kind in boardCard(kind, isImage: isImage, exportScheme: exportScheme) }
             }
         }
     }
-    private func boardCard(_ kind: LeaderboardKind, isImage: Bool = false, compact: Bool = false) -> some View {
+    private func boardCard(_ kind: LeaderboardKind, isImage: Bool = false, compact: Bool = false, exportScheme: ColorScheme? = nil) -> some View {
         PadBoardCard(kind: kind, board: store.snapshot.boards[kind], grouping: store.grouping,
             language: store.language, filter: store.countryFilter(for: kind), failure: store.failures[kind],
-            isRefreshing: store.refreshing.contains(kind), isImage: isImage, compact: compact,
+            isRefreshing: store.refreshing.contains(kind), isImage: isImage, compact: compact, exportScheme: exportScheme,
             selectCountry: { store.setCountryFilter($0, for: kind); resetComparison() }, copyName: copyName)
     }
 
@@ -491,6 +491,7 @@ public struct LeaderboardPadView: View {
     }
 
     func renderLeaderboardImage(width: CGFloat = 1000, scheme: ColorScheme = .light) -> CGImage? {
+        let secondary = scheme == .dark ? Color(red: 0.6, green: 0.6, blue: 0.6) : Color(red: 0.5, green: 0.5, blue: 0.5)
         let content = VStack(alignment: .leading, spacing: 12) {
             HStack {
                 appTitle
@@ -498,20 +499,25 @@ public struct LeaderboardPadView: View {
                 Text(LeaderboardPresentation.title(store.category, language: store.language))
                 Spacer()
                 Text(tr("UPDATED", "更新时间") + " " + LeaderboardPresentation.rankingUpdated(store.snapshot,
-                    category: store.category, language: store.language)).font(.caption).foregroundStyle(.secondary)
+                    category: store.category, language: store.language)).font(.caption).foregroundStyle(secondary)
             }
-            boardPair(wide: width >= 760, isImage: true)
+            boardPair(wide: width >= 760, isImage: true, exportScheme: scheme)
             HStack {
                 Text("github.com/cloydlau/ai-benchgauge").font(.system(size: 12, design: .monospaced))
                 Spacer()
                 Text("Cloyd Lau · MIT License")
-            }.font(.caption).foregroundStyle(.secondary)
+            }.font(.caption).foregroundStyle(secondary)
         }
-        .padding(18).frame(width: width).background(Color.padBackground)
-        .foregroundStyle(scheme == .dark ? Color.white : Color.black)
+        .padding(18).frame(width: width).background(scheme == .dark ? Color.black : Color.white)
+        .foregroundColor(scheme == .dark ? Color.white : Color.black)
         .environment(\.colorScheme, scheme).environment(\.locale, store.language.locale)
+        .transaction { transaction in
+            transaction.animation = nil
+            transaction.disablesAnimations = true
+        }
         let renderer = ImageRenderer(content: content)
         renderer.scale = 2
+        renderer.isOpaque = true
         return renderer.cgImage
     }
     private func copyScreenshot() {
@@ -569,12 +575,20 @@ private struct PadBoardCard: View {
     let isRefreshing: Bool
     let isImage: Bool
     let compact: Bool
+    let exportScheme: ColorScheme?
     let selectCountry: (LeaderboardCountryFilter) -> Void
     let copyName: (String) -> Void
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var detail = PadBoardDetail()
     private func tr(_ en: String, _ zh: String) -> String { language.text(en, zh) }
     private var rows: [LeaderboardEntry] { LeaderboardPresentation.rows(board, grouping: grouping, filter: filter) }
+    private var displayScheme: ColorScheme { exportScheme ?? colorScheme }
+    private var primaryForeground: Color { isImage ? (displayScheme == .dark ? .white : .black) : .primary }
+    private var secondaryForeground: Color {
+        guard isImage else { return .secondary }
+        let level = displayScheme == .dark ? 0.6 : 0.5
+        return Color(red: level, green: level, blue: level)
+    }
     private var rankColumnWidth: CGFloat { language == .english ? 28 : 24 }
     private var scoreWidthReference: String {
         rows.prefix(20).map {
@@ -612,12 +626,16 @@ private struct PadBoardCard: View {
         return name + " · " + formatter.string(from: date)
     }
     var body: some View {
+        if isImage { cardContent }
+        else { interactiveCard }
+    }
+    private var cardContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
-                    if isImage { Text(title).font(.subheadline.weight(.medium)) }
+                    if isImage { Text(title).font(.subheadline.weight(.medium)).foregroundStyle(primaryForeground) }
                     else { Link(title, destination: kind.sourceURL).font(.subheadline.weight(.medium)) }
-                    if isImage { Text(LeaderboardPresentation.explanation(kind, language: language)).foregroundStyle(.secondary) }
+                    if isImage { Text(LeaderboardPresentation.explanation(kind, language: language)).foregroundStyle(secondaryForeground) }
                     else {
                         Button { detail.showingSource = true } label: {
                             Text(failure == nil ? LeaderboardPresentation.explanation(kind, language: language) : tr("Refresh failed", "刷新失败"))
@@ -647,7 +665,7 @@ private struct PadBoardCard: View {
                         .accessibilityValue(filter.title(language: language))
                     }
                 }
-            }.font(.caption).foregroundStyle(.secondary).padding(.horizontal, 8).padding(.vertical, 8)
+            }.font(.caption).foregroundStyle(secondaryForeground).padding(.horizontal, 8).padding(.vertical, 8)
             Divider()
             if board != nil {
                 if rows.isEmpty { Text("-").foregroundStyle(.secondary).padding(16) }
@@ -678,8 +696,11 @@ private struct PadBoardCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(Color.padCard, in: RoundedRectangle(cornerRadius: 6))
+        .background(isImage ? (displayScheme == .dark ? Color.black : Color.white) : Color.padCard, in: RoundedRectangle(cornerRadius: 6))
         .accessibilityElement(children: .contain).accessibilityIdentifier("board-\(kind.rawValue)")
+    }
+    private var interactiveCard: some View {
+        cardContent
         .sheet(isPresented: $detail.showingSource) {
             NavigationStack {
                 ScrollView {
@@ -714,7 +735,7 @@ private struct PadBoardCard: View {
     private func entryRow(_ entry: LeaderboardEntry, rank: Int) -> some View {
         let country = OrganizationRegion.country(entry.organization, modelName: entry.name)
         return HStack(alignment: .center, spacing: 8) {
-            Text(LeaderboardPresentation.rankLabel(rank)).monospacedDigit().frame(width: rankColumnWidth)
+            Text(LeaderboardPresentation.rankLabel(rank)).monospacedDigit().foregroundStyle(primaryForeground).frame(width: rankColumnWidth)
             HStack(spacing: 6) {
                 PadOrganizationLogo(entry: entry)
                 if compact && grouping == .company {
@@ -735,16 +756,16 @@ private struct PadBoardCard: View {
                 .accessibilityLabel("\(entry.name), \(entry.score), \(tr("score details", "分数说明"))")
                 .accessibilityIdentifier("score-\(kind.rawValue)-\(entry.id)")
             } else {
-                scoreColumn { Text(entry.score, format: .number.precision(.fractionLength(1))).monospacedDigit().foregroundStyle(.secondary) }
+                scoreColumn { Text(entry.score, format: .number.precision(.fractionLength(1))).monospacedDigit().foregroundStyle(secondaryForeground) }
             }
-            countryColumn { Text(country?.flagEmoji ?? "-") }
+            countryColumn { Text(country?.flagEmoji ?? "-").foregroundStyle(primaryForeground) }
                 .accessibilityLabel(country?.localizedName(language: language) ?? tr("Country unknown", "国家未知"))
         }
         .font(.subheadline).padding(.horizontal, 8).frame(minHeight: 44)
         .background(rank.isMultiple(of: 2) ? Color.secondary.opacity(0.05) : Color.clear)
     }
     @ViewBuilder private func entryName(_ entry: LeaderboardEntry) -> some View {
-        if isImage { Text(entry.name).fixedSize(horizontal: false, vertical: true) }
+        if isImage { Text(entry.name).foregroundStyle(primaryForeground).fixedSize(horizontal: false, vertical: true) }
         else {
             Button { copyName(entry.name) } label: {
                 Text(entry.name).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
@@ -765,7 +786,7 @@ private struct PadBoardCard: View {
     }
     private func brandColor(_ entry: LeaderboardEntry) -> Color {
         guard let raw = OrganizationLogoCatalog.brandColorHex(forOrganization: entry.organization, modelName: entry.name) else { return .clear }
-        let display = OrganizationLogoCatalog.displayBrandColorHex(raw, isDark: colorScheme == .dark, modelName: grouping == .model ? entry.name : nil)
+        let display = OrganizationLogoCatalog.displayBrandColorHex(raw, isDark: displayScheme == .dark, modelName: grouping == .model ? entry.name : nil)
         let value = UInt32(display.dropFirst(), radix: 16) ?? 0
         return Color(red: Double((value >> 16) & 255) / 255, green: Double((value >> 8) & 255) / 255, blue: Double(value & 255) / 255)
     }
