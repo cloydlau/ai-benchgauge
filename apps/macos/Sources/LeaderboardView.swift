@@ -327,7 +327,7 @@ struct LeaderboardView: View {
     }
 
     private var appTitle: some View {
-        let title = "AI BenchGauge"
+        let title = language.appName
         let version = versionLabel
         return HStack(alignment: .center, spacing: 8) {
             Text(title)
@@ -950,7 +950,7 @@ struct LeaderboardView: View {
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .help(tr("View the AI BenchGauge license", "查看 AI BenchGauge 的许可证"))
+            .help(tr("View the AI BenchGauge license", "查看 AI 天梯的许可证"))
             .accessibilityIdentifier("application-license")
         }
         .fixedSize(horizontal: true, vertical: false)
@@ -1035,7 +1035,7 @@ struct LeaderboardView: View {
             .buttonStyle(.plain)
             .pointingHandCursor(isEnabled: !state.isQuitting)
             .allowsHitTesting(!state.isQuitting)
-            .help(state.isQuitting ? tr("Quitting AI BenchGauge", "正在退出 AI BenchGauge") : tr("Quit AI BenchGauge", "退出 AI BenchGauge"))
+            .help(state.isQuitting ? tr("Quitting AI BenchGauge", "正在退出 AI 天梯") : tr("Quit AI BenchGauge", "退出 AI 天梯"))
             .accessibilityLabel(tr("Quit", "退出"))
         }
         .fixedSize(horizontal: true, vertical: false)

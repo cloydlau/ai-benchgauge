@@ -52,11 +52,11 @@ static class Program
             var prefs = Preferences.Load();
             var window = new MainWindow(engine, prefs);
             app.MainWindow = window;
-            using var tray = new Forms.NotifyIcon { Icon = System.Drawing.SystemIcons.Application, Text = "AI BenchGauge", Visible = true };
+            using var tray = new Forms.NotifyIcon { Icon = System.Drawing.SystemIcons.Application, Text = window.BrandName, Visible = true };
             window.Tray = tray;
             tray.MouseClick += (_, e) => { if (e.Button == Forms.MouseButtons.Left) window.Toggle(); };
             var menu = new Forms.ContextMenuStrip();
-            menu.Items.Add("AI BenchGauge", null, (_, _) => window.Reveal());
+            menu.Items.Add(window.BrandName, null, (_, _) => window.Reveal());
             menu.Items.Add("GitHub", null, (_, _) => MainWindow.Open("https://github.com/cloydlau/ai-benchgauge"));
             menu.Items.Add(window.Tr("Check for updates", "检查更新"), null, async (_, _) => await window.CheckUpdates(manual: true));
             menu.Items.Add(window.Tr("Quit", "退出"), null, (_, _) => app.Shutdown());

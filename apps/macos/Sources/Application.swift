@@ -252,7 +252,9 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
     private func updateStatusItem() {
         guard let button = statusItem.button else { return }
         var labels = [String]()
-        var help = ["AI BenchGauge"]
+        let appName = state.selectedLanguage.appName
+        leaderboardWindow?.title = appName
+        var help = [appName]
         if let quota = state.menuBarQuota {
             let quotaText = state.selectedLanguage.quotaText(quota.quota)
             labels.append("\(quota.name) · \(quotaText)")
@@ -335,7 +337,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
         let font = button.font ?? NSFont.menuBarFont(ofSize: 0)
         let symbol = NSImage(
             systemSymbolName: Self.statusItemSymbolName,
-            accessibilityDescription: "AI BenchGauge"
+            accessibilityDescription: state.selectedLanguage.appName
         )
         let configuration = NSImage.SymbolConfiguration(pointSize: font.pointSize, weight: .regular)
         return symbol?.withSymbolConfiguration(configuration) ?? symbol
@@ -677,7 +679,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
             let window = NSWindow(contentRect: NSRect(origin: .zero, size: contentSize),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable],
                                   backing: .buffered, defer: false)
-            window.title = "AI BenchGauge"
+            window.title = state.selectedLanguage.appName
             window.identifier = NSUserInterfaceItemIdentifier("ai-benchgauge.leaderboard-window")
             window.isReleasedWhenClosed = false
             window.delegate = self

@@ -203,6 +203,8 @@ sealed partial class MainWindow
         rendering = true;
         try
         {
+            Title = BrandName;
+            if (Tray?.ContextMenuStrip?.Items.Count > 0) Tray.ContextMenuStrip.Items[0].Text = BrandName;
             UpdatePanelWidth();
             renderedPanelWidth = Content is FrameworkElement client && client.ActualWidth > 0 ? client.ActualWidth : Width;
             (status.Parent as Panel)?.Children.Remove(status);
@@ -227,7 +229,7 @@ sealed partial class MainWindow
         var header = new StackPanel { Margin = new Thickness(18, 9, 18, 10) };
         var titleLine = new Grid(); titleLine.ColumnDefinitions.Add(new ColumnDefinition()); titleLine.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var brand = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        headerTitle = new TextBlock { Text = "AI BenchGauge",
+        headerTitle = new TextBlock { Text = BrandName,
             FontFamily = new FontFamily("Segoe Script"), FontWeight = FontWeights.Bold,
             FontSize = 21, Height = 27, Foreground = PanelInk };
         brand.Children.Add(HeaderInk(headerTitle));

@@ -45,10 +45,11 @@ sealed partial class MainWindow : Window
     PreparedUpdateDialog? updateDialog;
     public Forms.NotifyIcon? Tray { get; set; }
     public string Tr(string en, string zh, string? traditional = null) => prefs.Language switch { "en" => en, "zh-Hant" => traditional ?? zh, _ => zh };
+    public string BrandName => Tr("AI BenchGauge", "AI 天梯");
     public MainWindow(EngineClient? engine, Preferences prefs)
     {
         this.engine = engine; this.prefs = prefs; updater = new UpdateClient(config);
-        Title = "AI BenchGauge"; Width = 850; MinWidth = 600;
+        Title = BrandName; Width = 850; MinWidth = 600;
         MinHeight = Math.Min(600, SystemParameters.WorkArea.Height);
         Height = Math.Min(820, SystemParameters.WorkArea.Height);
         WindowStartupLocation = WindowStartupLocation.Manual;
@@ -184,7 +185,7 @@ sealed partial class MainWindow : Window
         state = result; Render();
         if (Tray is not null)
         {
-            var text = "AI BenchGauge" + (result.TrayText is { } quota ? " · " + quota : "");
+            var text = BrandName + (result.TrayText is { } quota ? " · " + quota : "");
             Tray.Text = text.Length <= 63 ? text : text[..60] + "…";
             ShowQuotaAlerts(result.Alerts);
         }
@@ -464,7 +465,7 @@ sealed partial class MainWindow : Window
         var attribution = new TextBlock { Text = "© cloydlau · MIT", FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
         DockPanel.SetDock(attribution, Dock.Right); text.Children.Add(attribution);
         text.Children.Add(new TextBlock { Text = "github.com/" + config.Repository, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
-        quotaPanel.Visibility = Visibility.Collapsed; privatePrompt.Text = Tr("View your remaining AI quotas with AI BenchGauge · CC Switch", "使用 AI BenchGauge · CC Switch 查看 AI 余量", "使用 AI BenchGauge · CC Switch 查看 AI 餘量"); privatePrompt.Visibility = Visibility.Visible;
+        quotaPanel.Visibility = Visibility.Collapsed; privatePrompt.Text = Tr("View your remaining AI quotas with AI BenchGauge · CC Switch", "使用 AI 天梯 · CC Switch 查看 AI 余量", "使用 AI 天梯 · CC Switch 查看 AI 餘量"); privatePrompt.Visibility = Visibility.Visible;
         if (original is not null) content.Children.Remove(original); Place(text, 3);
         try
         {

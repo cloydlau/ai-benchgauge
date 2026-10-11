@@ -17,12 +17,16 @@ struct AppLanguageTests {
         #expect((AppLanguage.load(from: defaults, preferredLanguages: ["en-US"])) == (.english))
         #expect((AppLanguage.load(from: defaults, preferredLanguages: ["ja-JP", "zh-TW"])) == (.traditionalChinese))
         #expect((AppLanguage.load(from: defaults, preferredLanguages: ["ja-JP"])) == (.english))
+        #expect(AppLanguage.load(from: defaults, preferredLanguages: ["zh-Hans-CN"]).appName == "AI 天梯")
+        #expect(AppLanguage.load(from: defaults, preferredLanguages: ["zh-Hant-TW"]).appName == "AI 天梯")
+        #expect(AppLanguage.load(from: defaults, preferredLanguages: ["ja-JP"]).appName == "AI BenchGauge")
         AppLanguage.chinese.save(to: defaults)
         #expect((AppLanguage.load(from: defaults, preferredLanguages: ["en-US"])) == (.chinese))
         AppLanguage.traditionalChinese.save(to: defaults)
         #expect((AppLanguage.load(from: defaults, preferredLanguages: ["en-US"])) == (.traditionalChinese))
         AppLanguage.english.save(to: defaults)
         #expect((AppLanguage.load(from: defaults, preferredLanguages: ["zh-Hans-CN"])) == (.english))
+        #expect(AppLanguage.load(from: defaults, preferredLanguages: ["zh-Hans-CN"]).appName == "AI BenchGauge")
     }
 
     @Test

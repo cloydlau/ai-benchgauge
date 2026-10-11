@@ -137,7 +137,7 @@ public struct LeaderboardPadView: View {
         }
     }
     private var appTitle: some View {
-        Text("AI BenchGauge")
+        Text(verbatim: store.language.appName)
             .font(.custom("SnellRoundhand-Bold", size: 21))
             .lineLimit(1)
     }

@@ -29,7 +29,10 @@ export function iosProject({ version, buildNumber = '1', team = '', sourceDirect
   const assetFile = put('assets', `isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = ${q(assetDirectory || sourcePath('App/Assets.xcassets'))}; sourceTree = "<group>";`)
   const privacyFile = put('privacy', `isa = PBXFileReference; lastKnownFileType = text.xml; path = ${q(sourcePath('App/PrivacyInfo.xcprivacy'))}; sourceTree = "<group>";`)
   const logoFile = put('logos', `isa = PBXFileReference; lastKnownFileType = folder; path = ${q(logoDirectory)}; sourceTree = "<group>";`)
-  const resources = [assetFile, privacyFile, logoFile].map(fileRef => put(`resource-${fileRef}`, `isa = PBXBuildFile; fileRef = ${fileRef};`))
+  const localizedNames = ['en', 'zh-Hans', 'zh-Hant'].map(language => put(`name-${language}`,
+    `isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ${q(language)}; path = ${q(join(packageDirectory, 'assets/localizations', `${language}.lproj/InfoPlist.strings`))}; sourceTree = "<group>";`))
+  const nameFile = put('localized-name', `isa = PBXVariantGroup; children = ${list(localizedNames)}; name = InfoPlist.strings; sourceTree = "<group>";`)
+  const resources = [assetFile, privacyFile, logoFile, nameFile].map(fileRef => put(`resource-${fileRef}`, `isa = PBXBuildFile; fileRef = ${fileRef};`))
   const infoFile = put('info', `isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = ${q(sourcePath('App/Info.plist'))}; sourceTree = "<group>";`)
   const appProduct = put('app-product', 'isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "AI BenchGauge.app"; sourceTree = BUILT_PRODUCTS_DIR;')
   const testProduct = put('test-product', 'isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BenchGaugeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR;')
@@ -69,7 +72,7 @@ export function iosProject({ version, buildNumber = '1', team = '', sourceDirect
   const dependency = put('test-app-dependency', `isa = PBXTargetDependency; target = ${appTarget}; targetProxy = ${proxy};`)
   const testTarget = put('test-target', `isa = PBXNativeTarget; buildConfigurationList = ${testConfigs}; buildPhases = ${list(testPhases)}; buildRules = (); dependencies = (${dependency}); name = BenchGaugeUITests; productName = BenchGaugeUITests; productReference = ${testProduct}; productType = "com.apple.product-type.bundle.ui-testing";`)
   const products = put('products', `isa = PBXGroup; children = (${appProduct}, ${testProduct}); name = Products; sourceTree = "<group>";`)
-  const group = put('group', `isa = PBXGroup; children = ${list([...['BenchGaugeApp.swift', 'DebugFixtures.swift'].map(id), testFile, assetFile, privacyFile, logoFile, infoFile, products])}; sourceTree = "<group>";`)
+  const group = put('group', `isa = PBXGroup; children = ${list([...['BenchGaugeApp.swift', 'DebugFixtures.swift'].map(id), testFile, assetFile, privacyFile, logoFile, nameFile, infoFile, products])}; sourceTree = "<group>";`)
   put('project', `isa = PBXProject; attributes = { LastUpgradeCheck = 1600; BuildIndependentTargetsInParallel = YES; TargetAttributes = { ${testTarget} = { TestTargetID = ${appTarget}; }; }; }; buildConfigurationList = ${projectConfigs}; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, "zh-Hans", "zh-Hant", Base); mainGroup = ${group}; packageReferences = (${packageRef}); productRefGroup = ${products}; projectDirPath = ""; projectRoot = ""; targets = (${appTarget}, ${testTarget});`)
   const project = `// !$*UTF8*$!\n{ archiveVersion = 1; classes = {}; objectVersion = 56; objects = {\n${[...objects].map(([key, body]) => `${key} = { ${body} };`).join('\n')}\n}; rootObject = ${id('project')}; }\n`
   const ref = (target, product, name) => `<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="${target}" BuildableName="${xml(product)}" BlueprintName="${xml(name)}" ReferencedContainer="container:AI-BenchGauge.xcodeproj"/>`
