@@ -85,4 +85,4 @@ SQLite 使用系统库，不打包第三方 SQLite 二进制。
 
 ## iPad edition
 
-The iPad target links the repository's own `LeaderboardKit` and `LeaderboardPadUI` plus Apple system frameworks. It does not ship Sparkle, SQLite, desktop command-line integrations, Windows dependencies, or desktop quota adapters. It reuses the desktop brand PNGs from `assets/logos`; the unresolved provenance audit above applies to iPad distribution too. The complete project MIT license is bundled in `apps/ipad/UI/Resources/AI-BenchGauge.txt` and is available offline from the footer's MIT License entry.
+The universal iOS target links the repository's own `LeaderboardKit` and `LeaderboardPadUI` plus Apple system frameworks. It does not ship Sparkle, SQLite, desktop command-line integrations, Windows dependencies, or desktop quota adapters. It reuses the desktop brand PNGs from `assets/logos`; the unresolved provenance audit above applies to iPad distribution too. The complete project MIT license is bundled in `apps/ios/UI/Resources/AI-BenchGauge.txt` and is available offline from the footer's MIT License entry.

@@ -35,7 +35,7 @@ import LeaderboardKit
         // rather than treating every yellow medal pixel as a disabled control.
         #expect(yellowPlaceholderPixels(in: image) == 0)
         if ProcessInfo.processInfo.environment["BENCHGAUGE_IPAD_PREVIEWS"] == "1" {
-            let output = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appending(path: "work/ipad/previews")
+            let output = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appending(path: "work/ios/previews")
             try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
             let png = try #require(NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]))
             try png.write(to: output.appending(path: "\(label).png"))
