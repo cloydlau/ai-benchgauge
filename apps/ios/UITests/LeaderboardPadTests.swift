@@ -292,6 +292,44 @@ final class LeaderboardPhoneTests: XCTestCase {
         XCTAssertTrue(app.buttons["name-artificialAnalysis-1"].isHittable)
         capture("iphone-reset-companies-landscape")
     }
+    func testSourceSwitchKeepsTopAndScrolledRowsVisible() {
+        checkSourceSwitchVisibility(dark: false)
+    }
+    func testSourceSwitchKeepsTopAndScrolledRowsVisibleInDarkMode() {
+        checkSourceSwitchVisibility(dark: true)
+    }
+    private func checkSourceSwitchVisibility(dark: Bool) {
+        app.launchArguments.append("--full-board")
+        if dark { app.launchArguments.append("--dark") }
+        app.launch()
+        waitForFace("artificialAnalysis")
+        let appearance = dark ? "dark" : "light"
+        capture("source-switch-\(appearance)-aa-top")
+        app.buttons["face-1"].tap()
+        waitForFace("arenaText")
+        capture("source-switch-\(appearance)-arena-top")
+        let arenaHeaderVisible = app.buttons["source-help-arenaText"].isHittable
+            && app.buttons["country-arenaText"].isHittable
+        app.buttons["face-0"].tap()
+        waitForFace("artificialAnalysis")
+        let viewport = app.otherElements["cube-viewport"]
+        viewport.swipeUp()
+        let rank = (2...19).first { rank in
+            let row = app.buttons["name-artificialAnalysis-\(rank)"]
+            return row.isHittable && row.frame.minY >= viewport.frame.minY
+                && row.frame.minY < viewport.frame.midY
+        }
+        XCTAssertNotNil(rank)
+        capture("source-switch-\(appearance)-aa-scrolled")
+        app.buttons["face-1"].tap()
+        waitForFace("arenaText")
+        capture("source-switch-\(appearance)-arena-scrolled")
+        if let rank {
+            XCTAssertTrue(app.buttons["name-arenaText-\(rank)"].isHittable,
+                          "Switching scrolled boards must retain the comparison rank")
+        }
+        XCTAssertTrue(arenaHeaderVisible, "Switching from the top must retain the source and column headers")
+    }
     func testCubeMidTurnNativeCapture() {
         app.launchArguments += ["--cube-preview", "--preview-zh"]
         app.launch()

@@ -16,6 +16,10 @@ private enum PadLicenseSection: String, Identifiable {
     case application, notices
     var id: String { rawValue }
 }
+// Keep scroll targets distinct from ForEach's zero-based integer identities.
+private enum PadComparisonScrollTarget: Hashable {
+    case top, rank(Int)
+}
 @MainActor
 private final class PadBoardDetail: ObservableObject {
     @Published var selectedCompany: CompanyStanding?
@@ -270,12 +274,27 @@ public struct LeaderboardPadView: View {
     }
     private func cubeFace(_ kind: LeaderboardKind, index: Int, size: CGSize) -> some View {
         ScrollViewReader { proxy in
-            ScrollView { boardCard(kind, compact: true) }
+            ScrollView {
+                boardCard(kind, compact: true)
+                    .id(PadComparisonScrollTarget.top)
+                    .background {
+                        GeometryReader { geometry in
+                            let frame = geometry.frame(in: .named("rank-scroll-\(kind.rawValue)"))
+                            Color.clear.preference(key: LeaderboardRankFrames.self,
+                                value: [0: LeaderboardRankFrame(minY: frame.minY, maxY: frame.maxY)])
+                        }
+                    }
+            }
+                .modifier(PadLeaderboardTopEdge())
                 .coordinateSpace(name: "rank-scroll-\(kind.rawValue)")
                 .onPreferenceChange(LeaderboardRankFrames.self) { frames in
                     Task { @MainActor in
                         guard index == cube.face && !cube.dragging && !cube.turning else { return }
-                        let rank = LeaderboardCube.visibleRank(frames, height: size.height)
+                        // Zero identifies the full card's top, including its
+                        // source and column headers. Only align a ranking row
+                        // once the user has actually scrolled past that top.
+                        let rank = (frames[0]?.minY ?? -.infinity) >= -1 ? 0
+                            : LeaderboardCube.visibleRank(frames.filter { $0.key > 0 }, height: size.height)
                         if cube.rank != rank { cube.rank = rank }
                     }
                 }
@@ -284,7 +303,8 @@ public struct LeaderboardPadView: View {
                         // Move the incoming source to the same ranking position
                         // before rotating it into view; never animate the scroll.
                         var transaction = Transaction(); transaction.disablesAnimations = true
-                        withTransaction(transaction) { proxy.scrollTo(rank, anchor: .top) }
+                        let target: PadComparisonScrollTarget = rank == 0 ? .top : .rank(rank)
+                        withTransaction(transaction) { proxy.scrollTo(target, anchor: .top) }
                     }
                 }
                 .refreshable { await store.refresh(force: true) }
@@ -573,7 +593,7 @@ private struct PadBoardCard: View {
                 if rows.isEmpty { Text("-").foregroundStyle(.secondary).padding(16) }
                 VStack(spacing: 0) {
                     ForEach(Array(rows.prefix(20).enumerated()), id: \.offset) { index, entry in
-                        entryRow(entry, rank: index + 1).id(index + 1)
+                        entryRow(entry, rank: index + 1).id(PadComparisonScrollTarget.rank(index + 1))
                             .background {
                                 if compact && !isImage {
                                     GeometryReader { geometry in
@@ -706,6 +726,22 @@ private struct PadOrganizationLogo: View {
         }.frame(width: 18, height: 18).background(.white, in: RoundedRectangle(cornerRadius: 3)).accessibilityHidden(true)
     }
 }
+private struct PadLeaderboardTopEdge: ViewModifier {
+    @ViewBuilder func body(content: Content) -> some View {
+        #if os(iOS) && compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            // The header is outside this scroll view. A system scroll-edge
+            // blur would cover the incoming face's own title and first rows.
+            content.scrollEdgeEffectHidden(true, for: .top)
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
+    }
+}
+
 private extension Color {
     static var padBackground: Color {
         #if os(iOS)

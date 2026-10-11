@@ -54,7 +54,21 @@ Simulator checks cover portrait/landscape. Before distribution, also verify on a
 
 ## Validation status
 
-The [universal native CI check](https://github.com/cloydlau/ai-benchgauge/actions/runs/36826949674) passed on 2026-10-01 at revision `217f68411a142c832b224d8c23f6058845878f1f`: two unsigned Release SDK builds, five iPhone UI tests and four iPad UI tests, with zero failures. Six build-script checks and thirteen shared-library/UI unit tests also pass locally. The final mobile application, resources, shared library, build scripts and UI suite match this passing revision; the marketing version also matches. This is the retained implementation after withdrawing a later experimental screenshot-pixel assertion and footer layout change.
+### Wrapped model-name spacing (2026-10-11)
+
+Brand backgrounds now have 4-point vertical margins outside the color fill, preserving an 8-point gap between consecutive wrapped names. The inner padding and 44-point minimum row height are unchanged. Debug launches with `--ui-testing --full-board --wrapped-names` provide three consecutive multiline names for native visual review. Before/after light and dark iPhone 18 Pro captures (iOS 27.0, 3×, Xcode 27.0) remain in ignored `work/wrapped-name-spacing/`; reviewed captures show separated backgrounds and unchanged single-line row height. Real-device visual review remains separate.
+
+### AA / Arena source-switch headers (2026-10-11)
+
+Switching from the top now retains the source title, column headers and first row. Scrolled comparisons still align the visible rank, using explicit enum scroll targets so the row number cannot collide with `ForEach`'s integer index. On iOS 26 or later, the compact board disables its automatic top scroll-edge effect; its fixed source controls already sit outside the scroll viewport. The API is guarded for older SDKs and systems.
+
+The new full-board regression failed on the original source because the Arena headers disappeared. On the final working source based on `1d8139154d18b9d8ccc42f78e3abb8a7a8f4494f`, four native iPhone tests pass: light/dark top and scrolled switching, dark landscape comparison, and Reduced Motion. Original before/after screenshots and source hashes remain in ignored `work/mobile-scroll-edge/`; `final.xcresult` retains the final native test results. Reviewed captures show clear source/column headings and first rows at the top, and readable aligned rows after scrolling. Environment: iPhone 18 Pro simulator, iOS 27.0, actual 3× scale, Xcode 27.0 (27A266a). This is simulator validation; real-device visual review remains separate.
+
+The final source also passes syntax checks, 107 script tests, 283 shared Swift tests, 39 Windows harness cases and the local updater's unsigned iOS simulator SDK build.
+
+### Earlier universal CI validation
+
+The [universal native CI check](https://github.com/cloydlau/ai-benchgauge/actions/runs/36826949674) passed on 2026-10-01 at revision `217f68411a142c832b224d8c23f6058845878f1f`: two unsigned Release SDK builds, five iPhone UI tests and four iPad UI tests, with zero failures. Six build-script checks and thirteen shared-library/UI unit tests also passed locally at that revision. This records the retained implementation after withdrawing an experimental screenshot-pixel assertion and footer layout change; the source-switch fix above supersedes that revision's mobile view and tests.
 
 The run retains 21 original iPhone PNGs in [ios-iPhone-test-results](https://github.com/cloydlau/ai-benchgauge/actions/runs/36826949674/artifacts/11146300071), 17 iPad PNGs in [ios-iPad-test-results](https://github.com/cloydlau/ai-benchgauge/actions/runs/36826949674/artifacts/11145418958), and [SDK build logs](https://github.com/cloydlau/ai-benchgauge/actions/runs/36826949674/artifacts/11144599722). The iPhone captures use iPhone 17 Pro / iOS 26.2 at actual 3× scale; iPad uses iPad Pro 13-inch (M5) / iPadOS 26.2 at 2×. The runner uses macOS 15.7.9 (24G830), arm64, Xcode 16.4 and the iOS 18.5 SDK. Screenshots retain their original pixels and orientation metadata, including landscape captures.
 
