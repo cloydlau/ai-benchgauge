@@ -642,6 +642,10 @@ private struct PadBoardCard: View {
                         }.buttonStyle(.plain).foregroundStyle(failure == nil ? Color.secondary : Color.orange)
                         .accessibilityIdentifier("\(failure == nil ? "source-help" : "source-error")-\(kind.rawValue)")
                     }
+                    Text(LeaderboardPresentation.sourceSummary(kind, language: language))
+                        .foregroundStyle(secondaryForeground)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("source-summary-\(kind.rawValue)")
                 }.font(.caption)
                 Spacer(minLength: 2)
                 if isRefreshing && !isImage { ProgressView().accessibilityLabel(tr("Updating rankings", "正在更新排名")) }

@@ -54,6 +54,10 @@ Simulator checks cover portrait/landscape. Before distribution, also verify on a
 
 ## Validation status
 
+### Visible source introductions (2026-10-12)
+
+Each iOS board now shows the desktop's one-sentence source introduction below its short emphasis label. General, coding, image and video categories use the existing localized source descriptions, shared with the source-help sheet. Introductions wrap naturally on phones and also appear in the iPad layout and copied images; source-help and refresh-error controls remain available.
+
 ### Score and compact columns (2026-10-12)
 
 Live rows and copied images share a score column sized by the longest localized, single-line score among the displayed rows, with a 44-point minimum. Header and row cells use the same reference, so Arena values such as `1,499.9` remain aligned without wrapping or reducing the font size. Rank columns are 28 points in English and 24 in Chinese; country columns use their header's intrinsic width with a 32-point minimum. Country text and its chevron now have a 2-point gap.
