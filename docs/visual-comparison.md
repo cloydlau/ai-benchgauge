@@ -1,5 +1,13 @@
 # Native visual comparison
 
+## Chinese title calligraphy (2026-10-12)
+
+Only the Chinese brand characters **天梯** now use Long Cang calligraphy at 25 points; Latin branding retains Snell Roundhand (Mac/iOS) or Segoe Script (Windows) at 21 points. Actual mixed-font ink bounds align the desktop version label. A renamed 4,080-byte SIL OFL font subset is bundled offline on all platforms, with license notices.
+
+Ignored `work/brand-calligraphy/{before,after}/macos` retain 36 original native AppKit/SwiftUI frames per phase, covering Simplified Chinese, Traditional Chinese and English, both themes, 600/900 × 600-point viewports, and shown/refreshed/settled checkpoints. All 24 phase/case/theme groups are stable. Reviewed originals show readable calligraphy, intact version spacing and no header clipping; English keeps its existing lettering. `review.html` links original frames and `review.json` records stability. Fixture SHA-256: `70783aed3645fc4016ceb694d48e5d44647c1c43fcbeeaa3f073ffc6ea01f027`. Actual environment: macOS 27.0.1 (26A434), 1× backing scale, local uncommitted font changes based on `cb18e5b`. Before uses the saved name-localization executable; after uses the rebuilt font-enabled executable.
+
+Validation: the complete CI check passes, including 107 script checks, 283 Swift tests and 39 Windows harness cases, signed Mac packaging and the iOS device SDK build. The current update is installed on the local iPhone. WPF cross-compilation succeeds with zero warnings/errors. Current-change native Windows captures and a source-matched CI/native-visual-comparison artifact are unavailable on this Mac host; no Windows native visual sign-off or protected release approval is claimed.
+
 ## AI 天梯 / AI BenchGauge name localization (2026-10-11)
 
 The selected app language now controls the Mac/Windows/iOS header brand: Simplified and Traditional Chinese use **AI 天梯**, English uses **AI BenchGauge**. Mac window titles and status help, Windows tray labels, and packaged Apple main-bundle display names use the same naming policy. Apple home-screen/Dock naming follows the OS per-app language; the in-app selector controls the interface. Stable internal IDs and user-data paths are retained.

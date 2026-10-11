@@ -98,9 +98,20 @@ sealed partial class MainWindow
             protected override System.Windows.Automation.Peers.AutomationControlType GetAutomationControlTypeCore() => System.Windows.Automation.Peers.AutomationControlType.Text;
             protected override bool IsContentElementCore() => true;
         }
-        FormattedText Text() => new(spec.Text, CultureInfo.GetCultureInfo(spec.Language.IetfLanguageTag), spec.FlowDirection,
-            new Typeface(spec.FontFamily, spec.FontStyle, spec.FontWeight, spec.FontStretch), spec.FontSize,
-            spec.Foreground, VisualTreeHelper.GetDpi(this).PixelsPerDip);
+        FormattedText Text()
+        {
+            var text = new FormattedText(spec.Text, CultureInfo.GetCultureInfo(spec.Language.IetfLanguageTag), spec.FlowDirection,
+                new Typeface(spec.FontFamily, spec.FontStyle, spec.FontWeight, spec.FontStretch), spec.FontSize,
+                spec.Foreground, VisualTreeHelper.GetDpi(this).PixelsPerDip);
+            var start = spec.Text.IndexOf("天梯", StringComparison.Ordinal);
+            if (start >= 0)
+            {
+                text.SetFontFamily(new FontFamily(new Uri("pack://application:,,,/"), "./Fonts/#BenchGauge Calligraphy"), start, 2);
+                text.SetFontSize(25, start, 2);
+                text.SetFontWeight(FontWeights.Normal, start, 2);
+            }
+            return text;
+        }
         protected override Size MeasureOverride(Size available)
         {
             var text = Text();
