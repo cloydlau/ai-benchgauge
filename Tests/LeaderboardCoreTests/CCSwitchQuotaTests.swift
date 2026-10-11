@@ -1674,6 +1674,12 @@ struct AccountQuotaClientTests {
 
     @Test
     func testOfficialPlanExpiryUsesTheMatchingAccountAndKeepsUsageIfCheckFails() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "official-expiry-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = OpenAIPlanExpiryStore(fileURL: root.appending(path: "dates.json"))
+        func client(_ transport: any AccountQuotaTransport) -> AccountQuotaClient {
+            AccountQuotaClient(transport: transport, now: { Date(timeIntervalSince1970: 1_758_600_000) }, openAIPlanExpiryStore: store)
+        }
         let usage = #"{"rate_limit":{"primary_window":{"used_percent":42,"limit_window_seconds":18000,"reset_at":1760000000},"secondary_window":{"used_percent":13,"limit_window_seconds":604800,"reset_at":1760500000}}}"#
         let usageWindows = [
             ParsedQuotaWindow(name: "five_hour", utilization: 42, resetsAt: Date(timeIntervalSince1970: 1_760_000_000)),
@@ -1691,7 +1697,7 @@ struct AccountQuotaClientTests {
             let body = request.url?.path == "/backend-api/accounts/check/v4-2023-04-27" ? check : usage
             return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(body.utf8))
         }
-        let matchedChips = try await AccountQuotaClient(transport: matched).refresh(targets: [
+        let matchedChips = try await client(matched).refresh(targets: [
             quotaTarget(
                 id: "official",
                 name: "OpenAI",
@@ -1733,10 +1739,12 @@ struct AccountQuotaClientTests {
             }
             return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(usage.utf8))
         }
-        let timedOutChips = try await AccountQuotaClient(transport: timedOut).refresh(targets: [
+        let timedOutChips = try await client(timedOut).refresh(targets: [
             quotaTarget(id: "official", name: "OpenAI", kind: .officialNote, key: nil, accessToken: "official-token", accountID: "account-id"),
         ])
-        #expect((timedOutChips.map(\.status)) == ([.windows(usageWindows)]))
+        let cachedWindows = usageWindows + [ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0,
+            resetsAt: ISO8601DateFormatter().date(from: "2026-10-15T00:00:00Z"), dateSource: .cached)]
+        #expect((timedOutChips.map(\.status)) == ([.windows(cachedWindows)]))
 
         let rejected = ScriptedQuotaTransport { request in
             if request.url?.path == "/backend-api/accounts/check/v4-2023-04-27" {
@@ -1744,16 +1752,16 @@ struct AccountQuotaClientTests {
             }
             return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(usage.utf8))
         }
-        let rejectedChips = try await AccountQuotaClient(transport: rejected).refresh(targets: [
+        let rejectedChips = try await client(rejected).refresh(targets: [
             quotaTarget(id: "official", name: "OpenAI", kind: .officialNote, key: nil, accessToken: "official-token", accountID: "account-id"),
         ])
-        #expect((rejectedChips.map(\.status)) == ([.windows(usageWindows)]))
+        #expect((rejectedChips.map(\.status)) == ([.windows(cachedWindows)]))
 
         let mismatch = ScriptedQuotaTransport { request in
             let body = request.url?.path == "/backend-api/accounts/check/v4-2023-04-27" ? check : usage
             return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(body.utf8))
         }
-        let mismatchChips = try await AccountQuotaClient(transport: mismatch).refresh(targets: [
+        let mismatchChips = try await client(mismatch).refresh(targets: [
             quotaTarget(id: "official", name: "OpenAI", kind: .officialNote, key: nil, accessToken: "official-token", accountID: "missing-account"),
         ])
         #expect((mismatchChips.map(\.status)) == ([.windows(usageWindows)]))
@@ -1764,7 +1772,7 @@ struct AccountQuotaClientTests {
             let body = request.url?.path == "/backend-api/accounts/check/v4-2023-04-27" ? renewsOnly : usage
             return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(body.utf8))
         }
-        let renewsChips = try await AccountQuotaClient(transport: renews).refresh(targets: [
+        let renewsChips = try await client(renews).refresh(targets: [
             quotaTarget(id: "official", name: "OpenAI", kind: .officialNote, key: nil, accessToken: "official-token", accountID: "account-id"),
         ])
         #expect((renewsChips.map(\.status)) == ([.windows(usageWindows)]))
@@ -1774,7 +1782,7 @@ struct AccountQuotaClientTests {
             #expect((request.value(forHTTPHeaderField: "ChatGPT-Account-ID")) == nil)
             return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(usage.utf8))
         }
-        let noAccountChips = try await AccountQuotaClient(transport: noAccount).refresh(targets: [
+        let noAccountChips = try await client(noAccount).refresh(targets: [
             quotaTarget(id: "official", name: "OpenAI", kind: .officialNote, key: nil, accessToken: "official-token"),
         ])
         #expect((noAccount.requests.map { $0.url?.path }) == (["/backend-api/wham/usage"]))
@@ -1783,13 +1791,16 @@ struct AccountQuotaClientTests {
 
     @Test
     func testOfficialCardShowsItsDeadlineFromTheDefaultAccountEntry() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "official-default-expiry-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = OpenAIPlanExpiryStore(fileURL: root.appending(path: "dates.json"))
         let usage = #"{"rate_limit":{"primary_window":{"used_percent":42,"limit_window_seconds":18000,"reset_at":1760000000},"secondary_window":{"used_percent":13,"limit_window_seconds":604800,"reset_at":1760500000}}}"#
         let check = #"{"accounts":{"default":{"entitlement":{"has_active_subscription":true,"expires_at":"2026-10-15T00:00:00Z","renews_at":"2026-10-15T00:00:00Z"}}},"last_account_id":"default"}"#
         let transport = ScriptedQuotaTransport { request in
             let body = request.url?.path == "/backend-api/accounts/check/v4-2023-04-27" ? check : usage
             return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(body.utf8))
         }
-        let chips = try await AccountQuotaClient(transport: transport).refresh(targets: [
+        let chips = try await AccountQuotaClient(transport: transport, openAIPlanExpiryStore: store).refresh(targets: [
             quotaTarget(id: "official", name: "OpenAI", kind: .officialNote, key: nil, accessToken: "official-token", accountID: "account-id"),
         ])
         let card = try #require(chips.first)

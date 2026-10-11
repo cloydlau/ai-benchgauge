@@ -1,5 +1,17 @@
 # Native visual comparison
 
+## OpenAI entitlement date retention (2026-10-11)
+
+OpenAI usage refreshes independently of the ChatGPT account check. A timeout, rejected HTTP response, malformed body or oversized check response previously replaced a dated card with usage only. Both direct-token and app-managed quota paths now persist API entitlement dates by account ID and reuse only future dates on temporary check failures, including after an application restart. Fresh usage keeps its current percentages; help identifies the cached date. A successful account check replaces the date or invalidates it if no matching entitlement exists. Usage resets and billing renewal dates never seed the cache; cancellation still propagates.
+
+A live Foundation request using the local account returned an entitlement boundary of `2026-10-16T13:40:13Z`. The shared engine then projected `OpenAI · 7d 92% · 至10月16日` with fresh usage. Python's separate HTTP stack received an HTML 403; that result alone does not establish the native application's failing status. The original loss is reproducible with a successful usage response followed by a rejected/timeout account check.
+
+`Tests/fixtures/openai-plan-expiry.json` covers fresh, cached and unavailable dates at 600/900 × 600 points, three languages and both themes. Ignored `work/openai-expiry/before/macos` and `after/macos` each retain 108 original native AppKit/SwiftUI shown/refreshed/settled frames; all 36 checkpoint groups per phase are pixel-stable. `review.html` links originals and `review.json` records fixture hash, source and environment. Fixture SHA-256: `bc0c1675ad6d34420c86af0873a477f02ac721ce3a14211602738c66710ec40c`. Actual environment: macOS 27.0.1 (26A434), 1× backing scale, local uncommitted source based on `e7d6154`; the saved before binary predates the current fix. Reviewed quota bands retain readable dates, percentages and add-model controls in every language/theme/width. Existing leaderboard-name truncation at narrow widths remains. Layout code is unchanged; these fixtures verify presentation of the resolved data, while transport regressions verify the actual failure transition.
+
+Validation: all 102 script tests, 283 Swift tests and 39 Windows harness cases pass on the final source. Syntax validation and signed local Mac packaging pass.
+
+Current-change Windows WPF captures and source-matched CI/native-visual-comparison artifacts are unavailable on this local macOS host. No Windows native visual sign-off or protected release approval is claimed. Live on-screen inspection through CUA also timed out; the engine projection and native synthetic fixtures provide the available verification.
+
 ## Querying quotas sort last (2026-10-10)
 
 Pending quota cards now form a final stable group after all resolved/error cards, including depleted balances. Pending cards retain their stored relative order regardless of provider or current selection; completed queries immediately rejoin the existing billing/expiry groups. The shared sorter serves both Mac cards and Windows engine projections. Query failures are not pending queries and keep their existing placement.

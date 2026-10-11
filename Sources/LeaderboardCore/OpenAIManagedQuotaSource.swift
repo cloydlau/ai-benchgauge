@@ -34,6 +34,7 @@ public actor OpenAIManagedQuotaSource: OfficialAccountQuotaSource {
     }
     private let rootURL: URL
     private let transport: any AccountQuotaTransport
+    private let expiryStore: OpenAIPlanExpiryStore
     private let sessionFactory: @Sendable (URL) -> any OpenAIAccountRPC
     private var sessions: [String: any OpenAIAccountRPC] = [:]
     private var activeLogins: [String: String] = [:]
@@ -42,7 +43,9 @@ public actor OpenAIManagedQuotaSource: OfficialAccountQuotaSource {
     public init(rootURL: URL? = nil,
                 transport: any AccountQuotaTransport = URLSessionAccountQuotaTransport(),
                 sessionFactory: @escaping @Sendable (URL) -> any OpenAIAccountRPC = { OpenAIAppServer(profileURL: $0) }) {
-        self.rootURL = rootURL ?? PlatformPaths.applicationSupport.appending(path: "openai", directoryHint: .isDirectory)
+        let rootURL = rootURL ?? PlatformPaths.applicationSupport.appending(path: "openai", directoryHint: .isDirectory)
+        self.rootURL = rootURL
+        self.expiryStore = OpenAIPlanExpiryStore(fileURL: rootURL.appending(path: "plan-expiry.json"))
         self.transport = transport
         self.sessionFactory = sessionFactory
     }
@@ -201,7 +204,8 @@ public actor OpenAIManagedQuotaSource: OfficialAccountQuotaSource {
                let expiry = try await AccountQuotaClient.officialPlanExpiry(
                    accessToken: token,
                    accountID: binding.accountID,
-                   transport: transport
+                   transport: transport,
+                   store: expiryStore
                ) {
                 windows.append(expiry)
             }
