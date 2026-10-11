@@ -193,3 +193,41 @@ TestFlight 是 Apple 的测试版分发渠道：发布者上传应用，用户�
 6. **后续更新。**修复问题后递增 `IOS_BUILD_NUMBER`，重新归档、上传并把新构建加入测试组，按 Apple 页面要求完成审核/开始测试。用户通过 TestFlight 获取新版；留意构建到期日期，在旧构建到期前提供新的可测试构建。GitHub 的 DMG/EXE 发版不会更新 iPad 应用。正式上架仍需另行提交 App Store 审核。
 
 当前状态：已提供工程、原生构建检查和归档命令；尚未完成 Apple 签名、TestFlight 上传、测试审核或用户邀请。TestFlight 审核通过也不等于正式版已上架。
+
+
+## 名称本地化与商店资料
+
+中文品牌名（简体、繁体）：**AI 天梯**。英文品牌名：**AI BenchGauge**。
+应用内标题跟随应用的界面语言选项，切回英文时立即恢复 AI BenchGauge；Apple 桌面/主屏幕名称跟随系统或系统设置中的应用语言。
+内部 Bundle ID、工程名、安装包路径和现有用户数据目录保持不变。
+Apple 主应用使用 `assets/localizations/*/InfoPlist.strings`，Mac 打包与 iOS 工程生成均包含这些资源。
+
+以下是待填写的商店元数据，尚未提交至 App Store Connect。
+
+### 简体中文：桌面完整功能版
+
+- 名称：`AI 天梯 - AI 大模型多维度排行榜 & 余量仪表盘`（28 个字符）
+- 副标题：`综合、编程、图像、视频，双榜对照与额度追踪`
+- 关键词：`人工智能,评测,对比,选型,跑分,智能体,生成,文本,推理,基准,Token,API,LLM`（UTF-8 共 92 字节）
+
+名称按用户确认稿保留；副标题依据 README 中四类榜单、双来源对照、账户余量查询与恢复通知拟定。关键词补充相关搜索词，避免重复名称和副标题。榜单来自 Artificial Analysis、Arena，具体来源和适用维度以 README 为准。
+
+### 简体中文：当前 iPhone / iPad 版
+
+当前手机端提供排行榜，尚未提供桌面账户余量功能。因此手机端的商店资料先使用：
+
+- 名称：`AI 天梯 - AI 大模型多维度排行榜`
+- 副标题：`综合、编程、图像、视频，双榜对照与离线查看`
+- 关键词：`人工智能,评测,对比,选型,跑分,智能体,生成,文本,推理,基准,LLM`（UTF-8 共 82 字节）
+
+接入手机端账户余量后，再使用桌面完整功能版的名称与副标题。
+
+### 英文
+
+- 名称：`AI BenchGauge`
+- 副标题（桌面）：`AI rankings and quota tracking`
+- 副标题（手机）：`Compare AI model leaderboards`
+- 关键词：`benchmark,llm,ranking,coding,image,video,comparison,reasoning,performance,offline,models`（88 字节）
+
+商店的名称与副标题各最多 30 个字符；关键词按 App Store Connect 的 100 字节限制核对。
+规则依据：[App information](https://developer.apple.com/help/app-store-connect/reference/app-information/app-information/)、[Platform version information](https://developer.apple.com/help/app-store-connect/reference/app-information/platform-version-information/)。

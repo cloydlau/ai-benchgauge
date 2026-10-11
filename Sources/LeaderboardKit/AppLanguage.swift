@@ -8,6 +8,8 @@ public enum AppLanguage: String, CaseIterable, Sendable {
 
     public static let preferenceKey = "interfaceLanguage"
 
+    public var appName: String { text("AI BenchGauge", "AI 天梯") }
+
     public static func load(
         from defaults: UserDefaults = .standard,
         preferredLanguages: [String] = Locale.preferredLanguages

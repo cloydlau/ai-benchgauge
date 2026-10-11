@@ -1,4 +1,4 @@
-# AI BenchGauge
+# AI 天梯
 
 *AI Benchmarks & Quotas — who's on top, how much you've got left.*
 
