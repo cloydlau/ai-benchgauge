@@ -66,8 +66,8 @@ public enum LeaderboardPresentation {
         }
     }
 
-    public static func sourceHelp(_ kind: LeaderboardKind, language: AppLanguage, board: Leaderboard?) -> String {
-        let detail: String = switch kind {
+    public static func sourceSummary(_ kind: LeaderboardKind, language: AppLanguage) -> String {
+        switch kind {
         case .artificialAnalysis: language.text("Combines standardized tests across several abilities.", "汇总多项标准化测试，适合看综合能力")
         case .artificialAnalysisCodingAgent: language.text("Scores coding agents on software engineering tasks.", "通过软件工程任务，检验编程智能体的完成能力")
         case .arenaText: language.text("People compare anonymous answers to real prompts.", "真实提问下盲选回答，贴近用户偏好")
@@ -77,7 +77,10 @@ public enum LeaderboardPresentation {
         case .artificialAnalysisTextToVideo: language.text("Blind votes on videos made with comparable settings.", "相同提示词、统一设置下盲选视频质量")
         case .arenaTextToVideo: language.text("People vote on paired videos from real prompts.", "用户自由出题并盲选，贴近日常偏好")
         }
-        var parts = [detail, language.text("Scores are not directly comparable across lists", "两榜分数不直接互比")]
+    }
+
+    public static func sourceHelp(_ kind: LeaderboardKind, language: AppLanguage, board: Leaderboard?) -> String {
+        var parts = [sourceSummary(kind, language: language), language.text("Scores are not directly comparable across lists", "两榜分数不直接互比")]
         if let date = board?.sourceUpdatedAt {
             let formatter = DateFormatter()
             formatter.locale = language.locale
