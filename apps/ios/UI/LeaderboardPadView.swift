@@ -40,6 +40,10 @@ public struct LeaderboardPadView: View {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--cube-preview") {
             _cube = StateObject(wrappedValue: LeaderboardCubeState(position: 0.5))
+        } else if ProcessInfo.processInfo.arguments.contains("--ui-testing") && ProcessInfo.processInfo.arguments.contains("--arena-preview") {
+            let preview = LeaderboardCubeState(position: 1)
+            preview.face = 1
+            _cube = StateObject(wrappedValue: preview)
         }
         #endif
     }
@@ -93,6 +97,9 @@ public struct LeaderboardPadView: View {
         }
         .sheet(item: $presentation.licenseSection) { licenseSheet($0) }
         .task(id: store.category) { await store.refresh() }
+        #if DEBUG && os(iOS)
+        .task { await writeDebugExportIfRequested() }
+        #endif
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await store.refresh() } }
             else if cube.dragging { turnCube(to: cube.face) }
@@ -501,6 +508,7 @@ public struct LeaderboardPadView: View {
             }.font(.caption).foregroundStyle(.secondary)
         }
         .padding(18).frame(width: width).background(Color.padBackground)
+        .foregroundStyle(scheme == .dark ? Color.white : Color.black)
         .environment(\.colorScheme, scheme).environment(\.locale, store.language.locale)
         let renderer = ImageRenderer(content: content)
         renderer.scale = 2
@@ -519,6 +527,19 @@ public struct LeaderboardPadView: View {
         #endif
         showNote(tr("Copied to clipboard", "已复制到剪贴板"))
     }
+    #if DEBUG && os(iOS)
+    private func writeDebugExportIfRequested() async {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard arguments.contains("--ui-testing"), arguments.contains("--capture-export") else { return }
+        // Let the native window apply its initial appearance before rendering.
+        do { try await Task.sleep(for: .milliseconds(750)) } catch { return }
+        guard let image = renderLeaderboardImage(scheme: arguments.contains("--dark") ? .dark : .light),
+              let data = UIImage(cgImage: image).pngData() else { return }
+        let url = URL.documentsDirectory.appending(path: "leaderboard-export.png")
+        do { try data.write(to: url, options: .atomic) }
+        catch { print("[preview] Export failed: \(error.localizedDescription)") }
+    }
+    #endif
     private func copyName(_ name: String) {
         #if os(iOS)
         UIPasteboard.general.string = name
@@ -554,6 +575,36 @@ private struct PadBoardCard: View {
     @StateObject private var detail = PadBoardDetail()
     private func tr(_ en: String, _ zh: String) -> String { language.text(en, zh) }
     private var rows: [LeaderboardEntry] { LeaderboardPresentation.rows(board, grouping: grouping, filter: filter) }
+    private var rankColumnWidth: CGFloat { language == .english ? 28 : 24 }
+    private var scoreWidthReference: String {
+        rows.prefix(20).map {
+            $0.score.formatted(.number.precision(.fractionLength(1)).locale(language.locale))
+        }.max { $0.count < $1.count } ?? "0.0"
+    }
+    // Size every cell from the same single-line value, including the header.
+    // Measuring through Text also follows the font and locale used by exports.
+    private func scoreColumn<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        ZStack {
+            Text(scoreWidthReference).font(.subheadline).monospacedDigit().hidden()
+            content()
+        }.lineLimit(1).fixedSize(horizontal: true, vertical: false).frame(minWidth: 44)
+    }
+    @ViewBuilder private var countryHeaderLabel: some View {
+        if isImage {
+            Text(filter == .all ? tr("Country", "国家") : filter.title(language: language)).font(.caption)
+        } else {
+            HStack(spacing: 2) {
+                Text(tr("Country", "国家"))
+                Image(systemName: "chevron.down").font(.caption2)
+            }.font(.caption)
+        }
+    }
+    private func countryColumn<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        ZStack {
+            countryHeaderLabel.hidden()
+            content()
+        }.lineLimit(1).fixedSize(horizontal: true, vertical: false).frame(minWidth: 32)
+    }
     private var title: String {
         let name = LeaderboardPresentation.title(kind, language: language)
         guard let date = board?.sourceUpdatedAt else { return name }
@@ -578,21 +629,23 @@ private struct PadBoardCard: View {
                 if isRefreshing && !isImage { ProgressView().accessibilityLabel(tr("Updating rankings", "正在更新排名")) }
             }.padding(12)
             HStack(spacing: 8) {
-                Text(tr("Rank", "排名")).frame(width: 32)
+                Text(tr("Rank", "排名")).lineLimit(1).frame(width: rankColumnWidth)
                 Spacer()
-                Text(tr("Score", "分数")).frame(width: 50)
-                if isImage { Text(filter == .all ? tr("Country", "国家") : filter.title(language: language)).frame(minWidth: 44) }
+                scoreColumn { Text(tr("Score", "分数")) }
+                if isImage { countryColumn { countryHeaderLabel } }
                 else {
-                    Menu {
-                        ForEach(LeaderboardPresentation.countryFilters(board), id: \.self) { option in
-                            Button { selectCountry(option) } label: {
-                                if option == filter { Label(option.title(language: language), systemImage: "checkmark") }
-                                else { Text(option.title(language: language)) }
+                    countryColumn {
+                        Menu {
+                            ForEach(LeaderboardPresentation.countryFilters(board), id: \.self) { option in
+                                Button { selectCountry(option) } label: {
+                                    if option == filter { Label(option.title(language: language), systemImage: "checkmark") }
+                                    else { Text(option.title(language: language)) }
+                                }
                             }
-                        }
-                    } label: { Text(tr("Country", "国家")); Image(systemName: "chevron.down").font(.caption2) }
-                    .font(.caption).frame(minWidth: 44).accessibilityIdentifier("country-\(kind.rawValue)")
-                    .accessibilityValue(filter.title(language: language))
+                        } label: { countryHeaderLabel }
+                        .buttonStyle(.plain).accessibilityIdentifier("country-\(kind.rawValue)")
+                        .accessibilityValue(filter.title(language: language))
+                    }
                 }
             }.font(.caption).foregroundStyle(.secondary).padding(.horizontal, 8).padding(.vertical, 8)
             Divider()
@@ -614,7 +667,12 @@ private struct PadBoardCard: View {
                 }
             } else {
                 ForEach(1...20, id: \.self) { rank in
-                    HStack { Text(LeaderboardPresentation.rankLabel(rank)).frame(width: 32); Spacer(); Text("-").frame(width: 50); Text("-").frame(width: 44) }
+                    HStack(spacing: 8) {
+                        Text(LeaderboardPresentation.rankLabel(rank)).frame(width: rankColumnWidth)
+                        Spacer()
+                        scoreColumn { Text("-") }
+                        countryColumn { Text("-") }
+                    }
                         .font(.subheadline).foregroundStyle(.secondary).padding(8)
                 }
             }
@@ -656,7 +714,7 @@ private struct PadBoardCard: View {
     private func entryRow(_ entry: LeaderboardEntry, rank: Int) -> some View {
         let country = OrganizationRegion.country(entry.organization, modelName: entry.name)
         return HStack(alignment: .center, spacing: 8) {
-            Text(LeaderboardPresentation.rankLabel(rank)).monospacedDigit().frame(width: 32)
+            Text(LeaderboardPresentation.rankLabel(rank)).monospacedDigit().frame(width: rankColumnWidth)
             HStack(spacing: 6) {
                 PadOrganizationLogo(entry: entry)
                 if compact && grouping == .company {
@@ -672,12 +730,14 @@ private struct PadBoardCard: View {
                 .padding(.vertical, 4)
             if grouping == .company && !isImage {
                 Button { detail.selectedCompany = LeaderboardPresentation.companies(board, filter: filter).first { $0.entry.id == entry.id } } label: {
-                    Text(entry.score, format: .number.precision(.fractionLength(1))).monospacedDigit().frame(width: 50, height: 44)
+                    scoreColumn { Text(entry.score, format: .number.precision(.fractionLength(1))).monospacedDigit() }.frame(height: 44)
                 }.buttonStyle(.plain).foregroundStyle(.secondary)
                 .accessibilityLabel("\(entry.name), \(entry.score), \(tr("score details", "分数说明"))")
                 .accessibilityIdentifier("score-\(kind.rawValue)-\(entry.id)")
-            } else { Text(entry.score, format: .number.precision(.fractionLength(1))).monospacedDigit().foregroundStyle(.secondary).frame(width: 50) }
-            Text(country?.flagEmoji ?? "-").frame(width: 44)
+            } else {
+                scoreColumn { Text(entry.score, format: .number.precision(.fractionLength(1))).monospacedDigit().foregroundStyle(.secondary) }
+            }
+            countryColumn { Text(country?.flagEmoji ?? "-") }
                 .accessibilityLabel(country?.localizedName(language: language) ?? tr("Country unknown", "国家未知"))
         }
         .font(.subheadline).padding(.horizontal, 8).frame(minHeight: 44)

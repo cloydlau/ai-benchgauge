@@ -54,6 +54,16 @@ Simulator checks cover portrait/landscape. Before distribution, also verify on a
 
 ## Validation status
 
+### Score and compact columns (2026-10-12)
+
+Live rows and copied images share a score column sized by the longest localized, single-line score among the displayed rows, with a 44-point minimum. Header and row cells use the same reference, so Arena values such as `1,499.9` remain aligned without wrapping or reducing the font size. Rank columns are 28 points in English and 24 in Chinese; country columns use their header's intrinsic width with a 32-point minimum. Country text and its chevron now have a 2-point gap.
+
+Native iPhone 18 Pro captures reproduce the original wrapping in both the live Arena face and the iOS ImageRenderer export. Reviewed final captures cover light/dark live views and model/company exports, plus Chinese headers; source hashes and original pixels remain in ignored `work/export-score-spacing/`. Environment: iOS 27.0, Xcode 27.0 (27A266a), live captures at 3× and exports at 2×. This is simulator validation; real-device visual review remains separate.
+
+The existing `testSwipeAndTapBothFacesThenRefresh` native iPhone regression passes, including country filtering, company score details, source switching and refresh. Its result bundle is `work/export-score-spacing/interaction.xcresult`.
+
+Debug fixture arguments `--ui-testing --arena-scores` supply four-digit Arena values. Add `--arena-preview` to start on Arena, `--preview-companies` for company rows, or `--capture-export` to write the normal image renderer's output to `Documents/leaderboard-export.png` in the simulator app container. All preview hooks are excluded from Release builds. Set the simulator appearance before launching a dark export preview so its first render receives the intended scheme.
+
 ### Wrapped model-name spacing (2026-10-11)
 
 Brand backgrounds now have 4-point vertical margins outside the color fill, preserving an 8-point gap between consecutive wrapped names. The inner padding and 44-point minimum row height are unchanged. Debug launches with `--ui-testing --full-board --wrapped-names` provide three consecutive multiline names for native visual review. Before/after light and dark iPhone 18 Pro captures (iOS 27.0, 3×, Xcode 27.0) remain in ignored `work/wrapped-name-spacing/`; reviewed captures show separated backgrounds and unchanged single-line row height. Real-device visual review remains separate.
