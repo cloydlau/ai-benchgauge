@@ -161,6 +161,28 @@ struct OpenAIConnectionTests {
     }
 
     @Test
+    func testManagedExpirySurvivesTemporaryFailureAndAppRestart() async throws {
+        let end = Date(timeIntervalSince1970: floor(Date().timeIntervalSince1970) + 86_400)
+        let body = try JSONSerialization.data(withJSONObject: ["accounts": ["original-account":
+            ["entitlement": ["expires_at": end.timeIntervalSince1970]]]])
+        let transport = OpenAIPlanExpiryTransport(body: body)
+        let (root, source, rpc) = try await fixture(transport: transport)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let attempt = try await source.startLogin(for: target())
+        try await source.finishLogin(attempt, for: target())
+        let fresh = try await source.loadQuota(for: target())
+        guard case let .windows(windows) = fresh?.status else { return recordFailure("usage must succeed") }
+        let expectedEnd = try #require(windows.last?.resetsAt)
+        await transport.setUnavailable()
+        let restarted = OpenAIManagedQuotaSource(rootURL: root, transport: transport, sessionFactory: { _ in rpc })
+        let cached = try await restarted.loadQuota(for: target())
+        guard case let .windows(cachedWindows) = cached?.status else { return recordFailure("cached usage must succeed") }
+        #expect(cachedWindows.last?.resetsAt?.timeIntervalSince1970.rounded() == expectedEnd.timeIntervalSince1970.rounded())
+        #expect(cachedWindows.last?.dateSource == .cached)
+        #expect(cachedWindows.dropLast() == windows.dropLast())
+    }
+
+    @Test
     func testManagedQuotaKeepsUsageWhenExpiryIsUnavailableAndNeverUsesRenewalOrAnotherAccount() async throws {
         let scenarios: [(Int, Data)] = [
             (200, Data(#"{"accounts":{"original-account":{"entitlement":{"renews_at":"2026-10-24T00:00:00Z"}}}}"#.utf8)),
@@ -218,7 +240,7 @@ struct OpenAIConnectionTests {
 }
 
 private actor OpenAIPlanExpiryTransport: AccountQuotaTransport {
-    private let status: Int
+    private var status: Int
     private let body: Data
     private let failure: (any Error)?
     private var recordedRequests: [URLRequest] = []
@@ -230,6 +252,7 @@ private actor OpenAIPlanExpiryTransport: AccountQuotaTransport {
     }
 
     func requests() -> [URLRequest] { recordedRequests }
+    func setUnavailable() { status = 403 }
 
     func data(for request: URLRequest) async throws -> AccountQuotaHTTPResponse {
         recordedRequests.append(request)

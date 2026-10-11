@@ -223,6 +223,7 @@ public actor AccountQuotaClient {
     private let now: @Sendable () -> Date
     private let xaiTokens = XAIAccessTokens()
     private let xaiSubscriptionDateStore: XAISubscriptionDateStore
+    private let openAIPlanExpiryStore: OpenAIPlanExpiryStore
     private var lastGoodXAISubscriptionDatesByAccountID: [String: Date] = [:]
 
     public init(
@@ -231,13 +232,17 @@ public actor AccountQuotaClient {
         qwenQuotaSource: any QwenQuotaSource = QwenCLIQuotaSource(),
         officialQuotaSource: (any OfficialAccountQuotaSource)? = nil,
         now: @escaping @Sendable () -> Date = { Date() },
-        xaiSubscriptionDateStore: XAISubscriptionDateStore? = nil
+        xaiSubscriptionDateStore: XAISubscriptionDateStore? = nil,
+        openAIPlanExpiryStore: OpenAIPlanExpiryStore? = nil
     ) {
         self.transport = transport
         self.authFileURL = authFileURL
         self.qwenQuotaSource = qwenQuotaSource
         self.officialQuotaSource = officialQuotaSource
         self.now = now
+        self.openAIPlanExpiryStore = openAIPlanExpiryStore ?? (authFileURL == XaiAuthFile.defaultURL
+            ? OpenAIPlanExpiryStore()
+            : OpenAIPlanExpiryStore(fileURL: authFileURL.appendingPathExtension("openai-plan-expiry.json")))
         self.xaiSubscriptionDateStore = xaiSubscriptionDateStore ?? (authFileURL == XaiAuthFile.defaultURL
             ? XAISubscriptionDateStore()
             : XAISubscriptionDateStore(fileURL: authFileURL.appendingPathExtension("subscription-dates.json")))
@@ -365,7 +370,8 @@ public actor AccountQuotaClient {
                     if let managed = try await self.officialQuotaSource?.loadQuota(for: target) {
                         return managed
                     }
-                    return try await Self.queryOfficial(target, transport: self.transport)
+                    return try await Self.queryOfficial(target, transport: self.transport,
+                                                        expiryStore: self.openAIPlanExpiryStore, now: self.now())
                 }
             }
             var chips: [AccountQuotaChip] = []
@@ -567,7 +573,9 @@ public actor AccountQuotaClient {
     /// error, and it does not depend on a local Codex install.
     private static func queryOfficial(
         _ target: CCSwitchQuotaTarget,
-        transport: any AccountQuotaTransport
+        transport: any AccountQuotaTransport,
+        expiryStore: OpenAIPlanExpiryStore,
+        now: Date
     ) async throws -> AccountQuotaChip? {
         guard let accessToken = CCSwitchQuotaCatalog.usableOfficialAccessToken(target.accessToken) else {
             return nil
@@ -603,7 +611,9 @@ public actor AccountQuotaClient {
         if let expiry = try await officialPlanExpiry(
             accessToken: accessToken,
             accountID: target.accountID,
-            transport: transport
+            transport: transport,
+            store: expiryStore,
+            now: now
         ) {
             windows.append(expiry)
         }
@@ -619,13 +629,16 @@ public actor AccountQuotaClient {
     }
 
     /// Usage success is enough to show the card. A check failure, a missing
-    /// account, or a missing `expires_at` omits the plan expiry and does not fail usage.
+    /// account, or a missing `expires_at` does not fail usage. Temporary check
+    /// failures retain a saved future entitlement date for the same account.
     /// `renews_at` is not read. No account id means the check is skipped,
     /// because a different account's expiry must not be shown.
     static func officialPlanExpiry(
         accessToken: String,
         accountID: String?,
-        transport: any AccountQuotaTransport
+        transport: any AccountQuotaTransport,
+        store: OpenAIPlanExpiryStore? = nil,
+        now: Date = Date()
     ) async throws -> ParsedQuotaWindow? {
         guard let accountID = usableKey(accountID) else { return nil }
         guard let request = officialRequest(
@@ -640,12 +653,18 @@ public actor AccountQuotaClient {
             response = try await transport.data(for: request)
         } catch {
             if Self.isCancellation(error) { throw CancellationError() }
-            return nil
+            return store?.cachedWindow(accountID: accountID, now: now)
         }
         guard response.body.count <= 1_048_576, (200...299).contains(response.statusCode) else {
-            return nil
+            return store?.cachedWindow(accountID: accountID, now: now)
         }
-        return CCSwitchQuotaParsers.parseOpenAIPlanExpiry(response.body, accountID: accountID)
+        guard let body = try? JSONSerialization.jsonObject(with: response.body) as? [String: Any],
+              body["accounts"] is [String: Any] else {
+            return store?.cachedWindow(accountID: accountID, now: now)
+        }
+        let expiry = CCSwitchQuotaParsers.parseOpenAIPlanExpiry(response.body, accountID: accountID)
+        try? store?.save(accountID: accountID, expiresAt: expiry?.resetsAt)
+        return expiry
     }
 
     private static func officialRequest(
