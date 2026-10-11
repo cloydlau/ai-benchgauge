@@ -105,3 +105,20 @@ test('Calmmit configuration and live shared source invalidate passing receipts',
   writeFileSync(join(root, 'calmmit.config.json'), JSON.stringify(config))
   assert.notEqual(testInputSignature(root, env), updated)
 })
+
+test('mobile source and UI test edits in apps/ios invalidate a cached full pass', (t) => {
+  const root = fixture(t)
+  let before = testInputSignature(root)
+  for (const path of ['apps/ios/App/BenchGaugeApp.swift', 'apps/ios/UI/LeaderboardPadView.swift', 'apps/ios/UITests/LeaderboardPadTests.swift']) {
+    const file = join(root, path)
+    mkdirSync(join(file, '..'), { recursive: true })
+    writeFileSync(file, 'initial')
+    let after = testInputSignature(root)
+    assert.notEqual(after, before, `Adding ${path} must invalidate the pass`)
+    before = after
+    writeFileSync(file, 'changed')
+    after = testInputSignature(root)
+    assert.notEqual(after, before, `Editing ${path} must invalidate the pass`)
+    before = after
+  }
+})

@@ -42,7 +42,7 @@ Mac 的 `.dmg` 包含 **Apple 晶片與 Intel 原生通用應用程式**，兩�
 Windows 提供 `x64` 的 `-setup.exe`，內含 Swift 與 .NET；不提供 32 位元或原生 ARM64 安裝包，ARM64 模擬執行尚未驗證。
 版本限制、已驗證範圍及 Intel 支援評估見[系統相容說明](docs/compatibility.md)。
 
-**iPhone / iPad：**[原生排行榜版](apps/ipad/README.md)共用一個應用程式套件、商店記錄和版本。iPhone 透過左右滑動／點按進行 3D 魔方翻面，在同一位置切換兩個榜單；iPad 寬螢幕維持並排。支援橫豎螢幕、離線快取和截圖複製，不提供桌面的顯示模式選擇。新版 iPadOS 的系統視窗仍由使用者控制。首版不提供電腦的帳戶餘量。目前尚未發布公開 TestFlight / App Store 版本，無法安裝 DMG / EXE。
+**iPhone / iPad：**[原生排行榜版](apps/ios/README.md)共用一個應用程式套件、商店記錄和版本。iPhone 透過左右滑動／點按進行 3D 魔方翻面，在同一位置切換兩個榜單；iPad 寬螢幕維持並排。支援橫豎螢幕、離線快取和截圖複製，不提供桌面的顯示模式選擇。新版 iPadOS 的系統視窗仍由使用者控制。首版不提供電腦的帳戶餘量。目前尚未發布公開 TestFlight / App Store 版本，無法安裝 DMG / EXE。
 
 ## 你會得到什麼
 

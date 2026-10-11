@@ -154,18 +154,18 @@ Windows 安装器的 Authenticode 发行证书属于独立配置；当前更新�
 
 ## iPhone / iPad
 
-The universal iPhone/iPad edition has a separate simulator/device build check in `.github/workflows/ipad.yml`. A desktop GitHub release does not publish a mobile build. Both device families use one iOS app record, bundle ID and universal archive; include iPhone and iPad screenshots in the store listing ([Apple screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/)). It needs Apple signing and distribution through TestFlight/App Store; see [the iPad build and distribution guide](../apps/ipad/README.md). The Xcode project generator reads the same marketing version from `config/app.json`, while `IPAD_BUILD_NUMBER` supplies the integer App Store Connect build number. No public mobile build has been published yet.
+The universal iPhone/iPad edition has a separate simulator/device build check in `.github/workflows/ios.yml`. A desktop GitHub release does not publish a mobile build. Both device families use one iOS app record, bundle ID and universal archive; include iPhone and iPad screenshots in the store listing ([Apple screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/)). It needs Apple signing and distribution through TestFlight/App Store; see [the iOS build and distribution guide](../apps/ios/README.md). The Xcode project generator reads the same marketing version from `config/app.json`, while `IOS_BUILD_NUMBER` supplies the integer App Store Connect build number. No public mobile build has been published yet.
 
 ### 自测后直接上架 App Store
 
 当前计划是先看 iPad 原生界面，在模拟器和自己的 iPad 上测试通过，再提交 App Store 正式版。**TestFlight 是可选渠道，不是上架前必须完成的步骤**；正式版获准发布后，用户直接从 App Store 安装。[Apple 发布说明](https://help.apple.com/xcode/mac/current/en.lproj/dev442d7f2ca.html)
 
-1. **预览和自测。**安装完整 Xcode，运行 `node Scripts/ipad-project.mjs`，打开工程，在 BenchGauge scheme 中选择 iPhone 或 iPad 模拟器并运行。要在自己的 iPhone 或 iPad 上测试，连接设备，在 Signing & Capabilities 中选择自己的 Team，再选择该设备运行，无需安装 TestFlight。按 [iPad 验收说明](../apps/ipad/README.md#develop-and-verify)检查横竖屏、分类/国家筛选、公司分数详情、离线重启、语言、深色模式、大字和分享。
-2. **准备正式发行。**使用 Apple Developer Program 账号创建 App Store Connect 应用记录；Bundle ID 为 `com.cloydlau.ai-benchgauge.ipad`。按 Apple 当前要求使用 Xcode 26 或更高版本构建，配置签名，用新的 `IPAD_BUILD_NUMBER` 执行下方归档命令，再从 Xcode Organizer 的 TestFlight & App Store 通道上传。这个通道名不要求创建测试组或邀请测试员。[Apple 上传要求](https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds/)
+1. **预览和自测。**安装完整 Xcode，运行 `node Scripts/ios-project.mjs`，打开工程，在 BenchGauge scheme 中选择 iPhone 或 iPad 模拟器并运行。要在自己的 iPhone 或 iPad 上测试，连接设备，在 Signing & Capabilities 中选择自己的 Team，再选择该设备运行，无需安装 TestFlight。按 [移动端验收说明](../apps/ios/README.md#develop-and-verify)检查横竖屏、分类/国家筛选、公司分数详情、离线重启、语言、深色模式、大字和分享。
+2. **准备正式发行。**使用 Apple Developer Program 账号创建 App Store Connect 应用记录；Bundle ID 为 `com.cloydlau.ai-benchgauge.ipad`。按 Apple 当前要求使用 Xcode 26 或更高版本构建，配置签名，用新的 `IOS_BUILD_NUMBER` 执行下方归档命令，再从 Xcode Organizer 的 TestFlight & App Store 通道上传。这个通道名不要求创建测试组或邀请测试员。[Apple 上传要求](https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds/)
 
    ```bash
-   APPLE_TEAM_ID=YOURTEAMID IPAD_BUILD_NUMBER=1 node Scripts/ipad-build.mjs archive
-   open work/ipad/AI-BenchGauge.xcarchive
+   APPLE_TEAM_ID=YOURTEAMID IOS_BUILD_NUMBER=1 node Scripts/ios-build.mjs archive
+   open work/ios/AI-BenchGauge.xcarchive
    ```
 
 3. **填写商店资料并提交审核。**准备应用说明、实际 iPhone 和 iPad 截图、支持及隐私政策网址、隐私声明、年龄分级、审核联系人和价格/地区配置。在 App Store Connect 的应用版本页面选择已处理好的构建，点击 Add for Review，再点击 Submit for Review。当前排行榜版无需登录，可在审核说明中注明。[Apple 提交审核步骤](https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/submit-an-app)
@@ -180,16 +180,16 @@ TestFlight 是 Apple 的测试版分发渠道：发布者上传应用，用户�
 这位反馈问题的普通用户应作为**外部测试员**邀请，无需给他 App Store Connect 后台权限。以下操作目前需要发布者完成，仓库没有自动上传或生成邀请链接。
 
 1. **准备账号和应用记录。**加入 Apple Developer Program，在 Xcode 登录开发者账号，注册 Bundle ID `com.cloydlau.ai-benchgauge.ipad`，在 App Store Connect 创建对应的 iOS 应用记录。它是支持 iPhone 与 iPad 的同一个 iOS 应用记录，不需要分别建应用、分别发版。准备真实的联系邮箱及审核联系人。
-2. **配置签名并验收。**安装完整 Xcode，运行 `node Scripts/ipad-project.mjs` 并打开生成的工程，在 BenchGauge target 的 Signing & Capabilities 中选择你的 Team，完成自动签名配置。运行 `node Scripts/ipad-build.mjs check`，并按 [iPad 验收说明](../apps/ipad/README.md#develop-and-verify)做实机检查。目前 Apple 要求上传的 iOS 应用使用 Xcode 26 或更高版本构建；本地最低编译要求不等于商店的上传要求。[Apple 上传要求](https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds/)
+2. **配置签名并验收。**安装完整 Xcode，运行 `node Scripts/ios-project.mjs` 并打开生成的工程，在 BenchGauge target 的 Signing & Capabilities 中选择你的 Team，完成自动签名配置。运行 `node Scripts/ios-build.mjs check`，并按 [移动端验收说明](../apps/ios/README.md#develop-and-verify)做实机检查。目前 Apple 要求上传的 iOS 应用使用 Xcode 26 或更高版本构建；本地最低编译要求不等于商店的上传要求。[Apple 上传要求](https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds/)
 3. **打包并上传。**从仓库根目录执行下面的命令，替换 Team ID；每次上传使用新的整数 build number。归档后在 Xcode Organizer 选择 **Distribute App → TestFlight & App Store**，完成验证和上传。不要选择 **TestFlight Internal Only**，这种构建不能发给外部测试员。等待 Apple 处理完成，构建才会出现在 App Store Connect。
 
    ```bash
-   APPLE_TEAM_ID=YOURTEAMID IPAD_BUILD_NUMBER=1 node Scripts/ipad-build.mjs archive
-   open work/ipad/AI-BenchGauge.xcarchive
+   APPLE_TEAM_ID=YOURTEAMID IOS_BUILD_NUMBER=1 node Scripts/ios-build.mjs archive
+   open work/ios/AI-BenchGauge.xcarchive
    ```
 
 4. **填写测试信息并送审。**进入 App Store Connect → Apps → 本应用 → TestFlight，填写 Beta App Description、Feedback Email、审核联系人和 What to Test。当前应用无需登录，可在审核说明中写明。先创建内部测试组，再创建外部测试组，将已处理的构建加入外部组，按页面状态选择 Submit Review / Start Testing。首次外部测试构建需要审核，后续同版本构建也可能需要审核；可勾选 Automatically notify testers，在批准后通知用户。[测试信息说明](https://developer.apple.com/help/app-store-connect/test-a-beta-version/provide-test-information/)、[外部测试与审核说明](https://developer.apple.com/help/app-store-connect/test-a-beta-version/invite-external-testers/)
 5. **邀请用户安装。**构建获准测试后，在外部测试组中用邮箱邀请这位用户，或通过 Create Public Link 创建邀请链接。用户在 iPad 的 App Store 安装免费的 TestFlight，打开邀请邮件或链接，接受邀请后安装 AI BenchGauge。此时应用通过 TestFlight 提供，还没有正式上架 App Store。[用户安装流程](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview/)
-6. **后续更新。**修复问题后递增 `IPAD_BUILD_NUMBER`，重新归档、上传并把新构建加入测试组，按 Apple 页面要求完成审核/开始测试。用户通过 TestFlight 获取新版；留意构建到期日期，在旧构建到期前提供新的可测试构建。GitHub 的 DMG/EXE 发版不会更新 iPad 应用。正式上架仍需另行提交 App Store 审核。
+6. **后续更新。**修复问题后递增 `IOS_BUILD_NUMBER`，重新归档、上传并把新构建加入测试组，按 Apple 页面要求完成审核/开始测试。用户通过 TestFlight 获取新版；留意构建到期日期，在旧构建到期前提供新的可测试构建。GitHub 的 DMG/EXE 发版不会更新 iPad 应用。正式上架仍需另行提交 App Store 审核。
 
 当前状态：已提供工程、原生构建检查和归档命令；尚未完成 Apple 签名、TestFlight 上传、测试审核或用户邀请。TestFlight 审核通过也不等于正式版已上架。

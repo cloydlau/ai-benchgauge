@@ -20,7 +20,7 @@ for (index, height) in [280, 430, 590].enumerated() {
     NSBezierPath(roundedRect: NSRect(x: 190 + index * 225, y: 195, width: 180, height: height), xRadius: 34, yRadius: 34).fill()
 }
 NSGraphicsContext.restoreGraphicsState()
-let output = CommandLine.arguments.dropFirst().first ?? "apps/ipad/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
+let output = CommandLine.arguments.dropFirst().first ?? "apps/ios/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
 let bitmap = NSBitmapImageRep(cgImage: context.makeImage()!)
 let png = bitmap.representation(using: .png, properties: [:])!
 // AppKit adds EXIF even to a drawing. Export no EXIF, text or timestamp chunks;

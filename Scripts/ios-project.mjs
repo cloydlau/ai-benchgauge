@@ -9,29 +9,31 @@ const id = value => createHash('sha256').update(value).digest('hex').slice(0, 24
 const q = value => JSON.stringify(String(value))
 const xml = value => String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;')
 
-// A small deterministic project keeps platform sources under apps/ipad without
+// A small deterministic project keeps platform sources under apps/ios without
 // adding XcodeGen/CocoaPods or storing machine-specific Xcode configuration.
-export function ipadProject({ version, buildNumber = '1', team = '' }) {
-  if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('iPad version must be major.minor.patch')
-  if (!/^\d+$/.test(String(buildNumber))) throw new Error('iPad build number must be an integer')
+export function iosProject({ version, buildNumber = '1', team = '', sourceDirectory = '', packageDirectory = '../..',
+  logoDirectory = '../../assets/logos', assetDirectory }) {
+  if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('iOS version must be major.minor.patch')
+  if (!/^\d+$/.test(String(buildNumber))) throw new Error('iOS build number must be an integer')
   if (team && !/^[A-Z0-9]{10}$/.test(team)) throw new Error('Apple team ID must contain 10 uppercase letters/digits')
   const objects = new Map()
   const put = (name, body) => { objects.set(id(name), body); return id(name) }
   const list = values => `(${values.join(', ')})`
+  const sourcePath = name => sourceDirectory ? join(sourceDirectory, name) : name
   const appFiles = ['BenchGaugeApp.swift', 'DebugFixtures.swift'].map(name => {
-    const file = put(name, `isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ${q(`App/${name}`)}; sourceTree = "<group>";`)
+    const file = put(name, `isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ${q(sourcePath(`App/${name}`))}; sourceTree = "<group>";`)
     return put(`build-${name}`, `isa = PBXBuildFile; fileRef = ${file};`)
   })
-  const testFile = put('uitest-file', 'isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITests/LeaderboardPadTests.swift; sourceTree = "<group>";')
+  const testFile = put('uitest-file', `isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ${q(sourcePath('UITests/LeaderboardPadTests.swift'))}; sourceTree = "<group>";`)
   const testBuild = put('uitest-build', `isa = PBXBuildFile; fileRef = ${testFile};`)
-  const assetFile = put('assets', 'isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = App/Assets.xcassets; sourceTree = "<group>";')
-  const privacyFile = put('privacy', 'isa = PBXFileReference; lastKnownFileType = text.xml; path = App/PrivacyInfo.xcprivacy; sourceTree = "<group>";')
-  const logoFile = put('logos', 'isa = PBXFileReference; lastKnownFileType = folder; path = ../../assets/logos; sourceTree = "<group>";')
+  const assetFile = put('assets', `isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = ${q(assetDirectory || sourcePath('App/Assets.xcassets'))}; sourceTree = "<group>";`)
+  const privacyFile = put('privacy', `isa = PBXFileReference; lastKnownFileType = text.xml; path = ${q(sourcePath('App/PrivacyInfo.xcprivacy'))}; sourceTree = "<group>";`)
+  const logoFile = put('logos', `isa = PBXFileReference; lastKnownFileType = folder; path = ${q(logoDirectory)}; sourceTree = "<group>";`)
   const resources = [assetFile, privacyFile, logoFile].map(fileRef => put(`resource-${fileRef}`, `isa = PBXBuildFile; fileRef = ${fileRef};`))
-  const infoFile = put('info', 'isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = App/Info.plist; sourceTree = "<group>";')
+  const infoFile = put('info', `isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = ${q(sourcePath('App/Info.plist'))}; sourceTree = "<group>";`)
   const appProduct = put('app-product', 'isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "AI BenchGauge.app"; sourceTree = BUILT_PRODUCTS_DIR;')
   const testProduct = put('test-product', 'isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BenchGaugeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR;')
-  const packageRef = put('package', 'isa = XCLocalSwiftPackageReference; relativePath = "../..";')
+  const packageRef = put('package', `isa = XCLocalSwiftPackageReference; relativePath = ${q(packageDirectory)};`)
   const uiProduct = put('ui-library', `isa = XCSwiftPackageProductDependency; package = ${packageRef}; productName = LeaderboardPadUI;`)
   const uiBuild = put('ui-library-build', `isa = PBXBuildFile; productRef = ${uiProduct};`)
   function phase(name, isa, files) {
@@ -57,7 +59,7 @@ export function ipadProject({ version, buildNumber = '1', team = '' }) {
     CLANG_ENABLE_MODULES: 'YES', SWIFT_STRICT_CONCURRENCY: 'complete' }
   const projectConfigs = configurations('project', common)
   const appConfigs = configurations('app', { ...common, PRODUCT_NAME: 'AI BenchGauge', PRODUCT_BUNDLE_IDENTIFIER: 'com.cloydlau.ai-benchgauge.ipad',
-    INFOPLIST_FILE: 'App/Info.plist', GENERATE_INFOPLIST_FILE: 'NO', MARKETING_VERSION: version, CURRENT_PROJECT_VERSION: buildNumber,
+    INFOPLIST_FILE: sourcePath('App/Info.plist'), GENERATE_INFOPLIST_FILE: 'NO', MARKETING_VERSION: version, CURRENT_PROJECT_VERSION: buildNumber,
     ASSETCATALOG_COMPILER_APPICON_NAME: 'AppIcon', SUPPORTS_MACCATALYST: 'NO', SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: 'NO',
     LD_RUNPATH_SEARCH_PATHS: '$(inherited) @executable_path/Frameworks' })
   const testConfigs = configurations('test', { ...common, SWIFT_VERSION: '5.0', PRODUCT_NAME: 'BenchGaugeUITests', PRODUCT_BUNDLE_IDENTIFIER: 'com.cloydlau.ai-benchgauge.ipad.uitests',
@@ -84,15 +86,15 @@ export function ipadProject({ version, buildNumber = '1', team = '' }) {
   return { project, scheme }
 }
 
-export function generateIpadProject(directory = root, options = {}) {
+export function generateIOSProject(directory = root, options = {}) {
   const { version } = JSON.parse(readFileSync(join(directory, 'config/app.json'), 'utf8'))
-  const generated = ipadProject({ version, ...options })
-  const projectPath = join(directory, 'apps/ipad/AI-BenchGauge.xcodeproj')
+  const generated = iosProject({ version, ...options })
+  const projectPath = join(options.projectDirectory || join(directory, 'apps/ios'), 'AI-BenchGauge.xcodeproj')
   mkdirSync(join(projectPath, 'xcshareddata/xcschemes'), { recursive: true })
   writeFileSync(join(projectPath, 'project.pbxproj'), generated.project)
   writeFileSync(join(projectPath, 'xcshareddata/xcschemes/BenchGauge.xcscheme'), generated.scheme)
   return projectPath
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  console.log(generateIpadProject(root, { buildNumber: process.env.IPAD_BUILD_NUMBER || '1', team: process.env.APPLE_TEAM_ID || '' }))
+  console.log(generateIOSProject(root, { buildNumber: process.env.IOS_BUILD_NUMBER || process.env.IPAD_BUILD_NUMBER || '1', team: process.env.APPLE_TEAM_ID || '' }))
 }

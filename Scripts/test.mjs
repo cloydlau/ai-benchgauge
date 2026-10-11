@@ -25,7 +25,7 @@ export function testInputSignature(root = testRoot, env = process.env, { include
       hash.update(relative(root, path)); hash.update('\0'); hash.update(readFileSync(path)); hash.update('\0')
     }
   }
-  for (const path of [...(includeSources ? ['Sources', 'apps/macos/Sources', 'apps/ipad/App', 'apps/ipad/UI', 'apps/windows/BenchGauge', 'apps/windows/BenchGauge.Shared'] : []), 'Tests', 'apps/ipad/UITests', 'apps/windows/BenchGauge.Tests', 'apps/windows/Directory.Build.props', 'apps/windows/BenchGauge/BenchGauge.csproj', 'apps/windows/BenchGauge/packages.lock.json', 'apps/windows/BenchGauge.Shared/BenchGauge.Shared.csproj', 'apps/windows/BenchGauge.Shared/packages.lock.json', 'apps/windows/installer', 'apps/windows/Licenses', 'assets', 'config', 'Scripts', '.github', 'Package.swift', 'Package.resolved', 'test.sh', 'make-app.sh', 'dev.sh', 'LICENSE']) collect(join(root, path))
+  for (const path of [...(includeSources ? ['Sources', 'apps/macos/Sources', 'apps/ios/App', 'apps/ios/UI', 'apps/windows/BenchGauge', 'apps/windows/BenchGauge.Shared'] : []), 'Tests', 'apps/ios/UITests', 'apps/windows/BenchGauge.Tests', 'apps/windows/Directory.Build.props', 'apps/windows/BenchGauge/BenchGauge.csproj', 'apps/windows/BenchGauge/packages.lock.json', 'apps/windows/BenchGauge.Shared/BenchGauge.Shared.csproj', 'apps/windows/BenchGauge.Shared/packages.lock.json', 'apps/windows/installer', 'apps/windows/Licenses', 'assets', 'config', 'Scripts', '.github', 'Package.swift', 'Package.resolved', 'test.sh', 'make-app.sh', 'dev.sh', 'LICENSE']) collect(join(root, path))
   const ciConfig = join(root, 'calmmit.config.json')
   if (existsSync(ciConfig)) {
     collect(ciConfig)
