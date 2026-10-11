@@ -642,6 +642,7 @@ private struct PadBoardCard: View {
             }.padding(.horizontal, 5).padding(.vertical, 3)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(brandColor(entry).opacity(0.34), in: RoundedRectangle(cornerRadius: 5))
+                .padding(.vertical, 4)
             if grouping == .company && !isImage {
                 Button { detail.selectedCompany = LeaderboardPresentation.companies(board, filter: filter).first { $0.entry.id == entry.id } } label: {
                     Text(entry.score, format: .number.precision(.fractionLength(1))).monospacedDigit().frame(width: 50, height: 44)
