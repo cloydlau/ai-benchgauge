@@ -77,6 +77,7 @@ function watchTargets() {
     join(root, 'make-app.sh'),
     join(root, 'test.sh'),
     join(root, 'dev.sh'),
+    join(root, 'calmmit.config.json'),
   ].filter((path) => existsSync(path))
 }
 
@@ -280,10 +281,10 @@ function run(script, extraEnv = {}) {
   })
 }
 
-function runNode(script, extraEnv = {}) {
+function runNode(script, extraEnv = {}, args = []) {
   return new Promise((resolvePromise) => {
     // pnpm 换掉 runtime 目录后，本进程启动时的 execPath 会失效。
-    const child = spawn(nodeExecutable(), [script], {
+    const child = spawn(nodeExecutable(), [script, ...args], {
       cwd: root,
       env: { ...process.env, ...extraEnv },
       stdio: 'inherit',
@@ -358,6 +359,14 @@ async function rebuild(testSignature) {
     return false
   }
   return restartApp(signature(snapshot()) === buildSignature ? notification : deploymentNotification(null), head)
+}
+
+async function updatePhone(testSignature) {
+  if (!existsSync(join(root, '.benchgauge-ios.local.json'))) return true
+  const updated = await runNode(join(root, 'Scripts', 'ios-deploy.mjs'), { BENCHGAUGE_TEST_PASS: testSignature || '' }, ['checked'])
+  if (updated.status === 0) return true
+  console.error('[watch] iPhone 构建检查或更新入队失败；日志：work/ios-deploy/deploy.log')
+  return false
 }
 
 async function restartApp(notification = deployedNotification(), head = readDeployedCommit()) {
@@ -500,6 +509,12 @@ async function main() {
       if (signature(snapshot()) !== builtSignature || gitStatusSignature() !== gitSignature) {
         busy = false
         schedule('检查期间有新变更，重新验证', Date.now())
+        return
+      }
+      if (!await updatePhone(tested.signature)) {
+        busy = false
+        failedTestSignature = `${signature(snapshot())}\n${gitStatusSignature()}`
+        reportStatus('manual', 'iPhone 构建检查失败，等待下次保存；日志：work/ios-deploy/deploy.log')
         return
       }
       if (commitEnabled && gitSignature && gitSignature !== failedCommitSignature) {
@@ -653,6 +668,7 @@ async function main() {
   lastSignature = testedInitialSignature
   lastGitSignature = gitStatusSignature()
   let started = initialTest.status === 0
+  if (started) started = await updatePhone(initialTest.signature)
   if (started && deployEnabled) {
     started = needsInitialBuild ? await rebuild(initialTest.signature) : await restartApp()
     if (started) {

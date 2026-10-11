@@ -26,3 +26,6 @@ __pycache__/
 # Calmmit logs and private media-review intent
 .calmmit.log
 .media-review.local.json
+
+# Local iPhone developer device and team
+.benchgauge-ios.local.json
