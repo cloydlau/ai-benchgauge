@@ -15,20 +15,21 @@ enum DebugFixtures {
         let language: AppLanguage = arguments.contains("--preview-zh") ? .chinese : .english
         language.save(to: defaults)
         let cache = LeaderboardCache(fileURL: FileManager.default.temporaryDirectory.appending(path: "ui-test-boards.json"))
-        let boards = Dictionary(uniqueKeysWithValues: LeaderboardKind.allCases.map { ($0, board($0, full: arguments.contains("--full-board"))) })
+        let full = arguments.contains("--full-board")
+        let wrappedNames = arguments.contains("--wrapped-names")
+        let boards = Dictionary(uniqueKeysWithValues: LeaderboardKind.allCases.map { ($0, board($0, full: full, wrappedNames: wrappedNames)) })
         cache.save(LeaderboardSnapshot(boards: boards))
         let offline = arguments.contains("--offline")
-        let full = arguments.contains("--full-board")
         return LeaderboardPadStore(defaults: defaults, cache: cache, service: LeaderboardService { kind in
             if offline { throw URLError(.notConnectedToInternet) }
-            return board(kind, full: full)
+            return board(kind, full: full, wrappedNames: wrappedNames)
         })
     }
-    nonisolated private static func board(_ kind: LeaderboardKind, full: Bool = false) -> Leaderboard {
+    nonisolated private static func board(_ kind: LeaderboardKind, full: Bool = false, wrappedNames: Bool = false) -> Leaderboard {
         let entries = [
             LeaderboardEntry(rank: 1, name: full ? "GPT Fixture — Very Long Model Name With Extended Reasoning And Multilingual Capabilities" : "GPT Fixture", score: 90, organization: "OpenAI"),
-            LeaderboardEntry(rank: 2, name: "DeepSeek Fixture", score: 89, organization: "DeepSeek"),
-            LeaderboardEntry(rank: 3, name: "Claude Fixture", score: 88, organization: "Anthropic"),
+            LeaderboardEntry(rank: 2, name: wrappedNames ? "DeepSeek Fixture — Advanced Reasoning With Multilingual Tool Use And Long Context" : "DeepSeek Fixture", score: 89, organization: "DeepSeek"),
+            LeaderboardEntry(rank: 3, name: wrappedNames ? "Claude Fixture — Advanced Reasoning With Multilingual Tool Use And Long Context" : "Claude Fixture", score: 88, organization: "Anthropic"),
         ] + (full ? (4...20).map { rank in
             LeaderboardEntry(rank: rank, name: "Fixture Model \(rank)", score: Double(90 - rank), organization: rank == 20 ? "Unknown Developer" : "Google")
         } : [])
