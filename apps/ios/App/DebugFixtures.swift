@@ -19,15 +19,20 @@ enum DebugFixtures {
         let full = arguments.contains("--full-board")
         let wrappedNames = arguments.contains("--wrapped-names")
         let arenaScores = arguments.contains("--arena-scores")
-        let boards = Dictionary(uniqueKeysWithValues: LeaderboardKind.allCases.map { ($0, board($0, full: full, wrappedNames: wrappedNames, arenaScores: arenaScores)) })
+        let fetchedAt = arguments.contains("--recent-update") ? Date().addingTimeInterval(-29 * 60)
+            : Date(timeIntervalSince1970: 1_700_000_000)
+        let pending = arguments.contains("--pending-boards")
+        let boards = pending ? [:] : Dictionary(uniqueKeysWithValues: LeaderboardKind.allCases.map {
+            ($0, board($0, full: full, wrappedNames: wrappedNames, arenaScores: arenaScores, fetchedAt: fetchedAt))
+        })
         cache.save(LeaderboardSnapshot(boards: boards))
-        let offline = arguments.contains("--offline")
+        let offline = arguments.contains("--offline") || pending
         return LeaderboardPadStore(defaults: defaults, cache: cache, service: LeaderboardService { kind in
             if offline { throw URLError(.notConnectedToInternet) }
-            return board(kind, full: full, wrappedNames: wrappedNames, arenaScores: arenaScores)
+            return board(kind, full: full, wrappedNames: wrappedNames, arenaScores: arenaScores, fetchedAt: fetchedAt)
         })
     }
-    nonisolated private static func board(_ kind: LeaderboardKind, full: Bool = false, wrappedNames: Bool = false, arenaScores: Bool = false) -> Leaderboard {
+    nonisolated private static func board(_ kind: LeaderboardKind, full: Bool = false, wrappedNames: Bool = false, arenaScores: Bool = false, fetchedAt: Date) -> Leaderboard {
         let scores: [Double] = arenaScores && kind.sourcePrefix == "Arena" ? [1499.9, 1234.5, 999.9] : [90, 89, 88]
         let entries = [
             LeaderboardEntry(rank: 1, name: full ? "GPT Fixture — Very Long Model Name With Extended Reasoning And Multilingual Capabilities" : "GPT Fixture", score: scores[0], organization: "OpenAI"),
@@ -36,7 +41,7 @@ enum DebugFixtures {
         ] + (full ? (4...20).map { rank in
             LeaderboardEntry(rank: rank, name: "Fixture Model \(rank)", score: Double(90 - rank), organization: rank == 20 ? "Unknown Developer" : "Google")
         } : [])
-        return Leaderboard(kind: kind, title: "Fixture", fetchedAt: Date(timeIntervalSince1970: 1_700_000_000), entries: entries)
+        return Leaderboard(kind: kind, title: "Fixture", fetchedAt: fetchedAt, entries: entries)
     }
 }
 #endif

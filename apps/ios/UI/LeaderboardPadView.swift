@@ -439,6 +439,7 @@ public struct LeaderboardPadView: View {
         PadBoardCard(kind: kind, board: store.snapshot.boards[kind], grouping: store.grouping,
             language: store.language, filter: store.countryFilter(for: kind), failure: store.failures[kind],
             isRefreshing: store.refreshing.contains(kind), isImage: isImage, compact: compact, exportScheme: exportScheme,
+            showsUpdateAge: isPhone && compact, refresh: { Task { await store.refresh(force: true) } },
             selectCountry: { store.setCountryFilter($0, for: kind); resetComparison() }, copyName: copyName)
     }
 
@@ -667,6 +668,8 @@ private struct PadBoardCard: View {
     let isImage: Bool
     let compact: Bool
     let exportScheme: ColorScheme?
+    let showsUpdateAge: Bool
+    let refresh: () -> Void
     let selectCountry: (LeaderboardCountryFilter) -> Void
     let copyName: (String) -> Void
     @Environment(\.colorScheme) private var colorScheme
@@ -720,12 +723,38 @@ private struct PadBoardCard: View {
         if isImage { cardContent }
         else { interactiveCard }
     }
+    private var relativeUpdateButton: some View {
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            Button(action: refresh) {
+                Text(board.map { LeaderboardPresentation.updateAge($0.fetchedAt, language: language, now: context.date) }
+                     ?? tr("Pending", "待更新"))
+                    .font(.caption).monospacedDigit().lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .foregroundStyle(failure == nil ? Color.secondary : Color.orange)
+                    .padding(.vertical, 6)
+            }.buttonStyle(.plain).disabled(isRefreshing)
+                .accessibilityLabel(tr("Click to refresh boards", "点击刷新榜单"))
+                .accessibilityIdentifier("refresh")
+        }
+    }
+    @ViewBuilder private var cardTitle: some View {
+        if showsUpdateAge && !isImage {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Link(title, destination: kind.sourceURL).font(.subheadline.weight(.medium))
+                Spacer(minLength: 0)
+                relativeUpdateButton
+            }
+        } else if isImage {
+            Text(title).font(.subheadline.weight(.medium)).foregroundStyle(primaryForeground)
+        } else {
+            Link(title, destination: kind.sourceURL).font(.subheadline.weight(.medium))
+        }
+    }
     private var cardContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
-                    if isImage { Text(title).font(.subheadline.weight(.medium)).foregroundStyle(primaryForeground) }
-                    else { Link(title, destination: kind.sourceURL).font(.subheadline.weight(.medium)) }
+                    cardTitle
                     if isImage { Text(LeaderboardPresentation.explanation(kind, language: language)).foregroundStyle(secondaryForeground) }
                     else {
                         Button { detail.showingSource = true } label: {
