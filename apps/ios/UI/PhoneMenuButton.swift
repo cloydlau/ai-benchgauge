@@ -24,17 +24,24 @@ struct PhoneMenuButton: UIViewRepresentable {
     func makeUIView(context: Context) -> UIButton {
         let button = UIButton(type: .system)
         button.showsMenuAsPrimaryAction = true
-        button.titleLabel?.font = .preferredFont(forTextStyle: .caption1)
+        var configuration = UIButton.Configuration.plain()
+        configuration.image = UIImage(systemName: "chevron.down", withConfiguration: UIImage.SymbolConfiguration(pointSize: 8))
+        configuration.imagePlacement = .trailing
+        configuration.imagePadding = 4
+        configuration.contentInsets = .zero
+        configuration.baseForegroundColor = .secondaryLabel
+        configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { attributes in
+            var attributes = attributes
+            attributes.font = .preferredFont(forTextStyle: .caption1)
+            return attributes
+        }
+        button.configuration = configuration
         button.titleLabel?.adjustsFontForContentSizeCategory = true
         button.contentHorizontalAlignment = .leading
-        button.setImage(UIImage(systemName: "chevron.down", withConfiguration: UIImage.SymbolConfiguration(pointSize: 8)), for: .normal)
-        button.semanticContentAttribute = .forceRightToLeft
-        button.setTitleColor(.secondaryLabel, for: .normal)
-        button.tintColor = .secondaryLabel
         return button
     }
     func updateUIView(_ button: UIButton, context: Context) {
-        button.setTitle(title, for: .normal)
+        button.configuration?.title = title
         button.accessibilityLabel = label ?? title
         button.accessibilityIdentifier = identifier
         func menuAction(_ item: PhoneMenuItem) -> UIAction {
