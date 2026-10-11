@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "defaultLocale": "en-US",
+  "listings": {
+    "desktop": {
+      "zh-Hans": {
+        "name": "AI 天梯 - AI 大模型多维度排行榜 & 余量仪表盘",
+        "subtitle": "综合、编程、图像、视频，双榜对照与额度追踪",
+        "keywords": "人工智能,评测,对比,选型,跑分,智能体,生成,文本,推理,基准,Token,API,LLM"
+      },
+      "zh-Hant": {
+        "name": "AI 天梯 - AI 大模型多維度排行榜 & 餘量儀表板",
+        "subtitle": "綜合、程式、圖像、影片，雙榜對照與額度追蹤",
+        "keywords": "人工智慧,評測,比較,選型,跑分,智慧體,生成,文字,推理,基準,Token,API,LLM"
+      },
+      "en-US": {
+        "name": "AI BenchGauge",
+        "subtitle": "AI rankings and quota tracking",
+        "keywords": "benchmark,llm,ranking,coding,image,video,comparison,reasoning,performance,offline,models"
+      }
+    },
+    "mobile": {
+      "zh-Hans": {
+        "name": "AI 天梯 - AI 大模型多维度排行榜",
+        "subtitle": "综合、编程、图像、视频，双榜对照与离线查看",
+        "keywords": "人工智能,评测,对比,选型,跑分,智能体,生成,文本,推理,基准,LLM"
+      },
+      "zh-Hant": {
+        "name": "AI 天梯 - AI 大模型多維度排行榜",
+        "subtitle": "綜合、程式、圖像、影片，雙榜對照與離線查看",
+        "keywords": "人工智慧,評測,比較,選型,跑分,智慧體,生成,文字,推理,基準,LLM"
+      },
+      "en-US": {
+        "name": "AI BenchGauge",
+        "subtitle": "Compare AI model leaderboards",
+        "keywords": "benchmark,llm,ranking,coding,image,video,comparison,reasoning,performance,offline,models"
+      }
+    }
+  }
+}

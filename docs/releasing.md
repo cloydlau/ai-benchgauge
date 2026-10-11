@@ -202,32 +202,51 @@ TestFlight 是 Apple 的测试版分发渠道：发布者上传应用，用户�
 内部 Bundle ID、工程名、安装包路径和现有用户数据目录保持不变。
 Apple 主应用使用 `assets/localizations/*/InfoPlist.strings`，Mac 打包与 iOS 工程生成均包含这些资源。
 
-以下是待填写的商店元数据，尚未提交至 App Store Connect。
+三种语言的名称、副标题、关键词已完整保存于 [`config/app-store-localizations.json`](../config/app-store-localizations.json)，作为商店资料来源。商店英语使用 `en-US`，对应应用内的 `en`；简中、繁中分别使用 `zh-Hans`、`zh-Hant`。这些字段在 App Store Connect 分别填写，独立于应用包的名称本地化；当前文件已补齐，尚未同步至 App Store Connect。
 
-### 简体中文：桌面完整功能版
+### 桌面完整功能版
+
+名称按用户确认稿保留；副标题依据 README 中四类榜单、双来源对照与账户余量查询拟定。榜单来自 Artificial Analysis、Arena，具体来源和适用维度以 README 为准。繁中使用「程式」「影片」「額度追蹤」等用语。
+
+#### zh-Hans
 
 - 名称：`AI 天梯 - AI 大模型多维度排行榜 & 余量仪表盘`（28 个字符）
-- 副标题：`综合、编程、图像、视频，双榜对照与额度追踪`
-- 关键词：`人工智能,评测,对比,选型,跑分,智能体,生成,文本,推理,基准,Token,API,LLM`（UTF-8 共 92 字节）
+- 副标题：`综合、编程、图像、视频，双榜对照与额度追踪`（21 个字符）
+- 关键词：`人工智能,评测,对比,选型,跑分,智能体,生成,文本,推理,基准,Token,API,LLM`（92 UTF-8 字节）
 
-名称按用户确认稿保留；副标题依据 README 中四类榜单、双来源对照、账户余量查询与恢复通知拟定。关键词补充相关搜索词，避免重复名称和副标题。榜单来自 Artificial Analysis、Arena，具体来源和适用维度以 README 为准。
+#### zh-Hant
 
-### 简体中文：当前 iPhone / iPad 版
+- 名称：`AI 天梯 - AI 大模型多維度排行榜 & 餘量儀表板`（28 个字符）
+- 副标题：`綜合、程式、圖像、影片，雙榜對照與額度追蹤`（21 个字符）
+- 关键词：`人工智慧,評測,比較,選型,跑分,智慧體,生成,文字,推理,基準,Token,API,LLM`（92 UTF-8 字节）
 
-当前手机端提供排行榜，尚未提供桌面账户余量功能。因此手机端的商店资料先使用：
+#### en-US
 
-- 名称：`AI 天梯 - AI 大模型多维度排行榜`
-- 副标题：`综合、编程、图像、视频，双榜对照与离线查看`
-- 关键词：`人工智能,评测,对比,选型,跑分,智能体,生成,文本,推理,基准,LLM`（UTF-8 共 82 字节）
+- 名称：`AI BenchGauge`（13 个字符）
+- 副标题：`AI rankings and quota tracking`（30 个字符）
+- 关键词：`benchmark,llm,ranking,coding,image,video,comparison,reasoning,performance,offline,models`（88 UTF-8 字节）
 
-接入手机端账户余量后，再使用桌面完整功能版的名称与副标题。
+### 当前 iPhone / iPad 版
 
-### 英文
+当前手机端提供排行榜，尚未提供桌面账户余量功能。手机端资料如下；接入账户余量后再使用桌面完整功能版文案。
 
-- 名称：`AI BenchGauge`
-- 副标题（桌面）：`AI rankings and quota tracking`
-- 副标题（手机）：`Compare AI model leaderboards`
-- 关键词：`benchmark,llm,ranking,coding,image,video,comparison,reasoning,performance,offline,models`（88 字节）
+#### zh-Hans
 
-商店的名称与副标题各最多 30 个字符；关键词按 App Store Connect 的 100 字节限制核对。
+- 名称：`AI 天梯 - AI 大模型多维度排行榜`（20 个字符）
+- 副标题：`综合、编程、图像、视频，双榜对照与离线查看`（21 个字符）
+- 关键词：`人工智能,评测,对比,选型,跑分,智能体,生成,文本,推理,基准,LLM`（82 UTF-8 字节）
+
+#### zh-Hant
+
+- 名称：`AI 天梯 - AI 大模型多維度排行榜`（20 个字符）
+- 副标题：`綜合、程式、圖像、影片，雙榜對照與離線查看`（21 个字符）
+- 关键词：`人工智慧,評測,比較,選型,跑分,智慧體,生成,文字,推理,基準,LLM`（82 UTF-8 字节）
+
+#### en-US
+
+- 名称：`AI BenchGauge`（13 个字符）
+- 副标题：`Compare AI model leaderboards`（29 个字符）
+- 关键词：`benchmark,llm,ranking,coding,image,video,comparison,reasoning,performance,offline,models`（88 UTF-8 字节）
+
+名称和副标题各不超过 30 个字符，关键词不超过 100 UTF-8 字节，三种语言及两个功能版本均已核对。
 规则依据：[App information](https://developer.apple.com/help/app-store-connect/reference/app-information/app-information/)、[Platform version information](https://developer.apple.com/help/app-store-connect/reference/app-information/platform-version-information/)。
