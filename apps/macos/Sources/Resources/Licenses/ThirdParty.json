@@ -16,5 +16,14 @@
     "englishDescription": "Native quota adapters following the upstream subscription, Coding Plan, and balance query implementations. CC Switch itself is not bundled.",
     "chineseDescription": "参考上游官方订阅、Coding Plan 和余额查询实现的原生适配；不打包 CC Switch 应用。",
     "file": "CC-Switch.txt"
+  },
+  {
+    "id": "long-cang",
+    "name": "Long Cang 2.001 (Chinese title subset)",
+    "license": "SIL OFL 1.1",
+    "source": "https://github.com/googlefonts/longcang",
+    "englishDescription": "Calligraphy glyphs for the Chinese brand title. The subset is renamed BenchGauge Calligraphy.",
+    "chineseDescription": "中文品牌标题的书法字形；字体子集更名为 BenchGauge Calligraphy。",
+    "file": "Long-Cang-OFL.txt"
   }
 ]

@@ -86,3 +86,10 @@ SQLite 使用系统库，不打包第三方 SQLite 二进制。
 ## iPad edition
 
 The universal iOS target links the repository's own `LeaderboardKit` and `LeaderboardPadUI` plus Apple system frameworks. It does not ship Sparkle, SQLite, desktop command-line integrations, Windows dependencies, or desktop quota adapters. It reuses the desktop brand PNGs from `assets/logos`; the unresolved provenance audit above applies to iPad distribution too. The complete project MIT license is bundled in `apps/ios/UI/Resources/AI-BenchGauge.txt` and is available offline from the footer's MIT License entry.
+
+
+## Chinese brand calligraphy
+
+The Chinese header uses Long Cang 2.001 by the Long Cang Project Authors, under [SIL OFL 1.1](https://github.com/google/fonts/blob/main/ofl/longcang/OFL.txt). Only the space and “天梯” glyphs are bundled in a 4,080-byte subset, renamed **BenchGauge Calligraphy**. `Scripts/generate-brand-font.py` reproduces it from the source font whose SHA-256 is `e5bf2c3f24ef2327c6f136d8f73e2f9dfdf44896fdbeb35a9515f44777bb91bc`. Its original copyright and license are retained in font metadata and packaged text.
+
+The same subset is registered once via CoreText by the shared Apple library and embedded as a WPF font resource on Windows. The Latin header retains the platform's existing Snell Roundhand / Segoe Script typography. Chinese glyphs use 25 pt alongside 21 pt Latin text to balance their visible height; Mac and Windows ink measurements account for the mixed font runs. Mac, Windows and iOS include the full OFL notice in their offline license views.

@@ -141,7 +141,11 @@ public struct LeaderboardPadView: View {
         }
     }
     private var appTitle: some View {
-        Text(verbatim: store.language.appName)
+        var title = AttributedString(store.language.appName)
+        if let range = title.range(of: "天梯") {
+            title[range].font = .custom(BrandFont.chineseName, size: 25)
+        }
+        return Text(title)
             .font(.custom("SnellRoundhand-Bold", size: 21))
             .lineLimit(1)
     }
@@ -458,8 +462,11 @@ public struct LeaderboardPadView: View {
                             Link(tr("Project source", "项目源码"), destination: Self.repositoryURL)
                             Text(Self.license).font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
                         } else {
-                            Text(tr("No third-party open-source code libraries are bundled with this application.", "本应用目前未打包第三方开源代码库。"))
+                            Text("Long Cang 2.001 · SIL OFL 1.1").font(.headline)
+                            Text(tr("Calligraphy for the Chinese brand title; the subset is renamed BenchGauge Calligraphy.", "中文品牌标题的书法字体；子集更名为 BenchGauge Calligraphy。"))
                                 .foregroundStyle(.secondary)
+                            Link(tr("Font source", "字体来源"), destination: URL(string: "https://github.com/googlefonts/longcang")!)
+                            Text(BrandFont.licenseText).font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
                         }
                     }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
                 }
