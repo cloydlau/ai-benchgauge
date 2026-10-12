@@ -81,7 +81,6 @@ public struct LeaderboardPadView: View {
                     compactControls(width: geometry.size.width - 24)
                     cubeSelector
                     cubeBoards
-                    compactFooter.zIndex(2)
                 }.padding(.horizontal, 12).padding(.vertical, 8)
             } else {
                 ScrollView {
@@ -334,15 +333,18 @@ public struct LeaderboardPadView: View {
     private func cubeFace(_ kind: LeaderboardKind, index: Int, size: CGSize) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
-                boardCard(kind, compact: true)
-                    .id(PadComparisonScrollTarget.top)
-                    .background {
-                        GeometryReader { geometry in
-                            let frame = geometry.frame(in: .named("rank-scroll-\(kind.rawValue)"))
-                            Color.clear.preference(key: LeaderboardRankFrames.self,
-                                value: [0: LeaderboardRankFrame(minY: frame.minY, maxY: frame.maxY)])
+                VStack(alignment: .leading, spacing: 10) {
+                    boardCard(kind, compact: true)
+                        .id(PadComparisonScrollTarget.top)
+                        .background {
+                            GeometryReader { geometry in
+                                let frame = geometry.frame(in: .named("rank-scroll-\(kind.rawValue)"))
+                                Color.clear.preference(key: LeaderboardRankFrames.self,
+                                    value: [0: LeaderboardRankFrame(minY: frame.minY, maxY: frame.maxY)])
+                            }
                         }
-                    }
+                    compactFooter
+                }
             }
                 .modifier(PadLeaderboardTopEdge())
                 .coordinateSpace(name: "rank-scroll-\(kind.rawValue)")
