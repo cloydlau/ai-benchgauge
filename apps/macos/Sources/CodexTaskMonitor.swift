@@ -282,7 +282,9 @@ actor CodexTaskMonitor {
             guard fd >= 0 else { continue }
             let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd,
                 eventMask: [.write, .extend, .rename, .delete, .revoke], queue: eventQueue)
-            source.setEventHandler { [weak self] in Task { await self?.fileChanged() } }
+            source.setEventHandler { [weak self] in
+                Task { [weak self] in await self?.fileChanged() }
+            }
             source.setCancelHandler { Darwin.close(fd) }
             fileObservers[path] = FileObserver(inode: info.st_ino, source: source)
             source.activate()
@@ -349,7 +351,7 @@ actor CodexTaskMonitor {
             source.setEventHandler { [weak self, weak source] in
                 guard let source else { return }
                 source.suspend()
-                Task {
+                Task { [weak self] in
                     await self?.socketReadable(generation: generation)
                     source.resume()
                 }
