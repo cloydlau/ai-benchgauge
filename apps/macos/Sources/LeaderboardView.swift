@@ -328,21 +328,19 @@ struct LeaderboardView: View {
 
     private var appTitle: some View {
         let title = language.appName
-        var styledTitle = AttributedString(title)
-        if let range = styledTitle.range(of: "天梯") {
-            styledTitle[range].font = .custom(BrandFont.chineseName, size: 25)
-        }
         let version = versionLabel
         return HStack(alignment: .center, spacing: 8) {
-            Text(styledTitle)
-                // Latin retains Snell; the Chinese range uses bundled calligraphy.
-                .font(.custom("SnellRoundhand-Bold", size: 21))
-                .lineLimit(1)
-                .alignmentGuide(VerticalAlignment.center) { dimensions in
-                    Self.textInkCenter(dimensions, text: title,
-                        font: NSFont(name: "SnellRoundhand-Bold", size: 21)!,
-                        chineseFont: NSFont(name: BrandFont.chineseName, size: 25))
-                }
+            if language == .english {
+                Text(title)
+                    .font(.custom("SnellRoundhand-Bold", size: 21))
+                    .lineLimit(1)
+                    .alignmentGuide(VerticalAlignment.center) { dimensions in
+                        Self.textInkCenter(dimensions, text: title,
+                            font: NSFont(name: "SnellRoundhand-Bold", size: 21)!)
+                    }
+            } else {
+                ChineseBrandTitle()
+            }
             Button(version) { appUpdater.checkForUpdates() }
                 .buttonStyle(.plain)
                 .font(.system(size: 11))
@@ -361,11 +359,8 @@ struct LeaderboardView: View {
 
     // SwiftUI's line boxes retain different ascents/descents for the title
     // and small version. Align their native glyph centres instead.
-    nonisolated private static func textInkCenter(_ dimensions: ViewDimensions, text: String, font: NSFont, chineseFont: NSFont? = nil) -> CGFloat {
+    nonisolated private static func textInkCenter(_ dimensions: ViewDimensions, text: String, font: NSFont) -> CGFloat {
         let attributed = NSMutableAttributedString(string: text, attributes: [.font: font])
-        if let chineseFont, let range = text.range(of: "天梯") {
-            attributed.addAttribute(.font, value: chineseFont, range: NSRange(range, in: text))
-        }
         let line = CTLineCreateWithAttributedString(attributed)
         let ink = CTLineGetImageBounds(line, nil)
         guard !ink.isNull, !ink.isEmpty else { return dimensions[VerticalAlignment.center] }

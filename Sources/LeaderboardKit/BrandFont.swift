@@ -12,7 +12,7 @@ public enum BrandFont {
     }()
 
     public static var licenseText: String {
-        guard let url = resource("Long-Cang-OFL", extension: "txt") else { return "" }
+        guard let url = resource("SlideFont-OFL", extension: "txt") else { return "" }
         return (try? String(contentsOf: url, encoding: .utf8)) ?? ""
     }
 

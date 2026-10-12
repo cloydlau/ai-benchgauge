@@ -1634,6 +1634,87 @@
       "height": 320,
       "scenario": "xaiDeviceDialog-starting",
       "mode": "clickToClose"
+    },
+    {
+      "id": "brand-en-600",
+      "language": "en",
+      "width": 600,
+      "height": 600,
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "versionText": "v2026.10.12"
+    },
+    {
+      "id": "brand-en-1100",
+      "language": "en",
+      "width": 1100,
+      "height": 600,
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "versionText": "v2026.10.12"
+    },
+    {
+      "id": "brand-en-1440",
+      "language": "en",
+      "width": 1440,
+      "height": 600,
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "versionText": "v2026.10.12"
+    },
+    {
+      "id": "brand-zh-600",
+      "language": "zh",
+      "width": 600,
+      "height": 600,
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "versionText": "v2026.10.12"
+    },
+    {
+      "id": "brand-zh-1100",
+      "language": "zh",
+      "width": 1100,
+      "height": 600,
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "versionText": "v2026.10.12"
+    },
+    {
+      "id": "brand-zh-1440",
+      "language": "zh",
+      "width": 1440,
+      "height": 600,
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "versionText": "v2026.10.12"
+    },
+    {
+      "id": "brand-zh-Hant-600",
+      "language": "zh-Hant",
+      "width": 600,
+      "height": 600,
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "versionText": "v2026.10.12"
+    },
+    {
+      "id": "brand-zh-Hant-1100",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 600,
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "versionText": "v2026.10.12"
+    },
+    {
+      "id": "brand-zh-Hant-1440",
+      "language": "zh-Hant",
+      "width": 1440,
+      "height": 600,
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "versionText": "v2026.10.12"
     }
   ],
   "quotaScenarios": {
