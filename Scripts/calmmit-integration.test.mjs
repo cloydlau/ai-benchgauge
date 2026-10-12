@@ -79,14 +79,14 @@ for (const [filename, nextStep] of [
   ['release.yml', 'Validate shared app configuration'],
   ['windows-build.yml', 'Tests, runtime closure and native UI'],
 ]) {
-  test(`${filename}: pinned shared source is fetched before consumers execute`, () => {
+  test(`${filename}: latest default-branch shared source is fetched before consumers execute`, () => {
     const text = readFileSync(join(repository, '.github/workflows', filename), 'utf8')
     const guard = text.indexOf('name: Require shared CI source repository')
     const checkout = text.indexOf('repository: ${{ vars.CALMMIT_REPOSITORY }}')
     assert.ok(guard > 0 && checkout > guard && text.indexOf(`name: ${nextStep}`) > checkout)
     assert.match(text, /CALMMIT_PATH: \$\{\{ github.workspace \}\}\/\.calmmit-library/)
-    assert.match(text, /ref: \$\{\{ vars.CALMMIT_SHA \}\}/)
-    assert.match(text, /\[0-9a-f\]\{40\}/)
+    assert.doesNotMatch(text, /CALMMIT_SHA/)
+    assert.doesNotMatch(text.slice(checkout, text.indexOf('      - ', checkout)), /^\s+ref:/m)
     assert.match(text, /CALMMIT_SSH_KEY_PRESENT: \$\{\{ secrets\.CALMMIT_SSH_KEY != '' \}\}/)
     assert.match(text, /Set CALMMIT_SSH_KEY to a read-only deploy key/)
     assert.equal((text.match(/ssh-key:/g) || []).length, 1)
