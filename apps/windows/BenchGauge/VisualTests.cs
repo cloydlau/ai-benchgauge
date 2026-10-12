@@ -98,6 +98,9 @@ static class VisualTests
                 { Width = test.Width, Height = test.Height };
             panel.SetVisualViewport(test.Width, test.Height);
             panel.SetVisualVersionText(test.VersionText);
+            // The account dialog owns the panel; WPF requires that owner to
+            // have been shown before assigning Window.Owner.
+            if (test.Scenario == "addModelDialog") panel.Show();
             Window window = test.Scenario == "addModelDialog"
                 ? panel.CreateOfficialAccountsWindow(new EngineResponse(0, null, null, null, null,
                     OfficialAccounts: [], OfficialProviders: [new OfficialProviderSummary("kimi", "Kimi Code", "Kimi Code plan")]))
