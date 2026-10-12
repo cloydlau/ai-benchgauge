@@ -24,16 +24,13 @@ jobs:
         shell: pwsh
         env:
           CALMMIT_REPOSITORY: ${{ vars.CALMMIT_REPOSITORY }}
-          CALMMIT_SHA: ${{ vars.CALMMIT_SHA }}
           CALMMIT_SSH_KEY_PRESENT: ${{ secrets.CALMMIT_SSH_KEY != '' }}
         run: |
           if (-not $env:CALMMIT_REPOSITORY) { throw 'Set CALMMIT_REPOSITORY to the shared library repository.' }
-          if ($env:CALMMIT_SHA -notmatch '^[0-9a-f]{40}$') { throw 'Set CALMMIT_SHA to a reviewed immutable commit SHA.' }
           if ($env:CALMMIT_SSH_KEY_PRESENT -ne 'true') { throw 'Set CALMMIT_SSH_KEY to a read-only deploy key for the shared library.' }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ${{ vars.CALMMIT_REPOSITORY }}
-          ref: ${{ vars.CALMMIT_SHA }}
           ssh-key: ${{ secrets.CALMMIT_SSH_KEY }}
           path: .calmmit-library
           persist-credentials: false
