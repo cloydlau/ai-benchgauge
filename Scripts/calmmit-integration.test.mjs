@@ -87,6 +87,13 @@ for (const [filename, nextStep] of [
     assert.match(text, /CALMMIT_PATH: \$\{\{ github.workspace \}\}\/\.calmmit-library/)
     assert.match(text, /ref: \$\{\{ vars.CALMMIT_SHA \}\}/)
     assert.match(text, /\[0-9a-f\]\{40\}/)
+    assert.match(text, /CALMMIT_SSH_KEY_PRESENT: \$\{\{ secrets\.CALMMIT_SSH_KEY != '' \}\}/)
+    assert.match(text, /Set CALMMIT_SSH_KEY to a read-only deploy key/)
+    assert.equal((text.match(/ssh-key:/g) || []).length, 1)
+    assert.match(
+      text.slice(checkout, text.indexOf('      - ', checkout)),
+      /ssh-key: \$\{\{ secrets\.CALMMIT_SSH_KEY \}\}/,
+    )
     assert.match(
       text.slice(checkout, text.indexOf('      - ', checkout)),
       /persist-credentials: false/,
