@@ -18,12 +18,12 @@
     "file": "CC-Switch.txt"
   },
   {
-    "id": "long-cang",
-    "name": "Long Cang 2.001 (Chinese title subset)",
+    "id": "slide-xiaxing",
+    "name": "Slide Xiaxing 1.000 (Chinese title subset)",
     "license": "SIL OFL 1.1",
-    "source": "https://github.com/googlefonts/longcang",
+    "source": "https://github.com/maoken-fonts/slidefont",
     "englishDescription": "Calligraphy glyphs for the Chinese brand title. The subset is renamed BenchGauge Calligraphy.",
     "chineseDescription": "中文品牌标题的书法字形；字体子集更名为 BenchGauge Calligraphy。",
-    "file": "Long-Cang-OFL.txt"
+    "file": "SlideFont-OFL.txt"
   }
 ]

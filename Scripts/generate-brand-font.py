@@ -1,4 +1,4 @@
-"""Subset the pinned Long Cang font for the Chinese brand; requires fontTools."""
+"""Subset the pinned Slide Xiaxing font for the Chinese brand; requires fontTools."""
 from pathlib import Path
 import hashlib
 import sys
@@ -6,7 +6,7 @@ from fontTools import subset
 from fontTools.ttLib import TTFont
 
 source = Path(sys.argv[1])
-assert hashlib.sha256(source.read_bytes()).hexdigest() == 'e5bf2c3f24ef2327c6f136d8f73e2f9dfdf44896fdbeb35a9515f44777bb91bc', 'Unexpected Long Cang source version'
+assert hashlib.sha256(source.read_bytes()).hexdigest() == 'fac1f0ec044b63aa45c0775c17a2f03cbf6427b4bd7b93da87dde9e7e2020cfc', 'Unexpected Slide Xiaxing source version'
 font = TTFont(source, recalcTimestamp=False)
 assert all(ord(c) in font.getBestCmap() for c in '天梯')
 options = subset.Options()
@@ -18,7 +18,7 @@ options.recommended_glyphs = True
 subsetter = subset.Subsetter(options=options)
 subsetter.populate(text=' 天梯')
 subsetter.subset(font)
-names = {1: 'BenchGauge Calligraphy', 3: 'BenchGaugeCalligraphy-Regular;LongCang2.001;subset', 4: 'BenchGauge Calligraphy Regular', 6: 'BenchGaugeCalligraphy-Regular', 16: 'BenchGauge Calligraphy'}
+names = {1: 'BenchGauge Calligraphy', 3: 'BenchGaugeCalligraphy-Regular;SlideXiaxing1.000;subset', 4: 'BenchGauge Calligraphy Regular', 6: 'BenchGaugeCalligraphy-Regular', 16: 'BenchGauge Calligraphy'}
 for record in font['name'].names:
     if record.nameID in names:
         record.string = names[record.nameID].encode(record.getEncoding())

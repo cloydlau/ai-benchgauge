@@ -1,5 +1,15 @@
 # Native visual comparison
 
+## Equal-spaced Slide Xiaxing title (2026-10-12)
+
+Chinese branding now uses upright system semibold “AI” at 21 pt with 演示夏行楷 / Slide Xiaxing “天梯” at 25 pt. The four glyphs share a baseline and a 2.5-point gap measured between their actual ink edges, independent of font side bearings. Apple renders the CoreText outlines in a shared accessible SwiftUI view; WPF positions native text glyphs by their measured geometry. English lettering retains its existing font. The renamed 4,888-byte subset and complete upstream OFL license are bundled offline on all platforms. Shared visual fixtures now include long-version Chinese/English headers at 600/1100/1440 points.
+
+Ignored `work/brand-xiaxing/{before,after}/macos` retain 90 original native AppKit/SwiftUI frames per phase: 15 cases, both themes and shown/refreshed/settled checkpoints. All 60 phase/case/theme groups have identical checkpoint pixels. `review.html` links unscaled originals; `stability.json` records equality. Fixture SHA-256: `2f6e88784b369304629e8b6c999c511b8fb2a2b6479b6b61f524a1cdf52c8abf`. Actual environment: macOS 27.0.1 (26A434), 2× backing scale, baseline `9b3e015` and local updated source. Reviewed native originals show equal gaps, readable title/version text, intact controls and no title clipping across Simplified/Traditional Chinese and 600/900/1100/1440-point viewports. The more compact Chinese title reduces the narrow header's line height; existing table-name truncation remains. English header pixels are unchanged; unrelated quota/row regions differ in four English captures.
+
+Validation: 107 script checks, 283 shared Swift tests plus the UI/updater suites, and 39 Windows harness cases pass; syntax validation, signed Mac packaging and WPF cross-compilation pass. The capture wrapper now copies the bundled font resources into its native test app, fixing the missing-resource crash.
+
+This host has Command Line Tools without full Xcode, so current-change iOS SDK builds and native screenshots are unavailable; iPhone automatic deployment is not enabled. Current-change native Windows captures and a source-matched `native-visual-comparison` CI artifact are also unavailable. No iOS/Windows native visual sign-off or protected release approval is claimed.
+
 ## Chinese title calligraphy (2026-10-12)
 
 Only the Chinese brand characters **天梯** now use Long Cang calligraphy at 25 points; Latin branding retains Snell Roundhand (Mac/iOS) or Segoe Script (Windows) at 21 points. Actual mixed-font ink bounds align the desktop version label. A renamed 4,080-byte SIL OFL font subset is bundled offline on all platforms, with license notices.

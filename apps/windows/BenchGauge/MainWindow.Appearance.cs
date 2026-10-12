@@ -103,29 +103,55 @@ sealed partial class MainWindow
             var text = new FormattedText(spec.Text, CultureInfo.GetCultureInfo(spec.Language.IetfLanguageTag), spec.FlowDirection,
                 new Typeface(spec.FontFamily, spec.FontStyle, spec.FontWeight, spec.FontStretch), spec.FontSize,
                 spec.Foreground, VisualTreeHelper.GetDpi(this).PixelsPerDip);
-            var start = spec.Text.IndexOf("天梯", StringComparison.Ordinal);
-            if (start >= 0)
-            {
-                text.SetFontFamily(new FontFamily(new Uri("pack://application:,,,/"), "./Fonts/#BenchGauge Calligraphy"), start, 2);
-                text.SetFontSize(25, start, 2);
-                text.SetFontWeight(FontWeights.Normal, start, 2);
-            }
             return text;
+        }
+        const double BrandGap = 2.5;
+        List<(FormattedText Text, Rect Ink, double X)> BrandGlyphs()
+        {
+            var result = new List<(FormattedText, Rect, double)>();
+            double x = 0;
+            foreach (var character in "AI天梯")
+            {
+                var latin = character is 'A' or 'I';
+                var family = latin ? new FontFamily("Segoe UI")
+                    : new FontFamily(new Uri("pack://application:,,,/"), "./Fonts/#BenchGauge Calligraphy");
+                var text = new FormattedText(character.ToString(), CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                    new Typeface(family, FontStyles.Normal, latin ? FontWeights.SemiBold : FontWeights.Normal, FontStretches.Normal),
+                    latin ? 21 : 25, spec.Foreground, VisualTreeHelper.GetDpi(this).PixelsPerDip);
+                var ink = text.BuildGeometry(new Point()).Bounds;
+                result.Add((text, ink, x));
+                x += ink.Width + BrandGap;
+            }
+            return result;
         }
         protected override Size MeasureOverride(Size available)
         {
-            var text = Text();
-            return new Size(text.WidthIncludingTrailingWhitespace, 27);
+            if (spec.Text == "AI 天梯")
+            {
+                var glyphs = BrandGlyphs();
+                return new Size(glyphs[^1].X + glyphs[^1].Ink.Width, 27);
+            }
+            return new Size(Text().WidthIncludingTrailingWhitespace, 27);
         }
         protected override void OnRender(DrawingContext drawing)
         {
+            if (spec.Text == "AI 天梯")
+            {
+                var glyphs = BrandGlyphs();
+                var top = glyphs.Min(glyph => glyph.Ink.Top);
+                var bottom = glyphs.Max(glyph => glyph.Ink.Bottom);
+                var y = ActualHeight / 2 - (top + bottom) / 2;
+                foreach (var glyph in glyphs)
+                    drawing.DrawText(glyph.Text, new Point(glyph.X - glyph.Ink.Left, y));
+                return;
+            }
             var text = Text();
             var bounds = text.BuildGeometry(new Point()).Bounds;
             if (bounds.IsEmpty) return;
             var dpi = VisualTreeHelper.GetDpi(this);
-            var y = Math.Round((ActualHeight / 2 - bounds.Top - bounds.Height / 2) * dpi.DpiScaleY,
+            var offset = Math.Round((ActualHeight / 2 - bounds.Top - bounds.Height / 2) * dpi.DpiScaleY,
                 MidpointRounding.AwayFromZero) / dpi.DpiScaleY;
-            drawing.DrawText(text, new Point(0, y));
+            drawing.DrawText(text, new Point(0, offset));
         }
     }
 

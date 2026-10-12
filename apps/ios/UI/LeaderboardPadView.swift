@@ -190,14 +190,14 @@ public struct LeaderboardPadView: View {
             #endif
         }
     }
-    private var appTitle: some View {
-        var title = AttributedString(store.language.appName)
-        if let range = title.range(of: "天梯") {
-            title[range].font = .custom(BrandFont.chineseName, size: 25)
+    @ViewBuilder private var appTitle: some View {
+        if store.language == .english {
+            Text(store.language.appName)
+                .font(.custom("SnellRoundhand-Bold", size: 21))
+                .lineLimit(1)
+        } else {
+            ChineseBrandTitle()
         }
-        return Text(title)
-            .font(.custom("SnellRoundhand-Bold", size: 21))
-            .lineLimit(1)
     }
     private var rankingFailed: Bool { store.category.boardKinds.contains { store.failures[$0] != nil && !store.refreshing.contains($0) } }
 
@@ -538,10 +538,10 @@ public struct LeaderboardPadView: View {
                             Link(tr("Project source", "项目源码"), destination: Self.repositoryURL)
                             Text(Self.license).font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
                         } else {
-                            Text("Long Cang 2.001 · SIL OFL 1.1").font(.headline)
+                            Text("Slide Xiaxing 1.000 · SIL OFL 1.1").font(.headline)
                             Text(tr("Calligraphy for the Chinese brand title; the subset is renamed BenchGauge Calligraphy.", "中文品牌标题的书法字体；子集更名为 BenchGauge Calligraphy。"))
                                 .foregroundStyle(.secondary)
-                            Link(tr("Font source", "字体来源"), destination: URL(string: "https://github.com/googlefonts/longcang")!)
+                            Link(tr("Font source", "字体来源"), destination: URL(string: "https://github.com/maoken-fonts/slidefont")!)
                             Text(BrandFont.licenseText).font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
                         }
                     }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
