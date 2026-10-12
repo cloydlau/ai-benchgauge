@@ -24,13 +24,16 @@ jobs:
         env:
           CALMMIT_REPOSITORY: ${{ vars.CALMMIT_REPOSITORY }}
           CALMMIT_SHA: ${{ vars.CALMMIT_SHA }}
+          CALMMIT_SSH_KEY_PRESENT: ${{ secrets.CALMMIT_SSH_KEY != '' }}
         run: |
           test -n "$CALMMIT_REPOSITORY" || { echo "Set CALMMIT_REPOSITORY to the shared library repository." >&2; exit 1; }
           [[ "$CALMMIT_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Set CALMMIT_SHA to a reviewed immutable commit SHA." >&2; exit 1; }
+          test "$CALMMIT_SSH_KEY_PRESENT" = "true" || { echo "Set CALMMIT_SSH_KEY to a read-only deploy key for the shared library." >&2; exit 1; }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ${{ vars.CALMMIT_REPOSITORY }}
           ref: ${{ vars.CALMMIT_SHA }}
+          ssh-key: ${{ secrets.CALMMIT_SSH_KEY }}
           path: .calmmit-library
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -65,5 +68,7 @@ jobs:
           TEST_AUTO_REPAIR: '0'
   windows:
     uses: ./.github/workflows/windows-build.yml
+    secrets:
+      CALMMIT_SSH_KEY: ${{ secrets.CALMMIT_SSH_KEY }}
     with:
       installer: true
