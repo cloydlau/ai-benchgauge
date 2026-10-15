@@ -8,6 +8,8 @@ final class LeaderboardCubeState: ObservableObject {
     @Published var turning = false
     var turnSerial = 0
     @Published var rank: Int?
+    var columnHeaderHeight: CGFloat = 0
+    var comparisonRowHeight: CGFloat = 44
     @Published var generation = 0
     @Published var entranceProgress: Double = 1
     @Published var entranceActive = false
@@ -48,6 +50,13 @@ final class LeaderboardCubeState: ObservableObject {
 /// Two adjacent faces. Horizontal intent is required so a vertical leaderboard
 /// scroll never turns the cube; predicted travel permits short, quick flicks.
 enum LeaderboardCube {
+    enum DragAxis { case undecided, horizontal, vertical }
+
+    static func dragAxis(current: DragAxis, x: Double, y: Double) -> DragAxis {
+        guard current == .undecided else { return current }
+        if isHorizontal(x: x, y: y) { return .horizontal }
+        return abs(y) >= 8 ? .vertical : .undecided
+    }
     static func position(face: Int, translation: Double, width: Double) -> Double {
         guard width > 0 else { return Double(face) }
         return min(1, max(0, Double(face) - translation / width))
@@ -56,12 +65,15 @@ enum LeaderboardCube {
         let travel = abs(predicted) > abs(translation) ? predicted : translation
         return position(face: face, translation: travel, width: width) >= 0.5 ? 1 : 0
     }
-    static func visibleRank(_ frames: [Int: LeaderboardRankFrame], height: CGFloat) -> Int? {
-        guard height > 0 else { return nil }
-        let visible = frames.filter { $0.value.maxY > 0 && $0.value.minY < height }
-        return visible.filter { $0.value.minY >= -1 }.keys.min() ?? visible.keys.min()
+    static func visibleRank(_ frames: [Int: LeaderboardRankFrame], height: CGFloat, topInset: CGFloat = 0) -> Int? {
+        guard height > topInset else { return nil }
+        let visible = frames.filter { $0.value.maxY > topInset && $0.value.minY < height }
+        // Keep even a partially visible row below the pinned header. Advancing
+        // to the next whole row can hide its still-visible name on the new face.
+        if topInset > 0 { return visible.keys.min() }
+        return visible.filter { $0.value.minY >= topInset - 1 }.keys.min() ?? visible.keys.min()
     }
-    static func isHorizontal(x: Double, y: Double) -> Bool { abs(x) > abs(y) * 1.25 }
+    static func isHorizontal(x: Double, y: Double) -> Bool { abs(x) >= 16 && abs(x) > abs(y) * 1.75 }
 }
 
 struct CubeFace: AnimatableModifier {

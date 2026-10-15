@@ -19,6 +19,20 @@ import Testing
     #expect(LeaderboardCube.destination(face: 1, translation: 50, predicted: 80, width: 300) == 1)
 }
 
+@Test func cubeLocksScrollIntentUntilTheTouchEndsAndIgnoresSidewaysJitter() {
+    for sign in [-1.0, 1.0] {
+        var axis = LeaderboardCube.dragAxis(current: .undecided, x: sign * 10, y: 3)
+        #expect(axis == .undecided)
+        axis = LeaderboardCube.dragAxis(current: axis, x: sign * 15, y: 12)
+        #expect(axis == .vertical)
+        axis = LeaderboardCube.dragAxis(current: axis, x: sign * 220, y: 40)
+        #expect(axis == .vertical)
+        #expect(LeaderboardCube.dragAxis(current: .undecided, x: sign * 20, y: 4) == .horizontal)
+        #expect(LeaderboardCube.dragAxis(current: .undecided, x: sign * 30, y: 20) == .vertical)
+        #expect(LeaderboardCube.dragAxis(current: .horizontal, x: 40, y: 100) == .horizontal)
+    }
+}
+
 @Test func comparisonRankTracksViewportInsteadOfOffscreenRows() {
     let frames = [
         1: LeaderboardRankFrame(minY: -90, maxY: -46),
@@ -82,4 +96,14 @@ import Testing
     #expect(cube.position == 0 && cube.entranceHintVisible)
     cube.finishEntrance(serial)
     #expect(cube.position == 0 && cube.entranceProgress == 1)
+}
+
+@Test func comparisonRankExcludesRowsCoveredByPinnedColumnHeaders() {
+    let frames = [
+        1: LeaderboardRankFrame(minY: -20, maxY: 24),
+        2: LeaderboardRankFrame(minY: 24, maxY: 68),
+        3: LeaderboardRankFrame(minY: 68, maxY: 112),
+    ]
+    #expect(LeaderboardCube.visibleRank(frames, height: 500, topInset: 40) == 2)
+    #expect(LeaderboardCube.visibleRank(frames, height: 40, topInset: 40) == nil)
 }
