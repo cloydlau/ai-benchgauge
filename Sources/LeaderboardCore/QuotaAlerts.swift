@@ -113,7 +113,7 @@ public enum QuotaAlerts {
         }
     }
 
-    private static func hasAutoRenewingPlan(_ status: AccountQuotaChip.Status) -> Bool {
+    static func hasAutoRenewingPlan(_ status: AccountQuotaChip.Status) -> Bool {
         guard case let .windows(windows) = status else { return false }
         return windows.contains {
             $0.name == ParsedQuotaWindow.planExpiryName && $0.isAutoRenewing
@@ -190,7 +190,7 @@ public enum QuotaAlerts {
     private static func remainingPercent(utilization: Double) -> Double? {
         guard utilization.isFinite else { return nil }
         let remaining = 100 - utilization
-        return remaining.isFinite ? remaining : nil
+        return remaining
     }
 
     private static func remainingPercent(_ plan: QwenPlanQuota) -> Double? {
@@ -236,27 +236,12 @@ public enum QuotaAlerts {
             guard subject.expiryEligible, let resetsAt = subject.resetsAt else { return nil }
             let remaining = resetsAt.timeIntervalSince(now)
             guard remaining > 0, remaining <= expiringInterval else { return nil }
-            guard let phrase = countdownPhrase(until: resetsAt, now: now) else { return nil }
+            // A positive interval capped at two days always has a countdown.
+            let phrase = countdownPhrase(until: resetsAt, now: now)!
             return (subject, phrase)
         }
         guard !qualifying.isEmpty else { return nil }
-        let body = qualifying.map { subject, phrase in
-            if subject.expiresRatherThanResets {
-                if subject.isAutoRenewing {
-                    return AccountQuotaMessage.autoRenewing
-                }
-                if let end = subject.resetsAt {
-                    return AccountQuotaFormatting.periodEndPhrase(until: end, now: now)
-                }
-                return ""
-            }
-            let quotaLabel = subject.label == "额度" ? "额度" : "\(subject.label)额度"
-            guard let resetsAt = subject.resetsAt,
-                  let date = AccountQuotaFormatting.resetDateText(resetsAt, now: now) else {
-                return "\(quotaLabel) \(phrase)后重置"
-            }
-            return "\(quotaLabel) \(phrase)后重置，\(date)"
-        }.joined(separator: "；")
+        let body = qualifying.map { expiryDescription($0.0, phrase: $0.1, now: now) }.joined(separator: "；")
         return QuotaAlert(
             chipID: chip.id,
             reason: .expiring,
@@ -274,7 +259,25 @@ public enum QuotaAlerts {
         )
     }
 
-    private static func countdownPhrase(until resetsAt: Date, now: Date) -> String? {
+    static func expiryDescription(_ subject: Subject, phrase: String, now: Date) -> String {
+            if subject.expiresRatherThanResets {
+                if subject.isAutoRenewing {
+                    return AccountQuotaMessage.autoRenewing
+                }
+                if let end = subject.resetsAt {
+                    return AccountQuotaFormatting.periodEndPhrase(until: end, now: now)
+                }
+                return ""
+            }
+            let quotaLabel = subject.label == "额度" ? "额度" : "\(subject.label)额度"
+            guard let resetsAt = subject.resetsAt,
+                  let date = AccountQuotaFormatting.resetDateText(resetsAt, now: now) else {
+                return "\(quotaLabel) \(phrase)后重置"
+            }
+            return "\(quotaLabel) \(phrase)后重置，\(date)"
+    }
+
+    static func countdownPhrase(until resetsAt: Date, now: Date) -> String? {
         guard let phrase = AccountQuotaFormatting.chineseCountdown(until: resetsAt, now: now) else {
             return nil
         }
@@ -295,7 +298,7 @@ public enum QuotaAlerts {
         return false
     }
 
-    private static func prefixedInt(_ name: String, suffix: String) -> Int? {
+    static func prefixedInt(_ name: String, suffix: String) -> Int? {
         guard name.hasSuffix(suffix) else { return nil }
         let prefix = name.dropLast(suffix.count)
         guard !prefix.isEmpty, prefix.allSatisfy(\.isNumber) else { return nil }

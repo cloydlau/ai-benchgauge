@@ -31,6 +31,7 @@ test('full test entry selects both script and Swift suites; filters select just 
   assert.ok(commands[0][1].includes(join(root, 'Scripts', 'example.test.mjs')))
   assert.equal(commands[1][0], 'swift')
   assert.ok(commands[1][1].includes('--disable-xctest'))
+  assert.ok(commands[1][1].includes('--no-parallel'))
   assert.equal(testCommands(root, { coreOnly: true })[0][0], 'swift')
   assert.equal(testCommands(root, { scriptsOnly: true }).length, 1)
 })

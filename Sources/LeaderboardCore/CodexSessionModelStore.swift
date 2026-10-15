@@ -5,7 +5,7 @@ import CSQLite
 /// Recency is user interaction order, unlike updated_at which background turns
 /// can change. This does not infer which window/tab is currently focused.
 enum CodexSessionModelStore {
-    static func read(root: URL) -> CodexModelConfiguration? {
+    static func read(root: URL, prepare: (OpaquePointer?, UnsafePointer<CChar>?, Int32, UnsafeMutablePointer<OpaquePointer?>?, UnsafeMutablePointer<UnsafePointer<CChar>?>?) -> Int32 = sqlite3_prepare_v2) -> CodexModelConfiguration? {
         var database: OpaquePointer?
         guard sqlite3_open_v2(root.appendingPathComponent("state_5.sqlite").path,
                               &database, SQLITE_OPEN_READONLY, nil) == SQLITE_OK else {
@@ -16,7 +16,7 @@ enum CodexSessionModelStore {
         sqlite3_busy_timeout(database, 50)
 
         var schema: OpaquePointer?
-        guard sqlite3_prepare_v2(database, "PRAGMA table_info(threads)", -1, &schema, nil) == SQLITE_OK else { return nil }
+        guard prepare(database, "PRAGMA table_info(threads)", -1, &schema, nil) == SQLITE_OK else { return nil }
         var columns = Set<String>()
         while sqlite3_step(schema) == SQLITE_ROW {
             if let name = string(schema, column: 1) { columns.insert(name) }
@@ -35,7 +35,7 @@ enum CodexSessionModelStore {
         ORDER BY \(order) DESC, id DESC LIMIT 1
         """
         var statement: OpaquePointer?
-        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK else { return nil }
+        guard prepare(database, sql, -1, &statement, nil) == SQLITE_OK else { return nil }
         defer { sqlite3_finalize(statement) }
         guard sqlite3_step(statement) == SQLITE_ROW,
               let model = string(statement, column: 0)?.trimmingCharacters(in: .whitespacesAndNewlines),

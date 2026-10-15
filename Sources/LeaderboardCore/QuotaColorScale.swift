@@ -80,14 +80,15 @@ public enum QuotaColorScale {
             (50, QuotaRGB(red: 0.68, green: 0.51, blue: 0.08)),
             (100, QuotaRGB(red: 0.10, green: 0.52, blue: 0.26)),
         ]
-        for (lower, upper) in zip(stops, stops.dropFirst()) where percent <= upper.0 {
-            let fraction = (percent - lower.0) / (upper.0 - lower.0)
-            return QuotaRGB(
-                red: lower.1.red + (upper.1.red - lower.1.red) * fraction,
-                green: lower.1.green + (upper.1.green - lower.1.green) * fraction,
-                blue: lower.1.blue + (upper.1.blue - lower.1.blue) * fraction
-            )
-        }
-        return stops.last!.1
+        // At the saturated endpoint use the final interval. Every finite
+        // percentage is clamped to this scale before interpolation.
+        let (lower, upper) = zip(stops, stops.dropFirst()).first { percent < $0.1.0 }
+            ?? (stops[2], stops[3])
+        let fraction = (percent - lower.0) / (upper.0 - lower.0)
+        return QuotaRGB(
+            red: lower.1.red + (upper.1.red - lower.1.red) * fraction,
+            green: lower.1.green + (upper.1.green - lower.1.green) * fraction,
+            blue: lower.1.blue + (upper.1.blue - lower.1.blue) * fraction
+        )
     }
 }

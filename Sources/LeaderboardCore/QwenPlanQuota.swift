@@ -65,14 +65,23 @@ public extension QwenQuotaSource {
 /// Uses the user's own 千问 AI 平台 login. The CLI keeps its credentials in
 /// Keychain; the app receives only the JSON usage summary.
 public struct QwenCLIQuotaSource: QwenQuotaSource {
-    public init() {}
+    private let environment: [String: String]
+    private let homeURL: URL
+    private let timeout: TimeInterval
+    public init() {
+        self.init(environment: ProcessInfo.processInfo.environment,
+                  homeURL: FileManager.default.homeDirectoryForCurrentUser, timeout: 20)
+    }
+    init(environment: [String: String], homeURL: URL, timeout: TimeInterval) {
+        self.environment = environment; self.homeURL = homeURL; self.timeout = timeout
+    }
 
     public func loadSummary() async -> Data? {
         let state = QwenCLIProcessState()
         return await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
                 DispatchQueue.global(qos: .utility).async {
-                    continuation.resume(returning: Self.run(state: state))
+                    continuation.resume(returning: Self.run(state: state, environment: environment, homeURL: homeURL, timeout: timeout))
                 }
             }
         } onCancel: {
@@ -80,9 +89,9 @@ public struct QwenCLIQuotaSource: QwenQuotaSource {
         }
     }
 
-    private static func run(state: QwenCLIProcessState) -> Data? {
+    static func run(state: QwenCLIProcessState, environment configuredEnvironment: [String: String], homeURL: URL, timeout: TimeInterval, resolveExecutable: ([String: String], URL) -> URL? = executableURL) -> Data? {
         guard !state.isCancelled else { return nil }
-        guard let executable = executableURL() else { return nil }
+        guard let executable = resolveExecutable(configuredEnvironment, homeURL) else { return nil }
         let process = Process()
         let output = Pipe()
         #if os(Windows)
@@ -97,7 +106,7 @@ public struct QwenCLIQuotaSource: QwenQuotaSource {
         process.executableURL = executable
         process.arguments = ["usage", "summary", "--format", "json"]
         #endif
-        var environment = ProcessInfo.processInfo.environment
+        var environment = configuredEnvironment
         #if os(Windows)
         let pathKey = environment.keys.first { $0.lowercased() == "path" } ?? "PATH"
         environment[pathKey] = executable.deletingLastPathComponent().path + ";" + (environment[pathKey] ?? "")
@@ -122,7 +131,7 @@ public struct QwenCLIQuotaSource: QwenQuotaSource {
             capturedOutput.read(from: output.fileHandleForReading)
         }
         state.track(process)
-        let deadline = Date().addingTimeInterval(20)
+        let deadline = Date().addingTimeInterval(timeout)
         while process.isRunning && Date() < deadline {
             Thread.sleep(forTimeInterval: 0.1)
         }
@@ -135,8 +144,7 @@ public struct QwenCLIQuotaSource: QwenQuotaSource {
         return capturedOutput.waitForData()
     }
 
-    private static func executableURL() -> URL? {
-        let environment = ProcessInfo.processInfo.environment
+    static func executableURL(environment: [String: String], homeURL: URL) -> URL? {
         #if os(Windows)
         let path = environment.first { $0.key.lowercased() == "path" }?.value ?? ""
         let roaming = environment["APPDATA"] ?? ""
@@ -151,7 +159,7 @@ public struct QwenCLIQuotaSource: QwenQuotaSource {
         }
         return nil
         #else
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let home = homeURL.path
         var directories = (environment["PATH"] ?? "").split(separator: ":").map(String.init)
         directories += [
             "/opt/homebrew/bin",
@@ -181,7 +189,7 @@ public struct QwenCLIQuotaSource: QwenQuotaSource {
     }
 }
 
-private final class QwenCLIOutput: @unchecked Sendable {
+final class QwenCLIOutput: @unchecked Sendable {
     private let done = DispatchSemaphore(value: 0)
     private var data: Data?
 
@@ -203,13 +211,13 @@ private final class QwenCLIOutput: @unchecked Sendable {
         done.signal()
     }
 
-    func waitForData() -> Data? {
-        guard done.wait(timeout: .now() + 2) == .success else { return nil }
+    func waitForData(timeout: TimeInterval = 2) -> Data? {
+        guard done.wait(timeout: .now() + timeout) == .success else { return nil }
         return data
     }
 }
 
-private final class QwenCLIProcessState: @unchecked Sendable {
+final class QwenCLIProcessState: @unchecked Sendable {
     private let lock = NSLock()
     private var cancelled = false
     private var process: Process?

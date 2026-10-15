@@ -178,3 +178,33 @@ struct CodexTaskStatusTests {
         #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("missing/state_5.sqlite").path))
     }
 }
+
+
+extension CodexTaskStatusTests {
+    @Test func malformedAndPartialRuntimePatchesRequestANewSnapshot() {
+        func event(_ patches: [[String: Any]]) -> [String: Any] {
+            ["version":11,"sourceClientId":"desktop","params":["hostId":"local","conversationId":"task","change":["type":"patches","baseRevision":1,"revision":2,"patches":patches]]]
+        }
+        let invalid: [[String: Any]] = [[:], ["path": []], ["path": ["threadRuntimeStatus", "other"], "value":"idle"], ["path":["threadRuntimeStatus"],"value":["type":"invalid"]], ["path":["turns"]], ["path":["turnHistory","history","islands","fixture","other"]], ["path":["threadRuntimeStatus","activeFlags"],"value":"invalid"]]
+        for patch in invalid {
+            var projection = CodexTaskProjection()
+            let initial = projection.receive(snapshot())
+            #expect(initial)
+            let received = projection.receive(event([patch]))
+            #expect(!received)
+        }
+        var projection = CodexTaskProjection()
+        var initial = snapshot()
+        var params = initial["params"] as! [String: Any]
+        var change = params["change"] as! [String: Any]
+        var state = change["conversationState"] as! [String: Any]
+        state["threadRuntimeStatus"] = ["type":"active"]
+        change["conversationState"] = state;params["change"] = change;initial["params"] = params
+        let received = projection.receive(initial)
+        #expect(received)
+        let patched = projection.receive(event([["path":["threadRuntimeStatus"],"value":["type":"active"]],["path":["threadRuntimeStatus","activeFlags"],"value":["waitingOnApproval"]]]))
+        #expect(patched)
+        #expect(projection.counts(stored:["task":.init(status:"inProgress",unread:false)]).running == 0)
+        #expect(CodexTaskCounts.menuBarText(.init(running:0,unread:0,failed:0)) == "▶ 0  ✓ 0")
+    }
+}

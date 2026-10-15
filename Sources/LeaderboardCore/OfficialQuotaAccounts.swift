@@ -40,6 +40,10 @@ public struct OfficialQuotaAccountStore: Sendable {
     }
 
     public func save(_ accounts: [OfficialQuotaAccount]) throws {
+        try save(accounts, createFile: { FileManager.default.createFile(atPath: $0, contents: nil, attributes: $1) })
+    }
+
+    func save(_ accounts: [OfficialQuotaAccount], createFile: (String, [FileAttributeKey: Any]) -> Bool) throws {
         let data = try JSONEncoder().encode(accounts)
         let directory = fileURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -51,8 +55,7 @@ public struct OfficialQuotaAccountStore: Sendable {
         #else
         let attributes: [FileAttributeKey: Any] = [.posixPermissions: 0o600]
         #endif
-        guard FileManager.default.createFile(atPath: PlatformPaths.fileSystemPath(temporary), contents: nil,
-                                            attributes: attributes) else { throw CocoaError(.fileWriteUnknown) }
+        guard createFile(PlatformPaths.fileSystemPath(temporary), attributes) else { throw CocoaError(.fileWriteUnknown) }
         try data.write(to: temporary)
         if FileManager.default.fileExists(atPath: PlatformPaths.fileSystemPath(fileURL)) {
             _ = try FileManager.default.replaceItemAt(fileURL, withItemAt: temporary, options: .usingNewMetadataOnly)
@@ -92,6 +95,14 @@ public enum OfficialQuotaDiscovery {
                                includeKeychain: Bool = false,
                                allowKeychainAuthenticationUI: Bool = false,
                                includedKeychainKinds: Set<CCSwitchQuotaKind>? = nil) -> [CCSwitchQuotaTarget] {
+        targets(home: home, environment: environment, includeKeychain: includeKeychain,
+                allowKeychainAuthenticationUI: allowKeychainAuthenticationUI, includedKeychainKinds: includedKeychainKinds,
+                keychainRead: keychainReader)
+    }
+
+    static func targets(home: URL, environment: [String: String], includeKeychain: Bool,
+                        allowKeychainAuthenticationUI: Bool = false, includedKeychainKinds: Set<CCSwitchQuotaKind>? = nil,
+                        keychainRead: (String, Bool) -> Data?) -> [CCSwitchQuotaTarget] {
         var targets: [CCSwitchQuotaTarget] = []
         for (kind, directory, file, service) in [
             (CCSwitchQuotaKind.claude, ".claude", ".credentials.json", "Claude Code-credentials"),
@@ -105,7 +116,7 @@ public enum OfficialQuotaDiscovery {
                 : (configuredRoot ?? home.appending(path: directory))
             let usesKeychain = includeKeychain && (includedKeychainKinds?.contains(kind) ?? true)
             let token = (usesKeychain
-                ? keychain(service, allowsAuthenticationUI: allowKeychainAuthenticationUI)
+                ? keychainRead(service, allowKeychainAuthenticationUI)
                     .flatMap { oauthToken($0, kind: kind) }
                 : nil)
                 ?? read(root.appending(path: file)).flatMap { oauthToken($0, kind: kind) }
@@ -236,7 +247,7 @@ public enum OfficialQuotaDiscovery {
 
     /// JWT expiry is only a freshness hint. Account matching above controls
     /// which saved login may replace the snapshot; the server validates tokens.
-    private static func tokenExpiry(_ token: String?) -> Date? {
+    static func tokenExpiry(_ token: String?) -> Date? {
         guard let token = usable(token) else { return nil }
         let parts = token.split(separator: ".", omittingEmptySubsequences: false)
         guard parts.count == 3 else { return nil }
@@ -274,8 +285,19 @@ public enum OfficialQuotaDiscovery {
         return value
     }
 
-    private static func keychain(_ service: String, allowsAuthenticationUI: Bool) -> Data? {
+    static let keychainReader: @Sendable (String, Bool) -> Data? = keychain
+
+    static func keychain(_ service: String, allowsAuthenticationUI: Bool) -> Data? {
         #if canImport(Security)
+        return keychain(service, allowsAuthenticationUI: allowsAuthenticationUI, lookup: SecItemCopyMatching)
+        #else
+        return nil
+        #endif
+    }
+
+    #if canImport(Security)
+    static func keychain(_ service: String, allowsAuthenticationUI: Bool,
+                         lookup: (CFDictionary, UnsafeMutablePointer<CFTypeRef?>?) -> OSStatus) -> Data? {
         var result: CFTypeRef?
         // Only an explicit consent-triggered refresh may summon macOS' dialog.
         let context = LAContext()
@@ -283,12 +305,10 @@ public enum OfficialQuotaDiscovery {
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service, kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne, kSecUseAuthenticationContext as String: context]
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else { return nil }
+        guard lookup(query as CFDictionary, &result) == errSecSuccess else { return nil }
         return result as? Data
-        #else
-        return nil
-        #endif
     }
+    #endif
 
     private static func kimiProviderFields(_ config: String) -> [String: [String: String]] {
         var section: String?

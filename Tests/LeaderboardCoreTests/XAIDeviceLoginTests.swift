@@ -19,6 +19,7 @@ private actor DeviceLoginTransport: AccountQuotaTransport {
         requests.append(request)
         guard !replies.isEmpty else { throw URLError(.cannotConnectToHost) }
         let result = replies.removeFirst()
+        if result.body == Data("cancel-error".utf8) { throw CancellationError() }
         if result.body == Data("network-error".utf8) { throw URLError(.cannotConnectToHost) }
         return result
     }
@@ -252,6 +253,100 @@ extension XAIDeviceLoginTests {
         await login.cancel()
         await transport.unblock()
         await #expect(throws: XAIDeviceLoginError.cancelled) { try await polling.value }
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+    }
+}
+
+
+extension XAIDeviceLoginTests {
+    @Test func invalidDeviceDocumentsAndUnexpectedPollFailuresStayUnconnected() async throws {
+        let url = try authURL(); defer { cleanup(url) }
+        for body in ["{}", "[]", #"{"device_code":" ","user_code":"fixture","verification_uri":"https://accounts.x.ai/oauth2/device","expires_in":600}"#, #"{"device_code":"fixture","user_code":"fixture","verification_uri":"https://accounts.x.ai/oauth2/device","expires_in":0}"#, #"{"device_code":"fixture","user_code":"fixture","verification_uri":"https://accounts.x.ai/oauth2/device","expires_in":600,"interval":0}"#] {
+            let login = XAIDeviceLogin(transport: DeviceLoginTransport([discovery, body]))
+            await #expect(throws: XAIDeviceLoginError.invalidResponse) { try await login.start(authFileURL: url) }
+        }
+        for body in ["invalid JSON", #"{"error":"unexpected"}"#, String(repeating: "x", count: 65_537)] {
+            let clock = DeviceLoginClock()
+            let login = XAIDeviceLogin(transport: DeviceLoginTransport([discovery, device, body]), now: { clock.now() })
+            let attempt = try await login.start(authFileURL: url); clock.advance(5)
+            await #expect(throws: XAIDeviceLoginError.invalidResponse) { try await login.poll(id: attempt.id) }
+        }
+        let cancelled = XAIDeviceLogin(transport: DeviceLoginTransport(["cancel-error"]))
+        await #expect(throws: CancellationError.self) { try await cancelled.start(authFileURL: url) }
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+        let defaultLogin = XAIDeviceLogin()
+        #expect(abs(await defaultLogin.currentDate().timeIntervalSinceNow) < 5)
+        for error: XAIDeviceLoginError in [.invalidResponse, .network, .expired, .denied, .cancelled, .accountMismatch, .accountChanged, .storage] {
+            for language in AppLanguage.allCases { #expect(!XAIDeviceLoginText.status(error.state, language: language).isEmpty) }
+        }
+        for state in ["starting", "waiting", "saved"] { #expect(!XAIDeviceLoginText.status(state, language: .english).isEmpty) }
+        #expect(XAIDeviceLogin.authorizationURL("https://accounts.x.ai:443/oauth2/device?other=fixture&user_code=old", complete: nil, userCode: "new")?.query?.contains("user_code=new") == true)
+        #expect(XAIDeviceLogin.authorizationURL("https://[invalid", complete: nil, userCode: "new") == nil)
+    }
+
+    @Test func temporaryFileFailuresAndConcurrentChangesPreserveTheSharedAccount() async throws {
+        for mode in ["create", "write", "changed", "corrupt"] {
+            let url = try authURL(); defer { cleanup(url) }
+            let clock = DeviceLoginClock()
+            var operations = XAIDeviceLogin.FileOperations()
+            if mode == "create" { operations.create = { _, _ in false } }
+            if mode == "write" { operations.write = { _, _ in throw CocoaError(.fileWriteUnknown) } }
+            if mode == "changed" { operations.write = { _, _ in try Data(self.initial.utf8).write(to: url) } }
+            let transport = GatedDeviceLoginTransport(base: DeviceLoginTransport([discovery, device, tokens]), path: "/oauth2/userinfo", reply: #"{"sub":"account-a","name":"Fixture"}"#)
+            let login = XAIDeviceLogin(transport: transport, now: { clock.now() }, fileOperations: operations)
+            let attempt = try await login.start(authFileURL: url); clock.advance(5)
+            let polling = Task { try await login.poll(id: attempt.id) }
+            await transport.waitUntilBlocked()
+            if mode == "corrupt" { try Data("corrupt".utf8).write(to: url) }
+            await transport.unblock()
+            await #expect(throws: mode == "changed" ? XAIDeviceLoginError.accountChanged : .storage) { try await polling.value }
+            #expect(try FileManager.default.contentsOfDirectory(atPath: url.deletingLastPathComponent().path).allSatisfy { !$0.hasSuffix(".tmp") })
+        }
+    }
+
+    @Test func cancellationDuringDiscoveryAndDeviceCodeRequestReleasesTheAttempt() async throws {
+        for path in ["/.well-known/openid-configuration", "/oauth2/device/code"] {
+            let url = try authURL(); defer { cleanup(url) }
+            let base = DeviceLoginTransport(path.contains("well-known") ? [] : [discovery])
+            let transport = GatedDeviceLoginTransport(base: base, path: path, reply: path.contains("well-known") ? discovery : device)
+            let login = XAIDeviceLogin(transport: transport)
+            let start = Task { try await login.start(authFileURL: url) }
+            await transport.waitUntilBlocked(); await login.cancel(); await transport.unblock()
+            await #expect(throws: XAIDeviceLoginError.cancelled) { try await start.value }
+        }
+    }
+}
+
+
+extension XAIDeviceLoginTests {
+    @Test func optionalDeviceFieldsAndLegacyAccountKeysRemainSupported() async throws {
+        let url = try authURL(); defer { cleanup(url) }
+        let clock = DeviceLoginClock()
+        let code = device.replacingOccurrences(of: ",\"interval\":5", with: "")
+        let existing = #"{"default_account_id":"account-a","accounts":{"account-a":{"refresh_token":"fixture"}}}"#
+        try Data(existing.utf8).write(to: url)
+        let login = XAIDeviceLogin(transport: DeviceLoginTransport([discovery, code, tokens, user]), now: { clock.now() })
+        let attempt = try await login.start(authFileURL: url)
+        #expect(attempt.interval == 5)
+        clock.advance(5)
+        #expect(try await login.poll(id: attempt.id) == .connected)
+        #expect(XAIDeviceLogin.authorizationURL("https://accounts.x.ai/oauth2/device", complete: "https://accounts.x.ai/oauth2/device", userCode: "fixture") == nil)
+        #expect(XAIDeviceLogin.authorizationURL("https://accounts.x.ai/oauth2/device", complete: "https://accounts.x.ai/oauth2/device?wrong=value", userCode: "fixture") == nil)
+        #expect(XAIDeviceLogin.authorizationURL("https://accounts.x.ai/oauth2/device", complete: "https://accounts.x.ai/oauth2/device?user_code", userCode: "fixture") == nil)
+        #expect(XAIDeviceLogin.authorizationURL("https://accounts.x.ai/oauth2/device", complete: "https://accounts.x.ai/oauth2/device?user_code=fixture", userCode: "fixture")?.query == "user_code=fixture")
+        let emptyDiscovery = discovery.replacingOccurrences(of: #""device_authorization_endpoint":"https://auth.x.ai/oauth2/device/code""#, with: #""device_authorization_endpoint":0"#)
+        await #expect(throws: XAIDeviceLoginError.invalidResponse) { try await XAIDeviceLogin(transport: DeviceLoginTransport([emptyDiscovery])).start(authFileURL: url) }
+    }
+
+    @Test func attemptExpirationDuringARequestCannotSaveALogin() async throws {
+        let url = try authURL(); defer { cleanup(url) }
+        let clock = DeviceLoginClock()
+        let transport = GatedDeviceLoginTransport(base: DeviceLoginTransport([discovery, device]), path: "/oauth2/token", reply: tokens)
+        let login = XAIDeviceLogin(transport: transport, now: { clock.now() })
+        let attempt = try await login.start(authFileURL: url); clock.advance(5)
+        let polling = Task { try await login.poll(id: attempt.id) }
+        await transport.waitUntilBlocked(); clock.advance(1000); await transport.unblock()
+        await #expect(throws: XAIDeviceLoginError.expired) { try await polling.value }
         #expect(!FileManager.default.fileExists(atPath: url.path))
     }
 }

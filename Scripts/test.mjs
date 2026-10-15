@@ -112,12 +112,24 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
     let logPath = env.CI_CHECK_LOG || join(directory, 'latest.log')
     writeFileSync(logPath, '')
     const started = Date.now()
+    const coverageDirectory = coverage && !coreOnly && !run
+      ? join(directory, `coverage-${started}-${process.pid}`) : null
+    const nativeCoverage = coverage && !scriptsOnly && !run
     let status = 0
     const exec = run ?? ((command, args) => new Promise((resolvePromise) => {
       const childEnv = { ...env, CLANG_MODULE_CACHE_PATH: join(root, 'work', 'clang-modules'), TZ: 'Asia/Shanghai' }
       // Never let a private Git index or a parent's pass leak into test fixtures.
       delete childEnv.GIT_INDEX_FILE
       delete childEnv.BENCHGAUGE_TEST_PASS
+      // Commit workflows set this to 0 while running checks. Isolated watcher
+      // fixtures must choose their own push policy rather than inherit it.
+      delete childEnv.COMMIT_PUSH
+      if (coverageDirectory) {
+        childEnv.NODE_V8_COVERAGE = coverageDirectory
+        childEnv.BENCHGAUGE_COVERAGE_DIRECTORY = coverageDirectory
+        childEnv.BENCHGAUGE_COVERAGE_ROOT = root
+        childEnv.NODE_OPTIONS = `${childEnv.NODE_OPTIONS || ''} --require=${JSON.stringify(join(root, 'Scripts', 'coverage-preload.cjs'))}`.trim()
+      }
       const child = spawn(command, args, { cwd: root, env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] })
       for (const stream of [child.stdout, child.stderr]) stream.on('data', (data) => {
         process.stdout.write(data); appendFileSync(logPath, data)
@@ -129,11 +141,25 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
     }))
     const checks = commands ?? testCommands(root, { coreOnly, scriptsOnly, coverage })
     if (!checks.length) throw new Error('测试列表为空，拒绝报告通过')
+    if (nativeCoverage) {
+      status = await exec(nodeExecutable({ env }), [join(root, 'Scripts', 'swift-coverage.cjs'), root, '--clear'])
+    }
     for (const [command, args] of checks) {
+      if (status !== 0) break
       const heading = `\n[test] ${command} ${args.join(' ')}\n`
       logger.log(heading.trim()); appendFileSync(logPath, heading)
       status = await exec(command, args)
       if (status !== 0) break
+    }
+    if (status === 0 && coverageDirectory) {
+      const result = spawnSync(nodeExecutable({ env }), ['--expose-internals', join(root, 'Scripts', 'coverage-report.cjs'), coverageDirectory, root],
+        { cwd: root, env, encoding: 'utf8' })
+      const output = `${result.stdout || ''}${result.stderr || ''}`
+      process.stdout.write(output); appendFileSync(logPath, output)
+      status = result.status ?? 1
+    }
+    if (status === 0 && nativeCoverage) {
+      status = await exec(nodeExecutable({ env }), [join(root, 'Scripts', 'swift-coverage.cjs'), root])
     }
     const after = testInputSignature(root, env)
     if (status === 0 && before !== after) {
@@ -147,7 +173,7 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
       logPath = failurePath
     }
     const result = { status, signature: status === 0 && !coreOnly && !scriptsOnly ? before : null, logPath, durationMs: Date.now() - started,
-      scope: coreOnly ? 'core' : scriptsOnly ? 'scripts' : 'all', coverage }
+      scope: coreOnly ? 'core' : scriptsOnly ? 'scripts' : 'all', coverage, coverageDirectory }
     writeFileSync(join(directory, 'latest.json'), JSON.stringify(result, null, 2) + '\n')
     logger.log(status === 0 ? '[test] 测试通过' : `[test] 测试未通过，日志：${logPath}`)
     return result

@@ -346,3 +346,41 @@ private struct GrokIdentityFixtureTransport: AccountQuotaTransport {
         return AccountQuotaHTTPResponse(statusCode: identityStatus, headers: result.headers, body: result.body)
     }
 }
+
+
+private actor GrokOptionalFailureTransport: AccountQuotaTransport {
+    let billing: Data
+    let cancelled: Bool
+    init(billing: Data, cancelled: Bool) { self.billing = billing; self.cancelled = cancelled }
+    func data(for request: URLRequest) async throws -> AccountQuotaHTTPResponse {
+        if request.url == XaiEndpointValidator.subscriptionsURL {
+            if cancelled { throw CancellationError() }
+            throw URLError(.cannotConnectToHost)
+        }
+        let body: Data
+        if request.url == XaiEndpointValidator.discoveryURL { body = Data(#"{"issuer":"https://auth.x.ai","token_endpoint":"https://auth.x.ai/oauth2/token"}"#.utf8) }
+        else if request.url?.host == "auth.x.ai" { body = Data(#"{"access_token":"fixture"}"#.utf8) }
+        else { body = billing }
+        return .init(statusCode: 200, headers: [:], body: body)
+    }
+}
+
+extension GrokQuotaTests {
+    @Test func anOptionalSubscriptionNetworkFailureKeepsUsageWhileCancellationPropagates() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let auth = root.appendingPathComponent("auth.json")
+        try Data(#"{"accounts":{"fixture":{"refresh_token":"fixture"}}}"#.utf8).write(to: auth)
+        for cancelled in [false, true] {
+            let tokens = XAIAccessTokens()
+            let transport = GrokOptionalFailureTransport(billing: credits(type: 2, end: "2026-10-05T12:00:00Z"), cancelled: cancelled)
+            if cancelled { await #expect(throws: CancellationError.self) { try await tokens.billing(transport: transport, authFileURL: auth, now: now) } }
+            else {
+                let result = try await tokens.billing(transport: transport, authFileURL: auth, now: now)
+                if case .windows(let windows) = result { #expect(windows.first?.name == "weekly_limit") }
+                else { Issue.record("An optional subscription outage erased valid usage") }
+            }
+        }
+    }
+}

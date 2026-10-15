@@ -220,7 +220,7 @@ public enum CCSwitchQuotaParsers {
         return (0, false)
     }
 
-    private static func exactInt(_ value: Any?) -> Int? {
+    static func exactInt(_ value: Any?) -> Int? {
         if value is NSNull || value.map(CCSwitchJSON.isBoolean) == true { return nil }
         if let text = value as? String {
             return Int(text.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -252,8 +252,7 @@ public enum CCSwitchQuotaParsers {
         default: return nil
         }
         guard duration <= Int.max / multiplier else { return nil }
-        let minutes = duration * multiplier
-        return minutes > 0 ? minutes : nil
+        return duration * multiplier
     }
 
     private static func kimiRatioPools(in body: [String: Any]) -> [String: Any]? {
@@ -434,7 +433,7 @@ public enum CCSwitchQuotaParsers {
         let value = object["autoRenew"]
         guard let value else { return false }
         if CCSwitchJSON.isBoolean(value) {
-            return (value as? Bool) ?? false
+            return value as? Bool == true
         }
         return jsonInt(value) == 1
     }
@@ -601,12 +600,11 @@ public enum CCSwitchQuotaParsers {
         shanghaiDate(text, format: "yyyy-MM-dd")
     }
 
-    private static func shanghaiDate(_ text: String, format: String) -> Date? {
+    static func shanghaiDate(_ text: String, format: String, timeZone: TimeZone? = TimeZone(identifier: "Asia/Shanghai")) -> Date? {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.timeZone = TimeZone(identifier: "Asia/Shanghai")
-            ?? TimeZone(secondsFromGMT: 8 * 3_600)
+        formatter.timeZone = timeZone ?? TimeZone(secondsFromGMT: 8 * 3_600)
         formatter.dateFormat = format
         return formatter.date(from: text)
     }

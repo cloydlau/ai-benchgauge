@@ -257,10 +257,19 @@ public enum PurchaseLinkCatalog {
         _ urlString: String,
         site: PurchaseLinkSite = .universal
     ) -> PurchaseLink {
-        guard let url = URL(string: urlString), urlString.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else {
-            preconditionFailure("Invalid static purchase URL: \(urlString)")
-        }
+        // The catalog consists of static URLs. Keep a fatal configuration
+        // failure while making URL validation independently testable.
+        let url = try! validatedURL(urlString)
         return PurchaseLink(label: label, url: url, site: site)
+    }
+
+    enum URLValidationError: Error { case invalid }
+
+    static func validatedURL(_ urlString: String) throws -> URL {
+        guard let url = URL(string: urlString), urlString.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else {
+            throw URLValidationError.invalid
+        }
+        return url
     }
 
     private static func normalizedOrganization(_ organization: String) -> String {
