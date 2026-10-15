@@ -754,6 +754,27 @@ rev-parse) echo fixture-head;; cat-file) exit 0;; esac
  assert.ok(fixture.output().includes('当前分支没有上游'))
 })
 
+test('a scheduled push reports a nonzero exit and waits for a new change before retrying',async t=>{
+ const fixture=watcherFixture(t,{gitWork:true,env:{...quickWatch,COMMIT_PUSH:'1',WATCH_AUTOPUSH:'1'},setup(root){
+  writeFileSync(join(root,'commit.done'),'done');writeFileSync(join(root,'push.done'),'done')
+  writeFileSync(join(root,'bin/git'),`#!/bin/sh
+case "$1" in
+status) ;;
+rev-list) if test -f push.done; then echo '0 0'; else echo '0 1'; fi;;
+rev-parse) echo fixture-head;;
+cat-file) exit 0;;
+*) for arg in "$@"; do if test "$arg" = push; then echo push >> events; exit 2; fi; done;;
+esac
+`,{mode:0o755})
+ }})
+ await waitUntil(fixture,()=>fixture.output().includes('等待源码变更'))
+ rmSync(join(fixture.root,'push.done'))
+ await waitUntil(fixture,()=>fixture.output().includes('git push 退出码 2'))
+ await new Promise(accept=>setTimeout(accept,500))
+ assert.equal(fixture.events().filter(event=>event==='push').length,1)
+ assert.equal(fixture.child.exitCode,null)
+})
+
 test('unexpected scheduled test errors are reported and leave the watcher running',async t=>{
  const fixture=watcherFixture(t,{env:quickWatch,setup(root){
   writeFileSync(join(root,'Scripts/test-repair.mjs'),`import{existsSync,writeFileSync}from'node:fs';export async function runTestGate(){if(existsSync('gate-called'))throw Error('fixture gate failure');writeFileSync('gate-called','done');return {status:0,signature:'mock-pass'}}`)
