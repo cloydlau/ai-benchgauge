@@ -1114,14 +1114,7 @@ private struct PadBoardCard: View {
         else { column }
     }
     @ViewBuilder private var countryHeaderLabel: some View {
-        if isImage {
-            Text(filter == .all ? tr("Country", "国家") : filter.title(language: language)).font(filterHeaderFont)
-        } else {
-            HStack(spacing: 1) {
-                Text(tr("Country", "国家"))
-                filterChevron
-            }.font(filterHeaderFont)
-        }
+        filterHeader(Text(isImage && filter != .all ? filter.title(language: language) : tr("Country", "国家")))
     }
     private func countryColumn<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         ZStack {
@@ -1133,12 +1126,22 @@ private struct PadBoardCard: View {
         Image(systemName: "chevron.down")
             .font(.system(size: (compactColumns ? compactFilterHeaderSize : regularFilterHeaderSize) * 0.65, weight: .medium))
     }
+    @ViewBuilder
+    private func filterHeader(_ title: Text) -> some View {
+        if isImage {
+            title.font(filterHeaderFont)
+        } else {
+            // Native Menu labels retain these balanced slots when composing their title.
+            HStack(spacing: 1) {
+                filterChevron.opacity(0).accessibilityHidden(true)
+                title
+                filterChevron
+            }.font(filterHeaderFont)
+        }
+    }
     private var opennessHeaderLabel: some View {
-        HStack(spacing: 1) {
-            Text(isImage && opennessFilter != .all ? opennessFilter.title(language: language) : ModelOpenness.columnTitle(language: language))
-                .accessibilityIdentifier("openness-header-\(kind.rawValue)")
-            if !isImage { filterChevron }
-        }.font(filterHeaderFont)
+        filterHeader(Text(isImage && opennessFilter != .all ? opennessFilter.title(language: language) : ModelOpenness.columnTitle(language: language)))
+            .accessibilityIdentifier("openness-header-\(kind.rawValue)")
     }
     private func opennessColumn<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         ZStack {

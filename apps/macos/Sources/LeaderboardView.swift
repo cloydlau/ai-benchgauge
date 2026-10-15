@@ -335,9 +335,6 @@ struct LeaderboardView: View {
     private var appTitle: some View {
         let title = language.appName
         let subtitle = AppFeatureCopy.subtitle(language: language)
-        let subtitleInk = CTLineGetBoundsWithOptions(CTLineCreateWithAttributedString(
-            NSAttributedString(string: subtitle, attributes: [.font: NSFont.systemFont(ofSize: 12, weight: .semibold)])),
-            .useGlyphPathBounds)
         let english = language == .english
         return DesktopBrandHeadingLayout {
             Group {
@@ -358,18 +355,8 @@ struct LeaderboardView: View {
                     : dimensions[.bottom]
             }
             .accessibilityIdentifier("brand-title")
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
-                FeatureSubtitle(language: language).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
-                    .accessibilityIdentifier("brand-subtitle")
-                QuotaTrackingHelpButton(language: language, iconHeight: subtitleInk.height)
-                    .frame(width: subtitleInk.height, height: subtitleInk.height)
-                    .overlay {
-                        Image(systemName: "questionmark.circle").resizable().scaledToFit()
-                            .foregroundStyle(.secondary).opacity(0.55).allowsHitTesting(false)
-                            .accessibilityHidden(true)
-                    }
-                    .alignmentGuide(.firstTextBaseline) { $0.height + subtitleInk.minY }
-            }
+            FeatureSubtitle(language: language).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
+                .accessibilityIdentifier("brand-subtitle")
             .alignmentGuide(.desktopBrandInkBottom) { dimensions in
                 Self.textInkEdge(dimensions, text: subtitle, font: .systemFont(ofSize: 12, weight: .semibold), top: false)
             }

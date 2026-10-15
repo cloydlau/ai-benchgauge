@@ -9,7 +9,7 @@ public struct ChineseBrandTitle: View {
     public var body: some View {
         let layout = ChineseBrandLayout.make()
         let inkBottom = layout.path.boundingBoxOfPath.maxY
-        let initial = layout.glyphBounds[0]
+        let initial = layout.initial
         ZStack(alignment: .topLeading) {
             Path(layout.pathWithoutInitial).fill(.foreground)
             BrandLogo().frame(width: initial.width, height: initial.width / BrandLogo.aspectRatio)
@@ -29,6 +29,11 @@ struct ChineseBrandLayout {
     let size: CGSize
     let baseline: CGFloat
     let glyphBounds: [CGRect]
+    var initial: CGRect {
+        let next = glyphBounds[1]
+        let width = next.height * BrandLogo.aspectRatio
+        return CGRect(x: glyphBounds[0].maxX - width, y: next.minY, width: width, height: next.height)
+    }
     static let gap: CGFloat = 2.5
 
     static func make() -> Self {

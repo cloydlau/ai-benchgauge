@@ -167,9 +167,10 @@ sealed partial class MainWindow
             {
                 var glyphs = BrandGlyphs();
                 var first = glyphs[0];
-                var height = first.Ink.Width * BrandLogo.PixelHeight / BrandLogo.PixelWidth;
-                drawing.DrawImage(BrandLogo, new Rect(first.X, (ActualHeight - height) / 2,
-                    first.Ink.Width, height));
+                var height = glyphs[1].Ink.Height;
+                var width = height * BrandLogo.PixelWidth / BrandLogo.PixelHeight;
+                drawing.DrawImage(BrandLogo, new Rect(first.X + first.Ink.Width - width,
+                    (ActualHeight - height) / 2, width, height));
                 foreach (var glyph in glyphs.Skip(1))
                     drawing.DrawText(glyph.Text, new Point(glyph.X - glyph.Ink.Left,
                         ActualHeight / 2 - glyph.Ink.Top - glyph.Ink.Height / 2));
@@ -183,44 +184,32 @@ sealed partial class MainWindow
                 MidpointRounding.AwayFromZero) / dpi.DpiScaleY;
             if (spec.Text == "AI BenchGauge")
             {
-                var initial = new FormattedText("A", CultureInfo.GetCultureInfo(spec.Language.IetfLanguageTag), spec.FlowDirection,
-                    new Typeface(spec.FontFamily, spec.FontStyle, spec.FontWeight, spec.FontStretch), spec.FontSize,
-                    spec.Foreground, dpi.PixelsPerDip).BuildGeometry(new Point()).Bounds;
                 var next = new FormattedText("I", CultureInfo.GetCultureInfo(spec.Language.IetfLanguageTag), spec.FlowDirection,
                     new Typeface(spec.FontFamily, spec.FontStyle, spec.FontWeight, spec.FontStretch), spec.FontSize,
                     spec.Foreground, dpi.PixelsPerDip).BuildGeometry(new Point()).Bounds;
                 var nextOrigin = text.BuildHighlightGeometry(new Point(), 1, 1).Bounds.Left;
-                var logoSize = Math.Min(initial.Width, Math.Max(1, nextOrigin + next.Left - initial.Left - BrandGap));
                 text.SetForegroundBrush(Brushes.Transparent, 0, 1);
-                var logoHeight = logoSize * BrandLogo.PixelHeight / BrandLogo.PixelWidth;
-                drawing.DrawImage(BrandLogo, new Rect(initial.Left, offset + initial.Top + (initial.Height - logoHeight) / 2,
-                    logoSize, logoHeight));
+                var logoHeight = next.Height;
+                var logoWidth = logoHeight * BrandLogo.PixelWidth / BrandLogo.PixelHeight;
+                drawing.DrawImage(BrandLogo, new Rect(nextOrigin + next.Left - BrandGap - logoWidth,
+                    offset + next.Top, logoWidth, logoHeight));
             }
             drawing.DrawText(text, new Point(0, offset));
         }
     }
 
     // Align the subtitle with the title's native visible bottom.
-    sealed class HeaderCaptionStack(HeaderInkLabel title, HeaderInkLabel subtitle, Button help) : Panel
+    sealed class HeaderCaptionStack(HeaderInkLabel title, HeaderInkLabel subtitle) : Panel
     {
-        public void AddLabels() { Children.Add(subtitle); Children.Add(help); }
+        public void AddLabels() { Children.Add(subtitle); }
         protected override Size MeasureOverride(Size available) {
             subtitle.Height = subtitle.VisibleInkHeight;
-            help.Width = subtitle.Height;
-            help.Height = subtitle.Height;
-            if (help.Content is FrameworkElement icon) {
-                icon.Width = subtitle.Height;
-                icon.Height = subtitle.Height;
-            }
             subtitle.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            help.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            return new Size(subtitle.DesiredSize.Width + 3 + help.DesiredSize.Width, 27);
+            return new Size(subtitle.DesiredSize.Width, 27);
         }
         protected override Size ArrangeOverride(Size size) {
             var top = title.VisibleInkTop + title.VisibleInkHeight - subtitle.Height;
             subtitle.Arrange(new Rect(0, top, subtitle.DesiredSize.Width, subtitle.Height));
-            help.Arrange(new Rect(subtitle.DesiredSize.Width + 3, top + (subtitle.Height - help.DesiredSize.Height) / 2,
-                help.DesiredSize.Width, help.DesiredSize.Height));
             return size;
         }
     }
@@ -344,19 +333,7 @@ sealed partial class MainWindow
         var subtitleSpec = Caption(Tr("Dual boards & quota tracking", "双榜对照 & 余量追踪", "雙榜對照 & 餘量追蹤"), PanelMuted, 12);
         subtitleSpec.FontWeight = FontWeights.SemiBold;
         var subtitleInk = new HeaderInkLabel(subtitleSpec) { AlignInkTop = true, DimsAmpersand = true };
-        var helpButton = QuietButton("", () => MessageBox.Show(this,
-            Tr("Quota tracking is available in AI BenchGauge for Mac and Windows. Open the desktop app to view your models’ remaining quotas and usage progress.",
-                "余量追踪目前在 Mac 和 Windows 版提供，可集中查看模型的剩余额度与使用进度。请在电脑上打开 AI 天梯使用这项功能。",
-                "餘量追蹤目前在 Mac 和 Windows 版提供，可集中查看模型的剩餘額度與使用進度。請在電腦上打開 AI 天梯使用這項功能。"),
-            Tr("Quota tracking", "余量追踪", "餘量追蹤"), MessageBoxButton.OK, MessageBoxImage.Information));
-        var helpIcon = PanelIcon("help", PanelMuted, 14, 14);
-        helpIcon.Opacity = 0.55;
-        helpButton.Content = helpIcon;
-        helpButton.Width = 14; helpButton.Height = 14; helpButton.Padding = new Thickness(0);
-        helpButton.ToolTip = Tr("About quota tracking", "了解余量追踪", "了解餘量追蹤");
-        System.Windows.Automation.AutomationProperties.SetName(helpButton, (string)helpButton.ToolTip);
-        System.Windows.Automation.AutomationProperties.SetAutomationId(helpButton, "quota-tracking-help");
-        var captions = new HeaderCaptionStack(titleInk, subtitleInk, helpButton) {
+        var captions = new HeaderCaptionStack(titleInk, subtitleInk) {
             Height = 27, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0)
         };
         captions.AddLabels(); brand.Children.Add(captions);
@@ -727,14 +704,23 @@ sealed partial class MainWindow
             (DateTimeOffset.TryParse(board.FetchedAt, out var fetchedDate) ? fetchedDate.ToLocalTime().ToString("g") : Tr("Waiting for first fetch", "等待首次抓取", "等待首次擷取"));
         AddCell(grid, times, 1); return grid;
     }
+    FrameworkElement FilterHeaderLabel(string title, Brush ink)
+    {
+        // Only the caption contributes width; the caret sits beyond its right edge.
+        var label = new Grid { VerticalAlignment = VerticalAlignment.Center };
+        label.Children.Add(Caption(title, ink, 9.5));
+        var overlay = new Canvas { Width = 0, Height = 3, HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
+        var caret = PanelIcon("chevron", ink, 5, 3);
+        Canvas.SetLeft(caret, 2); overlay.Children.Add(caret); label.Children.Add(overlay);
+        return label;
+    }
     FrameworkElement OpennessPicker(Board board)
     {
         var selected = prefs.Sources.GetValueOrDefault(board.Kind, "all");
         var ink = selected == "all" ? PanelInk : PanelBlue;
         var button = QuietButton("", () => { }); button.Foreground = ink; button.Padding = new Thickness(1, 0, 1, 0);
-        var label = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        label.Children.Add(Caption(Tr("Source", "源码", "源碼"), ink, 9.5));
-        label.Children.Add(PanelIcon("chevron", ink, 5, 3, new Thickness(2, 0, 0, 0))); button.Content = label;
+        button.Content = FilterHeaderLabel(Tr("Source", "源码", "源碼"), ink);
         var menu = new ContextMenu();
         foreach (var (value, title) in new[] { ("all", Tr("All sources", "全部源码", "全部源碼")),
             ("open", Tr("Open", "开源", "開源")), ("closed", Tr("Closed", "闭源", "閉源")), ("unknown", Tr("Unknown", "未知")) })
@@ -752,10 +738,7 @@ sealed partial class MainWindow
     FrameworkElement CountryPicker(Board board)
     {
         var button = QuietButton("", () => { }); button.Foreground = PanelInk; button.Padding = new Thickness(1, 0, 1, 0);
-        var label = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        var countryLabel = Caption(Tr("Country", "国家", "國家"), PanelInk, 9.5);
-        label.Children.Add(countryLabel);
-        label.Children.Add(PanelIcon("chevron", PanelInk, 5, 3, new Thickness(2, 0, 0, 0))); button.Content = label;
+        button.Content = FilterHeaderLabel(Tr("Country", "国家", "國家"), PanelInk);
         var menu = new ContextMenu();
         var options = board.CountryOptions ?? new[] {
             new CountryOption("china", Tr("China", "中国", "中國")), new CountryOption("unitedStates", Tr("United States", "美国", "美國")),

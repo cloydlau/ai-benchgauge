@@ -16,7 +16,7 @@ public struct EnglishBrandTitle: View {
                 .lineLimit(1).hidden().accessibilityHidden(true)
             Text(title).font(.custom("SnellRoundhand-Bold", fixedSize: fontSize))
                 .lineLimit(1).accessibilityHidden(true)
-            BrandLogo().frame(width: artwork.initial.width, height: artwork.initial.width / BrandLogo.aspectRatio)
+            BrandLogo().frame(width: artwork.initial.width, height: artwork.initial.height)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("AI BenchGauge")
@@ -33,8 +33,7 @@ private struct EnglishBrandArtwork {
         let attributed = NSAttributedString(string: "AI BenchGauge", attributes: [NSAttributedString.Key(kCTFontAttributeName as String): font])
         let line = CTLineCreateWithAttributedString(attributed)
         let ink = CTLineGetBoundsWithOptions(line, .useGlyphPathBounds)
-        let rest = CGMutablePath()
-        var initial = CGRect.zero
+        var next = CGRect.zero
         for run in CTLineGetGlyphRuns(line) as! [CTRun] {
             let count = CTRunGetGlyphCount(run)
             var glyphs = [CGGlyph](repeating: 0, count: count)
@@ -47,14 +46,14 @@ private struct EnglishBrandArtwork {
                 guard let path = CTFontCreatePathForGlyph(font, glyphs[index], nil) else { continue }
                 let transform = CGAffineTransform(a: 1, b: 0, c: 0, d: -1,
                                                   tx: points[index].x, ty: ink.maxY - points[index].y)
-                if indices[index] == 0 { initial = path.boundingBoxOfPath.applying(transform) }
-                else { rest.addPath(path, transform: transform) }
+                if indices[index] == 1 { next = path.boundingBoxOfPath.applying(transform) }
             }
         }
-        // Script A overlaps I. Keep I's original ink position, but fit the mark
-        // before it with the same visible gap as the Chinese brand glyphs.
-        let size = min(initial.width, max(1, rest.boundingBoxOfPath.minX - initial.minX - ChineseBrandLayout.gap))
-        initial = CGRect(x: initial.minX, y: initial.midY - size / 2, width: size, height: size)
+        // Match I's painted top and bottom, preserving the native text position
+        // and the visible gap while keeping the mark's aspect ratio.
+        let width = next.height * BrandLogo.aspectRatio
+        let initial = CGRect(x: next.minX - ChineseBrandLayout.gap - width, y: next.minY,
+                             width: width, height: next.height)
         return Self(ink: ink, initial: initial)
     }
 }
@@ -70,7 +69,7 @@ private struct EnglishBrandLogoLayout: Layout {
         subviews[0].place(at: bounds.origin, anchor: .topLeading, proposal: proposal)
         subviews[1].place(at: bounds.origin, anchor: .topLeading, proposal: proposal)
         subviews[2].place(at: CGPoint(x: bounds.minX + artwork.initial.minX,
-                                     y: bounds.minY + y + artwork.initial.midY - artwork.initial.width / BrandLogo.aspectRatio / 2),
+                                     y: bounds.minY + y + artwork.initial.minY),
                           anchor: .topLeading, proposal: .unspecified)
     }
     func explicitAlignment(of guide: VerticalAlignment, in bounds: CGRect, proposal: ProposedViewSize,
