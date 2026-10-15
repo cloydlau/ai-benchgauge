@@ -21,6 +21,16 @@ public protocol OpenAIAccountRPC: Sendable {
 public actor OpenAIAppServer: OpenAIAccountRPC {
     private let profileURL: URL
     private let executableURL: URL?
+    private let requestTimeout: Duration
+    private let loginTimeout: Duration
+    private let findExecutable: @Sendable () -> URL?
+    struct PipeOperations: @unchecked Sendable {
+        #if !os(Windows)
+        var readBytes = read
+        #endif
+        var writeBytes: @Sendable (FileHandle, Data) throws -> Void = { try $0.write(contentsOf: $1) }
+    }
+    private let pipeOperations: PipeOperations
     private var process: Process?
     private var input: FileHandle?
     private var reader: Task<Void, Never>?
@@ -33,8 +43,18 @@ public actor OpenAIAppServer: OpenAIAccountRPC {
     private var completedLogins: [String: Bool] = [:]
 
     public init(profileURL: URL, executableURL: URL? = nil) {
+        self.init(profileURL: profileURL, executableURL: executableURL,
+                  requestTimeout: .seconds(30), loginTimeout: .seconds(300), findExecutable: { Self.installedExecutable() })
+    }
+
+    init(profileURL: URL, executableURL: URL?, requestTimeout: Duration, loginTimeout: Duration,
+         findExecutable: @escaping @Sendable () -> URL?, pipeOperations: PipeOperations = .init()) {
         self.profileURL = profileURL
         self.executableURL = executableURL
+        self.requestTimeout = requestTimeout
+        self.loginTimeout = loginTimeout
+        self.findExecutable = findExecutable
+        self.pipeOperations = pipeOperations
     }
 
     public static func installedExecutable(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL? {
@@ -96,8 +116,12 @@ public actor OpenAIAppServer: OpenAIAccountRPC {
         return try await sendRequest(method, params: params)
     }
 
+    var connectionGeneration: UUID { generation }
+
+    func availableExecutable() -> URL? { executableURL ?? findExecutable() }
+
     private func launch() throws {
-        guard let executable = executableURL ?? Self.installedExecutable() else {
+        guard let executable = availableExecutable() else {
             throw OpenAIConnectionError.helperMissing
         }
         #if os(Windows)
@@ -128,10 +152,12 @@ public actor OpenAIAppServer: OpenAIAccountRPC {
         let currentGeneration = UUID()
         generation = currentGeneration
         let output = stdout.fileHandleForReading
+        let operations = pipeOperations
         reader = Task.detached { [weak self] in
             var buffer = Data()
             var bytes = [UInt8](repeating: 0, count: 4096)
             while !Task.isCancelled {
+                var searchStart = buffer.endIndex
                 #if os(Windows)
                 let chunk = output.availableData
                 guard !chunk.isEmpty else { break }
@@ -140,15 +166,18 @@ public actor OpenAIAppServer: OpenAIAccountRPC {
                 // read(upToCount:) may wait to fill the requested count on a
                 // pipe. POSIX read returns the currently available response.
                 let count = bytes.withUnsafeMutableBytes {
-                    read(output.fileDescriptor, $0.baseAddress, $0.count)
+                    operations.readBytes(output.fileDescriptor, $0.baseAddress, $0.count)
                 }
                 if count < 0 && errno == EINTR { continue }
                 guard count > 0 else { break }
                 buffer.append(contentsOf: bytes.prefix(count))
                 #endif
-                while let newline = buffer.firstIndex(of: 10) {
+                // The previous fragment has already been searched. Scanning
+                // only appended bytes keeps long responses linear in size.
+                while let newline = buffer[searchStart...].firstIndex(of: 10) {
                     let line = Data(buffer[..<newline])
                     buffer.removeSubrange(...newline)
+                    searchStart = buffer.startIndex
                     await self?.receive(line, generation: currentGeneration)
                 }
                 if buffer.count > 1_048_576 { break }
@@ -158,11 +187,11 @@ public actor OpenAIAppServer: OpenAIAccountRPC {
         }
     }
 
-    private func send(_ message: [String: Any]) throws {
+    func send(_ message: [String: Any]) throws {
         guard let input else { throw OpenAIConnectionError.serviceFailed }
         var data = try JSONSerialization.data(withJSONObject: message)
         data.append(10)
-        do { try input.write(contentsOf: data) } catch { throw OpenAIConnectionError.serviceFailed }
+        do { try pipeOperations.writeBytes(input, data) } catch { throw OpenAIConnectionError.serviceFailed }
     }
 
     private func sendRequest(_ method: String, params: Data) async throws -> Data {
@@ -188,21 +217,21 @@ public actor OpenAIAppServer: OpenAIAccountRPC {
                 pending.removeValue(forKey: id)?.resume(throwing: error)
                 return
             }
+            let timeout = requestTimeout
             Task { [weak self] in
-                try? await Task.sleep(for: .seconds(30))
+                try? await Task.sleep(for: timeout)
                 await self?.expireRequest(id)
             }
         }
     }
 
-    private func receive(_ data: Data, generation: UUID) {
+    func receive(_ data: Data, generation: UUID) {
         guard generation == self.generation, data.count <= 1_048_576,
               let message = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
         if let id = message["id"] as? Int, let continuation = pending.removeValue(forKey: id) {
             if let error = message["error"] as? [String: Any] {
                 let text = (error["message"] as? String ?? "").lowercased()
-                let authFailure = ["unauthorized", "401", "not authenticated", "authentication required",
-                                   "refresh token", "refresh_token", "sign in", "not logged in"].contains { text.contains($0) }
+                let authFailure = Self.requiresReauthentication(text)
                 continuation.resume(throwing: authFailure ? OpenAIConnectionError.reauthRequired : .serviceFailed)
             } else if let result = message["result"], let data = try? JSONSerialization.data(withJSONObject: result) {
                 continuation.resume(returning: data)
@@ -223,6 +252,19 @@ public actor OpenAIAppServer: OpenAIAccountRPC {
         }
     }
 
+    static func requiresReauthentication(_ text: String) -> Bool {
+        let text = text.lowercased()
+        // Renewal transport failures mention refresh tokens too. Only explicit
+        // authentication rejection is evidence that another sign-in is needed.
+        return ["unauthorized", "not authenticated", "authentication required", "not logged in",
+                "status 401", "status: 401", "invalid_grant", "invalid_token", "authentication_error", "invalid refresh token",
+                "token_expired", "refresh_token_reused", "refresh_token_invalid",
+                "refresh token has expired", "refresh token has been revoked",
+                "refresh token is expired", "refresh token is revoked", "refresh token is invalid",
+                "refresh token has already been used", "please sign in again"]
+            .contains { text.contains($0) }
+    }
+
     public func waitForLogin(_ id: String) async throws {
         try Task.checkCancellation()
         if let success = completedLogins.removeValue(forKey: id) {
@@ -232,8 +274,9 @@ public actor OpenAIAppServer: OpenAIAccountRPC {
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                 loginWaiters[id] = continuation
+                let timeout = loginTimeout
                 Task { [weak self] in
-                    try? await Task.sleep(for: .seconds(300))
+                    try? await Task.sleep(for: timeout)
                     await self?.expireLogin(id)
                 }
             }
@@ -247,7 +290,7 @@ public actor OpenAIAppServer: OpenAIAccountRPC {
     private func expireLogin(_ id: String) { loginWaiters.removeValue(forKey: id)?.resume(throwing: OpenAIConnectionError.timedOut) }
     private func cancelLoginWaiter(_ id: String) { loginWaiters.removeValue(forKey: id)?.resume(throwing: CancellationError()) }
 
-    private func disconnected(generation: UUID) {
+    func disconnected(generation: UUID) {
         guard generation == self.generation else { return }
         stop(with: .serviceFailed)
     }

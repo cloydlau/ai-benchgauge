@@ -65,6 +65,40 @@ struct OpenAIConnectionTests {
     }
 
     @Test
+    func validAccessStillLoadsQuotaWhenRenewalIsUnavailableAndAfterRestart() async throws {
+        let (root, source, rpc) = try await fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let attempt = try await source.startLogin(for: target())
+        try await source.finishLogin(attempt, for: target())
+        let payload = try JSONSerialization.data(withJSONObject: ["exp": Date().addingTimeInterval(3600).timeIntervalSince1970])
+            .base64EncodedString().replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
+        let profile = await source.profileURL(for: target().id)
+        try JSONSerialization.data(withJSONObject: ["tokens": ["account_id": "original-account",
+            "access_token": "fixture.\(payload).signature"]]).write(to: profile.appending(path: "auth.json"))
+        await rpc.rejectRefresh(true)
+        let fresh = try await source.loadQuota(for: target())
+        guard case .windows = fresh?.status else { return recordFailure("A failed renewal must not invalidate working access") }
+        let restarted = OpenAIManagedQuotaSource(rootURL: root, transport: UnexpectedOpenAITransport(), sessionFactory: { _ in rpc })
+        let restored = try await restarted.loadQuota(for: target())
+        #expect(restored?.status == fresh?.status)
+        #expect(await rpc.refreshFlags() == [false, false])
+        // An explicit usage rejection still requests renewal and can require sign-in.
+        await rpc.rejectUsageOnce()
+        let rejected = try await source.loadQuota(for: target())
+        #expect(rejected?.status == .message(AccountQuotaMessage.reauthRequired))
+        #expect(await rpc.refreshFlags() == [false, false, false, true])
+        let expiredPayload = try JSONSerialization.data(withJSONObject: ["exp": Date().addingTimeInterval(-60).timeIntervalSince1970])
+            .base64EncodedString().replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
+        try JSONSerialization.data(withJSONObject: ["tokens": ["account_id": "original-account",
+            "access_token": "fixture.\(expiredPayload).signature"]]).write(to: profile.appending(path: "auth.json"))
+        let expired = try await source.loadQuota(for: target())
+        #expect(expired?.status == .message(AccountQuotaMessage.reauthRequired))
+        #expect(await rpc.refreshFlags() == [false, false, false, true, true])
+    }
+
+    @Test
     func testCancellationAndFailureReleaseTheLoginSoTheButtonCanRetry() async throws {
         let (root, source, rpc) = try await fixture()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -299,7 +333,7 @@ private actor ScriptedOpenAIAccountRPC: OpenAIAccountRPC {
         case "account/read":
             let object = try JSONSerialization.jsonObject(with: params) as? [String: Any]
             flags.append(object?["refreshToken"] as? Bool ?? false)
-            if rejectsRefresh { throw OpenAIConnectionError.reauthRequired }
+            if rejectsRefresh && object?["refreshToken"] as? Bool == true { throw OpenAIConnectionError.reauthRequired }
             if object?["refreshToken"] as? Bool == true, let token = refreshedAccessToken {
                 try writeCredentials(accessToken: token)
             }

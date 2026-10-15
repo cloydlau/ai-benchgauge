@@ -597,7 +597,16 @@ public actor AccountQuotaClient {
         guard response.body.count <= 1_048_576 else {
             return chip(target, .failed)
         }
-        if response.statusCode == 401 || response.statusCode == 403 {
+        if response.statusCode == 401 {
+            return chip(target, .reauth)
+        }
+        // A forbidden/challenge page is not proof of expired credentials.
+        // Honor an explicit authentication error only in an API JSON response.
+        if response.statusCode == 403,
+           let object = try? JSONSerialization.jsonObject(with: response.body) as? [String: Any],
+           let error = object["error"] as? [String: Any],
+           [error["code"], error["message"]].compactMap({ $0 as? String })
+            .contains(where: OpenAIAppServer.requiresReauthentication) {
             return chip(target, .reauth)
         }
         guard (200...299).contains(response.statusCode) else {
