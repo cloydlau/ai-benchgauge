@@ -1,5 +1,14 @@
 {
   "version": 1,
+  "deployment": {
+    "credentials": {
+      "provider": "wechat-upload",
+      "projectConfigs": [
+        "apps/weapp/project.config.json"
+      ],
+      "privateKeyPath": "apps/weapp/private.{appid}.key"
+    }
+  },
   "library": "../calmmit",
   "preset": "swift",
   "steps": {
@@ -101,11 +110,42 @@
   "dev": {
     "activity": [
       {
+        "kind": "mini-program",
+        "label": "小程序",
+        "receipt": "apps/weapp/.last-publish",
+        "sources": [
+          "apps/weapp/src",
+          "apps/weapp/test",
+          "apps/weapp/assets",
+          "apps/weapp/scripts",
+          "apps/weapp/vite.config.js",
+          "apps/weapp/postcss.config.js",
+          "apps/weapp/tsconfig.json",
+          "apps/weapp/package.json",
+          "apps/weapp/project.config.json",
+          "apps/weapp/ci-runtime/package.json",
+          "apps/weapp/ci-runtime/package-lock.json",
+          "fc/domain.mjs",
+          "fc/brand-catalog.json",
+          "fc/leaderboard-policy.json",
+          "assets/brand/header-logo.png",
+          "assets/brand/header-logo-dark.png",
+          "assets/logos",
+          "Sources/LeaderboardKit/SharedLeaderboardConfiguration.swift",
+          "config/app.json",
+          "LICENSE",
+          "package.json",
+          "pnpm-lock.yaml",
+          "pnpm-workspace.yaml",
+          "Scripts/weapp-deploy.mjs"
+        ]
+      },
+      {
         "kind": "mac-app",
         "executable": "outputs/AI-BenchGauge.app/Contents/MacOS/leaderboard-menu",
         "sources": [
           "Sources",
-          "apps",
+          "apps/macos",
           "assets",
           "config",
           "Package.swift",

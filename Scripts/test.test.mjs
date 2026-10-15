@@ -35,6 +35,37 @@ test('first failed suite blocks subsequent suites and writes a failing report', 
   assert.equal(JSON.parse(readFileSync(join(root, 'work', 'test-results', 'latest.json'))).status, 1)
 })
 
+test('mini-program business tests join the full offline gate and an empty suite is rejected', (t) => {
+  const root = fixture(t)
+  const directory = join(root, 'apps/weapp/test')
+  mkdirSync(directory, { recursive: true })
+  assert.throws(() => testCommands(root, { swiftcPath: '/missing/swiftc' }), /小程序测试/)
+  writeFileSync(join(directory, 'leaderboard.test.mjs'), 'test')
+  writeFileSync(join(directory, 'fixture.json'), '{}')
+  const commands = testCommands(root, { swiftcPath: '/missing/swiftc' })
+  assert.equal(commands.length, 3)
+  assert.ok(commands[1][1].includes(join(directory, 'leaderboard.test.mjs')))
+  assert.equal(testCommands(root, { coreOnly: true }).length, 1)
+})
+
+test('mini-program sources and build inputs invalidate cached passes but dist does not', (t) => {
+  const root = fixture(t)
+  const env = { ...process.env, CALMMIT_PATH: '' }
+  let before = testInputSignature(root, env)
+  for (const path of ['apps/weapp/src/app.js', 'apps/weapp/test/example.test.mjs', 'apps/weapp/scripts/build.mjs',
+    'apps/weapp/package.json', 'apps/weapp/vite.config.js', 'apps/weapp/project.config.json',
+    'package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml']) {
+    mkdirSync(join(root, path, '..'), { recursive: true })
+    writeFileSync(join(root, path), 'source')
+    const next = testInputSignature(root, env)
+    assert.notEqual(next, before, path)
+    before = next
+  }
+  mkdirSync(join(root, 'apps/weapp/dist'), { recursive: true })
+  writeFileSync(join(root, 'apps/weapp/dist/app.js'), 'generated')
+  assert.equal(testInputSignature(root, env), before)
+})
+
 test('passing suites yield a receipt which only the same full inputs can reuse', async (t) => {
   const root = fixture(t); let count = 0
   const options = { root, logger, commands: [['check', []]], run: async () => { count++; return 0 } }

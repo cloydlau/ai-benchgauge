@@ -17,8 +17,8 @@ import { acquireCommitLock } from './commit-lock.mjs'
 import { materializeAvatar, notifyDesktop } from './desktop-notify.mjs'
 import { gitProxyArgs, gitProxyValue } from './git-network.mjs'
 import { nodeExecutable } from './node-executable.mjs'
-import { runTestGate } from './test-repair.mjs'
 import { ci } from './calmmit.mjs'
+import { startWeappUploadWatch } from './weapp-deploy.mjs'
 
 const { workflowStatus } = await ci.load('workflow-status')
 const reportStatus = (state, message) => console.log(`[watch] ${workflowStatus(state, message)}`)
@@ -78,6 +78,9 @@ function watchTargets() {
     join(root, 'test.sh'),
     join(root, 'dev.sh'),
     join(root, 'calmmit.config.json'),
+    join(root, 'package.json'),
+    join(root, 'pnpm-workspace.yaml'),
+    join(root, 'pnpm-lock.yaml'),
   ].filter((path) => existsSync(path))
 }
 
@@ -113,7 +116,7 @@ function collect(path, files) {
     throw error
   }
   for (const name of names) {
-    if (name.startsWith('.') || ['bin', 'obj', 'node_modules'].includes(name)) continue
+    if (name.startsWith('.') || /\.(?:key|pem)$/.test(name) || ['bin', 'obj', 'node_modules', 'dist', 'project.private.config.json'].includes(name)) continue
     collect(join(path, name), files)
   }
 }
@@ -413,6 +416,8 @@ async function main() {
   }
 
   process.on('exit', () => watchLock.release())
+  // 小程序独立验证自己的源码；不启动第二个提交监听，也不重启桌面应用。
+  const stopWeapp = await startWeappUploadWatch()
   const commitEnabled = autocommitEnabled()
   const pushEnabled = autopushEnabled()
   const deployEnabled = autodeployEnabled()
@@ -753,6 +758,7 @@ async function main() {
   }, pollMs)
 
   const stop = () => {
+    stopWeapp()
     clearTimer()
     clearInterval(poll)
     console.log('\n[watch] 已停止')

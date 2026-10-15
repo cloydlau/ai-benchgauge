@@ -1,0 +1,14 @@
+{
+  "pages": ["pages/leaderboard/index", "pages/about/index"],
+  "window": {
+    "navigationStyle": "custom",
+    "navigationBarTitleText": "AI 天梯",
+    "navigationBarTextStyle": "@navText",
+    "backgroundColor": "@background",
+    "backgroundTextStyle": "@backgroundText"
+  },
+  "darkmode": true,
+  "themeLocation": "theme.json",
+  "lazyCodeLoading": "requiredComponents",
+  "sitemapLocation": "sitemap.json"
+}

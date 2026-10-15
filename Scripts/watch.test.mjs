@@ -50,9 +50,11 @@ function watcherFixture(t, { binary = 'fresh', restartFails = false, testsFail =
   mkdirSync(join(root, 'Tests'))
   mkdirSync(join(app, 'Contents', 'MacOS'), { recursive: true })
   const original = dirname(fileURLToPath(import.meta.url))
-  for (const name of ['calmmit.mjs', 'watch.mjs', 'commit-identity.mjs', 'commit-lock.mjs', 'desktop-notify.mjs', 'git-network.mjs', 'node-executable.mjs']) {
+  for (const name of ['calmmit.mjs', 'watch.mjs', 'test.mjs', 'commit-identity.mjs', 'commit-lock.mjs', 'desktop-notify.mjs', 'git-network.mjs', 'node-executable.mjs']) {
     copyFileSync(join(original, name), join(scripts, name))
   }
+  // These desktop watcher fixtures never construct or upload a mini-program.
+  writeFileSync(join(scripts, 'weapp-deploy.mjs'), 'export async function startWeappUploadWatch() { return () => {} }')
   const config = JSON.parse(readFileSync(join(original, '../calmmit.config.json'), 'utf8'))
   config.library = resolve(original, '..', config.library)
   writeFileSync(join(root, 'calmmit.config.json'), JSON.stringify(config))

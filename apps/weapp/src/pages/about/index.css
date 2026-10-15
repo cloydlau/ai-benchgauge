@@ -1,0 +1,14 @@
+.about-page { min-height: 100vh; padding: 0 28rpx calc(env(safe-area-inset-bottom) + 32rpx); }
+.about-nav { display: flex; align-items: center; gap: 14rpx; font-size: 28rpx; font-weight: 600; }.about-nav .tap { width: 36px; }
+.about-brand { padding-top: 44rpx; display: flex; align-items: center; gap: 16rpx; }.about-brand .about-version { font-size: 22rpx; font-weight: 400; }
+.about-description { display: block; color: var(--muted); line-height: 1.65; padding: 26rpx 0; }
+.about-card { margin: 18rpx 0; border-radius: 20rpx; background: var(--card); padding: 26rpx; }
+.section-title { display: block; font-weight: 600; margin-bottom: 16rpx; font-size: 25rpx; }
+.download-link { text-decoration: underline; text-underline-offset: 5rpx; font-size: 23rpx; color: var(--blue); text-align: left; word-break: break-all; min-height: 36px; display: flex; align-items: center; }
+.source-link { display: flex; justify-content: space-between; align-items: center; text-align: left; border-bottom: 1rpx solid var(--line); min-height: 46px; color: var(--muted); font-size: 24rpx; }.source-link:last-child { border: 0; }
+.source-link text { text-decoration: underline; text-underline-offset: 5rpx; color: var(--blue); }
+.notice-intro { display: block; margin-bottom: 16rpx; font-size: 22rpx; line-height: 1.6; }
+.license-heading { display: flex; align-items: center; gap: 14rpx; min-width: 0; }
+.license-type { color: var(--muted); font-size: 21rpx; flex-shrink: 0; }
+.license-toggle { display: flex; justify-content: space-between; min-height: 42px; align-items: center; font-size: 24rpx; }
+.license { display: block; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 23rpx; color: var(--muted); line-height: 1.6; margin-top: 22rpx; }.notices > text { display: block; margin: 12rpx 0; }

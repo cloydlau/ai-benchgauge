@@ -30,6 +30,7 @@
 
 | 系统 | 处理器 | 支持情况 |
 | --- | --- | --- |
+| 微信小程序 | iOS / Android 微信 | 已加入客户端及共享榜单；开发者预览和发布待完成 |
 | iOS 17 / iPadOS 17 及以上 | 能运行对应系统的 iPhone、iPad | 已加入原生工程，尚未发布公开 TestFlight / App Store 版本 |
 | Windows 11 | 64 位 Intel / AMD（`x64`） | 支持 |
 | Windows 10 | 64 位 Intel / AMD（`x64`） | 兼容目标；.NET 10 官方支持仍受维护的 LTSC / Enterprise 版本，Home / Pro 尚未验证 |
@@ -186,3 +187,7 @@ MODEL_NAME=实际模型名 Scripts/commit.sh -m "feat(menu): …"
 ### 本机 iPhone 自动更新
 
 BenchGauge 手机工程已接入 Calmmit：源码变更 → 语法检查、完整测试和 iOS 构建检查 → 开发签名编译 → 自动安装到已配对 iPhone。`./dev.sh` 启动和后续变更也会触发，独立于 Mac 自动部署开关。仅在本机 `.benchgauge-ios.local.json` 中启用，设备和 Apple Team 不入库；手机离线时排队重试，同一 Bundle ID 覆盖安装，源码变化或检查失败不会交付旧候选。状态：`node Scripts/ios-deploy.mjs status`，日志：`work/ios-deploy/deploy.log`。配置与暂停/重试说明见 [手机开发文档](apps/ios/README.md#local-iphone-auto-update-with-calmmit)。这条流程用于个人开发设备，不代替商店发行审核。
+
+## 微信小程序开发版
+
+[小程序工程](apps/weapp/README.md) 沿用 Watrek 的 Vue Mini / Vant Weapp / weapp-vite / Tailwind 技术栈，读取同一份共享榜单，支持四类双榜、模型／公司、独立筛选、离线缓存和三种语言。运行 `pnpm build:weapp`，在微信开发者工具导入 `apps/weapp`。已配置 BenchGauge 正式 AppID `wx80689a4ae64a0c33`，已接入本机自动上传并于 2026-10-15 上传开发版 `20261015`；账号额度仍由桌面版提供。

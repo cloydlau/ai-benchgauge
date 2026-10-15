@@ -1,0 +1,25 @@
+{
+  "name": "@benchgauge/weapp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "weapp-vite dev",
+    "open": "weapp-vite open",
+    "build": "weapp-vite build && vant-tree-shaking --vantPath=dist/miniprogram_npm/@vant/weapp && node scripts/verify-build.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@vue-mini/core": "1.2.16",
+    "@vant/weapp": "1.11.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "autoprefixer": "10.6.1",
+    "postcss": "8.5.29",
+    "tailwindcss": "4.3.3",
+    "weapp-tailwindcss": "5.6.1",
+    "vant-tree-shaking": "1.0.4",
+    "weapp-vite": "7.5.0"
+  }
+}

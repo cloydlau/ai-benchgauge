@@ -10,3 +10,11 @@ For changes to a desktop interface, obtain real Windows WPF and Mac AppKit / Swi
 - Release publishing depends on the `native-visual-review` protected environment. Only a human may approve it after reviewing that run's report. Agents must not approve or bypass this gate, remove required reviewers, or manufacture a review record.
 
 Generated comparison screenshots stay in ignored `work/` and CI artifacts. Existing privacy/media commit checks remain applicable to any screenshots submitted to Git history.
+
+## WeChat DevTools MCP
+
+For mini-program runtime and UI debugging, use the connected official `wechat-devtools` MCP. The canonical IDE project is this repository's `apps/weapp` directory (not `dist`, the repository root, an old checkout, or an ignored preview fixture). Resolve it to an absolute path from the current checkout and pass it as `project` on every project-specific tool call.
+
+Use the installed official `wechatide-skill` and read its current `SKILL.md` version. Start with `check_wechatide_status` (pass that version) and `project_list`. Import the canonical directory with `project_import` only if missing, then use `open_project_window` to open or reuse its window. Confirm the project and page with `automation_runtime_info` before interactions. Use console/network reads and the automation tools to verify the actual simulator; report connection or compile failures as failures. Keep using the repository's normal build/watch workflow for generated files.
+
+The host MCP connection is in `~/.codex/config.toml` and uses the DevTools-owned MCP token. Never put that token in this repository or logs. The four mini-programs share one connection and select projects explicitly. Follow the existing media intent/review rules before screenshots or recordings.

@@ -27,6 +27,10 @@ export function testInputSignature(root = testRoot, env = process.env, { include
     }
   }
   for (const path of [...(includeSources ? ['Sources', 'apps/macos/Sources', 'apps/ios/App', 'apps/ios/UI', 'apps/windows/BenchGauge', 'apps/windows/BenchGauge.Shared'] : []), 'Tests', 'apps/ios/UITests', 'apps/windows/BenchGauge.Tests', 'apps/windows/Directory.Build.props', 'apps/windows/BenchGauge/BenchGauge.csproj', 'apps/windows/BenchGauge/packages.lock.json', 'apps/windows/BenchGauge.Shared/BenchGauge.Shared.csproj', 'apps/windows/BenchGauge.Shared/packages.lock.json', 'apps/windows/installer', 'apps/windows/Licenses', 'assets', 'config', 'Scripts', '.github', 'Package.swift', 'Package.resolved', 'test.sh', 'make-app.sh', 'dev.sh', 'LICENSE']) collect(join(root, path))
+  collect(join(root, 'fc'))
+  for (const path of ['apps/weapp/src', 'apps/weapp/test', 'apps/weapp/scripts', 'apps/weapp/package.json',
+    'apps/weapp/vite.config.js', 'apps/weapp/postcss.config.js', 'apps/weapp/project.config.json',
+    'package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml']) collect(join(root, path))
   const ciConfig = join(root, 'calmmit.config.json')
   if (existsSync(ciConfig)) {
     collect(ciConfig)
@@ -46,9 +50,17 @@ export function testCommands(root = testRoot, { coreOnly = false, scriptsOnly = 
     if (!files.length) throw new Error('未找到脚本测试，拒绝报告通过')
     commands.push([node, ['--test', ...(coverage ? ['--experimental-test-coverage',
       `--test-coverage-include=${join(root, 'Scripts', '*.mjs')}`, '--test-coverage-exclude=**/*.test.mjs'] : []), ...files]])
+    const miniTests = join(root, 'apps/weapp/test')
+    if (existsSync(miniTests)) {
+      const files = readdirSync(miniTests).filter(name => name.endsWith('.test.mjs')).sort().map(name => join(miniTests, name))
+      if (!files.length) throw new Error('未找到小程序测试，拒绝报告通过')
+      commands.push([node, ['--test', ...files]])
+    }
   }
   if (!scriptsOnly) {
-    const args = ['test', '--disable-xctest', '--package-path', root,
+    // Native rendering holds MainActor; serialize suites so it cannot consume
+    // unrelated network/pipe fixtures' deadlines while their tasks are suspended.
+    const args = ['test', '--no-parallel', '--disable-xctest', '--package-path', root,
       '--scratch-path', join(root, 'work', 'unit-test-build'),
       '--cache-path', join(root, 'work', 'swiftpm-cache'), '--manifest-cache', 'local', '--disable-sandbox']
     if (coverage) args.push('--enable-code-coverage')

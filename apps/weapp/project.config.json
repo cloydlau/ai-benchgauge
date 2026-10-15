@@ -1,0 +1,38 @@
+{
+  "description": "AI 天梯 · 双榜对照",
+  "miniprogramRoot": "dist/",
+  "compileType": "miniprogram",
+  "appid": "wx80689a4ae64a0c33",
+  "projectname": "ai-benchgauge-weapp",
+  "libVersion": "3.8.12",
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "postcss": false,
+    "minified": true,
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "compileHotReLoad": false,
+    "uploadWithSourceMap": false,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "simulatorPluginLibVersion": {},
+  "editorSetting": {}
+}
