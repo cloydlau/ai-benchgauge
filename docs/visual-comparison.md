@@ -1,3 +1,21 @@
+## Country and source header centering — 2026-10-15
+
+The mini-program positions each filter caret absolutely beside a centred label. Windows replaces the horizontal caption/caret stack with a centred caption and a zero-width Canvas overlay. iPhone/iPad use equal-width caret slots on both sides of the title, with only the right caret visible, so native Menu labels keep the caption centred over its column. Menus and filtering callbacks are unchanged. Mac already draws the centred title and caret separately and needs no implementation change.
+
+Mini-program production build and simulator before/after inspection pass. Mac and shared SwiftUI compilation pass. WPF Release cross-compilation passes with zero warnings/errors. Ignored `work/header-centering/mac/macos` contains 18 original native Mac frames from the saved synthetic fixture, covering three languages, both themes and shown/refreshed/settled checkpoints at 850×720 points, macOS 27.0.1 (26A434), actual 1× scale. Review confirms centred captions and separate carets; all refreshed/settled pairs match. This is a current-state check of the unchanged Mac implementation.
+
+The isolated iOS simulator build passes. Original iPhone 18 Pro / iOS 27 / 3× Chinese-light before/after captures use the same 20-row synthetic data at 402×874 points. Review confirms that both caption centres align with their body columns and that the right carets remain visible; symmetric caret slots slightly widen mobile filter columns. The mobile harness freezes unrelated scrolling code because concurrent workspace edits changed its cube API. The initial overlay attempt was discarded after native Menu labels omitted its carets. iPad native capture did not complete; rotation, other mobile languages/themes and Dynamic Type were not reviewed for the final layout.
+
+Current-change Windows native before/after captures and a source-matched CI `native-visual-comparison` artifact are unavailable on this Mac host. Windows visual alignment and other DPI settings remain unverified; compilation does not substitute for native visual review. No protected release approval is claimed.
+
+## Desktop brand initial height — 2026-10-15
+
+The A-shaped mark now uses the adjacent I's painted height and vertical position in the Chinese and English Apple titles and Windows WPF header. Its aspect ratio, visible gap and the remaining title's native positions are preserved. Width-based sizing previously made the mark extend below I. The Apple title views are shared with mobile; mobile native screenshots were not repeated for this desktop report.
+
+Ignored `work/desktop-initial-height/review.html` and `review.json` retain 36 native Mac before/after pairs, source snapshots and pixel measurements. Both phases use the same synthetic fixture, 850×720 content viewport, macOS 27.0.1 (26A434) and actual 1× backing scale. English, Simplified/Traditional Chinese, light/dark and normal/failed refresh cover shown/refreshed/settled frames. All measured mark/I bottoms match; English tops match, and Chinese dark tops differ by one antialiased raster pixel. Every refreshed/settled header pair is stable. Full-window differences also include concurrent help-control and filter-caption changes in the shared checkout; some body images settle asynchronously. Review confirms the shorter mark, preserved proportions and intact title spacing.
+
+All four existing BrandHeadingTests/BrandLogoTests pass, including native frame/baseline compatibility and rendering at multiple font sizes. Windows WPF Release cross-compilation passes with zero warnings/errors. Current-change Windows native captures, actual Windows DPI review and a source-matched CI/native-visual-comparison artifact remain unavailable. No Windows visual sign-off or protected release approval is claimed.
+
 ## Quieter subtitle ampersand — 2026-10-13
 
 Mac and iPhone/iPad use a shared `FeatureSubtitle` to color only `&` at 55% opacity within one attributed Text. Windows applies the same opacity to the ampersand's native FormattedText range. Both preserve the full localized caption, font, continuous spacing and accessibility text; the question mark retains its preceding 55% treatment.
