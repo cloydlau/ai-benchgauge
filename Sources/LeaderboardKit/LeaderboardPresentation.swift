@@ -1,6 +1,6 @@
 import Foundation
 
-/// Presentation rules for the adaptive iPad layout, aligned with the desktop UI.
+/// Shared presentation rules for Mac, iPhone and iPad leaderboards.
 public enum LeaderboardPresentation {
     public static func rows(_ board: Leaderboard?, grouping: LeaderboardGrouping,
                             country: OrganizationCountry? = nil) -> [LeaderboardEntry] {
@@ -8,24 +8,30 @@ public enum LeaderboardPresentation {
     }
 
     public static func rows(_ board: Leaderboard?, grouping: LeaderboardGrouping,
-                            filter: LeaderboardCountryFilter) -> [LeaderboardEntry] {
-        let entries = (board?.entries ?? []).filter(filter.matches)
+                            filter: LeaderboardCountryFilter, openness: LeaderboardOpennessFilter = .all) -> [LeaderboardEntry] {
+        let entries = filteredEntries(board, country: filter, openness: openness)
         return grouping == .company ? CompanyLeaderboard.rank(entries).map(\.entry) : entries
     }
 
-    public static func companies(_ board: Leaderboard?, filter: LeaderboardCountryFilter) -> [CompanyStanding] {
-        CompanyLeaderboard.rank((board?.entries ?? []).filter(filter.matches))
+    public static func companies(_ board: Leaderboard?, filter: LeaderboardCountryFilter,
+                                 openness: LeaderboardOpennessFilter = .all) -> [CompanyStanding] {
+        CompanyLeaderboard.rank(filteredEntries(board, country: filter, openness: openness))
+    }
+
+    private static func filteredEntries(_ board: Leaderboard?, country: LeaderboardCountryFilter,
+                                        openness: LeaderboardOpennessFilter) -> [LeaderboardEntry] {
+        (board?.entries ?? []).filter { country.matches($0) && openness.matches($0) }
     }
 
     public static func countries(_ board: Leaderboard?, grouping: LeaderboardGrouping) -> [OrganizationCountry] {
         let available = Set((board?.entries ?? []).compactMap {
-            OrganizationRegion.country($0.organization, modelName: $0.name)
+            OrganizationRegion.country(for: $0)
         })
         return OrganizationCountry.allCases.filter { available.contains($0) }
     }
 
     public static func countryFilters(_ board: Leaderboard?) -> [LeaderboardCountryFilter] {
-        let countries = (board?.entries ?? []).map { OrganizationRegion.country($0.organization, modelName: $0.name) }
+        let countries = (board?.entries ?? []).map { OrganizationRegion.country(for: $0) }
         let available = Set(countries.compactMap { $0 })
         return [.all] + OrganizationCountry.allCases.filter { available.contains($0) }.map(LeaderboardCountryFilter.country)
             + (countries.contains(where: { $0 == nil }) ? [.unknown] : [])
@@ -79,7 +85,8 @@ public enum LeaderboardPresentation {
         }
     }
 
-    public static func sourceHelp(_ kind: LeaderboardKind, language: AppLanguage, board: Leaderboard?) -> String {
+    public static func sourceHelp(_ kind: LeaderboardKind, language: AppLanguage, board: Leaderboard?,
+                                  includesFetchTime: Bool = true) -> String {
         var parts = [sourceSummary(kind, language: language), language.text("Scores are not directly comparable across lists", "两榜分数不直接互比")]
         if let date = board?.sourceUpdatedAt {
             let formatter = DateFormatter()
@@ -90,7 +97,46 @@ public enum LeaderboardPresentation {
             parts.append("\(label) \(formatter.string(from: date))")
         }
         if let note = board?.sourceNote, !note.isEmpty { parts.append(note) }
+        if includesFetchTime { parts.append(sourceTimeHelp(board, language: language)) }
         return parts.joined(separator: language.text(". ", "。"))
+    }
+
+    /// Keep source publication and our successful fetch distinct, including
+    /// boards whose source publishes no timestamp. Never substitute one for the other.
+    public static func sourceTimes(_ board: Leaderboard?, language: AppLanguage,
+                                   timeZone: TimeZone = .current) -> (updated: String, fetched: String) {
+        let formatter = DateFormatter()
+        formatter.locale = language.locale
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "M/d HH:mm"
+        let updated = board?.sourceUpdatedAt.map { formatter.string(from: $0) } ?? "—"
+        let fetched = board.map { formatter.string(from: $0.fetchedAt) } ?? "—"
+        return (language.text("Updated \(updated)", "更新 \(updated)"),
+                language.text("Fetched \(fetched)", "抓取 \(fetched)"))
+    }
+
+    public static func displayTime(_ board: Leaderboard?, language: AppLanguage,
+                                   timeZone: TimeZone = .current) -> String {
+        guard let board else { return "—" }
+        let date = max(board.sourceUpdatedAt ?? board.fetchedAt, board.fetchedAt)
+        let formatter = DateFormatter()
+        formatter.locale = language.locale
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "M/d HH:mm"
+        return formatter.string(from: date)
+    }
+
+    public static func sourceTimeHelp(_ board: Leaderboard?, language: AppLanguage) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = language.locale
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .medium
+        let updated = board?.sourceUpdatedAt.map { formatter.string(from: $0) }
+            ?? language.text("Not published by the source", "来源未提供")
+        let fetched = board.map { formatter.string(from: $0.fetchedAt) }
+            ?? language.text("Waiting for first fetch", "等待首次抓取")
+        return language.text("Source updated: \(updated)\nFetched: \(fetched)",
+                             "源更新时间：\(updated)\n抓取时间：\(fetched)")
     }
 
     public static func rankingUpdated(_ snapshot: LeaderboardSnapshot, category: LeaderboardCategory,
@@ -121,14 +167,14 @@ public enum LeaderboardCountryFilter: Equatable, Sendable, Hashable {
     case all, country(OrganizationCountry), unknown
 
     public func matches(_ entry: LeaderboardEntry) -> Bool {
-        let country = OrganizationRegion.country(entry.organization, modelName: entry.name)
+        let country = OrganizationRegion.country(for: entry)
         return switch self { case .all: true; case .country(let selected): country == selected; case .unknown: country == nil }
     }
     public func title(language: AppLanguage) -> String {
         switch self {
         case .all: language.text("All countries", "全部国家")
         case .country(let country): "\(country.flagEmoji)  \(country.localizedName(language: language))"
-        case .unknown: language.text("Unknown country", "国家未知")
+        case .unknown: language.text("Unknown country", "未知")
         }
     }
 }

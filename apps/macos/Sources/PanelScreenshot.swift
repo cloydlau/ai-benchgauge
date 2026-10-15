@@ -176,7 +176,9 @@ enum PanelScreenshot {
     /// Header text can look "successful" even when the table did not paint.
     /// Sample only the table band.
     private static func tableRegionVariety(_ rep: NSBitmapImageRep?) -> Int {
-        regionVariety(rep, xs: [0.08, 0.2, 0.36, 0.52, 0.7, 0.88], ys: [0.3, 0.42, 0.54, 0.66, 0.78, 0.9])
+        // Include the interior of the right name column: source/country filters
+        // can leave the entire left board empty. Its right edge may be blank.
+        regionVariety(rep, xs: [0.08, 0.2, 0.36, 0.52, 0.6, 0.7, 0.88], ys: [0.3, 0.42, 0.54, 0.66, 0.78, 0.9])
     }
 
     private static func regionVariety(

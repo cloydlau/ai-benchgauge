@@ -1,10 +1,8 @@
 # AI BenchGauge
 
-*AI Benchmarks & Quotas — who's on top, how much you've got left.*
-
 **English** | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-Hant.md)
 
-**Compare two leaderboards at a glance. Keep model rankings and account quotas in your macOS menu bar or Windows tray.**
+**Blind user comparisons capture experience; task benchmarks measure capability. Compare both leaderboards to see who’s on top; track quotas to know how much you’ve got left.**
 
 `macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `3 languages` · [MIT License](LICENSE)
 
@@ -13,7 +11,7 @@
   <img src="docs/screenshots/leaderboard-model-light.png" alt="AI BenchGauge model view with paired rankings and provider quotas in light mode" width="850">
 </picture>
 
-*Real model view: two Top 20 leaderboards side by side, with the CC Switch quota strip above them.*
+*Real model view: two complete, scrollable leaderboards side by side, with the CC Switch quota strip above them.*
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/leaderboard-company-dark.png">
@@ -22,7 +20,7 @@
 
 *Real company view: each organization is ranked by its strongest listed model.*
 
-Stop switching between leaderboard tabs. Open the menu bar to compare the Top 20 from Artificial Analysis and Arena side by side. If you use [CC Switch](https://github.com/farion1231/cc-switch), supported provider quotas and reset times appear above the rankings.
+Stop switching between leaderboard tabs. Open the menu bar to compare the full rankings from Artificial Analysis and Arena side by side. If you use [CC Switch](https://github.com/farion1231/cc-switch), supported provider quotas and reset times appear above the rankings.
 
 > If this saves you a few trips to leaderboard and quota pages, consider giving the project a **Star ⭐**.
 
@@ -116,7 +114,7 @@ Image and video use their dedicated boards. The Artificial Analysis Coding Agent
 Application updates check stable GitHub Releases at launch and every 24 hours, downloading and verifying new versions in the background.
 Only a prepared update and an active app window trigger the mandatory, single-button “Restart to update” dialog.
 Hidden or inactive windows never steal focus. Clicking the button installs and starts the new version.
-Click the footer version to check immediately. See [release setup and signing](docs/releasing.md).
+See [release setup and signing](docs/releasing.md).
 
 ## Quick start
 

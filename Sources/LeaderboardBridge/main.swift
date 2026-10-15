@@ -8,6 +8,8 @@ struct Request: Decodable, Sendable {
     var command: String
     var category: String?
     var grouping: String?
+    var sources: [String: String]?
+    var countries: [String: String]?
     var language: String?
     var providerID: String?
     var loginID: String?
@@ -49,11 +51,15 @@ struct Board: Encodable {
     var kind: String; var title: String; var url: String
     var updatedAt: String?; var error: String?; var entries: [Entry]
     var fetchedAt: String? = nil
+    var countryOptions: [CountryOption]? = nil
 }
+struct CountryOption: Encodable { var value: String; var label: String }
 struct Entry: Encodable {
     var rank: Int; var name: String; var score: Double
     var organization: String?; var country: String?; var logo: String?
     var codingURL: String?; var apiURL: String?; var help: String?
+    var openness: String? = nil
+    var brandColor: String? = nil; var logoPNG: String? = nil; var initials: String? = nil
 }
 struct Quota: Encodable {
     var id: String; var name: String; var isCurrent: Bool; var isStale: Bool
@@ -119,7 +125,7 @@ actor Engine {
         let category = LeaderboardCategory(rawValue: request.category ?? "general") ?? .general
         let language = AppLanguage(rawValue: request.language ?? "en") ?? .english
         do {
-            guard allowsAccountAccess || ["state", "refreshBoards"].contains(request.command) else {
+            guard allowsAccountAccess || ["state", "cachedBoards", "refreshBoards"].contains(request.command) else {
                 return Response(id: request.id, error: "Account access disabled for offline fixtures")
             }
             if let connected = request.qwenWebsiteConnected { qwenWebsiteConnected = connected }
@@ -177,7 +183,7 @@ actor Engine {
                         }
                     }
                     if case .note = failure { qwenWebsiteConnected = true }
-                    return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language),
+                    return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language, sources: request.sources, countries: request.countries),
                         qwenAuthenticated: { if case .note = failure { return true }; return nil }(), qwenQuotaCaptured: false)
                 }
                 qwenWebsiteFailure = nil; qwenWebsiteConnected = true
@@ -189,7 +195,7 @@ actor Engine {
                     try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: qwenCacheFile.path)
                     #endif
                 }
-                return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language),
+                return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language, sources: request.sources, countries: request.countries),
                     qwenAuthenticated: true, qwenQuotaCaptured: true)
             case "captureXAI":
                 guard let text = request.pageText, text.utf8.count <= 1_048_576 else { return Response(id: request.id, error: "No matching plan date") }
@@ -210,6 +216,7 @@ actor Engine {
                     await refreshXAIKeepAliveIfDue(authFileURL: authURL)
                 }
                 return Response(id: request.id)
+            case "cachedBoards": await readCachedBoards(category)
             case "refreshBoards": await refreshBoards(category)
             case "refreshQuotas", "refreshCurrentQuota":
                 try await refreshQuotas(onlyCurrent: request.command == "refreshCurrentQuota")
@@ -224,7 +231,7 @@ actor Engine {
                 if !apiIDs.isEmpty {
                     try await refreshQuotas(onlyCurrent: false, requestedProviderIDs: apiIDs)
                 }
-                return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language),
+                return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language, sources: request.sources, countries: request.countries),
                     qwenQuotaRefreshNeeded: !websiteIDs.isEmpty)
             case "retryQuota":
                 guard let id = request.providerID, targets[id]?.kind == .zhipu else {
@@ -253,7 +260,7 @@ actor Engine {
                 case .connected:
                     lastQuotaRefresh = nil
                     try? await refreshQuotas(onlyCurrent: false)
-                    return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language), loginState: "saved")
+                    return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language, sources: request.sources, countries: request.countries), loginState: "saved")
                 }
             case "cancelXAI": await xaiLogin.cancel()
             case "connectOpenAI":
@@ -271,7 +278,7 @@ actor Engine {
                 if let id = request.providerID { await official.cancelLogin(for: id) }
             default: return Response(id: request.id, error: "Unknown command")
             }
-            return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language))
+            return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language, sources: request.sources, countries: request.countries))
         } catch let error as XAIDeviceLoginError {
             return Response(id: request.id, loginState: error.state)
         } catch {
@@ -287,16 +294,34 @@ actor Engine {
         lastBoardRefresh[category] = Date()
         let fetcher = self.fetcher
         let results = await withTaskGroup(of: (LeaderboardKind, Leaderboard?).self) { group in
-            for kind in category.boardKinds { group.addTask { (kind, try? await fetcher.fetch(kind)) } }
+            for kind in category.boardKinds { group.addTask { (kind, try? await fetcher.fetch(kind, onCachedBoard: { board in
+                await self.acceptSharedBoard(board)
+            })) } }
             var results: [(LeaderboardKind, Leaderboard?)] = []
             for await result in group { results.append(result) }
             return results
         }
         for (kind, board) in results {
-            if let board { snapshot.boards[kind] = board; errors.removeValue(forKey: kind) }
+            if let board {
+                if board.canReplace(snapshot.boards[kind]) { snapshot.boards[kind] = board }
+                errors.removeValue(forKey: kind)
+            }
             else { errors[kind] = "Refresh failed" }
         }
         cache.save(snapshot)
+    }
+    private func acceptSharedBoard(_ board: Leaderboard) {
+        guard board != snapshot.boards[board.kind], board.canReplace(snapshot.boards[board.kind]) else { return }
+        snapshot.boards[board.kind] = board
+        errors[board.kind] = nil
+        cache.save(snapshot)
+    }
+    private func readCachedBoards(_ category: LeaderboardCategory) async {
+        let fetcher = self.fetcher
+        await withTaskGroup(of: Leaderboard?.self) { group in
+            for kind in category.boardKinds { group.addTask { try? await fetcher.fetchCached(kind) } }
+            for await board in group { if let board { acceptSharedBoard(board) } }
+        }
     }
     private func refreshQuotas(onlyCurrent: Bool, requestedProviderID: String? = nil, requestedProviderIDs: Set<String>? = nil) async throws {
         guard !refreshingQuotas else { return }
@@ -412,25 +437,41 @@ actor Engine {
         return XaiAuthFile.selectedAccount(snapshot)?.id
     }
 
-    private func project(category: LeaderboardCategory, grouping: String?, language: AppLanguage) -> State {
+    private func project(category: LeaderboardCategory, grouping: String?, language: AppLanguage, sources: [String: String]? = nil, countries: [String: String]? = nil) -> State {
         let now = Date()
         let boards = category.boardKinds.map { kind -> Board in
             let formatter = ISO8601DateFormatter()
             let board = snapshot.boards[kind]
-            let standings = grouping == "company" ? CompanyLeaderboard.rank(board?.entries ?? []) : []
-            let entries = grouping == "company" ? standings.map(\.entry) : (board?.entries ?? [])
+            let sourceFilter = LeaderboardOpennessFilter(rawValue: sources?[kind.rawValue] ?? "all") ?? .all
+            let countryValue = countries?[kind.rawValue] ?? ""
+            let countryFilter: LeaderboardCountryFilter = countryValue == "unknown" ? .unknown
+                : OrganizationCountry(rawValue: countryValue).map(LeaderboardCountryFilter.country) ?? .all
+            let models = (board?.entries ?? []).filter { sourceFilter.matches($0) && countryFilter.matches($0) }
+            let standings = grouping == "company" ? CompanyLeaderboard.rank(models) : []
+            let entries = grouping == "company" ? standings.map(\.entry) : models
             return Board(kind: kind.rawValue, title: kind.sourcePrefix, url: kind.sourceURL.absoluteString,
-                         updatedAt: board.map { formatter.string(from: $0.sourceUpdatedAt ?? $0.fetchedAt) },
+                         updatedAt: board?.sourceUpdatedAt.map { formatter.string(from: $0) },
                          error: errors[kind].map { _ in language.text("Refresh failed; showing saved data", "刷新失败，显示已保存的数据") },
                          entries: entries.map { entry in
                 let links = PurchaseLinkCatalog.links(forOrganization: entry.organization, modelName: entry.name)
                 return Entry(rank: entry.rank, name: entry.name, score: entry.score, organization: entry.organization,
-                             country: OrganizationRegion.country(entry.organization, modelName: entry.name)?.rawValue,
+                             country: OrganizationRegion.country(for: entry)?.rawValue,
                              logo: OrganizationLogoCatalog.resolvedKey(organization: entry.organization, modelName: entry.name),
                              codingURL: PurchaseLinkCatalog.preferredLink(from: links.codingPlan, language: language)?.url.absoluteString,
                              apiURL: PurchaseLinkCatalog.preferredLink(from: links.payAsYouGo, language: language)?.url.absoluteString,
-                             help: standings.first { $0.entry.rank == entry.rank }.map { CompanyLeaderboard.scoreHelp(for: $0, language: language) })
-            }, fetchedAt: board.map { formatter.string(from: $0.fetchedAt) })
+                             help: standings.first { $0.entry.rank == entry.rank }.map { CompanyLeaderboard.scoreHelp(for: $0, language: language) },
+                             openness: entry.openness?.rawValue,
+                             brandColor: OrganizationLogoCatalog.rowBrandColorHex(for: entry),
+                             logoPNG: OrganizationLogoCatalog.rowLogoPNGData(for: entry, isCompany: grouping == "company")?.base64EncodedString(),
+                             initials: OrganizationLogoCatalog.initial(organization: entry.organization, modelName: entry.name))
+            }, fetchedAt: board.map { formatter.string(from: $0.fetchedAt) },
+                         countryOptions: LeaderboardPresentation.countryFilters(board).compactMap { filter in
+                switch filter {
+                case .all: return nil
+                case .country(let country): return CountryOption(value: country.rawValue, label: country.localizedName(language: language))
+                case .unknown: return CountryOption(value: "unknown", label: language.text("Unknown", "未知"))
+                }
+            })
         }
         // Mirror Mac: size against every cached category and grouping, even
         // when the currently selected board happens to have short titles.
@@ -439,7 +480,7 @@ actor Engine {
             for kind in category.boardKinds {
                 let models = snapshot.boards[kind]?.entries ?? []
                 for grouping in LeaderboardGrouping.allCases {
-                    let entries = grouping == .company ? CompanyLeaderboard.rank(models).map(\.entry) : Array(models.prefix(20))
+                    let entries = grouping == .company ? CompanyLeaderboard.rank(models).map(\.entry) : models
                     for entry in entries {
                         let links = PurchaseLinkCatalog.links(forOrganization: entry.organization, modelName: entry.name)
                         layoutEntries.append(LayoutEntry(name: entry.name,

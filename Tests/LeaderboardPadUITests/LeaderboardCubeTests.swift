@@ -37,3 +37,49 @@ import Testing
     #expect(LeaderboardCube.visibleRank([:], height: 500) == nil)
     #expect(LeaderboardCube.visibleRank(frames, height: 0) == nil)
 }
+
+@Test @MainActor func cubeEntranceRunsOnlyOnceAndReturnsToItsOriginalFace() {
+    let cube = LeaderboardCubeState()
+    let serial = cube.beginEntrance(reduceMotion: false)!
+    #expect(cube.entranceActive && cube.entranceHintVisible)
+    #expect(cube.position > 0 && cube.position < 0.5)
+    #expect(cube.face == 0 && cube.rank == nil)
+    cube.settleEntrance(serial)
+    #expect(!cube.entranceActive && cube.entranceHintVisible)
+    cube.finishEntrance(serial)
+    #expect(cube.position == 0 && cube.entranceProgress == 1)
+    #expect(!cube.entranceHintVisible)
+    #expect(cube.beginEntrance(reduceMotion: false) == nil)
+}
+
+@Test @MainActor func cancellingEntranceInvalidatesPendingStepsWithoutOverwritingUserNavigation() {
+    let cube = LeaderboardCubeState()
+    let serial = cube.beginEntrance(reduceMotion: false)!
+    cube.finishEntrance()
+    cube.face = 1
+    cube.position = 1
+    #expect(!cube.isCurrentEntrance(serial))
+    cube.settleEntrance(serial)
+    cube.finishEntrance(serial)
+    #expect(cube.position == 1 && cube.face == 1)
+    #expect(cube.beginEntrance(reduceMotion: false) == nil)
+}
+
+@Test @MainActor func interactingBeforeContentArrivesConsumesEntranceWithoutMovingTheBoard() {
+    let cube = LeaderboardCubeState()
+    cube.finishEntrance()
+    #expect(cube.beginEntrance(reduceMotion: false) == nil)
+    #expect(cube.position == 0 && cube.entranceProgress == 1)
+}
+
+@Test @MainActor func reducedMotionEntranceShowsTheHintWithoutRotatingAndDoesNotInterruptTurns() {
+    let cube = LeaderboardCubeState()
+    cube.turning = true
+    #expect(cube.beginEntrance(reduceMotion: true) == nil)
+    #expect(!cube.entrancePlayed)
+    cube.turning = false
+    let serial = cube.beginEntrance(reduceMotion: true)!
+    #expect(cube.position == 0 && cube.entranceHintVisible)
+    cube.finishEntrance(serial)
+    #expect(cube.position == 0 && cube.entranceProgress == 1)
+}

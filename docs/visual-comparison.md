@@ -1,4 +1,231 @@
+## Quieter subtitle ampersand — 2026-10-13
+
+Mac and iPhone/iPad use a shared `FeatureSubtitle` to color only `&` at 55% opacity within one attributed Text. Windows applies the same opacity to the ampersand's native FormattedText range. Both preserve the full localized caption, font, continuous spacing and accessibility text; the question mark retains its preceding 55% treatment.
+
+Ignored `work/quiet-ampersand/review.html` and `review.json` retain 72 before/after native Mac pairs from the same synthetic fixture and 850×720 viewport. Three languages, both themes, model/company grouping, normal/failed refresh and shown/refreshed/settled frames are covered on macOS 27.0.1 (26A434), 1×. All 24 refreshed/settled pairs match. Review confirms a softer ampersand, complete captions and preserved bottom alignment. Attributed-text rasterization introduces minor antialiasing differences across the caption; normal text retains its original ink level, while the light-theme ampersand changes from approximately RGB 128 to RGB 186.
+
+Mac compilation, shared mobile SwiftUI type-checking and Windows WPF Release cross-build pass; Windows has zero warnings/errors. Mobile native captures were not repeated for this text-color edit. Windows native screenshots/DPI verification remain unavailable; no CI artifact or protected release approval is claimed.
+
+## Quieter subtitle help icon — 2026-10-13
+
+Mac, iPhone/iPad and Windows render only the subtitle's question-mark icon at 55% opacity. Subtitle text, icon sizing, button geometry, actions and accessibility labels are unchanged.
+
+Ignored `work/quiet-help/review.html` and `review.json` retain 72 before/after native Mac pairs using the same synthetic fixture and 850×720 viewport. English/Simplified/Traditional Chinese, both themes, model/company grouping, normal/failed refresh and shown/refreshed/settled frames are covered on macOS 27.0.1 (26A434), 1×. Header pixel differences are restricted to the question-mark rectangle: x=197…207 / y=21…31 for Chinese and x=348…358 / y=25…36 for English. All 24 refreshed/settled pairs match. Review confirms a softer icon in both themes with unchanged title/subtitle text and alignment.
+
+Mac compilation, shared mobile SwiftUI type-checking and Windows WPF Release cross-build pass; Windows reports zero warnings/errors. Mobile native screenshots and click tests were not repeated for this opacity-only edit. Windows native screenshots/DPI verification remain unavailable; no CI artifact or protected release approval is claimed.
+
+## Bottom-aligned subtitle without app version — 2026-10-13
+
+Mac, Windows and iPhone/iPad live headers remove the displayed app version and place the feature subtitle, including its help control, beside the title's visible bottom edge. Apple layouts now contain two children; Windows measures/arranges only the subtitle and help button. Mobile subtitle scaling no longer reserves room for a version line. Background update behavior and bundle/version metadata remain in place; README copy no longer advertises the removed version-click action.
+
+Ignored `work/header-subtitle-bottom/review.html`, `mac-review.json`, `mac-settled.json` and source snapshots retain native evidence. Mac has 72 before and 72 after original frames from the same synthetic fixture and 850×720 viewport: three languages, both themes, model/company grouping, normal/failed refresh and three checkpoints. Environment is macOS 27.0.1 (26A434), 1×. All 24 refreshed/settled pairs match. The preserved before executable predates a concurrent source-time presentation update, so full-window differences also include that update; this comparison verifies header placement, not those body changes. Review confirms complete subtitles at the title's lower right and no app version text.
+
+iPhone 18 Pro / iOS 27.0 (402×874 points, 3×) and iPad Pro 11-inch M5 / iPadOS 27.0 (834×1210 points, 2×) each retain 12 original after PNGs and passing xcresult bundles. Chinese/light and English/dark cover portrait/landscape plus shown/refreshed/settled frames. The temporary visual harness verifies the version element is absent, the title remains accessible and the help control remains hittable within the viewport. Review confirms complete English and Chinese captions beside the title's visible bottom. The frozen portable snapshot preserves header source exactly; subsequent primary-checkout spacing/time-row changes are outside this validation.
+
+Mac compilation, shared mobile SwiftUI type-checking, iOS simulator test build and both native capture tests pass. Windows WPF Release cross-build has zero warnings/errors; native Windows screenshots/DPI validation are unavailable. Physical devices, other OS versions and large Dynamic Type were not recaptured. No CI native artifact, protected release approval or public distribution is claimed.
+
+## Model source badges — 2026-10-13
+
+Mac, iPhone/iPad and Windows model rows distinguish Open with a green unlocked-padlock badge and Closed with a slate-blue locked-padlock badge. Both retain localized text and adapt their foreground/background colors to light and dark appearance. Missing metadata and company rows remain neutral dashes. Apple live views and exported images share `ModelOpennessBadge`; mobile source-column sizing measures the badge so the icon stays inside its column.
+
+Ignored `work/openness-badges/review.html`, `review.json` and `source-hashes.json` retain 120 before/after pairs (240 original native PNGs). Mac uses the same synthetic fixture and 850×720 viewport in both phases, covering English/Simplified/Traditional Chinese, light/dark, model/company grouping, normal/failed refresh and shown/refreshed/settled frames. Environment: macOS 27.0.1 (26A434), 1×. All 24 after refreshed/settled pairs are identical. Native review confirms visible lock silhouettes, readable status text and separated badge backgrounds. Existing long-name truncation at the forced desktop width remains visible.
+
+Isolated iPhone 18 Pro / iOS 27.0 (402×874 points, 3×) and iPad Pro 11-inch M5 / iPadOS 27.0 (834×1210 points, 2×) captures cover Chinese/light and English/dark, portrait/landscape, model/company grouping, long names and three refresh checkpoints. Each device's before/after visual harness passes; both after source-filter/intersection tests also pass. Originals retain their orientation metadata in the review directory and xcresult bundles. Review confirms complete badge labels alongside scores/countries in compact and paired layouts; phone long names retain the existing two-line truncation.
+
+Six focused Swift tests pass, including classification/cache compatibility, source filters and export rendering. Export previews cover all three languages, both themes, wide/narrow layouts and configured/unconfigured App Store links. Mac and iOS simulator builds pass. Windows WPF Release cross-build passes with zero warnings/errors; real Windows native screenshots/DPI validation remain unavailable. Physical-device review, other OS versions and large Dynamic Type were not obtained for this change. No CI native artifact, protected release approval or distribution is claimed.
+
+## Model and company logo separation — 2026-10-13
+
+The exact shared fixture `work/model-logos/fixture.json` contains official Wan, Dreamina, SkyReels and Grok PNGs, separate provider PNGs, a missing-image/long-name row and refresh-error state. The before app is the previously captured source-filter native executable; the after app is built from the isolated local snapshot with the new shared Kit. Both use the same 850×720 content viewport and fixture hash. `before/macos` and `after/macos` contain 36 original PNGs each: English, simplified/traditional Chinese, light/dark, model/company grouping and shown/refreshed/settled frames. OS: macOS 27.0.1 (26A434), actual scale 1×. `native-review.json` records pixel differences; `mac-review.png` is a review aid, not a substitute for originals.
+
+Native review confirms model rows retain family-specific marks and company rows return to provider marks. Colors follow model marks. Initial fallback, white logo tiles, supported themes and refresh-error content remain visible. At the forced narrow width, existing English company purchase links wrap and model names truncate with their existing help text; this remains a documented layout limitation unrelated to logo selection.
+
+The iPhone 18 Pro (iOS 27, 402×874 pt / 3×) and iPad Pro 11 M5 (iPadOS 27, 834×1210 pt / 2×) native UI suites pass model/company switching and refresh-error frames in Chinese/light and English/dark. Original attachments and xcresult bundles remain in `work/model-logos`. The iPad English company purchase controls can leave Alibaba’s label wrapping into narrow character columns; this pre-existing company-row layout limitation remains unresolved and the logo test does not certify that layout. Wan's official purple mark appears on both Wan rows; the Alibaba row uses the separate orange provider mark. Windows uses the same Swift engine projection and shared Kit; a real WPF capture is unavailable locally, so Windows visual parity remains unverified. No protected release or visual-review approval is implied.
+
 # Native visual comparison
+
+## Source filter dropdown (2026-10-13)
+
+Mac, Windows and iPhone/iPad source headers now carry the same downward caret as country. Menus offer All/Open/Closed/Unknown, check the current choice and tint an active source filter. Choices are independent per leaderboard and intersect country filters before company aggregation, so a company's strongest matching model determines its filtered score. Unknown source metadata remains unavailable, and company rows retain their dash. Mobile and Windows remember choices using their existing preference stores; Mac follows its existing in-session country-filter behavior. Windows sends both filters to the shared engine and rejects replies for an outdated filter selection.
+
+Ignored `work/source-filter/review.html` and `review.json` retain 174 original Mac PNGs: 36 before and 36 after baseline frames using the exact same fixture and viewport, plus 90 filtered-state frames and 12 empty/intersection/independent-board frames. English/Simplified/Traditional Chinese, light/dark, failed refresh, long model names, company grouping, and shown/refreshed/settled checkpoints are covered at 850×720 points. Environment is macOS 27.0.1 (26A434), 1×. All 36 baseline differences stay inside the table-header band (y=116…130); all 46 after refreshed/settled pairs are identical. Review confirms visible carets, active tint, readable status values, and unchanged model-row layout. The deliberately narrow English company fixture still wraps purchase links; production preferred sizing continues to use all cached model/company names and links, independent of filters. Wider/other-DPI native Windows comparison remains outstanding.
+
+The empty-left-board dark fixture exposed a sparse sampling gap in Mac sharing capture. Sampling now includes the interior of the right name column, preserving existing blank-capture rejection thresholds. The same normal sharing-capture path now renders all three checkpoints in both themes; the capture harness does not bypass that validation.
+
+Native iPhone 18 Pro / iOS 27.0 / 3× and iPad Pro 11-inch M5 / iPadOS 27.0 / 2× menu tests pass in English/light. They verify all four source options, country intersections producing no matches, reset, company grouping, and the iPad's independent right-board selection. Both original source-column/company tests also pass. Their unmodified native screenshots and test results are retained in `work/source-filter/phone-retry.xcresult` and `pad.xcresult`. Other mobile themes/languages, rotation and large text were not recaptured for this change. Shared-engine JSON round trips pass for open/closed/unknown, country intersection, and a company score reduced from 100 to its matching open model's 80. Windows WPF Release cross-build passes with zero warnings/errors. No Windows desktop/VM or source-matched cloud native artifact is available locally, and no protected release publishing or approval is claimed.
+
+The primary checkout's complete tests passed, but the parallel coverage task repeatedly changed inputs during subsequent validation/build checks. To avoid invalidating that task or overriding gates, a detached Git worktree at `work/source-filter/build-snapshot/ai-benchgauge` freezes the working files from 01:53. Its full script/Swift/Windows tests pass with an unchanged signature; the returned result is retained in `build-snapshot/full-test-result.json`. Its normal iOS SDK check, development signing/installation and Mac packaging/deep-strict signature verification pass. The Mac bundle was copied into the usual outputs location and restarted. The iPhone installation receipt matches this checked snapshot; automatic launch was blocked by the locked phone, so it needs to be opened after unlocking. `installed-ui-source-comparison.json` confirms all 11 feature source files still match the primary checkout. The parallel task's later unrelated changes are preserved there; this installation is not claimed to include them. The snapshot is retained for reproducibility and no commits or pushes were made.
+
+## Desktop dual-board subtitle (2026-10-13)
+
+Mac and Windows live headers add `双榜对照` / `雙榜對照` / `Dual boards` immediately right of the app title, with the 9-point version below. The subtitle’s visible top and the version’s visible bottom use the title’s actual glyph bounds, matching the mobile arrangement. The version retains its check-for-updates action and Windows update arrow. Mac uses CoreText and a SwiftUI layout; WPF measures native FormattedText geometry for its caption panel.
+
+Ignored `work/desktop-subtitle/review.html` compares 72 native before and 72 native after Mac originals from identical fixtures and viewports. Before uses the preserved executable from the preceding manufacturer-asset review, whose relevant header source is unchanged; the pre-edit files are retained in `before-source/`. Both phases cover English/Simplified/Traditional Chinese, light/dark, 850/1100-point widths, normal/failed refresh, and shown/refreshed/settled checkpoints, including an update arrow. `review.json` records fixture/source/image hashes, dimensions and native metadata. Actual environment is macOS 27.0.1 (26A434) at 1× backing scale. All 72 after frames align both edges within one raster pixel; all 24 refreshed/settled pairs are identical. Native review confirms complete captions and unobstructed grouping/category controls and freshness labels.
+
+Full project checks pass, and the Windows WPF Release cross-build has zero warnings/errors. Local Mac packaging and deep/strict signature verification pass, and the installed app was restarted successfully. The successful full-test result is preserved in `work/desktop-subtitle/package-test-result.json`, so simultaneous coverage checks cannot replace the validation used by this packaging flow. No Windows desktop or VM is available locally, so current Windows native captures and real DPI validation remain outstanding. No source-matched cloud CI artifact or protected release approval is claimed.
+
+## Mobile header edge alignment (2026-10-13)
+
+The live iPhone/iPad version uses a 9-point base size (previously 12). The right-hand subtitle and version now align their visible top/bottom edges with the title’s actual glyph bounds. Chinese caption whitespace shrinks from 19 to 11 raster pixels on the 3× phone and from 13 to 7 on the 2× iPad. English larger text can select a smaller complete heading to keep the captions visible. Desktop and export-card headers are unchanged.
+
+Ignored `work/header-edges/review.html` compares 24 native before and 24 native after originals; `review.json` records hashes, dimensions, EXIF orientation and edge measurements. Before captures are retained from the immediately preceding brand-discovery review with identical fixtures and viewports. Both device capture tests pass: iPhone 18 Pro / iOS 27.0 / 3× (402×874 points) and iPad Pro 11-inch M5 / iPadOS 27.0 / 2× (834×1210 points), each in portrait/landscape and Chinese/light or English/dark, shown/refreshed/settled. All 24 after frames have top and bottom edge differences of at most one raster pixel; all eight refreshed/settled product comparisons are identical excluding native status-bar clocks. Two additional original phone screenshots confirm complete Chinese and English headers at `accessibility-medium`; standard text size was restored. Other OS versions, the largest accessibility sizes and physical iPad visual review remain uncovered. Final full project checks and the iOS SDK build pass. The local iPhone was installed and opened successfully; its installation receipt matches the current source fingerprint.
+
+## Automatic manufacturer assets (2026-10-13)
+
+Mac, iPhone/iPad and Windows render the shared 64×64 PNG carried by each leaderboard row before trying a bundled logo. Unavailable or invalid images produce an initial inside the existing white icon tile. Dark appearance now uses explicit dark ink on that tile so the initial stays visible. New manufacturers receive a shared extracted color or a stable fallback wash; existing brand hues retain their theme and per-model treatment. Company rows keep the flagship's shared asset, and offline/export views use the same snapshot bytes. Windows receives PNG Base64, color and initial through the shared engine protocol.
+
+Ignored `work/brand-discovery/review.html` links 48 original before/after pairs (96 native frames), with file hashes, sizes, EXIF orientation and source hashes in `review.json`. Before and after use the same brand payloads: one shared PNG and long model name, one new manufacturer without an image, plus existing brands. Mac covers English and Simplified Chinese, light/dark, normal/failed refresh and shown/refreshed/settled frames at 920×720 points. Both mobile devices cover Chinese/light and English/dark, portrait/landscape and the same three checkpoints; the fixture is offline to exercise saved images and failure placeholders. All 16 refreshed/settled comparisons are identical after excluding mobile system status bars. Review confirms visible PNGs, readable initials on white tiles in dark appearance, background washes, unchanged row alignment, and preserved source captions on failures.
+
+Actual native environments: macOS 27.0.1 (26A434), 1× backing scale; iPhone 18 Pro / iOS 27.0, 402×874 points at 3×; iPad Pro 11-inch M5 / iPadOS 27.0, 834×1210 points at 2×. Mobile devices passed the focused native capture test in both phases. Windows WPF cross-build succeeds, but no native Windows environment or new CI visual artifact was available, so Windows visual parity remains unverified. Full checks pass: 131 script tests, 325 Swift tests and Windows signature/update plus brand-protocol checks. The local Mac bundle and paired physical iPhone were updated after validation. Existing Mac 20-point and mobile 18-point icon tiles are retained. No protected release publishing was invoked.
+
+Shared FC production requests also verify both real video boards: 20 rows each return valid shared PNGs, including Utopai Studios, Skywork AI and Sapiens AI, whose colors were extracted automatically. Responses remain below 48 KiB. `final-live-video.json` and the corresponding original PNGs are retained in the ignored review directory.
+
+## Mobile dual-board subtitle (2026-10-13)
+
+iPhone and iPad live headers now show `双榜对照` / `雙榜對照` / `Dual boards` immediately right of the app title, above the version. This states the product's two-source comparison feature without asserting exclusivity among competing apps. A custom descendant alignment guide keeps the version's visible glyph bottom aligned with the title. Compact headers retain both labels when space is tight: English portrait and larger text move the model/company control onto a following row. Wide iPad keeps its paired-board header and centered 360-point category control. Desktop headers and the export-card title are outside this change.
+
+Ignored `work/mobile-subtitle/review.html` retains 24 native before and 24 final after originals, with source/image hashes, dimensions, EXIF orientation and measurements in `review.json`. Before frames come from the preceding source-column review with identical fixture data and viewports. Each device covers Chinese/light and English/dark, portrait/landscape, and shown/refreshed/settled frames. Actual environments are iPhone 18 Pro / iOS 27.0 at 3× (402×874 points) and iPad Pro 11-inch M5 / iPadOS 27.0 at 2× (834×1210 points). Review confirms complete subtitle text, readable controls and no header clipping. The title/version visible bottoms differ by at most one raster pixel in all 24 after frames. All eight refreshed/settled product comparisons are identical after excluding native status-bar clocks. Two additional original phone snapshots at `accessibility-medium` confirm the responsive header in Chinese/light and English/dark; the simulator's standard text size was restored afterward.
+
+Both devices passed the focused native screenshot test on the final source; the native SDK build passed. The complete local gate passed 124 script checks, 321 Swift tests and 39 Windows harness cases. An initial gate run exhausted an existing asynchronous test's two-second deadline while concurrent ImageRenderer work held MainActor for 2.8 seconds. The final run after native tests passed without changing production behavior or that test's deadline. The signed development app was installed and opened on the configured physical iPhone at 00:05:23 Asia/Shanghai, with its receipt matching the current source fingerprint. Other iOS runtimes, narrow iPad windows, the largest accessibility sizes and physical iPad visual review were not obtained. No protected release publishing was invoked.
+
+## Model source column (2026-10-12)
+
+Mac, iPhone/iPad and Windows tables add a source column between score and country: `Source` / `源码` / `源碼`, with localized Open/Closed values. Missing source metadata and company aggregation rows show `—`. The parser follows Artificial Analysis's explicit public-weight fields and Arena's recognized licenses, including restricted public-weight licenses; the help text explains that usage restrictions may apply. The coding-agent source currently lacks this metadata. Unknown licenses remain unavailable rather than becoming a closed-source assertion. Optional Codable fields retain compatibility with old caches. Shared FC contributions acquire the field automatically on ordinary refreshes.
+
+Ignored `work/model-openness/review.html` links 120 original native screenshots with hashes, source hashes, environment and validation recorded in `review.json`. Mac before/after each contain 36 frames: English/Simplified/Traditional Chinese, both appearances, 850/1100-point widths, and shown/refreshed/settled checkpoints. Both phases use the same fixture and the before phase uses the preserved original executable. Actual environment is macOS 27.0.1 (26A434), 1× backing scale. Narrow fixed viewports intentionally truncate long model names; the production popover's preferred width expands to accommodate the added columns. Review confirms readable status values and full country headers on both boards.
+
+iPhone 18 Pro / iOS 27.0 at actual 3× and iPad Pro 11-inch M5 / iPadOS 27.0 at 2× each retain 12 before and 12 after frames, covering Chinese/light and English/dark, both orientations and three checkpoints. Mobile before originals come from the preceding version-alignment review with the same names, scores and viewports; the after fixture adds explicit open, closed and unknown fields. PNG pixels and EXIF orientation are preserved. All 20 refreshed/settled comparisons across Mac and mobile are identical after excluding mobile status-bar clocks. Source captions, category placement and version bottom alignment remain readable. Each mobile device passed two focused native tests, including source values and company aggregation behavior.
+
+The full local gate passed 124 script checks, 321 Swift tests and 39 Windows harness cases. Native iOS SDK build and Windows WPF Release cross-build passed; WPF reported zero warnings/errors. Mac release packaging and deep/strict signature verification passed, and the local app was restarted. The physical iPhone installation at 23:44:09 Asia/Shanghai matched the current source fingerprint. The shared function deployment completed at 23:38:22; smoke checks verified populated source fields for newly contributed coding/image boards. General/video caches without the field retain `—` until the next successful refresh under the existing global gate. No refresh restriction was bypassed.
+
+Windows native WPF/real DPI captures and source-matched cloud CI artifacts are unavailable. Large Dynamic Type, narrow iPad windowing and Mac empty/error/company captures for this column were not obtained. This local review does not constitute protected release approval.
+
+## iOS version label bottom alignment (2026-10-12)
+
+The iPhone/iPad version label now aligns with the title's visible glyph bottom rather than its font baseline or center. The Chinese outline exposes its actual path bottom; the English title and version use CoreText glyph bounds relative to SwiftUI's first baseline. Scaled metrics preserve the existing text-size behavior. The change covers the phone header and both iPad header layouts. Desktop header alignment is unchanged.
+
+Ignored `work/ios-version-alignment/review.html` links 24 native before and 24 native after originals from the same fixtures/viewports. iPhone 18 Pro / iOS 27.0 uses actual 3× scale; iPad Pro 11-inch M5 / iPadOS 27.0 uses 2×. Chinese/light and English/dark cover portrait/landscape and shown/refreshed/settled frames. Before captures are retained from the immediately preceding category-tab review, whose title/header code is preserved in source snapshots. Original PNG pixels and orientation are retained. Review confirms readable titles, unchanged category placement, and no clipping. Visible-bottom measurements for every after frame differ by at most one raster pixel, compared with a 3-point Chinese / approximately 6-point English gap before. `review.json` retains measurements and source/original-image hashes.
+
+Both devices passed the existing focused native screenshot test. The full gate passed 123 script checks, 318 Swift tests and 39 Windows cases; the native SDK build passed. The development app was installed and opened on the configured physical iPhone at 23:23:23 Asia/Shanghai, with its receipt matching the current source fingerprint. Large Dynamic Type and narrow iPad windowing were not captured in this run. No cloud CI or human release approval was invoked.
+
+## iOS category tab width and centering (2026-10-12)
+
+The phone category control no longer stops at 360 points: each of its four native segments gets one quarter of the available content width, matching both edges of the cube viewport in portrait and landscape. The iPad category remains 360 points wide and is centered independently of the leading model/company control. Its responsive fallback keeps the category centered on a separate row in narrower windows. Segment widths are still assigned only when UIKit creates the control; the phone's width identity recreates it after rotation without changing the saved selection.
+
+`work/ios-category-tabs/review.html` retains 24 native before and 24 native after captures, using the same fixtures and viewports on iPhone 18 Pro / iOS 27.0 at actual 3× scale and iPad Pro 11-inch M5 / iPadOS 27.0 at 2×. Captures cover Chinese/light and English/dark, both orientations, and shown/refreshed/settled frames. Original PNG pixels and EXIF orientation are preserved; diagnostic header crops honor orientation without replacing the originals. All 16 refreshed/settled product comparisons are pixel-identical after excluding the native status-bar clock. Review confirms centered iPad tabs, full-width phone tabs, unchanged readable titles and source descriptions, and no clipping.
+
+Each device passed both focused native tests, including equal segment widths, rotation, category selection, phone viewport-edge alignment and iPad's 360-point width/window-center assertions. The full gate passed 123 script checks, 318 Swift tests and 39 Windows cases. The development build was installed and opened on the configured physical iPhone at 23:07:11 Asia/Shanghai; its receipt matched the complete current source fingerprint. Reviewed source hashes and original screenshot hashes are retained in `work/ios-category-tabs/review.json`. Narrow iPad windowing and other display runtimes were not captured in this run. No cloud CI or human release approval was invoked.
+
+## iOS exported image download attribution (2026-10-12)
+
+Copied and saved leaderboard images no longer promote the GitHub repository. Before App Store publication they retain the localized app name and iPhone/iPad attribution. Setting the real numeric `appStoreID` in `config/app.json` and regenerating the Xcode project enables the localized App Store download prompt and direct `apps.apple.com/app/id…` address. The current ID stays `null`, as the publisher confirmed that the app is not yet listed. The license sheet retains its project-source link.
+
+Ignored evidence lives in `work/ios-store-footer/review.html`, with PNG hashes and native metadata in `review.json`. Three before images and 24 after variants use the actual shared SwiftUI ImageRenderer on macOS, covering English/Simplified/Traditional Chinese, 1000/440-point widths, both themes, and unpublished/configured states. The configured variants use synthetic ID `1234567890` solely for layout review. The existing narrow English export title truncation is outside the changed footer.
+
+Native iPhone 18 Pro / iOS 27.0 (3× display) and iPad Pro 11-inch M5 / iPadOS 27.0 (2× display) each passed four language/theme export combinations (English/Simplified Chinese × light/dark). Eight original exported PNGs were retained directly from the app's actual copy-image action, at the renderer's 2× export scale. Test result bundles also retain the native clipboard-feedback screenshots. The UI-test runner cannot read the app's clipboard on this OS, so Debug-only fixture capture retains exported pixels inside the app sandbox; Release builds exclude that capture path. Review confirms full footer text, preserved blue/purple source explanations, and no GitHub download address.
+
+The final full gate passed 123 script checks, 318 Swift tests and 39 Windows cases. Each device's focused native export test passed. The development build was installed and opened on the configured physical iPhone at 22:54:56 Asia/Shanghai; the installation receipt matched the complete current source fingerprint and the reviewed files remained unchanged. An intermediate expanded visual matrix held MainActor long enough to exceed an unrelated async store test's deadline; the extended matrix is now opt-in for capture, with the ordinary regression gate retaining its previous three export layouts. No cloud CI or human release approval was invoked.
+
+## Mobile source labels and refresh failures (2026-10-12)
+
+The iPhone/iPad source explanation now keeps its emphasized label in semibold
+system blue for Artificial Analysis and system purple for Arena, matching the
+desktop source colors. The explanatory detail retains its secondary color.
+Refresh failures have a separate orange button below the explanation; both
+buttons open the source details, including the failure reason. Source labels
+remain present with cached data, with no cached board, and while refreshing.
+Exported leaderboard images retain the same source emphasis colors.
+
+`LeaderboardSourceDescriptionTests` adds deterministic native captures for both
+sources in normal, cached-offline and empty-offline states, light/dark themes,
+and shown/refreshed/settled checkpoints. Its behavioral regression checks that
+the source-help and source-error buttons coexist, preserve the original source
+label, and remain available after opening and closing error details.
+
+Ignored `work/mobile-source-label/` preserves the Xcode result bundles, 36
+original native iPhone before frames and 36 after frames, attachment manifests,
+source hashes, review report and full-size original-image links. The iPhone 18
+Pro simulator runs iOS 27.0 at actual 3× scale (1206×2622 pixels / 402×874 points).
+Reviewed frames show readable blue/purple labels and secondary descriptions in
+every state, with an independent orange failure row and no clipping. All 12
+refreshed/settled product regions are pixel-identical after excluding the native
+status bar's changing clock. The local gate passed 120 script checks, 315 Swift
+tests and 39 Windows harness cases. The simulator build and both iPhone UI tests
+passed. The signed app was installed and launched on the configured physical
+iPhone; its deployment fingerprint matched the reviewed source at installation.
+Subsequent concurrent leaderboard-service edits changed the checkout after that
+installation; this review and its preserved test logs apply to the installed
+build, with the mobile view and fixture source hashes still unchanged.
+
+The iPad Pro 11-inch (M5), iPadOS 27.0, actual 2× scale (1668×2420 pixels /
+834×1210 points), supplied 36 after frames using the same fixtures. Both UI tests
+passed on a serial retry after the initial runner failed during startup. Native
+review shows both source labels and independent failure rows together in the
+two-board layout. Current iPad before captures and source-matched cloud CI
+artifacts are unavailable; this local review is not protected release approval.
+
+## Chinese brand title centering (2026-10-12)
+
+The visible glyphs in `AI 天梯` now share a vertical center instead of a font
+baseline. CoreText positions each outline by its own ink bounds; WPF does the
+same with native `FormattedText` geometry. Latin remains 21 points/DIPs and the
+Chinese calligraphy remains 25, retaining the taller Chinese lettering. Visible
+horizontal gaps and the existing header height are preserved. The shared Apple
+title implementation also applies to iOS.
+
+Ignored `work/brand-title-center/{before,after}/macos` contains 36 original native
+AppKit frames per phase, covering English, Simplified Chinese and Traditional
+Chinese, light/dark appearances, 600/1100-point viewports, and shown/refreshed/
+settled checkpoints. `fixture.json` preserves the common content; `review.html`
+links full-size originals and `review.json` records environment and pixel checks.
+Actual environment: macOS 27.0.1 (26A434), 1× backing scale, local uncommitted
+source. Fixture SHA-256:
+`d742606abefcfdcc842699ae6874b1e9fd1bf18b9eaca873dde1cd1d24f6c2ae`.
+
+Reviewed native frames show vertically centered Latin and calligraphy with no
+clipping. All 12 after groups are stable across their three checkpoints. English
+frames are pixel-identical to before; Chinese differences stay within the title
+glyph area, with the version, controls and table unchanged. Windows and iOS
+native captures and source-matched CI artifacts are unavailable; this local Mac
+review does not constitute protected release approval.
+
+The local packaging gate passed with 120 script checks, 315 Swift tests and 39
+Windows harness cases. The Windows WPF Release cross-build also passed with no
+warnings or errors. Release packaging and deep/strict signature verification
+passed; all 186 application input files match the packaged source, and the local
+Mac application was restarted with the reviewed title change.
+
+## Menu-bar logo appearance (2026-10-12)
+
+The monochrome logo embedded in the status title now draws its alpha mask with
+`NSColor.labelColor` resolved from the status button's effective appearance.
+The attachment image disables caching, so an existing label adapts immediately
+when the menu bar changes appearance. The icon-only state retains AppKit's native
+template rendering; attachment size and baseline alignment are unchanged.
+
+`Tests/fixtures/status-icon-appearance.json` covers task text, quota text in
+English/Chinese, icon-only, highlighted, appearance changes without a data refresh,
+and both directions between icon-only and text. Ignored
+`work/status-icon-appearance/{before-targeted,after-final}/macos` preserve 48
+original native AppKit frames per phase, at 420-point content width, both
+appearances and shown/refreshed/settled checkpoints. `review.html` links the
+unscaled originals and `review.json` records source hashes and pixel checks.
+Fixture SHA-256: `9f4cb66b77b2b83ed053828d44a6bcf5b19153c646ae9fc011981244cb75cb6e`.
+Actual environment: macOS 27.0.1 (26A434), 1× backing scale, local uncommitted source.
+
+Reviewed native frames show a readable light logo on the dark bar and a dark logo
+on the light bar, including highlighted and live appearance-change states. All
+before/after differences stay within the 15×12-pixel glyph region. Text, task
+colors, spacing and baseline positions are unchanged; native icon-only frames are
+pixel-identical. Every refreshed frame equals its settled frame. Current Windows
+native captures and a source-matched CI `native-visual-comparison` artifact are
+unavailable; this Mac-specific review is not protected release approval.
+
+The local packaging gate passed in an isolated copy of the application and shared
+helper source, avoiding concurrent edits in the working checkout: 119 script
+checks passed (one skipped), 315 Swift tests and 39 Windows harness cases passed.
+Release packaging and deep/strict signature verification passed. The reviewed
+source hashes match the packaged fix, and the local Mac application was restarted.
 
 ## Equal-spaced Slide Xiaxing title (2026-10-12)
 
@@ -392,3 +619,176 @@ The status item now appends the exclamation mark/error count only for a positive
 `Tests/fixtures/codex-task-failures.json` covers 0 → 2 errors, 2 → 0 recovery and unavailable counts in English/Chinese and both appearances. Ignored `work/codex-task-failures/` holds 36 before and 36 after original native AppKit frames, plus `review.html` and text/pixel checks in `review.json`. Before uses the saved native app from the previous presence capture, whose task formatting matches the pre-change code. After uses this local source. Fixture SHA-256: `5f2845305d2411391a5fd483a2a2ad8d8a6320b1fd387a4da31909b69585eb4d`; actual macOS 27.0 (26A428), 1× backing scale and 420 × 22-point buttons. All 36 after labels have the expected error visibility, zero-error tooltip entries are absent, and positive-error frames are pixel-identical to the baseline. Reviewed original frames show clean spacing when the segment is omitted. Windows task transport/native captures and source-matched CI artifacts remain unavailable; no Windows visual sign-off or protected release approval is claimed.
 
 Full tests and syntax validation pass; signed packaging and local restart pass. Production PID 83978 logged `running=1, unread=0, failed=0` and rendered `▶ 1  ✓ 0` at 22:22:54, matching a fresh reader and confirming that the real app no longer displays `! 0`.
+
+### 动态国家资料（本地核对，2026-10-13）
+
+本次使用 `work/country-discovery/fixture.json`：Utopai Studios / 美国、Skywork AI 与 Sapiens AI / 新加坡、动态厂商 / 日本与英国、国家未知的厂商；模型与公司两种分组，中英与繁中，浅深两种主题，刷新失败仍保留数据。Mac 的前后原生截图使用同一 850×720 内容视口，三帧（shown/refreshed/settled），保存在 `work/country-discovery/before` 和 `after`，附实际 OS、1x DPI 和 fixture hash。核对国家列和筛选行为；原有长名称省略仍存在，未在本次调整。
+
+iPhone 18 Pro（iOS 27，402×874 pt、3x）和 iPad Pro 11 M5（iOS 27，834×1210 pt、2x）分别完成动态国家 UI 用例，中英文/浅深色及模型/公司分组共 12 张原始截图，各保留刷新前后及稳定帧，测试结果在 `work/country-discovery/phone.xcresult` 与 `pad.xcresult`。美国、新加坡、日本的旗帜与未知占位没有新增遮挡或重叠。
+
+共享服务读取两张视频榜共 40 条记录均有国家元数据，排名、分数、榜单时间戳保持一致。引擎离线验证日本/未知筛选及公司分组，以及筛选后仍保留英国等其他国家菜单选项。Windows WPF 编译通过，新增国家筛选及译名使用引擎数据；当前本机无 Windows WPF 运行环境，没有本次 Windows 原生前后截图或 CI 原生视觉审阅记录，不能宣称已完成 Windows 视觉验证。Windows 原六国旗帜保留，其他 ISO 国家显示两字母码是当前平台差异。
+
+## Desktop subtitle: board comparison and quota tracking (2026-10-13)
+
+Mac and Windows use `双榜对照 & 余量追踪` / `雙榜對照 & 餘量追蹤` / `Dual boards & quota tracking`. The existing subtitle/version glyph alignment stays in place. The longer English caption switches to the existing two-row header below 1300 points so it does not overlap the centered controls; Chinese keeps the 1100-point breakpoint.
+
+`work/desktop-subtitle/fixture.json` covers English/Simplified/Traditional Chinese at 850, 1100 and 1300 points, plus empty/error states and a long version. Mac before/after native AppKit/SwiftUI captures use matching fixtures and content viewports, light/dark themes and shown/refreshed/settled frames (72 originals each), with OS and actual 1× backing scale in metadata. Review confirms complete captions with no new clipping or overlap. Windows WPF compiles successfully, but a Windows native runtime/capture is unavailable locally; no Windows visual verification, CI visual-review record or protected release approval is claimed.
+## Model mark priority (2026-10-13)
+
+Shared manufacturer PNGs previously replaced bundled product marks in model rows. Mac, iPhone/iPad and the Windows engine now apply the same priority: an explicit model PNG, then a recognized bundled product mark, then the provider image or existing fallback. Company rows retain their provider PNGs. Recognized bundled products include Claude, Gemini, Qwen, Kimi, DeepSeek and MiniMax; other families keep their shared images, including the distinct Wan, Grok, Dreamina and SkyReels marks.
+
+`work/model-logo-priority` retains 36 native Mac before and 36 after originals with the same fixture and 850×720-point viewport. The fixture contains actual cached provider PNGs alongside explicit model PNGs, a long missing-image row and refresh failure. English/Simplified/Traditional Chinese, both themes, model/company grouping and shown/refreshed/settled frames are covered. All 18 company comparisons are pixel-identical; model differences are confined to the first three rows' icon tiles. Review confirms restored Qwen, Claude and Gemini marks and unchanged explicit model marks, alignment and row colors. Original image hashes, fixture hash and source hashes are retained in `native-review.json` and `source-hashes.json`.
+
+The full script/Swift/Windows test gate passes with all supported coverage metrics at 100%. An actual engine JSON round trip confirms bundled model selection, explicit model PNG preservation and separate company PNGs. iPhone/iPad views compile and their unit tests pass; mobile native screenshots were not recaptured for this priority change. Native Windows/DPI captures are unavailable locally, so Windows visual parity remains unverified. No protected release publishing or human approval is implied.
+
+## Brand mark rotation (2026-10-13)
+
+The canonical neural-network nodes and accent endpoints are rotated 90° counterclockwise around the 256-point canvas center. The output is above the three input nodes. All SVGs, PNG sizes, Windows ICO frames, Mac ICNS frames and the iOS asset catalog are regenerated from that geometry. Platform padding and backgrounds retain their existing treatment.
+
+Ignored `work/logo-rotation/review.html` and `review.json` retain 48 native Mac before/after pairs, using the same native executable, status-icon fixture and 420×22-point viewport. Captures cover icon-only, task/quota text, highlighted, appearance-switch and icon/text lifecycle states, with shown/refreshed/settled frames in light and dark. Actual environment: macOS 27.0.1 (26A434), 1×. Review confirms the upright rotated mark stays inside the status button and labels remain identical; pixel differences are confined to the glyph. Windows native captures and a source-matched CI visual artifact are unavailable locally, so Windows native visual parity is not certified. No protected release publishing or human approval is implied.
+
+## Unified feature subtitle and quota help (2026-10-13)
+
+All four native clients use “双榜对照 & 余量追踪” (with Traditional Chinese and English translations). The trailing question-mark control explains the feature and its availability on Mac/Windows. Mobile makes the complete caption tappable as well as its icon; the desktop has an accessible help button next to the caption. Shared Swift copy keeps Mac/iPhone/iPad wording consistent, and the WPF text matches it. The explanation is informational and dismissible.
+
+Ignored `work/quota-platform-help/` retains the shared fixture and original Mac header comparisons: 850/1100/1300-point widths, English/Simplified/Traditional Chinese, normal/empty/error/long-version states, light/dark and shown/refreshed/settled frames. The added help-dialog scenarios capture the actual AppKit alert content (native dimensions recorded with each PNG), rather than a browser recreation. Header alignment and complete caption visibility remain intact; Mac captures use actual 1× backing scale. Windows compiles but has no available native WPF runtime or original captures locally, so its visual/interaction behavior remains unverified on a Windows machine. No CI visual-review approval or protected release approval is implied.
+
+The iPhone 18 Pro (iOS 27, 402×874 pt / 3×) and iPad Pro 11 M5 (iPadOS 27, 834×1210 pt / 2×) each passed the Chinese/light and English/dark help interaction test: full subtitle, tap, exact explanation, dismissal and return. Original heading/dialog attachments remain in `work/quota-platform-help`. The English phone moves model/company selection below the title to retain the whole caption; the title/subtitle/version retain their visible glyph alignment. An initial test-only query hit XCTest's 128-character identifier limit and was corrected to use an exact label predicate.
+
+## Uniform mobile name backgrounds (2026-10-13)
+
+The name background now has a 36-point minimum height, filling the existing 44-point row while retaining the four-point outer inset above and below. Longer names keep their intrinsic multiline height. Background gaps therefore stay at eight points instead of growing when a single-line name shares a row with the minimum touch target. The existing first-row alignment gives the same eight-point gap below the table divider.
+
+`work/colored-name-gaps/review.html` and `review.json` retain original native iPhone 18 Pro (402×874 points, 3×) and iPad Pro 11 M5 (834×1210 points, 2×) screenshots in both themes. A synthetic 20-row fixture starts with single-, two- and three-line names and returns to single-line rows. iPad before/after measurements show 14/8/14/20-point gaps becoming eight throughout. iPhone after measurements confirm 24-pixel gaps and iPad after confirms 16-pixel gaps; both header gaps equal eight points. The attempted iPhone baseline was affected by another installation on the shared simulator and is excluded from before evidence. SDK build succeeds. This change is confined to the shared mobile card; desktop rendering is outside its scope.
+
+## Mobile model logo tiles (2026-10-13)
+
+The shared iPhone/iPad renderer now matches the desktop tile proportions: a 20-point white tile, 2.5-point logo inset and a continuous five-point corner radius. The complete tile is clipped to its rounded shape and has the same half-point boundary stroke. Transparent circular source marks therefore sit within an even white surround instead of filling a smaller square with prominent white corners. Shared/model/company mark priority and desktop rendering are unchanged.
+
+`work/mobile-logo-corners/fixture.json` uses real cached Xiaomi MiMo and StepFun marks, bundled versions and an unknown-provider text fallback. `testMobileLogoCornerFrames` covers Chinese/light and English/dark, model/company grouping and shown/refreshed/settled screenshots. The saved native baseline comes from the prior colored-name-gaps build and reproduces the 18-point/no-inset logo treatment; unrelated header changes are outside this logo comparison. The source-matched after build uses an isolated copy of the current Swift package because Xcode's recursive file watcher scans the large ignored `work/` tree. Source/fixture hashes and original captures remain in that ignored directory.
+
+The iOS arm64 simulator build and nine iOS configuration tests pass. The iPhone 18 Pro native UI test passes with twelve original after frames (402×874 points, actual 3× backing scale, iOS 27.0), including refresh and grouping changes. Reviewed captures show even white surrounds around Xiaomi/StepFun, consistently rounded boundaries, intact bundled/text fallbacks and no adjacent-text overlap. The single usable native baseline reproduces the reported corners in Chinese/light/model mode; other baseline capture attempts were interrupted by slow simulator installation. Other themes/states have after coverage only. Original attachments, hashes and review notes remain under `work/mobile-logo-corners/`; iPad uses the same compiled renderer but has no native capture in this verification. No desktop change or protected release approval is implied.
+
+
+## Source metadata and column headings (2026-10-13)
+
+Live cards no longer repeat the leaderboard name below its source tab. Source explanations move into the model-name column heading; the metadata row contains only the summary on the left and explicitly labeled source/fetch times on the right. The source time comes first. Wide layouts join the pair with a middle dot; narrow layouts stack both labels. A hidden maximum-width sample keeps both sides in the same layout even when one source date is missing. Missing source publication remains `—`, while a pending card also has no fetch yet. Coding-agent batch timestamps retain their existing `materializedAt` interpretation. Source details include complete dates and explain missing timestamps. Exported images keep their source titles because they have no tabs.
+
+Mobile uses a 12-point vertical rhythm: the source tab to metadata content and metadata content to column headings both have 24 points including inner/outer padding. Source help, refresh, openness/country filters, scroll and copy actions remain available. Windows engine projection now preserves a missing source timestamp instead of substituting the fetch date; a real engine JSON round trip verifies both missing and known source times.
+
+Ignored `work/board-header` retains 54 before and 54 final original native Mac frames from matching fixtures, viewports, languages and light/dark appearances, plus 72 final source-time frames across all four categories. Captures use macOS 27.0.1 and actual 1× scale; the native metadata retains the precise environment. `review.html`, `native-review.json` and source hashes retain the comparison evidence. Native iPhone 18 Pro (402×874 points, 3×) and iPad Pro 11-inch M5 (834×1210 points, 2×), both on iOS 27, pass source-time and cached/pending failure interaction tests; their xcresult bundles and original attachments remain in the same directory. Explicit missing source dates, known coding dates, long names and both languages are covered. The initial Chinese mobile captures inherited the simulator's dark appearance; the normal-state spacing captures set light appearance explicitly before Chinese and use the app's dark override for English.
+
+Three focused Swift formatting/presentation tests, the actual engine timestamp projection and 39 Windows harness cases pass. Wider parallel Swift tests initially hit two existing async deadlines while ImageRenderer held MainActor; both affected async cases pass in isolated rechecks. Windows WPF Release compiles without warnings or errors, but native Windows/DPI screenshots and a source-matched CI artifact remain unavailable. No Windows visual verification or protected release approval is claimed for this change. Development-device installation follows the full source-matched check gate.
+
+## Icon-only phone source status (2026-10-13)
+
+Interactive iPhone boards omit the visible Open/Closed text beside the lock glyph. The hidden sizing badge uses the same compact mode, so it does not continue reserving space for a full label. The Source heading and filter remain readable; unavailable and company statuses remain a dash. The shared badge's default retains visible text for desktop, iPad and exported images. Its accessibility representation keeps localized status text and the existing element identifiers, including when the visual title is omitted.
+
+`work/mobile-openness-icons/` retains twelve native after frames, source hashes, original result attachments and review notes. The matching before fixture/viewport uses the prior twelve original frames under `work/mobile-logo-corners/after`. Environment: iPhone 18 Pro, iOS 27.0, 402×874 points at actual 3× scale. Chinese/light and English/dark, model/company grouping, shown/refreshed/settled frames all render compact lock badges without clipped icons or overlapping neighboring columns. Concurrent header/name changes are outside this source-status comparison. The native simulator build passes; both the screenshot test and the existing openness/company aggregation test pass, retaining exact accessible Open/Closed/unknown labels. A failed attempt on the shared default simulator was interrupted by concurrent installations and is excluded. Desktop and iPad retain the default rendering and have no new native visual sign-off in this mobile-only change.
+
+## Brand palette C — Deep sea teal (2026-10-13)
+
+The user-selected C palette changes the canonical tile to `#0B222B` → `#173E43`, the connections/output ring to `#56B9BA` → `#65D5C5`, and node ink to `#C2F2DB`. The accent follows the upward inference path. Neural-network geometry, rotation and platform padding remain identical. All eleven SVG/PNG/ICO/ICNS exports and the iOS asset catalog are regenerated; the monochrome menu PNGs are byte-identical to the baseline.
+
+Ignored `work/logo-palette-20261013/` retains the approved comparison, baseline assets and before/after native AppKit `NSImageView` resource captures at a 900×320-point viewport in both appearances. These decode the actual ICNS at 32/48/64/128/256 points; they verify icon resources, rather than an installed app window. The canonical Mac PNG is byte-identical to the approved C preview. The seven Windows ICO PNG frames validate at 16–256 px, the iOS RGB image is opaque 1024×1024 and identical to its asset-catalog copy, and all nine iOS configuration/icon tests pass. The existing pixel test now compares node ink after AppKit's calibrated-color conversion instead of requiring the old white nodes. Windows WPF native appearance and installation of these resources on the running Mac app/physical phone are not verified by these resource checks. No protected release or native visual-review approval is implied.
+
+## Smaller phone filter chevrons (2026-10-13)
+
+The interactive iPhone Source/Country headers share an eight-point medium-weight downward chevron, replacing the larger caption2 symbol on that layout. Non-phone layouts retain caption2; desktop clients are unchanged. The filter labels, accessibility identifiers and menu actions remain in place.
+
+`work/mobile-filter-chevrons/` retains source hashes, native result attachments and review notes. The matching before fixture/viewport uses `work/mobile-openness-icons/after`; concurrent header/name changes are outside this arrow comparison. Native environment: iPhone 18 Pro, iOS 27.0, 402×874 points at actual 3× scale. Four light/dark and model/company states include shown/refreshed/settled frames, plus all/filtered states from the menu/intersection test (14 native originals). Review confirms the smaller symbols align with header text without clipping or overlap. The arm64 simulator build, screenshot test and Source/Country filter/intersection test pass. No new desktop or iPad native sign-off is claimed for this phone-only adjustment.
+
+The fixed source passed all tests and 100% script/Swift coverage and was signed, installed and launched on the configured physical iPhone at 2026-10-14 00:03:09 Asia/Shanghai. `work/board-header/installation-evidence` retains genuine gate, signing and installation records; `verified-layout-source.tar.gz` retains the exact app and shared-library source. Primary check receipts were not changed to claim that subsequent parallel edits were tested. Only the owned snapshot updater and source checkout were removed.
+
+## iOS leaderboard bottom safe area (2026-10-14)
+
+The compact cube viewport now continues through the bottom container safe area. Ranking content and its footer reserve the measured bottom inset plus eight points, so scrolling to the end leaves the controls above the Home indicator. The wide iPad scroll view also extends to the bottom with its own inset. The root background explicitly covers all safe areas, and iOS 26+ system scroll-edge effects are hidden at both compact cube edges, where the header is outside the scroll view; the wide layout hides only the bottom effect and preserves its existing top behavior.
+
+Native originals and XCTest results are retained under ignored `work/ios-safe-bottom/`. The initial twenty-row fixture was captured before the change on iPhone 18 Pro / iOS 27.0 (402×874 points, actual 3×); the first baseline run stopped on an incorrect static-text query for the button-backed final model name, rather than a production failure. The corrected test verifies final-row and footer hit testing, footer clearance, and the viewport reaching the physical screen bottom. It passes in light/dark on this iPhone and on iPad Pro 11-inch M5 / iOS 27.0 (834×1210 points, actual 2×). The simulator's Home indicator is not rendered in these captures; clearance is verified against screen bounds. These are native iOS checks; no desktop or protected-release approval is implied.
+
+The additional long-name twenty-row scenario (`phone-wrapped.xcresult`, `pad-wrapped.xcresult`) passes in both appearances on both devices. Its intermediate phone capture visibly carries ranking-row content all the way to the physical lower edge; its final capture shows the final row and footer entirely above the reserved inset. Ordinary one-line and wrapped-name originals are kept separately. A preliminary sixty-entry fixture was rejected by the new test because this product intentionally displays only the top twenty; the final scenario exercises those twenty with two-line names, without changing the product's limit.
+
+The final source preserves the wide layout's top scroll-edge treatment (`pad-final-source.xcresult`) and also passes the phone test again (`phone-final-source.xcresult`). Full tests and all enforced Swift/script coverage metrics pass on the frozen source. The signed development app was installed on the configured physical iPhone at 2026-10-14 00:26:50 Asia/Shanghai; auto-launch was prevented by the phone being locked. The actual install receipt and complete gate/signing logs are retained in `work/ios-safe-bottom/installation-evidence`, with the exact app/shared-library source in `verified-source.tar.gz`. Only the owned frozen updater was stopped; the primary workspace's update configuration remains unchanged.
+
+## iOS source tabs and table headings (2026-10-14)
+
+The phone cube tabs now consistently identify the comparison method: Task benchmarks / User votes (任务测评 / 用户盲测). The model-name column heading uses the exact source name previously shown in the tab, such as Artificial Analysis, Text Arena or Artificial Analysis 编程. Source descriptions, timestamp pairs, selected-face behavior and the bottom-safe-area fix remain in place. The iPad table uses the same actual-source heading; desktop clients are unchanged.
+
+Ignored `work/board-tab-labels/` retains native phone/iPad originals and XCTest results, with shown/refreshed/settled General/Coding frames in Chinese/light and English/dark. The matching twenty-row metadata fixtures use iPhone 18 Pro / iOS 27.0 at 402×874 points (actual 3×), and iPad Pro 11-inch M5 / iOS 27.0 at 834×1210 points (actual 2×). The earlier `work/board-header/*-final-originals` captures retain the previous tab/heading labels; intervening branding and safe-area updates are outside this text exchange. The first lightweight preview package omitted Resources/Brand and therefore crashed while constructing the English heading; the owned preview package now copies both Fonts and Brand exactly like Package.swift. No production branding code was changed. Phone label/spacing checks and cached/empty source-error checks pass; all full-suite tests and enforced script/Swift coverage metrics pass. No desktop or protected-release approval is implied.
+
+The complete-resource phone and iPad metadata tests both pass, with twelve original frames each. The development app was signed and installed on the configured physical iPhone at 2026-10-14 00:36:58 Asia/Shanghai. The phone was locked, so automatic launch was unavailable. Genuine test/check/install records are retained under `work/board-tab-labels/installation-evidence`; the primary updater remains enabled.
+
+## Centered phone company purchase links (2026-10-14)
+
+On interactive iPhone company rows, the name/link HStack now uses center alignment instead of first-text-baseline alignment. Plan/Usage links consequently center against the whole two-line name rather than its first line. Single-line rows keep centered contents. Non-phone layouts retain their existing baseline alignment; link destinations and actions are unchanged.
+
+`work/mobile-purchase-center/` retains the Microsoft AI, Black Forest Labs, Anthropic and xAI fixture, source hash, original native before/after captures and review notes. Captures use the same iPhone 18 Pro viewport (402×874 points, actual 3× scale, iOS 27.0), Chinese/light and English/dark, normal/extra-extra-large Dynamic Type and three settling frames per state (12 originals before, 12 valid originals after). Reviewed single-line, two-line/truncated, single-link and two-link rows show centered links without overlap. Concurrent header/branding differences are outside this purchase-row comparison. The native arm64 build passes. An initial verification copy omitted the new Brand resource declaration from Package.swift; its invalid after captures are preserved separately and excluded. The final captures use the complete manifest. No new desktop/iPad native visual sign-off is claimed for this phone-only adjustment.
+
+## Header A cutout correction (2026-10-14)
+
+The title now uses only the neural-network A. Both header PNGs have transparent backgrounds and are cropped to the network's painted bounds, 284×332 px (142:166 aspect). The square application icon is not used in the wordmark. Light surfaces use deeper teal for legibility; dark surfaces retain the selected C palette's mint. Chinese keeps the original A's visible width and 2.5-point glyph gap. English retains native attributed-text rendering and original advances/baseline; the first A is transparent and the cropped mark fits before I without overlap. Both platforms preserve the artwork aspect ratio and center it on the original A's ink.
+
+`work/header-logo/cutout-before/macos/` and `after/macos/` retain 36 original native AppKit/SwiftUI pairs at 850/1300×720 points, English/Simplified/Traditional Chinese, light/dark and shown/refreshed/settled checkpoints. The remaining-title region is pixel-identical in all 36 pairs; hashes and exact comparison regions are recorded in `cutout-review.json`. The comparison excludes the replaced A, age labels captured on different dates, and unrelated concurrent table changes. Native iPhone 18 Pro (iOS 27, 402×874 pt, 3×) Chinese/light and English/dark screenshots show the network alone with no square tile. Five native resource/title regression tests pass, validating original title/baseline footprint across three sizes and four alignments, transparent corners and painted outer bounds. Mac and iOS simulator builds and Windows Release cross-build pass (Windows: zero warnings/errors). Windows WPF screenshots are unavailable locally, so its native visual parity is not certified. No protected release or human visual-review approval is implied.
+
+
+## Complete rankings and return to top (2026-10-14)
+
+The shared service and native fallback parsers retain all valid source rows, and company aggregation retains every company. Mac preserves its twenty-row preferred viewport and Windows preserves the existing panel dimensions; additional rows scroll within the table. Both expose native scrollbars and a return-to-top control after scrolling. iPhone/iPad reuse their scroll containers and add the same action. iPad uses system scroll geometry on iOS 18+ / macOS 15+, with a preference-based fallback on older supported systems. The mini-program retains its existing return-to-top action and now displays complete lists.
+
+Ignored `work/full-ranking/review.html` and `review.json` retain the native comparison, source context, image hashes and live-refresh results. Mac has 24 before and 24 after baseline originals using the same synthetic 31/26-row fixture and 1000×720-point viewport, plus 40 originals exercising scroll-to-last and return-to-top. English/Chinese, model/company and both appearances are covered on macOS 27.0.1 (26A434), actual 1× backing scale. Native assertions verify 31 table rows, unchanged viewport size, a reachable control at the lower right, and restoration of row one. Refreshed/settled differences are confined to native scrollbar fading. An intermediate control mounted inside the native table container was misplaced; the final pass-through overlay fixes its position and preserves table hit testing.
+
+Native iPhone 18 Pro (402×874 points, actual 3×) and iPad Pro 11-inch M5 (834×1210 points, actual 2×), iOS 27, pass the forty-row model/company tail-and-return test. Six original attachments per device and their successful xcresult bundles are retained. The phone's English fixture inherits the simulator's dark appearance; Chinese company mode explicitly requests dark. Existing English phone header truncation is outside this table change. The iPad's first preference-only implementation failed to reveal the control; the final native test passes after system geometry tracking was added. Early dedicated-simulator attempts were stopped during slow simulator startup and are excluded from successful evidence; those two temporary simulators were removed.
+
+241 script tests, 59 service/mini-program checks, 361 Swift tests and the 39-case Windows harness pass in their recorded runs. Shared mobile SwiftUI and iOS simulator builds pass. WPF Release cross-compilation passes with zero warnings/errors; native Windows screenshots and real DPI validation remain unavailable. Full coverage-mode checks are not green: background watcher/adapter tests time out, and an earlier coverage inventory lacked a concurrently added generated policy file. No complete-CI, protected release or client distribution approval is claimed. The shared FC parser is deployed; AA refreshes return 32/39/102/33 rows, while Arena HTTP 403 keeps the prior twenty-row cache until a normal refresh succeeds.
+
+
+## Bounded long-ranking rendering (2026-10-14)
+
+Complete rankings now retain all logical rows while limiting live views to the viewport and nearby rows. The mini-program follows Watrek's stream-layout strategy: stable total height, absolute global row offsets, twelve-row buffers, a six-row edge threshold, overlap reuse and synchronous native scroll-event updates. Full raw data stays outside the Vue-to-WeChat bridge. Windows uses a native recycling VirtualizingStackPanel with pixel scrolling and lightweight index items; row controls are constructed only for realized containers. iPhone/iPad retain the first two measured rows for heading spacing and use LazyVStack for the remaining interactive rows. Filtered/company rows, country options and score-width formatting are cached until relevant source data or preferences change. Explicit image exports still render all rows. Mac retains native NSTableView recycling.
+
+Ignored `work/virtual-ranking/review.html` and `review.json` retain the six native Mac before/after pairs, hashes, fixture and actual platform metadata. The same 5000-row fixture uses 1000×720 points on macOS 27.0.1 at actual 1× backing scale. Native checks find sixteen realized rows both initially and at the final row, then restore row one with the existing control. Refreshed frames are pixel-identical in both appearances; settled light is identical and settled dark differs only in scrollbar fading. Shown-frame differences reflect asynchronous logo arrival. The compact shared native CI fixture adds a 5000-row `virtualRanking` scenario with realized-container, last-row and return-to-top assertions on both desktop harnesses.
+
+The actual WeChat developer-tool renderer passes a synthetic 2000-row model/company scenario: both boards together mount seventy-six row nodes, the cards sent through the bridge remain roughly 17 KB, rank 2000 is reachable and the control returns to rank one. The automator's enhanced-scroll-view `scrollTo` helper did not move the native viewport; the successful run changes the real `scroll-top` target and verifies physical scroll position plus rendered ranks. Request mocking and prior storage are restored in the finally block. A 10000-row controller test and window math through 100000 rows cover jumps, tail clamps, resizing, buffer hysteresis and overlap identity.
+
+Thirty-seven focused script tests, the 5000-row Swift presentation cache test, mini-program build, iOS simulator build and Windows Release cross-build pass in their recorded runs. Native iPad tests pass forty-row tail/return and thousand-row model/company rendering, initially realizing forty-two/forty-nine rows per source. Windows native screenshots/execution, real-device performance and full CI coverage are unavailable in this local verification; no FPS guarantee, client distribution or protected release approval is claimed.
+
+The final native iPhone run (`phone-active.xcresult`) passes all three selected tests with zero failures: forty-row model/company tail and return, thousand-row bounded rendering and return, and source switching at both the top and a scrolled comparison rank. It creates twenty-five/thirty source rows initially and forty-three/fifty-one after scrolling in model/company mode. Intermediate attempts exposed duplicate return-to-top buttons on inactive cube faces; only the active face now mounts that action, with an assertion requiring exactly one accessible control. The final implementation retains ScrollViewReader's normal top target; temporary UIKit probes and full scroll-window resets were removed. Both compact and long-row original screenshots are retained. Phone/iPad use iOS 27 simulators at 402×874 points/actual 3× and 834×1210 points/actual 2× respectively. These checks bound row-view creation; they do not measure real-device frame rate.
+
+
+## Ranking column order (2026-10-14)
+
+All clients now display rank, name, country, source and score in that order. Both desktop source groups retain their shared rank column. Country/source filter headers, arrows, tooltips and Mac native header hit targets move with their fields; interactive rows, placeholders and the shared iPhone/iPad image-export view use the same order. Existing field widths are permuted with their fields, preserving total table width and the name-column space.
+
+Ignored `work/column-order/review.html` and `review.json` retain 36 native Mac before/after pairs at the same 1000×720-point viewport and fixture, shown/refreshed/settled checkpoints, English/Simplified/Traditional Chinese, model/company modes, active filters, setup-empty and cached-error scenarios in light/dark. Settled changes remain within the reordered fields. Mac debug, iOS simulator and Windows Release cross-builds pass; Windows reports zero warnings/errors, but native Windows screenshots and actual DPI validation remain unavailable. The actual WeChat renderer confirms ascending x coordinates for rank/name/country/source/score in both the header and a data row, and the mini-program build passes. No client distribution or protected release approval is implied.
+
+Native iPhone 18 Pro and iPad Pro 11-inch M5 filter regressions pass with zero failures (`phone-final.xcresult`, `pad-final.xcresult`). They verify open/closed/unknown/all, country intersections and company/model switching, with original all/reset frames retained. Both use iOS 27 simulators at actual 3×/2× scale respectively. The first attempts stopped on an obsolete StaticText-only lookup for the semantic source badge; the scoped test locator now matches its accessibility identifier across element types and retains the exact status assertions. A concurrent Mac shared-presentation refactor arrived after captures; its unrelated changes are preserved, the requested column order/header indices remain intact, and the exact captured Mac source plus hash are retained under `work/column-order/captured-source`. This comparison does not certify that separate refactor.
+## Shared Mac / iPhone / iPad presentation rules (2026-10-14)
+
+Mac now uses `LeaderboardPresentation` and `LeaderboardCountryFilter` for source titles and descriptions, model/company filtering and aggregation, country choices, rank medals and relative ages. The compact Mac header tooltip shares the same source explanation while retaining its shorter form. Native controls and mobile row-presentation caching remain platform-specific. The Debug capture path supplies the category directly to `applyVisualFixture`, avoiding the live refresh previously triggered by `selectCategory` during category captures.
+
+Ignored `work/shared-presentation/` holds the original Mac rules, the refactored source snapshot, fixture, native originals, source hashes and `review.html` / `review.json`. Both comparison builds use the same corrected Debug category injection; the original Mac rules are compiled with the updated shared library, whose existing default behavior is retained and tested. The fixture covers all eight boards, three languages, four categories, model/company grouping, both themes and a 1100×720-point viewport at actual 1× backing scale on macOS 27.0.1 (26A434). All 144 before/after frame pairs are compared; all 48 settled frames are pixel-identical. Some initial frames differ during native drawing. Neither corrected capture creates the refresh cache, confirming the category fixture no longer starts a live refresh. Concurrent column-width/caret work is preserved in current sources but excluded from this refactor comparison; the combined current Mac sources separately compile.
+
+71 focused Swift tests plus the separately compiled combined-country/openness regression pass. The latter checks filtering before company aggregation and preservation of the original snapshot. iOS simulator app compilation, 23 release/iOS script checks, a final 17-check iOS/visual-policy run, syntax and diff checks pass. Native Windows captures and a source-matched CI visual artifact are unavailable; no Windows visual verification, protected review approval or installed-client update is claimed.
+
+
+## Smaller country/source text headers (2026-10-14)
+
+Country and source retain their text labels and filter carets, with dedicated smaller header typography: 9.5 points on Mac/Windows, 10 points on iPhone and 11 points on iPad (Apple mobile headers follow Dynamic Type), and 18 rpx in the mini-program. Primary headers, scores, model names and body flags/openness badges keep their existing typography. Mac country/source widths become 36/56 points, returning 44 points to each name column while preserving preferred panel dimensions. Windows narrows those columns and header padding; Apple mobile columns continue measuring the shared smaller labels while respecting body badge widths. The mini-program keeps 29-pixel Chinese attribute columns at its 375-pixel fixture width and accommodates full English/three-character Traditional labels in wider columns.
+
+Ignored `work/filter-header/review.html` and `review.json` retain 36 native Mac before/after pairs using identical synthetic fixtures and 1000×720-point viewports, light/dark, English/Simplified/Traditional Chinese, model/company, selected filters, setup-empty and cached-error scenarios at shown/refreshed/settled checkpoints. Full Open/Closed badges remain visible in the narrower columns. Native iPhone/iPad screenshots show complete text labels and more room for names. Mac/iOS simulator, mini-program and Windows Release cross-builds pass; Windows reports zero warnings/errors but lacks local native WPF/DPI validation. Final WeChat native readback passes in all three languages, with preferences restored. iPhone/iPad filter assertions reach reset with no assertion failures, but both automation runners stall waiting for SpringBoard idle during teardown and were interrupted; these xcresult bundles are not green-suite evidence. No full-CI, real-device or protected-release approval is claimed.
+
+## Quiet automatic refresh on mobile (2026-10-14)
+
+iPhone/iPad no longer render refresh-failure buttons, warning-coloured timestamps/update badges or failure reasons in source-detail sheets. Successful refreshes still replace cached rows; failed requests retain the previous rows and their original timestamps. The mini-program follows the same rule and separates its manually initiated pull indicator from automatic request activity. The initial no-cache loading/empty states remain independent of failure reporting.
+
+Ignored `work/silent-refresh/` contains before/after native iPhone screenshots, source hashes and `QuietRefresh.xcresult`. The native iPhone 18 Pro simulator (iOS 27, 402×874 pt, actual 3× scale) passes the source-description test with both cached/offline and empty/offline fixtures on AA and Arena: saved rows remain available, failure controls are absent and source sheets contain no network/failure instructions. Four native attachments preserve those cases. The comparison also includes concurrent narrower attribute columns; that column work is not attributed to this failure-presentation change. The final UI-test target compiles after updating the remaining legacy error-button assertions.
+
+Three Swift cache/store tests pass, including failure-to-recovery behavior with unchanged old timestamps until a successful response. All 25 mini-program checks, nine iOS script checks, the iOS simulator app/UI-test builds, the mini-program build and syntax/diff checks pass. Mini-program native failure-presentation verification was not repeated for this change. Physical-device installation remains queued behind the complete repository check gate; no installed-client update or release approval is claimed.
+
+## Mini-program sharing restores all settings (2026-10-15)
+
+Menu sharing now encodes a versioned preference snapshot: category, model/company grouping, active task/vote board, language, appearance preference and all eight boards' country/openness filters. The receiving page applies it before the first render, replaces conflicting local preferences, clears filters absent from the snapshot and persists the result. System-mode links also carry the sender's rendered appearance; receiver system changes or an explicit appearance choice resume local behavior. About-page forwarding and cold-start back navigation preserve the same context. Both Vue Mini pages explicitly enable `canShareToOthers`; previously the framework did not register the menu callback despite the source hook.
+
+All 38 mini-program tests, the production build, syntax and diff checks pass. Tests cover the category/grouping/source/language/theme matrix, all board filters, already-decoded and encoded query parameters, default-filter resets, malformed/future links, old category/face links, local memory, repeated forwarding and about-page navigation. Generated paths remain below 1024 characters for the tested full-filter matrix.
+
+Ignored `work/share-settings/` retains source hashes, an original preferences backup, native results and the received-page screenshot. The actual WeChat developer-tool menu callback returns the state link; native launches over deliberately conflicting receiver preferences restore Video/Companies/User votes/English/Dark plus active and off-category filters. Re-forwarding retains the snapshot. Native system-appearance verification on a light-system receiver shows the sender's dark appearance while preserving the system option; about forwarding and cold-start back retain it. Original preferences and pages are restored after each verification. These checks inspect share metadata and local launches; no message is sent to a contact. No physical-device distribution or release is claimed.

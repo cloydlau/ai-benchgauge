@@ -1715,6 +1715,15 @@
       "scenario": "normal",
       "mode": "clickToClose",
       "versionText": "v2026.10.12"
+    },
+    {
+      "id": "long-ranking-en",
+      "language": "en",
+      "width": 1000,
+      "height": 720,
+      "scenario": "virtualRanking",
+      "mode": "panel",
+      "rowCount": 5000
     }
   ],
   "quotaScenarios": {

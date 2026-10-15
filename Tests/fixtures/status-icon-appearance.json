@@ -1,0 +1,132 @@
+{
+  "state": {
+    "boards": [],
+    "quotas": [
+      {
+        "id": "fixture-openai",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "runs": [
+          {
+            "text": "88%"
+          }
+        ]
+      }
+    ]
+  },
+  "quotaScenarios": {
+    "menuBarIconOnly": [],
+    "menuBarIconText": [],
+    "menuBarIconHighlighted": [],
+    "menuBarIconAppearance": [],
+    "menuBarIconLifecycle": []
+  },
+  "cases": [
+    {
+      "id": "icon-only-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarIconOnly",
+      "codexDesktopRunning": false,
+      "taskCounts": {
+        "running": 4,
+        "unread": 3,
+        "failed": 2
+      }
+    },
+    {
+      "id": "task-text-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarIconText",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 4,
+        "unread": 3,
+        "failed": 2
+      }
+    },
+    {
+      "id": "quota-text-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarIconQuota",
+      "codexDesktopRunning": false,
+      "taskCounts": {
+        "running": 4,
+        "unread": 3,
+        "failed": 2
+      }
+    },
+    {
+      "id": "quota-text-zh",
+      "language": "zh",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarIconQuota",
+      "codexDesktopRunning": false,
+      "taskCounts": {
+        "running": 4,
+        "unread": 3,
+        "failed": 2
+      }
+    },
+    {
+      "id": "highlighted-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarIconHighlighted",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 4,
+        "unread": 3,
+        "failed": 2
+      }
+    },
+    {
+      "id": "appearance-switch-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarIconAppearance",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 4,
+        "unread": 3,
+        "failed": 2
+      }
+    },
+    {
+      "id": "icon-to-text-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarIconLifecycle",
+      "codexDesktopRunning": false,
+      "taskCounts": {
+        "running": 4,
+        "unread": 3,
+        "failed": 2
+      },
+      "refreshedCodexDesktopRunning": true
+    },
+    {
+      "id": "text-to-icon-en",
+      "language": "en",
+      "width": 420,
+      "height": 22,
+      "scenario": "menuBarIconLifecycle",
+      "codexDesktopRunning": true,
+      "taskCounts": {
+        "running": 4,
+        "unread": 3,
+        "failed": 2
+      },
+      "refreshedCodexDesktopRunning": false
+    }
+  ]
+}

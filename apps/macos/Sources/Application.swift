@@ -105,7 +105,10 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
     private var loggedCodexDesktopRunning: Bool?
     private var hasLoggedTaskCounts = false
     @IBOutlet private var button: NSStatusBarButton?
-    private static let statusItemSymbolName = "brain.head.profile"
+    private static let brandTemplate: NSImage? = {
+        guard let url = Bundle.main.url(forResource: "menu-template@2x", withExtension: "png", subdirectory: "brand") else { return nil }
+        return NSImage(contentsOf: url)
+    }()
     private let popover = NSPopover()
     private let state: AppState
     private let statusItem: NSStatusItem
@@ -293,7 +296,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
         let title = NSMutableAttributedString(string: "")
         if let symbol = statusItemSymbol(for: button) {
             let attachment = NSTextAttachment()
-            attachment.image = symbol
+            attachment.image = statusItemAttachmentImage(symbol, for: button)
             // Keep the icon on the same baseline as the status text.
             attachment.bounds = CGRect(x: 0, y: -symbol.alignmentRect.minY,
                 width: symbol.size.width, height: symbol.size.height)
@@ -333,14 +336,38 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
         }
     }
 
+    /// Attachment images bypass the button's native template rendering. Draw
+    /// the same alpha mask with the menu bar's current semantic foreground color.
+    private func statusItemAttachmentImage(_ symbol: NSImage, for button: NSStatusBarButton) -> NSImage {
+        let mask = symbol.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        let image = NSImage(size: symbol.size, flipped: false) { [weak button] rect in
+            guard let mask, let context = NSGraphicsContext.current?.cgContext else { return false }
+            let appearance = button?.effectiveAppearance ?? NSAppearance.currentDrawing()
+            appearance.performAsCurrentDrawingAppearance {
+                context.saveGState()
+                context.clip(to: rect, mask: mask)
+                NSColor.labelColor.setFill()
+                rect.fill()
+                context.restoreGState()
+            }
+            return true
+        }
+        // Re-resolve appearance/highlight on every draw, including while idle.
+        image.cacheMode = .never
+        image.alignmentRect = symbol.alignmentRect
+        image.accessibilityDescription = symbol.accessibilityDescription
+        return image
+    }
+
     private func statusItemSymbol(for button: NSStatusBarButton) -> NSImage? {
         let font = button.font ?? NSFont.menuBarFont(ofSize: 0)
-        let symbol = NSImage(
-            systemSymbolName: Self.statusItemSymbolName,
-            accessibilityDescription: state.selectedLanguage.appName
-        )
-        let configuration = NSImage.SymbolConfiguration(pointSize: font.pointSize, weight: .regular)
-        return symbol?.withSymbolConfiguration(configuration) ?? symbol
+        guard let image = Self.brandTemplate?.copy() as? NSImage else { return nil }
+        let size = max(16, font.pointSize + 3)
+        image.size = NSSize(width: size, height: size)
+        image.alignmentRect = NSRect(x: 0, y: 3, width: size, height: size - 3)
+        image.isTemplate = true
+        image.accessibilityDescription = state.selectedLanguage.appName
+        return image
     }
 
     /// A status-item popover is a child of the menu-bar window, so it inherits

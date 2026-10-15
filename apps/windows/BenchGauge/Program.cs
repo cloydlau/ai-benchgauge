@@ -52,7 +52,8 @@ static class Program
             var prefs = Preferences.Load();
             var window = new MainWindow(engine, prefs);
             app.MainWindow = window;
-            using var tray = new Forms.NotifyIcon { Icon = System.Drawing.SystemIcons.Application, Text = window.BrandName, Visible = true };
+            using var icon = new System.Drawing.Icon(Path.Combine(AppContext.BaseDirectory, "brand", "AI-BenchGauge.ico"));
+            using var tray = new Forms.NotifyIcon { Icon = icon, Text = window.BrandName, Visible = true };
             window.Tray = tray;
             tray.MouseClick += (_, e) => { if (e.Button == Forms.MouseButtons.Left) window.Toggle(); };
             var menu = new Forms.ContextMenuStrip();

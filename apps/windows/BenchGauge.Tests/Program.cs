@@ -6,6 +6,16 @@ using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Security;
 
+// Shared images arrive in the engine response; older engines remain readable.
+var brandedEntry = JsonSerializer.Deserialize<Entry>("""
+    {"rank":1,"name":"New Model","score":99,"organization":"New Maker","brandColor":"#319FA8","logoPNG":"iVBORw0KGgo=","initials":"N"}
+    """, AppConfig.Json)!;
+if (brandedEntry.BrandColor != "#319FA8" || brandedEntry.LogoPNG != "iVBORw0KGgo=" || brandedEntry.Initials != "N")
+    throw new Exception("Shared brand fields lost in engine protocol");
+var legacyEntry = JsonSerializer.Deserialize<Entry>("""{"rank":1,"name":"Old Model","score":99}""", AppConfig.Json)!;
+if (legacyEntry.BrandColor is not null || legacyEntry.LogoPNG is not null || legacyEntry.Initials is not null)
+    throw new Exception("Legacy engine response cannot require brand fields");
+
 // Stable data timestamps, boundary ages and language forms; rendering alone
 // must never fabricate a just-now timestamp from the presence of quota cards.
 var ageNow = DateTimeOffset.Parse("2026-10-01T12:00:00Z");

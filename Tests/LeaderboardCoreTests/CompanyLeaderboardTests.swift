@@ -151,15 +151,15 @@ struct CompanyLeaderboardTests {
     }
 
     @Test
-    func testDisplayCapsAtTwentyCompanies() {
+    func testDisplayIncludesEveryCompany() {
         let entries = (1...25).map { rank in
             entry(rank, "M\(rank)", Double(100 - rank), organization: "Org \(rank)")
         }
         let ranked = CompanyLeaderboard.rank(entries)
-        #expect((ranked.count) == (20))
+        #expect((ranked.count) == (25))
         #expect((ranked.first?.entry.name) == ("Org 1"))
-        #expect((ranked.last?.entry.name) == ("Org 20"))
-        #expect((ranked.map(\.entry.rank)) == (Array(1...20)))
+        #expect((ranked.last?.entry.name) == ("Org 25"))
+        #expect((ranked.map(\.entry.rank)) == (Array(1...25)))
     }
 
     @Test

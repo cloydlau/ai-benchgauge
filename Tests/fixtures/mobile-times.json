@@ -1,0 +1,6 @@
+[
+  {"fetchedAt":"2026-10-14T08:00:00Z","expected":"2026-10-14T08:00:00Z"},
+  {"sourceUpdatedAt":"2026-10-14T06:00:00Z","fetchedAt":"2026-10-14T08:00:00Z","expected":"2026-10-14T08:00:00Z"},
+  {"sourceUpdatedAt":"2026-10-14T10:00:00Z","fetchedAt":"2026-10-14T08:00:00Z","expected":"2026-10-14T10:00:00Z"},
+  {"sourceUpdatedAt":"2026-10-14T08:00:00Z","fetchedAt":"2026-10-14T08:00:00Z","expected":"2026-10-14T08:00:00Z"}
+]

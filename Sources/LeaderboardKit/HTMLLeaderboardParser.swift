@@ -21,7 +21,8 @@ public enum HTMLLeaderboardParser {
                 score: rawScore,
                 modelID: modelID,
                 organization: organization,
-                logoURL: artificialAnalysisLogoURL(from: logoPath)
+                logoURL: artificialAnalysisLogoURL(from: logoPath),
+                openness: ModelOpenness.fromSource(object)
             )
         }
 
@@ -34,7 +35,6 @@ public enum HTMLLeaderboardParser {
                 if lhs.score == rhs.score { return lhs.name < rhs.name }
                 return lhs.score > rhs.score
             }
-            .prefix(20)
             .enumerated()
             .map { index, record in
                 LeaderboardEntry(
@@ -43,7 +43,8 @@ public enum HTMLLeaderboardParser {
                     score: record.score,
                     modelID: record.modelID,
                     organization: record.organization,
-                    logoURL: record.logoURL
+                    logoURL: record.logoURL,
+                    openness: record.openness
                 )
             }
 
@@ -81,7 +82,8 @@ public enum HTMLLeaderboardParser {
                 name: name,
                 score: rawScore * 100,
                 modelID: modelID,
-                organization: organization
+                organization: organization,
+                openness: ModelOpenness.fromSource(object)
             )
         }
 
@@ -94,7 +96,6 @@ public enum HTMLLeaderboardParser {
                 if lhs.score == rhs.score { return lhs.name < rhs.name }
                 return lhs.score > rhs.score
             }
-            .prefix(20)
             .enumerated()
             .map { index, record in
                 LeaderboardEntry(
@@ -102,7 +103,8 @@ public enum HTMLLeaderboardParser {
                     name: record.name,
                     score: record.score,
                     modelID: record.modelID,
-                    organization: record.organization
+                    organization: record.organization,
+                    openness: record.openness
                 )
             }
 
@@ -175,7 +177,8 @@ public enum HTMLLeaderboardParser {
                 score: score,
                 modelID: modelID,
                 organization: organization,
-                logoURL: artificialAnalysisLogoURL(from: logoPath)
+                logoURL: artificialAnalysisLogoURL(from: logoPath),
+                openness: ModelOpenness.fromSource(values)
             )
         }
 
@@ -188,7 +191,6 @@ public enum HTMLLeaderboardParser {
                 if lhs.score == rhs.score { return lhs.name < rhs.name }
                 return lhs.score > rhs.score
             }
-            .prefix(20)
             .enumerated()
             .map { index, record in
                 LeaderboardEntry(
@@ -197,7 +199,8 @@ public enum HTMLLeaderboardParser {
                     score: record.score,
                     modelID: record.modelID,
                     organization: record.organization,
-                    logoURL: record.logoURL
+                    logoURL: record.logoURL,
+                    openness: record.openness
                 )
             }
 
@@ -237,7 +240,8 @@ public enum HTMLLeaderboardParser {
                 name: name,
                 score: score,
                 modelID: modelID,
-                organization: organization
+                organization: organization,
+                openness: ModelOpenness.fromSource(object)
             )
         }
 
@@ -250,7 +254,6 @@ public enum HTMLLeaderboardParser {
                 if lhs.score == rhs.score { return lhs.name < rhs.name }
                 return lhs.score > rhs.score
             }
-            .prefix(20)
             .enumerated()
             .map { index, record in
                 LeaderboardEntry(
@@ -258,7 +261,8 @@ public enum HTMLLeaderboardParser {
                     name: record.name,
                     score: record.score,
                     modelID: record.modelID,
-                    organization: record.organization
+                    organization: record.organization,
+                    openness: record.openness
                 )
             }
 
@@ -283,6 +287,7 @@ public enum HTMLLeaderboardParser {
         let modelID: String?
         let organization: String?
         let logoURL: URL?
+        let openness: ModelOpenness?
     }
 
     private struct ParsedCodingAgentRecord: Sendable {
@@ -290,6 +295,7 @@ public enum HTMLLeaderboardParser {
         let score: Double
         let modelID: String?
         let organization: String?
+        let openness: ModelOpenness?
     }
 
     private struct ParsedArenaRecord: Sendable {
@@ -297,9 +303,10 @@ public enum HTMLLeaderboardParser {
         let score: Double
         let modelID: String?
         let organization: String?
+        let openness: ModelOpenness?
     }
 
-    private static func artificialAnalysisLogoURL(from path: String?) -> URL? {
+    static func artificialAnalysisLogoURL(from path: String?) -> URL? {
         guard let path, !path.isEmpty else { return nil }
         if let url = URL(string: path), let scheme = url.scheme, !scheme.isEmpty {
             return url
