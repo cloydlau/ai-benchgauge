@@ -9,12 +9,18 @@ import { acquireCommitLock } from './commit-lock.mjs'
 import { nodeExecutable } from './node-executable.mjs'
 
 export const testRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+export const testEnvironmentKeys = ['PATH', 'DEVELOPER_DIR', 'TOOLCHAINS', 'SDKROOT', 'TZ',
+  'SWIFT_EXEC', 'SWIFT_DRIVER_SWIFT_FRONTEND_EXEC', 'NODE_OPTIONS', 'LANG', 'LC_ALL']
+
+export function testExecutionContext(env = process.env) {
+  return { node: nodeExecutable({ env }), env: Object.fromEntries([...testEnvironmentKeys, 'CALMMIT_PATH']
+    .map(key => [key, env[key] ?? null])) }
+}
 
 // Only a pass for the exact inputs may be reused by child commit/build processes.
 export function testInputSignature(root = testRoot, env = process.env, { includeSources = true } = {}) {
   const hash = createHash('sha256')
-  hash.update(JSON.stringify([process.version, nodeExecutable({ env }), env.PATH, env.DEVELOPER_DIR, env.TOOLCHAINS, env.SDKROOT, env.TZ,
-    env.SWIFT_EXEC, env.SWIFT_DRIVER_SWIFT_FRONTEND_EXEC, env.NODE_OPTIONS, env.LANG, env.LC_ALL]))
+  hash.update(JSON.stringify([process.version, nodeExecutable({ env }), ...testEnvironmentKeys.map(key => env[key])]))
   function collect(path) {
     if (!existsSync(path)) return
     const stat = statSync(path)

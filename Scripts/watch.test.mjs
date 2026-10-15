@@ -40,7 +40,7 @@ test('an uncommitted build or unreadable deployment never borrows the current mo
 
 // Run the real watcher in an isolated project. The build/restart scripts only
 // record calls; these tests never launch the user's app or use its accounts.
-function watcherFixture(t, { binary = 'fresh', restartFails = false, testsFail = false, commitFails = false, initiallyBusy = false, gitWork = false, receiptCommit = null, receiptAuthor = undefined, notificationAuthor = null, dirtyBuild = false, phone = false, phoneFails = false, env = {} } = {}) {
+function watcherFixture(t, { binary = 'fresh', restartFails = false, testsFail = false, commitFails = false, initiallyBusy = false, gitWork = false, receiptCommit = null, receiptAuthor = undefined, notificationAuthor = null, dirtyBuild = false, phone = false, phoneFails = false, env = {}, setup } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'benchgauge-watch-test-')))
   const scripts = join(root, 'Scripts')
   const app = join(root, 'outputs', 'AI-BenchGauge.app')
@@ -69,13 +69,13 @@ process.exit(${phoneFails} && readFileSync('Tests/example.swift', 'utf8') === 'p
   const source = join(root, 'Sources', 'example.swift')
   const testFile = join(root, 'Tests', 'example.swift')
   writeFileSync(testFile, testsFail ? 'fail' : 'pass')
-  writeFileSync(join(scripts, 'test-repair.mjs'), `import { appendFileSync, readFileSync } from 'node:fs'
+  writeFileSync(join(scripts, 'test-repair.mjs'), `import { appendFileSync, readFileSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 const root = fileURLToPath(new URL('../', import.meta.url))
-let calls = 0
 export async function runTestGate() {
+  const first = !existsSync(root + 'events')
   appendFileSync(root + 'events', 'test\\n')
-  if (${initiallyBusy} && calls++ === 0) return { status: 75, signature: null }
+  if (${initiallyBusy} && first) return { status: 75, signature: null }
   return { status: readFileSync(root + 'Tests/example.swift', 'utf8') === 'fail' ? 1 : 0, signature: 'mock-pass', logPath: 'mock.log' }
 }
 `)
@@ -137,25 +137,41 @@ esac
     mkdirSync(join(root, 'work'), { recursive: true })
     writeFileSync(join(root, 'work', '.last-app-deploy'), `${JSON.stringify({ commit: receiptCommit, author: receiptAuthor })}\n`)
   }
+  const fixtureEnv = setup?.(root) || {}
   const child = spawn(process.execPath, [join(scripts, 'watch.mjs')], {
     cwd: root,
-    env: { ...process.env, WATCH_AUTOCOMMIT: gitWork ? '1' : '0', DESKTOP_NOTIFY: '0', ...env,
+    env: { ...process.env, WATCH_AUTOCOMMIT: gitWork ? '1' : '0', DESKTOP_NOTIFY: '0', ...env, ...fixtureEnv,
       ...((gitWork || notificationAuthor != null) ? { PATH: join(root, 'bin') + ':' + process.env.PATH } : {}) },
     stdio: ['ignore', 'pipe', 'pipe'],
+    detached: process.platform !== 'win32',
   })
   let output = ''
   child.stdout.setEncoding('utf8')
   child.stderr.setEncoding('utf8')
   child.stdout.on('data', (data) => { output += data })
   child.stderr.on('data', (data) => { output += data })
-  const exited = new Promise((resolve) => child.once('exit', (code) => resolve(code)))
-  t.after(async () => {
+  const exited = new Promise((resolve) => child.once('close', (code) => resolve(code)))
+  let cleaned = false
+  const cleanup = async () => {
+    if (cleaned) return
+    cleaned = true
+    const signalGroup = signal => {
+      if (process.platform === 'win32') return
+      try { process.kill(-child.pid, signal) } catch (error) { if (error.code !== 'ESRCH') throw error }
+    }
+    // Let Node flush coverage while stopping every writer in the fixture.
+    // A bounded fallback also stops descendants that ignore termination.
     if (child.exitCode == null) child.kill('SIGTERM')
-    await exited
-    rmSync(root, { recursive: true, force: true })
-  })
+    signalGroup('SIGTERM')
+    const force = setTimeout(() => signalGroup('SIGKILL'), 1000)
+    // close also waits for inherited pipes; the fallback handles descendants
+    // that keep them open. Do not signal the exited group again on macOS.
+    try { await exited } finally { clearTimeout(force) }
+    rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 })
+  }
+  t.after(cleanup)
   return {
-    source, testFile, root, child, exited,
+    source, testFile, root, child, exited, cleanup,
     notifications: () => existsSync(join(root, 'notifications.jsonl'))
       ? readFileSync(join(root, 'notifications.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line)) : [],
     output: () => output,
@@ -163,8 +179,24 @@ esac
   }
 }
 
+test('fixture cleanup terminates descendant writers before deleting its directory', async t => {
+  const fixture = watcherFixture(t, { setup(root) {
+    writeFileSync(join(root, 'Scripts/test-repair.mjs'), `import {spawn} from 'node:child_process'
+export async function runTestGate() {
+  spawn(process.execPath, ['-e', "const fs=require('node:fs'); fs.appendFileSync('events','writer-ready\\\\n'); setInterval(()=>fs.writeFileSync('late-write','fixture'),5)"], {stdio:'inherit'})
+  return new Promise(()=>{})
+}`)
+  } })
+  await waitUntil(fixture, () => fixture.events().includes('writer-ready'))
+  await fixture.cleanup()
+  assert.equal(existsSync(fixture.root), false)
+  await new Promise(resolve => setTimeout(resolve, 50))
+  assert.equal(existsSync(fixture.root), false)
+})
+
 async function waitUntil(fixture, predicate) {
-  const deadline = Date.now() + 8_000
+  // Process fixtures may queue behind native builds on the same CI machine.
+  const deadline = Date.now() + 30_000
   while (!predicate()) {
     assert.ok(Date.now() < deadline, `watcher timed out:\n${fixture.output()}`)
     await new Promise((resolve) => setTimeout(resolve, 20))
@@ -284,6 +316,92 @@ test('saving source after startup rebuilds and restarts through the running watc
   writeFileSync(fixture.source, '// changed\n')
   await waitUntil(fixture, () => fixture.events().length === 5)
   assert.deepEqual(fixture.events(), ['test', 'restart', 'test', 'build', 'restart'])
+})
+
+test('a running watcher reloads test dependencies and forwards the new phone receipt', async t => {
+  const fixture = watcherFixture(t, { phone: true,
+    env: { WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' },
+    setup(root) {
+      writeFileSync(join(root, 'Scripts/gate-version.mjs'), "export const version = 'v1'\n")
+      writeFileSync(join(root, 'Scripts/test-repair.mjs'), `import {appendFileSync} from 'node:fs'
+import {version} from './gate-version.mjs'
+export async function runTestGate() {
+  appendFileSync('events','test-'+version+'\\n')
+  return {status:0,signature:version==='v1'?'mock-pass':'updated-pass'}
+}`)
+    },
+  })
+  await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
+  assert.deepEqual(fixture.events(), ['test-v1', 'phone-check', 'restart'])
+  writeFileSync(join(fixture.root, 'Scripts/ios-deploy.mjs'), `import {appendFileSync} from 'node:fs'
+if(process.argv[2]!=='checked'||process.env.BENCHGAUGE_TEST_PASS!=='updated-pass')process.exit(2)
+appendFileSync('events','phone-check-v2\\n')`)
+  writeFileSync(join(fixture.root, 'Scripts/gate-version.mjs'), "export const version = 'v2'\n")
+  writeFileSync(fixture.source, '// latest source\n')
+  await waitUntil(fixture, () => fixture.events().length >= 7)
+  assert.deepEqual(fixture.events(), ['test-v1', 'phone-check', 'restart', 'test-v2', 'phone-check-v2', 'build', 'restart'])
+})
+
+test('a crashed test worker cannot authorize deployment with a passing message', async t => {
+  const fixture = watcherFixture(t, { setup(root) {
+    writeFileSync(join(root, 'Scripts/test-repair.mjs'), `export async function runTestGate(){
+      const send=process.send.bind(process)
+      process.send=message=>{send(message);setImmediate(()=>process.exit(2))}
+      return {status:0,signature:'mock-pass'}
+    }`)
+  } })
+  assert.equal(await fixture.exited, 1)
+  assert.match(fixture.output(), /测试进程异常退出（2）/)
+  assert.deepEqual(fixture.events(), [])
+})
+
+test('phone validation preserves the tested runtime, locale and absent environment settings', async t => {
+  const fixture = watcherFixture(t, { phone: true, env: { TZ: 'Asia/Shanghai' }, setup(root) {
+    writeFileSync(join(root, 'Scripts/test-repair.mjs'), `import{appendFileSync}from'node:fs'
+export async function runTestGate(){
+  process.env.LANG='en_GB.UTF-8';delete process.env.TZ
+  appendFileSync('events','test\\n')
+  return {status:0,signature:'mock-pass'}
+}`)
+    writeFileSync(join(root, 'Scripts/ios-deploy.mjs'), `import{appendFileSync}from'node:fs'
+if(process.env.LANG!=='en_GB.UTF-8'||process.env.TZ!==undefined||process.execPath!==process.env.BENCHGAUGE_NODE)process.exit(2)
+if(process.env.BENCHGAUGE_TEST_PASS!=='mock-pass')process.exit(2)
+appendFileSync('events','phone-check\\n')`)
+  } })
+  await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
+  assert.deepEqual(fixture.events(), ['test', 'phone-check', 'restart'])
+})
+
+test('a missing test runtime stops startup before deployment', async t => {
+  const fixture = watcherFixture(t, { setup(root) {
+    writeFileSync(join(root, 'Scripts/node-executable.mjs'), "export const nodeExecutable=()=>'/missing/gate-runtime'\n")
+  } })
+  assert.equal(await fixture.exited, 1)
+  assert.match(fixture.output(), /ENOENT/)
+  assert.deepEqual(fixture.events(), [])
+})
+
+test('a transient test lock after startup retries without another source save', async t => {
+  const fixture = watcherFixture(t, {
+    env: { WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' },
+    setup(root) {
+      writeFileSync(join(root, 'Scripts/test-repair.mjs'), `import {appendFileSync,readFileSync,existsSync,writeFileSync} from 'node:fs'
+export async function runTestGate() {
+  appendFileSync('events', 'test\\n')
+  if (readFileSync('Tests/example.swift','utf8') === 'retry' && !existsSync('retried')) {
+    writeFileSync('retried','done')
+    return {status:75,signature:null}
+  }
+  return {status:0,signature:'mock-pass'}
+}`)
+    },
+  })
+  await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
+  writeFileSync(fixture.testFile, 'retry')
+  writeFileSync(fixture.source, '// changed while a test lock is temporarily busy\n')
+  await waitUntil(fixture, () => fixture.events().length >= 6)
+  assert.deepEqual(fixture.events(), ['test', 'restart', 'test', 'test', 'build', 'restart'])
+  assert.match(fixture.output(), /测试期间有新变更，重新验证/)
 })
 
 test('failed tests stop startup and saving a test file recovers without restarting the watcher', async (t) => {
@@ -411,4 +529,276 @@ test('a phone build check failure blocks later actions and a new edit can recove
   writeFileSync(fixture.testFile, 'pass')
   await waitUntil(fixture, () => fixture.events().length === 9)
   assert.deepEqual(fixture.events().slice(-4), ['test', 'phone-check', 'build', 'restart'])
+})
+
+test('invalid watch durations fail before any test, commit or restart', async t => {
+  const f = watcherFixture(t, { env: { WATCH_DEBOUNCE_MS: 'invalid' } })
+  assert.equal(await f.exited, 1)
+  assert.match(f.output(), /WATCH_DEBOUNCE_MS 无效/)
+  assert.deepEqual(f.events(), [])
+})
+
+test('source scan distinguishes permission denials, vanished files, directories and unexpected errors', async t => {
+  for (const mode of ['denied-stat', 'denied-read', 'vanished', 'special', 'unexpected']) {
+    const f = watcherFixture(t, { setup(root) {
+      const hook = join(root, 'scan-hook.cjs')
+      mkdirSync(join(root, 'Sources/denied'))
+      writeFileSync(join(root, 'Sources/deny.swift'), 'fixture')
+      writeFileSync(hook, `const fs=require('node:fs');const stat=fs.statSync,read=fs.readdirSync;
+fs.statSync=(path,...args)=>{if(String(path).endsWith('/deny.swift')){if('${mode}'==='denied-stat'||'${mode}'==='unexpected')throw Object.assign(new Error('fixture scan failure'),{code:'${mode}'==='denied-stat'?'EPERM':'EIO'});if('${mode}'==='vanished')return undefined;if('${mode}'==='special')return {isFile:()=>false,isDirectory:()=>false}}return stat(path,...args)};
+fs.readdirSync=(path,...args)=>{if(String(path).endsWith('/Sources/denied')&&'${mode}'==='denied-read')throw Object.assign(new Error('fixture denied'),{code:'EACCES'});return read(path,...args)};
+require('node:module').syncBuiltinESMExports()`)
+      return { NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --require=${hook}`.trim() }
+    } })
+    if (mode === 'unexpected') { assert.equal(await f.exited, 1); assert.match(f.output(), /fixture scan failure/) }
+    else {
+      await waitUntil(f, () => f.output().includes('等待源码变更'))
+      assert.deepEqual(f.events(), ['test', 'restart'])
+      if (mode.startsWith('denied')) assert.match(f.output(), /无法读取/)
+    }
+  }
+})
+
+test('missing upstream and failed Git probes stay visible without an automatic push', async t => {
+  for (const mode of ['no-upstream', 'denied', 'error', 'unknown', 'head-error']) {
+    const f = watcherFixture(t, { gitWork: true, env: { WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' }, setup(root) {
+      const hook = join(root, 'git-hook.cjs')
+      writeFileSync(hook, `const cp=require('node:child_process');const original=cp.spawnSync;
+cp.spawnSync=(command,args,options)=>{if(command==='git'&&args[0]==='rev-list'){
+if('${mode}'==='no-upstream')return {status:1,stdout:''};
+if('${mode}'==='denied'||'${mode}'==='error')return {error:Object.assign(new Error('fixture upstream error'),{code:'${mode}'==='denied'?'EACCES':'ENOENT'})};
+if('${mode}'==='unknown')return {status:0,stdout:'invalid'};
+return {status:0,stdout:'0 1'}};
+if(command==='git'&&args[0]==='rev-parse'&&'${mode}'==='head-error')return {status:1,stdout:''};return original(command,args,options)};
+require('node:module').syncBuiltinESMExports()`)
+      return { NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --require=${hook}`.trim() }
+    } })
+    await waitUntil(f, () => f.events().includes('commit'))
+    await new Promise(accept => setTimeout(accept, 300))
+    assert.equal(f.events().includes('push'), false)
+    if (mode === 'no-upstream') assert.match(f.output(), /没有上游/)
+    if (mode === 'error') assert.match(f.output(), /上游检查失败/)
+    if (mode === 'denied') assert.doesNotMatch(f.output(), /上游检查失败/)
+  }
+})
+
+test('a build failure stays blocked until a newer save arrives', async t => {
+  const f = watcherFixture(t, { env: { WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' }, setup(root) {
+    writeFileSync(join(root, 'Scripts/make-app.sh'), '#!/bin/sh\ncd "$(dirname "$0")/.."\necho build >> events\nexit 2\n', { mode: 0o755 })
+  } })
+  await waitUntil(f, () => f.output().includes('等待源码变更'))
+  writeFileSync(f.source, '// changed to fail build\n')
+  await waitUntil(f, () => f.output().includes('构建失败'))
+  const count = f.events().filter(event => event === 'build').length
+  await new Promise(accept => setTimeout(accept, 350))
+  assert.equal(f.events().filter(event => event === 'build').length, count)
+  assert.equal(f.events().filter(event => event === 'restart').length, 1)
+})
+
+test('temporary commit lock contention is retried, while an unchanged successful commit is blocked', async t => {
+  for (const mode of ['busy', 'unchanged']) {
+    const f = watcherFixture(t, { gitWork: true, env: { COMMIT_PUSH: '0', WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' }, setup(root) {
+      writeFileSync(join(root, 'Scripts/commit.mjs'), `import{appendFileSync,existsSync,readFileSync,writeFileSync}from'node:fs';appendFileSync('events','commit\\n');const n=existsSync('attempt')?Number(readFileSync('attempt')):0;writeFileSync('attempt',String(n+1));if('${mode}'==='busy'&&n===0)process.exit(75);if('${mode}'==='busy'){writeFileSync('commit.done','done');writeFileSync('head','fixture-head-2')}`)
+    } })
+    if (mode === 'busy') {
+      await waitUntil(f, () => f.output().includes('本轮流程完成'))
+      assert.ok(f.events().filter(event => event === 'commit').length >= 2)
+      assert.match(f.output(), /提交锁被占用/)
+    } else {
+      await waitUntil(f, () => f.output().includes('改动仍在'))
+      const count = f.events().filter(event => event === 'commit').length
+      writeFileSync(f.testFile, '// new test with the same dirty source fingerprint\n')
+      await waitUntil(f, () => f.output().includes('这一版提交已失败'))
+      assert.equal(f.events().filter(event => event === 'commit').length, count)
+    }
+  }
+})
+
+test('a failed push and a falsely successful push remain failed until a source change', async t => {
+  for (const mode of ['failed', 'unchanged']) {
+    const f = watcherFixture(t, { gitWork: true, env: { WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' }, setup(root) {
+      writeFileSync(join(root, 'bin/git'), `#!/bin/sh
+case "$1" in
+status) test -f commit.done || printf ' M Sources/example.swift\\0';;
+rev-list) echo '0 1';;
+rev-parse) echo fixture-head;;
+cat-file) exit 0;;
+diff) echo Sources/example.swift;;
+*) for arg in "$@"; do if test "$arg" = push; then echo push >> events; exit ${mode === 'failed' ? 2 : 0}; fi; done;;
+esac
+exit 0
+`, { mode: 0o755 })
+    } })
+    await waitUntil(f, () => f.output().includes('推送失败'))
+    const count = f.events().filter(event => event === 'push').length
+    await new Promise(accept => setTimeout(accept, 350))
+    assert.equal(f.events().filter(event => event === 'push').length, count)
+    if (mode === 'unchanged') assert.match(f.output(), /上游仍落后/)
+    else assert.match(f.output(), /git push 退出码 2/)
+  }
+})
+
+
+test('another save resets a pending debounce timer before any commit',async t=>{
+ const f=watcherFixture(t,{env:{WATCH_DEBOUNCE_MS:'700',WATCH_THROTTLE_MS:'0',WATCH_POLL_MS:'200'}})
+ await waitUntil(f,()=>f.output().includes('等待源码变更'))
+ writeFileSync(f.source,'// first save')
+ await waitUntil(f,()=>f.output().includes('检测到源码变更'))
+ const length=f.output().length
+ writeFileSync(f.source,'// second save')
+ await waitUntil(f,()=>f.output().slice(length).includes('检测到源码变更'))
+ await waitUntil(f,()=>f.events().filter(v=>v==='restart').length===2)
+ assert.equal(f.events().filter(v=>v==='build').length,1)
+})
+
+test('a failed test signature is not rerun solely because the upstream head changes',async t=>{
+ const f=watcherFixture(t,{gitWork:true,testsFail:true,env:{APP_AUTODEPLOY:'0',WATCH_DEBOUNCE_MS:'0',WATCH_THROTTLE_MS:'0',WATCH_POLL_MS:'200'}})
+ await waitUntil(f,()=>f.output().includes('启动测试失败'))
+ writeFileSync(f.source,'// edited failing source')
+ await waitUntil(f,()=>f.events().filter(v=>v==='test').length===2)
+ await waitUntil(f,()=>f.output().includes('测试失败，已停止提交、推送和重建'))
+ writeFileSync(join(f.root,'head'),'new-upstream-signature')
+ await waitUntil(f,()=>f.output().includes('这一版测试已失败，等待下次保存'))
+ assert.equal(f.events().filter(v=>v==='test').length,2)
+})
+
+test('edits arriving during a test are rechecked before the commit',async t=>{
+ const f=watcherFixture(t,{gitWork:true,env:{APP_AUTODEPLOY:'0',WATCH_DEBOUNCE_MS:'0',WATCH_THROTTLE_MS:'0',WATCH_POLL_MS:'200'},setup(root){
+  writeFileSync(join(root,'Scripts/test-repair.mjs'),`import{appendFileSync,writeFileSync,readFileSync}from'node:fs';export async function runTestGate(){appendFileSync('events','test\\n');if(readFileSync('events','utf8').split('\\n').filter(v=>v==='test').length===2)writeFileSync('Sources/example.swift','// newer save');return {status:0,signature:'mock-pass'}}`)
+ }})
+ await waitUntil(f,()=>f.output().includes('检查期间有新变更，重新验证'))
+ await waitUntil(f,()=>f.events().includes('commit'))
+ assert.ok(f.events().filter(v=>v==='test').length>=3)
+})
+
+test('watcher lock reporting covers an orphan launcher and an unverifiable owner',async t=>{
+ const f=watcherFixture(t,{setup(root){
+  writeFileSync(join(root,'Scripts/commit-lock.mjs'),`export function acquireCommitLock(options){if(options.launcherPid!==0)throw Error('wrong orphan marker');options.warn('fixture lock warning');return {acquired:false,owner:null}}`)
+  writeFileSync(join(root,'hook.cjs'),`Object.defineProperty(process,'ppid',{value:1})`)
+  return {NODE_OPTIONS:(process.env.NODE_OPTIONS||'')+` --require=${join(root,'hook.cjs')}`}
+ }})
+ assert.equal(await f.exited,75)
+ assert.match(f.output(),/pid 未知/)
+})
+
+
+test('renamed paths fingerprint the destination and skip the old pathname', () => {
+ const seen=[]
+ const value=dirtyStatusSignature('R  new.swift\0old.swift\0',path=>{seen.push(path);return 'fixture'})
+ assert.ok(value.includes('new.swift'));assert.ok(!seen.includes('old.swift'))
+})
+
+const quickWatch={WATCH_DEBOUNCE_MS:'0',WATCH_THROTTLE_MS:'0',WATCH_POLL_MS:'200',APP_AUTODEPLOY:'0'}
+
+test('mini-program output and private settings do not schedule checks, dependency inputs do', async t => {
+ const f=watcherFixture(t,{env:quickWatch,setup(root){
+  mkdirSync(join(root,'apps/weapp/dist'),{recursive:true})
+  writeFileSync(join(root,'apps/weapp/dist/app.js'),'generated')
+  writeFileSync(join(root,'apps/weapp/project.private.config.json'),'{}')
+  writeFileSync(join(root,'package.json'),'{}')
+  writeFileSync(join(root,'pnpm-workspace.yaml'),'packages: []')
+  writeFileSync(join(root,'pnpm-lock.yaml'),'initial')
+ }})
+ await waitUntil(f,()=>f.output().includes('等待源码变更'))
+ const count=f.events().filter(event=>event==='test').length
+ writeFileSync(join(f.root,'apps/weapp/dist/app.js'),'new generated output')
+ writeFileSync(join(f.root,'apps/weapp/project.private.config.json'),'private setting')
+ await new Promise(resolve=>setTimeout(resolve,500))
+ assert.equal(f.events().filter(event=>event==='test').length,count)
+ writeFileSync(join(f.root,'pnpm-lock.yaml'),'changed dependency')
+ await waitUntil(f,()=>f.events().filter(event=>event==='test').length>count)
+})
+
+test('startup with clean source and unpushed commits only pushes',async t=>{
+ const fixture=watcherFixture(t,{gitWork:true,env:quickWatch,setup(root){
+  writeFileSync(join(root,'commit.done'),'done')
+ }})
+ await waitUntil(fixture,()=>fixture.output().includes('本轮流程完成'))
+ assert.ok(fixture.output().includes('启动时检测到未推送提交'))
+ assert.ok(fixture.events().includes('push'));assert.ok(!fixture.events().includes('commit'))
+})
+
+test('a Git-only edit is detected independently of source files',async t=>{
+ const fixture=watcherFixture(t,{gitWork:true,env:quickWatch,setup(root){
+  writeFileSync(join(root,'commit.done'),'done');writeFileSync(join(root,'push.done'),'done')
+ }})
+ await waitUntil(fixture,()=>fixture.output().includes('等待源码变更'))
+ rmSync(join(fixture.root,'commit.done'))
+ await waitUntil(fixture,()=>fixture.output().includes('本轮流程完成'))
+ assert.ok(fixture.output().includes('检测到未提交改动'))
+ assert.ok(fixture.events().includes('commit'))
+})
+
+test('unpushed commits appearing after startup schedule a push',async t=>{
+ const fixture=watcherFixture(t,{gitWork:true,env:quickWatch,setup(root){
+  writeFileSync(join(root,'commit.done'),'done');writeFileSync(join(root,'push.done'),'done')
+ }})
+ await waitUntil(fixture,()=>fixture.output().includes('等待源码变更'))
+ rmSync(join(fixture.root,'push.done'))
+ await waitUntil(fixture,()=>fixture.events().includes('push'))
+ assert.ok(fixture.output().includes('检测到未推送提交'))
+})
+
+test('newly missing upstream is reported once during a scheduled run',async t=>{
+ const fixture=watcherFixture(t,{gitWork:true,env:quickWatch,setup(root){
+  writeFileSync(join(root,'commit.done'),'done');writeFileSync(join(root,'push.done'),'done')
+  writeFileSync(join(root,'bin/git'),`#!/bin/sh
+case "$1" in
+status) ;; rev-list) if test -f no-upstream; then exit 1; else echo '0 0'; fi;;
+rev-parse) echo fixture-head;; cat-file) exit 0;; esac
+`,{mode:0o755})
+ }})
+ await waitUntil(fixture,()=>fixture.output().includes('等待源码变更'))
+ writeFileSync(join(fixture.root,'no-upstream'),'fixture');writeFileSync(fixture.source,'// changed')
+ await waitUntil(fixture,()=>fixture.output().includes('本轮流程完成'))
+ assert.ok(fixture.output().includes('当前分支没有上游'))
+})
+
+test('unexpected scheduled test errors are reported and leave the watcher running',async t=>{
+ const fixture=watcherFixture(t,{env:quickWatch,setup(root){
+  writeFileSync(join(root,'Scripts/test-repair.mjs'),`import{existsSync,writeFileSync}from'node:fs';export async function runTestGate(){if(existsSync('gate-called'))throw Error('fixture gate failure');writeFileSync('gate-called','done');return {status:0,signature:'mock-pass'}}`)
+ }})
+ await waitUntil(fixture,()=>fixture.output().includes('等待源码变更'))
+ writeFileSync(fixture.source,'// changed')
+ await waitUntil(fixture,()=>fixture.output().includes('本轮已停止自动重试'))
+ assert.ok(fixture.output().includes('fixture gate failure'));assert.equal(fixture.child.exitCode,null)
+})
+
+test('a push spawn failure is reported without touching real Git',async t=>{
+ const fixture=watcherFixture(t,{gitWork:true,env:quickWatch,setup(root){
+  writeFileSync(join(root,'commit.done'),'done')
+  const hook=join(root,'unit-preload.cjs')
+  writeFileSync(hook,`const cp=require('node:child_process'),{EventEmitter}=require('node:events'),{syncBuiltinESMExports}=require('node:module');const original=cp.spawn;cp.spawn=(command,args,options)=>{if(command==='git'&&args.includes('push')){const child=new EventEmitter();queueMicrotask(()=>child.emit('error',Error('fixture push spawn')));return child}return original(command,args,options)};syncBuiltinESMExports()`)
+  return {NODE_OPTIONS:(process.env.NODE_OPTIONS||'')+' --require '+hook}
+ }})
+ await waitUntil(fixture,()=>fixture.output().includes('本轮已停止自动重试'))
+ assert.ok(fixture.output().includes('fixture push spawn'))
+})
+
+test('polling filesystem failures are reported without stopping the watcher',async t=>{
+ const fixture=watcherFixture(t,{env:quickWatch,setup(root){
+  const hook=join(root,'unit-preload.cjs')
+  writeFileSync(hook,`const fs=require('node:fs'),{syncBuiltinESMExports}=require('node:module');const original=fs.statSync;fs.statSync=(file,...args)=>{if(String(file).endsWith('example.swift')&&fs.existsSync('poll-fail'))throw Error('fixture stat failure');return original(file,...args)};syncBuiltinESMExports()`)
+  return {NODE_OPTIONS:(process.env.NODE_OPTIONS||'')+' --require '+hook}
+ }})
+ await waitUntil(fixture,()=>fixture.output().includes('等待源码变更'))
+ writeFileSync(join(fixture.root,'poll-fail'),'fixture')
+ await waitUntil(fixture,()=>fixture.output().includes('扫描源码失败'))
+ assert.equal(fixture.child.exitCode,null)
+})
+
+test('edits made during the build schedule a new test and rebuild before settling',async t=>{
+ const f=watcherFixture(t,{env:{WATCH_DEBOUNCE_MS:'0',WATCH_THROTTLE_MS:'0',WATCH_POLL_MS:'200'},setup(root){
+  writeFileSync(join(root,'Scripts/make-app.sh'),`#!/bin/sh
+cd "$(dirname "$0")/.."
+echo build >> events
+if ! test -f build.edited; then touch build.edited; echo '// newer edit during build' > Sources/example.swift; fi
+touch outputs/AI-BenchGauge.app/Contents/MacOS/leaderboard-menu
+`,{mode:0o755})
+ }})
+ await waitUntil(f,()=>f.output().includes('等待源码变更'))
+ writeFileSync(f.source,'// first edit')
+ await waitUntil(f,()=>f.events().filter(event=>event==='build').length===2 && f.output().includes('本轮流程完成'))
+ assert.ok(f.output().includes('运行期间有新变更'))
+ assert.equal(f.events().filter(event=>event==='test').length,3)
 })

@@ -104,6 +104,13 @@ export async function mobileCheck({ paths, config, fingerprint, execute = runCom
   writeJSON(paths.mobileCheck, { fingerprint: checked })
   return checked
 }
+async function installationFingerprint() {
+  const { ci } = await import('./calmmit.mjs')
+  const { readSourceFingerprint } = await ci.load('dev-source')
+  const config = JSON.parse(readFileSync(resolve(root, 'calmmit.config.json'), 'utf8'))
+  const sources = config.dev.activity.find(source => source.kind === 'ios-app').sources
+  return readSourceFingerprint(root, { revision: 'working-tree', paths: sources })
+}
 function runCommand(command, args, { env, log, signal, timeout = 60_000, capture = false } = {}) {
   return new Promise((accept, reject) => {
     const fd = capture ? null : openSync(log, 'a', 0o600)
@@ -172,7 +179,9 @@ export async function deploymentTick({ paths, config, fingerprint, execute, reco
   record('installing', '正在安装到 iPhone')
   await run('xcrun', ['devicectl', 'device', 'install', 'app', '--device', config.device, '--timeout', '60', paths.app], { timeout: 70_000 })
   // A successful installation remains delivered even if a locked phone rejects launch.
-  writeJSON(paths.receipt, { fingerprint: request.fingerprint, device: config.device, installedAt: new Date().toISOString() })
+  writeJSON(paths.receipt, { schemaVersion: 1, status: 'success', fingerprint: request.fingerprint,
+    ...(request.sourceFingerprint ? { sourceFingerprint: request.sourceFingerprint } : {}),
+    device: config.device, installedAt: new Date().toISOString() })
   if (config.launchAfterInstall) {
     try { await run('xcrun', ['devicectl', 'device', 'process', 'launch', '--device', config.device, '--terminate-existing', '--timeout', '20', bundleID], { timeout: 25_000 }) }
     catch (error) { record('installed', '已安装；手机暂不能自动打开，请解锁后打开 BenchGauge', error.message); return 'idle' }
@@ -253,7 +262,7 @@ async function main() {
   if (passed.signature !== testInputSignature()) throw new Error('iOS 构建检查期间测试依据已变化，请重新验证')
   const previous = readJSON(paths.request)
   const failed = readJSON(paths.status)?.phase === 'build-failed'
-  if (previous?.fingerprint !== fingerprint || command === 'retry' || failed) writeJSON(paths.request, { id: randomUUID(), fingerprint, queuedAt: new Date().toISOString() })
+  if (previous?.fingerprint !== fingerprint || command === 'retry' || failed) writeJSON(paths.request, { id: randomUUID(), fingerprint, sourceFingerprint: await installationFingerprint(), queuedAt: new Date().toISOString() })
   ensureWorker(paths)
   console.log('[ios-deploy] 已交给本机 iPhone 更新器；状态：node Scripts/ios-deploy.mjs status；日志：work/ios-deploy/deploy.log')
 }

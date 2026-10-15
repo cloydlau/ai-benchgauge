@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { runTests, testCommands, testInputSignature } from './test.mjs'
+import { runTests, testCommands, testInputSignature, testExecutionContext } from './test.mjs'
 
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'benchgauge-tests-'))
@@ -15,6 +15,14 @@ function fixture(t) {
   return root
 }
 const logger = { log() {}, error() {} }
+
+test('execution context carries only signature settings and explicitly preserves unset values', () => {
+  const context = testExecutionContext({ ...process.env, LANG: 'en_GB.UTF-8', TZ: undefined, PRIVATE_TEST_VALUE: 'omit' })
+  assert.equal(context.env.LANG, 'en_GB.UTF-8')
+  assert.equal(context.env.TZ, null)
+  assert.equal('PRIVATE_TEST_VALUE' in context.env, false)
+  assert.equal(typeof context.node, 'string')
+})
 
 test('full test entry selects both script and Swift suites; filters select just one', (t) => {
   const root = fixture(t)

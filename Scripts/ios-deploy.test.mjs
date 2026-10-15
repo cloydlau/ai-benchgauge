@@ -26,7 +26,7 @@ async function execute(command, args) {
   return command === '/usr/libexec/PlistBuddy' ? 'com.cloydlau.ai-benchgauge.ipad' : ''
 }
 const tick = () => deploymentTick({ paths, config, fingerprint: async () => current, execute, record })
-function request(id = 'job') { writeJSON(paths.request, { id, fingerprint: 'checked' }); calls = [] }
+function request(id = 'job') { writeJSON(paths.request, { id, fingerprint: 'checked', sourceFingerprint: 'a'.repeat(64) }); calls = [] }
 try {
   assert.equal(availableDevice(devices, 'phone').identifier, 'device-uuid')
   assert.ok(availableDevice({ result: { devices: [{ identifier: 'legacy', hardwareProperties: { udid: 'phone', reality: 'physical', platform: 'iOS' }, connectionProperties: { pairingState: 'paired', tunnelState: 'connected' } }] } }, 'phone'))
@@ -65,6 +65,10 @@ try {
   failure = 'launch'; calls = []
   assert.equal(await tick(), 'idle'); assert.equal(readJSON(paths.receipt).fingerprint, 'checked')
   assert.equal(readJSON(paths.status).phase, 'installed')
+  assert.equal(readJSON(paths.receipt).schemaVersion, 1)
+  assert.equal(readJSON(paths.receipt).status, 'success')
+  assert.equal(readJSON(paths.receipt).sourceFingerprint, 'a'.repeat(64), 'Only the installed candidate supplies the per-client source version')
+  assert.ok(Number.isFinite(Date.parse(readJSON(paths.receipt).installedAt)))
   assert.ok(!calls.some(call => call[0] === 'xcodebuild'), 'An installation retry must reuse the signed build')
   calls = []; await tick(); assert.equal(calls.length, 0, 'Delivered versions must not poll the phone or reinstall')
   const release = claimWorker(paths.lock, 123, () => true)
