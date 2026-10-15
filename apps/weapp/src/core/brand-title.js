@@ -1,42 +1,43 @@
+import { brandGlyphs } from './brand-glyphs.js'
+
 export const brandLogoAspect = 142 / 166
 export const brandLogoSource = dark => `/assets/header-logo${dark ? '-dark' : ''}.png`
-const finite = (value, fallback) => Number.isFinite(value) ? value : fallback
 
-// One geometry for native text elements and Canvas exports. The logo occupies
-// A's place, takes I's painted height, and participates in visible-edge gaps.
-export function brandTitleLayout(context, name, fontSize) {
-  if (context) context.font = `700 ${fontSize}px sans-serif`
-  const parts = name === 'AI BenchGauge' ? ['I', 'BenchGauge'] : ['I', '天', '梯']
-  const measured = parts.map(value => {
-    const metrics = context?.measureText(value) || {}
-    const left = -finite(metrics.actualBoundingBoxLeft, 0)
-    const right = finite(metrics.actualBoundingBoxRight, finite(metrics.width, [...value].length * fontSize * 0.8))
-    const ascent = finite(metrics.actualBoundingBoxAscent, fontSize * 0.72)
-    const descent = finite(metrics.actualBoundingBoxDescent, value === 'I' ? 0 : fontSize * 0.12)
-    const fontAscent = finite(metrics.fontBoundingBoxAscent, fontSize * 0.9)
-    const fontDescent = finite(metrics.fontBoundingBoxDescent, fontSize * 0.25)
-    return { value, left, width: Math.max(1, right - left), ascent, height: ascent + descent,
-      lineBaseline: fontAscent + (fontSize - fontAscent - fontDescent) / 2 }
-  })
-  const logoHeight = measured[0].height, logoWidth = logoHeight * brandLogoAspect
-  const height = Math.max(logoHeight, ...measured.map(part => part.height))
-  const gap = fontSize / 6
+// Native iOS font outlines give both the view and exported Canvas the same ink
+// bounds on every platform, including the first offline render.
+export function brandTitleLayout(_context, name, fontSize) {
+  const english = name === 'AI BenchGauge', scale = fontSize / 21
+  const keys = english ? ['en-I', 'en-name'] : ['zh-I', 'zh-tian', 'zh-ti']
+  const logoHeight = brandGlyphs[keys[0]].height * scale, logoWidth = logoHeight * brandLogoAspect
+  const height = Math.max(...keys.map(key => brandGlyphs[key].height * scale))
+  const logoTop = (height - logoHeight) / 2, gap = 2.5 * scale
   let x = logoWidth
-  const glyphs = measured.map((part, index) => {
-    x += index === 1 && name === 'AI BenchGauge' ? fontSize * 0.34 : gap
-    const baseline = (height - part.height) / 2 + part.ascent
-    const result = { text: part.value, x, width: part.width, baseline,
-      style: `left:${x - part.left}px;top:${baseline - part.lineBaseline}px;line-height:${fontSize}px;` }
-    x += part.width
-    return result
+  const glyphs = keys.map((key, index) => {
+    const part = brandGlyphs[key], width = part.width * scale, glyphHeight = part.height * scale
+    x += english && index === 1 ? fontSize * 0.34 : gap
+    const y = (height - glyphHeight) / 2
+    const glyph = { key, text: part.text, x, y, width, height: glyphHeight,
+      source: `/assets/brand-glyphs/${key}`,
+      style: `left:${x}px;top:${y}px;width:${width}px;height:${glyphHeight}px;` }
+    x += width
+    return glyph
   })
-  return { width: x, height, logoWidth, logoHeight, glyphs,
-    style: `width:${x}px;height:${height}px;font-size:${fontSize}px;`,
-    logoStyle: `width:${logoWidth}px;height:${logoHeight}px;top:${(height - logoHeight) / 2}px;` }
+  return { width: x, height, scale, logoWidth, logoHeight, logoTop, glyphs,
+    style: `width:${x}px;height:${height}px;`,
+    logoStyle: `width:${logoWidth}px;height:${logoHeight}px;top:${logoTop}px;` }
 }
 
-export function createBrandMeasurer(platform) {
-  let context
-  try { context = platform.createOffscreenCanvas?.({ type: '2d', width: 1, height: 1 }).getContext('2d') } catch { /* Older renderers retain a proportional fallback. */ }
-  return (name, fontSize) => brandTitleLayout(context, name, fontSize)
+export function createBrandMeasurer() {
+  return (name, fontSize) => brandTitleLayout(null, name, fontSize)
+}
+
+export function drawBrandGlyphs(context, title, x, y) {
+  const methods = { M: 'moveTo', L: 'lineTo', Q: 'quadraticCurveTo', C: 'bezierCurveTo', Z: 'closePath' }
+  for (const glyph of title.glyphs) {
+    context.beginPath()
+    for (const [command, ...points] of brandGlyphs[glyph.key].commands) {
+      context[methods[command]](...points.map((value, index) => value * title.scale + (index % 2 ? y + glyph.y : x + glyph.x)))
+    }
+    context.fill()
+  }
 }

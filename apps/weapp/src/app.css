@@ -20,6 +20,6 @@ button::after { border: 0; }
 .pill-option.selected { color: var(--ink); background: var(--card); box-shadow: 0 2rpx 6rpx rgba(0,0,0,.05); font-weight: 600; }
 .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 20rpx); }
 
-.brand-wordmark { position: relative; flex-shrink: 0; font-family: sans-serif; font-weight: 700; letter-spacing: 0; }
+.brand-wordmark { position: relative; flex-shrink: 0; }
 .brand-letter-logo { position: absolute; left: 0; border-radius: 0; }
-.brand-glyph { position: absolute; white-space: nowrap; font-size: inherit; font-weight: inherit; font-family: inherit; }
+.brand-glyph { position: absolute; display: block; }

@@ -15,8 +15,11 @@ export function cubeGesture(face, x, y, time) {
 
 export function moveCubeGesture(gesture, x, y, time, width) {
   const dx = x - gesture.x, dy = y - gesture.y
-  if (!gesture.axis && Math.max(Math.abs(dx), Math.abs(dy)) >= 9) {
-    gesture.axis = Math.abs(dx) > Math.abs(dy) * 1.25 ? 'horizontal' : 'vertical'
+  if (!gesture.axis) {
+    // Ignore small sideways jitter, and give ambiguous diagonals to scrolling.
+    // Once chosen, the axis stays locked until the finger lifts.
+    if (Math.abs(dx) >= 16 && Math.abs(dx) > Math.abs(dy) * 1.75) gesture.axis = 'horizontal'
+    else if (Math.abs(dy) >= 8) gesture.axis = 'vertical'
   }
   const elapsed = time - gesture.lastTime
   if (elapsed > 0) gesture.velocity = (x - gesture.lastX) / elapsed
@@ -26,10 +29,12 @@ export function moveCubeGesture(gesture, x, y, time, width) {
 }
 
 export function cubeDestination(gesture, width, time) {
-  // A short fast flick advances; a slow short drag returns. A pause before
-  // release discards the old velocity instead of surprising the user.
+  // Commit after 30% of the screen in either direction, retaining natural
+  // finger tracking. A flick can advance sooner; a pause drops old velocity.
   const velocity = time - gesture.lastTime < 100 ? gesture.velocity : 0
-  return clamp(gesture.position - velocity * 160 / Math.max(1, width)) >= 0.5 ? 1 : 0
+  const projected = clamp(gesture.position - velocity * 160 / Math.max(1, width))
+  const progress = gesture.face === 0 ? projected : 1 - projected
+  return progress >= 0.30 ? 1 - gesture.face : gesture.face
 }
 
 export function matchingScroll({ scrollTop, origin, nextOrigin, rowHeight, count }) {

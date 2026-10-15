@@ -5,7 +5,7 @@
   <view class="about-brand">
     <view class="brand-wordmark" style="{{brandTitle.style}}" aria-label="{{labels.name}}">
       <image class="brand-letter-logo" src="{{dark ? '/assets/header-logo-dark.png' : '/assets/header-logo.png'}}" mode="aspectFit" style="{{brandTitle.logoStyle}}" aria-hidden="true" />
-      <text wx:for="{{brandTitle.glyphs}}" wx:key="text" class="brand-glyph" style="{{item.style}}" aria-hidden="true">{{item.text}}</text>
+      <image wx:for="{{brandTitle.glyphs}}" wx:key="key" class="brand-glyph" src="{{item.source}}{{dark ? '-dark' : ''}}.svg" mode="aspectFit" style="{{item.style}}" aria-hidden="true" />
     </view>
     <text class="muted about-version">v{{version}}</text>
   </view>

@@ -1,4 +1,4 @@
-import { brandTitleLayout, brandLogoSource } from './brand-title.js'
+import { brandTitleLayout, brandLogoSource, drawBrandGlyphs } from './brand-title.js'
 // Canvas presentation only: ranking, filtering, brands and dates come from the
 // same view model as the screen. Export every row, independently of its window.
 export const screenshotWidth = 1000
@@ -66,12 +66,9 @@ export function drawScreenshot(context, model, page, images) {
   const title = brandTitleLayout(context, model.labels.name, 27)
   const titleY = 40 - title.height / 2
   const headerLogo = images.get(brandLogoSource(model.dark))
-  if (headerLogo) context.drawImage(headerLogo, margin, 40 - title.logoHeight / 2, title.logoWidth, title.logoHeight)
-  context.font = '700 27px sans-serif'; context.fillStyle = colors.ink; context.textAlign = 'left'; context.textBaseline = 'alphabetic'
-  for (const glyph of title.glyphs) {
-    const metrics = context.measureText(glyph.text)
-    context.fillText(glyph.text, margin + glyph.x + (metrics.actualBoundingBoxLeft || 0), titleY + glyph.baseline)
-  }
+  if (headerLogo) context.drawImage(headerLogo, margin, titleY + title.logoTop, title.logoWidth, title.logoHeight)
+  context.fillStyle = colors.ink
+  drawBrandGlyphs(context, title, margin, titleY)
   text(context, model.labels.subtitle, margin + title.width + 12, 49, 14, colors.muted)
   text(context, `${model.groupingLabel} · ${model.categoryLabel}`, screenshotWidth - margin, 40, 15, colors.muted, { align: 'right' })
   page.boards.forEach((board, column) => {

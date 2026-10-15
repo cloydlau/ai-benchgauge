@@ -1,4 +1,4 @@
-import { definePage, ref, computed, onLoad, onShow, onUnload, onShareAppMessage, onResize } from '@vue-mini/core'
+import { definePage, ref, computed, onLoad, onReady, onShow, onHide, onUnload, onShareAppMessage, onResize } from '@vue-mini/core'
 import { boards, categories, categoryFor, copy, text, languages, boardTitle, hasOwn } from '../../core/catalog.js'
 import { rankedEntries, rowView, countryOptions, formatTime, latestTimestamp } from '../../core/leaderboard.js'
 import { createBoardStore } from '../../services/boards.js'
@@ -19,23 +19,29 @@ definePage(query => {
   const cubePosition = ref(initial.face)
   const cubeDuration = ref(0)
   const cubeBusy = ref(false)
+  const entranceProgress = ref(1)
+  const entranceHintVisible = ref(false)
+  const entranceStyle = computed(() => entranceProgress.value === 1 ? 'transition-duration:420ms;opacity:1;transform:none;'
+    : 'transition-duration:0ms;opacity:0.65;transform:translateY(12px) scale(0.985);')
   const cubeFaces = computed(() => [0, 1].map(index => ({
     style: cubeFaceStyle(index, cubePosition.value, cubeDuration.value, cubeBusy.value),
     shade: Math.abs(index - cubePosition.value) * 0.18,
   })))
   const sourceSelection = computed(() => {
-    const position = cubePosition.value
+    const position = face.value
     const from = dark.value ? [29, 55, 82] : [228, 240, 255]
     const to = dark.value ? [59, 42, 78] : [238, 229, 248]
     const color = from.map((channel, index) => Math.round(channel + (to[index] - channel) * position))
-    return `transform:translateX(${position * 100}%) translateX(${position * 12}rpx);background-color:rgb(${color.join(',')});transition-duration:${cubeDuration.value}ms;`
+    return `transform:translateX(${position * 100}%) translateX(${position * 12}rpx);background-color:rgb(${color.join(',')});`
   })
   let gesture, cubeTimer, entranceTimer, entrancePlayed = false
+  let pageReady = false, pageVisible = false
   let cubeWidth = 375
   let suppressTapUntil = 0
   function stopCube() {
     clearTimeout(cubeTimer); clearTimeout(entranceTimer)
     gesture = null; cubeDuration.value = 0; cubeBusy.value = false; cubePosition.value = face.value
+    entranceProgress.value = 1; entranceHintVisible.value = false
   }
   function alignFace(destination) {
     if (destination === face.value) return
@@ -44,13 +50,14 @@ definePage(query => {
     const target = matchingScroll({ scrollTop: scrollPositions[from] || 0,
       origin: origins[from] || 0, nextOrigin: origins[to] || 0, rowHeight: geometry.value.rowHeight, count })
     scrollPositions[to] = target
-    scrollTargets.value = { ...scrollTargets.value, [to]: target === scrollTargets.value[to] ? target + 0.01 : target }
+    requestScroll(to, target)
     backTopBoards.value = { ...backTopBoards.value, [to]: target > 400 }
     syncWindow(to, true)
   }
   function turnCube(destination) {
-    if (!cubeBusy.value && destination === face.value && cubePosition.value === destination) return
+    entranceProgress.value = 1; entranceHintVisible.value = false
     clearTimeout(cubeTimer); clearTimeout(entranceTimer)
+    if (!cubeBusy.value && destination === face.value && cubePosition.value === destination) return
     if (gesture?.axis !== 'horizontal') alignFace(destination)
     face.value = destination; gesture = null
     cubeBusy.value = true; cubeDuration.value = 0
@@ -93,18 +100,31 @@ definePage(query => {
     else gesture = null
   }
   function playEntrance() {
-    if (entrancePlayed || !alive) return
+    if (entrancePlayed || !alive || !pageReady || !pageVisible
+      || !current.value.kinds.every(kind => snapshots.value[kind]?.entries.length)) return
     entrancePlayed = true
     entranceTimer = setTimeout(() => {
-      if (!alive || gesture) return
+      if (!alive || !pageVisible || gesture) return
       alignFace(1 - face.value)
       cubeBusy.value = true; cubeDuration.value = 0
+      cubePosition.value = face.value ? 0.82 : 0.18
+      entranceProgress.value = 0; entranceHintVisible.value = true
       entranceTimer = setTimeout(() => {
         if (!alive) return
-        cubeDuration.value = 220; cubePosition.value = face.value ? 0.86 : 0.14
-        entranceTimer = setTimeout(() => turnCube(face.value), 360)
+        entranceProgress.value = 1
+        cubeDuration.value = 420; cubePosition.value = face.value ? 0.72 : 0.28
+        entranceTimer = setTimeout(() => {
+          if (!alive) return
+          // An introduction returns to the saved face without persisting a turn.
+          cubeDuration.value = 700; cubePosition.value = face.value
+          entranceTimer = setTimeout(() => {
+            if (!alive) return
+            cubeBusy.value = false; cubeDuration.value = 0; measureLists()
+            entranceTimer = setTimeout(() => { entranceHintVisible.value = false }, 1600)
+          }, 750)
+        }, 550)
       }, 24)
-    }, 300)
+    }, 220)
   }
   const theme = ref(initial.theme)
   const sharedAppearance = ref(initial.appearance)
@@ -129,7 +149,7 @@ definePage(query => {
   const backTopBoards = ref({})
   const rowRenderers = new Map()
   let measureSerial = 0
-  const scrollTargets = ref({})
+  const scrollRequests = new Map()
   const sheet = ref({ open: false, title: '', actions: [], kind: '', mode: '' })
   const capturing = ref(false)
   const capture = ref({ open: false, paths: [], index: 0, saving: false, saved: 0 })
@@ -138,14 +158,24 @@ definePage(query => {
 
   const tr = key => text(copy[key], language.value)
   const labels = computed(() => Object.fromEntries(Object.keys(copy).map(key => [key, tr(key)])))
-  const brandTitle = computed(() => measureBrand(labels.value.name, headerWidth.value / 750
-    * (language.value === 'en' ? headerWidth.value <= 350 ? 21 : 26 : 24)))
+  const subtitleParts = computed(() => labels.value.subtitle.split(' & '))
+  const brandTitle = computed(() => {
+    const sample = measureBrand(labels.value.name, 32)
+    const height = navHeight.value - headerTop.value - 8
+    const width = headerWidth.value - capsuleWidth.value - headerWidth.value / 750 * 24
+    return measureBrand(labels.value.name, 32 * Math.min(height / sample.height, width / sample.width))
+  })
   const categoryItems = computed(() => categories.map((item, index) => ({ id: item.id, label: text(item.labels, language.value),
-    icon: ['bar-chart-o', 'cluster-o', 'photo-o', 'video-o'][index] })))
+    icon: ['apps-o', 'code', 'photo-o', 'video-o'][index] })))
   const categoryIndex = computed(() => categories.findIndex(item => item.id === category.value))
   const current = computed(() => categoryFor(category.value))
   const tabs = computed(() => [tr('tasks'), tr('votes')])
   const filterFor = kind => ({ country: 'all', openness: 'all', ...filters.value[kind] })
+  const countriesFor = kind => countryOptions({ entries: Object.values(snapshots.value).flatMap(board => board?.entries || []) }, language.value, filterFor(kind).country)
+  function setFilters(filter) {
+    filters.value = Object.fromEntries(Object.keys(boards).map(source => [source, { ...filter }]))
+    resetScroll(Object.keys(boards))
+  }
   // Keep full model data out of the Vue-to-WeChat bridge. Sorting/filtering
   // are cached independently of scroll positions; only window rows are mapped.
   const rankedCards = computed(() => current.value.kinds.map(kind => ({ kind,
@@ -190,10 +220,27 @@ definePage(query => {
     for (const kind of kinds) {
       scrollPositions[kind] = 0
       backTopBoards.value = { ...backTopBoards.value, [kind]: false }
-      scrollTargets.value = { ...scrollTargets.value, [kind]: (scrollTargets.value[kind] || 0) === 0 ? 0.01 : 0 }
+      requestScroll(kind, 0)
       syncWindow(kind, true)
     }
     measureLists()
+  }
+  function requestScroll(kind, top) {
+    // A scroll-top binding inside the changing cards loop can replay an old
+    // target on each virtual-window render. Command only explicit navigation.
+    const request = {}
+    scrollRequests.set(kind, request)
+    const run = () => {
+      if (!alive || scrollRequests.get(kind) !== request || !wx.createSelectorQuery) return
+      const query = wx.createSelectorQuery()
+      query.select(`#board-scroll-${kind}`).node()
+      query.exec(results => {
+        if (!alive || scrollRequests.get(kind) !== request) return
+        results[0]?.node?.scrollTo({ top, animated: false })
+      })
+    }
+    if (wx.nextTick) wx.nextTick(run)
+    else run()
   }
   function measureLists() {
     const serial = ++measureSerial
@@ -202,15 +249,18 @@ definePage(query => {
       if (!alive || cubeBusy.value || serial !== measureSerial || !wx.createSelectorQuery) return
       const query = wx.createSelectorQuery()
       for (const kind of kinds) {
-        query.select(`#board-scroll-${kind}`).boundingClientRect()
+        query.select(`#board-scroll-${kind}`).fields({ rect: true, size: true, scrollOffset: true })
         query.select(`#rows-${kind}`).boundingClientRect()
       }
       query.exec(results => {
-        if (!alive || serial !== measureSerial) return
+        if (!alive || cubeBusy.value || serial !== measureSerial) return
         kinds.forEach((kind, index) => {
           const viewport = results[index * 2], rows = results[index * 2 + 1]
-          if (!viewport?.height || !rows || !Number.isFinite(rows.top) || !Number.isFinite(viewport.top)) return
-          origins[kind] = rows.top - viewport.top + (scrollPositions[kind] || 0)
+          if (!viewport?.height || !rows || !Number.isFinite(rows.top) || !Number.isFinite(viewport.top)
+            || !Number.isFinite(viewport.scrollTop)) return
+          // Rectangles and native scroll offset belong to the same query snapshot.
+          // The latest scroll event may already be far ahead when this callback runs.
+          origins[kind] = rows.top - viewport.top + viewport.scrollTop
           viewports[kind] = viewport.height
           syncWindow(kind, true)
         })
@@ -266,6 +316,7 @@ definePage(query => {
         refreshing.value = { ...refreshing.value, [kind]: false }
         syncWindow(kind, true)
         measureLists()
+        playEntrance()
       }
     }
   }
@@ -276,14 +327,18 @@ definePage(query => {
     try { await refreshCategory() } finally { pullRefreshing.value = false }
   }
   onLoad(async () => { await refreshCategory(); playEntrance() })
+  onReady(() => { pageReady = true; playEntrance() })
   onShow(() => {
+    pageVisible = true
     if (languageMode.value === 'system') {
       const next = systemLanguage(wx.getAppBaseInfo?.().language)
       if (next !== language.value) { language.value = next; measureLists() }
     }
     for (const kind of current.value.kinds) if (!lastAttempt[kind] || Date.now() - lastAttempt[kind] > 600000) refreshKind(kind)
+    playEntrance()
   })
-  onUnload(() => { stopCube(); alive = false; measureSerial++; rowRenderers.clear(); store.dispose(); wx.offThemeChange?.(themeListener)
+  onHide(() => { pageVisible = false; stopCube() })
+  onUnload(() => { stopCube(); alive = false; measureSerial++; scrollRequests.clear(); rowRenderers.clear(); store.dispose(); wx.offThemeChange?.(themeListener)
     if (capturing.value || capture.value.saving) wx.hideLoading() })
   onShareAppMessage(() => ({ title: `${tr('name')} · ${tabs.value[face.value]}`,
     path: sharePath(preferencesSnapshot(), dark.value ? 'dark' : 'light') }))
@@ -305,6 +360,11 @@ definePage(query => {
     const kind = event.currentTarget.dataset.kind
     if (!hasOwn(boards, kind)) return
     const top = Math.max(0, Number(event.detail.scrollTop) || 0)
+    if (gesture && kind === current.value.kinds[face.value] && Math.abs(top - (scrollPositions[kind] || 0)) > 1) {
+      // Native scrolling wins even if the first touch sample looked sideways.
+      gesture.axis = 'vertical'; gesture.position = face.value
+      cubeBusy.value = false; cubeDuration.value = 0; cubePosition.value = face.value
+    }
     scrollPositions[kind] = top
     const show = top > 400
     if (!!backTopBoards.value[kind] !== show) backTopBoards.value = { ...backTopBoards.value, [kind]: show }
@@ -313,20 +373,22 @@ definePage(query => {
   }
   function top() {
     const kind = current.value.kinds[face.value]
-    // Change the target each time, including repeated returns after another scroll.
-    scrollTargets.value = { ...scrollTargets.value, [kind]: (scrollTargets.value[kind] || 0) === 0 ? 0.01 : 0 }
+    requestScroll(kind, 0)
   }
-  function showSheet(mode, kind, actions, title) { sheet.value = { open: true, mode, kind, actions, title } }
+  function showSheet(mode, kind, actions, title) { stopCube(); entrancePlayed = true; sheet.value = { open: true, mode, kind, actions, title } }
+  function selectedActions(actions, selected) {
+    return actions.map(action => ({ ...action, color: action.value === selected ? '#1675dc' : '' }))
+  }
   function filterMenu(event) {
     const { kind, mode } = event.currentTarget.dataset
     const filter = filterFor(kind)
-    const actions = mode === 'country' ? countryOptions(snapshots.value[kind], language.value)
+    const actions = mode === 'country' ? countriesFor(kind)
       : ['all', 'open', 'closed', 'unknown'].map(value => ({ value, label: tr(value) }))
-    showSheet(mode, kind, actions.map(action => ({ name: action.label, value: action.value,
-      ...(filter[mode] === action.value ? { color: '#1675dc' } : {}) })), tr(mode === 'country' ? 'country' : 'source'))
+    showSheet(mode, kind, selectedActions(actions.map(action => ({ name: action.label, value: action.value })), filter[mode]),
+      tr(mode === 'country' ? 'country' : 'source'))
   }
-  function clearFilters(event) {
-    filters.value = { ...filters.value, [event.currentTarget.dataset.kind]: { country: 'all', openness: 'all' } }; resetScroll([event.currentTarget.dataset.kind]); persist()
+  function clearFilters() {
+    setFilters({ country: 'all', openness: 'all' }); persist()
   }
   function preferences(event) {
     const mode = event?.currentTarget?.dataset?.mode || 'language'
@@ -341,10 +403,12 @@ definePage(query => {
       if (action.mode === 'language') { language.value = action.value; languageMode.value = 'manual' }
       else { theme.value = action.value; sharedAppearance.value = null; updateTheme() }
     } else {
-      filters.value = { ...filters.value, [sheet.value.kind]: { ...filterFor(sheet.value.kind), [sheet.value.mode]: action.value } }
+      setFilters({ ...filterFor(sheet.value.kind), [sheet.value.mode]: action.value })
+      // Keep the retained popup current while it closes, so reopening never
+      // starts with the previous selection's highlight.
+      sheet.value = { ...sheet.value, actions: selectedActions(sheet.value.actions, action.value) }
     }
-    if (sheet.value.mode !== 'settings') resetScroll([sheet.value.kind])
-    else measureLists()
+    if (sheet.value.mode === 'settings') measureLists()
     sheet.value = { ...sheet.value, open: false }; persist()
   }
   function closeSheet() { sheet.value = { ...sheet.value, open: false } }
@@ -360,6 +424,10 @@ definePage(query => {
     const { kind, rank } = event.currentTarget.dataset
     const entry = rankedCards.value.find(card => card.kind === kind)?.entries.find(row => row.rank === Number(rank))
     if (!entry) return
+    if (grouping.value === 'model') {
+      wx.setClipboardData({ data: entry.name })
+      return
+    }
     const row = rowView(entry, { company: grouping.value === 'company', dark: dark.value })
     const content = row.components.length ? `${tr('strongest')}\n\n${row.components.map(member => `#${member.rank} ${member.name} · ${member.score}`).join('\n')}` : row.name
     wx.showModal({ title: grouping.value === 'company' ? row.name : tr('details'), content,
@@ -381,7 +449,7 @@ definePage(query => {
         categoryLabel: text(current.value.labels, language.value),
         boards: current.value.kinds.map((kind, index) => {
           const board = snapshots.value[kind], filter = filterFor(kind)
-          const country = countryOptions(board, language.value).find(option => option.value === filter.country)?.label || tr('unknown')
+          const country = countriesFor(kind).find(option => option.value === filter.country)?.label || tr('unknown')
           return { title: boardTitle(kind, language.value), tab: tabs.value[index],
             summary: text(boards[kind].summaries, language.value), time: formatTime(latestTimestamp(board)),
             filterLabel: `${tr('country')}: ${country} · ${tr('source')}: ${tr(filter.openness)}`,
@@ -435,11 +503,13 @@ definePage(query => {
     } else wx.showToast({ title: tr('savedImages'), icon: 'success' })
   }
   const about = () => wx.navigateTo({ url: sharePath(preferencesSnapshot(), dark.value ? 'dark' : 'light', '/pages/about/index') })
-  const quotaHelp = () => wx.showModal({ title: tr('subtitle'), content: tr('quotaHelp'), showCancel: false })
+  const quotaHelp = () => wx.showModal({ title: tr('featureDetails'),
+    content: `${tr('subtitle')}\n\n${tr('quotaHelp')}`, confirmText: tr('close'), showCancel: false })
   const refreshTap = event => refreshKind(event.currentTarget.dataset.kind)
-  return { labels, brandTitle, categoryItems, categoryIndex, category, grouping, face, dark, cards, tabs, backToTop,
-    statusBar, navHeight, headerTop, capsuleWidth, sheet, scrollTargets,
-    cubeFaces, sourceSelection, cubePosition, cubeDuration, cubeBusy, cubeStart, cubeMove, cubeEnd, cubeCancel,
+  return { labels, subtitleParts, brandTitle, categoryItems, categoryIndex, category, grouping, face, dark, cards, tabs, backToTop,
+    statusBar, navHeight, headerTop, capsuleWidth, sheet,
+    cubeFaces, sourceSelection, cubePosition, cubeDuration, cubeBusy, entranceStyle, entranceHintVisible,
+    cubeStart, cubeMove, cubeEnd, cubeCancel,
     selectCategory, selectGrouping, selectFace, changeFace, scroll, top, filterMenu,
     clearFilters, preferences, sheetSelect, closeSheet, sourceHelp, rowDetails, about,
     quotaHelp, refreshTap, refreshCategory, pullRefresh, pullRefreshing,

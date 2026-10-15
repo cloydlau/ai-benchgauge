@@ -133,6 +133,7 @@
           "assets/brand/header-logo-dark.png",
           "assets/logos",
           "Sources/LeaderboardKit/SharedLeaderboardConfiguration.swift",
+          "Sources/LeaderboardKit/Resources/Fonts/SlideFont-OFL.txt",
           "config/app.json",
           "LICENSE",
           "package.json",

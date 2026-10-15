@@ -20,6 +20,40 @@ test('cube gesture locks vertical scrolling, clamps edges and distinguishes flic
   assert.equal(cubeDestination(back, 375, 700), 0)
 })
 
+test('a paused drag switches at 30% width in both directions without accepting smaller or outward drags', () => {
+  for (const width of [320, 375, 430]) {
+    for (const face of [0, 1]) {
+      const direction = face === 0 ? -1 : 1
+      for (const [fraction, expected] of [[0.29, face], [0.30, 1 - face], [0.31, 1 - face], [-0.4, face]]) {
+        const gesture = cubeGesture(face, width / 2, 100, 0)
+        moveCubeGesture(gesture, width / 2 + direction * width * fraction, 102, 500, width)
+        assert.equal(cubeDestination(gesture, width, 700), expected)
+      }
+      const vertical = cubeGesture(face, width / 2, 100, 0)
+      moveCubeGesture(vertical, width / 2 + direction * width * 0.4, 400, 500, width)
+      assert.equal(cubeDestination(vertical, width, 700), face)
+    }
+  }
+})
+
+test('small sideways jitter and ambiguous diagonals yield to vertical scrolling for the entire touch', () => {
+  for (const face of [0, 1]) {
+    for (const sign of [-1, 1]) {
+      const gesture = cubeGesture(face, 200, 100, 0)
+      moveCubeGesture(gesture, 200 + sign * 10, 103, 20, 375)
+      assert.equal(gesture.axis, '')
+      moveCubeGesture(gesture, 200 + sign * 15, 112, 40, 375)
+      assert.equal(gesture.axis, 'vertical')
+      moveCubeGesture(gesture, 200 + sign * 220, 140, 60, 375)
+      assert.equal(gesture.axis, 'vertical')
+      assert.equal(gesture.position, face)
+      const horizontal = cubeGesture(face, 200, 100, 0)
+      moveCubeGesture(horizontal, 200 + sign * 20, 104, 20, 375)
+      assert.equal(horizontal.axis, 'horizontal')
+    }
+  }
+})
+
 test('both cube faces keep their shared hinge during a turn and active native hit testing is flat at rest', () => {
   assert.match(cubeFaceStyle(0, 0.5, 0, true), /translateX\(-50%\) rotateY\(-45deg\)/)
   assert.match(cubeFaceStyle(1, 0.5, 0, true), /translateX\(50%\) rotateY\(45deg\)/)

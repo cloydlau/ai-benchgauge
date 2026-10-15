@@ -17,6 +17,8 @@ const notices = [
   ['Vue Mini', '@vue-mini/core'], ['Vant Weapp', '@vant/weapp'], ['Tailwind CSS', 'tailwindcss'],
 ].map(([name, packageName]) => ({ name, license: readFileSync(new URL(`node_modules/${packageName}/LICENSE`, import.meta.url), 'utf8') }))
 notices.push({ name: 'Lucide Icons', licenseName: 'ISC', license: readFileSync(new URL('assets/openness/LICENSE', import.meta.url), 'utf8') })
+notices.push({ name: 'Slide Xiaxing / BenchGauge Calligraphy', licenseName: 'SIL OFL 1.1',
+  license: readFileSync(resolve(root, 'Sources/LeaderboardKit/Resources/Fonts/SlideFont-OFL.txt'), 'utf8') })
 const coreRequire = createRequire(realpathSync(fileURLToPath(new URL('node_modules/@vue-mini/core/package.json', import.meta.url))))
 const reactivityPackage = coreRequire.resolve('@vue/reactivity/package.json')
 const sharedPackage = createRequire(reactivityPackage).resolve('@vue/shared/package.json')
@@ -50,6 +52,10 @@ export default defineConfig({
         const emit = (fileName, path) => this.emitFile({ type: 'asset', fileName, source: readFileSync(path) })
         emit('assets/header-logo.png', resolve(root, 'assets/brand/header-logo.png'))
         emit('assets/header-logo-dark.png', resolve(root, 'assets/brand/header-logo-dark.png'))
+        for (const name of readdirSync(new URL('assets/brand-glyphs/', import.meta.url)).filter(name => name.endsWith('.svg'))) {
+          emit(`assets/brand-glyphs/${name}`, new URL(`assets/brand-glyphs/${name}`, import.meta.url))
+        }
+        emit('assets/brand-glyphs/LICENSE.txt', resolve(root, 'Sources/LeaderboardKit/Resources/Fonts/SlideFont-OFL.txt'))
         for (const name of readdirSync(resolve(root, 'assets/logos')).filter(name => name.endsWith('.png'))) {
           emit(`assets/logos/${name}`, resolve(root, 'assets/logos', name))
         }
