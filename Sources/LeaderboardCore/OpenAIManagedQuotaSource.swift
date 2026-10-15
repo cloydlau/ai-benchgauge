@@ -63,7 +63,7 @@ public actor OpenAIManagedQuotaSource: OfficialAccountQuotaSource {
         return rootURL.appending(path: key, directoryHint: .isDirectory)
     }
 
-    private func session(for providerID: String) -> any OpenAIAccountRPC {
+    func session(for providerID: String) -> any OpenAIAccountRPC {
         if let session = sessions[providerID] { return session }
         let session = sessionFactory(profileURL(for: providerID))
         sessions[providerID] = session
@@ -172,7 +172,14 @@ public actor OpenAIManagedQuotaSource: OfficialAccountQuotaSource {
         }
         let server = session(for: target.id)
         do {
-            let shouldRefresh = lastRefresh[target.id].map { Date().timeIntervalSince($0) >= 600 } ?? true
+            // A usable access token does not depend on the renewal endpoint
+            // being reachable. Let usage rejection trigger renewal if needed.
+            let shouldRefresh: Bool
+            if let expiry = OfficialQuotaDiscovery.tokenExpiry(savedCredentials(for: target.id)?.accessToken) {
+                shouldRefresh = expiry <= Date().addingTimeInterval(60)
+            } else {
+                shouldRefresh = lastRefresh[target.id].map { Date().timeIntervalSince($0) >= 600 } ?? true
+            }
             let account = try await server.request("account/read", params: params(["refreshToken": shouldRefresh]))
             guard let object = try JSONSerialization.jsonObject(with: account) as? [String: Any],
                   let current = object["account"] as? [String: Any], current["type"] as? String == "chatgpt",
@@ -219,7 +226,7 @@ public actor OpenAIManagedQuotaSource: OfficialAccountQuotaSource {
             return chip(target, status: .message(AccountQuotaMessage.reauthRequired))
         } catch OpenAIConnectionError.helperMissing {
             await server.stop()
-            return chip(target, status: .message(AccountQuotaMessage.reauthRequired))
+            return chip(target, status: .message(AccountQuotaMessage.queryFailed))
         } catch {
             await server.stop()
             return chip(target, status: .message(AccountQuotaMessage.network))
