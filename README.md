@@ -28,6 +28,7 @@ Stop switching between leaderboard tabs. Open the menu bar to compare the full r
 
 | System | Processor | Support |
 | --- | --- | --- |
+| WeChat mini program | WeChat on iOS / Android | Client and shared snapshots added; developer preview / publishing pending |
 | iOS 17 / iPadOS 17 or later | iPhones and iPads supported by those systems | Native project added; public TestFlight/App Store release pending |
 | Windows 11 | 64-bit Intel / AMD (`x64`) | Supported |
 | Windows 10 | 64-bit Intel / AMD (`x64`) | Compatibility target; .NET 10 officially supports maintained LTSC / Enterprise releases. Home / Pro editions are not yet verified. |
@@ -44,9 +45,11 @@ See [compatibility details, validation scope, and the Intel support assessment](
 
 ## What you get
 
+**WeChat mini program:** the [Vue Mini / Vant Weapp edition](apps/weapp/README.md) reads the same shared snapshots, with four categories, model/company views, independent filters, offline cache and three languages. Run `pnpm build:weapp` and import `apps/weapp` in WeChat DevTools. The project is configured with BenchGauge’s AppID `wx80689a4ae64a0c33`; no mini-program build has been publicly released. Account quotas remain on the desktop editions.
+
 | Feature | What it does |
 | --- | --- |
-| **Paired rankings** | Compare separate Top 20 lists and scores across general, coding, image, and video categories. |
+| **Paired rankings** | Compare complete lists and scores across general, coding, image, and video categories; scroll within the existing table height and return to the top with one click. |
 | **Models or companies** | See individual models, or rank each company by its highest-scoring listed model. Extra or weaker listings do not change that score. |
 | **Four display modes** | Choose Keep open, Always on top, Close on blur, or Window from the footer menu. Keep open stays visible when you click elsewhere; click the menu bar icon again to close. Always on top also keeps the panel above other application windows. The window first opens centered on the menu bar icon's screen at the same content size as the popover. It can be moved, resized, or tiled in macOS Split View, and retains your adjustments when switching modes. |
 | **CC Switch quotas** | Read the local CC Switch database, query supported providers, and show account quota status above the table. Percentage and monetary balance colors gradually change from green to red as the quota decreases. Monetary references are ¥0/10/30/100 and $0/2/5/20 for red/orange/yellow/green, with continuous transitions; hover for the currency's reference amounts. Codex does not need to be installed. |

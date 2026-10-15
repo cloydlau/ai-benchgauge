@@ -1,0 +1,71 @@
+import { opennessIcon } from './openness-icon.js'
+import { boards, text, copy, hasOwn } from './catalog.js'
+import brandCatalog from '../../../../fc/brand-catalog.json' with { type: 'json' }
+import { canReplace, countryCode, companyRows, latestTimestamp, createBrandRules } from '../../../../fc/domain.mjs'
+export { canReplace, countryCode, companyRows, latestTimestamp } from '../../../../fc/domain.mjs'
+const brandRules = createBrandRules(brandCatalog)
+
+export function normalizeBoard(value, kind) {
+  if (!hasOwn(boards, kind) || !value || value.kind !== kind
+    || !Number.isFinite(Date.parse(value.fetchedAt)) || !Array.isArray(value.entries)
+    || !value.entries.length) throw new Error('Invalid shared snapshot')
+  if (value.sourceUpdatedAt && !Number.isFinite(Date.parse(value.sourceUpdatedAt))) throw new Error('Invalid publication time')
+  const seen = new Set()
+  const entries = value.entries.map(entry => {
+    if (!Number.isInteger(entry.rank) || entry.rank <= 0 || seen.has(entry.rank)
+      || typeof entry.name !== 'string' || !entry.name.trim() || !Number.isFinite(entry.score) || entry.score < 0) throw new Error('Invalid ranking entry')
+    seen.add(entry.rank)
+    return { ...entry, name: entry.name.trim(), openness: ['open', 'closed'].includes(entry.openness) ? entry.openness : null }
+  }).sort((a, b) => a.rank - b.rank)
+  return { ...value, entries }
+}
+
+export const countryFlag = code => /^[A-Z]{2}$/.test(code)
+  ? String.fromCodePoint(...[...code].map(letter => letter.charCodeAt(0) + 127397)) : '—'
+const countryNames = {
+  US: ['United States', '美国', '美國'], CN: ['China', '中国', '中國'], FR: ['France', '法国', '法國'],
+  CA: ['Canada', '加拿大', '加拿大'], IL: ['Israel', '以色列', '以色列'], DE: ['Germany', '德国', '德國'],
+  GB: ['United Kingdom', '英国', '英國'], SG: ['Singapore', '新加坡', '新加坡'], JP: ['Japan', '日本', '日本'],
+  KR: ['South Korea', '韩国', '韓國'], AE: ['United Arab Emirates', '阿联酋', '阿聯酋'], CH: ['Switzerland', '瑞士', '瑞士'],
+}
+export function countryOptions(board, language) {
+  const codes = [...new Set((board?.entries || []).map(countryCode))].sort()
+  return [{ value: 'all', label: text(copy.all, language) }, ...codes.map(code => ({ value: code,
+    label: code === 'unknown' ? text(copy.unknown, language) : `${countryFlag(code)} ${countryNames[code] ? text(countryNames[code], language) : code}` }))]
+}
+
+export function formatTime(value) {
+  const date = new Date(value)
+  if (!value || !Number.isFinite(date.getTime())) return '—'
+  return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+export function rowView(entry, { company = false, dark = false, details = true } = {}) {
+  const productKey = !company ? brandRules.bundledProductKey(entry) : null
+  const modelBrand = !company ? brandRules.knownModelBrand(entry) : null
+  const brand = company ? entry.organizationBrand || entry.brand : entry.brand?.key?.startsWith('model-') ? entry.brand : modelBrand || entry.brand
+  let image = typeof brand?.pngData === 'string' && /^[A-Za-z0-9+/=]+$/.test(brand.pngData) && brand.pngData.length < 160000
+    ? `data:image/png;base64,${brand.pngData}` : ''
+  const bundled = ['anthropic', 'openai', 'google', 'qwen', 'deepseek', 'kimi', 'zai', 'spacexai', 'meta', 'mistral', 'minimax', 'bytedance', 'tencent', 'nvidia', 'stepfun', 'xiaomi']
+  const key = company ? [brand?.key, entry.developerCountry?.key].find(key => bundled.includes(key)) : productKey
+  if (!company && !brand?.key?.startsWith('model-') && (productKey || !brandRules.sharedProviderMark(entry))) image = ''
+  if (!image && key) image = `/assets/logos/${key}.png`
+  const color = /^#[0-9a-f]{6}$/i.test(brand?.colorHex || '') ? brand.colorHex : '#62748b'
+  const rgb = [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16)).join(',')
+  return { rank: entry.rank, name: entry.name, score: entry.score, logo: image,
+    initial: [...entry.name][0], flag: countryFlag(countryCode(entry)),
+    components: details ? entry.components?.map(member => ({ name: member.name, rank: member.rank, score: member.score.toFixed(1) })) || [] : [],
+    scoreText: entry.score.toFixed(1), openness: company ? null : entry.openness,
+    opennessIcon: opennessIcon(company ? null : entry.openness, dark),
+    fill: `background-color:rgba(${rgb},${dark ? '0.26' : '0.18'});`,
+    medal: ['🥇', '🥈', '🥉'][entry.rank - 1] || String(entry.rank),
+  }
+}
+export function rankedEntries(board, { grouping = 'model', country = 'all', openness = 'all' } = {}) {
+  const entries = (board?.entries || []).filter(entry => (country === 'all' || countryCode(entry) === country)
+    && (openness === 'all' || (entry.openness || 'unknown') === openness))
+  return grouping === 'company' ? companyRows(entries) : entries
+}
+export function visibleRows(board, { grouping = 'model', country = 'all', openness = 'all', dark = false } = {}) {
+  const rows = rankedEntries(board, { grouping, country, openness })
+  return rows.map(entry => rowView(entry, { company: grouping === 'company', dark }))
+}

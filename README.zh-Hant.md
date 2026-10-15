@@ -30,6 +30,7 @@
 
 | 系統 | 處理器 | 支援情況 |
 | --- | --- | --- |
+| 微信小程式 | iOS / Android 微信 | 已加入用戶端與共享榜單；開發者預覽和發布待完成 |
 | iOS 17 / iPadOS 17 及以上 | 能執行對應系統的 iPhone、iPad | 已加入原生專案，尚未發布公開 TestFlight / App Store 版本 |
 | Windows 11 | 64 位元 Intel / AMD（`x64`） | 支援 |
 | Windows 10 | 64 位元 Intel / AMD（`x64`） | 相容目標；.NET 10 官方支援仍受維護的 LTSC / Enterprise 版本，Home / Pro 尚未驗證 |
@@ -188,3 +189,7 @@ Mac 與 Windows 共用 Swift 業務邏輯與版本號。每次 [GitHub Release](
 Windows 安裝包包含 Swift / .NET 執行環境，千問登入使用 WebView2。
 詳見 [Windows 建置](apps/windows/README.md)、[目錄結構](docs/architecture.md)及[發版設定](docs/releasing.md)。
 完整本機測試另需 .NET 10 SDK；可用 `BENCHGAUGE_DOTNET` 指定執行檔。
+
+## 微信小程式開發版
+
+[小程式工程](apps/weapp/README.md) 沿用 Watrek 的 Vue Mini / Vant Weapp / weapp-vite / Tailwind 技術，讀取同一份共享榜單，支援四類雙榜、模型／公司、獨立篩選、離線快取與三種語言。執行 `pnpm build:weapp`，在微信開發者工具匯入 `apps/weapp`。已設定 BenchGauge 正式 AppID `wx80689a4ae64a0c33`，尚未上傳體驗版或正式版；帳號額度仍由桌面版提供。

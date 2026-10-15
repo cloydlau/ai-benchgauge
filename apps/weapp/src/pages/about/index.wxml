@@ -1,0 +1,29 @@
+<view class="shell about-page {{dark ? 'dark' : ''}} safe-bottom">
+  <view class="about-nav" style="padding-top:{{statusBar}}px;">
+    <button class="tap" bindtap="back" aria-label="{{labels.back}}"><van-icon name="arrow-left" size="21px" /></button><text>{{labels.about}}</text>
+  </view>
+  <view class="about-brand">
+    <view class="brand-wordmark" style="{{brandTitle.style}}" aria-label="{{labels.name}}">
+      <image class="brand-letter-logo" src="{{dark ? '/assets/header-logo-dark.png' : '/assets/header-logo.png'}}" mode="aspectFit" style="{{brandTitle.logoStyle}}" aria-hidden="true" />
+      <text wx:for="{{brandTitle.glyphs}}" wx:key="text" class="brand-glyph" style="{{item.style}}" aria-hidden="true">{{item.text}}</text>
+    </view>
+    <text class="muted about-version">v{{version}}</text>
+  </view>
+  <text class="about-description">{{description}}</text>
+  <view class="about-card"><text class="section-title">{{desktopTitle}}</text>
+    <button class="download-link" data-url="{{desktopDownloadURL}}" bindtap="copyLink">{{desktopDownloadLabel}}</button>
+  </view>
+  <view class="about-card"><text class="section-title">{{sourcesTitle}}</text>
+    <button wx:for="{{items}}" wx:key="id" class="source-link" data-url="{{item.url}}" bindtap="copyLink"><text>{{item.title}}</text></button>
+  </view>
+  <view class="about-card notices"><text class="section-title">{{noticesTitle}}</text>
+    <text class="muted notice-intro">{{noticesIntro}}</text>
+    <view wx:for="{{notices}}" wx:key="id">
+      <button class="license-toggle" data-id="{{item.id}}" bindtap="toggleNotice" aria-expanded="{{notice === item.id}}">
+        <view class="license-heading"><text>{{item.title}}</text><text class="license-type">{{item.licenseName}}</text></view>
+        <van-icon name="{{notice === item.id ? 'arrow-up' : 'arrow-down'}}" size="13px" />
+      </button>
+      <text wx:if="{{notice === item.id}}" class="license" selectable>{{item.license}}</text>
+    </view>
+  </view>
+</view>

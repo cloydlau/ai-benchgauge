@@ -1,10 +1,18 @@
 # 平台结构
 
-保留两端原生界面，业务规则只有一份 Swift 实现。
+桌面两端共用 Swift 核心，iOS 复用 LeaderboardKit。微信小程序读取同一份 FC / OSS 快照，以 JavaScript 实现经过回归检查的展示规则。
+
+iPhone 和 iPad 共用 `apps/ios/UI`，按可用空间适配布局。Mac 保留桌面界面，
+榜单标题、来源说明、国家筛选、开源状态筛选、模型／公司聚合、排名奖牌和相对时间统一使用
+`LeaderboardPresentation` 与 `LeaderboardCountryFilter`。各端控件、窗口与手势按平台实现，
+共同的数据规则和文案只在 `LeaderboardKit` 中维护。
 
 ```text
 apps/
+  weapp/                       Vue Mini / Vant Weapp 小程序，weapp-vite / Tailwind 构建
   macos/Sources/                AppKit / SwiftUI 界面与 Sparkle 更新器
+  ios/App/                     iPhone / iPad 共用的应用入口
+  ios/UI/                      自适应 SwiftUI 界面与移动端状态
   windows/
     BenchGauge/                WPF 界面、托盘、窗口和 WebView2 登录
     BenchGauge.Shared/         JSON 通信、配置和签名更新客户端
@@ -12,12 +20,14 @@ apps/
     installer/                 NSIS 安装器
     Licenses/                  Windows 分发声明
 Sources/
+  LeaderboardKit/             共用榜单模型、请求、缓存、展示规则和品牌组件
   LeaderboardCore/            两端共享的解析、榜单、余量、提醒与格式化
   LeaderboardBridge/          Windows 调用共享核心的 JSON-lines 引擎
   CSQLite/                   系统 SQLite 导入（Mac sqlite3 / Windows winsqlite3）
   CPlatformSupport/          Windows 系统 SHA256 适配
 assets/logos/                 两端共用的图标
 config/app.json               共用版本号、仓库和更新公钥
+pnpm-workspace.yaml           小程序依赖工作区；桌面仍使用 SwiftPM / .NET
 Tests/LeaderboardCoreTests/   共享核心测试
 Scripts/                      测试、构建、签名与发版
 .github/workflows/            两端 CI 与汇总发版
@@ -146,3 +156,11 @@ Luma API 不代表 Dream Machine 网页订阅。卡片和添加表单明确显�
 
 解析和请求使用模拟响应验证（包括缺失字段、单位、区域、认证失败和多账号），未用真实账号
 对新增六家的接口完成端到端验证。接口或官方本地存储结构变化时需更新适配。
+
+## 移动客户端与共用规则
+
+Apple 客户端与 Windows 引擎继续共用 `LeaderboardKit`，界面不实现公司排名、品牌归属或缓存新旧判定。FC 服务与小程序共用 `fc/domain.mjs`；网络请求、持久化和界面格式化分别留在平台适配器。小程序的 `src/core/leaderboard.js` 负责快照验证、筛选和显示字段适配，品牌归属、公司排名、时间选择与缓存新旧判定使用共用规则。
+
+`fc/brand-catalog.json` 和 `fc/leaderboard-policy.json` 维护品牌别名、模型家族、已核验模型标记与公司名称。运行 `node Scripts/generate-leaderboard-policy.mjs` 生成 Swift 的 `LeaderboardBrandPolicy.generated.swift`。自动检查拒绝过期生成文件；共享日期夹具同时验证 Swift 与 JavaScript 的时间选择，避免维护时只更新一个端。Swift 与 JavaScript 各有运行时实现，没有在微信中嵌入 Swift 引擎。
+
+移动端只展示来源日期和抓取日期中较新的一个；两项原始值仍保存在共享数据与缓存中，缓存比较仍独立检查二者。模型视图优先使用核验模型标记或既有产品图标，公司视图使用公司标记；缺少已核验模型标记时保留模型占位，不冒用公司标记。
