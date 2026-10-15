@@ -3,6 +3,9 @@ import { join } from 'node:path'
 import { decodePublicKey, releaseVersion, repository } from './release-lib.mjs'
 export function readAppConfig(root) {
   const config = JSON.parse(readFileSync(join(root, 'config/app.json'), 'utf8'))
+  if (config.releaseWindows !== undefined && typeof config.releaseWindows !== 'boolean') {
+    throw new Error('releaseWindows must be a boolean')
+  }
   if ('previewCCSwitchEmptyState' in config) {
     throw new Error('Use previewCCSwitchState instead of previewCCSwitchEmptyState')
   }
