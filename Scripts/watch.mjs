@@ -55,7 +55,7 @@ export function autodeployEnabled(env = process.env) {
   return env.APP_AUTODEPLOY !== '0'
 }
 
-function readDuration(name, fallback) {
+export function readDuration(name, fallback) {
   const raw = process.env[name]
   if (raw == null || raw === '') return fallback
   const value = Number(raw)
@@ -127,7 +127,7 @@ function snapshot() {
   return files
 }
 
-function signature(files) {
+export function signature(files) {
   return [...files.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([path, mtime]) => `${path}:${mtime}`)
@@ -164,7 +164,7 @@ export function dirtyStatusSignature(status, fingerprintForPath) {
   return `${status}\u0001${fingerprints.join('\0')}`
 }
 
-function fileFingerprint(path) {
+export function fileFingerprint(path) {
   try {
     const stat = lstatSync(join(root, path), { bigint: true, throwIfNoEntry: false })
     return stat ? `${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}` : 'missing'
@@ -174,7 +174,7 @@ function fileFingerprint(path) {
   }
 }
 
-function gitStatusSignature() {
+export function gitStatusSignature() {
   const result = gitSync(['status', '--porcelain', '-z', '--untracked-files=all'])
   if (result.error) {
     if (!isAccessDenied(result.error)) console.warn(`[watch] git 状态检查失败：${result.error.message}`)
@@ -208,12 +208,12 @@ function currentHead() {
   return gitText(['rev-parse', 'HEAD'])
 }
 
-function commitExists(commit) {
+export function commitExists(commit) {
   if (!commit) return false
   return gitSync(['cat-file', '-e', `${commit}^{commit}`]).status === 0
 }
 
-function readDeployedCommit() {
+export function readDeployedCommit() {
   try {
     const receipt = JSON.parse(readFileSync(deployReceiptPath, 'utf8'))
     const commit = receipt?.commit
@@ -223,7 +223,7 @@ function readDeployedCommit() {
   }
 }
 
-function deployedNotification() {
+export function deployedNotification() {
   const commit = readDeployedCommit()
   return deploymentNotification(commit, { readAuthor: (revision) => {
     const receipt = JSON.parse(readFileSync(deployReceiptPath, 'utf8'))
@@ -233,13 +233,13 @@ function deployedNotification() {
   } })
 }
 
-function writeDeployReceipt(commit, author) {
+export function writeDeployReceipt(commit, author) {
   if (!commit) return
   mkdirSync(dirname(deployReceiptPath), { recursive: true })
   writeFileSync(deployReceiptPath, `${JSON.stringify({ commit, author, deployedAt: new Date().toISOString() })}\n`)
 }
 
-function appChangedBetween(from, to) {
+export function appChangedBetween(from, to) {
   if (!from || !to || from === to) return false
   return Boolean(gitText(['diff', '--name-only', `${from}..${to}`, '--', ...appDeployPaths]))
 }
@@ -253,7 +253,7 @@ export function parseAheadCount(stdout) {
 
 let loggedUpstreamError = ''
 
-function unpushedState() {
+export function unpushedState() {
   const result = gitSync(['rev-list', '--left-right', '--count', '@{upstream}...HEAD'])
   if (result.error) {
     if (!isAccessDenied(result.error) && result.error.message !== loggedUpstreamError) {
@@ -272,7 +272,7 @@ function unpushedState() {
   return { state: 'ahead', signature: (head.stdout || '').trim(), count: ahead }
 }
 
-function run(script, extraEnv = {}) {
+export function run(script, extraEnv = {}) {
   return new Promise((resolvePromise) => {
     const child = spawn(script, [], {
       cwd: root,
@@ -284,10 +284,10 @@ function run(script, extraEnv = {}) {
   })
 }
 
-function runNode(script, extraEnv = {}, args = []) {
+export function runNode(script, extraEnv = {}, args = []) {
   return new Promise((resolvePromise) => {
     // pnpm 换掉 runtime 目录后，本进程启动时的 execPath 会失效。
-    const child = spawn(nodeExecutable(), [script, ...args], {
+    const child = spawn(nodeExecutable({ env: { ...process.env, ...extraEnv } }), [script, ...args], {
       cwd: root,
       env: { ...process.env, ...extraEnv },
       stdio: 'inherit',
@@ -297,9 +297,30 @@ function runNode(script, extraEnv = {}, args = []) {
   })
 }
 
+// Reload the runner and its dependencies, including after a Node runtime update.
+// IPC binds the receipt to this child instead of a concurrently overwritten file.
+export function runTestGate({ env = process.env } = {}) {
+  return new Promise((resolvePromise, reject) => {
+    let result
+    const child = spawn(nodeExecutable({ env }), ['--input-type=module', '-e', `
+      const { runTestGate } = await import('./Scripts/test-repair.mjs')
+      const result = await runTestGate()
+      const { testExecutionContext } = await import('./Scripts/test.mjs')
+      process.send({ ...result, testContext: testExecutionContext() })
+      process.exitCode = result.status
+    `], { cwd: root, env, stdio: ['ignore', 'inherit', 'inherit', 'ipc'] })
+    child.on('message', message => { result = message })
+    child.on('error', reject)
+    child.on('close', code => {
+      if (!result || result.status !== code) reject(new Error(`测试进程异常退出（${code}），未取得有效结果`))
+      else resolvePromise(result)
+    })
+  })
+}
+
 let announcedProxy = false
 
-function runGit(args) {
+export function runGit(args) {
   const proxy = gitProxyValue()
   const gitArgs = [...gitProxyArgs(), ...args]
   if (!announcedProxy && proxy) {
@@ -317,7 +338,7 @@ function runGit(args) {
   })
 }
 
-async function notify(ok, title, message, { model } = {}) {
+export async function notify(ok, title, message, { model } = {}) {
   if (process.env.DESKTOP_NOTIFY === '0') return
   let image = ''
   try {
@@ -348,7 +369,7 @@ export function deploymentNotification(commit, {
   }
 }
 
-async function rebuild(testSignature) {
+export async function rebuild(testSignature) {
   const buildSignature = signature(snapshot())
   const head = currentHead()
   const appStatus = gitText(['status', '--porcelain', '--untracked-files=all', '--', ...appDeployPaths])
@@ -364,15 +385,20 @@ async function rebuild(testSignature) {
   return restartApp(signature(snapshot()) === buildSignature ? notification : deploymentNotification(null), head)
 }
 
-async function updatePhone(testSignature) {
+export async function updatePhone(testSignature, testContext) {
   if (!existsSync(join(root, '.benchgauge-ios.local.json'))) return true
-  const updated = await runNode(join(root, 'Scripts', 'ios-deploy.mjs'), { BENCHGAUGE_TEST_PASS: testSignature || '' }, ['checked'])
+  const extraEnv = { BENCHGAUGE_TEST_PASS: testSignature || '' }
+  if (testContext) {
+    for (const [key, value] of Object.entries(testContext.env)) extraEnv[key] = value ?? undefined
+    extraEnv.BENCHGAUGE_NODE = testContext.node
+  }
+  const updated = await runNode(join(root, 'Scripts', 'ios-deploy.mjs'), extraEnv, ['checked'])
   if (updated.status === 0) return true
   console.error('[watch] iPhone 构建检查或更新入队失败；日志：work/ios-deploy/deploy.log')
   return false
 }
 
-async function restartApp(notification = deployedNotification(), head = readDeployedCommit()) {
+export async function restartApp(notification = deployedNotification(), head = readDeployedCommit()) {
   console.log('[watch] 开始重启…')
   const restarted = await run(join(root, 'Scripts', 'restart.sh'))
   if (restarted.status !== 0) {
@@ -516,7 +542,7 @@ async function main() {
         schedule('检查期间有新变更，重新验证', Date.now())
         return
       }
-      if (!await updatePhone(tested.signature)) {
+      if (!await updatePhone(tested.signature, tested.testContext)) {
         busy = false
         failedTestSignature = `${signature(snapshot())}\n${gitStatusSignature()}`
         reportStatus('manual', 'iPhone 构建检查失败，等待下次保存；日志：work/ios-deploy/deploy.log')
@@ -673,7 +699,7 @@ async function main() {
   lastSignature = testedInitialSignature
   lastGitSignature = gitStatusSignature()
   let started = initialTest.status === 0
-  if (started) started = await updatePhone(initialTest.signature)
+  if (started) started = await updatePhone(initialTest.signature, initialTest.testContext)
   if (started && deployEnabled) {
     started = needsInitialBuild ? await rebuild(initialTest.signature) : await restartApp()
     if (started) {

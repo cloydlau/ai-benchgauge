@@ -153,7 +153,26 @@
           "make-app.sh",
           "Scripts/make-app.sh"
         ],
-        "revisionReceipt": "work/.last-app-deploy"
+        "revisionReceipt": "work/.last-app-deploy",
+        "label": "macOS"
+      },
+      {
+        "kind": "ios-app",
+        "label": "iOS",
+        "receipt": "work/ios-deploy/installed.json",
+        "statusReceipt": "work/ios-deploy/status.json",
+        "configReceipt": ".benchgauge-ios.local.json",
+        "sources": [
+          "Sources/LeaderboardKit",
+          "apps/ios/App",
+          "apps/ios/UI",
+          "assets",
+          "config",
+          "Package.swift",
+          "Package.resolved",
+          "Scripts/ios-project.mjs",
+          "Scripts/ios-icon.swift"
+        ]
       }
     ],
     "enabled": true,
