@@ -29,3 +29,19 @@ __pycache__/
 
 # Local iPhone developer device and team
 .benchgauge-ios.local.json
+
+# Shared leaderboard service dependencies and local deployment settings
+fc/node_modules/
+.benchgauge-cloud.local.json
+.env.local
+
+# WeChat mini program dependencies, build output and local developer settings
+node_modules/
+apps/weapp/node_modules/
+apps/weapp/dist/
+apps/weapp/.weapp-vite/
+apps/weapp/project.private.config.json
+apps/weapp/private.*.key
+apps/weapp/*.private.key
+apps/weapp/.last-publish*
+apps/weapp/preview-qrcode.jpg
