@@ -72,7 +72,7 @@ function credentials(file) {
   if (!accessKeyId || !accessKeySecret) throw new Error('Missing Alibaba Cloud RAM credentials in the local environment');
   return { accessKeyId, accessKeySecret };
 }
-const runtimeFiles = ['package.json', 'package-lock.json', 'bootstrap', 'server.mjs', 'service.mjs', 'domain.mjs', 'parser.mjs', 'oss-store.mjs', 'brands.mjs', 'brand-catalog.json', 'leaderboard-policy.json', 'countries.mjs', 'country-catalog.json'];
+const runtimeFiles = ['package.json', 'package-lock.json', 'bootstrap', 'server.mjs', 'service.mjs', 'domain.mjs', 'parser.mjs', 'source-logos.mjs', 'oss-store.mjs', 'brands.mjs', 'brand-catalog.json', 'leaderboard-policy.json', 'countries.mjs', 'country-catalog.json'];
 function runtimeSignature() {
   const hash = createHash('sha256');
   for (const name of runtimeFiles) hash.update(name).update(readFileSync(join(root, 'fc', name)));

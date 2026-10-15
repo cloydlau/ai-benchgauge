@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { createBrandRules } from './domain.mjs';
+import { arenaSourcePages, maximumInlineLogoBytes } from './source-logos.mjs';
 
 const catalog = JSON.parse(readFileSync(new URL('./brand-catalog.json', import.meta.url)));
 const palette = ['#607D8B', '#4F6DCD', '#8C6BB1', '#318F7A', '#A5683A', '#B55C7B', '#5A87A1', '#737D3C'];
@@ -26,7 +27,8 @@ export function safeLogoURL(value) {
     const url = new URL(value);
     // Only source-owned logo assets. Validate again after every redirect.
     const verified = catalog.modelLogos.some(model => model.sourceURL === url.href);
-    const source = url.hostname === 'artificialanalysis.ai' && url.pathname.startsWith('/img/logos/')
+    const source = (url.hostname === 'artificialanalysis.ai' && url.pathname.startsWith('/img/logos/')
+      || url.hostname === 'arena.ai' && url.pathname.startsWith('/images/models/'))
       && /\.(svg|png|jpe?g|webp)$/i.test(url.pathname);
     if (url.protocol !== 'https:' || url.username || url.password || url.port || !verified && !source) return null;
     return url.href;
@@ -34,11 +36,24 @@ export function safeLogoURL(value) {
 }
 // Model marks are independent of provider marks. Never infer a model mark
 // from creator.logo: the current source explicitly supplies Alibaba for Wan.
-export function modelLogo(entry) {
+export function modelLogo(entry, kind) {
+  // An ownerless Arena row still has a stable source identity. It lets cold
+  // reads of older snapshots find a source mark acquired by another refresh.
+  const sourceKey = Object.hasOwn(arenaSourcePages, kind) && !entry.organization
+    ? `model-arena-${createHash('sha256').update(`${kind}|${entry.modelID ?? entry.name}`).digest('hex').slice(0, 24)}` : null;
   const explicit = safeLogoURL(entry.modelLogoURL);
-  if (explicit) return { key: `model-${createHash('sha256').update(explicit).digest('hex').slice(0, 24)}`, sourceURL: explicit };
+  if (explicit) return { key: sourceKey ?? `model-${createHash('sha256').update(explicit).digest('hex').slice(0, 24)}`, sourceURL: explicit };
+  const inline = inlineLogo(entry.modelLogoSVG, kind);
+  if (inline) return { ...inline, key: sourceKey ?? `model-${createHash('sha256').update(inline.sourceURL).digest('hex').slice(0, 24)}` };
   const verified = knownModelBrand(entry);
-  return verified ? { key: verified.key, sourceURL: verified.sourceURL, verified } : null;
+  return verified ? { key: verified.key, sourceURL: verified.sourceURL, verified }
+    : sourceKey ? { key: sourceKey, sourceURL: null } : null;
+}
+function inlineLogo(svg, kind) {
+  const page = arenaSourcePages[kind];
+  if (!page || typeof svg !== 'string' || !svg.startsWith('<svg') || Buffer.byteLength(svg) > maximumInlineLogoBytes) return null;
+  const hash = createHash('sha256').update(svg).digest('hex');
+  return { sourceSVG: svg, sourceURL: `${page}#logo-${hash}` };
 }
 export async function downloadLogo(value, signal, fetcher = fetch) {
   let url = safeLogoURL(value);
@@ -70,7 +85,7 @@ export async function normalizeLogo(bytes) {
   // Logos need no external images, fonts, entities or active SVG content.
   const text = bytes.toString('utf8');
   if (/<svg[\s>]/i.test(text)) {
-    if (/<!DOCTYPE|<!ENTITY|<\s*(?:script|foreignObject|iframe)\b|@import/i.test(text)) throw new Error('Unsupported SVG');
+    if (/<!DOCTYPE|<!ENTITY|<\s*(?:script|foreignObject|iframe)\b|\bon[a-z]+\s*=|@import/i.test(text)) throw new Error('Unsupported SVG');
     const refs = [...text.matchAll(/(?:\b|:)href\s*=\s*(['"])(.*?)\1/gi)];
     if (refs.some(ref => !ref[2].startsWith('#'))
       || (text.match(/(?:\b|:)href\s*=/gi)?.length ?? 0) !== refs.length) throw new Error('External SVG reference');
@@ -117,17 +132,19 @@ export class BrandRegistry {
     if (!board) return board;
     const groups = new Map();
     for (const entry of board.entries) {
-      const model = modelLogo(entry);
+      const model = modelLogo(entry, board.kind);
       if (model) groups.set(model.key, { ...model, name: entry.name, scope: 'model',
         saved: entry.brand?.key === model.key && entry.brand.sourceURL === model.sourceURL ? entry.brand : null });
       const key = brandKey(entry); if (!key) continue;
-      const candidate = safeLogoURL(entry.logoURL ?? board.organizationLogoURLs?.[entry.organization]);
+      const inline = inlineLogo(board.organizationLogoSVGs?.[entry.organization], board.kind);
+      const candidate = inline?.sourceURL ?? safeLogoURL(entry.logoURL ?? board.organizationLogoURLs?.[entry.organization]);
       const previous = groups.get(key);
       // A hosted-model override must never inherit the harness's source logo.
       const sourceURL = normalizedBrandKey(entry.organization) === key ? candidate : null;
       const organizationBrand = entry.organizationBrand ?? entry.brand;
       const saved = organizationBrand?.key === key && validPNG(Buffer.from(organizationBrand.pngData ?? '', 'base64')) ? organizationBrand : previous?.saved;
-      groups.set(key, { key, name: entry.organization ?? entry.name, sourceURL: previous?.sourceURL ?? sourceURL, saved });
+      groups.set(key, { key, name: entry.organization ?? entry.name, sourceURL: previous?.sourceURL ?? sourceURL,
+        sourceSVG: previous?.sourceSVG ?? (sourceURL === inline?.sourceURL ? inline?.sourceSVG : undefined), saved });
     }
     const resolved = new Map();
     const controller = new AbortController();
@@ -148,7 +165,7 @@ export class BrandRegistry {
       // Retain saved PNGs if the registry temporarily cannot be read.
       const saved = [entry.organizationBrand, entry.brand].find(brand => brand?.key === key);
       const organizationBrand = cached ?? saved ?? { key: key ?? '', colorHex: catalog.colors[key] ?? fallbackColor(key ?? entry.name), status: key ? 'pending' : 'unknown' };
-      const model = modelLogo(entry);
+      const model = modelLogo(entry, board.kind);
       const savedModel = model && entry.brand?.key === model.key
         && validPNG(Buffer.from(entry.brand.pngData ?? '', 'base64')) ? entry.brand : null;
       const modelBrand = model && (resolved.get(model.key)?.pngData ? resolved.get(model.key) : savedModel ?? model.verified);
@@ -170,8 +187,8 @@ export class BrandRegistry {
     const cached = await publicValue(previous);
     // A ready provider asset cannot satisfy a model request. A changed model
     // source must also be retried instead of returning its old image forever.
-    if (cached.pngData && (brand.scope !== 'model' || previous.sourceURL === brand.sourceURL)
-      || !acquire || signal.aborted) return cached;
+    if (cached.pngData && (brand.scope !== 'model' || !brand.sourceURL || previous.sourceURL === brand.sourceURL)
+      || !acquire || signal.aborted || brand.scope === 'model' && !brand.sourceURL) return cached;
     const { position, state } = await this.store.readState(`brand-state/${encodeURIComponent(brand.key)}`, 2500);
     const now = this.clock();
     if (state && now < state.nextAttemptAt && state.sourceURL === brand.sourceURL) return publicValue(previous);
@@ -183,7 +200,7 @@ export class BrandRegistry {
     if (brand.sourceURL) {
       try {
         const timeout = AbortSignal.any([signal, AbortSignal.timeout(2200)]);
-        const bytes = await this.download(brand.sourceURL, timeout);
+        const bytes = brand.sourceSVG ? Buffer.from(brand.sourceSVG) : await this.download(brand.sourceURL, timeout);
         timeout.throwIfAborted();
         const { png, colorHex } = await this.normalize(bytes);
         timeout.throwIfAborted();

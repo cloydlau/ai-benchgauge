@@ -1,5 +1,6 @@
 import { countryCode } from './countries.mjs';
 import { normalizedBrandKey } from './brands.mjs';
+import { arenaRowLogos } from './source-logos.mjs';
 // Keep the record selectors aligned with HTMLLeaderboardParser.swift.
 // Accept source HTML, never a client-supplied score table or timestamp.
 export const sources = Object.freeze({
@@ -63,13 +64,14 @@ function safeString(value, maximum = 256) {
     && !/[\x00-\x1f\x7f]/.test(value) ? value : undefined;
 }
 
-function logo(path) {
+function logo(path, arena = false) {
   if (!safeString(path, 2048)) return undefined;
   try {
-    const url = new URL(path, 'https://artificialanalysis.ai');
+    const url = new URL(path, arena ? 'https://arena.ai' : 'https://artificialanalysis.ai');
     // Contributions cannot inject arbitrary tracking URLs or local URLs.
     if (url.protocol === 'https:' && !url.username && !url.password
-      && (url.hostname === 'artificialanalysis.ai' || url.hostname.endsWith('.artificialanalysis.ai'))) return url.href;
+      && !url.port && (arena ? url.hostname === 'arena.ai' && url.pathname.startsWith('/images/models/')
+        : url.hostname === 'artificialanalysis.ai')) return url.href;
   } catch { /* Optional logo. */ }
 }
 
@@ -95,7 +97,7 @@ export function parseBoard(kind, html, now) {
   const coding = kind === 'artificialAnalysisCodingAgent';
   const intelligence = kind === 'artificialAnalysis';
   const marker = arena ? 'modelDisplayName' : coding ? 'indexScore' : intelligence ? 'intelligenceIndex' : 'formatted';
-  const seen = new Set(), rows = [], organizationLogoURLs = {};
+  const seen = new Set(), rows = [], organizationLogoURLs = Object.create(null);
   for (const record of objects(text, marker)) {
     const value = arena || coding || intelligence ? record : record.formatted && record.values;
     if (!value || intelligence && value.intelligenceIndexIsEstimated === true) continue;
@@ -109,7 +111,7 @@ export function parseBoard(kind, html, now) {
     if (seen.has(key)) continue;
     seen.add(key);
     const logoURL = logo(creator?.logo);
-    const modelLogoURL = logo(value.modelLogoURL);
+    const modelLogoURL = logo(value.modelLogoURL, arena);
     const openness = modelOpenness(value);
     const creatorCountry = coding ? null : arena ? value.modelOrganizationCountryCode ?? value.modelOrganizationCountry
       : creator?.headquartersCountryCode ?? creator?.countryCode ?? creator?.country?.iso2 ?? creator?.country;
@@ -120,6 +122,24 @@ export function parseBoard(kind, html, now) {
     rows.push({ name, score, ...(modelID && { modelID }), ...(organization && { organization }), ...(logoURL && { logoURL }), ...(modelLogoURL && { modelLogoURL }), ...(openness && { openness }), ...(countryHint && { countryHint }), ...(organizationWebsite && { organizationWebsite }) });
   }
   if (rows.length < (coding ? 10 : 20)) throw new Error('Incomplete source data');
+  const organizationLogoSVGs = Object.create(null);
+  if (arena) {
+    const rowLogos = arenaRowLogos(html, new Set(rows.map(row => row.name)));
+    for (const row of rows) {
+      const mark = rowLogos.get(row.name);
+      if (!mark) continue;
+      if (mark.svg) {
+        if (row.organization) organizationLogoSVGs[row.organization] ??= mark.svg;
+        else row.modelLogoSVG = mark.svg;
+      } else {
+        const address = logo(mark.url, true);
+        if (!address) continue;
+        if (row.organization) {
+          row.logoURL = address; organizationLogoURLs[row.organization] ??= address;
+        } else row.modelLogoURL ??= address;
+      }
+    }
+  }
   rows.sort((a, b) => b.score - a.score || (a.name.normalize('NFC') < b.name.normalize('NFC') ? -1 : 1));
   const dates = [];
   const dateKey = arena ? 'voteCutoffISOString' : 'materializedAt';
@@ -137,5 +157,6 @@ export function parseBoard(kind, html, now) {
     ...(sourceDate !== undefined && { sourceUpdatedAt: new Date(sourceDate).toISOString() }),
     ...(version && { sourceNote: version }),
     entries: rows.map((row, index) => ({ rank: index + 1, ...row })),
-    ...(Object.keys(organizationLogoURLs).length && { organizationLogoURLs }) };
+    ...(Object.keys(organizationLogoURLs).length && { organizationLogoURLs }),
+    ...(Object.keys(organizationLogoSVGs).length && { organizationLogoSVGs }) };
 }
