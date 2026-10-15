@@ -8,7 +8,11 @@
 
 `HTMLLeaderboardParserTests` 的两项已保存网页测试沿用原先的可选快照条件：`Tests/work/artificial-analysis.html` 和 `Tests/work/arena-webdev.html`。缺少文件时，测试报告明确标记为跳过；其余解析用例使用内置合成数据，仍会执行。原生窗口交互、网页结构的实时变化和生产服务连通性需要单独验证，单元测试不覆盖这些行为。
 
-`./test.sh --coverage` 开启两种语言的覆盖率输出。Node.js 在终端显示覆盖报告，Swift 的报告保存在 `work/unit-test-build/` 下；不设未经基线评估的覆盖率门槛，也不将模型报告或用例数量作为覆盖率。`DESKTOP_NOTIFY=0 node Scripts/ci-checks.mjs` 依次检查脚本语法、完整测试、正式应用构建和签名，不打开应用。
+`./test.sh --coverage` 检查现有单元测试统计范围内的逐文件 100% 覆盖率，Calmmit 的测试步骤也使用此命令。Node.js 保持 `Scripts/*.mjs`、排除测试文件的原有统计口径，检查行、分支、函数；Swift 保持默认报告中的 `LeaderboardCore` 与 `LeaderboardKit` 两个库，检查行、函数、代码区域（LLVM regions）。Swift 工具链没有提供有效的分支统计，不能把 regions 称为分支覆盖率。原生界面、桥接程序入口及 Windows 原生程序不在这一既有单元测试覆盖报告中。
+
+2026-10-13 验证基线：Node.js 的 28 个已执行脚本为行 2411/2411、分支 1031/1031、函数 233/233；Swift 的 45 个可执行核心源码文件为行 8680/8680、函数 1305/1305、代码区域 4244/4244。新增源码或改动后的指标以本次实际报告为准。
+
+Node.js 报告合并子进程执行数据；测试中执行的临时副本只有源码字节与仓库原件一致时才纳入，删除后的副本也保留校验记录。Swift 检查前删除旧报告，检查后要求报告完整覆盖两个库的全部可执行源码；纯重导出文件没有可执行代码。任一文件的任一指标少于 100%、报告缺失、源码变化或数据计数无效都会使检查失败，不能用显示四舍五入或缩小范围通过。合并的 Node.js 报告在 `work/test-results/coverage-*/summary.json`，Swift 默认报告在 `work/unit-test-build/` 的 `codecov/AI-BenchGauge.json`。`DESKTOP_NOTIFY=0 node Scripts/ci-checks.mjs` 依次检查脚本语法、完整测试、正式应用构建和签名，不打开应用。
 
 开发监听、独立提交及打包入口均有测试门禁。通过结果只能在本次流程内且源码、测试、脚本、构建配置和相关环境一致时复用；测试期间发生修改，结果作废并重新验证。失败日志、状态和一次修复的记录在 `work/test-results/`，不会进入版本库。自动修复只允许修改源码，测试或流程配置变化会阻断复检；只有完整测试通过且没有待决策项才能继续。
 

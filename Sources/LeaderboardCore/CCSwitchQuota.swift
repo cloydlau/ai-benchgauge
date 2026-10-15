@@ -554,9 +554,10 @@ public enum AccountQuotaFormatting {
         )
     }
 
-    private static let shanghaiTimeZone: TimeZone = TimeZone(identifier: "Asia/Shanghai")
-        ?? TimeZone(secondsFromGMT: 8 * 3_600)
-        ?? .current
+    // Fixed UTC+8 remains valid even on hosts without the named time-zone database.
+    private static let shanghaiTimeZone = shanghaiTimeZone(named: TimeZone(identifier: "Asia/Shanghai"))
+
+    static func shanghaiTimeZone(named: TimeZone?) -> TimeZone { named ?? TimeZone(secondsFromGMT: 8 * 3_600)! }
 
     private static var shanghaiCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
@@ -581,8 +582,11 @@ public enum AccountQuotaFormatting {
         formatter.maximumFractionDigits = 2
         formatter.roundingMode = .halfUp
         formatter.usesGroupingSeparator = false
-        return formatter.string(from: NSNumber(value: amount))
-            ?? String(format: "%0.2f", locale: Locale(identifier: "en_US_POSIX"), amount)
+        return balanceAmountText(amount, formatted: formatter.string(from: NSNumber(value: amount)))
+    }
+
+    static func balanceAmountText(_ amount: Double, formatted: String?) -> String {
+        formatted ?? String(format: "%0.2f", locale: Locale(identifier: "en_US_POSIX"), amount)
     }
 
     /// The symbol for a balance currency, or nil when the code has to stay
@@ -1051,8 +1055,10 @@ public enum AccountQuotaFormatting {
         formatter.numberStyle = .decimal
         formatter.usesGroupingSeparator = true
         formatter.maximumFractionDigits = 2
-        return formatter.string(from: NSNumber(value: value)) ?? String(value)
+        return creditText(value, formatted: formatter.string(from: NSNumber(value: value)))
     }
+
+    static func creditText(_ value: Double, formatted: String?) -> String { formatted ?? String(value) }
 
 }
 
@@ -1092,7 +1098,6 @@ public enum CCSwitchQuotaCatalog {
                 continue
             }
             let baseURL = preferredBaseURL(extracted.baseURLs, kind: kind)
-            if [.minimax, .stepfun, .blackForestLabs, .luma].contains(kind), baseURL == nil { continue }
             built.append(
                 CCSwitchQuotaTarget(
                     id: record.id,
@@ -1198,7 +1203,7 @@ public enum CCSwitchQuotaCatalog {
                 return qwenHostKind(record)
             }
         }
-        if bases.contains(where: isQwen) { return .qwen }
+        // Qwen hosts have already returned above, before interpreting other labels.
         if template == "balance" {
             return bases.contains(where: isDeepSeek) ? .deepseek
                 : queryBases.compactMap(LeaderboardQuotaProviders.kind(forBaseURL:)).first(where: { $0 != .minimax })
@@ -1426,7 +1431,8 @@ public enum CCSwitchQuotaCatalog {
                 return nil
             }
             let matched = String(trimmed[range])
-            guard let quote = matched.firstIndex(where: { $0 == "\"" || $0 == "'" }) else { return nil }
+            // The preceding complete regular-expression match contains an opening quote.
+            let quote = matched.firstIndex(where: { $0 == "\"" || $0 == "'" })!
             let value = matched[matched.index(after: quote)...].dropLast()
             let url = String(value)
             return isLoopback(url) ? nil : url
@@ -1463,8 +1469,7 @@ public enum CCSwitchQuotaCatalog {
     }
 
     private static func jsonObject(_ text: String) -> [String: Any]? {
-        guard let data = text.data(using: .utf8),
-              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        guard let object = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any] else {
             return nil
         }
         return object

@@ -12,12 +12,16 @@ public enum BrandFont {
     }()
 
     public static var licenseText: String {
-        guard let url = resource("SlideFont-OFL", extension: "txt") else { return "" }
+        licenseText(at: resource("SlideFont-OFL", extension: "txt"))
+    }
+
+    static func licenseText(at url: URL?) -> String {
+        guard let url else { return "" }
         return (try? String(contentsOf: url, encoding: .utf8)) ?? ""
     }
 
-    private static func resource(_ name: String, extension suffix: String) -> URL? {
-        if let url = Bundle.main.url(forResource: name, withExtension: suffix, subdirectory: "Fonts") {
+    static func resource(_ name: String, extension suffix: String, main: Bundle = .main) -> URL? {
+        if let url = main.url(forResource: name, withExtension: suffix, subdirectory: "Fonts") {
             return url
         }
         return Bundle.module.url(forResource: name, withExtension: suffix, subdirectory: "Fonts")

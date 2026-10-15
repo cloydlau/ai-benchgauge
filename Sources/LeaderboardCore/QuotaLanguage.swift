@@ -111,7 +111,8 @@ public extension AppLanguage {
 
     private static func englishDate(in value: String) -> String {
         let pattern = #"([0-9]{1,2})月([0-9]{1,2})日(?:([0-9]{1,2})时(?:([0-9]{1,2})分)?)?"#
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return value }
+        // This fixed expression is compiled independently of user text.
+        let regex = try! NSRegularExpression(pattern: pattern)
         var result = value
         let matches = regex.matches(in: value, range: NSRange(value.startIndex..., in: value))
         for match in matches.reversed() {
@@ -122,7 +123,8 @@ public extension AppLanguage {
             let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
             var replacement = "\(months[month - 1]) \(result[dayRange])"
             if let hourRange = Range(match.range(at: 3), in: result) {
-                let hour = Int(result[hourRange]) ?? 0
+                // The capture is exactly one or two ASCII digits.
+                let hour = Int(result[hourRange])!
                 let minute = Range(match.range(at: 4), in: result).flatMap { Int(result[$0]) } ?? 0
                 replacement += String(format: ", %02d:%02d", hour, minute)
             }

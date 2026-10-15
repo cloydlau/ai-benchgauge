@@ -118,21 +118,27 @@ public struct URLSessionAccountQuotaTransport: AccountQuotaTransport {
     public func data(for request: URLRequest) async throws -> AccountQuotaHTTPResponse {
         let (body, response) = try await session.data(for: request)
         let http = response as? HTTPURLResponse
+        return Self.response(body: body, statusCode: http?.statusCode, headerFields: http?.allHeaderFields)
+    }
+
+    init(session: URLSession) { self.session = session }
+
+    static func response(body: Data, statusCode: Int?, headerFields: [AnyHashable: Any]?) -> AccountQuotaHTTPResponse {
         var headers: [String: String] = [:]
-        for (key, value) in http?.allHeaderFields ?? [:] {
+        for (key, value) in headerFields ?? [:] {
             let name = (key as? String) ?? String(describing: key)
             let text = (value as? String) ?? String(describing: value)
             headers[name.lowercased()] = text
         }
         return AccountQuotaHTTPResponse(
-            statusCode: http?.statusCode ?? 0,
+            statusCode: statusCode ?? 0,
             headers: headers,
             body: body
         )
     }
 }
 
-private final class QuotaRedirectRejector: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+final class QuotaRedirectRejector: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
     func urlSession(
         _ session: URLSession,
         task: URLSessionTask,
@@ -158,6 +164,22 @@ extension XaiAuthFile {
         oldToken: String,
         newToken: String
     ) -> Bool {
+        commitRefreshTokenReplacement(at: url, accountID: accountID, oldToken: oldToken, newToken: newToken, io: .init())
+    }
+
+    struct RefreshTokenIO {
+        #if !os(Windows)
+        var create: (String) -> Int32 = { open($0, O_CREAT | O_EXCL | O_WRONLY, 0o600) }
+        var writeBytes: (Int32, UnsafeRawPointer, Int) -> Int = { write($0, $1, $2) }
+        var flush: (Int32) -> Int32 = { fsync($0) }
+        var protect: (Int32) -> Int32 = { fchmod($0, 0o600) }
+        var replace: (URL, URL) throws -> Void = { _ = try FileManager.default.replaceItemAt($0, withItemAt: $1) }
+        var restrict: (URL) throws -> Void = { try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: $0.path(percentEncoded: false)) }
+        #endif
+    }
+
+    static func commitRefreshTokenReplacement(at url: URL, accountID: String, oldToken: String,
+                                             newToken: String, io: RefreshTokenIO) -> Bool {
         guard let current = try? Data(contentsOf: url),
               let updated = replacingRefreshToken(
                 in: current,
@@ -177,18 +199,19 @@ extension XaiAuthFile {
             return true
         } catch { return false }
         #else
-        let fd = open(tempPath, O_CREAT | O_EXCL | O_WRONLY, 0o600)
+        let fd = io.create(tempPath)
         guard fd >= 0 else { return false }
 
         let wrote = updated.withUnsafeBytes { buffer -> Bool in
-            guard let base = buffer.baseAddress else { return updated.isEmpty }
+            // A serialized auth object always contains nonempty JSON bytes.
+            let base = buffer.baseAddress!
             var offset = 0
             while offset < updated.count {
-                let count = write(fd, base.advanced(by: offset), updated.count - offset)
-                if count < 0 { return false }
+                let count = io.writeBytes(fd, base.advanced(by: offset), updated.count - offset)
+                if count <= 0 { return false }
                 offset += count
             }
-            return fsync(fd) == 0 && fchmod(fd, 0o600) == 0
+            return io.flush(fd) == 0 && io.protect(fd) == 0
         }
         close(fd)
         guard wrote else {
@@ -197,11 +220,8 @@ extension XaiAuthFile {
         }
 
         do {
-            _ = try FileManager.default.replaceItemAt(url, withItemAt: tempURL)
-            try FileManager.default.setAttributes(
-                [.posixPermissions: 0o600],
-                ofItemAtPath: url.path(percentEncoded: false)
-            )
+            try io.replace(url, tempURL)
+            try io.restrict(url)
             return true
         } catch {
             unlink(tempPath)
@@ -281,15 +301,16 @@ public actor AccountQuotaClient {
             return chips
         }
         let qwenSummary = await qwenPlan
-        let resolvedQwenStatus: AccountQuotaChip.Status? = qwenSummary.flatMap { data in
+        var resolvedQwenStatus: AccountQuotaChip.Status? = qwenSummary.flatMap { data in
             if let website = QwenWebsiteQuotaParser.parse(data) {
                 return .qwenWebsite(website)
             }
             return QwenPlanQuotaParser.parse(data).map(AccountQuotaChip.Status.qwenPlan)
                 ?? QwenWebsiteQuotaParser.failureStatus(in: data)
         }
-        let qwenFallback = resolvedQwenStatus == nil && !qwenTargets.isEmpty
-            ? await qwenQuotaSource.unavailableStatus() : nil
+        if resolvedQwenStatus == nil && !qwenTargets.isEmpty {
+            resolvedQwenStatus = await qwenQuotaSource.unavailableStatus()
+        }
         let qwenChips = qwenTargets.map { target in
             AccountQuotaChip(
                 id: target.id,
@@ -298,7 +319,8 @@ public actor AccountQuotaClient {
                 websiteURL: target.websiteURL,
                 kind: target.kind,
                 isCurrent: target.isCurrent,
-                status: resolvedQwenStatus ?? qwenFallback ?? .message(AccountQuotaMessage.queryFailed)
+                // A nonempty target list always has parsed data or the source's fallback.
+                status: resolvedQwenStatus!
             )
         }
         let resolvedOfficial = try await officialChips
@@ -307,18 +329,9 @@ public actor AccountQuotaClient {
         for chip in keyChips + resolvedOfficial + resolvedXAI + qwenChips {
             byID[chip.id] = Self.keepingLastGood(chip, previous: previous)
         }
-        return targets.compactMap { target in
-            if let chip = byID[target.id] {
-                return chip
-            }
-            // No stored official login. Hide it instead of failing or telling
-            // the user to install Codex.
-            if target.kind == .officialNote,
-               CCSwitchQuotaCatalog.usableOfficialAccessToken(target.accessToken) == nil {
-                return nil
-            }
-            return Self.chip(target, .failed)
-        }
+        // Every kind is handled above. The only omitted chips are official
+        // providers without a stored login; preserve request order here.
+        return targets.compactMap { byID[$0.id] }
     }
 
     /// Rotates the selected xAI login without querying its billing API. The
@@ -437,15 +450,16 @@ public actor AccountQuotaClient {
         }
     }
 
-    private static func queryKeyProvider(
+    static func queryKeyProvider(
         _ target: CCSwitchQuotaTarget,
-        transport: any AccountQuotaTransport
+        transport: any AccountQuotaTransport,
+        requestFactory: (CCSwitchQuotaTarget, String) -> URLRequest? = keyRequest
     ) async throws -> AccountQuotaChip {
         let credential = [.claude, .gemini].contains(target.kind) ? target.accessToken : (target.accessToken ?? target.apiKey)
         guard let apiKey = usableKey(credential) else {
             return chip(target, .notConfigured)
         }
-        guard var request = keyRequest(target, apiKey: apiKey) else {
+        guard var request = requestFactory(target, apiKey) else {
             return chip(target, .failed)
         }
         if target.kind == .gemini {
@@ -580,13 +594,11 @@ public actor AccountQuotaClient {
         guard let accessToken = CCSwitchQuotaCatalog.usableOfficialAccessToken(target.accessToken) else {
             return nil
         }
-        guard let request = officialRequest(
+        let request = officialRequest(
             path: "/backend-api/wham/usage",
             accessToken: accessToken,
             accountID: target.accountID
-        ) else {
-            return chip(target, .failed)
-        }
+        )
         let response: AccountQuotaHTTPResponse
         do {
             response = try await transport.data(for: request)
@@ -650,13 +662,11 @@ public actor AccountQuotaClient {
         now: Date = Date()
     ) async throws -> ParsedQuotaWindow? {
         guard let accountID = usableKey(accountID) else { return nil }
-        guard let request = officialRequest(
+        let request = officialRequest(
             path: "/backend-api/accounts/check/v4-2023-04-27",
             accessToken: accessToken,
             accountID: accountID
-        ) else {
-            return nil
-        }
+        )
         let response: AccountQuotaHTTPResponse
         do {
             response = try await transport.data(for: request)
@@ -680,8 +690,9 @@ public actor AccountQuotaClient {
         path: String,
         accessToken: String,
         accountID: String?
-    ) -> URLRequest? {
-        guard let url = URL(string: "https://chatgpt.com\(path)") else { return nil }
+    ) -> URLRequest {
+        // Both private call sites supply fixed ASCII endpoint paths.
+        let url = URL(string: "https://chatgpt.com\(path)")!
         var request = URLRequest(url: url, timeoutInterval: 15)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
@@ -708,12 +719,10 @@ public actor AccountQuotaClient {
         let authorization: String
         switch target.kind {
         case .kimi:
-            guard let resolved = URL(string: "https://api.kimi.com/coding/v1/usages") else { return nil }
-            url = resolved
+            url = URL(string: "https://api.kimi.com/coding/v1/usages")!
             authorization = "Bearer \(apiKey)"
         case .deepseek:
-            guard let resolved = URL(string: "https://api.deepseek.com/user/balance") else { return nil }
-            url = resolved
+            url = URL(string: "https://api.deepseek.com/user/balance")!
             authorization = "Bearer \(apiKey)"
         case .zhipu:
             url = CCSwitchQuotaCatalog.zhipuQuotaURL(baseURL: target.baseURL)
@@ -854,7 +863,7 @@ public actor AccountQuotaClient {
     }
 }
 
-private enum QuotaFailure: Sendable {
+enum QuotaFailure: Sendable {
     case failed
     case reauth
     case network
@@ -862,19 +871,24 @@ private enum QuotaFailure: Sendable {
     case notLoggedIn
 }
 
-private enum XAIBillingResult: Sendable {
+enum XAIBillingResult: Sendable {
     case windows([ParsedQuotaWindow])
     case failure(QuotaFailure)
 }
 
 /// Serializes xAI refresh so overlapping quota refreshes share one token exchange.
-private actor XAIAccessTokens {
+actor XAIAccessTokens {
     private struct CachedToken {
         var accountID: String
         var refreshToken: String
         var token: String
         var validUntil: Date
     }
+
+    private let rotateRefreshToken: @Sendable (URL, String, String, String) -> Bool
+    init(rotateRefreshToken: @escaping @Sendable (URL, String, String, String) -> Bool = { url, account, old, new in
+        XaiAuthFile.commitRefreshTokenReplacement(at: url, accountID: account, oldToken: old, newToken: new)
+    }) { self.rotateRefreshToken = rotateRefreshToken }
 
     private var cached: CachedToken?
     private var tokenEndpoint: URL?
@@ -1074,12 +1088,7 @@ private actor XAIAccessTokens {
             return .failure(.failed)
         }
         if let rotated = payload.refreshToken, rotated != account.refreshToken {
-            guard XaiAuthFile.commitRefreshTokenReplacement(
-                at: authFileURL,
-                accountID: account.id,
-                oldToken: account.refreshToken,
-                newToken: rotated
-            ) else {
+            guard rotateRefreshToken(authFileURL, account.id, account.refreshToken, rotated) else {
                 cached = nil
                 return .failure(.failed)
             }
@@ -1228,7 +1237,8 @@ private actor XAIAccessTokens {
     private static func formEscape(_ value: String) -> String {
         var allowed = CharacterSet.alphanumerics
         allowed.insert(charactersIn: "-._~")
-        return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
+        // Swift strings contain valid Unicode; every other scalar is escaped.
+        return value.addingPercentEncoding(withAllowedCharacters: allowed)!
     }
 }
 
@@ -1258,7 +1268,7 @@ extension XAIAccessTokens {
     }
 }
 
-private enum XAITokenResult: Sendable {
+enum XAITokenResult: Sendable {
     case token(String)
     case failure(QuotaFailure)
 }

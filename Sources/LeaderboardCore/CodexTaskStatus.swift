@@ -47,7 +47,14 @@ public struct CodexStoredTask: Sendable {
 /// Only the visible desktop threads and their latest turn are read. Historical
 /// inProgress rows never establish liveness; that comes from the desktop IPC.
 public enum CodexTaskStore {
-    public static func read(root: URL) throws -> [String: CodexStoredTask] {
+    public static func read(root: URL) throws -> [String: CodexStoredTask] { try read(root: root, operations: .init()) }
+
+    struct ReadOperations {
+        var step = sqlite3_step
+        var bind = sqlite3_bind_text
+    }
+
+    static func read(root: URL, operations: ReadOperations) throws -> [String: CodexStoredTask] {
         let state = try database(root.appendingPathComponent("state_5.sqlite"))
         defer { sqlite3_close(state) }
         let history = try database(root.appendingPathComponent("thread_history_1.sqlite"))
@@ -81,21 +88,21 @@ public enum CodexTaskStore {
         defer { sqlite3_finalize(latest) }
         guard historyCode == SQLITE_OK else { throw ReadError.database(stage: "history-prepare", code: historyCode) }
         var result: [String: CodexStoredTask] = [:]
-        var step = sqlite3_step(rows)
+        var step = operations.step(rows)
         while step == SQLITE_ROW {
             let id = string(rows, 0)!
             let account = string(rows, 1)
             let user = string(rows, 2)
             sqlite3_reset(latest)
             sqlite3_clear_bindings(latest)
-            let bound = id.withCString { sqlite3_bind_text(latest, 1, $0, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self)) }
+            let bound = id.withCString { operations.bind(latest, 1, $0, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self)) }
             guard bound == SQLITE_OK else { throw ReadError.database(stage: "history-bind", code: bound) }
-            let statusStep = sqlite3_step(latest)
+            let statusStep = operations.step(latest)
             guard statusStep == SQLITE_ROW || statusStep == SQLITE_DONE else { throw ReadError.database(stage: "history-step", code: statusStep) }
             let identity = try account.flatMap { account in try user.map { try readIdentityKey(account: account, user: $0) } }
             let unread = identity.map { unreadByAccount[$0, default: []].contains(id) } ?? legacyUnread.contains(id)
             result[id] = CodexStoredTask(status: statusStep == SQLITE_ROW ? string(latest, 0) : nil, unread: unread)
-            step = sqlite3_step(rows)
+            step = operations.step(rows)
         }
         guard step == SQLITE_DONE else { throw ReadError.database(stage: "threads-step", code: step) }
         return result

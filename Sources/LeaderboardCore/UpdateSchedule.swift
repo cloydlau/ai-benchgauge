@@ -17,9 +17,13 @@ public struct UpdateSchedule: Equatable, Sendable {
     }
 
     public static func initial(now: Date = Date(), calendar: Calendar = .current) -> UpdateSchedule {
+        initial(now: now, calendar: calendar, makeDate: calendar.date(from:))
+    }
+
+    static func initial(now: Date, calendar: Calendar, makeDate: (DateComponents) -> Date?) -> UpdateSchedule {
         UpdateSchedule(
-            dailyRunAt: nextDailyRun(after: now, calendar: calendar),
-            giveUpAt: startOfNextDay(now, calendar: calendar)
+            dailyRunAt: nextDailyRun(after: now, calendar: calendar, makeDate: makeDate),
+            giveUpAt: startOfNextDay(now, calendar: calendar, makeDate: makeDate)
         )
     }
 
@@ -55,25 +59,33 @@ public struct UpdateSchedule: Equatable, Sendable {
     }
 
     private static func nextDailyRun(after date: Date, calendar: Calendar) -> Date {
+        nextDailyRun(after: date, calendar: calendar, makeDate: calendar.date(from:))
+    }
+
+    private static func nextDailyRun(after date: Date, calendar: Calendar, makeDate: (DateComponents) -> Date?) -> Date {
         var components = calendar.dateComponents([.year, .month, .day], from: date)
         components.hour = 9
         components.minute = 0
         components.second = 0
 
-        guard let run = calendar.date(from: components), run > date else {
+        guard let run = makeDate(components), run > date else {
             var nextComponents = components
             nextComponents.day? += 1
-            return calendar.date(from: nextComponents) ?? date
+            return makeDate(nextComponents) ?? date
         }
         return run
     }
 
     private static func startOfNextDay(_ date: Date, calendar: Calendar) -> Date {
+        startOfNextDay(date, calendar: calendar, makeDate: calendar.date(from:))
+    }
+
+    private static func startOfNextDay(_ date: Date, calendar: Calendar, makeDate: (DateComponents) -> Date?) -> Date {
         var components = calendar.dateComponents([.year, .month, .day], from: date)
         components.day? += 1
         components.hour = 0
         components.minute = 0
         components.second = 0
-        return calendar.date(from: components) ?? date
+        return makeDate(components) ?? date
     }
 }

@@ -40,6 +40,16 @@ public actor XAIDeviceLogin {
         var nextPoll: Date
         var polling = false
     }
+    struct FileOperations: @unchecked Sendable {
+        var create: (String, [FileAttributeKey: Any]) -> Bool = { FileManager.default.createFile(atPath: $0, contents: nil, attributes: $1) }
+        var write: (URL, Data) throws -> Void = { url, data in
+            let handle = try FileHandle(forWritingTo: url)
+            defer { try? handle.close() }
+            try handle.write(contentsOf: data)
+            try handle.synchronize()
+        }
+    }
+    private let fileOperations: FileOperations
     private let transport: any AccountQuotaTransport
     private let now: @Sendable () -> Date
     private var pending: Pending?
@@ -47,9 +57,16 @@ public actor XAIDeviceLogin {
 
     public init(transport: any AccountQuotaTransport = URLSessionAccountQuotaTransport(),
                 now: @escaping @Sendable () -> Date = { Date() }) {
+        self.init(transport: transport, now: now, fileOperations: .init())
+    }
+
+    init(transport: any AccountQuotaTransport, now: @escaping @Sendable () -> Date, fileOperations: FileOperations) {
         self.transport = transport
         self.now = now
+        self.fileOperations = fileOperations
     }
+
+    func currentDate() -> Date { now() }
 
     public func start(authFileURL: URL = XaiAuthFile.defaultURL) async throws -> XAIDeviceLoginAttempt {
         try Task.checkCancellation()
@@ -114,9 +131,12 @@ public actor XAIDeviceLogin {
             case "authorization_pending": return .waiting(entry.interval)
             case "slow_down":
                 // RFC 8628: increase every subsequent interval by five seconds.
-                pending?.interval += 5
-                let interval = pending?.interval ?? entry.interval + 5
-                pending?.nextPoll = now().addingTimeInterval(interval)
+                // ensureActive ran after the last await; this attempt is still present.
+                var updated = pending!
+                updated.interval += 5
+                let interval = updated.interval
+                updated.nextPoll = now().addingTimeInterval(interval)
+                pending = updated
                 return .waiting(interval)
             case "expired_token": cancel(); throw XAIDeviceLoginError.expired
             case "access_denied": cancel(); throw XAIDeviceLoginError.denied
@@ -136,7 +156,7 @@ public actor XAIDeviceLogin {
             cancel(); throw XAIDeviceLoginError.accountMismatch
         }
         try Self.saveLogin(accountID: accountID, refreshToken: refresh,
-            login: Self.nonempty(user["email"]) ?? Self.nonempty(user["name"]), entry: entry, now: now())
+            login: Self.nonempty(user["email"]) ?? Self.nonempty(user["name"]), entry: entry, now: now(), operations: fileOperations)
         cancel()
         return .connected
     }
@@ -213,7 +233,7 @@ public actor XAIDeviceLogin {
         return snapshot
     }
 
-    private static func saveLogin(accountID: String, refreshToken: String, login: String?, entry: Pending, now: Date) throws {
+    private static func saveLogin(accountID: String, refreshToken: String, login: String?, entry: Pending, now: Date, operations: FileOperations) throws {
         let url = entry.authURL
         let fm = FileManager.default
         let before: Data?
@@ -224,9 +244,10 @@ public actor XAIDeviceLogin {
         let previous = before.flatMap(XaiAuthFile.parse)
         guard previous.flatMap(XaiAuthFile.selectedAccount) == entry.original,
               previous?.defaultAccountID == entry.originalDefaultID else { throw XAIDeviceLoginError.accountChanged }
-        var root = before.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        // Existing bytes have already passed XaiAuthFile.parse, including the accounts object.
+        var root = before.map { try! JSONSerialization.jsonObject(with: $0) as! [String: Any] }
             ?? ["version": 1, "accounts": [String: Any]()]
-        var accounts = root["accounts"] as? [String: Any] ?? [:]
+        var accounts = root["accounts"] as! [String: Any]
         let key = accounts.first { key, value in
             ((value as? [String: Any])?["account_id"] as? String ?? key) == accountID
         }?.key ?? accountID
@@ -248,12 +269,9 @@ public actor XAIDeviceLogin {
         #else
         let attributes: [FileAttributeKey: Any] = [.posixPermissions: 0o600]
         #endif
-        guard fm.createFile(atPath: PlatformPaths.fileSystemPath(temp), contents: nil, attributes: attributes) else { throw XAIDeviceLoginError.storage }
+        guard operations.create(PlatformPaths.fileSystemPath(temp), attributes) else { throw XAIDeviceLoginError.storage }
         do {
-            let handle = try FileHandle(forWritingTo: temp)
-            defer { try? handle.close() }
-            try handle.write(contentsOf: data)
-            try handle.synchronize()
+            try operations.write(temp, data)
             // Do not replace an account selection changed by CC Switch while the browser was open.
             guard (try? Data(contentsOf: url)) == before else { throw XAIDeviceLoginError.accountChanged }
             if before == nil { try fm.moveItem(at: temp, to: url) }

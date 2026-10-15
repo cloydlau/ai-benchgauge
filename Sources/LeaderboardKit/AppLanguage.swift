@@ -53,7 +53,11 @@ public enum AppLanguage: String, CaseIterable, Sendable {
     }
 
     private static func traditional(_ value: String) -> String {
-        value.applyingTransform(StringTransform("Hans-Hant"), reverse: false) ?? value
+        traditional(value, transform: { $0.applyingTransform(StringTransform("Hans-Hant"), reverse: false) })
+    }
+
+    static func traditional(_ value: String, transform: (String) -> String?) -> String {
+        transform(value) ?? value
     }
 
 }

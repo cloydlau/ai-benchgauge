@@ -315,7 +315,7 @@ public enum HTMLLeaderboardParser {
         return URL(string: path, relativeTo: base)?.absoluteURL
     }
 
-    private static func jsonObjects(
+    static func jsonObjects(
         in html: String,
         containing marker: String
     ) -> [[String: Any]] {
@@ -359,7 +359,7 @@ public enum HTMLLeaderboardParser {
         }
     }
 
-    private static func rscPayload(in html: String) -> String {
+    static func rscPayload(in html: String) -> String {
         let opener = "self.__next_f.push([1,\""
         var payloads: [String] = []
         var searchStart = html.startIndex
@@ -382,13 +382,15 @@ public enum HTMLLeaderboardParser {
                 index = html.index(after: index)
             }
 
+            // A truncated server payload may have no closing quote.
+            guard index < html.endIndex else { break }
             searchStart = html.index(after: index)
         }
 
         return payloads.joined(separator: "\n")
     }
 
-    private static func unescapedRSCJSON(_ value: String) -> String {
+    static func unescapedRSCJSON(_ value: String) -> String {
         var output = ""
         output.reserveCapacity(value.count)
         var escaped = false
@@ -419,7 +421,7 @@ public enum HTMLLeaderboardParser {
         return output
     }
 
-    private static func artificialAnalysisVersion(fromHTML html: String) -> String? {
+    static func artificialAnalysisVersion(fromHTML html: String) -> String? {
         guard
             let titleRange = html.range(of: "<title>"),
             let endRange = html.range(of: "</title>", range: titleRange.upperBound..<html.endIndex)
@@ -462,7 +464,7 @@ public enum HTMLLeaderboardParser {
 
     /// Reads escaped JSON strings straight out of the server payload, so a value
     /// nested below the leaderboard rows stays reachable.
-    private static func jsonStringValues(in html: String, afterKey key: String) -> [String] {
+    static func jsonStringValues(in html: String, afterKey key: String) -> [String] {
         var values: [String] = []
         var searchStart = html.startIndex
 
@@ -484,7 +486,7 @@ public enum HTMLLeaderboardParser {
         return values
     }
 
-    private static func iso8601Date(_ value: String) -> Date? {
+    static func iso8601Date(_ value: String) -> Date? {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         if let date = formatter.date(from: value) { return date }

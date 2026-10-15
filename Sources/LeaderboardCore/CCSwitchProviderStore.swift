@@ -92,7 +92,16 @@ public enum CCSwitchProviderStore {
         loadProviders(databaseURL: databaseURL, allApps: true)
     }
 
-    private static func loadProviders(databaseURL: URL, allApps: Bool) -> CCSwitchProviderLoadResult {
+    struct ReadOperations {
+        var open = sqlite3_open_v2
+        var prepare = sqlite3_prepare_v2
+        var step = sqlite3_step
+        var extendedError = sqlite3_extended_errcode
+        var fileKind = CCSwitchProviderStore.fileKind
+        var prefix = CCSwitchProviderStore.readPrefix
+    }
+
+    static func loadProviders(databaseURL: URL, allApps: Bool, operations: ReadOperations = .init()) -> CCSwitchProviderLoadResult {
         let path = PlatformPaths.fileSystemPath(databaseURL)
         #if os(Windows)
         // Foundation's existence check opens the file on Windows and reports
@@ -108,14 +117,14 @@ public enum CCSwitchProviderStore {
         guard FileManager.default.fileExists(atPath: path) else {
             return .absent
         }
-        guard let kind = fileKind(at: path) else {
+        guard let kind = operations.fileKind(path) else {
             return .unavailable
         }
         guard kind == .typeRegular else {
             return .absent
         }
         #endif
-        guard let header = readPrefix(path, count: sqliteMagic.count) else {
+        guard let header = operations.prefix(path, sqliteMagic.count) else {
             return .unavailable
         }
         guard header == sqliteMagic else {
@@ -123,9 +132,9 @@ public enum CCSwitchProviderStore {
         }
 
         var database: OpaquePointer?
-        let opened = sqlite3_open_v2(path, &database, SQLITE_OPEN_READONLY, nil)
+        let opened = operations.open(path, &database, SQLITE_OPEN_READONLY, nil)
         guard opened == SQLITE_OK, let database else {
-            let code = database.map { sqlite3_extended_errcode($0) } ?? opened
+            let code = database.map { operations.extendedError($0) } ?? opened
             if let database {
                 sqlite3_close(database)
             }
@@ -134,7 +143,7 @@ public enum CCSwitchProviderStore {
         defer { sqlite3_close(database) }
         sqlite3_busy_timeout(database, 250)
 
-        switch confirmSchema(database) {
+        switch confirmSchema(database, operations: operations) {
         case .absent:
             return .absent
         case .unavailable:
@@ -149,7 +158,7 @@ public enum CCSwitchProviderStore {
         \(allApps ? "" : "WHERE app_type = 'codex'")
         """
         var statement: OpaquePointer?
-        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+        guard operations.prepare(database, sql, -1, &statement, nil) == SQLITE_OK,
               let statement else {
             return .unavailable
         }
@@ -157,7 +166,7 @@ public enum CCSwitchProviderStore {
 
         var records: [CCSwitchProviderRecord] = []
         while true {
-            let step = sqlite3_step(statement)
+            let step = operations.step(statement)
             if step == SQLITE_DONE { break }
             guard step == SQLITE_ROW else { return .unavailable }
             guard let id = columnText(statement, 0),
@@ -171,7 +180,7 @@ public enum CCSwitchProviderStore {
             records.append(
                 CCSwitchProviderRecord(
                     id: (columnText(statement, 8) ?? "codex") == "codex"
-                        ? id : "cc-switch:\(columnText(statement, 8) ?? "unknown"):\(id)",
+                        ? id : "cc-switch:\(columnText(statement, 8)!):\(id)",
                     name: name,
                     websiteURL: columnText(statement, 2),
                     sortIndex: sortIndex,
@@ -260,14 +269,14 @@ public enum CCSwitchProviderStore {
         return URL(fileURLWithPath: raw, isDirectory: true)
     }
 
-    private static func fileKind(at path: String) -> FileAttributeType? {
+    static func fileKind(at path: String) -> FileAttributeType? {
         guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
               let type = attributes[.type] as? FileAttributeType else { return nil }
         return type
     }
 
     /// `nil` means the regular file could not be read.
-    private static func readPrefix(_ path: String, count: Int) -> Data? {
+    static func readPrefix(_ path: String, count: Int) -> Data? {
         guard count > 0, let handle = FileHandle(forReadingAtPath: path) else { return nil }
         defer { try? handle.close() }
         return try? handle.read(upToCount: count)
@@ -279,25 +288,25 @@ public enum CCSwitchProviderStore {
         case unavailable
     }
 
-    private static func confirmSchema(_ database: OpaquePointer) -> SchemaProbe {
+    private static func confirmSchema(_ database: OpaquePointer, operations: ReadOperations) -> SchemaProbe {
         var master: OpaquePointer?
         let masterSQL = "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'providers' LIMIT 1"
-        guard sqlite3_prepare_v2(database, masterSQL, -1, &master, nil) == SQLITE_OK,
+        guard operations.prepare(database, masterSQL, -1, &master, nil) == SQLITE_OK,
               let master else {
-            return probe(sqlite3_extended_errcode(database), schemaConfirmed: false)
+            return probe(operations.extendedError(database), schemaConfirmed: false)
         }
         defer { sqlite3_finalize(master) }
-        switch sqlite3_step(master) {
+        switch operations.step(master) {
         case SQLITE_ROW:
             break
         case SQLITE_DONE:
             return .absent
         default:
-            return probe(sqlite3_extended_errcode(database), schemaConfirmed: false)
+            return probe(operations.extendedError(database), schemaConfirmed: false)
         }
 
         var info: OpaquePointer?
-        guard sqlite3_prepare_v2(database, "PRAGMA table_info(providers)", -1, &info, nil) == SQLITE_OK,
+        guard operations.prepare(database, "PRAGMA table_info(providers)", -1, &info, nil) == SQLITE_OK,
               let info else {
             return .unavailable
         }
@@ -305,7 +314,7 @@ public enum CCSwitchProviderStore {
 
         var columns: Set<String> = []
         while true {
-            let step = sqlite3_step(info)
+            let step = operations.step(info)
             if step == SQLITE_DONE { break }
             guard step == SQLITE_ROW else { return .unavailable }
             if let name = columnText(info, 1) {
@@ -316,11 +325,7 @@ public enum CCSwitchProviderStore {
     }
 
     private static func probe(_ code: Int32, schemaConfirmed: Bool) -> SchemaProbe {
-        switch classify(code, schemaConfirmed: schemaConfirmed) {
-        case .absent: .absent
-        case .unavailable: .unavailable
-        case .records: .unavailable
-        }
+        classify(code, schemaConfirmed: schemaConfirmed) == .absent ? .absent : .unavailable
     }
 
     /// Before the schema is confirmed, "not a database" is absence. A present

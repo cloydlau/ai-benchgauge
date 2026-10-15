@@ -53,19 +53,23 @@ public struct LeaderboardCache {
     }
 
     public func save(_ snapshot: LeaderboardSnapshot) {
+        save(snapshot, write: { try $0.write(to: $1, options: $2) })
+    }
+
+    func save(_ snapshot: LeaderboardSnapshot, write: (Data, URL, Data.WritingOptions) throws -> Void) {
         guard let data = try? encoder.encode(snapshot) else { return }
         try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         #if os(Windows)
-        try? data.write(to: fileURL, options: .atomic)
+        try? write(data, fileURL, .atomic)
         #else
         // Atomic replacement plus complete protection is rejected on some volumes
         // (including temporary directories) with NSFileWriteNoPermissionError. The
         // protected write stays the first choice; persistence must not be discarded
         // when that class cannot be applied.
         do {
-            try data.write(to: fileURL, options: [.atomic, .completeFileProtection])
+            try write(data, fileURL, [.atomic, .completeFileProtection])
         } catch {
-            try? data.write(to: fileURL, options: .atomic)
+            try? write(data, fileURL, .atomic)
         }
         #endif
     }

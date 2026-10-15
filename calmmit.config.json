@@ -39,7 +39,8 @@
     ],
     "tests": [
       "node",
-      "Scripts/test.mjs"
+      "Scripts/test.mjs",
+      "--coverage"
     ],
     "build": [
       "node",

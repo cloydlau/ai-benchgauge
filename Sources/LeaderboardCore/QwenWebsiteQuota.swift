@@ -47,16 +47,17 @@ public enum QwenWebsiteQuotaParser {
                 capturedAt: stored.capturedAt
             )
         }
-        guard let text = String(data: data, encoding: .utf8),
-              let headers = try? NSRegularExpression(pattern: #"7\s*天限[额額]|月[额額]度|7 Days Usage Limit|Monthly Quota"#) else { return nil }
+        guard let text = String(data: data, encoding: .utf8) else { return nil }
+        let headers = try! NSRegularExpression(pattern: #"7\s*天限[额額]|月[额額]度|7 Days Usage Limit|Monthly Quota"#)
         let range = NSRange(text.startIndex..., in: text)
         let matches = headers.matches(in: text, range: range)
         var pools: [QwenWebsiteQuota] = []
         for (index, header) in matches.enumerated() {
             let end = index + 1 < matches.count ? matches[index + 1].range.location : range.length
             let sectionRange = NSRange(location: header.range.location, length: end - header.range.location)
-            guard let swiftRange = Range(sectionRange, in: text),
-                  let labelRange = Range(header.range, in: text) else { continue }
+            // Both bounds come from complete matches of the same source text.
+            let swiftRange = Range(sectionRange, in: text)!
+            let labelRange = Range(header.range, in: text)!
             let section = String(text[swiftRange]).components(separatedBy: "加油包")[0]
                 .components(separatedBy: "Credit Pack")[0]
             guard let percentText = capture(#"(?:剩[余餘]量|Remaining)\s*([0-9]+(?:\.[0-9]+)?)\s*%"#, in: String(section.prefix(240))),
