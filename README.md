@@ -2,7 +2,7 @@
 
 **English** | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-Hant.md)
 
-**Blind user comparisons capture experience; task benchmarks measure capability. Compare both leaderboards to see who’s on top; track quotas to know how much you’ve got left.**
+**Compare task benchmarks and blind user evaluations to see how models perform across different scenarios.**
 
 `macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `3 languages` · [MIT License](LICENSE)
 
