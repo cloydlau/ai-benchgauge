@@ -9,7 +9,40 @@ final class LeaderboardCubeState: ObservableObject {
     var turnSerial = 0
     @Published var rank: Int?
     @Published var generation = 0
+    @Published var entranceProgress: Double = 1
+    @Published var entranceActive = false
+    @Published var entranceHintVisible = false
+    private(set) var entrancePlayed = false
+    private var entranceSerial = 0
     init(position: Double = 0) { self.position = position }
+
+    func beginEntrance(reduceMotion: Bool) -> Int? {
+        guard !entrancePlayed, !dragging, !turning else { return nil }
+        entrancePlayed = true
+        entranceSerial += 1
+        entranceActive = true
+        entranceHintVisible = true
+        entranceProgress = 0
+        position = reduceMotion ? Double(face) : 0.18
+        return entranceSerial
+    }
+    func isCurrentEntrance(_ serial: Int) -> Bool {
+        entranceSerial == serial && entrancePlayed
+    }
+    func settleEntrance(_ serial: Int) {
+        guard isCurrentEntrance(serial) else { return }
+        entranceActive = false
+    }
+    /// Invalidates every suspended animation step before giving control back.
+    func finishEntrance(_ serial: Int? = nil) {
+        if let serial, !isCurrentEntrance(serial) { return }
+        entranceSerial += 1
+        entrancePlayed = true
+        entranceActive = false
+        entranceHintVisible = false
+        entranceProgress = 1
+        position = Double(face)
+    }
 }
 
 /// Two adjacent faces. Horizontal intent is required so a vertical leaderboard

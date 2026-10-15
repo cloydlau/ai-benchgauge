@@ -11,11 +11,12 @@ const xml = value => String(value).replaceAll('&', '&amp;').replaceAll('"', '&qu
 
 // A small deterministic project keeps platform sources under apps/ios without
 // adding XcodeGen/CocoaPods or storing machine-specific Xcode configuration.
-export function iosProject({ version, buildNumber = '1', team = '', sourceDirectory = '', packageDirectory = '../..',
+export function iosProject({ version, appStoreID = null, buildNumber = '1', team = '', sourceDirectory = '', packageDirectory = '../..',
   logoDirectory = '../../assets/logos', assetDirectory }) {
   if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('iOS version must be major.minor.patch')
   if (!/^\d+$/.test(String(buildNumber))) throw new Error('iOS build number must be an integer')
   if (team && !/^[A-Z0-9]{10}$/.test(team)) throw new Error('Apple team ID must contain 10 uppercase letters/digits')
+  if (appStoreID !== null && (typeof appStoreID !== 'string' || !/^[1-9]\d*$/.test(appStoreID))) throw new Error('App Store ID must be a positive numeric string or null')
   const objects = new Map()
   const put = (name, body) => { objects.set(id(name), body); return id(name) }
   const list = values => `(${values.join(', ')})`
@@ -63,6 +64,7 @@ export function iosProject({ version, buildNumber = '1', team = '', sourceDirect
   const projectConfigs = configurations('project', common)
   const appConfigs = configurations('app', { ...common, PRODUCT_NAME: 'AI BenchGauge', PRODUCT_BUNDLE_IDENTIFIER: 'com.cloydlau.ai-benchgauge.ipad',
     INFOPLIST_FILE: sourcePath('App/Info.plist'), GENERATE_INFOPLIST_FILE: 'NO', MARKETING_VERSION: version, CURRENT_PROJECT_VERSION: buildNumber,
+    BENCHGAUGE_APP_STORE_ID: appStoreID ?? '',
     ASSETCATALOG_COMPILER_APPICON_NAME: 'AppIcon', SUPPORTS_MACCATALYST: 'NO', SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: 'NO',
     LD_RUNPATH_SEARCH_PATHS: '$(inherited) @executable_path/Frameworks' })
   const testConfigs = configurations('test', { ...common, SWIFT_VERSION: '5.0', PRODUCT_NAME: 'BenchGaugeUITests', PRODUCT_BUNDLE_IDENTIFIER: 'com.cloydlau.ai-benchgauge.ipad.uitests',
@@ -90,8 +92,8 @@ export function iosProject({ version, buildNumber = '1', team = '', sourceDirect
 }
 
 export function generateIOSProject(directory = root, options = {}) {
-  const { version } = JSON.parse(readFileSync(join(directory, 'config/app.json'), 'utf8'))
-  const generated = iosProject({ version, ...options })
+  const { version, appStoreID = null } = JSON.parse(readFileSync(join(directory, 'config/app.json'), 'utf8'))
+  const generated = iosProject({ version, appStoreID, ...options })
   const projectPath = join(options.projectDirectory || join(directory, 'apps/ios'), 'AI-BenchGauge.xcodeproj')
   mkdirSync(join(projectPath, 'xcshareddata/xcschemes'), { recursive: true })
   writeFileSync(join(projectPath, 'project.pbxproj'), generated.project)

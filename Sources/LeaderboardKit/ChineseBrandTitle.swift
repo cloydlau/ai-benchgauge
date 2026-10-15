@@ -2,16 +2,22 @@
 import CoreText
 import SwiftUI
 
-/// Uses visible glyph edges, rather than font side bearings, for equal spacing.
+/// Uses visible glyph edges for equal spacing and a shared vertical center.
 public struct ChineseBrandTitle: View {
     public init() {}
 
     public var body: some View {
         let layout = ChineseBrandLayout.make()
-        Path(layout.path)
-            .fill(.foreground)
+        let inkBottom = layout.path.boundingBoxOfPath.maxY
+        let initial = layout.glyphBounds[0]
+        ZStack(alignment: .topLeading) {
+            Path(layout.pathWithoutInitial).fill(.foreground)
+            BrandLogo().frame(width: initial.width, height: initial.width / BrandLogo.aspectRatio)
+                .position(x: initial.midX, y: initial.midY)
+        }
             .frame(width: layout.size.width, height: layout.size.height)
             .alignmentGuide(.firstTextBaseline) { _ in layout.baseline }
+            .alignmentGuide(.bottom) { _ in inkBottom }
             .accessibilityLabel("AI 天梯")
             .accessibilityAddTraits(.isStaticText)
     }
@@ -19,6 +25,7 @@ public struct ChineseBrandTitle: View {
 
 struct ChineseBrandLayout {
     let path: CGPath
+    let pathWithoutInitial: CGPath
     let size: CGSize
     let baseline: CGFloat
     let glyphBounds: [CGRect]
@@ -39,20 +46,28 @@ struct ChineseBrandLayout {
             CTFontGetGlyphsForCharacters(font, &code, &glyph, 1)
             if let path = CTFontCreatePathForGlyph(font, glyph, nil) { paths.append(path) }
         }
-        let ink = paths.reduce(CGRect.null) { $0.union($1.boundingBoxOfPath) }
+        // Retain the existing header height while centering each visible glyph.
+        let height = paths.reduce(CGRect.null) { $0.union($1.boundingBoxOfPath) }.height
         let combined = CGMutablePath()
+        let remainder = CGMutablePath()
         var x: CGFloat = 0
         var bounds: [CGRect] = []
-        for path in paths {
+        for (index, path) in paths.enumerated() {
             let box = path.boundingBoxOfPath
             let transform = CGAffineTransform(a: 1, b: 0, c: 0, d: -1,
-                                              tx: x - box.minX, ty: ink.maxY)
+                                              tx: x - box.minX, ty: height / 2 + box.midY)
             combined.addPath(path, transform: transform)
+            if index > 0 { remainder.addPath(path, transform: transform) }
             bounds.append(box.applying(transform))
             x += box.width + gap
         }
-        return Self(path: combined, size: CGSize(width: x - gap, height: ink.height),
-                    baseline: ink.maxY, glyphBounds: bounds)
+        let baseline = baseline(height: height, firstGlyph: paths.first)
+        return Self(path: combined, pathWithoutInitial: remainder, size: CGSize(width: x - gap, height: height),
+                    baseline: baseline, glyphBounds: bounds)
+    }
+
+    static func baseline(height: CGFloat, firstGlyph: CGPath?) -> CGFloat {
+        height / 2 + (firstGlyph?.boundingBoxOfPath.midY ?? 0)
     }
 }
 #endif

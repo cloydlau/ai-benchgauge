@@ -31,23 +31,30 @@ test('generated iPad icon is opaque, 1024px and carries no private PNG metadata'
   assert.equal(png.readUInt32BE(16), 1024)
   assert.equal(png.readUInt32BE(20), 1024)
   assert.equal(png[25], 2) // RGB without an alpha channel.
+  const design = JSON.parse(readFileSync(new URL('../assets/brand/design.json', import.meta.url), 'utf8'))
   const inspected = spawnSync('swift', ['-e', `
     import AppKit
     import Foundation
     let image = NSBitmapImageRep(data: try! Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments.last!)))!
-    let pixels = [(50, 50), (280, 700), (505, 700), (730, 700)].map { x, y -> [Double] in
+    let pixels = [(50, 50), (280, 784), (336, 664), (512, 196)].map { x, y -> [Double] in
       let color = image.colorAt(x: x, y: y)!.usingColorSpace(.deviceRGB)!
       return [color.redComponent, color.greenComponent, color.blueComponent, color.alphaComponent].map { Double($0) }
     }
-    print(String(data: try! JSONSerialization.data(withJSONObject: pixels), encoding: .utf8)!)
-  `, output], { encoding: 'utf8', timeout: 60_000 })
+    // PNG export converts AppKit's calibrated drawing colors to sRGB.
+    let hex = UInt32(CommandLine.arguments[CommandLine.arguments.count - 2].dropFirst(), radix: 16)!
+    let ink = NSColor(calibratedRed: CGFloat((hex >> 16) & 255) / 255,
+        green: CGFloat((hex >> 8) & 255) / 255, blue: CGFloat(hex & 255) / 255,
+        alpha: 1).usingColorSpace(.deviceRGB)!
+    let expected = [ink.redComponent, ink.greenComponent, ink.blueComponent, ink.alphaComponent].map { Double($0) }
+    print(String(data: try! JSONSerialization.data(withJSONObject: pixels + [expected]), encoding: .utf8)!)
+  `, design.ink, output], { encoding: 'utf8', timeout: 60_000 })
   assert.equal(inspected.status, 0, inspected.stderr)
-  const [background, cyan, green, purple] = JSON.parse(inspected.stdout)
+  const [background, node, connection, outputNode, ink] = JSON.parse(inspected.stdout)
   assert.ok(background.slice(0, 3).every(value => value > 0 && value < 0.3))
-  assert.ok(cyan[1] > cyan[0] && cyan[2] > cyan[0])
-  assert.ok(green[1] > green[0] && green[1] > green[2])
-  assert.ok(purple[0] > purple[1] && purple[2] > purple[1])
-  for (const pixel of [background, cyan, green, purple]) assert.equal(pixel[3], 1)
+  assert.ok(node.slice(0, 3).every((value, index) => Math.abs(value - ink[index]) < 0.005))
+  assert.ok(connection[2] > connection[0] && connection[1] > 0.5)
+  assert.ok(outputNode[1] > outputNode[0] && outputNode[2] > outputNode[0])
+  for (const pixel of [background, node, connection, outputNode]) assert.equal(pixel[3], 1)
 })
 test('iPad checks build both Release SDKs and run deterministic simulator UI tests', () => {
   const plan = iosBuildPlan('check', { device: uuid, phone: '00000000-0000-0000-0000-000000000002', directory: '/repo' })
@@ -105,20 +112,33 @@ test('iPad uses one full-screen scene with rotation and respects newer system wi
   assert.ok(!info.includes('NSAppTransportSecurity'))
 })
 
-test('iPad source names and explanations stay aligned with desktop copy', () => {
-  const desktop = readFileSync(new URL('../apps/macos/Sources/LeaderboardView.swift', import.meta.url), 'utf8')
-  const presentation = readFileSync(new URL('../Sources/LeaderboardKit/LeaderboardPresentation.swift', import.meta.url), 'utf8')
-  const desktopLenses = desktop.slice(desktop.indexOf('private extension LeaderboardCategory'), desktop.indexOf('private struct SourceLensDescription'))
-  const titles = [...desktopLenses.matchAll(/case \.\w+: "([^"]+)"/g)].map(match => match[1])
-  assert.equal(titles.length, 8)
-  for (const title of titles) assert.ok(presentation.includes(JSON.stringify(title)), `iPad source title differs: ${title}`)
-  const copyPairs = [...desktopLenses.matchAll(/language\.text\(\s*"([^"]+)",\s*"([^"]+)"/g)]
-  assert.equal(copyPairs.length, 16)
-  for (const [, english, chinese] of copyPairs) {
-    assert.ok(presentation.includes(JSON.stringify(english)), `Missing desktop copy: ${english}`)
-    assert.ok(presentation.includes(JSON.stringify(chinese)), `Missing desktop copy: ${chinese}`)
+test('App Store distribution uses the configured Apple ID and permits an unpublished app', (t) => {
+  const directory = mkdtempSync(join(tmpdir(), 'benchgauge-store-project-'))
+  t.after(() => rmSync(directory, { recursive: true, force: true }))
+  mkdirSync(join(directory, 'config'), { recursive: true })
+  for (const appStoreID of [null, '1234567890']) {
+    writeFileSync(join(directory, 'config/app.json'), JSON.stringify({ version: '0.1.2', appStoreID }))
+    const path = generateIOSProject(directory)
+    const project = readFileSync(join(path, 'project.pbxproj'), 'utf8')
+    assert.ok(project.includes(`BENCHGAUGE_APP_STORE_ID = "${appStoreID ?? ''}"`))
   }
+  for (const appStoreID of ['', '0', '00123', 123, 'https://github.com/example', '123;OTHER=YES']) {
+    assert.throws(() => iosProject({ version: '0.1.2', appStoreID }), /App Store ID/)
+  }
+})
+
+test('iPhone, iPad and desktop source copy uses the shared presentation rules', () => {
+  const desktop = readFileSync(new URL('../apps/macos/Sources/LeaderboardView.swift', import.meta.url), 'utf8')
+  const desktopLenses = desktop.slice(desktop.indexOf('private extension LeaderboardCategory'), desktop.indexOf('private struct SourceLensDescription'))
+  assert.ok(desktopLenses.includes('LeaderboardPresentation.title(leftKind'))
+  assert.ok(desktopLenses.includes('LeaderboardPresentation.title(rightKind'))
+  assert.ok(desktopLenses.includes('LeaderboardPresentation.explanation(kind'))
+  assert.ok(!desktopLenses.includes('language.text('))
   const ui = readFileSync(new URL('../apps/ios/UI/LeaderboardPadView.swift', import.meta.url), 'utf8')
+  for (const method of ['title', 'sourceSummary', 'sourceHelp']) {
+    assert.ok(desktop.includes(`LeaderboardPresentation.${method}(`))
+    assert.ok(ui.includes(`LeaderboardPresentation.${method}(`))
+  }
   assert.ok(ui.includes('store.language.appName'))
   assert.ok(!ui.includes('获取于'))
   assert.ok(!ui.includes('"Fetched"'))

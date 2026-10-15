@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -37,7 +38,6 @@ sealed partial class MainWindow : Window
     QwenWebsiteWindow? qwenWindow;
     XAIWebsiteSubscriptionWindow? xaiSubscriptionWindow;
     DockPanel? footer;
-    Button? updateButton;
     TextBlock? headerTitle;
     bool rendering, modalOpen, closing, checkingUpdate;
     WindowsUpdate? availableUpdate;
@@ -50,6 +50,7 @@ sealed partial class MainWindow : Window
     {
         this.engine = engine; this.prefs = prefs; updater = new UpdateClient(config);
         Title = BrandName; Width = 850; MinWidth = 600;
+        Icon = BitmapFrame.Create(new Uri(Path.Combine(AppContext.BaseDirectory, "brand", "AI-BenchGauge.ico")));
         MinHeight = Math.Min(600, SystemParameters.WorkArea.Height);
         Height = Math.Min(820, SystemParameters.WorkArea.Height);
         WindowStartupLocation = WindowStartupLocation.Manual;
@@ -154,9 +155,20 @@ sealed partial class MainWindow : Window
                 qwenWindow ??= new QwenWebsiteWindow(engine, prefs, SetState);
                 try { await qwenWindow.Refresh(); } catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException or System.ComponentModel.Win32Exception or Microsoft.Web.WebView2.Core.WebView2RuntimeNotFoundException) { }
             }
-            var view = (prefs.Category, prefs.Grouping, prefs.Language);
+            var view = (prefs.Category, prefs.Grouping, prefs.Language, JsonSerializer.Serialize(prefs.Sources), JsonSerializer.Serialize(prefs.Countries));
+            if (command == "refreshBoards")
+            {
+                // Paint FC's last snapshot before waiting for a contributor's
+                // origin request. A failed read leaves the visible rows intact.
+                try
+                {
+                    var cached = await engine.Request("cachedBoards", prefs);
+                    if (view == (prefs.Category, prefs.Grouping, prefs.Language, JsonSerializer.Serialize(prefs.Sources), JsonSerializer.Serialize(prefs.Countries)) && cached.Result is { } saved) SetState(saved);
+                }
+                catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException) { }
+            }
             var response = await engine.Request(command, prefs);
-            if (view != (prefs.Category, prefs.Grouping, prefs.Language))
+            if (view != (prefs.Category, prefs.Grouping, prefs.Language, JsonSerializer.Serialize(prefs.Sources), JsonSerializer.Serialize(prefs.Countries)))
             {
                 if (response.Result is { } previousView) ShowQuotaAlerts(previousView.Alerts);
                 return;

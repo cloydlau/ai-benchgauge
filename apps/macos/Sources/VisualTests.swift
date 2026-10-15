@@ -8,8 +8,8 @@ import SwiftUI
 @MainActor
 enum NativeVisualCapture {
     enum CaptureError: Error { case blankFrame(String) }
-    struct Entry: Decodable { let rank: Int; let name: String; let score: Double; let organization: String; let logo: String }
-    struct Board: Decodable { let kind: String; let title: String; let entries: [Entry] }
+    struct Entry: Decodable { let rank: Int; let name: String; let score: Double; let organization: String; let logo: String; let openness: ModelOpenness?; let brand: OrganizationBrand?; let organizationBrand: OrganizationBrand?; let developerCountry: OrganizationCountryMetadata? }
+    struct Board: Decodable { let kind: String; let title: String; let entries: [Entry]; let sourceUpdatedAt: String?; let sourceTimeUnavailable: Bool?; let fetchedAt: String? }
     struct Quota: Decodable {
         struct Run: Decodable { let text: String }
         struct Balance: Decodable { let currency: String; let amount: Double }
@@ -19,7 +19,7 @@ enum NativeVisualCapture {
         let balances: [Balance]?
     }
     struct State: Decodable { let boards: [Board]; let quotas: [Quota]; let quotaUpdatedAt: String? }
-    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String?; let codexModel: String?; let codexProvider: String?; let codexBaseURL: String?; let taskCounts: CodexTaskCounts?; let refreshedTaskCounts: CodexTaskCounts?; let codexDesktopRunning: Bool?; let refreshedCodexDesktopRunning: Bool?; let officialAccountChecking: Bool? }
+    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String?; let codexModel: String?; let codexProvider: String?; let codexBaseURL: String?; let taskCounts: CodexTaskCounts?; let refreshedTaskCounts: CodexTaskCounts?; let codexDesktopRunning: Bool?; let refreshedCodexDesktopRunning: Bool?; let officialAccountChecking: Bool?; let sources: [String: LeaderboardOpennessFilter]?; let countries: [String: String]?; let grouping: LeaderboardGrouping?; let category: LeaderboardCategory?; let rowCount: Int? }
     struct Fixture: Decodable { let state: State; let cases: [Case]; let quotaScenarios: [String: [Quota]]? }
 
     static func run() async throws {
@@ -40,9 +40,9 @@ enum NativeVisualCapture {
             let kind = LeaderboardKind(rawValue: board.kind)!
             let entries = board.entries.map { entry in
                 LeaderboardEntry(rank: entry.rank, name: entry.name, score: entry.score, organization: entry.organization,
-                    logoURL: root.appending(path: "assets/logos/\(entry.logo).png"))
+                    logoURL: root.appending(path: "assets/logos/\(entry.logo).png"), openness: entry.openness, brand: entry.brand, organizationBrand: entry.organizationBrand, developerCountry: entry.developerCountry)
             }
-            return (kind, Leaderboard(kind: kind, title: board.title, sourceUpdatedAt: fixedDate, fetchedAt: fixedDate, entries: entries))
+            return (kind, Leaderboard(kind: kind, title: board.title, sourceUpdatedAt: board.sourceTimeUnavailable == true ? nil : board.sourceUpdatedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, fetchedAt: board.fetchedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, entries: entries))
         })
         let kinds: [String: CCSwitchQuotaKind] = ["OpenAI": .officialNote, "Kimi": .kimi, "Qwen": .qwen, "DeepSeek": .deepseek, "GLM": .zhipu, "xAI": .xaiOAuth]
         func chip(_ quota: Quota) -> AccountQuotaChip {
@@ -91,8 +91,12 @@ enum NativeVisualCapture {
                     quotaDate = fixture.state.quotaUpdatedAt.flatMap { ISO8601DateFormatter().date(from: $0) }
                 }
                 let fetchedBoards = boards.mapValues { board in
-                    Leaderboard(kind: board.kind, title: board.title, sourceUpdatedAt: board.sourceUpdatedAt,
-                                fetchedAt: quotaDate ?? fixedDate, entries: board.entries)
+                    let entries = test.rowCount.map { count in
+                        (1...count).map { rank in LeaderboardEntry(rank: rank, name: "Fixture model \(rank)", score: Double(count - rank + 1),
+                            organization: "Fixture maker \(rank)", logoURL: root.appending(path: "assets/logos/openai.png")) }
+                    } ?? board.entries
+                    return Leaderboard(kind: board.kind, title: board.title, sourceUpdatedAt: board.sourceUpdatedAt,
+                                fetchedAt: test.scenario == "sourceTimes" ? board.fetchedAt : quotaDate ?? fixedDate, entries: entries)
                 }
                 let stale = test.scenario == "freshnessStale"
                 let shownChips = stale ? visibleChips.map { chip in
@@ -110,7 +114,17 @@ enum NativeVisualCapture {
                                 websiteURL: nil, kind: value.kind, isCurrent: value.isCurrent, apiKey: nil,
                                 baseURL: (fixture.quotaScenarios?[test.scenario] ?? fixture.state.quotas).first { $0.id == value.id }?.baseURL)
                         }, taskCounts: refreshed ? (test.refreshedTaskCounts ?? test.taskCounts) : test.taskCounts,
-                        codexDesktopRunning: refreshed ? (test.refreshedCodexDesktopRunning ?? test.codexDesktopRunning ?? true) : (test.codexDesktopRunning ?? true))
+                        codexDesktopRunning: refreshed ? (test.refreshedCodexDesktopRunning ?? test.codexDesktopRunning ?? true) : (test.codexDesktopRunning ?? true),
+                        category: test.category ?? .general)
+                    for (raw, filter) in test.sources ?? [:] {
+                        if let kind = LeaderboardKind(rawValue: raw) { state.selectOpennessFilter(filter, for: kind) }
+                    }
+                    for (raw, value) in test.countries ?? [:] {
+                        if let kind = LeaderboardKind(rawValue: raw), let country = OrganizationCountry(rawValue: value) {
+                            state.selectCountryFilter(.country(country), for: kind)
+                        }
+                    }
+                    if let grouping = test.grouping { state.selectGrouping(grouping) }
                 }
                 apply()
                 if test.scenario.hasPrefix("menuBar") {
@@ -123,13 +137,23 @@ enum NativeVisualCapture {
                         throw CaptureError.blankFrame(test.id)
                     }
                     button.appearance = NSAppearance(named: theme == "dark" ? .darkAqua : .aqua)
+                    button.highlight(test.scenario == "menuBarIconHighlighted")
                     var statusLabels = [String]()
                     var statusHelp = [String]()
                     var taskHighlights = [String]()
+                    var statusAppearances = [String]()
                     for frame in 0..<3 {
-                        if frame == 1 { apply(refreshed: true) }
+                        if frame == 1, test.scenario != "menuBarIconAppearance" { apply(refreshed: true) }
+                        if frame == 1, test.scenario == "menuBarIconAppearance" {
+                            // Keep the existing attachment when the menu bar changes
+                            // appearance; do not rely on an account/task refresh.
+                            button.appearance = NSAppearance(named: theme == "dark" ? .aqua : .darkAqua)
+                        }
                         try await Task.sleep(for: .milliseconds(300))
-                        _ = controller.visualStatusButton(width: CGFloat(test.width))
+                        if test.scenario != "menuBarIconAppearance" {
+                            _ = controller.visualStatusButton(width: CGFloat(test.width))
+                        }
+                        statusAppearances.append(button.effectiveAppearance.name.rawValue)
                         let label = button.attributedTitle.string
                         let help = button.toolTip ?? ""
                         guard label.contains("▶") == state.codexDesktopRunning,
@@ -159,16 +183,18 @@ enum NativeVisualCapture {
                         "backingScale": String(describing: button.window?.backingScaleFactor ?? 1),
                         "shownStatusLabel": statusLabels[0], "refreshedStatusLabel": statusLabels[1], "settledStatusLabel": statusLabels[2],
                         "shownStatusHelp": statusHelp[0], "refreshedStatusHelp": statusHelp[1], "settledStatusHelp": statusHelp[2],
+                        "statusAppearances": statusAppearances.joined(separator: "\n"),
                         "taskHighlights": taskHighlights.joined(separator: "\n"),
                         "capture": "native-status-button", "os": ProcessInfo.processInfo.operatingSystemVersionString])
                     continue
                 }
                 let size = NSSize(width: test.width, height: test.height)
                 let isClaudeConsentAlert = test.scenario == "claudeKeychainConsentAlert"
+                let isQuotaHelpAlert = test.scenario == "quotaTrackingHelp"
                 let view = test.scenario == "addModelDialog"
                     ? AnyView(OfficialQuotaAccountsView(state: state, onClose: {}, usesVisualFixture: true,
                         visualVerificationPending: test.officialAccountChecking ?? false))
-                    : AnyView(LeaderboardView(state: state, maximumWidth: CGFloat(test.width), viewportSize: size, visualVersionText: test.versionText))
+                    : AnyView(LeaderboardView(state: state, maximumWidth: CGFloat(test.width), viewportSize: size))
                 let host: NSView = test.scenario.hasPrefix("xaiDeviceDialog")
                     ? XAIAccountConnection().makeContent(language: AppLanguage(rawValue: test.language)!, fixtureState: test.scenario.replacingOccurrences(of: "xaiDeviceDialog-", with: ""))
                     : test.scenario.hasPrefix("xaiSubscriptionDialog")
@@ -187,6 +213,9 @@ enum NativeVisualCapture {
                     let alert = ClaudeKeychainConsentAlert.make(language: AppLanguage(rawValue: test.language)!)
                     alert.beginSheetModal(for: window) { _ in }
                 }
+                if isQuotaHelpAlert {
+                    QuotaTrackingHelpAlert.make(language: AppLanguage(rawValue: test.language)!).beginSheetModal(for: window) { _ in }
+                }
                 defer {
                     if let sheet = window.attachedSheet { window.endSheet(sheet) }
                     window.close(); defaults.removePersistentDomain(forName: defaultsName)
@@ -195,12 +224,78 @@ enum NativeVisualCapture {
                     if frame == 1 { apply() }
                     try await Task.sleep(for: .milliseconds(300))
                     host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
-                    let captureView = isClaudeConsentAlert ? window.attachedSheet?.contentView : host
-                    let png = (test.scenario == "addModelDialog" || test.scenario.hasPrefix("xaiSubscriptionDialog") || test.scenario.hasPrefix("xaiDeviceDialog") || isClaudeConsentAlert)
+                    let captureView = (isClaudeConsentAlert || isQuotaHelpAlert) ? window.attachedSheet?.contentView : host
+                    let png = (test.scenario == "addModelDialog" || test.scenario.hasPrefix("xaiSubscriptionDialog") || test.scenario.hasPrefix("xaiDeviceDialog") || isClaudeConsentAlert || isQuotaHelpAlert)
                         ? captureView.flatMap { PanelScreenshot.captureForm(view: $0, minimumVariety: 1) }
                         : PanelScreenshot.capture(view: host)?.png
                     guard let png else { throw CaptureError.blankFrame(test.id) }
                     try png.write(to: output.appending(path: "\(test.id)-\(theme)-frame-\(frame).png"))
+                }
+                if test.scenario == "virtualRanking" {
+                    func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+                    guard let table = descendants(host).compactMap({ $0 as? NSTableView }).first,
+                          table.numberOfRows >= 1000 else { throw CaptureError.blankFrame("long ranking missing") }
+                    func realizedRows() -> Int {
+                        var count = 0
+                        table.enumerateAvailableRowViews { _, _ in count += 1 }
+                        return count
+                    }
+                    let initial = realizedRows()
+                    guard initial > 0, initial < 100 else { throw CaptureError.blankFrame("table eagerly created row views") }
+                    table.scrollRowToVisible(table.numberOfRows - 1)
+                    try await Task.sleep(for: .milliseconds(300))
+                    host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                    guard table.rowView(atRow: table.numberOfRows - 1, makeIfNecessary: false) != nil,
+                          realizedRows() < 100 else { throw CaptureError.blankFrame("long table tail or recycling failed") }
+                    print("[virtual-ranking] rows=\(table.numberOfRows) initialViews=\(initial) tailViews=\(realizedRows())")
+                    guard let button = descendants(host).compactMap({ $0 as? NSButton }).first(where: {
+                        $0.identifier?.rawValue == "leaderboard-back-to-top"
+                    }) else { throw CaptureError.blankFrame("return control missing") }
+                    button.performClick(nil)
+                    try await Task.sleep(for: .milliseconds(300))
+                    guard table.rowView(atRow: 0, makeIfNecessary: false) != nil else {
+                        throw CaptureError.blankFrame("virtual table did not return to first row")
+                    }
+                }
+                if test.scenario == "completeRanking" {
+                    func descendants(_ view: NSView) -> [NSView] {
+                        [view] + view.subviews.flatMap(descendants)
+                    }
+                    guard let table = descendants(host).compactMap({ $0 as? NSTableView }).first,
+                          table.numberOfRows == 31,
+                          let scroll = table.enclosingScrollView,
+                          scroll.hasVerticalScroller,
+                          let button = descendants(host).compactMap({ $0 as? NSButton }).first(where: {
+                              $0.identifier?.rawValue == "leaderboard-back-to-top"
+                          }) else { throw CaptureError.blankFrame("full ranking table or scroll control missing") }
+                    let viewport = scroll.frame.size
+                    table.scrollRowToVisible(table.numberOfRows - 1)
+                    try await Task.sleep(for: .milliseconds(300))
+                    host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                    let buttonFrame = scroll.convert(button.bounds, from: button)
+                    let bottomDistance = scroll.isFlipped ? scroll.bounds.maxY - buttonFrame.maxY
+                        : buttonFrame.minY - scroll.bounds.minY
+                    print("[full-ranking] \(test.id) \(theme) offset=\(scroll.contentView.bounds.minY) hidden=\(button.isHidden) button=\(buttonFrame) viewport=\(scroll.bounds) flipped=\(scroll.isFlipped)")
+                    if let diagnostic = PanelScreenshot.capture(view: host)?.png {
+                        try diagnostic.write(to: output.appending(path: "\(test.id)-\(theme)-bottom.png"))
+                    }
+                    guard scroll.contentView.bounds.minY > 0, !button.isHidden,
+                          buttonFrame.minX >= scroll.bounds.width - 60,
+                          bottomDistance >= 0, bottomDistance <= 45,
+                          scroll.frame.size == viewport,
+                          let bottom = PanelScreenshot.capture(view: host)?.png else {
+                        throw CaptureError.blankFrame("tail row or back-to-top button unreachable")
+                    }
+                    try bottom.write(to: output.appending(path: "\(test.id)-\(theme)-bottom.png"))
+                    button.performClick(nil)
+                    try await Task.sleep(for: .milliseconds(300))
+                    host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                    guard scroll.contentView.bounds.minY <= 1, button.isHidden,
+                          scroll.frame.size == viewport,
+                          let returned = PanelScreenshot.capture(view: host)?.png else {
+                        throw CaptureError.blankFrame("back-to-top did not restore the first row")
+                    }
+                    try returned.write(to: output.appending(path: "\(test.id)-\(theme)-returned.png"))
                 }
                 if test.scenario == "addModelDialog" {
                     // SwiftUI sheets require an actual app bundle. SwiftPM's

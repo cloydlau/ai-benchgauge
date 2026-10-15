@@ -2,15 +2,71 @@ import Foundation
 import Testing
 import LeaderboardKit
 
-@Test func countryFilteringPrecedesCompanyTopTwenty() {
+@Test func sourceHelpKeepsTheSameExplanationAcrossCompactAndDetailedViews() {
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    for kind in LeaderboardKind.allCases {
+        for language in AppLanguage.allCases {
+            for board in [nil, Leaderboard(kind: kind, title: "Fixture", sourceUpdatedAt: date,
+                sourceNote: "Source note", fetchedAt: date.addingTimeInterval(3600), entries: [])] {
+                let compact = LeaderboardPresentation.sourceHelp(kind, language: language, board: board, includesFetchTime: false)
+                let detailed = LeaderboardPresentation.sourceHelp(kind, language: language, board: board)
+                #expect(compact.hasPrefix(LeaderboardPresentation.sourceSummary(kind, language: language)))
+                #expect(compact.contains(language.text("Scores are not directly comparable across lists", "两榜分数不直接互比")))
+                #expect(detailed == compact + language.text(". ", "。") + LeaderboardPresentation.sourceTimeHelp(board, language: language))
+                #expect(compact.contains("Source note") == (board != nil))
+            }
+        }
+    }
+}
+
+@Test func sourceAndFetchTimesRemainDistinctWhenPublicationIsMissing() {
+    let utc = TimeZone(secondsFromGMT: 0)!
+    let fetched = Date(timeIntervalSince1970: 1_700_000_000)
+    let unknown = Leaderboard(kind: .artificialAnalysis, title: "AA", fetchedAt: fetched, entries: [])
+    let labels = LeaderboardPresentation.sourceTimes(unknown, language: .chinese, timeZone: utc)
+    #expect(labels.updated == "更新 —")
+    #expect(labels.fetched == "抓取 11/14 22:13")
+    #expect(LeaderboardPresentation.sourceTimeHelp(unknown, language: .chinese).contains("来源未提供"))
+    let coding = Leaderboard(kind: .artificialAnalysisCodingAgent, title: "AA Coding",
+        sourceUpdatedAt: fetched.addingTimeInterval(-3600), fetchedAt: fetched, entries: [])
+    let known = LeaderboardPresentation.sourceTimes(coding, language: .english, timeZone: utc)
+    #expect(known.updated == "Updated 11/14 21:13")
+    #expect(known.fetched == "Fetched 11/14 22:13")
+    #expect(!LeaderboardPresentation.sourceTimeHelp(coding, language: .english).contains("Not published"))
+    let pending = LeaderboardPresentation.sourceTimes(nil, language: .chinese, timeZone: utc)
+    #expect(pending.updated == "更新 —")
+    #expect(pending.fetched == "抓取 —")
+    #expect(LeaderboardPresentation.sourceTimeHelp(nil, language: .english).contains("Waiting for first fetch"))
+}
+
+@Test func countryFilteringRetainsEveryMatchingCompany() {
     let entries = [LeaderboardEntry(rank: 1, name: "GPT", score: 100, organization: "OpenAI")]
         + (2...22).map { LeaderboardEntry(rank: $0, name: "Unknown model \($0)", score: Double(100 - $0), organization: "Unknown developer \($0)") }
     let board = Leaderboard(kind: .arenaText, title: "Fixture", entries: entries)
     let companies = LeaderboardPresentation.rows(board, grouping: .company, filter: .unknown)
-    #expect(companies.count == 20)
+    #expect(companies.count == 21)
     #expect(companies.first?.score == 98)
     #expect(LeaderboardPresentation.companies(board, filter: .unknown).map(\.entry) == companies)
     #expect(LeaderboardPresentation.countryFilters(board) == [.all, .country(.unitedStates), .unknown])
+}
+
+@Test func combinedFiltersApplyBeforeCompanyAggregationAndKeepTheSnapshotIntact() {
+    let entries = [
+        LeaderboardEntry(rank: 1, name: "GPT closed", score: 100, organization: "OpenAI", openness: .closed),
+        LeaderboardEntry(rank: 2, name: "GPT open", score: 80, organization: "OpenAI", openness: .open),
+        LeaderboardEntry(rank: 3, name: "Qwen open", score: 90, organization: "Alibaba", openness: .open),
+        LeaderboardEntry(rank: 4, name: "Unknown open", score: 85, organization: "Unknown maker", openness: .open),
+    ]
+    let board = Leaderboard(kind: .arenaText, title: "Fixture", entries: entries)
+    let models = LeaderboardPresentation.rows(board, grouping: .model, filter: .country(.unitedStates), openness: .open)
+    let companies = LeaderboardPresentation.companies(board, filter: .country(.unitedStates), openness: .open)
+    #expect(models.map(\.name) == ["GPT open"])
+    #expect(companies.count == 1)
+    #expect(companies.first?.entry.score == 80)
+    #expect(companies.first?.components.map(\.name) == ["GPT open"])
+    #expect(LeaderboardPresentation.rows(board, grouping: .company, filter: .country(.unitedStates), openness: .open) == companies.map(\.entry))
+    #expect(LeaderboardPresentation.rows(board, grouping: .model, filter: .unknown, openness: .open).map(\.name) == ["Unknown open"])
+    #expect(board.entries == entries)
 }
 
 @Test func updateLabelUsesOldestVisibleSourceAndDesktopAgeThresholds() {
@@ -23,4 +79,33 @@ import LeaderboardKit
     #expect(LeaderboardPresentation.updateAge(now.addingTimeInterval(-59), language: .english, now: now) == "just now")
     #expect(LeaderboardPresentation.updateAge(now.addingTimeInterval(-60), language: .chinese, now: now) == "1 分钟前")
     #expect(LeaderboardPresentation.updateAge(now.addingTimeInterval(-86_400), language: .english, now: now) == "1 day ago")
+}
+
+@Test func completeModelAndCompanyListsKeepTailAndFilters() {
+    let entries = (1...45).map { rank in
+        LeaderboardEntry(rank: rank, name: "Model \(rank)", score: Double(100 - rank),
+                         organization: "Maker \(rank)", openness: rank.isMultiple(of: 2) ? .open : .closed)
+    }
+    let board = Leaderboard(kind: .arenaText, title: "Full", entries: entries)
+    #expect(LeaderboardPresentation.rows(board, grouping: .model).count == 45)
+    #expect(LeaderboardPresentation.rows(board, grouping: .model).last?.name == "Model 45")
+    #expect(LeaderboardPresentation.rows(board, grouping: .company).count == 45)
+    let filtered = LeaderboardPresentation.rows(board, grouping: .company, filter: .unknown, openness: .open)
+    #expect(filtered.count == 22)
+    #expect(filtered.last?.organization == "Maker 44")
+}
+
+@Test func mobileTimeUsesSharedLatestDateVectors() throws {
+    let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "fixtures/mobile-times.json")
+    let vectors = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as! [[String: String]]
+    let parser = ISO8601DateFormatter()
+    let utc = TimeZone(secondsFromGMT: 0)!
+    let formatter = DateFormatter(); formatter.locale = AppLanguage.english.locale; formatter.timeZone = utc; formatter.dateFormat = "M/d HH:mm"
+    for row in vectors {
+        let board = Leaderboard(kind: .artificialAnalysis, title: "Fixture",
+            sourceUpdatedAt: row["sourceUpdatedAt"].flatMap(parser.date(from:)),
+            fetchedAt: parser.date(from: row["fetchedAt"]!)!, entries: [])
+        #expect(LeaderboardPresentation.displayTime(board, language: .english, timeZone: utc) == formatter.string(from: parser.date(from: row["expected"]!)!))
+    }
+    #expect(LeaderboardPresentation.displayTime(nil, language: .chinese) == "—")
 }

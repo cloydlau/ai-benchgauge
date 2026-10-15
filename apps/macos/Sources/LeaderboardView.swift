@@ -13,10 +13,44 @@ private final class ScreenshotUIState: ObservableObject {
     @Published var showOfficialAccounts = false
 }
 
+private enum DesktopBrandInkTop: AlignmentID {
+    static func defaultValue(in dimensions: ViewDimensions) -> CGFloat { dimensions[.top] }
+}
+private enum DesktopBrandInkBottom: AlignmentID {
+    static func defaultValue(in dimensions: ViewDimensions) -> CGFloat { dimensions[.bottom] }
+}
+private extension VerticalAlignment {
+    static let desktopBrandInkTop = VerticalAlignment(DesktopBrandInkTop.self)
+    static let desktopBrandInkBottom = VerticalAlignment(DesktopBrandInkBottom.self)
+}
+
+private struct DesktopBrandHeadingLayout: Layout {
+    private func measurements(_ subviews: Subviews) -> ([ViewDimensions], [CGPoint], CGSize) {
+        let dimensions = subviews.map { $0.dimensions(in: .unspecified) }
+        let span = dimensions[0][.desktopBrandInkBottom] - dimensions[0][.desktopBrandInkTop]
+        let x = dimensions[0].width + 6
+        var origins = [CGPoint(x: 0, y: -dimensions[0][.desktopBrandInkTop]),
+                       CGPoint(x: x, y: span - dimensions[1][.desktopBrandInkBottom])]
+        let top = origins.map(\.y).min() ?? 0
+        for index in origins.indices { origins[index].y -= top }
+        let height = zip(dimensions, origins).map { $0.0.height + $0.1.y }.max() ?? 0
+        return (dimensions, origins, CGSize(width: x + dimensions[1].width, height: height))
+    }
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        measurements(subviews).2
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let (dimensions, origins, _) = measurements(subviews)
+        for index in subviews.indices {
+            subviews[index].place(at: CGPoint(x: bounds.minX + origins[index].x, y: bounds.minY + origins[index].y),
+                anchor: .topLeading, proposal: ProposedViewSize(width: dimensions[index].width, height: dimensions[index].height))
+        }
+    }
+}
+
 struct LeaderboardView: View {
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var state: AppState
-    @ObservedObject private var appUpdater = AppUpdater.shared
     @StateObject private var screenshot = ScreenshotUIState()
 
     private var language: AppLanguage { state.selectedLanguage }
@@ -26,10 +60,14 @@ struct LeaderboardView: View {
 
     private static let minimumWidth: CGFloat = 850
     // macOS Table adds its own padding around fixed-width columns.
-    private static let tableChromeBaseWidth: CGFloat = 288
-    private static let countryColumnWidth: CGFloat = 68
+    // Nine native columns: the two added columns also get AppKit cell insets.
+    private static let tableChromeBaseWidth: CGFloat = 320
+    // Preserve the panel footprint and give reclaimed column space to names.
+    private static let preferredTableChromeWidth: CGFloat = 592
+    private static let countryColumnWidth: CGFloat = 36
+    private static let opennessColumnWidth: CGFloat = 56
     /// Row height SwiftUI settles on for these cells. The panel height has to
-    /// match the rows exactly, or the table becomes scrollable.
+    /// preserve the existing viewport; additional rows scroll inside it.
     private static let tableRowHeight: CGFloat = 32
     /// `.tableStyle(.bordered)` insets the clip view by 1pt top and bottom, so
     /// the rows need 2pt more than the table frame hands them.
@@ -37,7 +75,6 @@ struct LeaderboardView: View {
 
     let maximumWidth: CGFloat
     var viewportSize: CGSize? = nil
-    var visualVersionText: String? = nil
 
     private var contentWidth: CGFloat {
         viewportSize?.width ?? Self.preferredWidth(for: state, maximumWidth: maximumWidth)
@@ -52,7 +89,7 @@ struct LeaderboardView: View {
     }
 
     private static var tableChromeWidth: CGFloat {
-        tableChromeBaseWidth + countryColumnWidth * 2
+        tableChromeBaseWidth + (countryColumnWidth + opennessColumnWidth) * 2
     }
 
     static func preferredWidth(for state: AppState, maximumWidth: CGFloat) -> CGFloat {
@@ -64,10 +101,7 @@ struct LeaderboardView: View {
             LeaderboardGrouping.allCases.map { grouping in
                 category.boardKinds
                     .flatMap { kind -> [LeaderboardEntry] in
-                        let entries = state.snapshot.boards[kind]?.entries ?? []
-                        return grouping == .company
-                            ? CompanyLeaderboard.rank(entries).map(\.entry)
-                            : Array(entries.prefix(20))
+                        LeaderboardPresentation.rows(state.snapshot.boards[kind], grouping: grouping)
                     }
                     .map { entry -> CGFloat in
                         let nameWidth = (entry.name as NSString).size(withAttributes: [.font: font]).width
@@ -106,7 +140,7 @@ struct LeaderboardView: View {
                 ),
             ]
         }.max() ?? 0
-        let desired = max(minimumWidth, ceil(max(columnWidth, headerWidth) * 2 + tableChromeWidth))
+        let desired = max(minimumWidth, ceil(max(columnWidth, headerWidth) * 2 + preferredTableChromeWidth))
         return min(desired, maximumWidth)
     }
 
@@ -119,9 +153,10 @@ struct LeaderboardView: View {
         let view = LeaderboardView(state: state, maximumWidth: maximumWidth)
         let header = NSHostingView(rootView: view.header.frame(width: width))
         let footer = NSHostingView(rootView: view.footer.frame(width: width))
+        let metadata = NSHostingView(rootView: view.sourceMetadata.frame(width: width))
         // Native header plus visible rows plus the bordered style's insets.
-        // A country filter can shorten the table.
-        return ceil(header.fittingSize.height + SourceTableHeaderView.height
+        // Country and source filters can shorten the table.
+        return ceil(header.fittingSize.height + metadata.fittingSize.height + SourceTableHeaderView.height
             + CGFloat(visibleRowCount(for: state)) * tableRowHeight
             + tableBorderHeight + 1 + footer.fittingSize.height)
     }
@@ -129,14 +164,12 @@ struct LeaderboardView: View {
     private static func visibleRowCount(for state: AppState) -> Int {
         let kinds = state.selectedCategory.boardKinds
         let raw = kinds.map { state.snapshot.boards[$0]?.entries ?? [] }
-        if raw.allSatisfy(\.isEmpty) || kinds.allSatisfy({ state.countryFilters[$0] == nil }) {
+        if raw.allSatisfy(\.isEmpty) || kinds.allSatisfy({ state.countryFilters[$0] == nil && state.opennessFilters[$0] == nil }) {
             return 20
         }
-        let counts = zip(kinds, raw).map { kind, entries in
-            let filter = state.countryFilters[kind] ?? .all
-            let matching = entries.filter(filter.matches)
-            return state.selectedGrouping == .company
-                ? CompanyLeaderboard.rank(matching).count : matching.count
+        let counts = kinds.map { kind in
+            LeaderboardPresentation.rows(state.snapshot.boards[kind], grouping: state.selectedGrouping,
+                filter: state.countryFilters[kind] ?? .all, openness: state.opennessFilters[kind] ?? .all).count
         }
         return min(20, max(1, counts.max() ?? 0))
     }
@@ -146,11 +179,7 @@ struct LeaderboardView: View {
         kind: LeaderboardKind,
         state: AppState
     ) -> String {
-        guard let sourceDate = state.snapshot.boards[kind]?.sourceUpdatedAt else { return title }
-        let formatter = DateFormatter()
-        formatter.locale = state.selectedLanguage.locale
-        formatter.dateFormat = "M/d HH:mm"
-        return "\(title) · \(formatter.string(from: sourceDate))"
+        LeaderboardPresentation.explanation(kind, language: state.selectedLanguage)
     }
 
     var body: some View {
@@ -276,32 +305,9 @@ struct LeaderboardView: View {
         .accessibilityIdentifier("quota-setup-placeholder")
     }
 
-    private func sourceHeaderHelp(kind: LeaderboardKind, description: SourceLensDescription) -> String {
-        var parts = [
-            description.detail,
-            tr("Scores are not directly comparable across lists", "两榜分数不直接互比"),
-        ]
-        if let board = state.snapshot.boards[kind] {
-            if let sourceDate = board.sourceUpdatedAt {
-                let formatter = DateFormatter()
-                formatter.locale = language.locale
-                formatter.dateStyle = .medium
-                formatter.timeStyle = .short
-                let label = kind.sourcePrefix == "Arena"
-                    ? tr("Votes through", "投票截至")
-                    : tr("Updated", "更新于")
-                parts.append("\(label) \(formatter.string(from: sourceDate))")
-            }
-            if let note = board.sourceNote, !note.isEmpty {
-                parts.append(note)
-            }
-        }
-        return parts.joined(separator: tr(". ", "。"))
-    }
-
     @ViewBuilder
     private var titleRow: some View {
-        if contentWidth < 1100 {
+        if contentWidth < (language == .english ? 1300 : 1100) {
             VStack(spacing: 8) {
                 HStack(spacing: 12) {
                     appTitle
@@ -328,49 +334,53 @@ struct LeaderboardView: View {
 
     private var appTitle: some View {
         let title = language.appName
-        let version = versionLabel
-        return HStack(alignment: .center, spacing: 8) {
-            if language == .english {
-                Text(title)
-                    .font(.custom("SnellRoundhand-Bold", size: 21))
-                    .lineLimit(1)
-                    .alignmentGuide(VerticalAlignment.center) { dimensions in
-                        Self.textInkCenter(dimensions, text: title,
-                            font: NSFont(name: "SnellRoundhand-Bold", size: 21)!)
-                    }
-            } else {
-                ChineseBrandTitle()
-            }
-            Button(version) { appUpdater.checkForUpdates() }
-                .buttonStyle(.plain)
-                .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
-                .monospacedDigit()
-                .alignmentGuide(VerticalAlignment.center) { dimensions in
-                    Self.textInkCenter(dimensions, text: version,
-                        font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular))
+        let subtitle = AppFeatureCopy.subtitle(language: language)
+        let subtitleInk = CTLineGetBoundsWithOptions(CTLineCreateWithAttributedString(
+            NSAttributedString(string: subtitle, attributes: [.font: NSFont.systemFont(ofSize: 12, weight: .semibold)])),
+            .useGlyphPathBounds)
+        let english = language == .english
+        return DesktopBrandHeadingLayout {
+            Group {
+                if english {
+                    EnglishBrandTitle(fontSize: 21)
+                } else {
+                    ChineseBrandTitle()
                 }
-                .disabled(!appUpdater.canCheckForUpdates)
-                .help(tr("Check for app updates", "检查应用更新"))
-                .accessibilityLabel(tr("Check for app updates", "检查应用更新"))
-                .accessibilityIdentifier("check-app-updates")
+            }
+            .alignmentGuide(.desktopBrandInkTop) { dimensions in
+                english ? Self.textInkEdge(dimensions, text: title,
+                    font: NSFont(name: "SnellRoundhand-Bold", size: 21)!, top: true)
+                    : dimensions.height - dimensions[.bottom]
+            }
+            .alignmentGuide(.desktopBrandInkBottom) { dimensions in
+                english ? Self.textInkEdge(dimensions, text: title,
+                    font: NSFont(name: "SnellRoundhand-Bold", size: 21)!, top: false)
+                    : dimensions[.bottom]
+            }
+            .accessibilityIdentifier("brand-title")
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                FeatureSubtitle(language: language).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
+                    .accessibilityIdentifier("brand-subtitle")
+                QuotaTrackingHelpButton(language: language, iconHeight: subtitleInk.height)
+                    .frame(width: subtitleInk.height, height: subtitleInk.height)
+                    .overlay {
+                        Image(systemName: "questionmark.circle").resizable().scaledToFit()
+                            .foregroundStyle(.secondary).opacity(0.55).allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
+                    .alignmentGuide(.firstTextBaseline) { $0.height + subtitleInk.minY }
+            }
+            .alignmentGuide(.desktopBrandInkBottom) { dimensions in
+                Self.textInkEdge(dimensions, text: subtitle, font: .systemFont(ofSize: 12, weight: .semibold), top: false)
+            }
         }
     }
 
-    // SwiftUI's line boxes retain different ascents/descents for the title
-    // and small version. Align their native glyph centres instead.
-    nonisolated private static func textInkCenter(_ dimensions: ViewDimensions, text: String, font: NSFont) -> CGFloat {
-        let attributed = NSMutableAttributedString(string: text, attributes: [.font: font])
-        let line = CTLineCreateWithAttributedString(attributed)
-        let ink = CTLineGetImageBounds(line, nil)
-        guard !ink.isNull, !ink.isEmpty else { return dimensions[VerticalAlignment.center] }
-        return dimensions[.firstTextBaseline] - ink.midY
-    }
-
-    private var versionLabel: String { visualVersionText ?? "v\(appVersion)" }
-
-    private var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+    nonisolated private static func textInkEdge(_ dimensions: ViewDimensions, text: String, font: NSFont, top: Bool) -> CGFloat {
+        let attributed = NSAttributedString(string: text, attributes: [.font: font])
+        let ink = CTLineGetBoundsWithOptions(CTLineCreateWithAttributedString(attributed), .useGlyphPathBounds)
+        guard !ink.isNull, !ink.isEmpty else { return dimensions[top ? .top : .bottom] }
+        return dimensions[.firstTextBaseline] - (top ? ink.maxY : ink.minY)
     }
 
     private var freshness: some View {
@@ -465,13 +475,13 @@ struct LeaderboardView: View {
     private func freshnessValue(_ date: Date, now: Date, format: FreshnessFormat) -> String {
         switch format {
         case .stamp: clockStamp(date, now: now)
-        case .relative: updateAge(date, now: now)
+        case .relative: LeaderboardPresentation.updateAge(date, language: language, now: now)
         case .both: stampWithAge(date, now: now)
         }
     }
 
     private func stampWithAge(_ date: Date, now: Date) -> String {
-        let age = updateAge(date, now: now)
+        let age = LeaderboardPresentation.updateAge(date, language: language, now: now)
         return clockStamp(date, now: now) + tr(" (\(age))", "（\(age)）")
     }
 
@@ -497,17 +507,6 @@ struct LeaderboardView: View {
         guard let fetchedAt else { return tr("Rankings pending", "榜单 待更新") }
         let value = freshnessValue(fetchedAt, now: now, format: format)
         return tr("Rankings \(value)", "榜单 \(value)")
-    }
-
-    private func updateAge(_ date: Date, now: Date) -> String {
-        let seconds = max(0, now.timeIntervalSince(date))
-        if seconds < 60 { return tr("just now", "刚刚") }
-        let minutes = Int(seconds / 60)
-        if minutes < 60 { return tr("\(minutes) min ago", "\(minutes) 分钟前") }
-        let hours = Int(seconds / 3600)
-        if hours < 24 { return tr("\(hours) hr ago", "\(hours) 小时前") }
-        let days = Int(seconds / 86_400)
-        return tr("\(days) \(days == 1 ? "day" : "days") ago", "\(days) 天前")
     }
 
     private var rankingFailed: Bool {
@@ -562,11 +561,49 @@ struct LeaderboardView: View {
 
     // Both name columns grow with the longest visible name. The country and
     // score columns stay aligned across rows and both halves of the table.
+    private var sourceMetadata: some View {
+        HStack(alignment: .top, spacing: 24) {
+            boardMetadata(selectedCategory.leftKind)
+            boardMetadata(selectedCategory.rightKind)
+        }.padding(.horizontal, 18).padding(.vertical, 12)
+    }
+
+    private func boardMetadata(_ kind: LeaderboardKind) -> some View {
+        let board = state.snapshot.boards[kind]
+        let times = LeaderboardPresentation.sourceTimes(board, language: language)
+        return HStack(alignment: .top, spacing: 12) {
+            Link(destination: kind.sourceURL) {
+                Text(LeaderboardPresentation.sourceSummary(kind, language: language))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }.buttonStyle(.plain).foregroundStyle(.secondary)
+                .help(LeaderboardPresentation.sourceHelp(kind, language: language, board: board))
+            ViewThatFits(in: .horizontal) {
+                ZStack(alignment: .trailing) {
+                    Text(tr("Updated 12/31 23:59 · Fetched 12/31 23:59", "更新 12/31 23:59 · 抓取 12/31 23:59")).hidden()
+                    Text(times.updated + " · " + times.fetched)
+                }.fixedSize()
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(times.updated)
+                    Text(times.fetched)
+                }.fixedSize()
+            }.monospacedDigit().foregroundStyle(.secondary)
+                .help(LeaderboardPresentation.sourceTimeHelp(board, language: language))
+        }.font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private var table: some View {
+        VStack(spacing: 0) {
+            sourceMetadata
+            tableContent
+        }
+    }
+
+    private var tableContent: some View {
         let lenses = selectedCategory.sourceLenses(language: language)
         return Table(rows) {
             TableColumn(tr("Rank", "排名")) { row in
-                Text(rankLabel(row.rank))
+                Text(LeaderboardPresentation.rankLabel(row.rank))
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .center)
             }
@@ -582,16 +619,22 @@ struct LeaderboardView: View {
             }
             .width(nameColumnWidth)
 
-            TableColumn(tr("Score", "分数")) { row in
-                ScoreCell(model: row.left, scoreDigits: 1)
-            }
-            .width(60)
-            .alignment(.center)
-
             TableColumn(tr("Country", "国家")) { row in
                 CountryCell(model: row.left, language: language)
             }
             .width(Self.countryColumnWidth)
+            .alignment(.center)
+
+            TableColumn(ModelOpenness.columnTitle(language: language)) { row in
+                OpennessCell(model: row.left, language: language)
+            }
+            .width(Self.opennessColumnWidth)
+            .alignment(.center)
+
+            TableColumn(tr("Score", "分数")) { row in
+                ScoreCell(model: row.left, scoreDigits: 1)
+            }
+            .width(60)
             .alignment(.center)
 
             TableColumn(Self.boardColumnTitle(
@@ -603,27 +646,35 @@ struct LeaderboardView: View {
             }
             .width(nameColumnWidth)
 
-            TableColumn(tr("Score", "分数")) { row in
-                ScoreCell(model: row.right, scoreDigits: 1)
-            }
-            .width(60)
-            .alignment(.center)
-
             TableColumn(tr("Country", "国家")) { row in
                 CountryCell(model: row.right, language: language)
             }
             .width(Self.countryColumnWidth)
             .alignment(.center)
+
+            TableColumn(ModelOpenness.columnTitle(language: language)) { row in
+                OpennessCell(model: row.right, language: language)
+            }
+            .width(Self.opennessColumnWidth)
+            .alignment(.center)
+
+            TableColumn(tr("Score", "分数")) { row in
+                ScoreCell(model: row.right, scoreDigits: 1)
+            }
+            .width(60)
+            .alignment(.center)
         }
         .tableStyle(.bordered(alternatesRowBackgrounds: true))
-        .scrollIndicators(.hidden)
-        .background(TableChrome(
+        .scrollIndicators(.automatic)
+        .overlay(TableChrome(
             left: lenses.aa,
             right: lenses.arena,
             leftHelp: selectedCategory.leftColumnTitle + tr(". ", "。")
-                + sourceHeaderHelp(kind: selectedCategory.leftKind, description: lenses.aa),
+                + LeaderboardPresentation.sourceHelp(selectedCategory.leftKind, language: language,
+                    board: state.snapshot.boards[selectedCategory.leftKind], includesFetchTime: false),
             rightHelp: selectedCategory.rightColumnTitle + tr(". ", "。")
-                + sourceHeaderHelp(kind: selectedCategory.rightKind, description: lenses.arena),
+                + LeaderboardPresentation.sourceHelp(selectedCategory.rightKind, language: language,
+                    board: state.snapshot.boards[selectedCategory.rightKind], includesFetchTime: false),
             leftKind: selectedCategory.leftKind,
             rightKind: selectedCategory.rightKind,
             language: language,
@@ -631,6 +682,9 @@ struct LeaderboardView: View {
             rightFilter: state.countryFilters[selectedCategory.rightKind] ?? .all,
             leftCountryOptions: countryOptions(for: selectedCategory.leftKind),
             rightCountryOptions: countryOptions(for: selectedCategory.rightKind),
+            leftOpenness: state.opennessFilters[selectedCategory.leftKind] ?? .all,
+            rightOpenness: state.opennessFilters[selectedCategory.rightKind] ?? .all,
+            onOpennessFilter: { kind, filter in state.selectOpennessFilter(filter, for: kind) },
             onCountryFilter: { kind, filter in
                 state.selectCountryFilter(filter, for: kind)
             },
@@ -639,15 +693,6 @@ struct LeaderboardView: View {
         .id(contentWidth)
         .redacted(reason: needsSkeleton ? .placeholder : [])
         .disabled(needsSkeleton)
-    }
-
-    private func rankLabel(_ rank: Int) -> String {
-        switch rank {
-        case 1: "🥇"
-        case 2: "🥈"
-        case 3: "🥉"
-        default: "\(rank)"
-        }
     }
 
     private func sourceLink(title: String, url: String) -> some View {
@@ -1087,7 +1132,7 @@ struct LeaderboardView: View {
         let right = displayedEntries(kind: selectedCategory.rightKind)
         let organizationLogos = self.organizationLogos
 
-        return (0..<Self.visibleRowCount(for: state)).map { index in
+        return (0..<max(Self.visibleRowCount(for: state), left.count, right.count)).map { index in
             LeaderboardRow(
                 rank: index + 1,
                 left: cellModel(
@@ -1103,16 +1148,17 @@ struct LeaderboardView: View {
     }
 
     /// Company rows are derived here, from models already on the board.
-    /// Fewer than 20 companies keep the existing dash slots.
+    /// Short company lists keep the existing dash slots; longer lists scroll.
     private func displayedEntries(kind: LeaderboardKind) -> [DisplayedLeaderboardEntry] {
+        let board = state.snapshot.boards[kind]
         let filter = state.countryFilters[kind] ?? .all
-        let entries = (state.snapshot.boards[kind]?.entries ?? []).filter(filter.matches)
+        let openness = state.opennessFilters[kind] ?? .all
         guard state.selectedGrouping == .company else {
-            return entries.map {
+            return LeaderboardPresentation.rows(board, grouping: .model, filter: filter, openness: openness).map {
                 DisplayedLeaderboardEntry(entry: $0, scoreHelp: nil, isCompany: false)
             }
         }
-        return CompanyLeaderboard.rank(entries).map { standing in
+        return LeaderboardPresentation.companies(board, filter: filter, openness: openness).map { standing in
             DisplayedLeaderboardEntry(
                 entry: standing.entry,
                 scoreHelp: CompanyLeaderboard.scoreHelp(for: standing, language: language),
@@ -1121,20 +1167,8 @@ struct LeaderboardView: View {
         }
     }
 
-    private func countryOptions(for kind: LeaderboardKind) -> [CountryFilter] {
-        let entries = state.snapshot.boards[kind]?.entries ?? []
-        let countries = entries.map {
-            OrganizationRegion.country($0.organization, modelName: $0.name)
-        }
-        let codes = Set(countries.compactMap { $0?.rawValue })
-        var options: [CountryFilter] = [.all]
-        options += OrganizationCountry.allCases
-            .filter { codes.contains($0.rawValue) }
-            .map(CountryFilter.country)
-        if countries.contains(where: { $0 == nil }) {
-            options.append(.unknown)
-        }
-        return options
+    private func countryOptions(for kind: LeaderboardKind) -> [LeaderboardCountryFilter] {
+        LeaderboardPresentation.countryFilters(state.snapshot.boards[kind])
     }
 
     private func cellModel(
@@ -1149,10 +1183,7 @@ struct LeaderboardView: View {
         )
         return LeaderboardCellModel(
             entry: entry,
-            brandHex: OrganizationLogoCatalog.brandColorHex(
-                forOrganization: entry.organization,
-                modelName: entry.name
-            ),
+            brandHex: OrganizationLogoCatalog.rowBrandColorHex(for: entry),
             logoURL: entry.logoURL
                 ?? key.flatMap { organizationLogos[$0] }
                 ?? OrganizationLogoCatalog.logoURL(
@@ -1187,29 +1218,6 @@ struct LeaderboardView: View {
 
 }
 
-enum CountryFilter: Equatable {
-    case all
-    case country(OrganizationCountry)
-    case unknown
-
-    func matches(_ entry: LeaderboardEntry) -> Bool {
-        let country = OrganizationRegion.country(entry.organization, modelName: entry.name)
-        switch self {
-        case .all: return true
-        case .country(let selected): return country == selected
-        case .unknown: return country == nil
-        }
-    }
-
-    func title(language: AppLanguage) -> String {
-        switch self {
-        case .all: return language.text("All countries", "全部国家")
-        case .country(let country): return "\(country.flagEmoji)  \(country.localizedName(language: language))"
-        case .unknown: return language.text("Unknown country", "国家未知")
-        }
-    }
-}
-
 /// SwiftUI's TableColumn labels only support plain text. Install a native
 /// one-line header that uses the space within each board's name column for its
 /// full title and source explanation, without changing table column widths.
@@ -1221,11 +1229,14 @@ private struct TableChrome: NSViewRepresentable {
     let leftKind: LeaderboardKind
     let rightKind: LeaderboardKind
     let language: AppLanguage
-    let leftFilter: CountryFilter
-    let rightFilter: CountryFilter
-    let leftCountryOptions: [CountryFilter]
-    let rightCountryOptions: [CountryFilter]
-    let onCountryFilter: (LeaderboardKind, CountryFilter) -> Void
+    let leftFilter: LeaderboardCountryFilter
+    let rightFilter: LeaderboardCountryFilter
+    let leftCountryOptions: [LeaderboardCountryFilter]
+    let rightCountryOptions: [LeaderboardCountryFilter]
+    let leftOpenness: LeaderboardOpennessFilter
+    let rightOpenness: LeaderboardOpennessFilter
+    let onOpennessFilter: (LeaderboardKind, LeaderboardOpennessFilter) -> Void
+    let onCountryFilter: (LeaderboardKind, LeaderboardCountryFilter) -> Void
     let showsSkeleton: Bool
 
     func makeNSView(context: Context) -> ProbeView {
@@ -1235,7 +1246,8 @@ private struct TableChrome: NSViewRepresentable {
             leftKind: leftKind, rightKind: rightKind,
             language: language, leftFilter: leftFilter, rightFilter: rightFilter,
             leftCountryOptions: leftCountryOptions, rightCountryOptions: rightCountryOptions,
-            onCountryFilter: onCountryFilter, showsSkeleton: showsSkeleton
+            leftOpenness: leftOpenness, rightOpenness: rightOpenness,
+            onOpennessFilter: onOpennessFilter, onCountryFilter: onCountryFilter, showsSkeleton: showsSkeleton
         )
         return view
     }
@@ -1246,24 +1258,76 @@ private struct TableChrome: NSViewRepresentable {
             leftKind: leftKind, rightKind: rightKind,
             language: language, leftFilter: leftFilter, rightFilter: rightFilter,
             leftCountryOptions: leftCountryOptions, rightCountryOptions: rightCountryOptions,
-            onCountryFilter: onCountryFilter, showsSkeleton: showsSkeleton
+            leftOpenness: leftOpenness, rightOpenness: rightOpenness,
+            onOpennessFilter: onOpennessFilter, onCountryFilter: onCountryFilter, showsSkeleton: showsSkeleton
         )
     }
 
     final class ProbeView: NSView {
-        private var left = SourceLensDescription(emphasis: "", detail: "")
-        private var right = SourceLensDescription(emphasis: "", detail: "")
+        private var left = SourceLensDescription(emphasis: "")
+        private var right = SourceLensDescription(emphasis: "")
         private var leftHelp = ""
         private var rightHelp = ""
         private var leftKind: LeaderboardKind?
         private var rightKind: LeaderboardKind?
         private var language = AppLanguage.english
-        private var leftFilter = CountryFilter.all
-        private var rightFilter = CountryFilter.all
-        private var leftCountryOptions: [CountryFilter] = []
-        private var rightCountryOptions: [CountryFilter] = []
-        private var onCountryFilter: ((LeaderboardKind, CountryFilter) -> Void)?
+        private var leftFilter = LeaderboardCountryFilter.all
+        private var rightFilter = LeaderboardCountryFilter.all
+        private var leftCountryOptions: [LeaderboardCountryFilter] = []
+        private var rightCountryOptions: [LeaderboardCountryFilter] = []
+        private var leftOpenness = LeaderboardOpennessFilter.all
+        private var rightOpenness = LeaderboardOpennessFilter.all
+        private var onOpennessFilter: ((LeaderboardKind, LeaderboardOpennessFilter) -> Void)?
+        private var onCountryFilter: ((LeaderboardKind, LeaderboardCountryFilter) -> Void)?
         private var showsSkeleton = false
+        private weak var rankingScrollView: NSScrollView?
+        private var backToTopButton: NSButton?
+
+        deinit { NotificationCenter.default.removeObserver(self) }
+
+        @objc private func scrollPositionChanged() {
+            guard let scroll = rankingScrollView else { return }
+            backToTopButton?.isHidden = scroll.contentView.bounds.minY < 32
+        }
+
+        @objc private func backToTop() {
+            guard let scroll = rankingScrollView,
+                  let table = Self.findTable(in: scroll.documentView), table.numberOfRows > 0 else { return }
+            table.scrollRowToVisible(0)
+            scroll.reflectScrolledClipView(scroll.contentView)
+            scrollPositionChanged()
+        }
+
+        private func configureRankingScroll(_ scroll: NSScrollView) {
+            scroll.hasVerticalScroller = true
+            scroll.scrollerStyle = .overlay
+            scroll.autohidesScrollers = true
+            if rankingScrollView !== scroll {
+                NotificationCenter.default.removeObserver(self, name: NSView.boundsDidChangeNotification, object: nil)
+                backToTopButton?.removeFromSuperview()
+                rankingScrollView = scroll
+                scroll.contentView.postsBoundsChangedNotifications = true
+                NotificationCenter.default.addObserver(self, selector: #selector(scrollPositionChanged),
+                    name: NSView.boundsDidChangeNotification, object: scroll.contentView)
+                let button = NSButton(image: NSImage(systemSymbolName: "arrow.up.to.line", accessibilityDescription: nil)!,
+                                      target: self, action: #selector(backToTop))
+                button.bezelStyle = .circular
+                button.identifier = NSUserInterfaceItemIdentifier("leaderboard-back-to-top")
+                button.translatesAutoresizingMaskIntoConstraints = false
+                addSubview(button)
+                NSLayoutConstraint.activate([
+                    button.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -24),
+                    button.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
+                    button.widthAnchor.constraint(equalToConstant: 30),
+                    button.heightAnchor.constraint(equalToConstant: 30),
+                ])
+                backToTopButton = button
+            }
+            let title = language.text("Back to top", "返回顶部")
+            backToTopButton?.toolTip = title
+            backToTopButton?.setAccessibilityLabel(title)
+            scrollPositionChanged()
+        }
 
         func configure(
             left: SourceLensDescription,
@@ -1273,11 +1337,14 @@ private struct TableChrome: NSViewRepresentable {
             leftKind: LeaderboardKind,
             rightKind: LeaderboardKind,
             language: AppLanguage,
-            leftFilter: CountryFilter,
-            rightFilter: CountryFilter,
-            leftCountryOptions: [CountryFilter],
-            rightCountryOptions: [CountryFilter],
-            onCountryFilter: @escaping (LeaderboardKind, CountryFilter) -> Void,
+            leftFilter: LeaderboardCountryFilter,
+            rightFilter: LeaderboardCountryFilter,
+            leftCountryOptions: [LeaderboardCountryFilter],
+            rightCountryOptions: [LeaderboardCountryFilter],
+            leftOpenness: LeaderboardOpennessFilter,
+            rightOpenness: LeaderboardOpennessFilter,
+            onOpennessFilter: @escaping (LeaderboardKind, LeaderboardOpennessFilter) -> Void,
+            onCountryFilter: @escaping (LeaderboardKind, LeaderboardCountryFilter) -> Void,
             showsSkeleton: Bool
         ) {
             self.left = left
@@ -1291,6 +1358,9 @@ private struct TableChrome: NSViewRepresentable {
             self.rightFilter = rightFilter
             self.leftCountryOptions = leftCountryOptions
             self.rightCountryOptions = rightCountryOptions
+            self.leftOpenness = leftOpenness
+            self.rightOpenness = rightOpenness
+            self.onOpennessFilter = onOpennessFilter
             self.onCountryFilter = onCountryFilter
             self.showsSkeleton = showsSkeleton
             updateTable()
@@ -1299,6 +1369,11 @@ private struct TableChrome: NSViewRepresentable {
         override func layout() {
             super.layout()
             updateTable()
+        }
+
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            let hit = super.hitTest(point)
+            return hit === self ? nil : hit
         }
 
         override func viewDidMoveToWindow() {
@@ -1323,12 +1398,12 @@ private struct TableChrome: NSViewRepresentable {
         private func configureScrollViews(in view: NSView) {
             if let scrollView = view as? NSScrollView {
                 if scrollView.hasHorizontalScroller { scrollView.hasHorizontalScroller = false }
-                if scrollView.hasVerticalScroller { scrollView.hasVerticalScroller = false }
                 if scrollView.horizontalScrollElasticity != .none {
                     scrollView.horizontalScrollElasticity = .none
                 }
                 if let tableView = Self.findTable(in: scrollView.documentView),
-                   tableView.tableColumns.count >= 7 {
+                   tableView.tableColumns.count >= 9 {
+                    configureRankingScroll(scrollView)
                     configureHeader(in: tableView, scrollView: scrollView)
                 }
             }
@@ -1363,31 +1438,36 @@ private struct TableChrome: NSViewRepresentable {
                 leftKind: leftKind, rightKind: rightKind,
                 leftFilter: leftFilter, rightFilter: rightFilter,
                 leftCountryOptions: leftCountryOptions, rightCountryOptions: rightCountryOptions,
-                onCountryFilter: onCountryFilter, showsSkeleton: showsSkeleton
+                leftOpenness: leftOpenness, rightOpenness: rightOpenness,
+            onOpennessFilter: onOpennessFilter, onCountryFilter: onCountryFilter, showsSkeleton: showsSkeleton
             )
             tableView.tableColumns[1].headerToolTip = leftHelp
-            tableView.tableColumns[4].headerToolTip = rightHelp
+            tableView.tableColumns[5].headerToolTip = rightHelp
             let filterHelp = language.text("Filter by country", "按国家筛选")
-            tableView.tableColumns[3].headerToolTip = filterHelp
+            tableView.tableColumns[2].headerToolTip = filterHelp
             tableView.tableColumns[6].headerToolTip = filterHelp
+            for index in [3, 7] { tableView.tableColumns[index].headerToolTip = language.text("Filter by source. ", "按源码筛选。") + ModelOpenness.help(language: language) }
         }
     }
 }
 
 private final class SourceTableHeaderView: NSTableHeaderView {
     static let height: CGFloat = 24
-    private var left = SourceLensDescription(emphasis: "", detail: "")
-    private var right = SourceLensDescription(emphasis: "", detail: "")
+    private var left = SourceLensDescription(emphasis: "")
+    private var right = SourceLensDescription(emphasis: "")
     private var language = AppLanguage.english
     private var leftKind: LeaderboardKind?
     private var rightKind: LeaderboardKind?
-    private var leftFilter = CountryFilter.all
-    private var rightFilter = CountryFilter.all
-    private var leftCountryOptions: [CountryFilter] = []
-    private var rightCountryOptions: [CountryFilter] = []
-    private var onCountryFilter: ((LeaderboardKind, CountryFilter) -> Void)?
+    private var leftFilter = LeaderboardCountryFilter.all
+    private var rightFilter = LeaderboardCountryFilter.all
+    private var leftCountryOptions: [LeaderboardCountryFilter] = []
+    private var rightCountryOptions: [LeaderboardCountryFilter] = []
+    private var leftOpenness = LeaderboardOpennessFilter.all
+    private var rightOpenness = LeaderboardOpennessFilter.all
+    private var onOpennessFilter: ((LeaderboardKind, LeaderboardOpennessFilter) -> Void)?
+    private var onCountryFilter: ((LeaderboardKind, LeaderboardCountryFilter) -> Void)?
     private var showsSkeleton = false
-    private var menuChoices: [CountryFilter] = []
+    private var menuChoices: [LeaderboardCountryFilter] = []
     private var menuKind: LeaderboardKind?
 
     /// Body capsules are the label composited at 35/255. Header titles drawn in
@@ -1396,10 +1476,9 @@ private final class SourceTableHeaderView: NSTableHeaderView {
     static let placeholderAlpha: CGFloat = 35.0 / 255.0
 
     static func requiredNameColumnWidth(title: String, summary: SourceLensDescription) -> CGFloat {
-        ceil(headerText(
-            title: title, summary: summary, tint: .systemBlue,
-            titleSize: 11, descriptionSize: 10
-        ).size().width + 10)
+        ceil((summary.emphasis as NSString).size(withAttributes: [
+            .font: NSFont.systemFont(ofSize: 11, weight: .semibold)
+        ]).width + 10)
     }
 
     func configure(
@@ -1408,11 +1487,14 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         language: AppLanguage,
         leftKind: LeaderboardKind?,
         rightKind: LeaderboardKind?,
-        leftFilter: CountryFilter,
-        rightFilter: CountryFilter,
-        leftCountryOptions: [CountryFilter],
-        rightCountryOptions: [CountryFilter],
-        onCountryFilter: ((LeaderboardKind, CountryFilter) -> Void)?,
+        leftFilter: LeaderboardCountryFilter,
+        rightFilter: LeaderboardCountryFilter,
+        leftCountryOptions: [LeaderboardCountryFilter],
+        rightCountryOptions: [LeaderboardCountryFilter],
+        leftOpenness: LeaderboardOpennessFilter,
+        rightOpenness: LeaderboardOpennessFilter,
+        onOpennessFilter: ((LeaderboardKind, LeaderboardOpennessFilter) -> Void)?,
+        onCountryFilter: ((LeaderboardKind, LeaderboardCountryFilter) -> Void)?,
         showsSkeleton: Bool
     ) {
         self.left = left
@@ -1424,6 +1506,9 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         self.rightFilter = rightFilter
         self.leftCountryOptions = leftCountryOptions
         self.rightCountryOptions = rightCountryOptions
+        self.leftOpenness = leftOpenness
+        self.rightOpenness = rightOpenness
+        self.onOpennessFilter = onOpennessFilter
         self.onCountryFilter = onCountryFilter
         self.showsSkeleton = showsSkeleton
         needsDisplay = true
@@ -1433,14 +1518,28 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         guard !showsSkeleton else { return }
         let point = convert(event.locationInWindow, from: nil)
         let column = column(at: point)
-        guard column == 3 || column == 6 else {
+        guard [2, 3, 6, 7].contains(column) else {
             super.mouseDown(with: event)
             return
         }
-        let kind = column == 3 ? leftKind : rightKind
+        if column == 3 || column == 7 {
+            guard let kind = column == 3 ? leftKind : rightKind else { return }
+            menuKind = kind
+            let selected = column == 3 ? leftOpenness : rightOpenness
+            let menu = NSMenu()
+            for (index, choice) in LeaderboardOpennessFilter.allCases.enumerated() {
+                let item = NSMenuItem(title: choice.title(language: language), action: #selector(selectOpenness(_:)), keyEquivalent: "")
+                item.target = self; item.tag = index; item.state = choice == selected ? .on : .off
+                menu.addItem(item)
+                if choice == .all { menu.addItem(.separator()) }
+            }
+            NSMenu.popUpContextMenu(menu, with: event, for: self)
+            return
+        }
+        let kind = column == 2 ? leftKind : rightKind
         guard let kind else { return }
-        let selected = column == 3 ? leftFilter : rightFilter
-        menuChoices = column == 3 ? leftCountryOptions : rightCountryOptions
+        let selected = column == 2 ? leftFilter : rightFilter
+        menuChoices = column == 2 ? leftCountryOptions : rightCountryOptions
         menuKind = kind
         let menu = NSMenu()
         for (index, choice) in menuChoices.enumerated() {
@@ -1460,13 +1559,18 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         NSMenu.popUpContextMenu(menu, with: event, for: self)
     }
 
+    @objc private func selectOpenness(_ sender: NSMenuItem) {
+        guard let menuKind, LeaderboardOpennessFilter.allCases.indices.contains(sender.tag) else { return }
+        onOpennessFilter?(menuKind, LeaderboardOpennessFilter.allCases[sender.tag])
+    }
+
     @objc private func selectCountry(_ sender: NSMenuItem) {
         guard let menuKind, menuChoices.indices.contains(sender.tag) else { return }
         onCountryFilter?(menuKind, menuChoices[sender.tag])
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        guard let tableView, tableView.tableColumns.count >= 7 else {
+        guard let tableView, tableView.tableColumns.count >= 9 else {
             super.draw(dirtyRect)
             return
         }
@@ -1477,12 +1581,12 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             let columnRect = headerRect(ofColumn: index)
             if showsSkeleton {
                 switch index {
-                case 1, 4:
+                case 1, 5:
                     drawSkeletonNameHeader(
                         tableView.tableColumns[index].headerCell.stringValue,
                         in: columnRect
                     )
-                case 3, 6:
+                case 2, 6:
                     drawSkeletonMark(in: columnRect, width: 28)
                 default:
                     // Rank and score already come back as the light placeholder.
@@ -1498,16 +1602,18 @@ private final class SourceTableHeaderView: NSTableHeaderView {
                     tint: .systemBlue,
                     in: columnRect
                 )
-            case 4:
+            case 5:
                 drawBoardHeader(
                     tableView.tableColumns[index].headerCell.stringValue,
                     summary: right,
                     tint: .systemPurple,
                     in: columnRect
                 )
-            case 3, 6:
+            case 3, 7:
+                drawFilterHeader(title: ModelOpenness.columnTitle(language: language), active: (index == 3 ? leftOpenness : rightOpenness) != .all, in: columnRect)
+            case 2, 6:
                 drawCountryHeader(
-                    selected: index == 3 ? leftFilter : rightFilter,
+                    selected: index == 2 ? leftFilter : rightFilter,
                     in: columnRect
                 )
             default:
@@ -1546,10 +1652,13 @@ private final class SourceTableHeaderView: NSTableHeaderView {
     /// The label stays on the column centre shared with the flags below, and
     /// the filter caret is stroked separately on the label's midline: an
     /// inline "⌄" rides the text baseline and reads as too low.
-    private func drawCountryHeader(selected: CountryFilter, in rect: NSRect) {
-        let font = NSFont.systemFont(ofSize: 11, weight: .medium)
-        let tint = selected == .all ? NSColor.labelColor : NSColor.controlAccentColor
-        let title = language.text("Country", "国家")
+    private func drawCountryHeader(selected: LeaderboardCountryFilter, in rect: NSRect) {
+        drawFilterHeader(title: language.text("Country", "国家"), active: selected != .all, in: rect)
+    }
+
+    private func drawFilterHeader(title: String, active: Bool, in rect: NSRect) {
+        let font = NSFont.systemFont(ofSize: 9.5, weight: .medium)
+        let tint = active ? NSColor.controlAccentColor : NSColor.labelColor
         // Header cells ignore `alignment` once an attributed string is set, so
         // the centring has to live in the string's paragraph style.
         let paragraph = NSMutableParagraphStyle()
@@ -1574,9 +1683,9 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         in rect: NSRect
     ) {
         let titleWidth = (title as NSString).size(withAttributes: [.font: font]).width
-        let halfWidth: CGFloat = 3
-        let halfHeight: CGFloat = 1.6
-        let gap: CGFloat = 3
+        let halfWidth: CGFloat = 2.5
+        let halfHeight: CGFloat = 1.4
+        let gap: CGFloat = 2
         let centerX = rect.midX + titleWidth / 2 + gap + halfWidth
         let centerY = rect.midY
         let up: CGFloat = isFlipped ? -1 : 1
@@ -1597,180 +1706,35 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         tint: NSColor,
         in rect: NSRect
     ) {
-        // Use the same native header cell drawing as Rank, Score and Country.
-        // It places the entire attributed line on their shared vertical center.
-        let cell = NSTableHeaderCell(textCell: "")
+        let cell = NSTableHeaderCell(textCell: summary.emphasis)
         cell.alignment = .left
+        cell.font = NSFont.systemFont(ofSize: 11, weight: .semibold)
+        cell.textColor = tint
         cell.lineBreakMode = .byTruncatingTail
-        let availableWidth = max(0, cell.titleRect(forBounds: rect).width)
-        let sizePairs: [(CGFloat, CGFloat)] = [
-            (11, 10), (11, 9), (11, 8),
-            (10.5, 8), (10, 8), (9.5, 8), (9, 8),
-            (8.5, 7.5),
-        ]
-        var text = NSAttributedString()
-        for (titleSize, descriptionSize) in sizePairs {
-            let candidate = Self.headerText(
-                title: title, summary: summary, tint: tint,
-                titleSize: titleSize, descriptionSize: descriptionSize
-            )
-            text = candidate
-            if candidate.size().width <= availableWidth { break }
-        }
-        cell.attributedStringValue = text
         cell.draw(withFrame: rect, in: self)
     }
 
-    private static func headerText(
-        title: String,
-        summary: SourceLensDescription,
-        tint: NSColor,
-        titleSize: CGFloat,
-        descriptionSize: CGFloat
-    ) -> NSAttributedString {
-        let secondaryBaselineOffset = (titleSize - descriptionSize) / 2
-        let text = NSMutableAttributedString(
-            string: title,
-            attributes: [
-                .font: NSFont.systemFont(ofSize: titleSize, weight: .medium),
-                .foregroundColor: NSColor.labelColor,
-            ]
-        )
-        text.append(NSAttributedString(
-            string: " · ",
-            attributes: [
-                .font: NSFont.systemFont(ofSize: descriptionSize),
-                .foregroundColor: NSColor.tertiaryLabelColor,
-                .baselineOffset: secondaryBaselineOffset,
-            ]
-        ))
-        text.append(NSAttributedString(
-            string: summary.emphasis,
-            attributes: [
-                .font: NSFont.systemFont(ofSize: descriptionSize, weight: .semibold),
-                .foregroundColor: tint,
-                .baselineOffset: secondaryBaselineOffset,
-            ]
-        ))
-        text.append(NSAttributedString(
-            string: " " + summary.detail,
-            attributes: [
-                .font: NSFont.systemFont(ofSize: descriptionSize),
-                .foregroundColor: NSColor.secondaryLabelColor,
-                .baselineOffset: secondaryBaselineOffset,
-            ]
-        ))
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.lineBreakMode = .byTruncatingTail
-        text.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(
-            location: 0, length: text.length
-        ))
-        return text
-    }
 }
 
 private extension LeaderboardCategory {
     var leftKind: LeaderboardKind { boardKinds[0] }
     var rightKind: LeaderboardKind { boardKinds[1] }
 
-    var leftColumnTitle: String {
-        switch self {
-        case .general: "Artificial Analysis Intelligence Index"
-        case .coding: "Artificial Analysis Coding Agent Index"
-        case .image: "Artificial Analysis | 文生图"
-        case .video: "Artificial Analysis | 文生视频"
-        }
-    }
+    var leftColumnTitle: String { LeaderboardPresentation.title(leftKind, language: .english) }
+    var rightColumnTitle: String { LeaderboardPresentation.title(rightKind, language: .english) }
 
-    var rightColumnTitle: String {
-        switch self {
-        case .general: "Arena | Text"
-        case .coding: "Code Arena | WebDev"
-        case .image: "Arena | 文生图"
-        case .video: "Arena | 文生视频"
-        }
-    }
-
-    /// AA's language/coding indexes use task benchmarks; its image/video
-    /// boards also use human votes, but with curated prompts or matched settings.
-    /// Arena ratings come from blind user comparisons across the categories.
     func sourceLenses(language: AppLanguage) -> (aa: SourceLensDescription, arena: SourceLensDescription) {
-        switch self {
-        case .general:
-            return (
-                SourceLensDescription(
-                    emphasis: language.text("Task benchmarks", "任务测评"),
-                    detail: language.text(
-                        "Combines standardized tests across several abilities.",
-                        "汇总多项标准化测试，适合看综合能力"
-                    )
-                ),
-                SourceLensDescription(
-                    emphasis: language.text("User votes", "用户盲测"),
-                    detail: language.text(
-                        "People compare anonymous answers to real prompts.",
-                        "真实提问下盲选回答，贴近用户偏好"
-                    )
-                )
-            )
-        case .coding:
-            return (
-                SourceLensDescription(
-                    emphasis: language.text("Task completion", "任务完成率"),
-                    detail: language.text(
-                        "Scores coding agents on software engineering tasks.",
-                        "通过软件工程任务，检验编程智能体的完成能力"
-                    )
-                ),
-                SourceLensDescription(
-                    emphasis: language.text("WebDev votes", "网页开发盲选"),
-                    detail: language.text(
-                        "People pick the better result from paired web builds.",
-                        "用户盲选网页成品，侧重实际观感"
-                    )
-                )
-            )
-        case .image:
-            return (
-                SourceLensDescription(
-                    emphasis: language.text("Curated prompts", "场景化盲测"),
-                    detail: language.text(
-                        "Blind votes across a balanced set of image use cases.",
-                        "按用途均衡选题，盲选图片质量"
-                    )
-                ),
-                SourceLensDescription(
-                    emphasis: language.text("User prompts", "用户出题"),
-                    detail: language.text(
-                        "People vote on images made from their own prompts.",
-                        "用户自由出题并盲选，贴近日常审美"
-                    )
-                )
-            )
-        case .video:
-            return (
-                SourceLensDescription(
-                    emphasis: language.text("Matched settings", "统一设置"),
-                    detail: language.text(
-                        "Blind votes on videos made with comparable settings.",
-                        "相同提示词、统一设置下盲选视频质量"
-                    )
-                ),
-                SourceLensDescription(
-                    emphasis: language.text("User prompts", "用户出题"),
-                    detail: language.text(
-                        "People vote on paired videos from real prompts.",
-                        "用户自由出题并盲选，贴近日常偏好"
-                    )
-                )
+        func lens(_ kind: LeaderboardKind) -> SourceLensDescription {
+            SourceLensDescription(
+                emphasis: LeaderboardPresentation.explanation(kind, language: language)
             )
         }
+        return (lens(leftKind), lens(rightKind))
     }
 }
 
 private struct SourceLensDescription {
     let emphasis: String
-    let detail: String
 }
 
 private struct LeaderboardRow: Identifiable {
@@ -1830,6 +1794,7 @@ private struct LeaderboardCell: View {
             if let entry {
                 ModelLogoView(
                     url: model?.logoURL,
+                    pngData: OrganizationLogoCatalog.rowLogoPNGData(for: entry, isCompany: model?.isCompany == true),
                     organization: entry.organization,
                     name: entry.name
                 )
@@ -1900,12 +1865,23 @@ private struct LeaderboardCell: View {
     }
 }
 
+private struct OpennessCell: View {
+    let model: LeaderboardCellModel?
+    let language: AppLanguage
+
+    var body: some View {
+        ModelOpennessBadge(model?.entry.openness, language: language)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .help(ModelOpenness.help(language: language))
+    }
+}
+
 private struct CountryCell: View {
     let model: LeaderboardCellModel?
     let language: AppLanguage
 
     private var country: OrganizationCountry? {
-        OrganizationRegion.country(model?.entry.organization, modelName: model?.entry.name)
+        model.flatMap { OrganizationRegion.country(for: $0.entry) }
     }
 
     var body: some View {
@@ -1915,7 +1891,7 @@ private struct CountryCell: View {
             .padding(.vertical, 2)
             .modifier(OptionalHelp(text: country?.localizedName(language: language)))
             .accessibilityLabel(country?.localizedName(language: language)
-                                ?? language.text("Country unknown", "国家未知"))
+                                ?? language.text("Country unknown", "未知"))
     }
 }
 
@@ -2338,6 +2314,7 @@ private final class CopyNameButtonView: NSButton {
 
 private struct ModelLogoView: View {
     let url: URL?
+    let pngData: Data?
     let organization: String?
     let name: String
 
@@ -2358,7 +2335,9 @@ private struct ModelLogoView: View {
 
     @ViewBuilder
     private var logoContent: some View {
-        if let bundled = bundledLogoURL, let image = NSImage(contentsOf: bundled) {
+        if let pngData, let image = NSImage(data: pngData) {
+            Image(nsImage: image).resizable().scaledToFit()
+        } else if let bundled = bundledLogoURL, let image = NSImage(contentsOf: bundled) {
             Image(nsImage: image)
                 .resizable()
                 .scaledToFit()
@@ -2386,9 +2365,9 @@ private struct ModelLogoView: View {
     }
 
     private var placeholder: some View {
-        Text(String((organization ?? name).prefix(1)).uppercased())
+        Text(OrganizationLogoCatalog.initial(organization: organization, modelName: name))
             .font(.system(size: 10, weight: .semibold))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(.black.opacity(0.65))
     }
 }
 

@@ -7,9 +7,6 @@ import Foundation
 /// stronger. Breadth is not a bonus: a longer listing never outranks a
 /// stronger flagship, and model count is not a tie-break.
 public enum CompanyLeaderboard {
-    /// The table has 20 slots. Extra companies would not be visible.
-    private static let displayLimit = 20
-
     /// Shown on the company score. The number is the flagship, not a blend.
     public static let scoreExplanation = "以最强模型分数为准，弱型号不拉低"
 
@@ -38,14 +35,16 @@ public enum CompanyLeaderboard {
             return lhs.name < rhs.name
         }
 
-        return ordered.prefix(displayLimit).enumerated().map { index, item in
+        return ordered.enumerated().map { index, item in
             CompanyStanding(
                 entry: LeaderboardEntry(
                     rank: index + 1,
                     name: item.name,
                     score: item.score,
                     organization: item.name,
-                    logoURL: item.logoURL
+                    logoURL: item.logoURL,
+                    brand: item.brand,
+                    developerCountry: item.developerCountry
                 ),
                 components: item.components
             )

@@ -25,8 +25,6 @@ sealed partial class MainWindow
     double renderedPanelWidth;
     bool panelMenuOpen;
     bool panelRefreshing;
-    string? visualVersionText;
-    public void SetVisualVersionText(string? text) { visualVersionText = text; }
     bool panelDark = ReadSystemDark();
     Brush PanelInk => Tint(panelDark ? "#ECECEF" : "#232325");
     Brush PanelMuted => Tint(panelDark ? "#A5A5AA" : "#77777B");
@@ -86,7 +84,31 @@ sealed partial class MainWindow
 
     sealed class HeaderInkLabel : FrameworkElement
     {
+        static readonly BitmapImage LightBrandLogo = LoadBrandLogo("header-logo.png");
+        static readonly BitmapImage DarkBrandLogo = LoadBrandLogo("header-logo-dark.png");
+        BitmapImage BrandLogo => spec.Foreground is SolidColorBrush brush && brush.Color.R + brush.Color.G + brush.Color.B > 384
+            ? DarkBrandLogo : LightBrandLogo;
+        static BitmapImage LoadBrandLogo(string name)
+        {
+            var image = new BitmapImage();
+            image.BeginInit(); image.CacheOption = BitmapCacheOption.OnLoad;
+            image.UriSource = new Uri(Path.Combine(AppContext.BaseDirectory, "brand", name));
+            image.EndInit(); image.Freeze(); return image;
+        }
         readonly TextBlock spec;
+        public bool AlignInkTop { get; init; }
+        public bool DimsAmpersand { get; init; }
+        public double VisibleInkHeight => spec.Text == "AI 天梯"
+            ? BrandGlyphs().Max(glyph => glyph.Ink.Height) : Text().BuildGeometry(new Point()).Bounds.Height;
+        public double VisibleInkTop {
+            get {
+                if (spec.Text == "AI 天梯") return (ActualHeight - VisibleInkHeight) / 2;
+                var bounds = Text().BuildGeometry(new Point()).Bounds;
+                var scale = VisualTreeHelper.GetDpi(this).DpiScaleY;
+                return bounds.Top + Math.Round((ActualHeight / 2 - bounds.Top - bounds.Height / 2) * scale,
+                    MidpointRounding.AwayFromZero) / scale;
+            }
+        }
         public HeaderInkLabel(TextBlock spec)
         {
             this.spec = spec;
@@ -103,6 +125,12 @@ sealed partial class MainWindow
             var text = new FormattedText(spec.Text, CultureInfo.GetCultureInfo(spec.Language.IetfLanguageTag), spec.FlowDirection,
                 new Typeface(spec.FontFamily, spec.FontStyle, spec.FontWeight, spec.FontStretch), spec.FontSize,
                 spec.Foreground, VisualTreeHelper.GetDpi(this).PixelsPerDip);
+            if (DimsAmpersand && spec.Text.IndexOf('&') is var separator && separator >= 0)
+            {
+                var muted = spec.Foreground.Clone();
+                muted.Opacity *= 0.55;
+                text.SetForegroundBrush(muted, separator, 1);
+            }
             return text;
         }
         const double BrandGap = 2.5;
@@ -131,27 +159,69 @@ sealed partial class MainWindow
                 var glyphs = BrandGlyphs();
                 return new Size(glyphs[^1].X + glyphs[^1].Ink.Width, 27);
             }
-            return new Size(Text().WidthIncludingTrailingWhitespace, 27);
+            return new Size(Text().WidthIncludingTrailingWhitespace, double.IsNaN(Height) ? 27 : Height);
         }
         protected override void OnRender(DrawingContext drawing)
         {
             if (spec.Text == "AI 天梯")
             {
                 var glyphs = BrandGlyphs();
-                var top = glyphs.Min(glyph => glyph.Ink.Top);
-                var bottom = glyphs.Max(glyph => glyph.Ink.Bottom);
-                var y = ActualHeight / 2 - (top + bottom) / 2;
-                foreach (var glyph in glyphs)
-                    drawing.DrawText(glyph.Text, new Point(glyph.X - glyph.Ink.Left, y));
+                var first = glyphs[0];
+                var height = first.Ink.Width * BrandLogo.PixelHeight / BrandLogo.PixelWidth;
+                drawing.DrawImage(BrandLogo, new Rect(first.X, (ActualHeight - height) / 2,
+                    first.Ink.Width, height));
+                foreach (var glyph in glyphs.Skip(1))
+                    drawing.DrawText(glyph.Text, new Point(glyph.X - glyph.Ink.Left,
+                        ActualHeight / 2 - glyph.Ink.Top - glyph.Ink.Height / 2));
                 return;
             }
             var text = Text();
             var bounds = text.BuildGeometry(new Point()).Bounds;
             if (bounds.IsEmpty) return;
             var dpi = VisualTreeHelper.GetDpi(this);
-            var offset = Math.Round((ActualHeight / 2 - bounds.Top - bounds.Height / 2) * dpi.DpiScaleY,
+            var offset = AlignInkTop ? -bounds.Top : Math.Round((ActualHeight / 2 - bounds.Top - bounds.Height / 2) * dpi.DpiScaleY,
                 MidpointRounding.AwayFromZero) / dpi.DpiScaleY;
+            if (spec.Text == "AI BenchGauge")
+            {
+                var initial = new FormattedText("A", CultureInfo.GetCultureInfo(spec.Language.IetfLanguageTag), spec.FlowDirection,
+                    new Typeface(spec.FontFamily, spec.FontStyle, spec.FontWeight, spec.FontStretch), spec.FontSize,
+                    spec.Foreground, dpi.PixelsPerDip).BuildGeometry(new Point()).Bounds;
+                var next = new FormattedText("I", CultureInfo.GetCultureInfo(spec.Language.IetfLanguageTag), spec.FlowDirection,
+                    new Typeface(spec.FontFamily, spec.FontStyle, spec.FontWeight, spec.FontStretch), spec.FontSize,
+                    spec.Foreground, dpi.PixelsPerDip).BuildGeometry(new Point()).Bounds;
+                var nextOrigin = text.BuildHighlightGeometry(new Point(), 1, 1).Bounds.Left;
+                var logoSize = Math.Min(initial.Width, Math.Max(1, nextOrigin + next.Left - initial.Left - BrandGap));
+                text.SetForegroundBrush(Brushes.Transparent, 0, 1);
+                var logoHeight = logoSize * BrandLogo.PixelHeight / BrandLogo.PixelWidth;
+                drawing.DrawImage(BrandLogo, new Rect(initial.Left, offset + initial.Top + (initial.Height - logoHeight) / 2,
+                    logoSize, logoHeight));
+            }
             drawing.DrawText(text, new Point(0, offset));
+        }
+    }
+
+    // Align the subtitle with the title's native visible bottom.
+    sealed class HeaderCaptionStack(HeaderInkLabel title, HeaderInkLabel subtitle, Button help) : Panel
+    {
+        public void AddLabels() { Children.Add(subtitle); Children.Add(help); }
+        protected override Size MeasureOverride(Size available) {
+            subtitle.Height = subtitle.VisibleInkHeight;
+            help.Width = subtitle.Height;
+            help.Height = subtitle.Height;
+            if (help.Content is FrameworkElement icon) {
+                icon.Width = subtitle.Height;
+                icon.Height = subtitle.Height;
+            }
+            subtitle.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            help.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            return new Size(subtitle.DesiredSize.Width + 3 + help.DesiredSize.Width, 27);
+        }
+        protected override Size ArrangeOverride(Size size) {
+            var top = title.VisibleInkTop + title.VisibleInkHeight - subtitle.Height;
+            subtitle.Arrange(new Rect(0, top, subtitle.DesiredSize.Width, subtitle.Height));
+            help.Arrange(new Rect(subtitle.DesiredSize.Width + 3, top + (subtitle.Height - help.DesiredSize.Height) / 2,
+                help.DesiredSize.Width, help.DesiredSize.Height));
+            return size;
         }
     }
 
@@ -269,13 +339,27 @@ sealed partial class MainWindow
         headerTitle = new TextBlock { Text = BrandName,
             FontFamily = new FontFamily("Segoe Script"), FontWeight = FontWeights.Bold,
             FontSize = 21, Height = 27, Foreground = PanelInk };
-        brand.Children.Add(HeaderInk(headerTitle));
-        updateButton = QuietButton(visualVersionText ?? ("v" + config.Version + (availableUpdate is null ? "" : " ↑")), async () => await CheckUpdates(true));
-        updateButton.Foreground = Tint("#C6C6CA");
-        System.Windows.Automation.AutomationProperties.SetName(updateButton, (string)updateButton.Content);
-        updateButton.Content = HeaderInk(Caption((string)updateButton.Content, updateButton.Foreground));
-        updateButton.Height = headerTitle.Height;
-        updateButton.Margin = new Thickness(8, 0, 0, 0); brand.Children.Add(updateButton);
+        var titleInk = (HeaderInkLabel)HeaderInk(headerTitle);
+        brand.Children.Add(titleInk);
+        var subtitleSpec = Caption(Tr("Dual boards & quota tracking", "双榜对照 & 余量追踪", "雙榜對照 & 餘量追蹤"), PanelMuted, 12);
+        subtitleSpec.FontWeight = FontWeights.SemiBold;
+        var subtitleInk = new HeaderInkLabel(subtitleSpec) { AlignInkTop = true, DimsAmpersand = true };
+        var helpButton = QuietButton("", () => MessageBox.Show(this,
+            Tr("Quota tracking is available in AI BenchGauge for Mac and Windows. Open the desktop app to view your models’ remaining quotas and usage progress.",
+                "余量追踪目前在 Mac 和 Windows 版提供，可集中查看模型的剩余额度与使用进度。请在电脑上打开 AI 天梯使用这项功能。",
+                "餘量追蹤目前在 Mac 和 Windows 版提供，可集中查看模型的剩餘額度與使用進度。請在電腦上打開 AI 天梯使用這項功能。"),
+            Tr("Quota tracking", "余量追踪", "餘量追蹤"), MessageBoxButton.OK, MessageBoxImage.Information));
+        var helpIcon = PanelIcon("help", PanelMuted, 14, 14);
+        helpIcon.Opacity = 0.55;
+        helpButton.Content = helpIcon;
+        helpButton.Width = 14; helpButton.Height = 14; helpButton.Padding = new Thickness(0);
+        helpButton.ToolTip = Tr("About quota tracking", "了解余量追踪", "了解餘量追蹤");
+        System.Windows.Automation.AutomationProperties.SetName(helpButton, (string)helpButton.ToolTip);
+        System.Windows.Automation.AutomationProperties.SetAutomationId(helpButton, "quota-tracking-help");
+        var captions = new HeaderCaptionStack(titleInk, subtitleInk, helpButton) {
+            Height = 27, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0)
+        };
+        captions.AddLabels(); brand.Children.Add(captions);
         titleLine.Children.Add(brand);
         var freshness = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         freshness.Children.Add(Caption(Tr("UPDATED", "更新时间", "更新時間")));
@@ -292,7 +376,7 @@ sealed partial class MainWindow
         var categories = Segments([("general",Tr("General","综合","綜合")),("coding",Tr("Coding","编程","編程")),("image",Tr("Image","图片","圖片")),("video",Tr("Video","视频","視頻"))], prefs.Category, 360,
             async value => { prefs.Category = value; SaveFrame(); await Refresh("state"); await Refresh("refreshBoards"); if (engine is null) Render(); });
         categories.Margin = new Thickness(8, 0, 0, 0); tabs.Children.Add(categories);
-        if (renderedPanelWidth >= 1100)
+        if (renderedPanelWidth >= (prefs.Language == "en" ? 1300 : 1100))
         {
             // Equal side columns keep both segmented controls centered.
             var wide = new Grid(); wide.ColumnDefinitions.Add(new ColumnDefinition()); wide.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); wide.ColumnDefinitions.Add(new ColumnDefinition());
@@ -421,53 +505,125 @@ sealed partial class MainWindow
             VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center } : null;
     }
 
+    FrameworkElement BrandLogo(Entry entry)
+    {
+        if (entry.LogoPNG is { Length: <= 22000 } encoded)
+        {
+            try
+            {
+                var bytes = Convert.FromBase64String(encoded);
+                if (bytes.Length >= 33 && bytes.Length <= 16384
+                    && bytes.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 })
+                    && bytes.AsSpan(16, 8).SequenceEqual(new byte[] { 0, 0, 0, 64, 0, 0, 0, 64 }))
+                {
+                    using var stream = new MemoryStream(bytes, false);
+                    var bitmap = new BitmapImage(); bitmap.BeginInit(); bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.DecodePixelWidth = 64; bitmap.StreamSource = stream; bitmap.EndInit(); bitmap.Freeze();
+                    return new Image { Source = bitmap, Width = 16, Height = 16, Stretch = Stretch.Uniform,
+                        HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                }
+            }
+            catch (Exception error) when (error is FormatException or IOException or NotSupportedException or ArgumentException) { }
+        }
+        if (entry.Logo is { } key && Logo(key, 16) is { } bundled) return bundled;
+        var initial = entry.Initials;
+        if (string.IsNullOrWhiteSpace(initial))
+            initial = (string.IsNullOrWhiteSpace(entry.Organization) ? entry.Name : entry.Organization)
+                .EnumerateRunes().FirstOrDefault(System.Text.Rune.IsLetterOrDigit).ToString().ToUpperInvariant();
+        return Center(Caption(string.IsNullOrWhiteSpace(initial) || initial == "\0" ? "?" : initial, Brushes.DimGray, 10));
+    }
+
     FrameworkElement PairedBoards()
     {
         var pair = state?.Boards.Take(2).ToArray() ?? [];
-        var table = new Grid(); table.RowDefinitions.Add(new RowDefinition { Height = new GridLength(24) }); table.RowDefinitions.Add(new RowDefinition());
-        var headings = TableGrid(); headings.Background = Tint(panelDark ? "#29292B" : "#FCFCFC"); headings.Height = 24;
-        AddCell(headings, Caption(Tr("Rank", "排名", "排名"), PanelInk) is { } rank ? Center(rank) : throw new InvalidOperationException(), 0);
-        AddCell(headings, Caption(Tr("Score", "分数", "分數"), PanelInk) is { } leftScore ? Center(leftScore) : throw new InvalidOperationException(), 2);
-        AddCell(headings, Caption(Tr("Score", "分数", "分數"), PanelInk) is { } rightScore ? Center(rightScore) : throw new InvalidOperationException(), 5);
+        var table = new Grid();
+        table.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        table.RowDefinitions.Add(new RowDefinition { Height = new GridLength(24) });
+        table.RowDefinitions.Add(new RowDefinition());
+        var metadata = TableGrid();
         for (var i = 0; i < pair.Length; i++)
         {
-            var board = pair[i]; var column = i == 0 ? 1 : 4;
+            var item = BoardMetadata(pair[i]); AddCell(metadata, item, i == 0 ? 1 : 5); Grid.SetColumnSpan(item, 4);
+        }
+        table.Children.Add(metadata);
+        var headings = TableGrid(); headings.Background = Tint(panelDark ? "#29292B" : "#FCFCFC"); headings.Height = 24;
+        AddCell(headings, Caption(Tr("Rank", "排名", "排名"), PanelInk) is { } rank ? Center(rank) : throw new InvalidOperationException(), 0);
+        AddCell(headings, Caption(Tr("Score", "分数", "分數"), PanelInk) is { } leftScore ? Center(leftScore) : throw new InvalidOperationException(), 4);
+        AddCell(headings, Caption(Tr("Score", "分数", "分數"), PanelInk) is { } rightScore ? Center(rightScore) : throw new InvalidOperationException(), 8);
+        for (var i = 0; i < pair.Length; i++)
+        {
+            var board = pair[i]; var column = i == 0 ? 1 : 5;
             var summary = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 9,
                 FontFamily = new FontFamily("Segoe UI"),
                 Margin = new Thickness(5, 0, 4, 0), ToolTip = board.Error ?? board.Title + "\n" + Tr("Scores are not directly comparable across lists", "两榜分数不直接互比", "兩榜分數不直接互比") };
             CenterTextInk(summary);
-            var name = BoardTitle(board); var date = DateTimeOffset.TryParse(board.UpdatedAt, out var d) ? d.ToLocalTime().ToString("M/d HH:mm", CultureInfo.InvariantCulture) : "";
-            summary.Inlines.Add(new TextRun(name + (date.Length == 0 ? "" : " · " + date) + " · "));
-            summary.Inlines.Add(new TextRun(board.Error is not null ? Tr("Refresh failed", "刷新失败", "刷新失敗") : SourceLens(board)) { Foreground = board.Error is not null ? Tint("#B96B0F") : i == 0 ? PanelBlue : PanelPurple });
+            summary.FontSize = 11;
+            summary.FontWeight = FontWeights.SemiBold;
+            summary.Inlines.Add(new TextRun(SourceLens(board)) { Foreground = i == 0 ? PanelBlue : PanelPurple });
             summary.Cursor = Cursors.Hand; summary.MouseLeftButtonUp += (_, _) => Open(board.Url); AddCell(headings, summary, column);
-            AddCell(headings, CountryPicker(board), column + 2);
+            AddCell(headings, OpennessPicker(board), column + 2);
+            AddCell(headings, CountryPicker(board), column + 1);
         }
-        var outline = new Border { Child = headings, BorderBrush = PanelLine, BorderThickness = new Thickness(1, 1, 1, 1) }; table.Children.Add(outline);
-        var rows = new StackPanel();
-        var entries = pair.Select(board => board.Entries.Where(entry => prefs.Countries.GetValueOrDefault(board.Kind, "") is { } filter && (filter.Length == 0 || entry.Country == filter)).ToArray()).ToArray();
+        var outline = new Border { Child = headings, BorderBrush = PanelLine, BorderThickness = new Thickness(1, 1, 1, 1) }; Grid.SetRow(outline, 1); table.Children.Add(outline);
+        var entries = pair.Select(board => board.Entries.Where(entry => prefs.Countries.GetValueOrDefault(board.Kind, "") is { } filter && (filter.Length == 0 || (filter == "unknown" ? entry.Country is null : entry.Country == filter))).ToArray()).ToArray();
         var count = entries.Length == 0 ? 20 : Math.Max(1, entries.Max(values => values.Length));
-        for (var index = 0; index < count; index++)
+        var rows = new VirtualLeaderboardList(count, index =>
         {
             var row = TableGrid(); row.Height = 32; row.Background = index % 2 == 0 ? PanelBackground : Tint(panelDark ? "#29292B" : "#F3F3F5");
             AddCell(row, Rank(index + 1), 0);
             for (var side = 0; side < entries.Length; side++)
             {
-                var column = side == 0 ? 1 : 4;
+                var column = side == 0 ? 1 : 5;
                 if (index >= entries[side].Length) continue;
                 var entry = entries[side][index]; AddCell(row, ModelCell(entry), column);
-                AddCell(row, Center(Caption(entry.Score.ToString("0.0", CultureInfo.InvariantCulture), PanelMuted, 13)), column + 1);
-                AddCell(row, Flag(entry.Country), column + 2);
+                AddCell(row, Center(Caption(entry.Score.ToString("0.0", CultureInfo.InvariantCulture), PanelMuted, 13)), column + 3);
+                AddCell(row, OpennessBadge(entry.Openness), column + 2);
+                AddCell(row, Flag(entry.Country), column + 1);
             }
-            rows.Children.Add(row);
-        }
-        var scroll = new ScrollViewer { Content = rows, VerticalScrollBarVisibility = ScrollBarVisibility.Hidden, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-        Grid.SetRow(scroll, 1); table.Children.Add(scroll);
+            return row;
+        });
+        var viewport = new Grid(); viewport.Children.Add(rows);
+        var backToTop = new Button { Content = "↑", Width = 32, Height = 32,
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, 24, 12), Visibility = Visibility.Collapsed,
+            ToolTip = Tr("Back to top", "返回顶部", "返回頂部"), Background = PanelSurface, Foreground = PanelInk };
+        System.Windows.Automation.AutomationProperties.SetName(backToTop, Tr("Back to top", "返回顶部", "返回頂部"));
+        System.Windows.Automation.AutomationProperties.SetAutomationId(backToTop, "leaderboard-back-to-top");
+        backToTop.Click += (_, _) => rows.ScrollIntoView(0);
+        rows.AddHandler(ScrollViewer.ScrollChangedEvent, new ScrollChangedEventHandler((_, change) =>
+            backToTop.Visibility = change.VerticalOffset >= 32 ? Visibility.Visible : Visibility.Collapsed));
+        viewport.Children.Add(backToTop);
+        Grid.SetRow(viewport, 2); table.Children.Add(viewport);
         return table;
+    }
+
+    FrameworkElement OpennessBadge(string? openness)
+    {
+        if (openness is not ("open" or "closed")) return Center(Caption("—", PanelMuted, 13));
+        var open = openness == "open";
+        var title = open ? Tr("Open", "开源", "開源") : Tr("Closed", "闭源", "閉源");
+        var hex = open ? (panelDark ? "#77D9A1" : "#16704A") : (panelDark ? "#B5C4E3" : "#52617D");
+        var ink = Tint(hex);
+        var drawing = new DrawingGroup();
+        drawing.Children.Add(new GeometryDrawing(ink, null, new RectangleGeometry(new Rect(2, 6, 8, 7), 1.25, 1.25)));
+        drawing.Children.Add(new GeometryDrawing(null, new Pen(ink, 1.4), Geometry.Parse(open
+            ? "M 5,6 L 5,3 C 5,0 11,0 11,3 L 11,4"
+            : "M 3,6 L 3,3 C 3,0 9,0 9,3 L 9,6")));
+        var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        var icon = new Image { Source = new DrawingImage(drawing), Width = 10, Height = 10,
+            Stretch = Stretch.Uniform, Margin = new Thickness(0, 0, 3, 0) };
+        content.Children.Add(icon);
+        var label = Caption(title, ink, 11); label.FontWeight = FontWeights.Medium; content.Children.Add(label);
+        var badge = new Border { Child = content, Background = Tint(hex, panelDark ? 0.16 : 0.10),
+            CornerRadius = new CornerRadius(4), Padding = new Thickness(4, 3, 4, 3),
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        System.Windows.Automation.AutomationProperties.SetName(badge, title);
+        return badge;
     }
     Grid TableGrid()
     {
         var grid = new Grid(); var compact = renderedPanelWidth < 850;
-        foreach (var width in new[] { new GridLength(60), new GridLength(1, GridUnitType.Star), new GridLength(compact ? 56 : 78), new GridLength(compact ? 44 : 84), new GridLength(1, GridUnitType.Star), new GridLength(compact ? 56 : 78), new GridLength(compact ? 44 : 84) })
+        foreach (var width in new[] { new GridLength(60), new GridLength(1, GridUnitType.Star), new GridLength(compact ? 44 : 52), new GridLength(60), new GridLength(compact ? 56 : 78), new GridLength(1, GridUnitType.Star), new GridLength(compact ? 44 : 52), new GridLength(60), new GridLength(compact ? 56 : 78) })
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
         return grid;
     }
@@ -502,9 +658,8 @@ sealed partial class MainWindow
     FrameworkElement ModelCell(Entry entry)
     {
         var row = new Grid(); row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) }); row.ColumnDefinitions.Add(new ColumnDefinition());
-        if (entry.Logo is { } key && Logo(key, 16) is { } logo)
-            AddCell(row, new Border { Child = logo, Width = 20, Height = 20, VerticalAlignment = VerticalAlignment.Center,
-                Background = Brushes.White, CornerRadius = new CornerRadius(4), Margin = new Thickness(0, 0, 4, 0) }, 0);
+        AddCell(row, new Border { Child = BrandLogo(entry), Width = 20, Height = 20, VerticalAlignment = VerticalAlignment.Center,
+            Background = Brushes.White, CornerRadius = new CornerRadius(4), Margin = new Thickness(0, 0, 4, 0) }, 0);
         var name = Caption(entry.Name, PanelInk, 13); name.Margin = new Thickness(6, 0, 3, 0); AddCell(row, name, 1);
         if (entry.CodingURL is not null || entry.ApiURL is not null)
         {
@@ -514,7 +669,10 @@ sealed partial class MainWindow
             if (entry.ApiURL is { } api) links.Children.Add(LinkButton("API", api, Tr("API pricing", "API 价格")));
             AddCell(row, links, 2);
         }
-        var color = entry.Logo is { } logoKey && BrandColors.TryGetValue(logoKey, out var hex) ? BrandFill(hex, entry.Name) : Brushes.Transparent;
+        var hex = entry.BrandColor;
+        if (hex is null || hex.Length != 7 || hex[0] != '#' || !hex.Skip(1).All(Uri.IsHexDigit))
+            hex = entry.Logo is { } logoKey && BrandColors.TryGetValue(logoKey, out var known) ? known : "#607D8B";
+        var color = BrandFill(hex, entry.Name);
         var cell = new Border { Child = row, Background = color, CornerRadius = new CornerRadius(5), Padding = new Thickness(4, 0, 3, 0), Margin = new Thickness(12, 4, 8, 4), ToolTip = entry.Help ?? entry.Name, Cursor = Cursors.Hand };
         cell.MouseLeftButtonUp += (_, _) => { try { Clipboard.SetText(entry.Name); status.Text = Tr("Copied", "已复制", "已複製"); } catch (System.Runtime.InteropServices.COMException) { } };
         return cell;
@@ -527,22 +685,86 @@ sealed partial class MainWindow
     };
     string SourceLens(Board board) => board.Kind switch
     {
-        "artificialAnalysis" => Tr("Task evaluation", "任务测评", "任務測評"), "arenaText" => Tr("User preference", "用户盲测", "使用者盲測"),
-        "artificialAnalysisCoding" => Tr("Coding evaluation", "代码测评", "程式碼測評"), "arenaWebdev" => Tr("Web development", "网页开发", "網頁開發"), _ => "",
+        "artificialAnalysis" => Tr("Task benchmarks", "任务测评", "任務測評"),
+        "arenaText" => Tr("User votes", "用户盲测", "使用者盲測"),
+        "artificialAnalysisCodingAgent" => Tr("Task completion", "任务完成率", "任務完成率"),
+        "codeArenaWebDev" => Tr("WebDev votes", "网页开发盲选", "網頁開發盲選"),
+        "artificialAnalysisTextToImage" => Tr("Curated prompts", "场景化盲测", "場景化盲測"),
+        "artificialAnalysisTextToVideo" => Tr("Matched settings", "统一设置", "統一設定"),
+        "arenaTextToImage" or "arenaTextToVideo" => Tr("User prompts", "用户出题", "使用者出題"), _ => "",
     };
+    string SourceSummary(Board board) => board.Kind switch
+    {
+        "artificialAnalysis" => Tr("Combines standardized tests across several abilities.", "汇总多项标准化测试，适合看综合能力", "彙總多項標準化測試，適合看綜合能力"),
+        "arenaText" => Tr("People compare anonymous answers to real prompts.", "真实提问下盲选回答，贴近用户偏好", "真實提問下盲選回答，貼近使用者偏好"),
+        "artificialAnalysisCodingAgent" => Tr("Scores coding agents on software engineering tasks.", "通过软件工程任务，检验编程智能体的完成能力", "透過軟體工程任務，檢驗程式設計智慧體的完成能力"),
+        "codeArenaWebDev" => Tr("People pick the better result from paired web builds.", "用户盲选网页成品，侧重实际观感", "使用者盲選網頁成品，側重實際觀感"),
+        "artificialAnalysisTextToImage" => Tr("Blind votes across a balanced set of image use cases.", "按用途均衡选题，盲选图片质量", "按用途均衡選題，盲選圖片品質"),
+        "arenaTextToImage" => Tr("People vote on images made from their own prompts.", "用户自由出题并盲选，贴近日常审美", "使用者自由出題並盲選，貼近日常審美"),
+        "artificialAnalysisTextToVideo" => Tr("Blind votes on videos made with comparable settings.", "相同提示词、统一设置下盲选视频质量", "相同提示詞、統一設定下盲選影片品質"),
+        "arenaTextToVideo" => Tr("People vote on paired videos from real prompts.", "用户自由出题并盲选，贴近日常偏好", "使用者自由出題並盲選，貼近日常偏好"), _ => "",
+    };
+    FrameworkElement BoardMetadata(Board board)
+    {
+        string DateLabel(string? value) => DateTimeOffset.TryParse(value, out var date)
+            ? date.ToLocalTime().ToString("M/d HH:mm", CultureInfo.InvariantCulture) : "—";
+        var updated = Tr("Updated ", "更新 ", "更新 ") + DateLabel(board.UpdatedAt);
+        var fetched = Tr("Fetched ", "抓取 ", "抓取 ") + DateLabel(board.FetchedAt);
+        var grid = new Grid { Margin = new Thickness(5, 12, 8, 12) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition());
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var description = Caption(SourceSummary(board), PanelMuted, 11);
+        description.TextWrapping = TextWrapping.Wrap; description.Margin = new Thickness(0, 0, 12, 0);
+        description.Cursor = Cursors.Hand; description.MouseLeftButtonUp += (_, _) => Open(board.Url);
+        description.ToolTip = board.Error ?? SourceSummary(board); AddCell(grid, description, 0);
+        var times = Caption(updated + (renderedPanelWidth >= 1300 ? " · " : "\n") + fetched,
+            board.Error is null ? PanelMuted : Tint("#B96B0F"), 10);
+        times.TextAlignment = TextAlignment.Right;
+        times.VerticalAlignment = VerticalAlignment.Top;
+        times.ToolTip = Tr("Source updated: ", "源更新时间：", "來源更新時間：") +
+            (DateTimeOffset.TryParse(board.UpdatedAt, out var sourceDate) ? sourceDate.ToLocalTime().ToString("g") : Tr("Not published by the source", "来源未提供", "來源未提供")) +
+            "\n" + Tr("Fetched: ", "抓取时间：", "擷取時間：") +
+            (DateTimeOffset.TryParse(board.FetchedAt, out var fetchedDate) ? fetchedDate.ToLocalTime().ToString("g") : Tr("Waiting for first fetch", "等待首次抓取", "等待首次擷取"));
+        AddCell(grid, times, 1); return grid;
+    }
+    FrameworkElement OpennessPicker(Board board)
+    {
+        var selected = prefs.Sources.GetValueOrDefault(board.Kind, "all");
+        var ink = selected == "all" ? PanelInk : PanelBlue;
+        var button = QuietButton("", () => { }); button.Foreground = ink; button.Padding = new Thickness(1, 0, 1, 0);
+        var label = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        label.Children.Add(Caption(Tr("Source", "源码", "源碼"), ink, 9.5));
+        label.Children.Add(PanelIcon("chevron", ink, 5, 3, new Thickness(2, 0, 0, 0))); button.Content = label;
+        var menu = new ContextMenu();
+        foreach (var (value, title) in new[] { ("all", Tr("All sources", "全部源码", "全部源碼")),
+            ("open", Tr("Open", "开源", "開源")), ("closed", Tr("Closed", "闭源", "閉源")), ("unknown", Tr("Unknown", "未知")) })
+        {
+            var choice = new MenuItem { Header = title, IsCheckable = true, IsChecked = selected == value };
+            choice.Click += async (_, _) => { prefs.Sources[board.Kind] = value; SaveFrame(); await Refresh("state"); Render(); };
+            menu.Items.Add(choice);
+        }
+        menu.Opened += (_, _) => panelMenuOpen = true;
+        menu.Closed += (_, _) => panelMenuOpen = false;
+        button.Click += (_, _) => { panelMenuOpen = true; menu.PlacementTarget = button; menu.Placement = PlacementMode.Bottom; menu.IsOpen = true; };
+        button.ToolTip = Tr("Filter this leaderboard by source", "按源码筛选此榜单", "依源碼篩選此榜單");
+        return button;
+    }
     FrameworkElement CountryPicker(Board board)
     {
-        var button = QuietButton("", () => { }); button.Foreground = PanelInk;
+        var button = QuietButton("", () => { }); button.Foreground = PanelInk; button.Padding = new Thickness(1, 0, 1, 0);
         var label = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        var countryLabel = Caption(Tr("Country", "国家", "國家"), PanelInk);
-        if (renderedPanelWidth < 850) countryLabel.MaxWidth = 25;
+        var countryLabel = Caption(Tr("Country", "国家", "國家"), PanelInk, 9.5);
         label.Children.Add(countryLabel);
-        label.Children.Add(PanelIcon("chevron", PanelInk, 7, 4, new Thickness(4, 0, 0, 0))); button.Content = label;
+        label.Children.Add(PanelIcon("chevron", PanelInk, 5, 3, new Thickness(2, 0, 0, 0))); button.Content = label;
         var menu = new ContextMenu();
-        foreach (var item in new[] { ("",Tr("All countries","所有国家","所有國家")),("china",Tr("China","中国","中國")),("unitedStates",Tr("United States","美国","美國")),("canada",Tr("Canada","加拿大")),("france",Tr("France","法国","法國")),("germany",Tr("Germany","德国","德國")),("singapore",Tr("Singapore","新加坡")) })
+        var options = board.CountryOptions ?? new[] {
+            new CountryOption("china", Tr("China", "中国", "中國")), new CountryOption("unitedStates", Tr("United States", "美国", "美國")),
+            new CountryOption("canada", Tr("Canada", "加拿大")), new CountryOption("france", Tr("France", "法国", "法國")),
+            new CountryOption("germany", Tr("Germany", "德国", "德國")), new CountryOption("singapore", Tr("Singapore", "新加坡")) };
+        foreach (var item in new[] { new CountryOption("", Tr("All countries", "所有国家", "所有國家")) }.Concat(options))
         {
-            var value = item.Item1; var choice = new MenuItem { Header = item.Item2, IsCheckable = true, IsChecked = prefs.Countries.GetValueOrDefault(board.Kind, "") == value };
-            choice.Click += (_, _) => { prefs.Countries[board.Kind] = value; SaveFrame(); Render(); }; menu.Items.Add(choice);
+            var value = item.Value; var choice = new MenuItem { Header = item.Label, IsCheckable = true, IsChecked = prefs.Countries.GetValueOrDefault(board.Kind, "") == value };
+            choice.Click += async (_, _) => { prefs.Countries[board.Kind] = value; SaveFrame(); await Refresh("state"); Render(); }; menu.Items.Add(choice);
         }
         menu.Opened += (_, _) => panelMenuOpen = true;
         menu.Closed += (_, _) => panelMenuOpen = false;
@@ -605,6 +827,7 @@ sealed partial class MainWindow
     static FrameworkElement PanelIcon(string kind, Brush ink, double width = 12, double height = 12, Thickness? margin = null) => new System.Windows.Shapes.Path
     {
         Data = Geometry.Parse(kind switch {
+            "help" => "M6,0.5 A5.5,5.5 0 1 1 5.99,0.5 M4.4,4 A1.6,1.6 0 1 1 6,5.6 L6,7 M6,8.8 L6,9",
             "chevron" => "M0,0 L3,3 L6,0",
             "camera" => "M2,4 L5,4 L6,2 L10,2 L11,4 L14,4 L14,13 L2,13 Z M11,8.5 A3,3 0 1 1 5,8.5 A3,3 0 1 1 11,8.5",
             "power" => "M8,1 L8,8 M4,3.5 A6,6 0 1 0 12,3.5",

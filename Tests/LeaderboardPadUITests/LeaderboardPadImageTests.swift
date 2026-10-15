@@ -17,28 +17,41 @@ import LeaderboardKit
     let cache = LeaderboardCache(fileURL: directory.appending(path: "cache.json"))
     let boards = Dictionary(uniqueKeysWithValues: LeaderboardKind.allCases.map { kind in
         (kind, Leaderboard(kind: kind, title: "Fixture", fetchedAt: Date(timeIntervalSince1970: 1_790_726_400), entries: [
-            LeaderboardEntry(rank: 1, name: "GPT-6.1 Sol", score: 91, organization: "OpenAI"),
+            LeaderboardEntry(rank: 1, name: "GPT-6.1 Sol", score: 91, organization: "OpenAI", openness: .closed),
             LeaderboardEntry(rank: 2, name: "Claude Fixture", score: 88, organization: "Anthropic"),
-            LeaderboardEntry(rank: 3, name: "DeepSeek Fixture", score: 86, organization: "DeepSeek"),
+            LeaderboardEntry(rank: 3, name: "DeepSeek Fixture", score: 86, organization: "DeepSeek", openness: .open),
         ]))
     })
     cache.save(LeaderboardSnapshot(boards: boards))
     let store = LeaderboardPadStore(defaults: defaults, cache: cache)
-    let view = LeaderboardPadView(store: store)
-    for (label, width, scheme) in [("wide-light", 1000.0, ColorScheme.light), ("narrow-light", 440.0, .light), ("wide-dark", 1000.0, .dark)] {
-        let image = try #require(view.renderLeaderboardImage(width: width, scheme: scheme))
-        #expect(image.width == Int(width * 2))
-        #expect(image.height > 400)
-        // ImageRenderer cannot rasterize some native interactive controls.
-        // Its yellow disabled placeholders must never enter shared pictures.
-        // Gold rank medals are intentional; detect broad flat yellow runs,
-        // rather than treating every yellow medal pixel as a disabled control.
-        #expect(yellowPlaceholderPixels(in: image) == 0)
-        if ProcessInfo.processInfo.environment["BENCHGAUGE_IPAD_PREVIEWS"] == "1" {
-            let output = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appending(path: "work/ios/previews")
-            try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
-            let png = try #require(NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]))
-            try png.write(to: output.appending(path: "\(label).png"))
+    let previews = ProcessInfo.processInfo.environment["BENCHGAUGE_IPAD_PREVIEWS"] == "1"
+    // The full visual matrix is opt-in: rasterizing every variant synchronously
+    // holds MainActor long enough to disrupt unrelated async store deadlines.
+    let languages: [AppLanguage] = previews ? AppLanguage.allCases : [.chinese]
+    let storeIDs: [String?] = previews ? [nil, "1234567890"] : [nil]
+    var layouts = [("wide-light", 1000.0, ColorScheme.light), ("narrow-light", 440.0, .light), ("wide-dark", 1000.0, .dark)]
+    if previews { layouts.append(("narrow-dark", 440.0, .dark)) }
+    for language in languages {
+        store.language = language
+        for appStoreID in storeIDs {
+            // Synthetic Apple ID for layout coverage only; never configured for distribution.
+            let view = LeaderboardPadView(store: store, appStoreID: appStoreID)
+            for (label, width, scheme) in layouts {
+                let image = try #require(view.renderLeaderboardImage(width: width, scheme: scheme))
+                #expect(image.width == Int(width * 2))
+                #expect(image.height > 400)
+                // ImageRenderer cannot rasterize some native interactive controls.
+                // Its yellow disabled placeholders must never enter shared pictures.
+                // Gold rank medals are intentional; detect broad flat yellow runs,
+                // rather than treating every yellow medal pixel as a disabled control.
+                #expect(yellowPlaceholderPixels(in: image) == 0)
+                if previews {
+                    let output = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appending(path: "work/ios/previews")
+                    try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+                    let png = try #require(NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]))
+                    try png.write(to: output.appending(path: "\(language.rawValue)-\(appStoreID == nil ? "unpublished" : "store-fixture")-\(label).png"))
+                }
+            }
         }
     }
 }

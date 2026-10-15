@@ -18,7 +18,7 @@ namespace BenchGauge;
 // reading accounts or using the privacy-redacted Copy command.
 static class VisualTests
 {
-    sealed record Case(string Id, string Language, int Width, int Height, string Scenario, string Mode, int? QuotaAgeSeconds, string? VersionText);
+    sealed record Case(string Id, string Language, int Width, int Height, string Scenario, string Mode, int? QuotaAgeSeconds, string? VersionText, int? RowCount);
     sealed record Fixture(DisplayState State, Case[] Cases, Dictionary<string, Quota[]>? QuotaScenarios);
     [StructLayout(LayoutKind.Sequential)] struct Rect { public int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Sequential)] struct Point { public int X, Y; }
@@ -79,6 +79,12 @@ static class VisualTests
         foreach (var theme in new[] { "light", "dark" })
         {
             var state = fixture.State;
+            if (test.RowCount is { } rowCount)
+                state = state with { Boards = state.Boards.Select(board => board with {
+                    Entries = Enumerable.Range(1, rowCount).Select(rank =>
+                        new Entry(rank, $"Fixture model {rank}", rowCount - rank + 1,
+                            $"Fixture maker {rank}", null, "openai", null, null, null)).ToArray()
+                }).ToArray() };
             if (fixture.QuotaScenarios is { } scenarios && scenarios.TryGetValue(test.Scenario, out var scenarioQuotas))
                 state = state with { Quotas = scenarioQuotas.Select(quota => quota with {
                     Runs = quota.Runs.Select(run => run with { Text = FixtureQuotaText(run.Text, test.Language) }).ToArray()
@@ -97,7 +103,6 @@ static class VisualTests
             var panel = new MainWindow(null, new Preferences { Language = test.Language, PanelMode = test.Scenario == "window" ? "window" : test.Mode })
                 { Width = test.Width, Height = test.Height };
             panel.SetVisualViewport(test.Width, test.Height);
-            panel.SetVisualVersionText(test.VersionText);
             // The account dialog owns the panel; WPF requires that owner to
             // have been shown before assigning Window.Owner.
             if (test.Scenario == "addModelDialog") panel.Show();
@@ -154,6 +159,7 @@ static class VisualTests
                     if (colors.Count < 20) throw new InvalidOperationException("Blank Windows desktop capture: " + test.Id);
                     bitmap.Save(Path.Combine(directory, $"{test.Id}{(theme == "dark" ? "-dark" : "")}-frame-{frame}.png"), Drawing.Imaging.ImageFormat.Png);
                 }
+                if (test.Scenario == "virtualRanking") VerifyVirtualRanking(window);
                 var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(window);
                 metadata.Add(new { test.Id, theme, test.Language, test.Scenario, test.Width, test.Height,
                     clientPixelWidth = rect.Right, clientPixelHeight = rect.Bottom, dpiScale = dpi.DpiScaleX,
@@ -165,6 +171,31 @@ static class VisualTests
         }
         File.WriteAllText(Path.Combine(directory, "metadata.json"), JsonSerializer.Serialize(metadata, new JsonSerializerOptions { WriteIndented = true }));
         app.Shutdown();
+    }
+
+    static IEnumerable<System.Windows.DependencyObject> Descendants(System.Windows.DependencyObject root)
+    {
+        yield return root;
+        for (var index = 0; index < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); index++)
+            foreach (var child in Descendants(System.Windows.Media.VisualTreeHelper.GetChild(root, index))) yield return child;
+    }
+
+    static void VerifyVirtualRanking(Window window)
+    {
+        var list = Descendants(window).OfType<VirtualLeaderboardList>().Single();
+        int Realized() => Descendants(list).OfType<System.Windows.Controls.VirtualizingStackPanel>().Single().Children.Count;
+        var initial = Realized();
+        if (list.Items.Count < 1000 || initial == 0 || initial >= 200)
+            throw new InvalidOperationException("Long ranking created too many row controls");
+        list.ScrollIntoView(list.Items.Count - 1); Settle(window);
+        if (list.ItemContainerGenerator.ContainerFromIndex(list.Items.Count - 1) is null || Realized() >= 200)
+            throw new InvalidOperationException("Long ranking tail or recycling failed");
+        Console.WriteLine($"[virtual-ranking] rows={list.Items.Count} initialViews={initial} tailViews={Realized()}");
+        var back = Descendants(window).OfType<System.Windows.Controls.Button>().Single(button =>
+            System.Windows.Automation.AutomationProperties.GetAutomationId(button) == "leaderboard-back-to-top");
+        back.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)); Settle(window);
+        if (list.ItemContainerGenerator.ContainerFromIndex(0) is null)
+            throw new InvalidOperationException("Long ranking did not return to first row");
     }
 
     static string FixtureQuotaText(string text, string language) => (language, text) switch

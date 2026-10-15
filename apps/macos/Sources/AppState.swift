@@ -29,7 +29,8 @@ final class AppState: ObservableObject {
     @Published private(set) var selectedLanguage = AppLanguage.load()
     @Published private(set) var panelMode: PanelMode
     var closesOnFocusLoss: Bool { panelMode.closesOnFocusLoss }
-    @Published private(set) var countryFilters: [LeaderboardKind: CountryFilter] = [:]
+    @Published private(set) var opennessFilters: [LeaderboardKind: LeaderboardOpennessFilter] = [:]
+    @Published private(set) var countryFilters: [LeaderboardKind: LeaderboardCountryFilter] = [:]
     @Published private(set) var isQuitting = false
     /// Provider quotas from the local CC Switch database. These are not
     /// leaderboard rows, so they stay off the table. Missing CC Switch data
@@ -220,7 +221,7 @@ final class AppState: ObservableObject {
                             language: AppLanguage, errors: [LeaderboardKind: String],
                             emptyState: CCSwitchState?, panelMode: PanelMode = .clickToClose, quotaUpdatedAt: Date? = nil, quotaUnavailable: Bool = false,
                             modelConfiguration: CodexModelConfiguration? = nil, targets: [CCSwitchQuotaTarget] = [], taskCounts: CodexTaskCounts? = nil,
-                            codexDesktopRunning: Bool = true) {
+                            codexDesktopRunning: Bool = true, category: LeaderboardCategory = .general) {
         self.snapshot = snapshot
         self.quotaUpdatedAt = quotaUpdatedAt
         self.quotaUnavailable = quotaUnavailable
@@ -230,7 +231,7 @@ final class AppState: ObservableObject {
         currentCodexModelConfiguration = modelConfiguration
         quotaTargetsByID = Dictionary(uniqueKeysWithValues: targets.map { ($0.id, $0) })
         selectedLanguage = language
-        selectedCategory = .general
+        selectedCategory = category
         selectedGrouping = .model
         self.panelMode = panelMode
         lastErrors = errors
@@ -353,7 +354,11 @@ final class AppState: ObservableObject {
         }
     }
 
-    func selectCountryFilter(_ filter: CountryFilter, for kind: LeaderboardKind) {
+    func selectOpennessFilter(_ filter: LeaderboardOpennessFilter, for kind: LeaderboardKind) {
+        opennessFilters[kind] = filter == .all ? nil : filter
+    }
+
+    func selectCountryFilter(_ filter: LeaderboardCountryFilter, for kind: LeaderboardKind) {
         countryFilters[kind] = filter == .all ? nil : filter
     }
 

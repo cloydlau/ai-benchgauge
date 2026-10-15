@@ -4,7 +4,7 @@ import Testing
 
 struct HTMLLeaderboardParserTests {
     @Test
-    func testParsesArtificialAnalysisTopTwenty() throws {
+    func testParsesAllArtificialAnalysisRows() throws {
         let records = (1...22).map { index in
             #"{"slug":"model-\#(index)","name":"Model \#(index)","deprecated":false,"creator":{"name":"Maker","logo":"/img/logos/maker.svg"},"intelligenceIndex":\#(100-index),"intelligenceIndexIsEstimated":false}"#
         }
@@ -17,14 +17,14 @@ struct HTMLLeaderboardParserTests {
 
         #expect((leaderboard.sourceNote) == ("v4.3.2"))
         #expect((leaderboard.sourceUpdatedAt) == nil)
-        #expect((leaderboard.entries.count) == (20))
+        #expect((leaderboard.entries.count) == (22))
         #expect((leaderboard.entries.first?.name) == ("Model 1"))
         #expect((leaderboard.entries.first?.score) == (99))
         #expect((leaderboard.entries.first?.modelID) == ("model-1"))
         #expect((leaderboard.entries.first?.organization) == ("Maker"))
         #expect((leaderboard.entries.first?.logoURL?.absoluteString) == ("https://artificialanalysis.ai/img/logos/maker.svg"))
         #expect((leaderboard.organizationLogoURLs?["Maker"]?.absoluteString) == ("https://artificialanalysis.ai/img/logos/maker.svg"))
-        #expect((leaderboard.entries.last?.name) == ("Model 20"))
+        #expect((leaderboard.entries.last?.name) == ("Model 22"))
     }
 
     @Test
@@ -50,7 +50,7 @@ struct HTMLLeaderboardParserTests {
     }
 
     @Test
-    func testParsesArenaTopTwentyAndCutoff() throws {
+    func testParsesAllArenaRowsAndCutoff() throws {
         let records = (1...22).map { index in
             #"{"rank":\#(index),"modelKey":"arena-model-\#(index)","modelDisplayName":"Arena Model \#(index)","modelOrganization":"Maker","rating":\#(2000-index)}"#
         }
@@ -64,7 +64,7 @@ struct HTMLLeaderboardParserTests {
         let expected = try #require(formatter.date(from: "2026-09-11T19:00:00.000Z"))
 
         #expect((leaderboard.sourceUpdatedAt) == (expected))
-        #expect((leaderboard.entries.count) == (20))
+        #expect((leaderboard.entries.count) == (22))
         #expect((leaderboard.entries.first?.name) == ("Arena Model 1"))
         #expect((leaderboard.entries.first?.score) == (1999))
         #expect((leaderboard.entries.first?.modelID) == ("arena-model-1"))
@@ -84,7 +84,7 @@ struct HTMLLeaderboardParserTests {
 
         #expect((leaderboard.kind) == (.arenaTextToImage))
         #expect((leaderboard.title) == ("Arena | 文生图"))
-        #expect((leaderboard.entries.count) == (20))
+        #expect((leaderboard.entries.count) == (22))
         #expect((leaderboard.entries.first?.name) == ("Image Model 1"))
         #expect((leaderboard.entries.first?.score) == (1299))
     }
@@ -105,7 +105,7 @@ struct HTMLLeaderboardParserTests {
         #expect((leaderboard.kind) == (.artificialAnalysisTextToImage))
         #expect((leaderboard.title) == ("Artificial Analysis | 文生图"))
         #expect((leaderboard.sourceUpdatedAt) == nil)
-        #expect((leaderboard.entries.count) == (20))
+        #expect((leaderboard.entries.count) == (22))
         #expect((leaderboard.entries.first?.name) == ("Image Model 1"))
         #expect((leaderboard.entries.first?.score) == (1199))
         #expect((leaderboard.entries.first?.logoURL?.absoluteString) == ("https://artificialanalysis.ai/img/logos/maker.svg"))
@@ -148,7 +148,7 @@ struct HTMLLeaderboardParserTests {
         let leaderboard = try HTMLLeaderboardParser.artificialAnalysisTextToImage(fromHTML: html)
 
         #expect((leaderboard.sourceUpdatedAt) == (try expectedDate("2026-09-22T08:09:10.111Z")))
-        #expect((leaderboard.entries.count) == (20))
+        #expect((leaderboard.entries.count) == (22))
     }
 
     @Test(.enabled(if: FileManager.default.fileExists(atPath: savedLeaderboardFixtureURL("artificial-analysis.html")), "Optional saved HTML snapshot"))
@@ -159,7 +159,7 @@ struct HTMLLeaderboardParserTests {
 
         let leaderboard = try HTMLLeaderboardParser.artificialAnalysis(fromHTML: html)
 
-        #expect((leaderboard.entries.count) == (20))
+        #expect(leaderboard.entries.count >= 20)
         #expect(leaderboard.entries.first!.score > leaderboard.entries.last!.score)
         #expect((leaderboard.sourceNote) != nil)
     }
@@ -172,7 +172,7 @@ struct HTMLLeaderboardParserTests {
 
         let leaderboard = try HTMLLeaderboardParser.arenaWebDev(fromHTML: html)
 
-        #expect((leaderboard.entries.count) == (20))
+        #expect(leaderboard.entries.count >= 20)
         #expect(leaderboard.entries.first!.score > leaderboard.entries.last!.score)
         #expect((leaderboard.sourceUpdatedAt) != nil)
     }
