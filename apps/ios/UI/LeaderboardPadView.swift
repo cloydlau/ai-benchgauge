@@ -138,6 +138,7 @@ public struct LeaderboardPadView: View {
     private let appStoreURL: URL?
 
     @StateObject private var cube = LeaderboardCubeState()
+    @GestureState private var cubeDragAxis = LeaderboardCube.DragAxis.undecided
     public init(store: LeaderboardPadStore,
                 appStoreID: String? = Bundle.main.object(forInfoDictionaryKey: "BenchGaugeAppStoreID") as? String) {
         self.store = store
@@ -584,11 +585,14 @@ public struct LeaderboardPadView: View {
             .onDisappear { cancelCubeEntrance() }
             .onChange(of: geometry.size) { if cube.dragging { turnCube(to: cube.face) } }
             .contentShape(Rectangle())
-            .simultaneousGesture(DragGesture(minimumDistance: 16)
+            .simultaneousGesture(DragGesture(minimumDistance: 8)
+                .updating($cubeDragAxis) { value, axis, _ in
+                    axis = LeaderboardCube.dragAxis(current: axis, x: value.translation.width, y: value.translation.height)
+                }
                 .onChanged { value in
                     cancelCubeEntrance()
                     guard !cube.turning else { return }
-                    guard cube.dragging || LeaderboardCube.isHorizontal(x: value.translation.width, y: value.translation.height) else { return }
+                    guard LeaderboardCube.dragAxis(current: cubeDragAxis, x: value.translation.width, y: value.translation.height) == .horizontal else { return }
                     cube.dragging = true
                     if !usesReducedMotion {
                         cube.position = LeaderboardCube.position(face: cube.face, translation: value.translation.width, width: geometry.size.width)
@@ -599,6 +603,11 @@ public struct LeaderboardPadView: View {
                     turnCube(to: LeaderboardCube.destination(face: cube.face, translation: value.translation.width,
                                                              predicted: value.predictedEndTranslation.width, width: geometry.size.width))
                 })
+            .onChange(of: cubeDragAxis) { _, axis in
+                // GestureState also resets on cancellation, so the next touch
+                // starts fresh and an interrupted turn returns to its face.
+                if axis == .undecided && cube.dragging { turnCube(to: cube.face) }
+            }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("cube-viewport")
             .accessibilityLabel(LeaderboardPresentation.title(store.category, language: store.language))
@@ -690,8 +699,14 @@ public struct LeaderboardPadView: View {
                         // Zero identifies the full card's top, including its
                         // source and column headers. Only align a ranking row
                         // once the user has actually scrolled past that top.
+                        // The pinned header covers part of the scroll viewport.
+                        // Compare the first row below it, rather than a hidden row.
+                        let heading = frames[-1]
+                        cube.columnHeaderHeight = heading.map { $0.maxY - $0.minY } ?? 0
                         let rank = (frames[0]?.minY ?? -.infinity) >= -1 ? 0
-                            : LeaderboardCube.visibleRank(frames.filter { $0.key > 0 }, height: size.height)
+                            : LeaderboardCube.visibleRank(frames.filter { $0.key > 0 }, height: size.height,
+                                topInset: cube.columnHeaderHeight)
+                        if let rank, let row = frames[rank] { cube.comparisonRowHeight = row.maxY - row.minY }
                         if cube.rank != rank { cube.rank = rank }
                     }
                 }
@@ -701,7 +716,10 @@ public struct LeaderboardPadView: View {
                         // before rotating it into view; never animate the scroll.
                         var transaction = Transaction(); transaction.disablesAnimations = true
                         let target: PadComparisonScrollTarget = rank == 0 ? .top : .rank(rank)
-                        withTransaction(transaction) { proxy.scrollTo(target, anchor: .top) }
+                        let inset = cube.columnHeaderHeight + 4
+                        let anchor = rank == 0 ? UnitPoint.top : UnitPoint(x: 0.5,
+                            y: min(1, inset / max(1, size.height - cube.comparisonRowHeight)))
+                        withTransaction(transaction) { proxy.scrollTo(target, anchor: anchor) }
                     }
                 }
                 .refreshable { await store.refresh(force: true) }
@@ -1211,15 +1229,17 @@ private struct PadBoardCard: View {
             }
         }.font(.caption)
     }
-    private var cardContent: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 8) {
-                if isImage {
-                    Text(LeaderboardPresentation.title(kind, language: language))
-                        .font(.subheadline.weight(.medium)).foregroundStyle(primaryForeground)
-                }
-                sourceMetadata
-            }.padding(.horizontal, columnPadding).padding(.vertical, 12)
+    private var cardMetadata: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if isImage {
+                Text(LeaderboardPresentation.title(kind, language: language))
+                    .font(.subheadline.weight(.medium)).foregroundStyle(primaryForeground)
+            }
+            sourceMetadata
+        }.padding(.horizontal, columnPadding).padding(.vertical, 12)
+    }
+    private var columnHeader: some View {
+        VStack(spacing: 0) {
             HStack(spacing: columnSpacing) {
                 Text(tr("Rank", "排名")).lineLimit(1).frame(width: rankColumnWidth)
                 Text(kind.sourceLinkTitle)
@@ -1264,35 +1284,67 @@ private struct PadBoardCard: View {
             }.font(columnHeaderFont).foregroundStyle(secondaryForeground).padding(.horizontal, columnPadding)
                 .padding(.top, 12).padding(.bottom, 8)
             Divider()
-            if board != nil {
-                if rows.isEmpty { Text("-").foregroundStyle(.secondary).padding(16) }
-                if isImage {
-                    // Exports need the entire image, including offscreen rows.
-                    PadBoardRowsLayout {
-                        ForEach(rows.indices, id: \.self) { index in rankingRow(rows[index], index: index) }
+        }
+        .background(isImage ? (displayScheme == .dark ? Color.black : Color.white) : Color.padCard)
+        .background {
+            if compact && !isImage {
+                GeometryReader { geometry in
+                    let frame = geometry.frame(in: .named("rank-scroll-\(kind.rawValue)"))
+                    Color.clear.preference(key: LeaderboardRankFrames.self,
+                        value: [-1: LeaderboardRankFrame(minY: frame.minY, maxY: frame.maxY)])
+                }
+            }
+        }
+    }
+    @ViewBuilder private var cardRows: some View {
+        if board != nil {
+            if rows.isEmpty { Text("-").foregroundStyle(.secondary).padding(16) }
+            if isImage {
+                // Exports need the entire image, including offscreen rows.
+                PadBoardRowsLayout {
+                    ForEach(rows.indices, id: \.self) { index in rankingRow(rows[index], index: index) }
+                }
+            } else {
+                // Keep the existing measured heading gap from the first two
+                // rows. All remaining live rows are created near the viewport.
+                PadBoardRowsLayout {
+                    ForEach(rows.indices.prefix(2), id: \.self) { index in rankingRow(rows[index], index: index) }
+                }
+                LazyVStack(spacing: 0) {
+                    ForEach(rows.indices.dropFirst(2), id: \.self) { index in
+                        rankingRow(rows[index], index: index)
                     }
-                } else {
-                    // Keep the existing measured heading gap from the first two
-                    // rows. All remaining live rows are created near the viewport.
-                    PadBoardRowsLayout {
-                        ForEach(rows.indices.prefix(2), id: \.self) { index in rankingRow(rows[index], index: index) }
-                    }
-                    LazyVStack(spacing: 0) {
-                        ForEach(rows.indices.dropFirst(2), id: \.self) { index in
-                            rankingRow(rows[index], index: index)
-                        }
+                }
+            }
+        } else {
+            ForEach(1...20, id: \.self) { rank in
+                HStack(spacing: columnSpacing) {
+                    Text(LeaderboardPresentation.rankLabel(rank)).frame(width: rankColumnWidth)
+                    Spacer()
+                    countryColumn { Text("-") }
+                    opennessColumn { Text("—").font(.caption) }
+                    scoreColumn { Text("-") }
+                }
+                    .font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, columnPadding).padding(.vertical, 8)
+            }
+        }
+    }
+    private var cardContent: some View {
+        Group {
+            if compact && !isImage {
+                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    cardMetadata
+                    Section {
+                        cardRows
+                    } header: {
+                        columnHeader
                     }
                 }
             } else {
-                ForEach(1...20, id: \.self) { rank in
-                    HStack(spacing: columnSpacing) {
-                        Text(LeaderboardPresentation.rankLabel(rank)).frame(width: rankColumnWidth)
-                        Spacer()
-                        countryColumn { Text("-") }
-                        opennessColumn { Text("—").font(.caption) }
-                        scoreColumn { Text("-") }
-                    }
-                        .font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, columnPadding).padding(.vertical, 8)
+                VStack(alignment: .leading, spacing: 0) {
+                    cardMetadata
+                    columnHeader
+                    cardRows
                 }
             }
         }

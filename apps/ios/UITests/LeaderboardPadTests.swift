@@ -717,8 +717,77 @@ final class LeaderboardPhoneTests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
     }
     override func tearDownWithError() throws {
-        app.terminate()
-        XCUIDevice.shared.orientation = .portrait
+        // Avoid asking SpringBoard to idle for operations already completed by
+        // a test; redundant orientation resets can stall simulator teardown.
+        if app.state != .notRunning { app.terminate() }
+        if XCUIDevice.shared.orientation != .portrait { XCUIDevice.shared.orientation = .portrait }
+    }
+    func testColumnHeadersStayPinnedAndFiltersRemainUsable() {
+        let entries = (1...60).map { ["rank": $0, "name": "Fixture Model \($0)",
+            "score": 100 - $0, "organization": "Fixture Maker \($0)"] as [String: Any] }
+        app.launchEnvironment["BENCHGAUGE_UI_MODEL_ENTRIES"] = String(data: try! JSONSerialization.data(withJSONObject: entries), encoding: .utf8)
+        for dark in [false, true] {
+            app.launchArguments = ["--ui-testing", "--full-board", "--reduce-motion"]
+                + (dark ? ["--dark", "--preview-zh", "--preview-companies"] : [])
+            app.launch()
+            waitForFace("artificialAnalysis")
+            let viewport = app.otherElements["cube-viewport"]
+            var comparisonRank: Int?
+            for face in [0, 1] {
+                if face == 1 {
+                    swipe(left: true)
+                    XCTAssertTrue(app.otherElements["board-arenaText"].waitForExistence(timeout: 10))
+                    if let rank = comparisonRank {
+                        let row = app.buttons["name-arenaText-\(rank)"]
+                        XCTAssertTrue(row.waitForExistence(timeout: 5))
+                        XCTAssertTrue(row.isHittable)
+                        XCTAssertGreaterThanOrEqual(row.frame.minY,
+                            app.buttons["country-arenaText"].frame.maxY,
+                            "The compared rank must not disappear behind the pinned header")
+                    }
+                }
+                let kind = face == 0 ? "artificialAnalysis" : "arenaText"
+                let country = app.buttons["country-" + kind]
+                // A first gesture can finish launch-time layout; scroll far enough
+                // to pass the metadata before checking the pinned position.
+                for _ in 0..<3 {
+                    viewport.swipeUp()
+                    if country.frame.maxY < viewport.frame.minY + 65 { break }
+                }
+                let openness = app.buttons["openness-filter-" + kind]
+                XCTAssertTrue(country.isHittable, "The pinned country filter must remain tappable")
+                XCTAssertTrue(openness.isHittable)
+                XCTAssertGreaterThanOrEqual(country.frame.minY, viewport.frame.minY - 1)
+                XCTAssertLessThan(country.frame.maxY, viewport.frame.minY + 65)
+                let pinnedY = country.frame.minY
+                viewport.swipeUp()
+                XCTAssertEqual(country.frame.minY, pinnedY, accuracy: 2)
+                if face == 0 {
+                    let top = country.frame.maxY + 12
+                    let bottom = viewport.frame.maxY
+                    let names = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "name-artificialAnalysis-")).allElementsBoundByIndex
+                    comparisonRank = names.first { row in
+                        let frame = row.frame
+                        return frame.minY >= top && frame.maxY <= bottom && row.isHittable
+                    }.flatMap { Int($0.identifier.split(separator: "-").last ?? "") }
+                    XCTAssertNotNil(comparisonRank)
+                }
+                capture("pinned-\(dark ? "dark-company" : "light-model")-\(kind)")
+                if face == 1 {
+                    openness.tap()
+                    let all = app.buttons["openness-option-" + kind + "-all"]
+                    XCTAssertTrue(all.waitForExistence(timeout: 5))
+                    all.tap()
+                    XCTAssertTrue(country.isHittable)
+                }
+            }
+            // Selecting a filter intentionally resets the comparison to the top.
+            let first = app.buttons["name-arenaText-1"]
+            XCTAssertTrue(first.waitForExistence(timeout: 5))
+            XCTAssertTrue(first.isHittable)
+            capture("pinned-\(dark ? "dark-company" : "light-model")-returned")
+            app.terminate()
+        }
     }
     func testSwipeAndTapBothFacesThenRefresh() {
         app.launch()
@@ -754,6 +823,27 @@ final class LeaderboardPhoneTests: XCTestCase {
         waitForFace("codeArenaWebDev")
         XCTAssertEqual(app.buttons["country-codeArenaWebDev"].value as? String, "All countries")
         capture("iphone-independent-filter")
+    }
+    func testDiagonalScrollingDoesNotSwitchSourcesAndNextHorizontalSwipeWorks() {
+        app.launchArguments += ["--full-board"]
+        app.launch()
+        waitForFace("artificialAnalysis")
+        let viewport = app.otherElements["cube-viewport"]
+        for (startX, endX) in [(0.8, 0.2), (0.2, 0.8)] {
+            let start = viewport.coordinate(withNormalizedOffset: CGVector(dx: startX, dy: 0.75))
+            let end = viewport.coordinate(withNormalizedOffset: CGVector(dx: endX, dy: 0.75))
+                .withOffset(CGVector(dx: 0, dy: -viewport.frame.width * 0.4))
+            start.press(forDuration: 0.08, thenDragTo: end)
+            XCTAssertTrue(app.buttons["face-0"].isSelected)
+            XCTAssertFalse(app.otherElements["board-arenaText"].exists)
+        }
+        XCTAssertFalse(app.buttons["name-artificialAnalysis-1"].isHittable,
+                       "Diagonal drags must still scroll the native list")
+        capture("iphone-diagonal-scroll-retains-source")
+        swipe(left: true)
+        XCTAssertTrue(app.otherElements["board-arenaText"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["face-1"].isSelected)
+        capture("iphone-horizontal-switch-after-scroll")
     }
     @MainActor
     func testLongPressTruncatedNameShowsBubbleWithoutCopying() {
