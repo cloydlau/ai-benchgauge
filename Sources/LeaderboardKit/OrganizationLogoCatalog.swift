@@ -1,20 +1,20 @@
 import Foundation
 
-/// Bundled marks and row colors for leaderboard organizations.
-/// Icons are packaged PNGs (official favicons or Iconify), because remote
-/// leaderboard logos are often SVG and will not render in `NSImage`.
+/// Shared and bundled marks and row colors for leaderboard organizations.
+/// Shared service converts source logos to PNG; bundled icons remain available
+/// when the source has no logo or the service cannot acquire one.
 /// Purchase-link keys are separate: Alibaba links stay under `alibaba`.
 public enum OrganizationLogoCatalog {
     /// Canonical logo key.
     /// A present organization wins, unless the label is a coding-agent
     /// `Harness - Model` pair and the model belongs to another company.
     /// Otherwise Claude Code - Qwen3.8 Max is painted with Anthropic's mark.
-    /// An empty organization falls back to a Devin name prefix, which is the
-    /// only board that omits it. That fallback keeps the Devin mark. The row
-    /// wash is separate and follows the lead model.
+    /// Missing organizations can reuse a known hosted-model family. A Devin
+    /// name prefix keeps the Devin mark; its row wash still follows the lead.
+    /// Other ambiguous names do not imply a manufacturer.
     public static func resolvedKey(organization: String?, modelName: String? = nil) -> String? {
         let organizationKey = normalizedKey(organization ?? "")
-        if !organizationKey.isEmpty {
+        if !organizationKey.isEmpty && !["unknown", "other", "na", "none"].contains(organizationKey) {
             if let hosted = hostedModelKey(from: modelName), hosted != organizationKey {
                 return hosted
             }
@@ -24,7 +24,7 @@ public enum OrganizationLogoCatalog {
         if inferred.hasPrefix("devin") {
             return "devin"
         }
-        return nil
+        return hostedModelKey(from: modelName)
     }
 
     /// The developer of the lead model may differ from the organization
@@ -66,24 +66,7 @@ public enum OrganizationLogoCatalog {
         return nil
     }
 
-    private static let modelFamilies: [(family: String, key: String)] = [
-        ("deepseek", "deepseek"),
-        ("minimax", "minimax"),
-        ("stepfun", "stepfun"),
-        ("gemini", "google"),
-        ("chatgpt", "openai"),
-        ("claude", "anthropic"),
-        ("fable", "anthropic"),
-        ("opus", "anthropic"),
-        ("sonnet", "anthropic"),
-        ("haiku", "anthropic"),
-        ("qwen", "qwen"),
-        ("kimi", "kimi"),
-        ("grok", "spacexai"),
-        ("muse", "meta"),
-        ("glm", "zai"),
-        ("gpt", "openai")
-    ]
+    private static let modelFamilies = LeaderboardBrandPolicy.modelFamilies
 
     /// Alias-normalized key for an organization string or a remote logo-map key.
     /// Does not infer from model names. Empty input returns an empty string.
@@ -92,20 +75,7 @@ public enum OrganizationLogoCatalog {
             .lowercased()
             .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
             .joined()
-        switch words {
-        case "moonshot", "moonshotai":
-            return "kimi"
-        case "xai":
-            return "spacexai"
-        case "alibaba", "alibabaath", "qwen":
-            return "qwen"
-        case "bytedanceseed":
-            return "bytedance"
-        case "lumaai", "lumalabs":
-            return "luma"
-        default:
-            return words
-        }
+        return LeaderboardBrandPolicy.aliases[words] ?? words
     }
 
     /// Organization keys that have a logo bundled under Resources/logos/<key>.png.
@@ -125,6 +95,50 @@ public enum OrganizationLogoCatalog {
     public static func brandColorHex(forOrganization organization: String?, modelName: String? = nil) -> String? {
         guard let key = developerKey(organization: organization, modelName: modelName) else { return nil }
         return brandColors[key]
+    }
+
+    /// Prefer established brand hues, then shared extracted color, then a stable wash.
+    public static func rowBrandColorHex(for entry: LeaderboardEntry) -> String {
+        if let brand = entry.brand, brand.key.hasPrefix("model-"),
+           brand.validPNGData != nil, brand.colorHex.count == 7, brand.colorHex.first == "#",
+           UInt32(brand.colorHex.dropFirst(), radix: 16) != nil { return brand.colorHex }
+        if let known = brandColorHex(forOrganization: entry.organization, modelName: entry.name) { return known }
+        if let brand = entry.brand,
+           brand.key == (resolvedKey(organization: entry.organization, modelName: entry.name) ?? ""),
+           brand.colorHex.count == 7, brand.colorHex.first == "#",
+           UInt32(brand.colorHex.dropFirst(), radix: 16) != nil { return brand.colorHex }
+        return fallbackColorHex(for: resolvedKey(organization: entry.organization, modelName: entry.name) ?? entry.name)
+    }
+
+    /// A provider PNG must not replace a bundled product mark. Explicit model
+    /// assets still win, and company standings retain the provider's image.
+    /// Returning nil lets each native renderer use its bundled logo fallback.
+    public static func rowLogoPNGData(for entry: LeaderboardEntry, isCompany: Bool = false) -> Data? {
+        let data = entry.brand?.validPNGData
+        guard !isCompany, entry.brand?.key.hasPrefix("model-") != true,
+              let key = bundledLogoKey(forOrganization: entry.organization, modelName: entry.name),
+              bundledModelMarks.contains(key) else { return data }
+        let tokens = entry.name.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+        if tokens.contains(where: { modelFamilyKey(for: String($0)) == key }) { return nil }
+        return data
+    }
+
+    // These bundled images are product marks, rather than manufacturer marks.
+    private static let bundledModelMarks = LeaderboardBrandPolicy.bundledModelMarks
+
+    public static func fallbackColorHex(for name: String) -> String {
+        var hash: UInt32 = 2_166_136_261
+        for byte in normalizedKey(name).utf8 { hash = (hash ^ UInt32(byte)) &* 16_777_619 }
+        return ["#607D8B", "#4F6DCD", "#8C6BB1", "#318F7A", "#A5683A", "#B55C7B", "#5A87A1", "#737D3C"][Int(hash % 8)]
+    }
+
+    public static func initial(organization: String?, modelName: String) -> String {
+        let key = resolvedKey(organization: organization, modelName: modelName)
+        let label = organization?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let text: String
+        if let key { text = !label.isEmpty && normalizedKey(label) == key ? label : key }
+        else { text = modelName }
+        return text.first(where: { $0.isLetter || $0.isNumber }).map { String($0).uppercased() } ?? "?"
     }
 
     /// Black, white, or gray ink. Channel spread, so a near-black mark is not

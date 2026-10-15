@@ -74,44 +74,15 @@ public enum CompanyLeaderboard {
     /// normalizes to the key. A harness name is never substituted for a
     /// hosted-model override, because that organization does not normalize to
     /// the model company's key.
-    private static let canonicalNames: [String: String] = [
-        "anthropic": "Anthropic",
-        "openai": "OpenAI",
-        "qwen": "Alibaba",
-        "zai": "Z.ai",
-        "spacexai": "xAI",
-        "stepfun": "StepFun",
-        "kimi": "Moonshot",
-        "google": "Google",
-        "deepseek": "DeepSeek",
-        "tencent": "Tencent",
-        "meta": "Meta",
-        "minimax": "MiniMax",
-        "mistral": "Mistral",
-        "nvidia": "Nvidia",
-        "bytedance": "ByteDance",
-        "xiaomi": "Xiaomi",
-        "klingai": "KlingAI",
-        "krea": "Krea",
-        "ideogram": "Ideogram",
-        "runway": "Runway",
-        "luma": "Luma",
-        "blackforestlabs": "Black Forest Labs",
-        "fal": "Fal",
-        "pixverse": "PixVerse",
-        "microsoftai": "Microsoft AI",
-        "opencode": "OpenCode",
-        "devin": "Devin",
-        "reve": "Reve",
-        "videorebirth": "Video Rebirth",
-        "thinkingmachines": "Thinking Machines",
-    ]
+    private static let canonicalNames = LeaderboardBrandPolicy.companyNames
 
     private struct Aggregate {
         var name: String
         var score: Double
         var bestRank: Int
         var logoURL: URL?
+        var brand: OrganizationBrand?
+        var developerCountry: OrganizationCountryMetadata?
         var components: [CompanyStandingComponent]
     }
 
@@ -130,6 +101,8 @@ public enum CompanyLeaderboard {
             score: flagship.score,
             bestRank: flagship.rank,
             logoURL: flagship.logoURL,
+            brand: flagship.organizationBrand ?? flagship.brand,
+            developerCountry: ordered.compactMap(\.developerCountry).first { $0.key == key && $0.countryCode != nil },
             components: components
         )
     }
@@ -141,7 +114,7 @@ public enum CompanyLeaderboard {
         return lhs.name < rhs.name
     }
 
-    private static func displayName(key: String, best: LeaderboardEntry?) -> String {
+    static func displayName(key: String, best: LeaderboardEntry?) -> String {
         if let canonical = canonicalNames[key] {
             return canonical
         }

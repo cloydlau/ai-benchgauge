@@ -1,0 +1,146 @@
+{
+  "qwen": {
+    "countryCode": "CN",
+    "source": "existing-catalog"
+  },
+  "zai": {
+    "countryCode": "CN",
+    "source": "existing-catalog"
+  },
+  "stepfun": {
+    "countryCode": "CN",
+    "source": "existing-catalog"
+  },
+  "kimi": {
+    "countryCode": "CN",
+    "source": "existing-catalog"
+  },
+  "deepseek": {
+    "countryCode": "CN",
+    "source": "existing-catalog"
+  },
+  "tencent": {
+    "countryCode": "CN",
+    "source": "existing-catalog"
+  },
+  "minimax": {
+    "countryCode": "CN",
+    "source": "existing-catalog"
+  },
+  "bytedance": {
+    "countryCode": "CN",
+    "source": "existing-catalog"
+  },
+  "xiaomi": {
+    "countryCode": "CN",
+    "source": "existing-catalog"
+  },
+  "klingai": {
+    "countryCode": "CN",
+    "source": "existing-catalog"
+  },
+  "sandai": {
+    "countryCode": "CN",
+    "sourceURL": "https://static.cninfo.com.cn/finalpage/2026-09-29/1225587991.PDF",
+    "source": "verified-disclosure"
+  },
+  "anthropic": {
+    "countryCode": "US",
+    "source": "existing-catalog"
+  },
+  "openai": {
+    "countryCode": "US",
+    "source": "existing-catalog"
+  },
+  "spacexai": {
+    "countryCode": "US",
+    "source": "existing-catalog"
+  },
+  "google": {
+    "countryCode": "US",
+    "source": "existing-catalog"
+  },
+  "meta": {
+    "countryCode": "US",
+    "source": "existing-catalog"
+  },
+  "nvidia": {
+    "countryCode": "US",
+    "source": "existing-catalog"
+  },
+  "microsoftai": {
+    "countryCode": "US",
+    "source": "existing-catalog"
+  },
+  "krea": {
+    "countryCode": "US",
+    "source": "existing-catalog"
+  },
+  "runway": {
+    "countryCode": "US",
+    "source": "existing-catalog"
+  },
+  "luma": {
+    "countryCode": "US",
+    "source": "existing-catalog"
+  },
+  "fal": {
+    "countryCode": "US",
+    "source": "existing-catalog"
+  },
+  "opencode": {
+    "countryCode": "US",
+    "source": "existing-catalog"
+  },
+  "devin": {
+    "countryCode": "US",
+    "source": "existing-catalog"
+  },
+  "reve": {
+    "countryCode": "US",
+    "source": "existing-catalog"
+  },
+  "thinkingmachines": {
+    "countryCode": "US",
+    "source": "existing-catalog"
+  },
+  "github": {
+    "countryCode": "US",
+    "source": "existing-catalog"
+  },
+  "ideogram": {
+    "countryCode": "CA",
+    "source": "existing-catalog"
+  },
+  "mistral": {
+    "countryCode": "FR",
+    "source": "existing-catalog"
+  },
+  "blackforestlabs": {
+    "countryCode": "DE",
+    "source": "existing-catalog"
+  },
+  "pixverse": {
+    "countryCode": "SG",
+    "source": "existing-catalog"
+  },
+  "videorebirth": {
+    "countryCode": "SG",
+    "source": "existing-catalog"
+  },
+  "utopaistudios": {
+    "countryCode": "US",
+    "sourceURL": "https://www.utopaistudios.com/en/about",
+    "source": "official"
+  },
+  "skyworkai": {
+    "countryCode": "SG",
+    "sourceURL": "https://static.skywork.ai/fe/skywork-site-assets/html/agreement/web-20250923/PrivacyPolicy.html",
+    "source": "official"
+  },
+  "sapiensai": {
+    "countryCode": "SG",
+    "sourceURL": "https://www.eznewswire.com/newsroom/agnes-ai-singapore-first-lab-global-benchmark-leaderboard",
+    "source": "official"
+  }
+}
