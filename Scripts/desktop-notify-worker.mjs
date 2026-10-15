@@ -62,15 +62,13 @@ export function ensureNotificationApp(kind, directory) {
     run('/usr/bin/codesign', ['--force', '--sign', '-', '--identifier', `org.calmmit.notify.${kind}`, compiledBinary])
     writeFileSync(join(compiled, 'Contents', 'Resources', 'notification-revision'), revision)
     run('/usr/bin/codesign', ['--force', '--sign', '-', compiled])
-    if (current()) return app
-    renameSync(compiled, app)
-    return app
+    if (!current()) renameSync(compiled, app)
   } catch (error) {
-    if (current()) return app
-    throw error
+    if (!current()) throw error
   } finally {
     rmSync(staging, { recursive: true, force: true })
   }
+  return app
 }
 
 function appDirectories() {
