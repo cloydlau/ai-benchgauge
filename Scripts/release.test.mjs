@@ -9,6 +9,30 @@ import test from 'node:test'
 import { compareVersions, feedURL, releaseVersion, renderAppcast, renderHomebrewCask, signArchive, signingKey, validateRelease } from './release-lib.mjs'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
+test('release publishing accepts deliberately disabled Windows and requires every enabled build and human review', () => {
+  const workflow = readFileSync(join(root, '.github/workflows/release.yml'), 'utf8')
+  const expression = workflow.split('  publish:\n')[1].split('    if: >-\n')[1].split('    runs-on:')[0].trim().slice(3, -2).trim()
+  // This condition uses the common JS/GitHub boolean-expression subset.
+  const canPublish = new Function('needs', 'cancelled', `return (${expression})`)
+  for (const enabled of ['true', 'false']) {
+    const needs = {
+      configuration: { result: 'success', outputs: { windows_enabled: enabled } },
+      macos: { result: 'success' }, visual: { result: 'success' },
+      windows: { result: enabled === 'true' ? 'success' : 'skipped' },
+    }
+    assert.equal(canPublish(needs, () => false), true)
+    assert.equal(canPublish(needs, () => true), false)
+    for (const job of ['configuration', 'macos', 'visual']) {
+      for (const result of ['failure', 'cancelled', 'skipped']) {
+        assert.equal(canPublish({ ...needs, [job]: { ...needs[job], result } }, () => false), false)
+      }
+    }
+    for (const result of ['success', 'failure', 'cancelled', 'skipped']) {
+      assert.equal(canPublish({ ...needs, windows: { result } }, () => false), result === needs.windows.result)
+    }
+    assert.equal(canPublish({ ...needs, configuration: { result: 'success', outputs: {} } }, () => false), false)
+  }
+})
 function keys() {
   const { privateKey, publicKey } = generateKeyPairSync('ed25519')
   return { privateKey, publicKey,

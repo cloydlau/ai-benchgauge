@@ -41,8 +41,9 @@ Mac 缓存路径保持兼容；Windows 缓存、设置和独立授权位于
 
 两端共用 `config/app.json` 的稳定版本和 Ed25519 公钥。
 `bump-version.mjs` 同步更新 Mac Info.plist，WPF 从配置读取版本号。
-每次发布先独立测试、构建，全部成功后才公开同一份 Release；
-Mac 发布 `.dmg`，Windows 发布 `-setup.exe`，更新器按平台读取自己的清单。
+每次发布先测试、构建启用发布的平台，全部成功并通过人工视觉审核后才公开同一份 Release。
+Mac 发布 `.dmg`；Windows 的 `-setup.exe` 和更新清单当前由 `releaseWindows: false` 暂停发布，
+其源码与普通 CI 检查保留。恢复开关后，更新器按平台读取自己的清单。
 
 ## 榜单供应商与余量查询范围
 

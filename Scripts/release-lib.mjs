@@ -37,7 +37,7 @@ export function validateRelease(tag, info, published = []) {
 }
 
 export function decodePublicKey(encoded) {
-  if (!/^[A-Za-z0-9+/]{43}=$/.test(encoded ?? '') || Buffer.from(encoded, 'base64').length !== 32) {
+  if (!/^[A-Za-z0-9+/]{43}=$/.test(encoded ?? '')) {
     throw new Error('Configure SUPublicEDKey before publishing a release')
   }
   return Buffer.from(encoded, 'base64')

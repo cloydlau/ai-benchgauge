@@ -9,11 +9,33 @@ concurrency:
   group: stable-release
   cancel-in-progress: false
 jobs:
+  configuration:
+    runs-on: ubuntu-24.04
+    outputs:
+      windows_enabled: ${{ steps.platforms.outputs.windows_enabled }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - id: platforms
+        name: Read release platforms
+        run: |
+          node --input-type=module <<'JS'
+          import { appendFileSync } from 'node:fs'
+          import { readAppConfig } from './Scripts/app-config.mjs'
+          const config = readAppConfig(process.cwd())
+          appendFileSync(process.env.GITHUB_OUTPUT, `windows_enabled=${config.releaseWindows !== false}\n`)
+          JS
   visual:
     uses: ./.github/workflows/visual-parity.yml
     with:
       require_review: true
   windows:
+    needs: configuration
+    if: needs.configuration.outputs.windows_enabled == 'true'
     uses: ./.github/workflows/windows-build.yml
     secrets:
       CALMMIT_SSH_KEY: ${{ secrets.CALMMIT_SSH_KEY }}
@@ -137,7 +159,14 @@ jobs:
         run: |
           if [ -f "$RUNNER_TEMP/release.keychain-db" ]; then security delete-keychain "$RUNNER_TEMP/release.keychain-db"; fi
   publish:
-    needs: [macos, windows, visual]
+    needs: [macos, windows, visual, configuration]
+    # A deliberately skipped Windows package must not skip the Mac release.
+    # All enabled builds and the protected human visual review must succeed.
+    if: >-
+      ${{ !cancelled() && needs.configuration.result == 'success'
+          && needs.macos.result == 'success' && needs.visual.result == 'success'
+          && ((needs.configuration.outputs.windows_enabled == 'true' && needs.windows.result == 'success')
+              || (needs.configuration.outputs.windows_enabled == 'false' && needs.windows.result == 'skipped')) }}
     runs-on: macos-15
     timeout-minutes: 15
     steps:
@@ -153,7 +182,7 @@ jobs:
           pattern: '*-release'
           path: outputs/release/
           merge-multiple: true
-      - name: Verify both installers and sign Windows update metadata
+      - name: Verify enabled installers and generate release metadata
         run: node Scripts/complete-release.mjs
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
@@ -162,7 +191,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$RELEASE_TAG" outputs/release/*.dmg outputs/release/*.exe outputs/release/appcast.xml outputs/release/windows-update.json outputs/release/windows-update.json.sig outputs/release/ai-benchgauge.rb outputs/release/SHA256SUMS.txt --verify-tag --draft --title "AI BenchGauge $RELEASE_TAG" --notes-file outputs/release/release-notes.md
+          assets=(outputs/release/SHA256SUMS.txt)
+          while read -r checksum name; do assets+=("outputs/release/$name"); done < outputs/release/SHA256SUMS.txt
+          gh release create "$RELEASE_TAG" "${assets[@]}" --verify-tag --draft --title "AI BenchGauge $RELEASE_TAG" --notes-file outputs/release/release-notes.md
           gh release edit "$RELEASE_TAG" --draft=false --latest
       - name: Publish Homebrew cask
         env:

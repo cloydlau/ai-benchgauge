@@ -1,8 +1,10 @@
 # macOS / Windows 更新与发版
 
-每个版本发布两种安装格式：Mac 通用 `.dmg` 与 Windows x64 `-setup.exe`。
-两端共用 `config/app.json` 的版本号和更新公钥。只有两边的构建都成功，
-汇总任务才创建草稿 Release 并公开，避免用户收到缺少某个平台的版本。
+当前暂停 Windows 发布：`config/app.json` 的 `releaseWindows` 为 `false`，
+标签发布只生成 Mac 通用 `.dmg`、Mac 更新清单、Homebrew Cask 和校验和。
+Windows 源码、普通 CI 构建、测试与原生视觉检查保留；恢复发布时将此开关改为 `true`。
+两端共用该配置的版本号和更新公钥。所有启用发布的平台构建成功并通过人工视觉审核后，
+汇总任务才创建草稿 Release 并公开。未设置此开关的旧配置继续发布两端。
 
 两端在启动时及运行期间每 24 小时自动检查稳定版，无需用户配置。发现新版后直接在后台下载，
 不会显示下载前的确认框，也不会激活、打开隐藏的应用窗口。下载准备完成且应用窗口激活时，
@@ -85,15 +87,17 @@ git push origin v1.0.1
 推送 `v*` 标签会运行 `.github/workflows/release.yml`：
 
 1. 检查标签来自 `main`，与应用版本、构建版本一致，且高于已发布稳定版。
-2. 分别在 macOS / Windows 执行共享核心测试、脚本和 Windows 验签测试；Windows 还检查原生窗口及打包引擎。
-3. 构建 Apple 芯片与 Intel 通用 `.dmg`、Windows x64 自包含安装 `.exe`，生成含发布说明的更新清单，签名并验证，生成 Homebrew Cask 与 SHA-256 清单。
+2. 执行 macOS 发布检查；启用 `releaseWindows` 时，还执行 Windows 完整构建、验签、原生窗口及打包引擎检查。普通 CI 和双端视觉检查不受该发布开关影响。
+3. 构建 Apple 芯片与 Intel 通用 `.dmg`；启用 Windows 发布时额外构建 x64 自包含安装 `.exe`。生成对应更新清单，签名并验证，生成 Homebrew Cask 与 SHA-256 清单。
 4. 在标签对应提交上生成 Mac / Windows 原生逐帧对照报告，并等待 `native-visual-review` 环境的人工审核；缺帧、来源/尺寸不一致、未配置审核人或审核未通过，都会阻止 publish。
 5. 审核通过且构建完整后，将所有附件上传为 GitHub 草稿 Release，完整上传成功后发布并设为最新稳定版。
 6. 发布成功后，用 GitHub Contents API 把 `Casks/ai-benchgauge.rb` 更新到 `main`，Cask 始终指向当前版本的固定 DMG 地址。
 
 审核方法、覆盖范围与门禁演练见 [双端视觉检查](visual-comparison.md)。在等待审核的作业或 comparison 摘要下载报告，逐帧检查后再批准；机器人不得代替人工批准。
 
-最终附件为 `AI-BenchGauge-版本-macos-universal.dmg`、`AI-BenchGauge-版本-windows-x64-setup.exe`、`appcast.xml`、`windows-update.json`、`windows-update.json.sig`、`ai-benchgauge.rb` 和 `SHA256SUMS.txt`。
+当前最终附件为 `AI-BenchGauge-版本-macos-universal.dmg`、`appcast.xml`、`ai-benchgauge.rb` 和 `SHA256SUMS.txt`。
+启用 Windows 发布后，额外包含 `AI-BenchGauge-版本-windows-x64-setup.exe`、`windows-update.json` 和 `windows-update.json.sig`。
+上传仅使用本次校验和清单中的附件，暂停的平台即使有残留文件也不会上传。
 首次 Release 成功后，`main` 会包含 `Casks/ai-benchgauge.rb`。用户可通过仓库 tap 安装：
 
 ```bash
@@ -144,9 +148,9 @@ DESKTOP_NOTIFY=0 TEST_AUTO_REPAIR=0 APP_UNIVERSAL=1 ./make-app.sh
 ## Windows 构建
 
 开发与原生检查见 [Windows 说明](../apps/windows/README.md)。
-`windows-build.yml` 是 CI 与 Release 共用的构建流程，发布时启用 NSIS 安装器。
-普通构建没有签名私钥；`complete-release.mjs` 在汇总阶段签 Windows 更新清单，
-并重新生成包含两种安装包和两种清单的校验和。
+`windows-build.yml` 是 CI 与 Release 共用的构建流程，启用 Windows 发布时才运行发布作业和 NSIS 安装器。
+普通构建没有签名私钥；`complete-release.mjs` 仅在启用 Windows 发布时签 Windows 更新清单，
+并重新生成本次启用平台的附件校验和。
 
 安装器包含微软官方 WebView2 引导安装器，构建时检查 Authenticode 的微软签名；
 仅当运行时缺失时联网安装。没有运行时且无法联网时，排行榜、其他余量和 CLI 回退仍可用。
