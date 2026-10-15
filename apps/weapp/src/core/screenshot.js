@@ -99,10 +99,12 @@ export function drawScreenshot(context, model, page, images) {
       text(context, row.rank, x + 24, center, 14, colors.muted, { align: 'center' })
       const nameX = x + 48, cellWidth = columnWidth - 190
       rounded(context, nameX, y + 4, cellWidth, height - 8, 5, row.fill.match(/rgba\([^)]*\)/)?.[0] || colors.background)
-      rounded(context, nameX + 7, center - 12, 24, 24, 5, '#ffffff')
       const logo = images.get(row.logo)
-      if (logo) context.drawImage(logo, nameX + 9, center - 10, 20, 20)
-      else text(context, row.initial, nameX + 19, center, 12, '#506070', { bold: true, align: 'center' })
+      if (logo) context.drawImage(logo, nameX + 7, center - 12, 24, 24)
+      else {
+        rounded(context, nameX + 7, center - 12, 24, 24, 5, '#ffffff')
+        text(context, row.initial, nameX + 19, center, 12, '#506070', { bold: true, align: 'center' })
+      }
       row.lines.forEach((line, index) => text(context, line, nameX + 39, center + (index - (row.lines.length - 1) / 2) * 18, 14, colors.ink))
       text(context, row.flag, countryX, center, 17, colors.ink, { align: 'center' })
       const statusIcon = images.get(row.opennessIcon)

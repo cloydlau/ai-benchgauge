@@ -4,6 +4,7 @@ import brandCatalog from '../../../../fc/brand-catalog.json' with { type: 'json'
 import { canReplace, countryCode, companyRows, latestTimestamp, createBrandRules } from '../../../../fc/domain.mjs'
 export { canReplace, countryCode, companyRows, latestTimestamp } from '../../../../fc/domain.mjs'
 const brandRules = createBrandRules(brandCatalog)
+const bundledBrands = new Set(Object.keys(brandCatalog.colors))
 
 export function normalizeBoard(value, kind) {
   if (!hasOwn(boards, kind) || !value || value.kind !== kind
@@ -45,9 +46,12 @@ export function rowView(entry, { company = false, dark = false, details = true }
   const brand = company ? entry.organizationBrand || entry.brand : entry.brand?.key?.startsWith('model-') ? entry.brand : modelBrand || entry.brand
   let image = typeof brand?.pngData === 'string' && /^[A-Za-z0-9+/=]+$/.test(brand.pngData) && brand.pngData.length < 160000
     ? `data:image/png;base64,${brand.pngData}` : ''
-  const bundled = ['anthropic', 'openai', 'google', 'qwen', 'deepseek', 'kimi', 'zai', 'spacexai', 'meta', 'mistral', 'minimax', 'bytedance', 'tencent', 'nvidia', 'stepfun', 'xiaomi']
-  const key = company ? [brand?.key, entry.developerCountry?.key].find(key => bundled.includes(key)) : productKey
-  if (!company && !brand?.key?.startsWith('model-') && (productKey || !brandRules.sharedProviderMark(entry))) image = ''
+  // A missing dedicated model mark must not hide its verified provider's bundled
+  // icon. Use the complete shared catalog, including image/video providers.
+  const key = company
+    ? [brand?.key, entry.developerCountry?.key, brandRules.normalizedBrandKey(entry.organization)].find(key => bundledBrands.has(key))
+    : productKey || [brandRules.brandKey(entry)].find(key => bundledBrands.has(key))
+  if (!company && !brand?.key?.startsWith('model-') && (productKey || key && !brandRules.sharedProviderMark(entry))) image = ''
   if (!image && key) image = `/assets/logos/${key}.png`
   const color = /^#[0-9a-f]{6}$/i.test(brand?.colorHex || '') ? brand.colorHex : '#62748b'
   const rgb = [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16)).join(',')

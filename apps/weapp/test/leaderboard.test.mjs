@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { existsSync } from 'node:fs'
+import brandCatalog from '../../../fc/brand-catalog.json' with { type: 'json' }
 import { boards, categories, copy, languages, text } from '../src/core/catalog.js'
 import { normalizeBoard, canReplace, countryCode, countryFlag, countryOptions, companyRows, visibleRows, formatTime, rowView } from '../src/core/leaderboard.js'
 
@@ -101,6 +103,42 @@ test('the view DTO contains only display fields and uses PNG data rather than ar
   assert.equal(rowView({ ...original, brand: { pngData: '<script>', colorHex: 'bad' } }).logo, '')
   assert.equal(rowView({ ...original, brand: { key: 'openai' } }).logo, '')
   assert.equal(rowView({ ...original, name: 'Claude Sonnet', organization: 'Anthropic', brand: { key: 'anthropic', pngData: 'iVBORw0KGgo=' } }).logo, '/assets/logos/anthropic.png')
+})
+
+test('MiMo and GLM keep bundled provider icons when no separate model mark exists', () => {
+  for (const [name, organization, key] of [
+    ['MiMo-V2.6-Pro', 'Xiaomi', 'xiaomi'], ['mimo-v2.6-flash', 'Xiaomi', 'xiaomi'],
+    ['GLM-5.3 (Max)', 'Z AI', 'zai'], ['glm-5.3-max', 'Z.ai', 'zai'], ['GLM-Image', 'Z AI', 'zai'],
+    ['Opencode - GLM-5.3', undefined, 'zai'],
+  ]) {
+    const model = entry(1, name, 99, organization, { brand: { key, pngData: 'iVBORw0KGgo=' } })
+    assert.equal(rowView(model).logo, `/assets/logos/${key}.png`, name)
+    assert.equal(rowView(model, { dark: true }).logo, `/assets/logos/${key}.png`, name)
+  }
+})
+
+test('every bundled provider has a packaged PNG and is available to models and companies', () => {
+  for (const key of Object.keys(brandCatalog.colors)) {
+    const path = `/assets/logos/${key}.png`
+    assert.ok(existsSync(new URL(`../../..${path}`, import.meta.url)), path)
+    const model = entry(1, 'Provider model', 99, key, { brand: { key } })
+    assert.equal(rowView(model).logo, path, key)
+    assert.equal(rowView(model, { company: true }).logo, path, key)
+  }
+  assert.equal(rowView(entry(1, 'Unknown model', 1, 'Unverified')).logo, '')
+  const serverOnly = entry(1, 'K2 Horizon', 99, 'Institute of Foundation Models', {
+    brand: { key: 'instituteoffoundationmodels', status: 'ready', pngData: 'iVBORw0KGgo=' },
+  })
+  assert.equal(rowView(serverOnly).logo, 'data:image/png;base64,iVBORw0KGgo=')
+})
+
+test('dedicated model marks and bundled model-family icons take priority over provider fallback', () => {
+  const model = entry(1, 'Wan 3', 99, 'Alibaba', { brand: { key: 'qwen' } })
+  const wan = brandCatalog.modelLogos.find(model => model.key === 'wan')
+  assert.equal(rowView(model).logo, `data:image/png;base64,${wan.pngData}`)
+  assert.equal(rowView(entry(1, 'Claude Sonnet', 99, 'Anthropic')).logo, '/assets/logos/anthropic.png')
+  assert.equal(rowView(entry(1, 'Agent - GLM-5.3', 99, 'Unverified Harness')).logo, '/assets/logos/zai.png')
+  assert.equal(rowView(entry(1, 'Agent - GLM-5.3', 99, 'Unverified Harness'), { company: true }).logo, '')
 })
 
 test('complete model and company lists include rows beyond twenty and five hundred', () => {
