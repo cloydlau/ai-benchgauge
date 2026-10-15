@@ -5,6 +5,8 @@ import { createRequire } from 'node:module';
 const sharp = createRequire(new URL('../fc/package.json', import.meta.url))('sharp');
 import { BrandRegistry, brandKey, normalizedBrandKey, fallbackColor, normalizeLogo, validPNG, safeLogoURL, downloadLogo, brandRetryInterval } from '../fc/brands.mjs';
 import { SharedLeaderboards } from '../fc/service.mjs';
+import { parseBoard } from '../fc/parser.mjs';
+import { arenaRowLogos, maximumInlineLogoBytes } from '../fc/source-logos.mjs';
 const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><circle cx="32" cy="32" r="28" fill="#319FA8"/></svg>');
 const url = 'https://artificialanalysis.ai/img/logos/newmaker.svg';
 class Store {
@@ -177,4 +179,86 @@ test('verified official marks remain visible during regional download or registr
   assert.equal(store.records.get('model-wan').status,'ready');
   store.readBrand = async()=>{throw Error('registry offline');};
   assert.equal((await registry.enrich(input)).entries[0].brand.key,'model-wan');
+});
+
+const sourceRow = (name, mark) => `<tr><td><svg><path d="M0 0"/></svg></td><td><div><div>${mark}</div><div><a><span title="${name}">${name}</span><svg><path d="M0 0"/></svg></a></div></div></td></tr>`;
+function arenaHTML(kind, marks) {
+  const entries = Array.from({ length: 22 }, (_, i) => ({ modelDisplayName: `Model ${i}`, modelKey: `model-${i}`,
+    rating: 1500 - i, modelOrganization: i === 2 ? null : 'New Maker' }));
+  return `<table><tbody>${marks.map((mark, i) => sourceRow(`Model ${i}`, mark)).join('')}</tbody></table>`
+    + `<script>self.__next_f.push([1,${JSON.stringify(JSON.stringify({ entries }))}])</script>`;
+}
+test('all Arena boards acquire row SVGs and source images without a hand-maintained vendor list', async () => {
+  for (const kind of ['arenaText', 'codeArenaWebDev', 'arenaTextToImage', 'arenaTextToVideo']) {
+    const html = arenaHTML(kind, [svg.toString(), '<img src="/images/models/newmaker_light.png"/>', svg.toString()]);
+    const input = parseBoard(kind, html, Date.now());
+    assert.ok(input.organizationLogoSVGs['New Maker']);
+    assert.equal(input.entries[1].logoURL, 'https://arena.ai/images/models/newmaker_light.png');
+    assert.ok(input.entries[2].modelLogoSVG);
+    const store = new Store(); let downloads = 0;
+    const registry = new BrandRegistry(store, { download: async () => { downloads++; throw Error('inline marks need no download'); } });
+    const result = await registry.enrich(input, { acquire: true });
+    assert.equal(result.entries.length, 22);
+    assert.equal(result.entries[0].brand.status, 'ready');
+    assert.equal(result.entries[2].brand.status, 'ready');
+    assert.match(result.entries[2].brand.key, /^model-/);
+    assert.equal(downloads, 0);
+    const cached = await new BrandRegistry(store).enrich(JSON.parse(JSON.stringify(input)));
+    assert.equal(cached.entries[0].brand.pngData, result.entries[0].brand.pngData);
+    assert.equal(cached.entries[2].brand.pngData, result.entries[2].brand.pngData);
+    const older = { ...input, entries: input.entries.map(({ modelLogoSVG, ...entry }) => entry) };
+    assert.equal((await new BrandRegistry(store).enrich(older)).entries[2].brand.pngData, result.entries[2].brand.pngData);
+    assert.equal((await new BrandRegistry(store).enrich(older, { acquire: true })).entries[2].brand.pngData, result.entries[2].brand.pngData);
+  }
+});
+test('row matching excludes controls, ambiguous names, oversized assets and unrelated remote images', async () => {
+  const noMark = '<table><tr><td><svg/></td><td><a><span title="Model 0">Model 0</span><svg/></a></td></tr></table>';
+  assert.equal(arenaRowLogos(noMark, new Set(['Model 0'])).size, 0);
+  const duplicates = `<table>${sourceRow('A &amp; B', svg)}${sourceRow('A &amp; B', '<svg><circle r="1"/></svg>')}</table>`;
+  assert.equal(arenaRowLogos(duplicates, new Set(['A & B'])).size, 0);
+  const large = `<svg xmlns="http://www.w3.org/2000/svg"><!--${'x'.repeat(maximumInlineLogoBytes)}--></svg>`;
+  assert.equal(arenaRowLogos(`<table>${sourceRow('Model 0', large)}</table>`, new Set(['Model 0'])).size, 0);
+  const input = parseBoard('arenaText', arenaHTML('arenaText', ['<img src="https://evil.example/tracker.svg"/>']), Date.now());
+  assert.equal(input.entries[0].logoURL, undefined);
+  assert.equal(safeLogoURL('https://arena.ai/images/models/new.png'), 'https://arena.ai/images/models/new.png');
+  assert.equal(safeLogoURL('https://arena.ai/other/new.png'), null);
+  await assert.rejects(downloadLogo('https://arena.ai/images/models/new.png', AbortSignal.timeout(1000),
+    async () => new Response(null, { status: 302, headers: { location: 'https://evil.example/new.png' } })));
+});
+test('page CSS ink survives standalone rendering and active inline SVG never becomes a cached image', async () => {
+  const css = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="none" class="fill-black dark:fill-white"><circle cx="32" cy="32" r="28"/></svg>';
+  const extracted = arenaRowLogos(`<table>${sourceRow('Model 0', css)}</table>`, new Set(['Model 0'])).get('Model 0');
+  assert.ok(validPNG((await normalizeLogo(Buffer.from(extracted.svg))).png));
+  for (const mark of ['<svg onload="alert(1)"><circle r="20"/></svg>', '<svg><image href="https://evil.example/a.png"/></svg>', '<svg><foreignObject/></svg>']) {
+    const store = new Store();
+    const result = await new BrandRegistry(store).enrich(parseBoard('arenaText', arenaHTML('arenaText', [mark]), Date.now()), { acquire: true });
+    assert.equal(result.entries[0].brand.pngData, undefined);
+    assert.equal(store.assets.size, 0);
+  }
+});
+test('a newly available source SVG repairs an earlier missing provider immediately and survives a cold read', async () => {
+  const store = new Store();
+  const registry = new BrandRegistry(store);
+  const input = { ...board('New Maker', null), kind: 'arenaText' };
+  await registry.enrich(input, { acquire: true });
+  assert.equal(store.records.get('newmaker').status, 'missing');
+  const refreshed = await registry.enrich({ ...input, organizationLogoSVGs: { 'New Maker': svg.toString() } }, { acquire: true });
+  assert.equal(refreshed.entries[0].brand.status, 'ready');
+  // Other boards can use the acquired provider even before their next origin fetch.
+  const read = await new BrandRegistry(store).enrich(input);
+  assert.equal(read.entries[0].brand.pngData, refreshed.entries[0].brand.pngData);
+});
+test('source provider marks do not override verified model marks or inherit a harness identity', async () => {
+  const input = { kind: 'arenaTextToVideo', organizationLogoSVGs: { Alibaba: svg.toString(), Anthropic: svg.toString() }, entries: [
+    { name: 'Wan 3.0', organization: 'Alibaba' }, { name: 'HappyHorse-1.1', organization: 'Alibaba' },
+    { name: 'Claude Code - Qwen3.8 Max', organization: 'Anthropic' },
+  ] };
+  const result = await new BrandRegistry(new Store(), { download: async () => { throw Error('offline'); } }).enrich(input, { acquire: true });
+  assert.equal(result.entries[0].brand.key, 'model-wan');
+  assert.equal(result.entries[0].organizationBrand.key, 'qwen');
+  assert.equal(result.entries[1].brand.key, 'qwen');
+  // Qwen is shared with the real Alibaba entry, never Anthropic's source SVG.
+  assert.deepEqual(result.entries[2].brand, result.entries[1].brand);
+  const alone = await new BrandRegistry(new Store()).enrich({ ...input, entries: input.entries.slice(2) }, { acquire: true });
+  assert.equal(alone.entries[0].brand.pngData, undefined);
 });
