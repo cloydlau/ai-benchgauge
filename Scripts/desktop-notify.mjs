@@ -62,6 +62,7 @@ function rasterizeAvatar(source, png) {
   if (!looksLikeSvg(source)) return false
   const directory = mkdtempSync(join(tmpdir(), 'leaderboard-avatar-thumb-'))
   const svg = join(directory, 'avatar.svg')
+  let convertedThumbnail = false
   try {
     copyFileSync(source, svg)
     const thumb = spawnSync('/usr/bin/qlmanage', ['-t', '-s', '128', '-o', directory, svg], {
@@ -72,12 +73,13 @@ function rasterizeAvatar(source, png) {
     const produced = readdirSync(directory).find((name) => name.endsWith('.png'))
     if (!produced) return false
     copyFileSync(join(directory, produced), png)
-    return existsSync(png)
+    convertedThumbnail = existsSync(png)
   } catch {
     return false
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
+  return convertedThumbnail
 }
 
 export function materializeAvatar(avatar) {
