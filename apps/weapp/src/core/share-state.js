@@ -8,15 +8,15 @@ const isObject = value => value !== null && typeof value === 'object' && !Array.
 const validCategory = value => categories.some(category => category.id === value)
 const validCountry = value => typeof value === 'string' && /^(all|unknown|[A-Z]{2})$/.test(value)
 
-function normalizeFilters(value) {
-  const result = {}
-  for (const kind of Object.keys(boards)) {
-    const filter = isObject(value) && hasOwn(value, kind) && isObject(value[kind]) ? value[kind] : {}
-    const country = validCountry(filter.country) ? filter.country : 'all'
-    const openness = opennessValues.includes(filter.openness) ? filter.openness : 'all'
-    if (country !== 'all' || openness !== 'all') result[kind] = { country, openness }
-  }
-  return result
+function normalizeFilters(value, category, face) {
+  // Migrate older per-board/category preferences from the visible board.
+  const kind = categories.find(group => group.id === category).kinds[face]
+  const filter = isObject(value) && hasOwn(value, kind) && isObject(value[kind]) ? value[kind] : {}
+  const country = validCountry(filter.country) ? filter.country : 'all'
+  const openness = opennessValues.includes(filter.openness) ? filter.openness : 'all'
+  // Preserve the existing storage/share format for older clients.
+  return country === 'all' && openness === 'all' ? {}
+    : Object.fromEntries(Object.keys(boards).map(source => [source, { country, openness }]))
 }
 
 export function systemLanguage(value) {
@@ -32,17 +32,19 @@ export function normalizePreferences(value, locale) {
   // Old saved language choices remain explicit. New automatic preferences
   // keep following the host language even when another setting is saved.
   const manualLanguage = languages.includes(value.language) && value.languageMode !== 'system'
+  const category = validCategory(value.category) ? value.category : 'general'
+  const face = Number(value.face) === 1 ? 1 : 0
   return {
-    category: validCategory(value.category) ? value.category : 'general',
+    category,
     grouping: groupings.includes(value.grouping) ? value.grouping : 'model',
-    face: Number(value.face) === 1 ? 1 : 0,
+    face,
     language: manualLanguage ? value.language : systemLanguage(locale ?? value.language),
     languageMode: manualLanguage ? 'manual' : 'system',
     theme,
     // A system-theme share starts with the sender's appearance, until the
     // receiver changes their system appearance or chooses an appearance option.
     appearance: theme === 'system' && appearances.includes(value.appearance) ? value.appearance : null,
-    filters: normalizeFilters(value.filters),
+    filters: normalizeFilters(value.filters, category, face),
   }
 }
 
@@ -75,6 +77,7 @@ export function pagePreferences(query = {}, saved = {}, locale) {
   if (query.face === '0' || query.face === '1') preferences.face = Number(query.face)
   if (languages.includes(query.language)) { preferences.language = query.language; preferences.languageMode = 'manual' }
   if (themes.includes(query.theme)) { preferences.theme = query.theme; preferences.appearance = null }
+  preferences.filters = normalizeFilters(saved.filters, preferences.category, preferences.face)
   return { ...preferences, fromShare: false }
 }
 

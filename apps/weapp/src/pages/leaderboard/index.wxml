@@ -3,26 +3,32 @@
     <view class="brand-copy">
       <view class="brand-title brand-wordmark" style="{{brandTitle.style}}" aria-label="{{labels.name}}">
         <image class="brand-letter-logo" src="{{dark ? '/assets/header-logo-dark.png' : '/assets/header-logo.png'}}" mode="aspectFit" style="{{brandTitle.logoStyle}}" aria-hidden="true" />
-        <text wx:for="{{brandTitle.glyphs}}" wx:key="text" class="brand-glyph" style="{{item.style}}" aria-hidden="true">{{item.text}}</text>
+        <image wx:for="{{brandTitle.glyphs}}" wx:key="key" class="brand-glyph" src="{{item.source}}{{dark ? '-dark' : ''}}.svg" mode="aspectFit" style="{{item.style}}" aria-hidden="true" />
       </view>
-      <button class="subtitle" bindtap="quotaHelp" aria-label="{{labels.subtitle}}"><text>{{labels.subtitle}}</text></button>
     </view>
+  </view>
+  <view class="control-row">
+    <button class="subtitle" bindtap="quotaHelp" aria-label="{{labels.subtitle}}">
+      <view class="subtitle-text"><text>{{subtitleParts[0]}}</text><text class="subtitle-symbol" aria-hidden="true">{{'&'}}</text><text>{{subtitleParts[1]}}</text></view>
+      <view class="subtitle-help" aria-hidden="true"><van-icon name="question-o" size="24rpx" custom-style="opacity:0.55;" /></view>
+    </button>
     <view class="pill grouping">
       <button class="pill-option {{grouping === 'model' ? 'selected' : ''}}" data-id="model" bindtap="selectGrouping">{{labels.models}}</button>
       <button class="pill-option {{grouping === 'company' ? 'selected' : ''}}" data-id="company" bindtap="selectGrouping">{{labels.companies}}</button>
     </view>
   </view>
-  <view class="boards" bindtouchstart="cubeStart" bindtouchmove="cubeMove" bindtouchend="cubeEnd" bindtouchcancel="cubeCancel">
-    <view wx:for="{{cards}}" wx:for-item="card" wx:key="kind" class="board-face" style="{{cubeFaces[card.index].style}}" aria-hidden="{{face !== card.index}}">
-      <scroll-view id="board-scroll-{{card.kind}}" class="board-scroll" scroll-y enhanced show-scrollbar="{{false}}"
-        refresher-enabled refresher-triggered="{{pullRefreshing}}" refresher-background="{{dark ? '#10151c' : '#f5f7fa'}}"
-        scroll-top="{{scrollTargets[card.kind] || 0}}" data-kind="{{card.kind}}"
-        bindscroll="scroll" bindrefresherrefresh="pullRefresh">
   <view class="source-tabs" role="tablist">
     <view class="source-selection" style="{{sourceSelection}}" aria-hidden="true" />
     <button wx:for="{{tabs}}" wx:key="*this" class="source-tab source-{{index}} {{face === index ? 'active' : ''}}"
       data-index="{{index}}" bindtap="selectFace" role="tab" aria-selected="{{face === index}}">{{item}}</button>
   </view>
+  <view class="boards" style="{{entranceStyle}}" bindtouchstart="cubeStart" bindtouchmove="cubeMove" bindtouchend="cubeEnd" bindtouchcancel="cubeCancel">
+    <view wx:if="{{entranceHintVisible}}" class="cube-launch-hint"><text>↕ {{labels.cubeScroll}}</text><view class="cube-hint-divider" /><text>↔ {{labels.cubeSwitch}}</text></view>
+    <view wx:for="{{cards}}" wx:for-item="card" wx:key="kind" class="board-face" style="{{cubeFaces[card.index].style}}" aria-hidden="{{face !== card.index}}">
+      <scroll-view id="board-scroll-{{card.kind}}" class="board-scroll" scroll-y enhanced show-scrollbar="{{false}}"
+        refresher-enabled refresher-triggered="{{pullRefreshing}}" refresher-background="{{dark ? '#10151c' : '#f5f7fa'}}"
+        data-kind="{{card.kind}}" scroll-anchoring="{{false}}"
+        bindscroll="scroll" bindrefresherrefresh="pullRefresh">
         <view class="board-card source-{{card.index}}">
           <view class="metadata">
             <button class="summary" data-kind="{{card.kind}}" bindtap="sourceHelp">{{card.summary}}</button>
@@ -34,14 +40,22 @@
             <text class="rank-cell">{{labels.rank}}</text>
             <text class="source-heading">{{card.title}}</text>
             <button class="filter {{card.countryFiltered ? 'filtered' : ''}}" data-kind="{{card.kind}}" data-mode="country" bindtap="filterMenu">
-              {{labels.country}}<van-icon name="arrow-down" size="7px" />
+              <view class="filter-label">{{labels.country}}<view class="filter-arrow" aria-hidden="true"><van-icon name="arrow-down" size="7px" /></view></view>
             </button>
             <button class="filter {{card.sourceFiltered ? 'filtered' : ''}}" data-kind="{{card.kind}}" data-mode="openness" bindtap="filterMenu">
-              {{labels.source}}<van-icon name="arrow-down" size="7px" />
+              <view class="filter-label">{{labels.source}}<view class="filter-arrow" aria-hidden="true"><van-icon name="arrow-down" size="7px" /></view></view>
             </button>
             <text class="score-cell">{{labels.score}}</text>
           </view>
-          <view wx:if="{{card.loading && !card.hasBoard}}" class="empty-state"><van-loading color="#1675dc" size="22px" /><text>{{labels.loading}}</text></view>
+          <view wx:if="{{card.loading && !card.hasBoard}}" class="ranking-skeleton" aria-label="{{labels.loading}}" aria-role="text">
+            <view wx:for="{{[0,1,2,3,4,5,6,7]}}" wx:key="*this" class="skeleton-row table-grid" style="height:{{card.rowHeight}}px;" aria-hidden="true">
+              <view class="skeleton-block skeleton-rank" />
+              <view class="skeleton-name"><view class="skeleton-block skeleton-logo" /><view class="skeleton-copy"><view class="skeleton-block skeleton-line" style="width:{{index % 3 === 0 ? 86 : index % 3 === 1 ? 65 : 76}}%;" /><view class="skeleton-block skeleton-line skeleton-line-short" /></view></view>
+              <view class="skeleton-block skeleton-country" />
+              <view class="skeleton-block skeleton-source" />
+              <view class="skeleton-block skeleton-score" />
+            </view>
+          </view>
           <view wx:elif="{{!card.count}}" class="empty-state">
             <van-icon name="bar-chart-o" size="30px" /><text>{{card.hasBoard ? labels.empty : labels.noBoard}}</text>
             <button wx:if="{{card.filtered}}" class="reset-button" data-kind="{{card.kind}}" bindtap="clearFilters">{{labels.reset}}</button>
@@ -79,7 +93,8 @@
     <view class="category-glass-selection" style="transform:translateX({{categoryIndex * 100}}%);" aria-hidden="true" />
     <button wx:for="{{categoryItems}}" wx:key="id" class="category-tab {{category === item.id ? 'active' : ''}}"
       data-id="{{item.id}}" bindtap="selectCategory" role="tab" aria-selected="{{category === item.id}}">
-      <van-icon name="{{item.icon}}" size="20px" /><text class="category-label">{{item.label}}</text>
+      <view wx:if="{{item.icon === 'code'}}" class="category-code-icon" aria-hidden="true"><view class="category-code-slash" /></view>
+      <van-icon wx:else name="{{item.icon}}" size="18px" /><text class="category-label">{{item.label}}</text>
     </button>
   </view>
   <button wx:if="{{backToTop && !cubeBusy}}" class="back-top" bindtap="top" aria-label="{{labels.back}}"><van-icon name="back-top" size="20px" /></button>

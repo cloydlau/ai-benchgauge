@@ -1,7 +1,7 @@
 export function canvasHarness() {
   const commands = [], files = new Set(), exported = [], saved = []
   const context = { measureText: value => ({ width: [...value].length * 7 }) }
-  for (const name of ['beginPath', 'moveTo', 'lineTo', 'quadraticCurveTo', 'closePath', 'fill', 'stroke', 'fillRect', 'fillText', 'drawImage', 'scale']) {
+  for (const name of ['beginPath', 'moveTo', 'lineTo', 'quadraticCurveTo', 'bezierCurveTo', 'closePath', 'fill', 'stroke', 'fillRect', 'fillText', 'drawImage', 'scale']) {
     context[name] = (...args) => commands.push([name, ...args])
   }
   const canvas = { width: 1, height: 1, getContext: () => context, createImage: () => ({

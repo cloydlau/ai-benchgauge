@@ -22,6 +22,7 @@ export const sourcePaths = [
   'fc/domain.mjs', 'fc/brand-catalog.json', 'fc/leaderboard-policy.json',
   'assets/brand/header-logo.png', 'assets/brand/header-logo-dark.png', 'assets/logos',
   'Sources/LeaderboardKit/SharedLeaderboardConfiguration.swift', 'config/app.json',
+  'Sources/LeaderboardKit/Resources/Fonts/SlideFont-OFL.txt',
   'LICENSE', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml',
   'Scripts/weapp-deploy.mjs',
 ]

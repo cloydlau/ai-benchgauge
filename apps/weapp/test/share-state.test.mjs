@@ -47,21 +47,32 @@ test('malformed and future-version links fall back safely, and legacy links rema
   assert.equal(pagePreferences({}, saved).face, 1)
 })
 test('only valid board filters are restored and arbitrary JSON fields cannot enter preferences', () => {
-  const original = { category: 'coding', theme: 'system', face: 1, language: 'en', filters: {
+  const original = { category: 'general', theme: 'system', face: 0, language: 'en', filters: {
     artificialAnalysis: { country: 'JP', openness: 'open', unrelated: 'ignored' },
     arenaText: { country: '<script>', openness: 'invalid' },
     unknownBoard: { country: 'CN', openness: 'closed' },
   }, token: 'must not be shared' }
   const path = sharePath(original, 'light')
   assert.ok(!path.includes('token'))
-  assert.deepEqual(readSharedPreferences(queryFor(path)).filters, { artificialAnalysis: { country: 'JP', openness: 'open' } })
+  const expected = Object.fromEntries(Object.keys(boards).map(kind => [kind, { country: 'JP', openness: 'open' }]))
+  assert.deepEqual(readSharedPreferences(queryFor(path)).filters, expected)
   const crafted = JSON.parse(decodeURIComponent(path.split('?state=')[1]))
   crafted.x.arenaText = ['unknown', 'closed']
   crafted.x.arenaTextToVideo = 'invalid'
   crafted.x.unknownBoard = ['CN', 'open']
-  assert.deepEqual(readSharedPreferences({ state: JSON.stringify(crafted) }).filters, {
-    artificialAnalysis: { country: 'JP', openness: 'open' }, arenaText: { country: 'unknown', openness: 'closed' },
-  })
+  assert.deepEqual(readSharedPreferences({ state: JSON.stringify(crafted) }).filters, expected)
+})
+
+test('legacy per-board filters migrate from the visible source and remain shared in saved and forwarded preferences', () => {
+  const filters = { artificialAnalysis: { country: 'US', openness: 'closed' }, arenaText: { country: 'CN', openness: 'open' } }
+  for (const face of [0, 1]) {
+    const expected = filters[face ? 'arenaText' : 'artificialAnalysis']
+    const saved = normalizePreferences({ category: 'general', face, filters })
+    assert.deepEqual(saved.filters, Object.fromEntries(Object.keys(boards).map(kind => [kind, expected])))
+    assert.deepEqual(readSharedPreferences(queryFor(sharePath(saved, 'light'))).filters, saved.filters)
+    assert.deepEqual(pagePreferences({ face: String(face) }, { face: 1 - face, filters }).filters, saved.filters)
+  }
+  assert.deepEqual(normalizePreferences({ face: 1, filters: { artificialAnalysis: filters.artificialAnalysis } }).filters, {})
 })
 
 test('system language follows supported locales until an explicit local choice overrides it', () => {

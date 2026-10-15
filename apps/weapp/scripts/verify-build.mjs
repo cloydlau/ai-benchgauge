@@ -34,5 +34,11 @@ function inspect(directory) {
 }
 inspect(root)
 if (!existsSync(resolve(root, 'assets/header-logo.png'))) throw new Error('Missing existing brand asset')
+for (const glyph of ['zh-I', 'zh-tian', 'zh-ti', 'en-I', 'en-name']) {
+  for (const theme of ['', '-dark']) {
+    if (!existsSync(resolve(root, `assets/brand-glyphs/${glyph}${theme}.svg`))) throw new Error(`Missing native title glyph: ${glyph}${theme}`)
+  }
+}
+if (!existsSync(resolve(root, 'assets/brand-glyphs/LICENSE.txt'))) throw new Error('Missing title font license')
 if (!existsSync(resolve(root, 'app.wxss'))) throw new Error('Missing global styles')
 console.log(`Verified ${app.pages.length} pages, assets and all relative runtime modules.`)

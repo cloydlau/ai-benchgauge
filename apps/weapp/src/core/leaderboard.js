@@ -29,8 +29,9 @@ const countryNames = {
   GB: ['United Kingdom', '英国', '英國'], SG: ['Singapore', '新加坡', '新加坡'], JP: ['Japan', '日本', '日本'],
   KR: ['South Korea', '韩国', '韓國'], AE: ['United Arab Emirates', '阿联酋', '阿聯酋'], CH: ['Switzerland', '瑞士', '瑞士'],
 }
-export function countryOptions(board, language) {
-  const codes = [...new Set((board?.entries || []).map(countryCode))].sort()
+export function countryOptions(board, language, selected = 'all') {
+  const codes = [...new Set([...(board?.entries || []).map(countryCode),
+    ...(/^(unknown|[A-Z]{2})$/.test(selected) ? [selected] : [])])].sort()
   return [{ value: 'all', label: text(copy.all, language) }, ...codes.map(code => ({ value: code,
     label: code === 'unknown' ? text(copy.unknown, language) : `${countryFlag(code)} ${countryNames[code] ? text(countryNames[code], language) : code}` }))]
 }
