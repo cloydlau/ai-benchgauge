@@ -131,6 +131,32 @@ public enum LeaderboardGrouping: String, Codable, CaseIterable, Identifiable, Se
     }
 }
 
+/// Shared PNG travels with the snapshot, so offline views and exports use the same mark.
+public struct OrganizationBrand: Codable, Equatable, Sendable {
+    public let key: String
+    public let colorHex: String
+    public let pngData: Data?
+    public init(key: String, colorHex: String, pngData: Data? = nil) {
+        self.key = key; self.colorHex = colorHex; self.pngData = pngData
+    }
+    public var validPNGData: Data? {
+        guard let pngData, pngData.count >= 33, pngData.count <= 16 * 1024,
+              pngData.prefix(8) == Data([137, 80, 78, 71, 13, 10, 26, 10]),
+              pngData[16..<24] == Data([0, 0, 0, 64, 0, 0, 0, 64]) else { return nil }
+        return pngData
+    }
+}
+
+/// Shared developer headquarters metadata survives offline snapshot caching.
+public struct OrganizationCountryMetadata: Codable, Equatable, Sendable {
+    public let key: String
+    public let countryCode: String?
+    public let sourceURL: String?
+    public init(key: String, countryCode: String?, sourceURL: String? = nil) {
+        self.key = key; self.countryCode = countryCode; self.sourceURL = sourceURL
+    }
+}
+
 public struct LeaderboardEntry: Codable, Equatable, Identifiable, Sendable {
     public var id: Int { rank }
     public let rank: Int
@@ -139,6 +165,11 @@ public struct LeaderboardEntry: Codable, Equatable, Identifiable, Sendable {
     public let modelID: String?
     public let organization: String?
     public let logoURL: URL?
+    public let openness: ModelOpenness?
+    public let brand: OrganizationBrand?
+    /// Provider mark stays separate when `brand` contains a model-family mark.
+    public let organizationBrand: OrganizationBrand?
+    public let developerCountry: OrganizationCountryMetadata?
 
     public init(
         rank: Int,
@@ -146,7 +177,11 @@ public struct LeaderboardEntry: Codable, Equatable, Identifiable, Sendable {
         score: Double,
         modelID: String? = nil,
         organization: String? = nil,
-        logoURL: URL? = nil
+        logoURL: URL? = nil,
+        openness: ModelOpenness? = nil,
+        brand: OrganizationBrand? = nil,
+        organizationBrand: OrganizationBrand? = nil,
+        developerCountry: OrganizationCountryMetadata? = nil
     ) {
         self.rank = rank
         self.name = name
@@ -154,6 +189,10 @@ public struct LeaderboardEntry: Codable, Equatable, Identifiable, Sendable {
         self.modelID = modelID
         self.organization = organization
         self.logoURL = logoURL
+        self.openness = openness
+        self.brand = brand
+        self.organizationBrand = organizationBrand
+        self.developerCountry = developerCountry
     }
 }
 
@@ -165,6 +204,15 @@ public struct Leaderboard: Codable, Equatable, Sendable {
     public let fetchedAt: Date
     public let entries: [LeaderboardEntry]
     public let organizationLogoURLs: [String: URL]?
+
+    public func canReplace(_ previous: Leaderboard?) -> Bool {
+        guard let previous else { return true }
+        guard kind == previous.kind, fetchedAt >= previous.fetchedAt else { return false }
+        if let priorSourceDate = previous.sourceUpdatedAt {
+            return sourceUpdatedAt.map { $0 >= priorSourceDate } ?? false
+        }
+        return true
+    }
 
     public init(
         kind: LeaderboardKind,

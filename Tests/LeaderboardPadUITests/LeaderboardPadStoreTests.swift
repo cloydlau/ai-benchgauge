@@ -77,3 +77,96 @@ private actor FetchGate {
     #expect(relaunched.countryFilter(for: .artificialAnalysis) == .unknown)
     #expect(relaunched.snapshot.boards[.arenaText] == cached)
 }
+
+private actor SlowBoardSource {
+    private var released = false
+    private var continuation: CheckedContinuation<Void, Never>?
+    func fetch(_ kind: LeaderboardKind) async -> Leaderboard {
+        if !released { await withCheckedContinuation { continuation = $0 } }
+        return Leaderboard(kind: kind, title: "Finished", entries: [LeaderboardEntry(rank: 1, name: "Arena new", score: 100)])
+    }
+    func release() { released = true; continuation?.resume(); continuation = nil }
+}
+
+private actor RecoveringBoardSource {
+    private var recovered = false
+    func recover() { recovered = true }
+    func fetch(_ kind: LeaderboardKind) throws -> Leaderboard {
+        guard recovered else { throw URLError(.timedOut) }
+        return Leaderboard(kind: kind, title: "Latest", sourceUpdatedAt: Date(timeIntervalSince1970: 1_789_999_000),
+            fetchedAt: Date(timeIntervalSince1970: 1_790_000_000),
+            entries: [LeaderboardEntry(rank: 1, name: "Latest model", score: 99)])
+    }
+}
+
+@MainActor @Test func failedAutomaticRefreshPreservesOldDataAndTimestampsUntilRecovery() async throws {
+    let name = "silent-refresh-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    let directory = FileManager.default.temporaryDirectory.appending(path: name)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let cache = LeaderboardCache(fileURL: directory.appending(path: "cache.json"))
+    let old = Leaderboard(kind: .arenaText, title: "Saved", sourceUpdatedAt: Date(timeIntervalSince1970: 1000),
+        fetchedAt: Date(timeIntervalSince1970: 2000), entries: [LeaderboardEntry(rank: 1, name: "Saved model", score: 88)])
+    cache.save(LeaderboardSnapshot(boards: [.arenaText: old]))
+    let source = RecoveringBoardSource()
+    let service = LeaderboardService { kind in try await source.fetch(kind) }
+    let store = LeaderboardPadStore(defaults: defaults, cache: cache, service: service)
+    await store.refresh()
+    #expect(store.snapshot.boards[.arenaText] == old)
+    #expect(cache.load()?.boards[.arenaText] == old)
+    #expect(store.refreshing.isEmpty)
+    await source.recover()
+    await store.refresh(now: Date().addingTimeInterval(LeaderboardFreshness.retryInterval + 1))
+    #expect(store.snapshot.boards[.arenaText]?.entries.first?.name == "Latest model")
+    #expect(store.snapshot.boards[.arenaText]?.fetchedAt == Date(timeIntervalSince1970: 1_790_000_000))
+    #expect(cache.load() == store.snapshot)
+}
+
+@MainActor @Test func fastBoardAppearsAndPersistsWhileAnotherSourceIsStillRefreshing() async throws {
+    let name = "ipad-test-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    let directory = FileManager.default.temporaryDirectory.appending(path: name)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let cache = LeaderboardCache(fileURL: directory.appending(path: "cache.json"))
+    let old = Leaderboard(kind: .arenaText, title: "Saved", fetchedAt: Date().addingTimeInterval(-3600),
+        entries: [LeaderboardEntry(rank: 1, name: "Arena old", score: 80)])
+    cache.save(LeaderboardSnapshot(boards: [.arenaText: old]))
+    let gate = SlowBoardSource()
+    let service = LeaderboardService { kind in
+        if kind == .arenaText { return await gate.fetch(kind) }
+        return Leaderboard(kind: kind, title: "Fast", entries: [LeaderboardEntry(rank: 1, name: "AA new", score: 99)])
+    }
+    let store = LeaderboardPadStore(defaults: defaults, cache: cache, service: service)
+    let refresh = Task { await store.refresh(force: true) }
+    let started = ContinuousClock.now
+    while store.snapshot.boards[.artificialAnalysis] == nil && started.duration(to: .now) < .seconds(2) { await Task.yield() }
+    #expect(store.snapshot.boards[.artificialAnalysis]?.entries.first?.name == "AA new")
+    #expect(store.snapshot.boards[.arenaText] == old)
+    #expect(store.refreshing.contains(.arenaText))
+    #expect(cache.load()?.boards[.artificialAnalysis]?.entries.first?.name == "AA new")
+    await gate.release()
+    await refresh.value
+    #expect(store.snapshot.boards[.arenaText]?.entries.first?.name == "Arena new")
+    #expect(store.refreshing.isEmpty)
+}
+
+@MainActor @Test func sourceFiltersPersistIndependentlyOfCountryAndOtherBoards() throws {
+    let name = "source-filter-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    let store = LeaderboardPadStore(defaults: defaults)
+    store.setOpennessFilter(.open, for: .artificialAnalysis)
+    store.setOpennessFilter(.unknown, for: .arenaText)
+    store.setCountryFilter(.country(.china), for: .artificialAnalysis)
+    let restored = LeaderboardPadStore(defaults: defaults)
+    #expect(restored.opennessFilter(for: .artificialAnalysis) == .open)
+    #expect(restored.opennessFilter(for: .arenaText) == .unknown)
+    #expect(restored.opennessFilter(for: .arenaTextToVideo) == .all)
+    #expect(restored.countryFilter(for: .artificialAnalysis) == .country(.china))
+    restored.setOpennessFilter(.all, for: .artificialAnalysis)
+    #expect(defaults.string(forKey: "openness.artificialAnalysis") == nil)
+    #expect(restored.countryFilter(for: .artificialAnalysis) == .country(.china))
+    #expect(restored.opennessFilter(for: .arenaText) == .unknown)
+}

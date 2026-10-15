@@ -22,18 +22,24 @@ public struct LeaderboardRefreshResult: Sendable {
 /// source, another category, or the offline copy of the failed board.
 public struct LeaderboardService: Sendable {
     public typealias Fetch = @Sendable (LeaderboardKind) async throws -> Leaderboard
-    private let fetch: Fetch
+    public typealias BoardUpdate = @Sendable (Leaderboard) async -> Void
+    private let fetch: @Sendable (LeaderboardKind, BoardUpdate?) async throws -> Leaderboard
 
-    public init(fetch: @escaping Fetch = { try await LeaderboardFetcher().fetch($0) }) {
-        self.fetch = fetch
+    public init(fetch: @escaping Fetch) {
+        self.fetch = { kind, _ in try await fetch(kind) }
     }
 
-    public func refresh(_ kinds: [LeaderboardKind], keeping previous: LeaderboardSnapshot) async -> LeaderboardRefreshResult {
+    public init(fetcher: LeaderboardFetcher = LeaderboardFetcher()) {
+        self.fetch = { kind, update in try await fetcher.fetch(kind, onCachedBoard: update) }
+    }
+
+    public func refresh(_ kinds: [LeaderboardKind], keeping previous: LeaderboardSnapshot,
+                        onBoard: BoardUpdate? = nil) async -> LeaderboardRefreshResult {
         await withTaskGroup(of: (LeaderboardKind, Leaderboard?, LeaderboardFailure?).self) { group in
             for kind in Set(kinds) {
                 group.addTask {
                     do {
-                        let board = try await fetch(kind)
+                        let board = try await fetch(kind, onBoard)
                         guard board.kind == kind, !board.entries.isEmpty else {
                             return (kind, nil, .sourceUnavailable)
                         }
@@ -48,7 +54,10 @@ public struct LeaderboardService: Sendable {
             var snapshot = previous
             var failures: [LeaderboardKind: LeaderboardFailure] = [:]
             for await (kind, board, failure) in group {
-                if let board { snapshot.boards[kind] = board }
+                if let board, board.canReplace(snapshot.boards[kind]) {
+                    snapshot.boards[kind] = board
+                    await onBoard?(board)
+                }
                 if let failure { failures[kind] = failure }
             }
             return LeaderboardRefreshResult(snapshot: snapshot, failures: failures)
@@ -57,7 +66,10 @@ public struct LeaderboardService: Sendable {
 }
 
 public enum LeaderboardFreshness {
-    public static let interval: TimeInterval = 24 * 60 * 60
+    public static var interval: TimeInterval {
+        interval(sharedEndpoint: SharedLeaderboardConfiguration.endpoint)
+    }
+    static func interval(sharedEndpoint: URL?) -> TimeInterval { sharedEndpoint == nil ? 24 * 60 * 60 : 30 * 60 }
     public static let retryInterval: TimeInterval = 5 * 60
 
     /// iPadOS controls background execution. Check on foreground activation and

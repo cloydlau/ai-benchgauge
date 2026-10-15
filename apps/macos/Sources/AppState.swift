@@ -450,6 +450,10 @@ final class AppState: ObservableObject {
                 inactiveScope: .xaiOAuthOnly
             )
         }
+        if SharedLeaderboardConfiguration.endpoint != nil {
+            if !isRefreshing, !isFresh(selectedCategory) { refreshNow() }
+            return
+        }
         if Date() >= schedule.giveUpAt {
             schedule = schedule.givingUp()
             return
@@ -845,7 +849,9 @@ final class AppState: ObservableObject {
                     let fetcher = fetcher
                     group.addTask {
                         do {
-                            return (kind, try await fetcher.fetch(kind), nil)
+                            return (kind, try await fetcher.fetch(kind, onCachedBoard: { [weak self] board in
+                                await self?.acceptSharedBoard(board)
+                            }), nil)
                         } catch {
                             return (kind, nil, error.localizedDescription)
                         }
@@ -855,7 +861,7 @@ final class AppState: ObservableObject {
                 for await (kind, board, errorMessage) in group {
                     if Task.isCancelled { continue }
                     if let board {
-                        snapshot.boards[kind] = board
+                        if board.canReplace(snapshot.boards[kind]) { snapshot.boards[kind] = board }
                     } else {
                         lastErrors[kind] = errorMessage ?? "未知错误"
                     }
@@ -867,7 +873,22 @@ final class AppState: ObservableObject {
         }
     }
 
+    private func acceptSharedBoard(_ board: Leaderboard) {
+        guard !isQuitting, board != snapshot.boards[board.kind], board.canReplace(snapshot.boards[board.kind]) else { return }
+        snapshot.boards[board.kind] = board
+        lastErrors[board.kind] = nil
+        cache.save(snapshot)
+    }
+
     private func isFresh(_ category: LeaderboardCategory) -> Bool {
+        if SharedLeaderboardConfiguration.endpoint != nil {
+            let now = Date()
+            return category.boardKinds.allSatisfy { kind in
+                guard let date = snapshot.boards[kind]?.fetchedAt else { return false }
+                let age = now.timeIntervalSince(date)
+                return age >= 0 && age < LeaderboardFreshness.interval
+            }
+        }
         let startOfDay = Calendar.current.startOfDay(for: Date())
         return category.boardKinds.allSatisfy { kind in
             (snapshot.boards[kind]?.fetchedAt ?? .distantPast) >= startOfDay

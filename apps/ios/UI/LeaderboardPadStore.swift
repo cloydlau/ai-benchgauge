@@ -56,12 +56,21 @@ public final class LeaderboardPadStore: ObservableObject {
         for kind in kinds { attempts[kind] = now }
         // Another category can refresh while this one is suspended. Merge only
         // this request's successful boards so its return cannot overwrite them.
-        let result = await service.refresh(kinds, keeping: LeaderboardSnapshot())
+        let result = await service.refresh(kinds, keeping: LeaderboardSnapshot(), onBoard: { [weak self] board in
+            await self?.accept(board)
+        })
         for kind in kinds {
-            if let board = result.snapshot.boards[kind] { snapshot.boards[kind] = board }
+            if let board = result.snapshot.boards[kind], board.canReplace(snapshot.boards[kind]) { snapshot.boards[kind] = board }
             failures[kind] = result.failures[kind]
         }
         cache?.save(snapshot)
         refreshing.subtract(kinds)
+    }
+
+    private func accept(_ board: Leaderboard) {
+        guard board != snapshot.boards[board.kind], board.canReplace(snapshot.boards[board.kind]) else { return }
+        snapshot.boards[board.kind] = board
+        failures[board.kind] = nil
+        cache?.save(snapshot)
     }
 }

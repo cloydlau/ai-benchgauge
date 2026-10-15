@@ -1,0 +1,17 @@
+{
+  "name": "ai-benchgauge",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ali-oss": "6.23.0",
+    "sharp": "0.35.5"
+  },
+  "devDependencies": {
+    "@alicloud/fc20230330": "4.8.3",
+    "@alicloud/openapi-client": "0.4.15",
+    "@alicloud/sts20150401": "1.2.0"
+  }
+}

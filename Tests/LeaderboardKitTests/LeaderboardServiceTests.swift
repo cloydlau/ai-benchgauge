@@ -46,6 +46,21 @@ private func board(_ kind: LeaderboardKind, score: Double = 90, fetchedAt: Date 
         lastAttempts: [.arenaText: now.addingTimeInterval(-300)], now: now) == [.arenaText])
     let fresh = LeaderboardSnapshot(boards: [.arenaText: board(.arenaText, fetchedAt: now.addingTimeInterval(-60))])
     #expect(LeaderboardFreshness.dueKinds([.arenaText], snapshot: fresh, lastAttempts: [:], now: now).isEmpty)
+    let boundary = LeaderboardSnapshot(boards: [.arenaText: board(.arenaText, fetchedAt: now.addingTimeInterval(-LeaderboardFreshness.interval))])
+    #expect(LeaderboardFreshness.dueKinds([.arenaText], snapshot: boundary, lastAttempts: [:], now: now) == [.arenaText])
+}
+
+@Test func olderSharedSnapshotCannotReplaceNewerLocalData() async {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let cached = board(.arenaText, score: 90, fetchedAt: now)
+    let service = LeaderboardService { board($0, score: 80, fetchedAt: now.addingTimeInterval(-86400)) }
+    let result = await service.refresh([.arenaText], keeping: LeaderboardSnapshot(boards: [.arenaText: cached]))
+    #expect(result.snapshot.boards[.arenaText] == cached)
+    #expect(result.failures.isEmpty)
+    let source = Leaderboard(kind: .arenaText, title: "Source", sourceUpdatedAt: now, fetchedAt: now, entries: cached.entries)
+    let oldSource = Leaderboard(kind: .arenaText, title: "Old source", sourceUpdatedAt: now.addingTimeInterval(-86400),
+        fetchedAt: now.addingTimeInterval(3600), entries: cached.entries)
+    #expect(!oldSource.canReplace(source))
 }
 
 @Test func countryFilterPreservesSourceRanksAndCompanyScores() {

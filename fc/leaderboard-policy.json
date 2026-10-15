@@ -1,0 +1,42 @@
+{
+  "companyNames": {
+    "anthropic": "Anthropic",
+    "openai": "OpenAI",
+    "qwen": "Alibaba",
+    "zai": "Z.ai",
+    "spacexai": "xAI",
+    "stepfun": "StepFun",
+    "kimi": "Moonshot",
+    "google": "Google",
+    "deepseek": "DeepSeek",
+    "tencent": "Tencent",
+    "meta": "Meta",
+    "minimax": "MiniMax",
+    "mistral": "Mistral",
+    "nvidia": "Nvidia",
+    "bytedance": "ByteDance",
+    "xiaomi": "Xiaomi",
+    "klingai": "KlingAI",
+    "krea": "Krea",
+    "ideogram": "Ideogram",
+    "runway": "Runway",
+    "luma": "Luma",
+    "blackforestlabs": "Black Forest Labs",
+    "fal": "Fal",
+    "pixverse": "PixVerse",
+    "microsoftai": "Microsoft AI",
+    "opencode": "OpenCode",
+    "devin": "Devin",
+    "reve": "Reve",
+    "videorebirth": "Video Rebirth",
+    "thinkingmachines": "Thinking Machines"
+  },
+  "companySort": [
+    "scoreDescending",
+    "rankAscending",
+    "nameAscending"
+  ],
+  "sharedModelProviderMarks": [
+    "openai"
+  ]
+}

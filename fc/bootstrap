@@ -1,0 +1,4 @@
+#!/bin/sh
+export PATH=/var/fc/lang/nodejs20/bin:$PATH
+cd /code || exit 1
+exec node server.mjs
