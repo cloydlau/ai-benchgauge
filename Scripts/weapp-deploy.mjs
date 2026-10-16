@@ -175,8 +175,10 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   try {
     if (process.argv[2] === 'upload') await upload()
     else if (process.argv[2] === 'watch') {
-      const stop = await startWeappUploadWatch()
-      for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { stop(); process.exit() })
+      // Install signal handling before the watcher announces readiness. Its exit
+      // listener releases the timer, session and lock when the CLI stops.
+      for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => process.exit())
+      await startWeappUploadWatch()
     } else throw new Error('用法：node Scripts/weapp-deploy.mjs upload|watch')
   } catch (error) { console.error(`[weapp-upload] ${error.message}`); process.exitCode = 1 }
 }
