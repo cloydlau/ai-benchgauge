@@ -5,6 +5,7 @@ const path = require('node:path')
 const { pathToFileURL } = require('node:url')
 const { createHash } = require('node:crypto')
 const { registerHooks } = require('node:module')
+const { threadId } = require('node:worker_threads')
 const root = process.env.BENCHGAUGE_COVERAGE_ROOT
 const directory = process.env.BENCHGAUGE_COVERAGE_DIRECTORY
 if (root && directory) {
@@ -21,8 +22,14 @@ if (root && directory) {
   }
   const aliases = []
   fs.mkdirSync(directory, { recursive: true })
-  const manifest = path.join(directory, `sources-${process.pid}.json`)
-  const save = () => fs.writeFileSync(manifest, JSON.stringify({ originals, aliases }))
+  const manifest = path.join(directory, `sources-${process.pid}-${threadId}.json`)
+  // A fixture can terminate a child during a module load. Publish the complete
+  // manifest atomically, and keep workers in one process from sharing a file.
+  const temporary = path.join(directory, `.sources-${process.pid}-${threadId}.tmp`)
+  const save = () => {
+    fs.writeFileSync(temporary, JSON.stringify({ originals, aliases }))
+    fs.renameSync(temporary, manifest)
+  }
   save()
   registerHooks({ load(url, context, next) {
     const result = next(url, context)
