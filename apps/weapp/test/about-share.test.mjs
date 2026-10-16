@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { registerHooks } from 'node:module'
 import { pagePreferences, sharePath } from '../src/core/share-state.js'
+import { copy, text } from '../src/core/catalog.js'
 
 const registration = registerHooks({
   resolve(specifier, context, next) {
@@ -12,6 +13,7 @@ const registration = registerHooks({
       format: 'module', shortCircuit: true, source: `
         export const definePage = (factory, config) => { globalThis.aboutFactory = factory; globalThis.aboutConfig = config }
         export const ref = value => ({ value })
+        export const computed = read => ({ get value() { return read() } })
         export const onShareAppMessage = fn => { globalThis.aboutShare = fn }
       `,
     }
@@ -42,7 +44,22 @@ test('about-page menu forwarding and cold-start back navigation retain the origi
   assert.equal(about.labels.about, 'About')
   assert.deepEqual(about.investment.metrics.map(item => item.value), ['1,234', '56,789'])
   assert.equal(about.investment.title, 'Costs and investment')
+  assert.equal(about.costGroups.value.every(group => group.collapsed), true)
+  const [first, second] = about.costGroups.value
+  const toggle = id => about.toggleCostGroup({ currentTarget: { dataset: { id } } })
+  toggle(first.id)
+  assert.equal(about.costGroups.value[0].collapsed, false)
+  assert.equal(about.costGroups.value[1].collapsed, true)
+  toggle(second.id)
+  assert.equal(about.costGroups.value[0].collapsed, false)
+  assert.equal(about.costGroups.value[1].collapsed, false)
+  toggle(first.id)
+  toggle('unknown')
+  assert.equal(about.costGroups.value[0].collapsed, true)
+  assert.equal(about.costGroups.value[1].collapsed, false)
   const forwarded = globalThis.aboutShare()
+  assert.equal(forwarded.title, `${text(copy.about, 'en')}｜${text(copy.tagline, 'en')}`)
+  assert.equal(about.description, text(copy.description, 'en'))
   assert.ok(forwarded.path.startsWith('/pages/about/index?state='))
   const expected = pagePreferences(query)
   assert.deepEqual(pagePreferences(queryFor(forwarded.path)), expected)
@@ -50,4 +67,19 @@ test('about-page menu forwarding and cold-start back navigation retain the origi
   about.back()
   assert.ok(launches[0].startsWith('/pages/leaderboard/index?state='))
   assert.deepEqual(pagePreferences(queryFor(launches[0])), expected)
+})
+
+test('about descriptions and share titles reuse common localized copy', () => {
+  globalThis.__APP_VERSION__ = '0.0.0'; globalThis.__THIRD_PARTY_NOTICES__ = []
+  globalThis.__ENGINEERING_INVESTMENT__ = { commitCount: 1234, codeLineCount: 56789 }
+  for (const language of ['en', 'zh-CN', 'zh-TW']) {
+    globalThis.wx = {
+      getStorageSync: () => ({ language }),
+      getWindowInfo: () => ({ statusBarHeight: 24 }),
+      getAppBaseInfo: () => ({ theme: 'light' }),
+    }
+    const about = globalThis.aboutFactory({})
+    assert.equal(about.description, text(copy.description, language))
+    assert.equal(globalThis.aboutShare().title, `${about.labels.about}｜${text(copy.tagline, language)}`)
+  }
 })

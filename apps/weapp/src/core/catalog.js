@@ -25,7 +25,15 @@ export const text = (values, language) => values[Math.max(0, languages.indexOf(l
 export const boardTitle = (kind, language) => boards[kind].titles ? text(boards[kind].titles, language) : boards[kind].title
 export const categoryFor = id => categories.find(category => category.id === id) || categories[0]
 
+const tagline = ['Compare both boards to make informed choices; track quotas to know where you stand.',
+  '双榜对照，选得明白；余量追踪，用得有数。',
+  '雙榜對照，選得明白；餘量追蹤，用得有數。']
+
 export const copy = {
+  tagline,
+  description: [`Blind user votes show the experience; task benchmarks show capability. ${tagline[0]}`,
+    `用户盲测看体验，任务测评看能力。${tagline[1]}`,
+    `使用者盲測看體驗，任務測評看能力。${tagline[2]}`],
   name: ['AI BenchGauge', 'AI 天梯', 'AI 天梯'], subtitle: ['Dual boards & quota tracking', '双榜对照 & 余量追踪', '雙榜對照 & 餘量追蹤'],
   tasks: ['Task benchmarks', '任务测评', '任務測評'], votes: ['User votes', '用户盲测', '使用者盲測'],
   models: ['Models', '模型', '模型'], companies: ['Companies', '公司', '公司'], rank: ['Rank', '排名', '排名'],

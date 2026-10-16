@@ -8,7 +8,8 @@
     "dev:weapp": "node Scripts/dev-weapp.mjs",
     "upload:weapp": "node Scripts/weapp-deploy.mjs upload",
     "watch:weapp": "node Scripts/weapp-deploy.mjs watch",
-    "build:weapp": "pnpm --filter @benchgauge/weapp build",
+    "sync:description": "node Scripts/sync-app-description.mjs",
+    "build:weapp": "node Scripts/sync-app-description.mjs --check && pnpm --filter @benchgauge/weapp build",
     "open:weapp": "pnpm --filter @benchgauge/weapp open",
     "test:weapp": "pnpm --filter @benchgauge/weapp test"
   }

@@ -355,9 +355,11 @@ test('ten thousand rows only cross the bridge in bounded windows, including fast
   assert.equal(h.page.cards.value[0].rows[0].rank, start)
   h.page.scroll({ ...event({ kind: card.kind }), detail: { scrollTop: 480000 } })
   assert.equal(h.page.cards.value[0].rows.at(-1).rank, 10000)
+  assert.equal(h.page.backToTop.value, true, 'Reaching the last row must keep return-to-top available')
   h.page.top()
   h.page.scroll({ ...event({ kind: card.kind }), detail: { scrollTop: 0 } })
   assert.equal(h.page.cards.value[0].rows[0].rank, 1)
+  assert.equal(h.page.backToTop.value, false, 'Returning to the native top hides the floating control')
   h.page.rowDetails(event({ kind: card.kind, rank: 10000 }))
   assert.equal(h.clipboard.at(-1), 'Model 10000')
   assert.equal(h.modals.length, 0)
@@ -370,6 +372,34 @@ test('ten thousand rows only cross the bridge in bounded windows, including fast
   assert.equal(h.page.cards.value[0].rows[0].name, 'Maker 2')
   assert.equal(h.page.cards.value[0].rows[0].rank, 1)
   globalThis.__benchHooks.unload()
+})
+
+test('the selected category returns only the active board to top on a double tap, without refreshing', async t => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 1000 })
+  for (const face of [0, 1]) {
+    const h = setup({ face }, 1000)
+    const loading = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await loading
+    const kind = h.page.cards.value[face].kind
+    h.page.scroll({ ...event({ kind }), detail: { scrollTop: 1200 } })
+    const rows = h.page.cards.value[face].rows
+    const commands = h.scrolls.length, requests = h.requests.length, writes = h.writes.length
+    const tap = () => h.page.selectCategory(event({ id: 'general' }))
+    tap()
+    assert.equal(h.scrolls.length, commands, 'A single tap must preserve the scroll position')
+    assert.equal(h.page.backToTop.value, true)
+    assert.deepEqual(h.page.cards.value[face].rows, rows)
+    t.mock.timers.tick(301); tap()
+    assert.equal(h.scrolls.length, commands, 'Separate taps must not count as a double tap')
+    t.mock.timers.tick(150); tap()
+    assert.deepEqual(h.scrolls.slice(commands), [{ selector: `#board-scroll-${kind}`, top: 0, animated: false }])
+    tap()
+    assert.equal(h.scrolls.length, commands + 1, 'A third tap starts a new pair')
+    assert.equal(h.requests.length, requests)
+    assert.equal(h.writes.length, writes)
+    globalThis.__benchHooks.hide(); t.mock.timers.tick(100); tap()
+    assert.equal(h.scrolls.length, commands + 1, 'Hiding the page clears the pending tap')
+    globalThis.__benchHooks.unload()
+  }
 })
 
 test('measured header origin follows the scroll container and stale layout callbacks are ignored', async () => {

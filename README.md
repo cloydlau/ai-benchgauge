@@ -2,7 +2,9 @@
 
 **English** | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-Hant.md)
 
-**Compare task benchmarks and blind user evaluations to see how models perform across different scenarios.**
+<!-- app-description:start (generated from apps/weapp/src/core/catalog.js) -->
+**Blind user votes show the experience; task benchmarks show capability. Compare both boards to make informed choices; track quotas to know where you stand.**
+<!-- app-description:end -->
 
 `macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `3 languages` · [MIT License](LICENSE)
 

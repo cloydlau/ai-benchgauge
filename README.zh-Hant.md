@@ -4,7 +4,9 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md) | **繁體中文**
 
-**對照任務測評與使用者盲測，比較模型在不同場景下的表現。**
+<!-- app-description:start (generated from apps/weapp/src/core/catalog.js) -->
+**使用者盲測看體驗，任務測評看能力。雙榜對照，選得明白；餘量追蹤，用得有數。**
+<!-- app-description:end -->
 
 `macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `English / 簡中 / 繁中` · [MIT 授權條款](LICENSE)
 
