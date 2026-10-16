@@ -73,6 +73,23 @@ function setup(preferences = {}, count = 0, query = {}, systemTheme = 'light', s
 }
 const event = dataset => ({ currentTarget: { dataset } })
 
+test('loading skeletons cover the viewport at startup and after tall or landscape resizing', () => {
+  const h = setup()
+  const covers = height => {
+    const count = h.page.skeletonRows.value.length, rowHeight = h.page.cards.value[0].rowHeight
+    assert.ok(count * rowHeight >= height, 'Loading placeholders must reach the bottom of the window')
+    assert.ok(count * rowHeight < height + rowHeight * 2, 'Only the visible window and a spare row need placeholders')
+  }
+  covers(667)
+  for (const [windowWidth, windowHeight] of [[375, 1000], [834, 1210], [1210, 834], [375, 560]]) {
+    wx.getWindowInfo = () => ({ windowWidth, windowHeight, statusBarHeight: 24 })
+    globalThis.__benchHooks.resize()
+    covers(windowHeight)
+  }
+  assert.ok(h.page.cards.value.every(card => !card.hasBoard && card.rows.length === 0))
+  globalThis.__benchHooks.unload()
+})
+
 test('subtitle help shows the full heading in a wrapping modal body in every language', () => {
   for (const [language, title, subtitle, close] of [
     ['en', 'Feature overview', 'Dual boards & quota tracking', 'Close'],
@@ -87,6 +104,22 @@ test('subtitle help shows the full heading in a wrapping modal body in every lan
     assert.match(modal.content, /Mac.*Windows/)
     assert.equal(modal.confirmText, close)
     assert.equal(modal.showCancel, false)
+    globalThis.__benchHooks.unload()
+  }
+})
+
+test('header title follows capsule height and fits alongside controls across mobile sizes and languages', () => {
+  for (const language of ['zh-CN', 'zh-TW', 'en']) {
+    const h = setup({ language })
+    for (const width of [320, 375, 402, 430]) for (const height of [28, 32, 36]) {
+      wx.getWindowInfo = () => ({ statusBarHeight: 24, windowWidth: width })
+      wx.getMenuButtonBoundingClientRect = () => ({ top: 28, bottom: 28 + height, height, left: width - 94 })
+      globalThis.__benchHooks.resize()
+      const title = h.page.brandTitle.value
+      assert.ok(title.height > 0 && title.height <= height + 0.001)
+      assert.ok(title.width < width - 106 - 24 * width / 750)
+      if (language !== 'en' && width >= 375 && (width >= 402 || height <= 32)) assert.ok(Math.abs(title.height - height) < 0.001)
+    }
     globalThis.__benchHooks.unload()
   }
 })
@@ -427,6 +460,7 @@ test('actual filter/settings handlers share source filters, react to theme, copy
   assert.equal(h.page.cards.value[0].title, 'Artificial Analysis Text to Image')
   h.respond(2); h.respond(3); await new Promise(resolve => setImmediate(resolve))
   h.page.selectCategory(event({ id: 'general' }))
+  h.page.cubeStart({ touches: [{ clientX: 180, clientY: 300 }] })
   h.page.scroll({ currentTarget: { dataset: { kind: 'artificialAnalysis' } }, detail: { scrollTop: 600 } })
   assert.equal(h.page.backToTop.value, true)
   const beforeReturns = h.scrolls.length
@@ -436,8 +470,11 @@ test('actual filter/settings handlers share source filters, react to theme, copy
   globalThis.__benchHooks.unload()
 })
 
-test('the screenshot button exports full filtered comparisons and album retries resume after the last saved page', async () => {
-  const h = setup({}, 140), canvas = canvasHarness(), toasts = []
+test('the screenshot button exports only the current pair as one complete image and retries a denied save', async () => {
+  const h = setup({}, 140, {}, 'light', 'zh_CN', { arenaTextToImage: {
+    kind: 'arenaTextToImage', fetchedAt: '2026-10-13T12:00:00Z',
+    entries: [{ rank: 1, name: 'Do not export another category', score: 100 }],
+  } }), canvas = canvasHarness(), toasts = []
   Object.assign(wx, canvas.platform, { showLoading() {}, hideLoading() {},
     showToast: options => toasts.push(options), previewImage: options => { h.preview = options }, openSetting: () => { h.settings = true },
     createSelectorQuery: () => {
@@ -455,31 +492,34 @@ test('the screenshot button exports full filtered comparisons and album retries 
     h.page.sheetSelect({ detail: h.page.sheet.value.actions.find(action => action.value === value) })
   }
   await h.page.screenshot()
-  assert.ok(h.page.capture.value.paths.length > 1)
+  assert.equal(typeof h.page.capture.value.path, 'string')
+  assert.equal('paths' in h.page.capture.value, false)
   assert.equal(h.page.capture.value.open, true)
   assert.equal(h.page.capturing.value, false)
-  const names = column => canvas.commands.filter(([command, value, x]) => command === 'fillText' && /^Model \d+$/.test(value) && (x < 500) === (column === 0)).map(command => command[1])
+  const names = column => [...new Set(canvas.commands.filter(([command, value, x]) => command === 'fillText' && /^Model \d+$/.test(value) && (x < 500) === (column === 0)).map(command => command[1]))]
   assert.deepEqual(names(0), Array.from({ length: 70 }, (_, index) => `Model ${index * 2 + 1}`))
   assert.deepEqual(names(1), Array.from({ length: 70 }, (_, index) => `Model ${index * 2 + 1}`))
-  h.page.previewScreenshot(event({ index: 1 }))
-  assert.equal(h.preview.current, h.page.capture.value.paths[1])
-  h.page.capturePage(event({ step: 1 })); assert.equal(h.page.capture.value.index, 1)
-  h.page.previewScreenshot(event({ index: 0 })); assert.equal(h.preview.current, h.page.capture.value.paths[0])
+  assert.ok(!canvas.commands.some(([command, value]) => command === 'fillText' && String(value).includes('Do not export another category')))
+  const path = h.page.capture.value.path
+  h.page.previewScreenshot()
+  assert.deepEqual(h.preview, { urls: [path], current: path })
   let attempts = 0
   wx.saveImageToPhotosAlbum = options => {
-    if (++attempts === 2) options.fail({ errMsg: 'saveImageToPhotosAlbum:fail auth deny' })
+    if (++attempts === 1) options.fail({ errMsg: 'saveImageToPhotosAlbum:fail auth deny' })
     else { canvas.saved.push(options.filePath); options.success({}) }
   }
   await h.page.saveScreenshot()
-  assert.equal(h.page.capture.value.saved, 1)
+  assert.equal(h.page.capture.value.saved, false)
   assert.equal(h.page.capture.value.saving, false)
   assert.match(h.modals.at(-1).content, /允许保存/)
   h.modals.at(-1).success({ confirm: true }); assert.equal(h.settings, true)
   await h.page.saveScreenshot()
-  assert.equal(h.page.capture.value.saved, h.page.capture.value.paths.length)
-  assert.deepEqual(canvas.saved, h.page.capture.value.paths)
+  assert.equal(h.page.capture.value.saved, true)
+  assert.deepEqual(canvas.saved, [path])
+  await h.page.saveScreenshot(); assert.deepEqual(canvas.saved, [path], 'Repeated taps must not save a duplicate')
   assert.equal(toasts.at(-1).icon, 'success')
   h.page.closeCapture(); assert.equal(h.page.capture.value.open, false)
+  assert.equal(canvas.files.has(path), false, 'Closing the preview removes its temporary PNG')
   globalThis.__benchHooks.unload()
 })
 
@@ -603,6 +643,102 @@ test('source tabs retain the selected board during the reveal and an unfinished 
   h.page.cubeEnd()
   assert.equal(h.page.face.value, 0)
   assert.equal(h.page.sourceSelection.value, initialSelection)
+})
+
+test('source tabs scroll out with the active board and return on back-to-top or grouping reset', async t => {
+  const h = setup({}, 100), loading = globalThis.__benchHooks.load()
+  t.after(() => globalThis.__benchHooks.unload())
+  h.respond(0); h.respond(1); await loading
+  const scroll = (kind, scrollTop) => h.page.scroll({ currentTarget: { dataset: { kind } }, detail: { scrollTop } })
+  assert.match(h.page.sourceTabsStyle.value, /translateY\(-0px\)/)
+  scroll('artificialAnalysis', 20)
+  assert.match(h.page.sourceTabsStyle.value, /translateY\(-20px\)/)
+  scroll('arenaText', 500)
+  assert.match(h.page.sourceTabsStyle.value, /translateY\(-20px\)/, 'hidden-board events cannot move the tabs')
+  scroll('artificialAnalysis', 600)
+  assert.match(h.page.sourceTabsStyle.value, new RegExp(`translateY\\(-${h.page.sourceTabsExtent.value}px\\)`))
+  assert.match(h.page.sourceTabsStyle.value, /pointer-events:none/)
+  h.page.changeFace({ detail: { current: 1 } })
+  assert.match(h.page.sourceTabsStyle.value, /pointer-events:none/)
+  h.page.top()
+  assert.match(h.page.sourceTabsStyle.value, /translateY\(-0px\)/)
+  assert.equal(h.scrolls.at(-1).top, 0)
+  scroll('arenaText', 100)
+  h.page.selectGrouping(event({ id: 'company' }))
+  assert.match(h.page.sourceTabsStyle.value, /translateY\(-0px\)/)
+})
+
+test('settled native offsets restore tabs after a delayed scroll event and discard stale measurements', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const h = setup({}, 1000), loaded = globalThis.__benchHooks.load()
+  h.respond(0); h.respond(1); await loaded
+  t.after(() => globalThis.__benchHooks.unload())
+  const callbacks = []
+  wx.createSelectorQuery = () => {
+    const query = { select: () => ({ fields: () => query }), exec: callback => callbacks.push(callback) }
+    return query
+  }
+  const scroll = top => h.page.scroll({ ...event({ kind: 'artificialAnalysis' }), detail: { scrollTop: top } })
+  scroll(20); t.mock.timers.tick(96)
+  scroll(40); t.mock.timers.tick(96)
+  callbacks[0]([{ scrollTop: 0 }])
+  assert.match(h.page.sourceTabsStyle.value, /translateY\(-40px\)/, 'An older native query cannot override a newer scroll')
+  callbacks[1]([{ scrollTop: 0 }])
+  assert.match(h.page.sourceTabsStyle.value, /translateY\(-0px\)/, 'A stale bridge event must not strand tabs above the native top')
+  assert.equal(h.page.cards.value[0].rows[0].rank, 1)
+  scroll(20); t.mock.timers.tick(96)
+  globalThis.__benchHooks.unload()
+  callbacks[2]([{ scrollTop: 500 }])
+  assert.match(h.page.sourceTabsStyle.value, /translateY\(-20px\)/, 'Unloaded pages ignore outstanding measurements')
+})
+
+test('return-to-top rejects queued scroll events while a new touch cancels pending navigation', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const h = setup({}, 1000), loaded = globalThis.__benchHooks.load()
+  h.respond(0); h.respond(1); await loaded
+  t.after(() => globalThis.__benchHooks.unload())
+  const callbacks = [], commands = []
+  wx.createSelectorQuery = () => {
+    const query = { select: () => ({ node: () => query, fields: () => query }), exec: callback => callbacks.push(callback) }
+    return query
+  }
+  const scroll = top => h.page.scroll({ ...event({ kind: 'artificialAnalysis' }), detail: { scrollTop: top } })
+  scroll(700)
+  h.page.top()
+  scroll(20)
+  assert.match(h.page.sourceTabsStyle.value, /translateY\(-0px\)/)
+  callbacks[0]([{ node: { scrollTo: value => commands.push(value) } }])
+  t.mock.timers.tick(96)
+  callbacks[1]([{ scrollTop: 0 }])
+  assert.match(h.page.sourceTabsStyle.value, /translateY\(-0px\)/)
+  assert.equal(h.page.backToTop.value, false)
+  assert.equal(h.page.cards.value[0].rows[0].rank, 1)
+  h.page.top()
+  h.page.cubeStart({ touches: [{ clientX: 180, clientY: 300 }] })
+  callbacks[2]([{ node: { scrollTo: value => commands.push(value) } }])
+  assert.equal(commands.length, 1, 'A fresh touch must cancel a scroll command still waiting for its node')
+  scroll(700)
+  assert.equal(h.page.backToTop.value, true, 'The new native gesture must remain responsive')
+})
+
+test('the scrolling tab space follows the actual measured tab height', t => {
+  const h = setup()
+  t.after(() => globalThis.__benchHooks.unload())
+  wx.createSelectorQuery = () => {
+    const rows = []
+    const query = {
+      select: selector => ({
+        fields() { rows.push(selector === '.source-tabs' ? { height: 58 } : null); return query },
+        boundingClientRect() { rows.push(null); return query },
+      }),
+      exec: callback => callback(rows),
+    }
+    return query
+  }
+  globalThis.__benchHooks.ready()
+  assert.equal(h.page.sourceTabsExtent.value, 69)
+  h.page.scroll({ currentTarget: { dataset: { kind: 'artificialAnalysis' } }, detail: { scrollTop: 200 } })
+  assert.match(h.page.sourceTabsStyle.value, /translateY\(-69px\)/)
 })
 
 test('cached boards reveal on ready while network requests are still pending', async t => {

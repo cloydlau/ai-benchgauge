@@ -1,23 +1,22 @@
 <view class="shell leaderboard {{dark ? 'dark' : ''}}" style="--country-column:{{labels.country === 'Country' ? 84 : 58}}rpx;--source-column:{{labels.source.length === 2 ? 58 : 76}}rpx;">
-  <view class="brand-head {{labels.name === 'AI BenchGauge' ? 'brand-en' : ''}}" style="height:{{navHeight}}px;padding-top:{{headerTop}}px;padding-right:{{capsuleWidth}}px;">
+  <view class="brand-head {{labels.name === 'AI BenchGauge' ? 'brand-en' : ''}}" style="min-height:{{navHeight}}px;padding-top:{{headerTop}}px;padding-right:{{capsuleWidth}}px;">
     <view class="brand-copy">
       <view class="brand-title brand-wordmark" style="{{brandTitle.style}}" aria-label="{{labels.name}}">
         <image class="brand-letter-logo" src="{{dark ? '/assets/header-logo-dark.png' : '/assets/header-logo.png'}}" mode="aspectFit" style="{{brandTitle.logoStyle}}" aria-hidden="true" />
         <image wx:for="{{brandTitle.glyphs}}" wx:key="key" class="brand-glyph" src="{{item.source}}{{dark ? '-dark' : ''}}.svg" mode="aspectFit" style="{{item.style}}" aria-hidden="true" />
       </view>
+      <button class="subtitle" style="height:{{brandTitle.height}}px;font-size:{{brandTitle.height * 0.4}}px;" bindtap="quotaHelp" aria-label="{{labels.subtitle}}">
+        <view class="subtitle-line"><text>{{subtitleParts[0]}}</text><text class="subtitle-symbol" aria-hidden="true">{{'&'}}</text></view>
+        <view class="subtitle-line"><text>{{subtitleParts[1]}}</text><view class="subtitle-help" aria-hidden="true"><van-icon name="question-o" size="{{brandTitle.height * 0.32}}px" custom-style="opacity:0.55;" /></view></view>
+      </button>
     </view>
-  </view>
-  <view class="control-row">
-    <button class="subtitle" bindtap="quotaHelp" aria-label="{{labels.subtitle}}">
-      <view class="subtitle-text"><text>{{subtitleParts[0]}}</text><text class="subtitle-symbol" aria-hidden="true">{{'&'}}</text><text>{{subtitleParts[1]}}</text></view>
-      <view class="subtitle-help" aria-hidden="true"><van-icon name="question-o" size="24rpx" custom-style="opacity:0.55;" /></view>
-    </button>
     <view class="pill grouping">
       <button class="pill-option {{grouping === 'model' ? 'selected' : ''}}" data-id="model" bindtap="selectGrouping">{{labels.models}}</button>
       <button class="pill-option {{grouping === 'company' ? 'selected' : ''}}" data-id="company" bindtap="selectGrouping">{{labels.companies}}</button>
     </view>
   </view>
-  <view class="source-tabs" role="tablist">
+  <view class="board-stage">
+  <view class="source-tabs" role="tablist" style="{{sourceTabsStyle}}">
     <view class="source-selection" style="{{sourceSelection}}" aria-hidden="true" />
     <button wx:for="{{tabs}}" wx:key="*this" class="source-tab source-{{index}} {{face === index ? 'active' : ''}}"
       data-index="{{index}}" bindtap="selectFace" role="tab" aria-selected="{{face === index}}">{{item}}</button>
@@ -29,6 +28,7 @@
         refresher-enabled refresher-triggered="{{pullRefreshing}}" refresher-background="{{dark ? '#10151c' : '#f5f7fa'}}"
         data-kind="{{card.kind}}" scroll-anchoring="{{false}}"
         bindscroll="scroll" bindrefresherrefresh="pullRefresh">
+        <view class="source-tabs-spacer" style="height:{{sourceTabsExtent}}px;" aria-hidden="true" />
         <view class="board-card source-{{card.index}}">
           <view class="metadata">
             <button class="summary" data-kind="{{card.kind}}" bindtap="sourceHelp">{{card.summary}}</button>
@@ -48,7 +48,7 @@
             <text class="score-cell">{{labels.score}}</text>
           </view>
           <view wx:if="{{card.loading && !card.hasBoard}}" class="ranking-skeleton" aria-label="{{labels.loading}}" aria-role="text">
-            <view wx:for="{{[0,1,2,3,4,5,6,7]}}" wx:key="*this" class="skeleton-row table-grid" style="height:{{card.rowHeight}}px;" aria-hidden="true">
+            <view wx:for="{{skeletonRows}}" wx:key="*this" class="skeleton-row table-grid" style="height:{{card.rowHeight}}px;" aria-hidden="true">
               <view class="skeleton-block skeleton-rank" />
               <view class="skeleton-name"><view class="skeleton-block skeleton-logo" /><view class="skeleton-copy"><view class="skeleton-block skeleton-line" style="width:{{index % 3 === 0 ? 86 : index % 3 === 1 ? 65 : 76}}%;" /><view class="skeleton-block skeleton-line skeleton-line-short" /></view></view>
               <view class="skeleton-block skeleton-country" />
@@ -89,6 +89,7 @@
       <view class="cube-shade" style="opacity:{{cubeFaces[card.index].shade}};transition-duration:{{cubeDuration}}ms;" aria-hidden="true" />
     </view>
   </view>
+  </view>
   <view class="category-tabs" role="tablist">
     <view class="category-glass-selection" style="transform:translateX({{categoryIndex * 100}}%);" aria-hidden="true" />
     <button wx:for="{{categoryItems}}" wx:key="id" class="category-tab {{category === item.id ? 'active' : ''}}"
@@ -103,9 +104,8 @@
   <van-popup show="{{capture.open}}" position="bottom" round bindclose="closeCapture" close-on-click-overlay="{{!capture.saving}}" custom-class="capture-popup {{dark ? 'dark-sheet' : ''}}">
     <view class="capture-panel shell {{dark ? 'dark' : ''}}">
       <view class="capture-heading"><text>{{labels.screenshot}}</text><button class="tap" bindtap="closeCapture" disabled="{{capture.saving}}" aria-label="{{labels.close}}"><van-icon name="cross" size="18px" /></button></view>
-      <view wx:if="{{capture.paths.length > 1}}" class="capture-pages"><button class="tap" data-step="-1" bindtap="capturePage" disabled="{{capture.index === 0}}"><van-icon name="arrow-left" size="14px" /></button><text>{{capture.index + 1}} / {{capture.paths.length}}</text><button class="tap" data-step="1" bindtap="capturePage" disabled="{{capture.index === capture.paths.length - 1}}"><van-icon name="arrow" size="14px" /></button></view>
-      <scroll-view scroll-y class="capture-images"><image class="capture-image" src="{{capture.paths[capture.index]}}" mode="widthFix" bindtap="previewScreenshot" /></scroll-view>
-      <view class="capture-actions"><button class="capture-preview" bindtap="previewScreenshot">{{labels.preview}}</button><button class="capture-save" bindtap="saveScreenshot" disabled="{{capture.saving || capture.saved === capture.paths.length}}">{{capture.saved === capture.paths.length ? labels.savedImages : capture.paths.length > 1 ? labels.saveAllImages : labels.saveImages}}</button></view>
+      <scroll-view scroll-y class="capture-images"><image wx:if="{{capture.path}}" class="capture-image" src="{{capture.path}}" mode="widthFix" bindtap="previewScreenshot" /></scroll-view>
+      <view class="capture-actions"><button class="capture-preview" bindtap="previewScreenshot">{{labels.preview}}</button><button class="capture-save" bindtap="saveScreenshot" disabled="{{capture.saving || capture.saved}}">{{capture.saved ? labels.savedImages : labels.saveImages}}</button></view>
     </view>
   </van-popup>
 </view>

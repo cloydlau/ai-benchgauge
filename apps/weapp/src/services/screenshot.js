@@ -1,5 +1,6 @@
 import { brandLogoSource } from '../core/brand-title.js'
-import { planScreenshots, drawScreenshot, screenshotWidth } from '../core/screenshot.js'
+import { planScreenshot, drawScreenshot, screenshotWidth, screenshotStripHeight } from '../core/screenshot.js'
+import { createPNGStream } from '../core/png-stream.js'
 
 const invoke = (platform, name, options) => new Promise((resolve, reject) => platform[name]({ ...options, success: resolve, fail: reject }))
 
@@ -34,28 +35,51 @@ async function loadImages(platform, canvas, sources) {
   } }
 }
 
-export async function exportScreenshots({ platform, canvas, model, isActive = () => true, progress = () => {} }) {
-  const context = canvas.getContext('2d'), pages = planScreenshots(context, model)
-  const assets = await loadImages(platform, canvas, [brandLogoSource(model.dark), ...model.boards.flatMap(board => board.rows.flatMap(row => [row.logo, row.opennessIcon]))])
-  const paths = []
+export async function exportScreenshot({ platform, canvas, model, isActive = () => true, progress = () => {} }) {
+  const image = planScreenshot(canvas.getContext('2d'), model), fs = platform.getFileSystemManager()
+  const path = `${platform.env.USER_DATA_PATH}/benchgauge-screenshot-${Date.now()}-${Math.random().toString(36).slice(2)}.png`
+  let assets, complete = false
   try {
-    for (const page of pages) {
+    if (!isActive()) throw new Error('Screenshot cancelled')
+    // Force-quitting need not deliver onUnload. Reclaim only our old exports.
+    try {
+      for (const name of fs.readdirSync(platform.env.USER_DATA_PATH)) {
+        if (name.startsWith('benchgauge-screenshot-') && name.endsWith('.png')) removeScreenshot(platform, `${platform.env.USER_DATA_PATH}/${name}`)
+      }
+    } catch { /* Cleanup availability must not prevent a new export. */ }
+    assets = await loadImages(platform, canvas, [brandLogoSource(model.dark), ...model.boards.flatMap(board => board.rows.flatMap(row => [row.logo, row.opennessIcon]))])
+    const chunks = []
+    let byteLength = 0
+    const png = createPNGStream(screenshotWidth, image.height, bytes => { chunks.push(bytes); byteLength += bytes.length })
+    for (let offset = 0; offset < image.height; offset += screenshotStripHeight) {
       if (!isActive()) throw new Error('Screenshot cancelled')
-      progress(page.index + 1, pages.length)
-      // Bound both dimensions and memory; sequential pages avoid retaining
-      // giant canvases for complete lists with hundreds of rows.
-      canvas.width = screenshotWidth * 2; canvas.height = page.height * 2
-      const context = canvas.getContext('2d'); context.scale(2, 2)
-      drawScreenshot(context, model, page, assets.images)
-      const result = await invoke(platform, 'canvasToTempFilePath', { canvas,
-        x: 0, y: 0, width: canvas.width, height: canvas.height,
-        destWidth: canvas.width, destHeight: canvas.height, fileType: 'png' })
-      paths.push(result.tempFilePath)
+      const height = Math.min(screenshotStripHeight, image.height - offset)
+      canvas.width = screenshotWidth; canvas.height = height
+      const context = canvas.getContext('2d')
+      context.translate(0, -offset)
+      drawScreenshot(context, model, image, assets.images, { offset, height })
+      png.push(context.getImageData(0, 0, screenshotWidth, height).data)
+      progress(Math.round((offset + height) / image.height * 100))
+      await new Promise(resolve => setTimeout(resolve, 0))
     }
-    return paths
+    if (!isActive()) throw new Error('Screenshot cancelled')
+    png.finish()
+    // Keep only compressed chunks, then write the final file once. Raw pixel
+    // memory remains bounded by one strip throughout rendering.
+    const output = new Uint8Array(byteLength)
+    let position = 0
+    for (const bytes of chunks) { output.set(bytes, position); position += bytes.length }
+    fs.writeFileSync(path, output.buffer)
+    complete = true
+    return path
   } finally {
-    assets.cleanup(); canvas.width = 1; canvas.height = 1
+    assets?.cleanup(); canvas.width = 1; canvas.height = 1
+    if (!complete) removeScreenshot(platform, path)
   }
 }
 
+export function removeScreenshot(platform, path) {
+  if (!path || !platform.env?.USER_DATA_PATH || !path.startsWith(`${platform.env.USER_DATA_PATH}/benchgauge-screenshot-`)) return
+  try { platform.getFileSystemManager().unlinkSync(path) } catch { /* Already removed or reclaimed by the OS. */ }
+}
 export const saveScreenshotImage = (platform, filePath) => invoke(platform, 'saveImageToPhotosAlbum', { filePath })

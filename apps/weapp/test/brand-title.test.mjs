@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { brandGlyphs } from '../src/core/brand-glyphs.js'
-import { brandTitleLayout, createBrandMeasurer, drawBrandGlyphs } from '../src/core/brand-title.js'
+import { brandTitleLayout, createBrandMeasurer, drawBrandGlyphs, drawBrandLogo } from '../src/core/brand-title.js'
 import { canvasHarness } from './helpers/canvas.mjs'
 
 test('titles use the native font outlines offline and keep the logo aligned with I', () => {
@@ -42,4 +42,26 @@ test('screen SVGs and Canvas exports consume identical native glyph contours in 
       }
     }
   }
+})
+
+test('the English A leans right in both renderers without clipping, touching I or changing its height', () => {
+  for (const size of [14, 21, 42]) {
+    const title = brandTitleLayout(null, 'AI BenchGauge', size), h = canvasHarness(), image = {}
+    const angle = Number(title.logoStyle.match(/skewX\(([-\d.]+)deg\)/)[1])
+    assert.ok(angle < 0 && angle >= -20)
+    drawBrandLogo(h.context, image, title, 10, 20)
+    assert.deepEqual(h.commands.map(([method]) => method), ['save', 'transform', 'drawImage', 'restore'])
+    const [, a, b, c, d, tx, ty] = h.commands[1]
+    assert.equal(c, Math.tan(angle * Math.PI / 180))
+    const corners = [[0, 0], [title.logoWidth, 0], [0, title.logoHeight], [title.logoWidth, title.logoHeight]]
+      .map(([x, y]) => [a * x + c * y + tx, b * x + d * y + ty])
+    assert.ok(Math.min(...corners.map(([x]) => x)) >= 10 - 1e-9)
+    assert.ok(Math.max(...corners.map(([x]) => x)) < 10 + title.glyphs[0].x)
+    assert.equal(Math.min(...corners.map(([, y]) => y)), 20 + title.logoTop)
+    assert.equal(Math.max(...corners.map(([, y]) => y)), 20 + title.logoTop + title.logoHeight)
+  }
+  const chinese = brandTitleLayout(null, 'AI 天梯', 21), h = canvasHarness(), image = {}
+  assert.ok(!chinese.logoStyle.includes('transform:'))
+  drawBrandLogo(h.context, image, chinese, 10, 20)
+  assert.deepEqual(h.commands, [['drawImage', image, 10, 20 + chinese.logoTop, chinese.logoWidth, chinese.logoHeight]])
 })

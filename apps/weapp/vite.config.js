@@ -14,7 +14,7 @@ const address = new URL(endpoint)
 if (address.protocol !== 'https:' || address.username || address.password || address.search || address.hash) throw new Error('A valid HTTPS shared endpoint is required')
 const version = JSON.parse(readFileSync(resolve(root, 'config/app.json'))).version
 const notices = [
-  ['Vue Mini', '@vue-mini/core'], ['Vant Weapp', '@vant/weapp'], ['Tailwind CSS', 'tailwindcss'],
+  ['Vue Mini', '@vue-mini/core'], ['Vant Weapp', '@vant/weapp'], ['Tailwind CSS', 'tailwindcss'], ['fflate', 'fflate'],
 ].map(([name, packageName]) => ({ name, license: readFileSync(new URL(`node_modules/${packageName}/LICENSE`, import.meta.url), 'utf8') }))
 notices.push({ name: 'Lucide Icons', licenseName: 'ISC', license: readFileSync(new URL('assets/openness/LICENSE', import.meta.url), 'utf8') })
 notices.push({ name: 'Slide Xiaxing / BenchGauge Calligraphy', licenseName: 'SIL OFL 1.1',

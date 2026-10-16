@@ -1,8 +1,8 @@
-import { brandTitleLayout, brandLogoSource, drawBrandGlyphs } from './brand-title.js'
+import { brandTitleLayout, brandLogoSource, drawBrandGlyphs, drawBrandLogo } from './brand-title.js'
 // Canvas presentation only: ranking, filtering, brands and dates come from the
 // same view model as the screen. Export every row, independently of its window.
 export const screenshotWidth = 1000
-export const screenshotMaxHeight = 2000
+export const screenshotStripHeight = 1024
 const top = 238, bottom = 54, margin = 24, gap = 20
 const columnWidth = (screenshotWidth - margin * 2 - gap) / 2
 const nameWidth = columnWidth - 237
@@ -22,23 +22,18 @@ export function wrapText(context, value, width) {
   return lines
 }
 
-export function planScreenshots(context, model) {
+export function planScreenshot(context, model) {
   context.font = '14px sans-serif'
   const boards = model.boards.map(board => ({ ...board,
     rows: board.rows.map(row => ({ ...row, lines: wrapText(context, row.name, nameWidth) })) }))
   const count = Math.max(...boards.map(board => board.rows.length), 0)
-  const pages = []; let rows = [], height = top
+  const rows = []; let height = top
   for (let index = 0; index < count; index++) {
     const pair = boards.map(board => board.rows[index] || null)
     const rowHeight = Math.max(46, ...pair.map(row => row ? row.lines.length * 18 + 14 : 0))
-    if (rowHeight > screenshotMaxHeight - top - bottom) throw new Error('Model name is too long to export')
-    if (rows.length && height + rowHeight + bottom > screenshotMaxHeight) {
-      pages.push({ rows, height: height + bottom }); rows = []; height = top
-    }
     rows.push({ pair, height: rowHeight, y: height }); height += rowHeight
   }
-  pages.push({ rows, height: Math.max(height + bottom, top + 120) })
-  return pages.map((page, index) => ({ ...page, boards, index, count: pages.length }))
+  return { rows, boards, height: Math.max(height + bottom, top + 120) }
 }
 
 function rounded(context, x, y, width, height, radius, color) {
@@ -58,22 +53,24 @@ function text(context, value, x, y, size, color, { bold = false, align = 'left' 
   context.fillText(String(value), x, y)
 }
 
-export function drawScreenshot(context, model, page, images) {
+export function drawScreenshot(context, model, image, images, { offset = 0, height: stripHeight = image.height } = {}) {
   const colors = model.dark
     ? { background: '#10151c', card: '#19212c', ink: '#edf2f7', muted: '#8b98ab', line: '#2a3544', blue: '#67b1ff', purple: '#cd91f7', open: '#77d9a1' }
     : { background: '#f5f7fa', card: '#ffffff', ink: '#17202c', muted: '#7c8797', line: '#e7ebf1', blue: '#1675dc', purple: '#9657c8', open: '#188966' }
-  context.fillStyle = colors.background; context.fillRect(0, 0, screenshotWidth, page.height)
+  context.fillStyle = colors.background; context.fillRect(0, 0, screenshotWidth, image.height)
   const title = brandTitleLayout(context, model.labels.name, 27)
   const titleY = 40 - title.height / 2
   const headerLogo = images.get(brandLogoSource(model.dark))
-  if (headerLogo) context.drawImage(headerLogo, margin, titleY + title.logoTop, title.logoWidth, title.logoHeight)
+  if (headerLogo) drawBrandLogo(context, headerLogo, title, margin, titleY)
   context.fillStyle = colors.ink
   drawBrandGlyphs(context, title, margin, titleY)
-  text(context, model.labels.subtitle, margin + title.width + 12, 49, 14, colors.muted)
+  const subtitle = model.labels.subtitle.split(' & '), captionX = margin + title.width + 6
+  text(context, subtitle[0] + ' &', captionX, titleY + title.height * 0.2, title.height * 0.4, colors.muted)
+  text(context, subtitle[1] + ' ?', captionX, titleY + title.height * 0.8, title.height * 0.4, colors.muted)
   text(context, `${model.groupingLabel} · ${model.categoryLabel}`, screenshotWidth - margin, 40, 15, colors.muted, { align: 'right' })
-  page.boards.forEach((board, column) => {
+  image.boards.forEach((board, column) => {
     const x = margin + column * (columnWidth + gap), accent = column ? colors.purple : colors.blue
-    rounded(context, x, 80, columnWidth, page.height - 80 - bottom, 12, colors.card)
+    rounded(context, x, 80, columnWidth, image.height - 80 - bottom, 12, colors.card)
     text(context, board.tab, x + 16, 104, 16, accent, { bold: true })
     text(context, board.time, x + columnWidth - 16, 132, 12, colors.muted, { align: 'right' })
     context.font = '13px sans-serif'
@@ -88,8 +85,8 @@ export function drawScreenshot(context, model, page, images) {
     context.strokeStyle = colors.line; context.lineWidth = 1; context.beginPath()
     context.moveTo(x + 12, 232); context.lineTo(x + columnWidth - 12, 232); context.stroke()
     if (!board.rows.length) text(context, board.empty, x + columnWidth / 2, top + 48, 14, colors.muted, { align: 'center' })
-    else if (!page.rows.some(row => row.pair[column])) text(context, model.labels.leaderboardComplete, x + columnWidth / 2, top + 48, 14, colors.muted, { align: 'center' })
-    page.rows.forEach(({ pair, height, y }) => {
+    image.rows.forEach(({ pair, height, y }) => {
+      if (y + height <= offset || y >= offset + stripHeight) return
       const row = pair[column]; if (!row) return
       const center = y + height / 2
       if (row.rank % 2 === 0) rounded(context, x + 8, y, columnWidth - 16, height, 6, model.dark ? '#1d2733' : '#f8f9fb')
@@ -110,6 +107,5 @@ export function drawScreenshot(context, model, page, images) {
       text(context, row.scoreText, scoreX, center, 14, colors.muted, { align: 'right' })
     })
   })
-  text(context, model.labels.name, margin, page.height - 26, 12, colors.muted)
-  text(context, `${page.index + 1} / ${page.count}`, screenshotWidth - margin, page.height - 26, 12, colors.muted, { align: 'right' })
+  text(context, model.labels.name, margin, image.height - 26, 12, colors.muted)
 }
