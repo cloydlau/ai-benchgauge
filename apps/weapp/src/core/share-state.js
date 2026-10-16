@@ -1,4 +1,5 @@
 import { boards, categories, hasOwn, languages } from './catalog.js'
+import { normalizedCountryCode } from '../../../../fc/domain.mjs'
 
 const groupings = ['model', 'company']
 const themes = ['system', 'light', 'dark']
@@ -12,7 +13,7 @@ function normalizeFilters(value, category, face) {
   // Migrate older per-board/category preferences from the visible board.
   const kind = categories.find(group => group.id === category).kinds[face]
   const filter = isObject(value) && hasOwn(value, kind) && isObject(value[kind]) ? value[kind] : {}
-  const country = validCountry(filter.country) ? filter.country : 'all'
+  const country = validCountry(filter.country) ? normalizedCountryCode(filter.country) ?? filter.country : 'all'
   const openness = opennessValues.includes(filter.openness) ? filter.openness : 'all'
   // Preserve the existing storage/share format for older clients.
   return country === 'all' && openness === 'all' ? {}

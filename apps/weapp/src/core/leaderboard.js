@@ -16,22 +16,26 @@ export function normalizeBoard(value, kind) {
     if (!Number.isInteger(entry.rank) || entry.rank <= 0 || seen.has(entry.rank)
       || typeof entry.name !== 'string' || !entry.name.trim() || !Number.isFinite(entry.score) || entry.score < 0) throw new Error('Invalid ranking entry')
     seen.add(entry.rank)
-    return { ...entry, name: entry.name.trim(), openness: ['open', 'closed'].includes(entry.openness) ? entry.openness : null }
+    return { ...entry, name: entry.name.trim(), openness: ['open', 'closed'].includes(entry.openness) ? entry.openness : null,
+      ...(entry.developerCountry && { developerCountry: { ...entry.developerCountry, countryCode: normalizedCountryCode(entry.developerCountry.countryCode) } }) }
   }).sort((a, b) => a.rank - b.rank)
   return { ...value, entries }
 }
 
-export const countryFlag = code => /^[A-Z]{2}$/.test(code)
-  ? String.fromCodePoint(...[...code].map(letter => letter.charCodeAt(0) + 127397)) : '—'
+export const countryFlag = value => {
+  const code = normalizedCountryCode(value)
+  return code ? String.fromCodePoint(...[...code].map(letter => letter.charCodeAt(0) + 127397)) : '—'
+}
 const countryNames = {
   US: ['United States', '美国', '美國'], CN: ['China', '中国', '中國'], FR: ['France', '法国', '法國'],
   CA: ['Canada', '加拿大', '加拿大'], IL: ['Israel', '以色列', '以色列'], DE: ['Germany', '德国', '德國'],
   GB: ['United Kingdom', '英国', '英國'], SG: ['Singapore', '新加坡', '新加坡'], JP: ['Japan', '日本', '日本'],
   KR: ['South Korea', '韩国', '韓國'], AE: ['United Arab Emirates', '阿联酋', '阿聯酋'], CH: ['Switzerland', '瑞士', '瑞士'],
+  AU: ['Australia', '澳大利亚', '澳大利亞'], RU: ['Russia', '俄罗斯', '俄羅斯'],
 }
 export function countryOptions(board, language, selected = 'all') {
   const codes = [...new Set([...(board?.entries || []).map(countryCode),
-    ...(/^(unknown|[A-Z]{2})$/.test(selected) ? [selected] : [])])].sort()
+    ...(/^(unknown|[A-Z]{2})$/.test(selected) ? [normalizedCountryCode(selected) ?? selected] : [])])].sort()
   return [{ value: 'all', label: text(copy.all, language) }, ...codes.map(code => ({ value: code,
     label: code === 'unknown' ? text(copy.unknown, language) : `${countryFlag(code)} ${countryNames[code] ? text(countryNames[code], language) : code}` }))]
 }

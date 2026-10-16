@@ -6,6 +6,15 @@ using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Security;
 
+foreach (var code in new[] { "CN", "HK", "MO", "TW", " hk ", "mo", "tw", "HKG", "MAC", "TWN", "Hong Kong", "Macao", "Macau", "Taiwan", "香港", "澳门", "澳門", "台湾", "台灣", "臺灣" })
+{
+    var saved = JsonSerializer.Deserialize<Preferences>(JsonSerializer.Serialize(new { countries = new { arenaText = code } }), AppConfig.Json)!;
+    if (saved.Countries["arenaText"] != "china" || LeaderboardCountryPolicy.NormalizeFilter(code) != "china")
+        throw new Exception("China country filter migration failed: " + code);
+}
+if (LeaderboardCountryPolicy.NormalizeFilter("JP") != "JP" || LeaderboardCountryPolicy.NormalizeFilter("unknown") != "unknown")
+    throw new Exception("Country migration changed unrelated filters");
+
 // Shared images arrive in the engine response; older engines remain readable.
 var brandedEntry = JsonSerializer.Deserialize<Entry>("""
     {"rank":1,"name":"New Model","score":99,"organization":"New Maker","brandColor":"#319FA8","logoPNG":"iVBORw0KGgo=","initials":"N"}

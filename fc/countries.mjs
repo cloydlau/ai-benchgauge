@@ -1,5 +1,8 @@
 import { readFileSync } from 'node:fs';
+import brandCatalog from './brand-catalog.json' with { type: 'json' };
+import policy from './leaderboard-policy.json' with { type: 'json' };
 import { brandKey, normalizedBrandKey } from './brands.mjs';
+import { normalizedCountryCode } from './domain.mjs';
 
 const catalog = JSON.parse(readFileSync(new URL('./country-catalog.json', import.meta.url)));
 const names = new Intl.DisplayNames(['en'], { type: 'region', fallback: 'none' });
@@ -7,9 +10,13 @@ const excluded = new Set(['EU', 'UN', 'ZZ', 'XA', 'XB', 'QO']);
 export const countryRetryInterval = 30 * 60 * 1000;
 export function countryCode(value) {
   if (typeof value !== 'string') return null;
-  const code = value.trim().toUpperCase();
-  return /^[A-Z]{2}$/.test(code) && !excluded.has(code) && names.of(code) ? code : null;
+  const code = normalizedCountryCode(value);
+  return code && !excluded.has(code) && names.of(code) ? code : null;
 }
+const canonicalCountry = record => {
+  const code = countryCode(record?.countryCode);
+  return code && code !== record.countryCode ? { ...record, countryCode: code } : record;
+};
 const identity = value => String(value ?? '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
 function hostname(value) {
   try { const url = new URL(value); return url.protocol === 'https:' ? url.hostname.replace(/^www\./, '') : null; }
@@ -81,6 +88,21 @@ export class CountryRegistry {
   }
   async enrich(board, { acquire = false } = {}) {
     if (!board?.entries) return board;
+    // Exact, verified model identities repair old source rows with no developer.
+    // Do not infer ownership from a loose family prefix or override a source owner.
+    board = { ...board, entries: board.entries.map(entry => {
+      // Verified spelling aliases describe the same owner. Emit its canonical
+      // name so older clients can validate the country key without new aliases.
+      const canonicalName = brandCatalog.organizationNames?.[identity(entry.organization)];
+      if (canonicalName && normalizedBrandKey(canonicalName) === normalizedBrandKey(entry.organization)) {
+        return { ...entry, organization: canonicalName };
+      }
+      const name = String(entry.name ?? '').trim().toLowerCase();
+      const key = Object.prototype.hasOwnProperty.call(brandCatalog.modelDevelopers, name)
+        ? brandCatalog.modelDevelopers[name] : null;
+      return !entry.organization?.trim() && key && policy.companyNames[key]
+        ? { ...entry, organization: policy.companyNames[key] } : entry;
+    }) };
     const signal = AbortSignal.timeout(this.budget), records = new Map();
     const grouped = new Map();
     for (const entry of board.entries) {
@@ -105,13 +127,14 @@ export class CountryRegistry {
       const key = brandKey(entry), known = catalog[key], saved = entry.developerCountry;
       const fallback = countryCode(known?.countryCode) ? { key, status: 'ready', ...known }
         : saved?.key === key && countryCode(saved.countryCode) ? saved : { key: key ?? '', status: key ? 'pending' : 'missing' };
-      return { ...entry, developerCountry: records.get(key) ?? fallback };
+      return { ...entry, ...(entry.countryHint && { countryHint: canonicalCountry(entry.countryHint) }),
+        developerCountry: canonicalCountry(records.get(key) ?? fallback) };
     }) };
   }
   async resolve(key, entry, acquire, signal) {
     const known = catalog[key];
     // Fresh verified catalog values can correct older shared records at read.
-    if (countryCode(known?.countryCode)) return { key, status: 'ready', ...known };
+    if (countryCode(known?.countryCode)) return canonicalCountry({ key, status: 'ready', ...known });
     const hint = entry.countryHint;
     if (hint?.key === key && countryCode(hint.countryCode)) {
       const record = { key, countryCode: countryCode(hint.countryCode), status: 'ready', source: 'upstream', retrievedAt: new Date(this.clock()).toISOString() };
@@ -123,7 +146,7 @@ export class CountryRegistry {
     const saved = entry.developerCountry;
     if (!cached && saved?.key === key && countryCode(saved.countryCode)) cached = saved;
     if (cached?.key !== key) cached = null;
-    if (countryCode(cached?.countryCode)) return cached;
+    if (countryCode(cached?.countryCode)) return canonicalCountry(cached);
     if (!acquire || cached?.nextAttemptAt > this.clock()) return cached ?? { key, status: 'pending' };
     // A harness's developer is the lead model; never search the harness under
     // a hosted-model key. Known hosted developers are handled by the catalog.

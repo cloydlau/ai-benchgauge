@@ -1,0 +1,782 @@
+[
+  {
+    "name": "K2 Horizon 375B A23B",
+    "organization": "Institute of Foundation Models",
+    "key": "instituteoffoundationmodels",
+    "countryCode": "AE"
+  },
+  {
+    "name": "Claude Code - Step 5 Preview",
+    "key": "stepfun",
+    "countryCode": "CN"
+  },
+  {
+    "name": "intellect-3",
+    "key": "primeintellect",
+    "countryCode": "US"
+  },
+  {
+    "name": "command-a-03-2025",
+    "organization": "Cohere",
+    "key": "cohere",
+    "countryCode": "CA"
+  },
+  {
+    "name": "ling-flash-2.0",
+    "organization": "Ant Group",
+    "key": "antgroup",
+    "countryCode": "CN"
+  },
+  {
+    "name": "mercury-2",
+    "organization": "Inception AI",
+    "key": "inceptionai",
+    "countryCode": "US"
+  },
+  {
+    "name": "granite-4.2-30b",
+    "organization": "IBM",
+    "key": "ibm",
+    "countryCode": "US"
+  },
+  {
+    "name": "olmo-3.1-32b-instruct",
+    "organization": "Ai2",
+    "key": "ai2",
+    "countryCode": "US"
+  },
+  {
+    "name": "yi-lightning",
+    "key": "01ai",
+    "countryCode": "CN"
+  },
+  {
+    "name": "ring-flash-2.0",
+    "organization": "Ant Group",
+    "key": "antgroup",
+    "countryCode": "CN"
+  },
+  {
+    "name": "molmo-2-8b",
+    "organization": "Ai2",
+    "key": "ai2",
+    "countryCode": "US"
+  },
+  {
+    "name": "athene-v2-chat",
+    "key": "nexusflow",
+    "countryCode": "US"
+  },
+  {
+    "name": "athene-70b-0725",
+    "key": "nexusflow",
+    "countryCode": "US"
+  },
+  {
+    "name": "olmo-3-32b-think",
+    "organization": "Ai2",
+    "key": "ai2",
+    "countryCode": "US"
+  },
+  {
+    "name": "mercury",
+    "organization": "Inception AI",
+    "key": "inceptionai",
+    "countryCode": "US"
+  },
+  {
+    "name": "granite-4.1-8b",
+    "organization": "IBM",
+    "key": "ibm",
+    "countryCode": "US"
+  },
+  {
+    "name": "granite-4.2-8b",
+    "organization": "IBM",
+    "key": "ibm",
+    "countryCode": "US"
+  },
+  {
+    "name": "granite-4.2-3b",
+    "organization": "IBM",
+    "key": "ibm",
+    "countryCode": "US"
+  },
+  {
+    "name": "jamba-1.5-large",
+    "key": "ai21labs",
+    "countryCode": "IL"
+  },
+  {
+    "name": "reka-core-20240904",
+    "key": "reka",
+    "countryCode": "US"
+  },
+  {
+    "name": "ibm-granite-h-small",
+    "organization": "IBM",
+    "key": "ibm",
+    "countryCode": "US"
+  },
+  {
+    "name": "olmo-3.1-32b-think",
+    "organization": "Ai2",
+    "key": "ai2",
+    "countryCode": "US"
+  },
+  {
+    "name": "llama-3.1-tulu-3-70b",
+    "organization": "Ai2",
+    "key": "ai2",
+    "countryCode": "US"
+  },
+  {
+    "name": "gemma-2-9b-it-simpo",
+    "key": "princetonnlp",
+    "countryCode": "US"
+  },
+  {
+    "name": "command-r-plus-08-2024",
+    "organization": "Cohere",
+    "key": "cohere",
+    "countryCode": "CA"
+  },
+  {
+    "name": "reka-flash-20240904",
+    "key": "reka",
+    "countryCode": "US"
+  },
+  {
+    "name": "c4ai-aya-expanse-32b",
+    "organization": "Cohere",
+    "key": "cohere",
+    "countryCode": "CA"
+  },
+  {
+    "name": "command-r-plus",
+    "organization": "Cohere",
+    "key": "cohere",
+    "countryCode": "CA"
+  },
+  {
+    "name": "phi-4",
+    "organization": "Microsoft",
+    "key": "microsoftai",
+    "countryCode": "US"
+  },
+  {
+    "name": "olmo-2-0325-32b-instruct",
+    "organization": "Ai2",
+    "key": "ai2",
+    "countryCode": "US"
+  },
+  {
+    "name": "command-r-08-2024",
+    "organization": "Cohere",
+    "key": "cohere",
+    "countryCode": "CA"
+  },
+  {
+    "name": "jamba-1.5-mini",
+    "key": "ai21labs",
+    "countryCode": "IL"
+  },
+  {
+    "name": "reka-flash-21b-20240226-online",
+    "key": "reka",
+    "countryCode": "US"
+  },
+  {
+    "name": "command-r",
+    "organization": "Cohere",
+    "key": "cohere",
+    "countryCode": "CA"
+  },
+  {
+    "name": "reka-flash-21b-20240226",
+    "key": "reka",
+    "countryCode": "US"
+  },
+  {
+    "name": "c4ai-aya-expanse-8b",
+    "organization": "Cohere",
+    "key": "cohere",
+    "countryCode": "CA"
+  },
+  {
+    "name": "llama-3.1-tulu-3-8b",
+    "organization": "Ai2",
+    "key": "ai2",
+    "countryCode": "US"
+  },
+  {
+    "name": "zephyr-orpo-141b-A35b-v0.1",
+    "key": "huggingface",
+    "countryCode": "US"
+  },
+  {
+    "name": "yi-1.5-34b-chat",
+    "key": "01ai",
+    "countryCode": "CN"
+  },
+  {
+    "name": "granite-3.1-8b-instruct",
+    "organization": "IBM",
+    "key": "ibm",
+    "countryCode": "US"
+  },
+  {
+    "name": "phi-3-medium-4k-instruct",
+    "organization": "Microsoft",
+    "key": "microsoftai",
+    "countryCode": "US"
+  },
+  {
+    "name": "dbrx-instruct-preview",
+    "key": "databricks",
+    "countryCode": "US"
+  },
+  {
+    "name": "internlm2_5-20b-chat",
+    "key": "shanghaiailaboratory",
+    "countryCode": "CN"
+  },
+  {
+    "name": "wizardlm-70b",
+    "organization": "Microsoft",
+    "key": "microsoftai",
+    "countryCode": "US"
+  },
+  {
+    "name": "yi-34b-chat",
+    "key": "01ai",
+    "countryCode": "CN"
+  },
+  {
+    "name": "granite-3.0-8b-instruct",
+    "organization": "IBM",
+    "key": "ibm",
+    "countryCode": "US"
+  },
+  {
+    "name": "openchat-3.5",
+    "key": null,
+    "countryCode": null
+  },
+  {
+    "name": "openchat-3.5-0106",
+    "key": null,
+    "countryCode": null
+  },
+  {
+    "name": "snowflake-arctic-instruct",
+    "key": "snowflake",
+    "countryCode": "US"
+  },
+  {
+    "name": "granite-3.1-2b-instruct",
+    "organization": "IBM",
+    "key": "ibm",
+    "countryCode": "US"
+  },
+  {
+    "name": "tulu-2-dpo-70b",
+    "key": "ai2",
+    "countryCode": "US"
+  },
+  {
+    "name": "openhermes-2.5-mistral-7b",
+    "key": null,
+    "countryCode": null
+  },
+  {
+    "name": "vicuna-33b",
+    "key": "lmsys",
+    "countryCode": "US"
+  },
+  {
+    "name": "phi-3-small-8k-instruct",
+    "organization": "Microsoft",
+    "key": "microsoftai",
+    "countryCode": "US"
+  },
+  {
+    "name": "starling-lm-7b-beta",
+    "key": "ucberkeley",
+    "countryCode": "US"
+  },
+  {
+    "name": "starling-lm-7b-alpha",
+    "key": "ucberkeley",
+    "countryCode": "US"
+  },
+  {
+    "name": "nous-hermes-2-mixtral-8x7b-dpo",
+    "key": "nousresearch",
+    "countryCode": "US"
+  },
+  {
+    "name": "granite-3.0-2b-instruct",
+    "organization": "IBM",
+    "key": "ibm",
+    "countryCode": "US"
+  },
+  {
+    "name": "dolphin-2.2.1-mistral-7b",
+    "key": null,
+    "countryCode": null
+  },
+  {
+    "name": "mpt-30b-chat",
+    "key": "mosaicml",
+    "countryCode": "US"
+  },
+  {
+    "name": "wizardlm-13b",
+    "organization": "Microsoft",
+    "key": "microsoftai",
+    "countryCode": "US"
+  },
+  {
+    "name": "falcon-180b-chat",
+    "key": "technologyinnovationinstitute",
+    "countryCode": "AE"
+  },
+  {
+    "name": "phi-3-mini-4k-instruct-june-2024",
+    "organization": "Microsoft",
+    "key": "microsoftai",
+    "countryCode": "US"
+  },
+  {
+    "name": "vicuna-13b",
+    "key": "lmsys",
+    "countryCode": "US"
+  },
+  {
+    "name": "zephyr-7b-beta",
+    "key": "huggingface",
+    "countryCode": "US"
+  },
+  {
+    "name": "phi-3-mini-128k-instruct",
+    "organization": "Microsoft",
+    "key": "microsoftai",
+    "countryCode": "US"
+  },
+  {
+    "name": "phi-3-mini-4k-instruct",
+    "organization": "Microsoft",
+    "key": "microsoftai",
+    "countryCode": "US"
+  },
+  {
+    "name": "guanaco-33b",
+    "key": "universityofwashington",
+    "countryCode": "US"
+  },
+  {
+    "name": "zephyr-7b-alpha",
+    "key": "huggingface",
+    "countryCode": "US"
+  },
+  {
+    "name": "stripedhyena-nous-7b",
+    "key": "togetherai",
+    "countryCode": "US"
+  },
+  {
+    "name": "vicuna-7b",
+    "key": "lmsys",
+    "countryCode": "US"
+  },
+  {
+    "name": "smollm2-1.7b-instruct",
+    "key": "huggingface",
+    "countryCode": "US"
+  },
+  {
+    "name": "olmo-7b-instruct",
+    "organization": "Ai2",
+    "key": "ai2",
+    "countryCode": "US"
+  },
+  {
+    "name": "koala-13b",
+    "key": "ucberkeley",
+    "countryCode": "US"
+  },
+  {
+    "name": "alpaca-13b",
+    "key": "stanford",
+    "countryCode": "US"
+  },
+  {
+    "name": "gpt4all-13b-snoozy",
+    "key": "nomicai",
+    "countryCode": "US"
+  },
+  {
+    "name": "mpt-7b-chat",
+    "key": "mosaicml",
+    "countryCode": "US"
+  },
+  {
+    "name": "chatglm3-6b",
+    "key": "zai",
+    "countryCode": "CN"
+  },
+  {
+    "name": "RWKV-4-Raven-14B",
+    "key": null,
+    "countryCode": null
+  },
+  {
+    "name": "chatglm2-6b",
+    "key": "zai",
+    "countryCode": "CN"
+  },
+  {
+    "name": "oasst-pythia-12b",
+    "key": "laion",
+    "countryCode": "DE"
+  },
+  {
+    "name": "chatglm-6b",
+    "key": "zai",
+    "countryCode": "CN"
+  },
+  {
+    "name": "fastchat-t5-3b",
+    "key": "lmsys",
+    "countryCode": "US"
+  },
+  {
+    "name": "dolly-v2-12b",
+    "key": "databricks",
+    "countryCode": "US"
+  },
+  {
+    "name": "stablelm-tuned-alpha-7b",
+    "key": "stabilityai",
+    "countryCode": "GB"
+  },
+  {
+    "name": "laguna-m.1",
+    "organization": "Poolside",
+    "key": "poolside",
+    "countryCode": "US"
+  },
+  {
+    "name": "laguna-xs.2",
+    "organization": "Poolside",
+    "key": "poolside",
+    "countryCode": "US"
+  },
+  {
+    "name": "KAT-Coder-Pro-V1",
+    "key": "kuaishou",
+    "countryCode": "CN"
+  },
+  {
+    "name": "granite-4.1-8b",
+    "organization": "IBM",
+    "key": "ibm",
+    "countryCode": "US"
+  },
+  {
+    "name": "mercury-2",
+    "organization": "Inception AI",
+    "key": "inceptionai",
+    "countryCode": "US"
+  },
+  {
+    "name": "Recraft V4.1 Utility",
+    "organization": "Recraft",
+    "key": "recraft",
+    "countryCode": "GB"
+  },
+  {
+    "name": "HiDream-O1-Image-1.5",
+    "organization": "HiDream",
+    "key": "hidream",
+    "countryCode": "CN"
+  },
+  {
+    "name": "Recraft V4.1 Utility Pro",
+    "organization": "Recraft",
+    "key": "recraft",
+    "countryCode": "GB"
+  },
+  {
+    "name": "Ming-Image-0.1-Design",
+    "organization": "InclusionAI",
+    "key": "antgroup",
+    "countryCode": "CN"
+  },
+  {
+    "name": "P-Image-Ideogram (High)",
+    "organization": "Pruna AI",
+    "key": "prunaai",
+    "countryCode": "DE"
+  },
+  {
+    "name": "P-Image-Ideogram (Very High)",
+    "organization": "Pruna AI",
+    "key": "prunaai",
+    "countryCode": "DE"
+  },
+  {
+    "name": "HiDream-O1-Image",
+    "organization": "HiDream",
+    "key": "hidream",
+    "countryCode": "CN"
+  },
+  {
+    "name": "P-Image-Ideogram (Medium)",
+    "organization": "Pruna AI",
+    "key": "prunaai",
+    "countryCode": "DE"
+  },
+  {
+    "name": "P-Image-Ideogram (Low)",
+    "organization": "Pruna AI",
+    "key": "prunaai",
+    "countryCode": "DE"
+  },
+  {
+    "name": "Recraft V4.1 Flash",
+    "organization": "Recraft",
+    "key": "recraft",
+    "countryCode": "GB"
+  },
+  {
+    "name": "P-Image-Ideogram (Very Low)",
+    "organization": "Pruna AI",
+    "key": "prunaai",
+    "countryCode": "DE"
+  },
+  {
+    "name": "P-Image",
+    "organization": "Pruna AI",
+    "key": "prunaai",
+    "countryCode": "DE"
+  },
+  {
+    "name": "Vidu Q2",
+    "organization": "Vidu",
+    "key": "vidu",
+    "countryCode": "CN"
+  },
+  {
+    "name": "Lucid Origin Ultra",
+    "organization": "Leonardo.Ai",
+    "key": "leonardoai",
+    "countryCode": "AU"
+  },
+  {
+    "name": "Lucid Origin Fast",
+    "organization": "Leonardo.Ai",
+    "key": "leonardoai",
+    "countryCode": "AU"
+  },
+  {
+    "name": "FIBO",
+    "organization": "Bria",
+    "key": "bria",
+    "countryCode": "IL"
+  },
+  {
+    "name": "Phoenix 0.9 Ultra",
+    "organization": "Leonardo.Ai",
+    "key": "leonardoai",
+    "countryCode": "AU"
+  },
+  {
+    "name": "Phoenix 1.0 Fast",
+    "organization": "Leonardo.Ai",
+    "key": "leonardoai",
+    "countryCode": "AU"
+  },
+  {
+    "name": "FIBO Lite",
+    "organization": "Bria",
+    "key": "bria",
+    "countryCode": "IL"
+  },
+  {
+    "name": "HiDream-O1-Image-Dev",
+    "organization": "HiDream",
+    "key": "hidream",
+    "countryCode": "CN"
+  },
+  {
+    "name": "OmniGen V2",
+    "organization": "VectorSpaceLab",
+    "key": "vectorspacelab",
+    "countryCode": "CN"
+  },
+  {
+    "name": "recraft-v4.1-utility-pro",
+    "organization": "Recraft",
+    "key": "recraft",
+    "countryCode": "GB"
+  },
+  {
+    "name": "recraft-v4.1-pro",
+    "organization": "Recraft",
+    "key": "recraft",
+    "countryCode": "GB"
+  },
+  {
+    "name": "hidream-o1-image",
+    "organization": "HiDream",
+    "key": "hidream",
+    "countryCode": "CN"
+  },
+  {
+    "name": "recraft-v4",
+    "organization": "Recraft",
+    "key": "recraft",
+    "countryCode": "GB"
+  },
+  {
+    "name": "recraft-v4.1-flash",
+    "organization": "Recraft",
+    "key": "recraft",
+    "countryCode": "GB"
+  },
+  {
+    "name": "p-image",
+    "key": "prunaai",
+    "countryCode": "DE"
+  },
+  {
+    "name": "recraft-v3",
+    "organization": "Recraft",
+    "key": "recraft",
+    "countryCode": "GB"
+  },
+  {
+    "name": "lucid-origin",
+    "organization": "Leonardo AI",
+    "key": "leonardoai",
+    "countryCode": "AU"
+  },
+  {
+    "name": "stable-diffusion-v35-large",
+    "key": "stabilityai",
+    "countryCode": "GB"
+  },
+  {
+    "name": "LTX-2.5 Fast",
+    "organization": "Lightricks",
+    "key": "lightricks",
+    "countryCode": "IL"
+  },
+  {
+    "name": "LTX-2.5 Pro",
+    "organization": "Lightricks",
+    "key": "lightricks",
+    "countryCode": "IL"
+  },
+  {
+    "name": "Vidu Q3 Pro",
+    "organization": "Vidu",
+    "key": "vidu",
+    "countryCode": "CN"
+  },
+  {
+    "name": "Vidu Q3 Turbo",
+    "organization": "Vidu",
+    "key": "vidu",
+    "countryCode": "CN"
+  },
+  {
+    "name": "LTX-2.3 Pro",
+    "organization": "Lightricks",
+    "key": "lightricks",
+    "countryCode": "IL"
+  },
+  {
+    "name": "LTX-2.3 Fast",
+    "organization": "Lightricks",
+    "key": "lightricks",
+    "countryCode": "IL"
+  },
+  {
+    "name": "Pika 2.5",
+    "organization": "Pika Art",
+    "key": "pika",
+    "countryCode": "US"
+  },
+  {
+    "name": "Boreal",
+    "organization": "Creatify",
+    "key": "creatify",
+    "countryCode": "US"
+  },
+  {
+    "name": "P-Video",
+    "organization": "Pruna AI",
+    "key": "prunaai",
+    "countryCode": "DE"
+  },
+  {
+    "name": "pixverse-v5.6",
+    "key": "pixverse",
+    "countryCode": "SG"
+  },
+  {
+    "name": "p-video",
+    "key": "prunaai",
+    "countryCode": "DE"
+  },
+  {
+    "name": "kandinsky-5.0-t2v-pro",
+    "organization": "Kandinsky",
+    "key": "kandinsky",
+    "countryCode": "RU"
+  },
+  {
+    "name": "ltx-2-19b",
+    "key": "lightricks",
+    "countryCode": "IL"
+  },
+  {
+    "name": "kandinsky-5.0-t2v-lite",
+    "organization": "Kandinsky",
+    "key": "kandinsky",
+    "countryCode": "RU"
+  },
+  {
+    "name": "pika-v2.2",
+    "organization": "Pika",
+    "key": "pika",
+    "countryCode": "US"
+  },
+  {
+    "name": "mochi-v1",
+    "organization": "Genmo AI",
+    "key": "genmoai",
+    "countryCode": "US"
+  },
+  {
+    "name": "nova-2-lite",
+    "organization": "Amazon",
+    "key": "amazon",
+    "countryCode": "US"
+  },
+  {
+    "name": "llama-3.1-405b-instruct",
+    "organization": "Meta",
+    "key": "meta",
+    "countryCode": "US"
+  },
+  {
+    "name": "gemma-2-27b-it",
+    "organization": "Google",
+    "key": "google",
+    "countryCode": "US"
+  }
+]

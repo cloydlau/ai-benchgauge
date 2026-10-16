@@ -27,7 +27,11 @@ export function createBrandRules(catalog) {
       }
       if (hosted) break
     }
-    if (!organization || ['unknown','other','na','none'].includes(organization)) return normalizedBrandKey(entry.name).startsWith('devin') ? 'devin' : hosted ?? null
+    if (!organization || ['unknown','other','na','none'].includes(organization)) {
+      const name = String(entry.name ?? '').trim().toLowerCase()
+      const verified = hasOwn(catalog.modelDevelopers ?? {}, name) ? catalog.modelDevelopers[name] : null
+      return normalizedBrandKey(entry.name).startsWith('devin') ? 'devin' : hosted ?? verified
+    }
     return hosted ?? organization
   }
   function knownModelBrand(entry) {
@@ -50,10 +54,13 @@ export function createBrandRules(catalog) {
   const sharedProviderMark = entry => policy.sharedModelProviderMarks.includes(brandKey(entry))
   return { normalizedBrandKey, brandKey, knownModelBrand, bundledProductKey, sharedProviderMark }
 }
+export function normalizedCountryCode(value) {
+  const code = typeof value === 'string' ? value.trim().toUpperCase() : ''
+  if (hasOwn(policy.countryOverrides, code)) return policy.countryOverrides[code]
+  return /^[A-Z]{2}$/.test(code) ? code : null
+}
 export function countryCode(entry) {
-  const raw = entry.developerCountry?.countryCode
-  const code = typeof raw === 'string' ? raw.toUpperCase() : ''
-  return /^[A-Z]{2}$/.test(code || '') ? code : 'unknown'
+  return normalizedCountryCode(entry.developerCountry?.countryCode) ?? 'unknown'
 }
 const rules = createBrandRules(catalog)
 function companyIdentity(entry) {

@@ -7,7 +7,8 @@ public struct OrganizationCountry: RawRepresentable, Hashable, CaseIterable, Sen
     private static let legacy = ["china": "CN", "unitedStates": "US", "canada": "CA", "france": "FR", "germany": "DE", "singapore": "SG"]
     private static let validRegions = Set(Locale.Region.isoRegions.map(\.identifier).filter { $0.count == 2 && !["EU", "UN", "ZZ", "XA", "XB", "QO"].contains($0) })
     public init?(regionCode: String) {
-        let code = regionCode.uppercased()
+        let source = regionCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let code = LeaderboardBrandPolicy.countryOverrides[source] ?? source
         guard Self.validRegions.contains(code) else { return nil }
         self.regionCode = code
     }
@@ -61,20 +62,7 @@ public enum OrganizationRegion {
             organization: organization,
             modelName: modelName
         ) else { return nil }
-        switch key {
-        case "qwen", "zai", "stepfun", "kimi", "deepseek", "tencent", "minimax",
-             "bytedance", "xiaomi", "klingai", "sandai":
-            return .china
-        case "anthropic", "openai", "spacexai", "google", "meta", "nvidia",
-             "microsoftai", "krea", "runway", "luma", "fal", "opencode",
-             "devin", "reve", "thinkingmachines", "github", "utopaistudios":
-            return .unitedStates
-        case "ideogram": return .canada
-        case "mistral": return .france
-        case "blackforestlabs": return .germany
-        case "pixverse", "videorebirth", "skyworkai", "sapiensai": return .singapore
-        default: return nil
-        }
+        return LeaderboardBrandPolicy.countryCodes[key].flatMap(OrganizationCountry.init(regionCode:))
     }
 
     public static func isChinese(_ organization: String?, modelName: String? = nil) -> Bool {

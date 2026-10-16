@@ -50,9 +50,37 @@ test('company scores use the strongest filtered model, never averages or model c
   assert.deepEqual(filtered.map(row => [row.name, row.score]), [['Anthropic', 99], ['Third', 99], ['OpenAI', 5]])
 })
 
-test('the country list accepts new ISO countries without guessing their translated names', () => {
-  const options = countryOptions(board([entry(1, 'New', 1, 'New', { developerCountry: { countryCode: 'AU' } })]), 'en')
-  assert.equal(options[1].label, '🇦🇺 AU')
+test('the country list accepts new ISO countries and translates audited Australian and Russian developers', () => {
+  const options = countryOptions(board([entry(1, 'New', 1, 'New', { developerCountry: { countryCode: 'NZ' } })]), 'en')
+  assert.equal(options[1].label, '🇳🇿 NZ')
+  const audited = board([
+    entry(1, 'Lucid', 2, 'Leonardo AI', { developerCountry: { key: 'leonardoai', countryCode: 'AU' } }),
+    entry(2, 'Kandinsky', 1, 'Kandinsky', { developerCountry: { key: 'kandinsky', countryCode: 'RU' } }),
+  ])
+  assert.deepEqual(countryOptions(audited, 'zh-CN').slice(1).map(option => option.label), ['🇦🇺 澳大利亚', '🇷🇺 俄罗斯'])
+  assert.deepEqual(visibleRows(audited, { country: 'AU' }).map(row => row.name), ['Lucid'])
+  assert.equal(visibleRows(audited, { grouping: 'company', country: 'RU' })[0].flag, '🇷🇺')
+})
+test('Hong Kong, Macao and Taiwan share China flags, country options and model/company filters even in old snapshots', () => {
+  const cached = board(['CN', 'HK', 'MO', 'TW'].map((code, index) => entry(index + 1, `Model ${code}`, 100 - index, 'New Maker', {
+    developerCountry: { key: 'newmaker', countryCode: code },
+  })))
+  assert.ok(normalizeBoard(cached, kind).entries.every(entry => entry.developerCountry.countryCode === 'CN'))
+  for (const code of ['HK', 'MO', 'TW', 'CN']) {
+    assert.equal(countryCode({ developerCountry: { countryCode: code } }), 'CN')
+    assert.equal(countryFlag(code), '🇨🇳')
+    for (const language of ['en', 'zh-CN', 'zh-TW']) {
+      const options = countryOptions(cached, language, code)
+      assert.deepEqual(options.map(option => option.value), ['all', 'CN'])
+      assert.equal(options[1].label, `🇨🇳 ${language === 'en' ? 'China' : language === 'zh-CN' ? '中国' : '中國'}`)
+    }
+    const models = visibleRows(cached, { country: code })
+    assert.equal(models.length, 4)
+    assert.ok(models.every(row => row.flag === '🇨🇳'))
+    const companies = visibleRows(cached, { grouping: 'company', country: code })
+    assert.equal(companies.length, 1); assert.equal(companies[0].flag, '🇨🇳'); assert.equal(companies[0].score, 100)
+  }
+  assert.equal(companyRows(cached.entries.slice(1))[0].developerCountry.countryCode, 'CN')
 })
 test('provider identity and company graphics remain distinct from model-family graphics', () => {
   const model = entry(1, 'Wan model', 90, 'Alibaba', { brand: { key: 'model-wan', colorHex: '#111111' },

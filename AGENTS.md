@@ -1,5 +1,7 @@
 # Development and release checks
 
+Leaderboard country policy: normalize Hong Kong (`HK`), Macao (`MO`) and Taiwan (`TW`) to China (`CN`). Use China's flag and country label for rows, company aggregation, filters, exports, cached metadata and shared links. Apply the shared `fc/leaderboard-policy.json` rule to upstream data and preserve this behavior in every client.
+
 For changes to a desktop interface, obtain real Windows WPF and Mac AppKit / SwiftUI screenshots using the same fixture and content viewport. Follow [docs/visual-comparison.md](docs/visual-comparison.md).
 
 - Capture before and after a style fix and compare each affected state's shown, refreshed and settled frames. Add fixture scenarios for newly changed states; the existing fixture is not exhaustive.
