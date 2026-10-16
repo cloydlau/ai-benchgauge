@@ -28,7 +28,7 @@ function inspect(directory) {
         const dependency = resolve(dirname(path), match[1])
         if (!['', '.js', '/index.js'].some(suffix => existsSync(dependency + suffix))) throw new Error(`Missing runtime module: ${match[1]} in ${path}`)
       }
-      if (/\b__(SHARED_ENDPOINT|APP_VERSION|MIT_LICENSE|THIRD_PARTY_NOTICES)__\b/.test(code)) throw new Error(`Unresolved build constant: ${path}`)
+      if (/\b__(SHARED_ENDPOINT|APP_VERSION|MIT_LICENSE|THIRD_PARTY_NOTICES|ENGINEERING_INVESTMENT)__\b/.test(code)) throw new Error(`Unresolved build constant: ${path}`)
     }
   }
 }

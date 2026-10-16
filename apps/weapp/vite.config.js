@@ -4,6 +4,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'weapp-vite/config'
 import { VantResolver } from 'weapp-vite/auto-import-components/resolvers'
+import { engineeringInvestment } from './scripts/engineering-investment.mjs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 // The native clients remain the authority for the shared-service address.
@@ -37,7 +38,8 @@ export default defineConfig({
   build: { target: 'es2019' },
   define: { __SHARED_ENDPOINT__: JSON.stringify(endpoint.replace(/\/$/, '')), __APP_VERSION__: JSON.stringify(version),
     __MIT_LICENSE__: JSON.stringify(readFileSync(resolve(root, 'LICENSE'), 'utf8')),
-    __THIRD_PARTY_NOTICES__: JSON.stringify(publishedNotices) },
+    __THIRD_PARTY_NOTICES__: JSON.stringify(publishedNotices),
+    __ENGINEERING_INVESTMENT__: JSON.stringify(engineeringInvestment(process.env.BENCHGAUGE_INVESTMENT_ROOT || root)) },
   server: { watch: { usePolling: true, interval: 400, ignored: ['**/dist/**', '**/node_modules/**'] } },
   weapp: {
     srcRoot: './src',
