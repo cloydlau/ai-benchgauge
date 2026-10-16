@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import brandCatalog from '../../../fc/brand-catalog.json' with { type: 'json' }
+import companyCatalog from '../../../assets/logos/company-catalog.json' with { type: 'json' }
 import { boards, categories, copy, languages, text } from '../src/core/catalog.js'
 import { normalizeBoard, canReplace, countryCode, countryFlag, countryOptions, companyRows, visibleRows, formatTime, rowView } from '../src/core/leaderboard.js'
 
@@ -158,6 +160,32 @@ test('every bundled provider has a packaged PNG and is available to models and c
     brand: { key: 'instituteoffoundationmodels', status: 'ready', pngData: 'iVBORw0KGgo=' },
   })
   assert.equal(rowView(serverOnly).logo, 'data:image/png;base64,iVBORw0KGgo=')
+})
+
+test('company logos cover pending, missing and older cached metadata with verified local assets', () => {
+  for (const [key, source] of Object.entries(companyCatalog)) {
+    const path = `/assets/logos/${key}.png`
+    const bytes = readFileSync(new URL(`../../..${path}`, import.meta.url))
+    assert.deepEqual([...bytes.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10], key)
+    assert.deepEqual([bytes.readUInt32BE(16), bytes.readUInt32BE(20)], [64, 64], key)
+    assert.ok(bytes.length <= 16 * 1024, key)
+    assert.equal(createHash('sha256').update(bytes).digest('hex'), source.sha256, key)
+    assert.equal(new URL(source.pageURL).protocol, 'https:')
+    assert.equal(new URL(source.sourceURL).protocol, 'https:')
+    for (const status of ['pending', 'missing', undefined]) {
+      const fields = status ? { organizationBrand: { key, status } } : {}
+      const rows = visibleRows(board([entry(1, 'Provider model', 99, key, fields)]), { grouping: 'company' })
+      assert.equal(rows[0].logo, path, `${key}: ${status}`)
+      assert.equal(rows[0].score, 99)
+    }
+  }
+  const trinity = visibleRows(board([entry(1, 'trinity-large-thinking', 99, null)]), { grouping: 'company' })
+  assert.equal(trinity[0].logo, '/assets/logos/arceeai.png')
+  const ready = visibleRows(board([
+    entry(1, 'Best', 99, 'OpenAI', { organizationBrand: { key: 'openai', status: 'pending' } }),
+    entry(2, 'Other', 90, 'Open AI', { brand: { key: 'openai', pngData: 'iVBORw0KGgo=' } }),
+  ]), { grouping: 'company' })
+  assert.equal(ready[0].logo, 'data:image/png;base64,iVBORw0KGgo=')
 })
 
 test('dedicated model marks and bundled model-family icons take priority over provider fallback', () => {

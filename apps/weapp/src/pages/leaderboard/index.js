@@ -7,6 +7,7 @@ import { exportScreenshot, removeScreenshot, saveScreenshotImage } from '../../s
 import { cubeFaceStyle, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll } from '../../core/cube.js'
 import { createBrandMeasurer } from '../../core/brand-title.js'
 import { pagePreferences, sharePath, systemLanguage } from '../../core/share-state.js'
+import { purchaseLinks, preferredPurchaseLink } from '../../core/purchase-links.js'
 
 definePage(query => {
   const saved = (() => { try { return wx.getStorageSync('benchgauge.preferences') || {} } catch { return {} } })()
@@ -237,15 +238,17 @@ definePage(query => {
       hasBoard: !!board, filtered: filter.country !== 'all' || filter.openness !== 'all',
       countryFiltered: filter.country !== 'all', sourceFiltered: filter.openness !== 'all',
       loading: !!refreshing.value[kind],
+      headerPinned: !!pinnedHeaders.value[kind],
     }
   }))
   const backToTop = computed(() => !!backTopBoards.value[current.value.kinds[face.value]])
 
   function renderRows(kind, entries, range) {
     if (!rowRenderers.has(kind)) rowRenderers.set(kind, createRowRenderer(entry =>
-      rowView(entry, { company: grouping.value === 'company', dark: dark.value, details: false })))
+      rowView(entry, { company: grouping.value === 'company', dark: dark.value, details: false,
+        language: language.value, category: category.value })))
     return rowRenderers.get(kind)({ entries, ...range, rowHeight: geometry.value.rowHeight,
-      variant: `${grouping.value}:${dark.value}` })
+      variant: `${grouping.value}:${dark.value}:${language.value}:${category.value}` })
   }
 
   function rangeFor(kind, count, force = false) {
@@ -429,8 +432,9 @@ definePage(query => {
       if (kind === current.value.kinds[face.value]) syncSourceTabsAfterScroll(kind)
       return
     }
-    if (gesture && kind === current.value.kinds[face.value] && Math.abs(top - (scrollPositions[kind] || 0)) > 1) {
-      // Native scrolling wins even if the first touch sample looked sideways.
+    if (gesture && gesture.axis !== 'horizontal' && kind === current.value.kinds[face.value] && Math.abs(top - gesture.scrollTop) >= 12) {
+      // Native scrolling wins before horizontal intent is locked. Small native
+      // offsets already queued by a slanted swipe must not cancel a cube drag.
       gesture.axis = 'vertical'; gesture.position = face.value
       cubeBusy.value = false; cubeDuration.value = 0; cubePosition.value = face.value
     }

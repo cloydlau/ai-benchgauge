@@ -4,9 +4,19 @@ import Testing
 
 struct PurchaseLinkCatalogTests {
     @Test
+    func testMiniMaxVideoAndCodingPlansAreSeparate() {
+        let coding = PurchaseLinkCatalog.links(forOrganization: "MiniMax", category: .coding)
+        let video = PurchaseLinkCatalog.links(forOrganization: "MiniMax", category: .video)
+        #expect(PurchaseLinkCatalog.preferredLink(from: coding.codingPlan, language: .chinese)?.url.absoluteString == "https://platform.minimax.cn/subscribe/coding-plan")
+        #expect(PurchaseLinkCatalog.preferredLink(from: video.codingPlan, language: .english)?.url.absoluteString == "https://hailuoai.video/subscribe")
+        let meta = PurchaseLinkCatalog.links(forOrganization: "Meta")
+        #expect(meta.payAsYouGo.first?.url.absoluteString == "https://dev.meta.ai/docs/pricing-rate-limits")
+    }
+
+    @Test
     func testPurchaseLinksChooseSiteFromInterfaceLanguage() {
         let pairedOrganizations = [
-            "Alibaba", "Z.ai", "Tencent", "MiniMax", "KlingAI", "ByteDance Seed", "Xiaomi"
+            "Alibaba", "Z.ai", "Tencent", "MiniMax", "KlingAI", "Xiaomi"
         ]
         for organization in pairedOrganizations {
             let links = PurchaseLinkCatalog.links(forOrganization: organization)
@@ -51,9 +61,13 @@ struct PurchaseLinkCatalogTests {
         let bytedance = PurchaseLinkCatalog.links(forOrganization: "Bytedance")
         #expect((seed) == (bytedance))
         #expect((seed.codingPlan.map(\.url.absoluteString)) == ([
-                "https://jimeng.jianying.com/ai-tool/home",
-                "https://dreamina.capcut.com/pricing/dreamina-price"
+                "https://www.volcengine.com/activity/codingplan"
             ]))
+        let seedVideo = PurchaseLinkCatalog.links(forOrganization: "ByteDance Seed", category: .video)
+        #expect(seedVideo.codingPlan.map(\.url.absoluteString) == [
+            "https://jimeng.jianying.com/ai-tool/home",
+            "https://dreamina.capcut.com/pricing/dreamina-price"
+        ])
 
         let lumaLabs = PurchaseLinkCatalog.links(forOrganization: "Luma Labs")
         let lumaAI = PurchaseLinkCatalog.links(forOrganization: "Luma AI")

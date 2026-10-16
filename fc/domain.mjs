@@ -82,12 +82,20 @@ export function companyRows(entries) {
   return [...groups.values()].map(group => {
     const members = group.members.sort(strongest)
     const best = members[0]
-    const developerCountry = members.map(member => member.developerCountry).find(country => {
+    const matchedCountry = members.map(member => member.developerCountry).find(country => {
       if (!country?.key || countryCode({ developerCountry: country }) === 'unknown') return false
       return rules.normalizedBrandKey(country.key) === group.key
     })
+    const developerCountry = matchedCountry ? { ...matchedCountry, countryCode: countryCode({ developerCountry: matchedCountry }) } : undefined
+    const brands = members.flatMap(member => [member.organizationBrand, member.brand])
+      .filter(brand => brand && rules.normalizedBrandKey(brand.key) === group.key)
+    // The strongest model may still be waiting for its company image. Reuse a
+    // verified provider mark from any sibling, without borrowing a model/harness mark.
+    const organizationBrand = brands.find(brand => typeof brand.pngData === 'string'
+      && /^[A-Za-z0-9+/=]+$/.test(brand.pngData) && brand.pngData.length < 160000)
+      ?? brands[0] ?? { key: group.key }
     return { ...best, name: group.name, bestRank: best.rank, openness: null,
-      brand: best.organizationBrand || best.brand, developerCountry, components: members }
+      brand: organizationBrand, organizationBrand, developerCountry, components: members }
   }).sort((a, b) => b.score - a.score || a.bestRank - b.bestRank || a.name.localeCompare(b.name))
     .map((entry, index) => ({ ...entry, rank: index + 1 }))
 }

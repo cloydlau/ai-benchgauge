@@ -1,0 +1,140 @@
+{
+  "arceeai": {
+    "pageURL": "https://www.arcee.ai/",
+    "sourceURL": "https://www.arcee.ai/icon.svg?icon.30yqx692bo7ga.svg",
+    "colorHex": "#2DCECE",
+    "sha256": "ed0a0c626079818fce8b9a9ff1ebdae82aa53069e1bee84fa56e5cbbc9a0a1c0"
+  },
+  "primeintellect": {
+    "pageURL": "https://www.primeintellect.ai/",
+    "sourceURL": "https://cdn.prod.website-files.com/66239f0441b09824acb92c75/671b6f6054736f752438334f_Positive.jpg",
+    "colorHex": "#606060",
+    "sha256": "31b0d773a94dccdf516bda2ba6161717c2ddfa25af7687a152bdcaaf7c86370f"
+  },
+  "01ai": {
+    "pageURL": "https://www.01.ai/",
+    "sourceURL": "https://www.01.ai/branding/favicon.0fef830a.svg",
+    "colorHex": "#606060",
+    "sha256": "e18fe4253b308fee6e31b1876fa3de7a34abc72bbe23056f245a195236534868"
+  },
+  "nexusflow": {
+    "pageURL": "https://huggingface.co/Nexusflow",
+    "sourceURL": "https://cdn-avatars.huggingface.co/v1/production/uploads/64e0f2f03209bf41948e1838/QxlEl98DOsWOHcavbVQ8h.png",
+    "colorHex": "#62CCD2",
+    "sha256": "290cf8ce216a61adb28dfaa1142fa3292edf6a1af79808ff7b5f31d3e383b11d"
+  },
+  "ai21labs": {
+    "pageURL": "https://huggingface.co/ai21labs",
+    "sourceURL": "https://cdn-avatars.huggingface.co/v1/production/uploads/67baf6e5489cb4dc98a4bff4/9Rkvk1VGhK1woxWvhqDyb.png",
+    "colorHex": "#D22D64",
+    "sha256": "1f8322a2e14c2fb014b5c05a1405e56bbf73ce51ebd1728368a9f6d9bb10c10c"
+  },
+  "reka": {
+    "pageURL": "https://www.reka.ai/",
+    "sourceURL": "https://framerusercontent.com/images/XekAjHcWv2prUE9pJiSj61CD54.jpg",
+    "colorHex": "#606060",
+    "sha256": "f470a0370dd2143bba585f438863d67d93a4d99cd4abc65eff5b225c6b4f7d63"
+  },
+  "princetonnlp": {
+    "pageURL": "https://huggingface.co/princeton-nlp",
+    "sourceURL": "https://cdn-avatars.huggingface.co/v1/production/uploads/1618969698200-noauth.png",
+    "colorHex": "#D2752D",
+    "sha256": "bd40d7b36b84d28915e98ef611ff0fc604a624dd364093aea78c25999443bd1f"
+  },
+  "huggingface": {
+    "pageURL": "https://huggingface.co/",
+    "sourceURL": "https://huggingface.co/favicon.ico",
+    "colorHex": "#D2D12D",
+    "sha256": "dcc794af78b7d7542a081a2d02a04ab43af173cc00daf2b3bc60c6bd569c6f23"
+  },
+  "databricks": {
+    "pageURL": "https://www.databricks.com/",
+    "sourceURL": "https://www.databricks.com/en-website-assets/icons/icon-192x192.png?v=c9b9916c3b27dc51866c46b79a6e9b88",
+    "colorHex": "#D2332D",
+    "sha256": "3790a004b3510ce833e4f60a233d5837846ae1ca0986e7294492dcf8833f3a65"
+  },
+  "shanghaiailaboratory": {
+    "pageURL": "https://www.shlab.org.cn/",
+    "sourceURL": "https://www.shlab.org.cn/static/asset/img/favicon.ico",
+    "colorHex": "#2D5E83",
+    "sha256": "190d65524120d26d1eaa656753d9979ec9c2a5b9a357e5f545d82219eca42002"
+  },
+  "snowflake": {
+    "pageURL": "https://huggingface.co/Snowflake",
+    "sourceURL": "https://cdn-avatars.huggingface.co/v1/production/uploads/64dc52cf858f8a41c12fc819/O9-MWzRjWzbNP_DQlMb-7.png",
+    "colorHex": "#2DB6D2",
+    "sha256": "b99addb53554109fc9539e6589e837547b88705c44c3e94d1ece836d21c789e3"
+  },
+  "lmsys": {
+    "pageURL": "https://www.lmsys.org/",
+    "sourceURL": "https://www.lmsys.org/apple-icon.png?06944fcedce56b35",
+    "colorHex": "#606060",
+    "sha256": "8eef1f2246408ccc8c50553f565964a0919448d94017c941192984fd841f6946"
+  },
+  "ucberkeley": {
+    "pageURL": "https://brand.berkeley.edu/visual-identity/icons-secondary-marks/",
+    "sourceURL": "https://brand.berkeley.edu/favicon.ico",
+    "colorHex": "#2D2D76",
+    "sha256": "729f76c572cf219a338dbf3597898f6b6c947406db4475118053977392471ae2"
+  },
+  "nousresearch": {
+    "pageURL": "https://nousresearch.com/",
+    "sourceURL": "https://nousresearch.com/marketing-static/assets/nous-web/favicon.png",
+    "colorHex": "#606060",
+    "sha256": "9d6bccd92129dc478f80802ce6d5950f421162ce2c547f0955e2acb6da4d6096"
+  },
+  "mosaicml": {
+    "pageURL": "https://huggingface.co/mosaicml",
+    "sourceURL": "https://cdn-avatars.huggingface.co/v1/production/uploads/1676334017493-63ead3a0d0b894bbc77b199c.png",
+    "colorHex": "#D23932",
+    "sha256": "9a6ec938ecf3bffb90d374e41f34cd4e066cb21ae76f32e603b6112e13d4f228"
+  },
+  "technologyinnovationinstitute": {
+    "pageURL": "https://www.tii.ae/",
+    "sourceURL": "https://www.tii.ae/themes/custom/tech/favicon.ico",
+    "colorHex": "#632DD2",
+    "sha256": "d675e950bc41fdd35f5fabf47ce959865730841037a085e727b5d37b294eab22"
+  },
+  "universityofwashington": {
+    "pageURL": "https://www.washington.edu/",
+    "sourceURL": "https://uw.edu/static/hometemp/wp-content/themes/uw_wp_theme/favicon.ico",
+    "colorHex": "#392D5B",
+    "sha256": "11ec77a72052d24ea9b86226b2a6678be8168c6091703e6bad4e96f3409ae100"
+  },
+  "togetherai": {
+    "pageURL": "https://www.together.ai/",
+    "sourceURL": "https://cdn.prod.website-files.com/69654e88dce9154b5f1206dd/69a59cff65ed0f267dd2fbe8_touchicon.png",
+    "colorHex": "#CAAED2",
+    "sha256": "9d7967f86a870548cf2d647c478e75c73c911a55e5b1cdb29e03ba6b642de147"
+  },
+  "stanford": {
+    "pageURL": "https://www.stanford.edu/",
+    "sourceURL": "https://www.stanford.edu/icon1.png?icon1.2k3tekyi17a_q.png?dpl=0f5e8c5b7f31cbb335f974028b3a3c7ee701000a543855ee197176bbe9b9bb73366163393435633765306331616330303038613435653737",
+    "colorHex": "#8A2D2D",
+    "sha256": "0455b578ec9be079f303ea0cba184e8b1aa53090f4e36064785e77f81137bb4d"
+  },
+  "nomicai": {
+    "pageURL": "https://www.nomic.ai/",
+    "sourceURL": "https://www.nomic.ai/favicon.svg",
+    "colorHex": "#606060",
+    "sha256": "6db55468329e9160999ccb2b4a376131261c019b6123296127e4fdf7b64c06e0"
+  },
+  "laion": {
+    "pageURL": "https://laion.ai/",
+    "sourceURL": "https://laion.ai/favicon.png",
+    "colorHex": "#2D364D",
+    "sha256": "74a7088fb5b0ec739c9bf237d86c6fabb6b538605c7f55729b67d64ffe4bc7f8"
+  },
+  "stabilityai": {
+    "pageURL": "https://stability.ai/",
+    "sourceURL": "https://images.squarespace-cdn.com/content/v1/6213c340453c3f502425776e/804f0e8b-0028-4262-a8b0-b9f1c5de72c0/favicon.ico?format=100w",
+    "colorHex": "#A392CB",
+    "sha256": "8a2c377081e3c27bb90fb03a1c79a8925ae0e388ae903ce6c9cd984b26a24678"
+  },
+  "kuaishou": {
+    "pageURL": "https://www.kuaishou.com/",
+    "sourceURL": "https://www.kuaishou.com/favicon.ico",
+    "colorHex": "#D2492D",
+    "sha256": "2b41bb4e938507906f2bf3abced7c3075121327f01740122b0c280c639154973"
+  }
+}
