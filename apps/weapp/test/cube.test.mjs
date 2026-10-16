@@ -42,7 +42,7 @@ test('small sideways jitter and ambiguous diagonals yield to vertical scrolling 
       const gesture = cubeGesture(face, 200, 100, 0)
       moveCubeGesture(gesture, 200 + sign * 10, 103, 20, 375)
       assert.equal(gesture.axis, '')
-      moveCubeGesture(gesture, 200 + sign * 15, 112, 40, 375)
+      moveCubeGesture(gesture, 200 + sign * 15, 120, 40, 375)
       assert.equal(gesture.axis, 'vertical')
       moveCubeGesture(gesture, 200 + sign * 220, 140, 60, 375)
       assert.equal(gesture.axis, 'vertical')
@@ -51,6 +51,20 @@ test('small sideways jitter and ambiguous diagonals yield to vertical scrolling 
       moveCubeGesture(horizontal, 200 + sign * 20, 104, 20, 375)
       assert.equal(horizontal.axis, 'horizontal')
     }
+  }
+})
+
+test('slanted horizontal starts wait through early jitter and stay locked through a curved path', () => {
+  for (const face of [0, 1]) for (const yDirection of [-1, 1]) {
+    const direction = face === 0 ? -1 : 1
+    const gesture = cubeGesture(face, 200, 200, 0)
+    moveCubeGesture(gesture, 200 + direction * 12, 200 + yDirection * 9, 20, 375)
+    assert.equal(gesture.axis, '')
+    moveCubeGesture(gesture, 200 + direction * 24, 200 + yDirection * 16, 40, 375)
+    assert.equal(gesture.axis, 'horizontal')
+    moveCubeGesture(gesture, 200 + direction * 150, 200 + yDirection * 180, 400, 375)
+    assert.equal(gesture.axis, 'horizontal')
+    assert.equal(cubeDestination(gesture, 375, 600), 1 - face)
   }
 })
 

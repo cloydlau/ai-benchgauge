@@ -16,10 +16,10 @@ export function cubeGesture(face, x, y, time) {
 export function moveCubeGesture(gesture, x, y, time, width) {
   const dx = x - gesture.x, dy = y - gesture.y
   if (!gesture.axis) {
-    // Ignore small sideways jitter, and give ambiguous diagonals to scrolling.
+    // Allow a slanted horizontal start; wait while a short diagonal is unclear.
     // Once chosen, the axis stays locked until the finger lifts.
-    if (Math.abs(dx) >= 16 && Math.abs(dx) > Math.abs(dy) * 1.75) gesture.axis = 'horizontal'
-    else if (Math.abs(dy) >= 8) gesture.axis = 'vertical'
+    if (Math.abs(dx) >= 16 && Math.abs(dx) > Math.abs(dy) * 1.25) gesture.axis = 'horizontal'
+    else if (Math.abs(dy) >= 8 && Math.abs(dy) >= Math.abs(dx)) gesture.axis = 'vertical'
   }
   const elapsed = time - gesture.lastTime
   if (elapsed > 0) gesture.velocity = (x - gesture.lastX) / elapsed

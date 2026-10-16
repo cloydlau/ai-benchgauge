@@ -61,7 +61,8 @@ export const copy = {
   photoPermission: ['Allow saving to Photos in Settings, then try again.', '请在设置中允许保存到相册，再点击保存。', '請在設定中允許儲存至相簿，再點選儲存。'],
   settings: ['Open', '打开设置', '開啟設定'], close: ['Close', '关闭', '關閉'],
   leaderboardComplete: ['End of this leaderboard', '本榜单已列完', '本榜單已列完'],
-  featureDetails: ['Feature overview', '功能说明', '功能說明'],
+  featureDetails: ['Dual boards & quota tracking', '双榜对照 & 余量追踪', '雙榜對照 & 餘量追蹤'],
+  gotIt: ['Got it', '我知道了', '我知道了'], desktopLink: ['PC link', 'PC 端链接', 'PC 端連結'],
   quotaHelp: ['Quota tracking is available in the Mac and Windows editions. Open the desktop app to check account balances and usage.', '余量追踪目前在 Mac 和 Windows 版提供。请在电脑上打开 AI 天梯查看账号额度与使用进度。', '餘量追蹤目前在 Mac 和 Windows 版提供。請在電腦上開啟 AI 天梯查看帳號額度與使用進度。'],
   cubeScroll: ['Scroll', '上下滚动', '上下捲動'], cubeSwitch: ['Switch boards', '左右切换', '左右切換'],
 }
