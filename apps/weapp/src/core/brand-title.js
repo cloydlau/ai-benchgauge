@@ -9,9 +9,12 @@ export function brandTitleLayout(_context, name, fontSize) {
   const english = name === 'AI BenchGauge', scale = fontSize / 21
   const keys = english ? ['en-I', 'en-name'] : ['zh-I', 'zh-tian', 'zh-ti']
   const logoHeight = brandGlyphs[keys[0]].height * scale, logoWidth = logoHeight * brandLogoAspect
+  const logoSlant = english ? 12 : 0, logoShear = Math.tan(logoSlant * Math.PI / 180)
   const height = Math.max(...keys.map(key => brandGlyphs[key].height * scale))
   const logoTop = (height - logoHeight) / 2, gap = 2.5 * scale
-  let x = logoWidth
+  // Keep the sheared image rectangle inside the title and clear of I.
+  const logoInkWidth = logoWidth + logoHeight * logoShear
+  let x = logoInkWidth
   const glyphs = keys.map((key, index) => {
     const part = brandGlyphs[key], width = part.width * scale, glyphHeight = part.height * scale
     x += english && index === 1 ? fontSize * 0.34 : gap
@@ -22,13 +25,29 @@ export function brandTitleLayout(_context, name, fontSize) {
     x += width
     return glyph
   })
-  return { width: x, height, scale, logoWidth, logoHeight, logoTop, glyphs,
+  return { width: x, height, scale, logoWidth, logoHeight, logoTop, logoShear, logoInkWidth, glyphs,
     style: `width:${x}px;height:${height}px;`,
-    logoStyle: `width:${logoWidth}px;height:${logoHeight}px;top:${logoTop}px;` }
+    logoStyle: `width:${logoWidth}px;height:${logoHeight}px;top:${logoTop}px;`
+      + (english ? `transform-origin:left bottom;transform:skewX(-${logoSlant}deg);` : '') }
 }
 
 export function createBrandMeasurer() {
   return (name, fontSize) => brandTitleLayout(null, name, fontSize)
+}
+
+export function drawBrandLogo(context, image, title, x, y) {
+  if (!title.logoShear) {
+    context.drawImage(image, x, y + title.logoTop, title.logoWidth, title.logoHeight)
+    return
+  }
+  context.save()
+  try {
+    context.transform(1, 0, -title.logoShear, 1,
+      x + title.logoHeight * title.logoShear, y + title.logoTop)
+    context.drawImage(image, 0, 0, title.logoWidth, title.logoHeight)
+  } finally {
+    context.restore()
+  }
 }
 
 export function drawBrandGlyphs(context, title, x, y) {

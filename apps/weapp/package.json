@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@vue-mini/core": "1.2.16",
-    "@vant/weapp": "1.11.7"
+    "@vant/weapp": "1.11.7",
+    "fflate": "0.8.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",

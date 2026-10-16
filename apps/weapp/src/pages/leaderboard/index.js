@@ -3,7 +3,7 @@ import { boards, categories, categoryFor, copy, text, languages, boardTitle, has
 import { rankedEntries, rowView, countryOptions, formatTime, latestTimestamp } from '../../core/leaderboard.js'
 import { createBoardStore } from '../../services/boards.js'
 import { rowGeometry, resolveRowWindow, createRowRenderer } from '../../core/row-window.js'
-import { exportScreenshots, saveScreenshotImage } from '../../services/screenshot.js'
+import { exportScreenshot, removeScreenshot, saveScreenshotImage } from '../../services/screenshot.js'
 import { cubeFaceStyle, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll } from '../../core/cube.js'
 import { createBrandMeasurer } from '../../core/brand-title.js'
 import { pagePreferences, sharePath, systemLanguage } from '../../core/share-state.js'
@@ -16,6 +16,40 @@ definePage(query => {
   const category = ref(initial.category)
   const grouping = ref(initial.grouping)
   const face = ref(initial.face)
+  const sourceTabsHeight = ref(42)
+  const sourceTabsOffset = ref(0)
+  const sourceTabsExtent = computed(() => sourceTabsHeight.value + headerWidth.value * 22 / 750)
+  const sourceTabsStyle = computed(() => `transform:translateY(-${sourceTabsOffset.value}px);pointer-events:${sourceTabsOffset.value >= sourceTabsExtent.value ? 'none' : 'auto'};`)
+  function updateSourceTabs(top) {
+    sourceTabsOffset.value = Math.min(sourceTabsExtent.value, Math.max(0, top))
+  }
+  let sourceTabsSyncTimer, sourceTabsSyncSerial = 0
+  function cancelSourceTabsSync() {
+    clearTimeout(sourceTabsSyncTimer)
+    sourceTabsSyncSerial++
+  }
+  function syncSourceTabsAfterScroll(kind) {
+    cancelSourceTabsSync()
+    const serial = sourceTabsSyncSerial
+    sourceTabsSyncTimer = setTimeout(() => {
+      if (!alive || serial !== sourceTabsSyncSerial || kind !== current.value.kinds[face.value] || !wx.createSelectorQuery) return
+      const query = wx.createSelectorQuery()
+      query.select(`#board-scroll-${kind}`).fields({ scrollOffset: true })
+      query.exec(results => {
+        if (!alive || serial !== sourceTabsSyncSerial || kind !== current.value.kinds[face.value]) return
+        const top = results[0]?.scrollTop
+        if (!Number.isFinite(top)) return
+        // The native offset is authoritative once scrolling settles. Bridge
+        // events queued before a reset can otherwise leave the tabs clipped.
+        const request = scrollRequests.get(kind)
+        if (request) request.pending = false
+        scrollPositions[kind] = Math.max(0, top)
+        updateSourceTabs(scrollPositions[kind])
+        backTopBoards.value = { ...backTopBoards.value, [kind]: top > 400 }
+        syncWindow(kind)
+      })
+    }, 96)
+  }
   const cubePosition = ref(initial.face)
   const cubeDuration = ref(0)
   const cubeBusy = ref(false)
@@ -60,6 +94,7 @@ definePage(query => {
     if (!cubeBusy.value && destination === face.value && cubePosition.value === destination) return
     if (gesture?.axis !== 'horizontal') alignFace(destination)
     face.value = destination; gesture = null
+    updateSourceTabs(scrollPositions[current.value.kinds[destination]] || 0)
     cubeBusy.value = true; cubeDuration.value = 0
     persist()
     // Mount both hinged faces before changing the target. Separate render
@@ -78,6 +113,8 @@ definePage(query => {
     const point = touchPoint(event)
     if (!point || event.touches?.length > 1 || sheet.value.open || capture.value.open) return
     stopCube(); entrancePlayed = true
+    // A new touch takes ownership from any queued programmatic navigation.
+    scrollRequests.clear(); cancelSourceTabsSync()
     gesture = cubeGesture(face.value, point.clientX, point.clientY, Date.now())
   }
   function cubeMove(event) {
@@ -136,6 +173,7 @@ definePage(query => {
   const navHeight = ref(68)
   const headerTop = ref(28)
   const capsuleWidth = ref(100)
+  const capsuleHeight = ref(32)
   const store = createBoardStore({ platform: wx, endpoint: __SHARED_ENDPOINT__ })
   const snapshots = ref(Object.fromEntries(Object.keys(boards).map(kind => [kind, store.read(kind)])))
   const filters = ref(initial.filters)
@@ -144,6 +182,9 @@ definePage(query => {
   const scrollPositions = {}
   const scrollWindows = ref({})
   const geometry = ref(rowGeometry(wx.getWindowInfo()))
+  // Cover a full window before header measurements arrive, plus one partial
+  // row. Window resizing recomputes both row height and placeholder count.
+  const skeletonRows = computed(() => Array.from({ length: Math.ceil(geometry.value.viewportHeight / geometry.value.rowHeight) + 1 }, (_, index) => index))
   const origins = {}
   const viewports = {}
   const backTopBoards = ref({})
@@ -152,7 +193,8 @@ definePage(query => {
   const scrollRequests = new Map()
   const sheet = ref({ open: false, title: '', actions: [], kind: '', mode: '' })
   const capturing = ref(false)
-  const capture = ref({ open: false, paths: [], index: 0, saving: false, saved: 0 })
+  const emptyCapture = () => ({ open: false, path: '', saving: false, saved: false })
+  const capture = ref(emptyCapture())
   const lastAttempt = {}
   let alive = true
 
@@ -161,9 +203,13 @@ definePage(query => {
   const subtitleParts = computed(() => labels.value.subtitle.split(' & '))
   const brandTitle = computed(() => {
     const sample = measureBrand(labels.value.name, 32)
-    const height = navHeight.value - headerTop.value - 8
-    const width = headerWidth.value - capsuleWidth.value - headerWidth.value / 750 * 24
-    return measureBrand(labels.value.name, 32 * Math.min(height / sample.height, width / sample.width))
+    const height = capsuleHeight.value
+    const english = language.value === 'en'
+    const width = Math.max(1, headerWidth.value - capsuleWidth.value - headerWidth.value / 750 * (24 + 14 + (english ? 176 : 128)))
+    // The caption grows with the title. Reserve both together before fitting
+    // the pair beside the grouping control and the native WeChat capsule.
+    const captionWidth = sample.height * (english ? 4.2 : 2.6)
+    return measureBrand(labels.value.name, 32 * Math.min(height / sample.height, width / (sample.width + captionWidth)))
   })
   const categoryItems = computed(() => categories.map((item, index) => ({ id: item.id, label: text(item.labels, language.value),
     icon: ['apps-o', 'code', 'photo-o', 'video-o'][index] })))
@@ -226,9 +272,10 @@ definePage(query => {
     measureLists()
   }
   function requestScroll(kind, top) {
+    if (kind === current.value.kinds[face.value]) { cancelSourceTabsSync(); updateSourceTabs(top) }
     // A scroll-top binding inside the changing cards loop can replay an old
     // target on each virtual-window render. Command only explicit navigation.
-    const request = {}
+    const request = { top, pending: true }
     scrollRequests.set(kind, request)
     const run = () => {
       if (!alive || scrollRequests.get(kind) !== request || !wx.createSelectorQuery) return
@@ -237,6 +284,7 @@ definePage(query => {
       query.exec(results => {
         if (!alive || scrollRequests.get(kind) !== request) return
         results[0]?.node?.scrollTo({ top, animated: false })
+        if (kind === current.value.kinds[face.value]) syncSourceTabsAfterScroll(kind)
       })
     }
     if (wx.nextTick) wx.nextTick(run)
@@ -270,6 +318,18 @@ definePage(query => {
     else run()
   }
 
+  function measureSourceTabs() {
+    if (!wx.createSelectorQuery) return
+    const query = wx.createSelectorQuery()
+    query.select('.source-tabs').fields({ size: true })
+    query.exec(results => {
+      if (!alive || !results[0]?.height) return
+      sourceTabsHeight.value = results[0].height
+      updateSourceTabs(scrollPositions[current.value.kinds[face.value]] || 0)
+      measureLists()
+    })
+  }
+
   function preferencesSnapshot() {
     return { language: language.value, languageMode: languageMode.value, category: category.value, grouping: grouping.value,
       face: face.value, theme: theme.value, appearance: sharedAppearance.value, filters: filters.value }
@@ -286,9 +346,11 @@ definePage(query => {
     const menu = wx.getMenuButtonBoundingClientRect()
     statusBar.value = window.statusBarHeight || 24
     headerTop.value = menu.top
+    capsuleHeight.value = menu.height || menu.bottom - menu.top
     navHeight.value = menu.bottom + 8
     capsuleWidth.value = window.windowWidth - menu.left + 12
     geometry.value = rowGeometry(window)
+    measureSourceTabs()
     for (const kind of current.value.kinds) syncWindow(kind, true)
     measureLists()
   }
@@ -327,9 +389,10 @@ definePage(query => {
     try { await refreshCategory() } finally { pullRefreshing.value = false }
   }
   onLoad(async () => { await refreshCategory(); playEntrance() })
-  onReady(() => { pageReady = true; playEntrance() })
+  onReady(() => { pageReady = true; measureSourceTabs(); playEntrance() })
   onShow(() => {
     pageVisible = true
+    syncSourceTabsAfterScroll(current.value.kinds[face.value])
     if (languageMode.value === 'system') {
       const next = systemLanguage(wx.getAppBaseInfo?.().language)
       if (next !== language.value) { language.value = next; measureLists() }
@@ -337,8 +400,9 @@ definePage(query => {
     for (const kind of current.value.kinds) if (!lastAttempt[kind] || Date.now() - lastAttempt[kind] > 600000) refreshKind(kind)
     playEntrance()
   })
-  onHide(() => { pageVisible = false; stopCube() })
-  onUnload(() => { stopCube(); alive = false; measureSerial++; scrollRequests.clear(); rowRenderers.clear(); store.dispose(); wx.offThemeChange?.(themeListener)
+  onHide(() => { pageVisible = false; stopCube(); cancelSourceTabsSync() })
+  onUnload(() => { stopCube(); cancelSourceTabsSync(); alive = false; measureSerial++; scrollRequests.clear(); rowRenderers.clear(); store.dispose(); wx.offThemeChange?.(themeListener)
+    if (!capture.value.saving) removeScreenshot(wx, capture.value.path)
     if (capturing.value || capture.value.saving) wx.hideLoading() })
   onShareAppMessage(() => ({ title: `${tr('name')} · ${tabs.value[face.value]}`,
     path: sharePath(preferencesSnapshot(), dark.value ? 'dark' : 'light') }))
@@ -360,12 +424,18 @@ definePage(query => {
     const kind = event.currentTarget.dataset.kind
     if (!hasOwn(boards, kind)) return
     const top = Math.max(0, Number(event.detail.scrollTop) || 0)
+    const request = scrollRequests.get(kind)
+    if (request?.pending && Math.abs(top - request.top) > 1) {
+      if (kind === current.value.kinds[face.value]) syncSourceTabsAfterScroll(kind)
+      return
+    }
     if (gesture && kind === current.value.kinds[face.value] && Math.abs(top - (scrollPositions[kind] || 0)) > 1) {
       // Native scrolling wins even if the first touch sample looked sideways.
       gesture.axis = 'vertical'; gesture.position = face.value
       cubeBusy.value = false; cubeDuration.value = 0; cubePosition.value = face.value
     }
     scrollPositions[kind] = top
+    if (kind === current.value.kinds[face.value]) { updateSourceTabs(top); syncSourceTabsAfterScroll(kind) }
     const show = top > 400
     if (!!backTopBoards.value[kind] !== show) backTopBoards.value = { ...backTopBoards.value, [kind]: show }
     // Native events, not delayed rAF: fast flicks must never outrun the window.
@@ -419,19 +489,22 @@ definePage(query => {
       content: `${text(boards[kind].summaries, language.value)}\n\n${tr('updated')}: ${formatTime(latestTimestamp(board))}\n\n${boards[kind].url}`,
       showCancel: false })
   }
+  function copyText(data) {
+    wx.setClipboardData({ data, success: () => wx.showToast({ title: tr('copied'), icon: 'success' }) })
+  }
   function rowDetails(event) {
     if (cubeBusy.value || Date.now() < suppressTapUntil) return
     const { kind, rank } = event.currentTarget.dataset
     const entry = rankedCards.value.find(card => card.kind === kind)?.entries.find(row => row.rank === Number(rank))
     if (!entry) return
     if (grouping.value === 'model') {
-      wx.setClipboardData({ data: entry.name })
+      copyText(entry.name)
       return
     }
     const row = rowView(entry, { company: grouping.value === 'company', dark: dark.value })
     const content = row.components.length ? `${tr('strongest')}\n\n${row.components.map(member => `#${member.rank} ${member.name} · ${member.score}`).join('\n')}` : row.name
     wx.showModal({ title: grouping.value === 'company' ? row.name : tr('details'), content,
-      confirmText: tr('copyName'), success: result => { if (result.confirm) wx.setClipboardData({ data: row.name }) } })
+      confirmText: tr('copyName'), success: result => { if (result.confirm) copyText(row.name) } })
   }
   async function screenshot() {
     if (capturing.value || capture.value.saving) return
@@ -463,37 +536,40 @@ definePage(query => {
           else reject(new Error('Canvas unavailable'))
         })
       })
-      const paths = await exportScreenshots({ platform: wx, canvas, model, isActive: () => alive,
-        progress: (index, count) => wx.showLoading({ title: `${tr('generating')} ${index}/${count}`, mask: true }) })
-      if (alive) capture.value = { open: true, paths, index: 0, saving: false, saved: 0 }
-    } catch {
+      const path = await exportScreenshot({ platform: wx, canvas, model, isActive: () => alive,
+        progress: percent => wx.showLoading({ title: `${tr('generating')} ${percent}%`, mask: true }) })
+      if (alive) capture.value = { ...emptyCapture(), open: true, path }
+      else removeScreenshot(wx, path)
+    } catch (error) {
+      console.warn('Leaderboard screenshot failed', error)
       failed = true
     } finally { capturing.value = false; if (alive) wx.hideLoading() }
     if (alive && failed) wx.showToast({ title: tr('screenshotFailed'), icon: 'none' })
   }
-  function closeCapture() { if (!capture.value.saving) capture.value = { ...capture.value, open: false } }
-  function capturePage(event) {
-    const index = capture.value.index + Number(event.currentTarget.dataset.step)
-    if (index >= 0 && index < capture.value.paths.length) capture.value = { ...capture.value, index }
+  function closeCapture() {
+    if (capture.value.saving) return
+    removeScreenshot(wx, capture.value.path)
+    capture.value = emptyCapture()
   }
-  function previewScreenshot(event) {
-    const paths = capture.value.paths
-    if (paths.length) wx.previewImage({ urls: paths, current: paths[Number(event?.currentTarget?.dataset?.index ?? capture.value.index)] })
+  function previewScreenshot() {
+    const path = capture.value.path
+    if (path) wx.previewImage({ urls: [path], current: path })
   }
   async function saveScreenshot() {
-    if (capture.value.saving || !capture.value.paths.length) return
+    if (capture.value.saving || capture.value.saved || !capture.value.path) return
     capture.value = { ...capture.value, saving: true }
     let failed
     try {
-      while (capture.value.saved < capture.value.paths.length) {
-        if (!alive) return
-        wx.showLoading({ title: `${tr('savingImages')} ${capture.value.saved + 1}/${capture.value.paths.length}`, mask: true })
-        await saveScreenshotImage(wx, capture.value.paths[capture.value.saved])
-        capture.value = { ...capture.value, saved: capture.value.saved + 1 }
-      }
+      wx.showLoading({ title: tr('savingImages'), mask: true })
+      await saveScreenshotImage(wx, capture.value.path)
+      capture.value = { ...capture.value, saved: true }
     } catch (error) {
       failed = error
-    } finally { capture.value = { ...capture.value, saving: false }; if (alive) wx.hideLoading() }
+    } finally {
+      capture.value = { ...capture.value, saving: false }
+      if (alive) wx.hideLoading()
+      else removeScreenshot(wx, capture.value.path)
+    }
     if (!alive) return
     if (failed) {
       if (/auth.*(?:deny|denied)|permission/i.test(failed?.errMsg || '')) {
@@ -506,12 +582,13 @@ definePage(query => {
   const quotaHelp = () => wx.showModal({ title: tr('featureDetails'),
     content: `${tr('subtitle')}\n\n${tr('quotaHelp')}`, confirmText: tr('close'), showCancel: false })
   const refreshTap = event => refreshKind(event.currentTarget.dataset.kind)
-  return { labels, subtitleParts, brandTitle, categoryItems, categoryIndex, category, grouping, face, dark, cards, tabs, backToTop,
+  return { labels, subtitleParts, brandTitle, categoryItems, categoryIndex, category, grouping, face, dark, cards, tabs, backToTop, skeletonRows,
     statusBar, navHeight, headerTop, capsuleWidth, sheet,
-    cubeFaces, sourceSelection, cubePosition, cubeDuration, cubeBusy, entranceStyle, entranceHintVisible,
+    cubeFaces, sourceSelection, sourceTabsStyle, sourceTabsExtent,
+    cubePosition, cubeDuration, cubeBusy, entranceStyle, entranceHintVisible,
     cubeStart, cubeMove, cubeEnd, cubeCancel,
     selectCategory, selectGrouping, selectFace, changeFace, scroll, top, filterMenu,
     clearFilters, preferences, sheetSelect, closeSheet, sourceHelp, rowDetails, about,
     quotaHelp, refreshTap, refreshCategory, pullRefresh, pullRefreshing,
-    capturing, capture, screenshot, closeCapture, capturePage, previewScreenshot, saveScreenshot }
+    capturing, capture, screenshot, closeCapture, previewScreenshot, saveScreenshot }
 }, { canShareToOthers: true })
