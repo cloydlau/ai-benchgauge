@@ -1,5 +1,5 @@
 import { definePage, ref, computed, onLoad, onReady, onShow, onHide, onUnload, onShareAppMessage, onResize } from '@vue-mini/core'
-import { boards, categories, categoryFor, copy, text, languages, boardTitle, hasOwn } from '../../core/catalog.js'
+import { boards, categories, categoryFor, copy, text, languages, boardTitle, hasOwn, desktopDownloadURL } from '../../core/catalog.js'
 import { rankedEntries, rowView, countryOptions, formatTime, latestTimestamp } from '../../core/leaderboard.js'
 import { createBoardStore } from '../../services/boards.js'
 import { rowGeometry, resolveRowWindow, createRowRenderer } from '../../core/row-window.js'
@@ -196,21 +196,39 @@ definePage(query => {
   const capturing = ref(false)
   const emptyCapture = () => ({ open: false, path: '', saving: false, saved: false })
   const capture = ref(emptyCapture())
+  const showingFeatureHelp = ref(false)
+  const companyDetails = ref({ open: false, name: '', content: '', members: [] })
+  // Vant locks its mask, but touches inside popup content can still reach a
+  // native scroll-view underneath. Lock every board as well as the page root.
+  const backgroundLocked = computed(() => sheet.value.open || companyDetails.value.open
+    || showingFeatureHelp.value || capture.value.open || capturing.value)
   const lastAttempt = {}
   let alive = true
 
   const tr = key => text(copy[key], language.value)
   const labels = computed(() => Object.fromEntries(Object.keys(copy).map(key => [key, tr(key)])))
   const subtitleParts = computed(() => labels.value.subtitle.split(' & '))
+  const groupingControl = computed(() => ({
+    height: capsuleHeight.value,
+    width: capsuleHeight.value * (language.value === 'en' ? 3.75 : 2.5) + 16,
+    fontSize: capsuleHeight.value * (language.value === 'en' ? 0.34 : 0.4),
+  }))
   const brandTitle = computed(() => {
     const sample = measureBrand(labels.value.name, 32)
     const height = capsuleHeight.value
     const english = language.value === 'en'
-    const width = Math.max(1, headerWidth.value - capsuleWidth.value - headerWidth.value / 750 * (24 + 14 + (english ? 176 : 128)))
-    // The caption grows with the title. Reserve both together before fitting
-    // the pair beside the grouping control and the native WeChat capsule.
-    const captionWidth = sample.height * (english ? 4.2 : 2.6)
-    return measureBrand(labels.value.name, 32 * Math.min(height / sample.height, width / (sample.width + captionWidth)))
+    const width = Math.max(1, headerWidth.value - capsuleWidth.value - groupingControl.value.width - headerWidth.value / 750 * (24 + 14))
+    if (english) {
+      const title = measureBrand(labels.value.name, 32 * Math.min(height * 0.8 / sample.height, width / (sample.width + sample.height * 5.25)))
+      return { ...title, subtitleHeight: title.height * 1.25, subtitleFontSize: title.height * 0.5 }
+    }
+    // Shrink the one-line caption first, then the title if both cannot fit.
+    // Reserve 10.88 em for Chinese text, separators, help mark and their gaps.
+    const captionEm = 10.88, minimumFontSize = 6.5
+    const scale = Math.min(height / sample.height, Math.max(1, width - captionEm * minimumFontSize) / sample.width)
+    const title = measureBrand(labels.value.name, 32 * scale * 0.85)
+    const subtitleFontSize = Math.max(0, Math.min(12, (width - title.width) / captionEm))
+    return { ...title, subtitleHeight: title.height, subtitleFontSize }
   })
   const categoryItems = computed(() => categories.map((item, index) => ({ id: item.id, label: text(item.labels, language.value),
     icon: ['apps-o', 'code', 'photo-o', 'video-o'][index] })))
@@ -313,6 +331,8 @@ definePage(query => {
           // The latest scroll event may already be far ahead when this callback runs.
           origins[kind] = rows.top - viewport.top + viewport.scrollTop
           viewports[kind] = viewport.height
+          const anchor = results[kinds.length * 2 + index]
+          if (Number.isFinite(anchor?.top)) headerOffsets[kind] = anchor.top - viewport.top + viewport.scrollTop
           syncWindow(kind, true)
         })
       })

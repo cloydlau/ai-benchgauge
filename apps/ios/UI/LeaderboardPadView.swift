@@ -296,8 +296,8 @@ public struct LeaderboardPadView: View {
     }
     private func mobileInlineHeader(titleSize: CGFloat) -> some View {
         HStack(spacing: 6) {
-            mobileBrandTitle(size: titleSize)
-            featureHelp(height: BrandTitleMetrics.inkHeight(language: store.language, fontSize: titleSize)).fixedSize(horizontal: true, vertical: false)
+            mobileBrandTitle(size: titleSize).fixedSize(horizontal: true, vertical: false)
+            featureHelp(height: BrandTitleMetrics.inkHeight(language: store.language, fontSize: titleSize))
             Spacer(minLength: 0)
             mobileGrouping
         }

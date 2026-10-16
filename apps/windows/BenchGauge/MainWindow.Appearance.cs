@@ -53,10 +53,10 @@ sealed partial class MainWindow
         ["tencent"] = "#0052D9", ["nvidia"] = "#76B900", ["bytedance"] = "#3C8CFF",
     };
     static Brush Tint(string hex, double opacity = 1) => new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)) { Opacity = opacity };
-    TextBlock Caption(string text, Brush? foreground = null, double size = 11)
+    TextBlock Caption(string text, Brush? foreground = null, double size = 11, bool numeric = false)
     {
         var label = new TextBlock { Text = text, Foreground = foreground ?? PanelMuted, FontSize = size,
-            FontFamily = new FontFamily("Segoe UI"), VerticalAlignment = VerticalAlignment.Center,
+            FontFamily = new FontFamily(numeric ? "Consolas" : "Segoe UI"), VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis };
         CenterTextInk(label); return label;
     }
@@ -125,7 +125,7 @@ sealed partial class MainWindow
             var text = new FormattedText(spec.Text, CultureInfo.GetCultureInfo(spec.Language.IetfLanguageTag), spec.FlowDirection,
                 new Typeface(spec.FontFamily, spec.FontStyle, spec.FontWeight, spec.FontStretch), spec.FontSize,
                 spec.Foreground, VisualTreeHelper.GetDpi(this).PixelsPerDip);
-            if (DimsAmpersand && spec.Text.IndexOf('&') is var separator && separator >= 0)
+            foreach (var separator in Enumerable.Range(0, spec.Text.Length).Where(index => DimsAmpersand && spec.Text[index] is '&' or '?'))
             {
                 var muted = spec.Foreground.Clone();
                 muted.Opacity *= 0.55;
@@ -198,20 +198,25 @@ sealed partial class MainWindow
         }
     }
 
-    // Both caption rows share the title's native painted top and bottom.
-    sealed class HeaderCaptionStack(HeaderInkLabel title, HeaderInkLabel first, HeaderInkLabel second) : Panel
+    // Chinese uses one bottom-aligned line; English rows share the title’s painted edges.
+    sealed class HeaderCaptionStack(HeaderInkLabel title, HeaderInkLabel first, HeaderInkLabel second, bool singleLine) : Panel
     {
         double scale = 1;
-        public void AddLabels() { Children.Add(first); Children.Add(second); }
+        public void AddLabels() { Children.Add(first); if (!singleLine) Children.Add(second); }
         protected override Size MeasureOverride(Size available) {
-            foreach (var label in new[] { first, second }) {
+            foreach (var label in singleLine ? new[] { first } : new[] { first, second }) {
                 label.Height = label.VisibleInkHeight;
                 label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             }
+            if (singleLine) return new Size(first.DesiredSize.Width, 27);
             scale = title.VisibleInkHeight * 0.8 / (first.Height + second.Height);
             return new Size(Math.Max(first.DesiredSize.Width, second.DesiredSize.Width) * scale, 27);
         }
         protected override Size ArrangeOverride(Size size) {
+            if (singleLine) {
+                first.Arrange(new Rect(0, title.VisibleInkTop + title.VisibleInkHeight - first.Height, first.DesiredSize.Width, first.Height));
+                return size;
+            }
             first.RenderTransform = second.RenderTransform = new ScaleTransform(scale, scale);
             first.Arrange(new Rect(0, title.VisibleInkTop, first.DesiredSize.Width, first.Height));
             second.Arrange(new Rect(0, title.VisibleInkTop + title.VisibleInkHeight - second.Height * scale,
@@ -336,13 +341,13 @@ sealed partial class MainWindow
             FontSize = 21, Height = 27, Foreground = PanelInk };
         var titleInk = (HeaderInkLabel)HeaderInk(headerTitle);
         brand.Children.Add(titleInk);
-        var subtitleSpec = Caption(Tr("Dual boards &", "双榜对照 &", "雙榜對照 &"), PanelMuted, 12);
+        var subtitleSpec = Caption(Tr("Dual boards &", "双榜对照 & 余量追踪 ?", "雙榜對照 & 餘量追蹤 ?"), PanelMuted, 12);
         subtitleSpec.FontWeight = FontWeights.SemiBold;
         var subtitleInk = new HeaderInkLabel(subtitleSpec) { AlignInkTop = true, DimsAmpersand = true };
         var quotaSpec = Caption(Tr("Quota tracking ?", "余量追踪 ?", "餘量追蹤 ?"), PanelMuted, 12);
         quotaSpec.FontWeight = FontWeights.SemiBold;
         var quotaInk = new HeaderInkLabel(quotaSpec) { AlignInkTop = true };
-        var captions = new HeaderCaptionStack(titleInk, subtitleInk, quotaInk) {
+        var captions = new HeaderCaptionStack(titleInk, subtitleInk, quotaInk, prefs.Language != "en") {
             Height = 27, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0)
         };
         captions.Cursor = Cursors.Hand;
@@ -569,7 +574,7 @@ sealed partial class MainWindow
                 var column = side == 0 ? 1 : 5;
                 if (index >= entries[side].Length) continue;
                 var entry = entries[side][index]; AddCell(row, ModelCell(entry), column);
-                AddCell(row, Center(Caption(entry.Score.ToString("0.0", CultureInfo.InvariantCulture), PanelMuted, 13)), column + 3);
+                AddCell(row, Center(Caption(entry.Score.ToString("0.0", CultureInfo.InvariantCulture), PanelMuted, 13, numeric: true)), column + 3);
                 AddCell(row, OpennessBadge(entry.Openness), column + 2);
                 AddCell(row, Flag(entry.Country), column + 1);
             }
@@ -623,13 +628,13 @@ sealed partial class MainWindow
     static TextBlock Center(TextBlock text) { text.TextAlignment = TextAlignment.Center; text.HorizontalAlignment = HorizontalAlignment.Stretch; return text; }
     FrameworkElement Rank(int rank)
     {
-        if (rank > 3) return Center(Caption(rank.ToString(CultureInfo.InvariantCulture), PanelInk, 13));
+        if (rank > 3) return Center(Caption(rank.ToString(CultureInfo.InvariantCulture), PanelInk, 13, numeric: true));
         // The medal stays legible on Windows installations without color emoji.
         var grid = new Grid { Width = 18, Height = 23, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
         var ribbon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M 4,0 L 8,0 L 11,8 L 7,8 Z M 10,0 L 14,0 L 11,8 L 7,8 Z"), Fill = Tint(rank == 1 ? "#FFB900" : rank == 2 ? "#86A0A7" : "#E0783D") };
         grid.Children.Add(ribbon);
         grid.Children.Add(new Border { Width = 13, Height = 13, CornerRadius = new CornerRadius(7), Background = Tint(rank == 1 ? "#F8BF24" : rank == 2 ? "#B8BEC4" : "#C78C5C"), VerticalAlignment = VerticalAlignment.Bottom,
-            Child = Center(Caption(rank.ToString(CultureInfo.InvariantCulture), Brushes.White, 9)) }); return grid;
+            Child = Center(Caption(rank.ToString(CultureInfo.InvariantCulture), Brushes.White, 9, numeric: true)) }); return grid;
     }
     Brush BrandFill(string hex, string modelName)
     {

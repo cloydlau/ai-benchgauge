@@ -168,6 +168,18 @@ test('page lifecycle paints independent sources, honors the new tabs/headings an
   globalThis.__benchHooks.unload()
 })
 
+test('every category and source shares the current page title and common localized tagline', () => {
+  for (const language of ['en', 'zh-CN', 'zh-TW']) for (const category of categories) for (const face of [0, 1]) {
+    const h = setup({ language, category: category.id, face })
+    const message = globalThis.__benchHooks.share()
+    assert.equal(message.title, `${text(face ? copy.votes : copy.tasks, language)}｜${text(copy.tagline, language)}`)
+    const shared = pagePreferences(Object.fromEntries(new URL('https://shared.example' + message.path).searchParams))
+    assert.equal(shared.category, category.id)
+    assert.equal(shared.face, face)
+    globalThis.__benchHooks.unload()
+  }
+})
+
 test('menu sharing restores live choices and all filters over conflicting receiver preferences', async () => {
   const sender = setup({ filters: { artificialAnalysis: { country: 'US', openness: 'closed' } } })
   assert.equal(globalThis.__benchPageConfig.canShareToOthers, true)
@@ -184,7 +196,7 @@ test('menu sharing restores live choices and all filters over conflicting receiv
   sender.page.filterMenu(event({ kind: 'arenaTextToVideo', mode: 'openness' }))
   sender.page.sheetSelect({ detail: { value: 'open' } })
   const message = globalThis.__benchHooks.share()
-  assert.match(message.title, /使用者盲測/)
+  assert.equal(message.title, `${text(copy.votes, 'zh-TW')}｜${text(copy.tagline, 'zh-TW')}`)
   const query = Object.fromEntries(new URL('https://shared.example' + message.path).searchParams)
   const expected = pagePreferences(query)
   globalThis.__benchHooks.unload()

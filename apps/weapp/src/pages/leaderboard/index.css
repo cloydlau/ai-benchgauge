@@ -4,10 +4,12 @@
 .brand-title { flex-shrink: 0; }
 .subtitle { flex: 0 0 auto; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; color: var(--muted); line-height: 1; text-align: left; padding: 0; }
 .subtitle-line { display: flex; align-items: center; gap: .25em; height: 40%; white-space: nowrap; }
+.subtitle-single-line { flex-direction: row; align-items: center; justify-content: flex-start; gap: .25em; }
+.subtitle-single-line .subtitle-line { height: auto; }
 .subtitle-symbol { opacity: .55; }
 .subtitle-help { display: flex; align-items: center; }
-.grouping { flex-shrink: 0; width: 128rpx; padding: 4rpx; }.grouping .pill-option { flex: 1; padding: 8rpx 4rpx; font-size: 18rpx; white-space: nowrap; }
-.brand-en .grouping { width: 176rpx; }.brand-en .grouping .pill-option { padding: 8rpx 0; font-size: 16rpx; }
+.grouping { flex-shrink: 0; padding: 2px; border-radius: 999px; align-items: stretch; }
+.grouping .pill-option { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 0 6px; border-radius: 999px; font-size: inherit; line-height: 1; white-space: nowrap; }
 .category-tabs {
   position: fixed; z-index: 10; left: 40rpx; right: 40rpx;
   bottom: calc(env(safe-area-inset-bottom) + 18rpx);

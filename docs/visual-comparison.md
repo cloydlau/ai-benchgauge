@@ -839,3 +839,31 @@ Windows native screenshots, actual Windows DPI coverage and a source-matched CI 
 All feature captions retain the title's overall height while reserving 20% of that span between the two rows. Apple native and Windows captions scale the text into the remaining 80%; WeChat and its export use 40% per row. The ampersand and help mark retain their first/second-row positions. Native WeChat readback confirms a 32px caption with a 12.8px font, reduced from 16px.
 
 Ignored `work/subtitle-air/review.html` and `review.json` compare 36 original native Mac after frames with the matching preceding two-line-caption captures, three languages, light/dark, 850/1300×720-point viewports, shown/refreshed/settled checkpoints, macOS 27.0.1 at actual 1× backing scale. Text is smaller with a visible central gap and unchanged outer alignment; time-dependent freshness ages advance between capture dates. Seventy-eight mini-program tests and the production build pass, the two native caption ink-bound/render tests pass, Mac builds, and Windows Release compiles with zero warnings/errors. iOS consumes the same tested native artwork. No new Windows/iPad native screenshots or source-matched CI visual artifact are available, and no protected release approval is claimed.
+
+## Chinese feature subtitle restored to one line (2026-10-16)
+
+Simplified and Traditional Chinese use one complete `双榜对照 & 余量追踪 ?` / `雙榜對照 & 餘量追蹤 ?` line beside the title, aligned to its painted bottom. English retains two rows. The shared Apple caption uses its native 12-point text size for Chinese; Windows also bottom-aligns a single native caption. WeChat fits the wider Chinese title/caption pair beside grouping and the capsule, and its exported image follows the same language-specific row choice.
+
+Ignored `work/subtitle-single-line/review.html`, `review.json`, `source.json` and original captures retain 36 native Mac before/after pairs with the same synthetic fixture, three languages, both themes, 850/1300×720-point viewports and shown/refreshed/settled frames. Actual environment: macOS 27.0.1 (26A434), 2× backing scale. Header review confirms complete Chinese captions, the help mark on the same line and no overlap with adjacent controls; English keeps its two-row arrangement. Both focused shared native caption tests, mini-program tests (78) and production build pass; Windows Release cross-compilation passes with zero warnings/errors. All twelve header states in each capture phase remain pixel-identical across shown/refreshed/settled checkpoints.
+
+Windows native screenshots/actual DPI, new iPhone/iPad and WeChat native captures, and a source-matched CI visual artifact remain unavailable. The shared Apple view compiles for Mac and the mobile UI target; this does not substitute for device visual review. No protected release approval or distribution is claimed.
+
+## Narrow subtitle sizing (2026-10-16)
+
+Chinese subtitles retain one line and reduce their type size when constrained. The shared Apple caption accepts the proposed width, scales text and symbols together down to 65% while preserving its painted bottom edge, and allows the existing smaller-title fallbacks to handle further constraints. The phone/iPad header no longer fixes the caption at its intrinsic width; the Mac heading forwards available width. WeChat prioritizes reducing the Chinese caption before shrinking the title, with responsive help-icon sizing. Its existing header test now includes 280–430px viewports.
+
+Both focused shared native tests, all 78 mini-program tests and the production build pass. `work/subtitle-narrow/captions/` retains twelve native SwiftUI ImageRenderer originals covering three languages, both themes, natural and constrained widths (Chinese: 78px), with geometry assertions checking the complete ink bounds and bottom alignment. These are shared-view renders on Mac, not iOS device screenshots. `work/subtitle-narrow/review.html`, `review.json` and `source.json` retain 36 Mac before/after original pairs using the previous matching synthetic fixture and 850/1300×720-point viewports, macOS 27.0.1 (26A434), actual 2× backing scale. Header review confirms the complete single-line Chinese caption at supported desktop widths.
+
+This adjustment leaves WPF unchanged. Current Windows native screenshots/DPI, iPhone/iPad and WeChat native simulator/device captures, and a source-matched CI visual artifact remain unavailable. No protected release approval or distribution is claimed.
+
+## WeChat grouping control matches capsule height (2026-10-16)
+
+The model/company switch binds its outer height to the native WeChat menu capsule measurement, including resizing. At a 32px capsule it uses an 80px Chinese / 120px English width with 12.8px / 10.88px text, centered inside a 2px inset. The title/caption fit now reserves this measured control width. Chinese captions shrink first and retain a 6.5px font at the tested 320px-and-wider viewports before the title consumes the remaining space.
+
+All 78 mini-program tests and the production build pass. The existing header check covers 280–430px widths, 28/32/36px capsule heights and all three languages, checking exact grouping/capsule height equality and positive title/caption dimensions. Logs are retained under ignored `work/grouping-capsule/`. The official WeChat MCP and its skill are unavailable in this session, so no native simulator screenshot, interaction review or physical-device visual verification is claimed.
+
+## Gentler mini-program cube entrance (2026-10-16)
+
+The first-entrance rotation is halved: initial tilt is 8.1° instead of 16.2°, and peak tilt is 12.6° instead of 25.2°, mirrored for either saved board. Vertical travel drops from 12px to 6px and the scale change from 1.5% to 0.75%. Existing timings, opacity, hint and interruption behavior stay in place.
+
+All 78 mini-program tests and production build pass, including both saved faces, selection preservation and touch/background cancellation. Logs remain in ignored `work/cube-gentler-entrance/`. Native WeChat tools are unavailable in this session; no simulator recording or physical-device motion review is claimed.

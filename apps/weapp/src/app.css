@@ -14,7 +14,7 @@ button::after { border: 0; }
 }
 .muted { color: var(--muted); }
 .tap { min-height: 44px; display: flex; align-items: center; justify-content: center; }
-.mono { font-variant-numeric: tabular-nums; }
+.mono { font-family: 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace; font-variant-numeric: tabular-nums; }
 .pill { background: var(--chip); border-radius: 18rpx; padding: 6rpx; display: flex; }
 .pill-option { padding: 10rpx 22rpx; border-radius: 14rpx; color: var(--muted); font-size: 24rpx; }
 .pill-option.selected { color: var(--ink); background: var(--card); box-shadow: 0 2rpx 6rpx rgba(0,0,0,.05); font-weight: 600; }
