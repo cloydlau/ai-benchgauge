@@ -190,7 +190,20 @@ test('CLI usage failures exit without attempting a publish', t => {
 
 test('standalone upload watcher handles an explicit stop signal and exits cleanly', async t => {
   const f=isolatedUploader(t)
-  const child=spawn(process.execPath,[f.script,'watch'],{cwd:f.root,env:{...f.env,WEAPP_AUTOPUBLISH:'1',BENCHGAUGE_WEAPP_OWNER_PID:String(process.pid)},stdio:['ignore','pipe','pipe']})
+  const entry = `
+    process.argv = [process.execPath, ${JSON.stringify(f.script)}, 'watch'];
+    const write = process.stdout.write.bind(process.stdout);
+    process.stdout.write = function (chunk, ...args) {
+      if (String(chunk).includes('已监听源码')) {
+        for (const signal of ['SIGINT', 'SIGTERM']) {
+          if (process.listenerCount(signal) === 0) throw Error(signal + ' handler missing at readiness');
+        }
+      }
+      return write(chunk, ...args);
+    };
+    await import(${JSON.stringify(pathToFileURL(f.script).href)});
+  `
+  const child=spawn(process.execPath,['--input-type=module','--eval',entry],{cwd:f.root,env:{...f.env,WEAPP_AUTOPUBLISH:'1',BENCHGAUGE_WEAPP_OWNER_PID:String(process.pid)},stdio:['ignore','pipe','pipe']})
   let output='';child.stdout.on('data',data=>{output+=data;if(output.includes('已监听源码'))child.kill('SIGTERM')});child.stderr.on('data',data=>{output+=data})
   const timer=setTimeout(()=>child.kill('SIGKILL'),5000)
   const code=await new Promise(resolve=>child.once('close',resolve));clearTimeout(timer)
