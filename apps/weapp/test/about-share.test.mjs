@@ -27,6 +27,7 @@ test('about-page menu forwarding and cold-start back navigation retain the origi
   const query = queryFor(sharePath(preferences, 'dark', '/pages/about/index'))
   const writes = [], launches = []
   globalThis.__APP_VERSION__ = '0.0.0'; globalThis.__THIRD_PARTY_NOTICES__ = []
+  globalThis.__ENGINEERING_INVESTMENT__ = { commitCount: 1234, codeLineCount: 56789 }
   globalThis.getCurrentPages = () => [{}]
   globalThis.wx = {
     getStorageSync: () => ({ language: 'zh-CN', theme: 'light' }),
@@ -39,6 +40,8 @@ test('about-page menu forwarding and cold-start back navigation retain the origi
   assert.equal(globalThis.aboutConfig.canShareToOthers, true)
   assert.equal(about.dark, true)
   assert.equal(about.labels.about, 'About')
+  assert.deepEqual(about.investment.metrics.map(item => item.value), ['1,234', '56,789'])
+  assert.equal(about.investment.title, 'Costs and investment')
   const forwarded = globalThis.aboutShare()
   assert.ok(forwarded.path.startsWith('/pages/about/index?state='))
   const expected = pagePreferences(query)

@@ -10,6 +10,28 @@
     <text class="muted about-version">v{{version}}</text>
   </view>
   <text class="about-description">{{description}}</text>
+  <view class="about-card investment-card">
+    <text class="section-title">{{investment.title}}</text>
+    <text class="investment-heading">{{investment.engineeringTitle}}</text>
+    <view class="investment-metrics">
+      <view wx:for="{{investment.metrics}}" wx:key="id" class="investment-metric">
+        <text class="investment-value">{{item.value}}</text>
+        <text class="investment-label">{{item.label}}</text>
+      </view>
+    </view>
+    <text class="investment-note">{{investment.note}}</text>
+    <text class="investment-heading budget-heading">{{investment.budgetTitle}}</text>
+    <text class="investment-note budget-intro">{{investment.budgetIntro}}</text>
+    <view wx:for="{{investment.groups}}" wx:for-item="group" wx:key="id" class="cost-group">
+      <view class="cost-heading"><text class="cost-group-title">{{group.title}}</text><text class="cost-amount">{{group.amountText}}</text></view>
+      <view wx:for="{{group.items}}" wx:key="id" class="investment-item">
+        <view class="cost-heading"><text class="investment-item-title">{{item.title}}</text><text class="cost-amount {{item.amount === null ? 'cost-unaccounted' : ''}}">{{item.amountText}}</text></view>
+        <text class="investment-note">{{item.body}}</text>
+      </view>
+    </view>
+    <view class="cost-heading cost-total"><text>{{investment.totalTitle}}</text><text class="cost-total-value">{{investment.totalText}}</text></view>
+    <text class="investment-note cost-note">{{investment.costNote}}</text>
+  </view>
   <view class="about-card"><text class="section-title">{{desktopTitle}}</text>
     <button class="download-link" data-url="{{desktopDownloadURL}}" bindtap="copyLink">{{desktopDownloadLabel}}</button>
   </view>

@@ -4,6 +4,25 @@
 .about-description { display: block; color: var(--muted); line-height: 1.65; padding: 26rpx 0; }
 .about-card { margin: 18rpx 0; border-radius: 20rpx; background: var(--card); padding: 26rpx; }
 .section-title { display: block; font-weight: 600; margin-bottom: 16rpx; font-size: 25rpx; }
+.investment-heading { display: block; color: var(--muted); font-size: 22rpx; }
+.investment-metrics { display: flex; padding: 24rpx 0; }
+.investment-metric { flex: 1; min-width: 0; text-align: center; padding: 0 12rpx; }
+.investment-metric + .investment-metric { border-left: 1rpx solid var(--line); }
+.investment-value { display: block; color: var(--blue); font-size: 40rpx; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.investment-label { display: block; margin-top: 6rpx; color: var(--muted); font-size: 22rpx; }
+.investment-note { display: block; color: var(--muted); font-size: 22rpx; line-height: 1.65; }
+.budget-heading { margin-top: 26rpx; }
+.budget-intro { margin-top: 10rpx; }
+.cost-group { margin-top: 26rpx; }
+.cost-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 20rpx; }
+.cost-group-title { font-size: 24rpx; font-weight: 600; }
+.cost-amount { flex-shrink: 0; font-size: 23rpx; font-variant-numeric: tabular-nums; }
+.cost-unaccounted { color: var(--muted); font-size: 21rpx; }
+.cost-total { margin-top: 26rpx; padding-top: 22rpx; border-top: 1rpx solid var(--line); font-size: 24rpx; font-weight: 600; }
+.cost-total-value { color: var(--blue); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.investment-item { padding-top: 18rpx; }
+.investment-item-title { display: block; margin-bottom: 4rpx; font-size: 24rpx; }
+.cost-note { margin-top: 22rpx; padding-top: 18rpx; border-top: 1rpx solid var(--line); }
 .download-link { text-decoration: underline; text-underline-offset: 5rpx; font-size: 23rpx; color: var(--blue); text-align: left; word-break: break-all; min-height: 36px; display: flex; align-items: center; }
 .source-link { display: flex; justify-content: space-between; align-items: center; text-align: left; border-bottom: 1rpx solid var(--line); min-height: 46px; color: var(--muted); font-size: 24rpx; }.source-link:last-child { border: 0; }
 .source-link text { text-decoration: underline; text-underline-offset: 5rpx; color: var(--blue); }

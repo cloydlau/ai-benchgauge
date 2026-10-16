@@ -2,6 +2,7 @@ import { definePage, ref, onShareAppMessage } from '@vue-mini/core'
 import { leaderboardSources, desktopDownloadURL, copy, text } from '../../core/catalog.js'
 import { createBrandMeasurer } from '../../core/brand-title.js'
 import { pagePreferences, sharePath } from '../../core/share-state.js'
+import { investmentContent } from '../../core/investment.js'
 
 definePage(query => {
   const saved = (() => { try { return wx.getStorageSync('benchgauge.preferences') || {} } catch { return {} } })()
@@ -25,13 +26,15 @@ definePage(query => {
     if (!preferences.fromShare && getCurrentPages().length > 1) wx.navigateBack()
     else wx.reLaunch({ url: sharePath(preferences, dark ? 'dark' : 'light') })
   }
-  const copyLink = event => wx.setClipboardData({ data: event.currentTarget.dataset.url })
+  const copyLink = event => wx.setClipboardData({ data: event.currentTarget.dataset.url,
+    success: () => wx.showToast({ title: labels.copied, icon: 'success' }) })
   const toggleNotice = event => {
     const id = event.currentTarget.dataset.id
     if (notices.some(item => item.id === id)) notice.value = notice.value === id ? '' : id
   }
   return { labels, brandTitle, dark, statusBar, items, version: __APP_VERSION__,
     back, copyLink, notices, notice, toggleNotice, desktopDownloadURL,
+    investment: investmentContent(__ENGINEERING_INVESTMENT__, language),
     description: text(['Compare task benchmarks and blind user votes across different AI model capabilities.',
       '对照任务测评与用户盲测，比较模型在不同场景下的表现。',
       '對照任務測評與使用者盲測，比較模型在不同情境下的表現。'], language),

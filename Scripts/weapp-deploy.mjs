@@ -97,7 +97,9 @@ async function upload() {
     // pnpm's pre-run dependency sync cannot operate on this isolated symlink tree.
     const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
     await run(npm, ['--prefix', join(stage, 'apps/weapp'), 'test'])
-    await run(npm, ['--prefix', join(stage, 'apps/weapp'), 'run', 'build'])
+    await run(npm, ['--prefix', join(stage, 'apps/weapp'), 'run', 'build'], {
+      env: { ...process.env, BENCHGAUGE_INVESTMENT_ROOT: root },
+    })
     if (sourceSignature(inputSnapshot()) !== signature) throw new Error('构建期间源码发生变化，等待下一轮上传')
     const current = readUploadConfig(root)
     if (!current.ready || current.signature !== config.signature) throw new Error('上传配置或密钥发生变化，等待下一轮上传')
