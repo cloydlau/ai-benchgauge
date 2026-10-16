@@ -7,6 +7,7 @@ final class LeaderboardCubeState: ObservableObject {
     @Published var dragging = false
     @Published var turning = false
     var turnSerial = 0
+    @Published var sourceTabsOffset: CGFloat = 0
     @Published var rank: Int?
     var columnHeaderHeight: CGFloat = 0
     var comparisonRowHeight: CGFloat = 44

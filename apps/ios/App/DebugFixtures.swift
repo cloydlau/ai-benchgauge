@@ -22,13 +22,15 @@ enum DebugFixtures {
         let brands = arguments.contains("--brand-discovery")
         let fetchedAt = arguments.contains("--recent-update") ? Date().addingTimeInterval(-29 * 60)
             : Date(timeIntervalSince1970: 1_700_000_000)
-        let pending = arguments.contains("--pending-boards")
+        let loading = arguments.contains("--loading-boards")
+        let pending = arguments.contains("--pending-boards") || loading
         let boards = pending ? [:] : Dictionary(uniqueKeysWithValues: LeaderboardKind.allCases.map {
             ($0, board($0, full: full, wrappedNames: wrappedNames, arenaScores: arenaScores, brands: brands, fetchedAt: fetchedAt))
         })
         cache.save(LeaderboardSnapshot(boards: boards))
-        let offline = arguments.contains("--offline") || pending
+        let offline = arguments.contains("--offline") || pending && !loading
         return LeaderboardPadStore(defaults: defaults, cache: cache, service: LeaderboardService { kind in
+            if loading { try await Task.sleep(for: .seconds(30)) }
             if offline { throw URLError(.notConnectedToInternet) }
             return board(kind, full: full, wrappedNames: wrappedNames, arenaScores: arenaScores, brands: brands, fetchedAt: fetchedAt)
         })

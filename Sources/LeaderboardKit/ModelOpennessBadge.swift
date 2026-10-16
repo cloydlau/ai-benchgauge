@@ -8,16 +8,18 @@ public struct ModelOpennessBadge: View {
     private let showsTitle: Bool
     private let scheme: ColorScheme?
     private let identifier: String
+    private let iconSize: CGFloat
     @Environment(\.colorScheme) private var colorScheme
 
     public init(_ openness: ModelOpenness?, language: AppLanguage,
                 colorScheme: ColorScheme? = nil, showsTitle: Bool = true,
-                accessibilityIdentifier: String = "") {
+                accessibilityIdentifier: String = "", iconSize: CGFloat = 9) {
         self.openness = openness
         self.language = language
         self.scheme = colorScheme
         self.showsTitle = showsTitle
         self.identifier = accessibilityIdentifier
+        self.iconSize = iconSize
     }
 
     private var dark: Bool { (scheme ?? colorScheme) == .dark }
@@ -34,7 +36,7 @@ public struct ModelOpennessBadge: View {
         if let openness {
             HStack(spacing: 3) {
                 Image(systemName: openness == .open ? "lock.open.fill" : "lock.fill")
-                    .font(.system(size: 9, weight: .medium)).frame(width: 10)
+                    .font(.system(size: iconSize, weight: .medium)).frame(width: iconSize * 10 / 9)
                     .accessibilityHidden(true)
                 if showsTitle { Text(openness.title(language: language)) }
             }
