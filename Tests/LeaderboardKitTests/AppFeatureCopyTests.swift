@@ -1,4 +1,4 @@
-import LeaderboardKit
+@testable import LeaderboardKit
 import Testing
 #if canImport(SwiftUI) && canImport(AppKit)
 import SwiftUI
@@ -10,8 +10,13 @@ struct AppFeatureCopyTests {
     @MainActor @Test func nativeSubtitleRendersInEveryLanguageAndAppearance() throws {
         _ = NSApplication.shared
         for language in AppLanguage.allCases {
+            let height = BrandTitleMetrics.inkHeight(language: language)
+            let artwork = FeatureSubtitleArtwork.make(language: language, height: height)
+            let bounds = artwork.letters.boundingBoxOfPath.union(artwork.symbols.boundingBoxOfPath)
+            #expect(abs(bounds.minY) < 0.01)
+            #expect(abs(bounds.maxY - height) < 0.01)
             for scheme in [ColorScheme.light, .dark] {
-                let view = FeatureSubtitle(language: language).font(.system(size: 12))
+                let view = FeatureSubtitle(language: language, height: height)
                     .foregroundStyle(scheme == .dark ? Color.white : Color.black)
                     .frame(width: 320, height: 28)
                     .environment(\.colorScheme, scheme)
@@ -28,6 +33,10 @@ struct AppFeatureCopyTests {
     @Test func featureLabelsAndDesktopAvailabilityFollowTheSelectedLanguage() {
         for language in AppLanguage.allCases {
             let subtitle = AppFeatureCopy.subtitle(language: language)
+            let rows = AppFeatureCopy.subtitleRows(language: language)
+            #expect(rows.count == 2)
+            #expect(rows[0].hasSuffix(" &"))
+            #expect(!rows[1].contains("&"))
             let title = AppFeatureCopy.quotaTitle(language: language)
             let help = AppFeatureCopy.quotaHelpLabel(language: language)
             let message = AppFeatureCopy.quotaMessage(language: language)
