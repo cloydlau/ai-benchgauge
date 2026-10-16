@@ -68,3 +68,5 @@ Node 内置测试覆盖实际页面控制器、双榜共享筛选与偏好、刷
 2026-10-15 已成功上传正式 AppID 的开发版 `20261015`。体验版选择及真机验证仍需在微信后台和设备上完成。
 
 非界面规则复用 `fc/domain.mjs`，品牌与公司名称从共用目录读取。Swift 规则数据通过 `node Scripts/generate-leaderboard-policy.mjs` 生成，检查会拒绝过期文件。
+
+购买链接共用 `fc/purchase-links.json`，修改后运行 `node Scripts/generate-purchase-links.mjs` 同步 Swift 目录；小程序测试会检查两端同步及 HTTPS 地址格式。地址应从对应产品的官方订阅、定价或充值页面核实，不能用返回 200 的首页代替；需要登录或拒绝抓取的页面不能据此断言失效，也不能当成已完成登录后购买流程验证。2026-10-16 核对并修正了 Meta 旧 API 404 地址、MiniMax 编程套餐、Google AI 套餐、StepFun 定价页和 Ideogram API 定价页；StepFun 已下线的图片模型不再提供购买按钮。

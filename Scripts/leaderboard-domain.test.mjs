@@ -60,3 +60,19 @@ test('hosted models determine company standings consistently, ignoring fusion si
  assert.equal(rules.knownModelBrand({name:'Geminiscope',organization:'Google'}),null)
  assert.equal(replacementFailure({kind:'other'},{kind:'one'}),'kind')
 })
+test('company aggregation reuses a matching sibling provider image while retaining the strongest score',()=>{
+ const ready={key:'openai',status:'ready',pngData:'iVBORw0KGgo='}
+ const rows=companyRows([
+  {rank:1,name:'Best',organization:'OpenAI',score:99,organizationBrand:{key:'openai',status:'pending'},brand:{key:'model-gpt',pngData:'bW9kZWw='}},
+  {rank:2,name:'Sibling',organization:'Open AI',score:90,brand:ready},
+ ])
+ assert.equal(rows.length,1)
+ assert.deepEqual([rows[0].score,rows[0].bestRank,rows[0].rank],[99,1,1])
+ assert.equal(rows[0].brand,ready);assert.equal(rows[0].organizationBrand,ready)
+ assert.deepEqual(rows[0].components.map(row=>row.name),['Best','Sibling'])
+ const hosted=companyRows([{rank:1,name:'Claude Code - Qwen3.8 Max',organization:'Anthropic',score:99,
+  organizationBrand:{key:'anthropic',pngData:'aGFybmVzcw=='},brand:{key:'model-qwen',pngData:'bW9kZWw='}}])[0]
+ assert.equal(hosted.name,'Alibaba')
+ assert.deepEqual(hosted.organizationBrand,{key:'qwen'})
+ assert.deepEqual(hosted.brand,{key:'qwen'})
+})

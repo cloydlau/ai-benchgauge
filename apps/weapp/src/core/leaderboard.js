@@ -1,10 +1,13 @@
 import { opennessIcon } from './openness-icon.js'
 import { boards, text, copy, hasOwn } from './catalog.js'
 import brandCatalog from '../../../../fc/brand-catalog.json' with { type: 'json' }
-import { canReplace, countryCode, companyRows, latestTimestamp, createBrandRules } from '../../../../fc/domain.mjs'
+import companyCatalog from '../../../../assets/logos/company-catalog.json' with { type: 'json' }
+import { purchaseLinks, preferredPurchaseLink } from './purchase-links.js'
+import { canReplace, countryCode, companyRows, latestTimestamp, createBrandRules, normalizedCountryCode } from '../../../../fc/domain.mjs'
 export { canReplace, countryCode, companyRows, latestTimestamp } from '../../../../fc/domain.mjs'
 const brandRules = createBrandRules(brandCatalog)
 const bundledBrands = new Set(Object.keys(brandCatalog.colors))
+const bundledCompanies = new Set([...bundledBrands, ...Object.keys(companyCatalog)])
 
 export function normalizeBoard(value, kind) {
   if (!hasOwn(boards, kind) || !value || value.kind !== kind
@@ -45,7 +48,7 @@ export function formatTime(value) {
   if (!value || !Number.isFinite(date.getTime())) return '—'
   return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
-export function rowView(entry, { company = false, dark = false, details = true } = {}) {
+export function rowView(entry, { company = false, dark = false, details = true, language = 'en', category = 'general' } = {}) {
   const productKey = !company ? brandRules.bundledProductKey(entry) : null
   const modelBrand = !company ? brandRules.knownModelBrand(entry) : null
   const brand = company ? entry.organizationBrand || entry.brand : entry.brand?.key?.startsWith('model-') ? entry.brand : modelBrand || entry.brand
@@ -54,13 +57,19 @@ export function rowView(entry, { company = false, dark = false, details = true }
   // A missing dedicated model mark must not hide its verified provider's bundled
   // icon. Use the complete shared catalog, including image/video providers.
   const key = company
-    ? [brand?.key, entry.developerCountry?.key, brandRules.normalizedBrandKey(entry.organization)].find(key => bundledBrands.has(key))
+    ? [brand?.key, entry.developerCountry?.key, brandRules.normalizedBrandKey(entry.organization)].find(key => bundledCompanies.has(key))
     : productKey || [brandRules.brandKey(entry)].find(key => bundledBrands.has(key))
   if (!company && !brand?.key?.startsWith('model-') && (productKey || key && !brandRules.sharedProviderMark(entry))) image = ''
   if (!image && key) image = `/assets/logos/${key}.png`
   const color = /^#[0-9a-f]{6}$/i.test(brand?.colorHex || '') ? brand.colorHex : '#62748b'
   const rgb = [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16)).join(',')
+  const links = company ? purchaseLinks(entry.organization, { modelName: entry.name, category }) : null
+  const actions = links ? [['codingPlan', 'plan'], ['payAsYouGo', 'payAsYouGo']].flatMap(([kind, label]) => {
+    const link = preferredPurchaseLink(links[kind], language)
+    return link ? [{ kind, title: text(copy[label], language), url: link.url }] : []
+  }) : []
   return { rank: entry.rank, name: entry.name, score: entry.score, logo: image,
+    purchaseActions: actions,
     initial: [...entry.name][0], flag: countryFlag(countryCode(entry)),
     components: details ? entry.components?.map(member => ({ name: member.name, rank: member.rank, score: member.score.toFixed(1) })) || [] : [],
     scoreText: entry.score.toFixed(1), openness: company ? null : entry.openness,
@@ -70,11 +79,12 @@ export function rowView(entry, { company = false, dark = false, details = true }
   }
 }
 export function rankedEntries(board, { grouping = 'model', country = 'all', openness = 'all' } = {}) {
+  country = normalizedCountryCode(country) ?? country
   const entries = (board?.entries || []).filter(entry => (country === 'all' || countryCode(entry) === country)
     && (openness === 'all' || (entry.openness || 'unknown') === openness))
   return grouping === 'company' ? companyRows(entries) : entries
 }
-export function visibleRows(board, { grouping = 'model', country = 'all', openness = 'all', dark = false } = {}) {
+export function visibleRows(board, { grouping = 'model', country = 'all', openness = 'all', dark = false, language = 'en', category = 'general' } = {}) {
   const rows = rankedEntries(board, { grouping, country, openness })
-  return rows.map(entry => rowView(entry, { company: grouping === 'company', dark }))
+  return rows.map(entry => rowView(entry, { company: grouping === 'company', dark, language, category }))
 }

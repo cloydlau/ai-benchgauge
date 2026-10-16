@@ -63,13 +63,20 @@
           <view id="rows-{{card.kind}}" class="virtual-rows" style="height:{{card.height}}px;">
           <view wx:for="{{card.rows}}" wx:for-item="row" wx:key="rank" style="top:{{row.top}}px;height:{{card.rowHeight}}px;" class="table-row table-grid {{row.rank % 2 === 0 ? 'alternate' : ''}}">
             <text class="rank-cell mono">{{row.medal}}</text>
-            <button class="name-cell" style="{{row.fill}}" data-kind="{{card.kind}}" data-rank="{{row.rank}}" bindtap="rowDetails" aria-label="{{row.name}}">
+            <view class="name-cell {{row.purchaseActions.length ? 'with-purchase-links' : ''}}" style="{{row.fill}}">
+            <button class="name-action" data-kind="{{card.kind}}" data-rank="{{row.rank}}" bindtap="rowDetails" aria-label="{{row.name}}">
               <image wx:if="{{row.logo}}" class="model-logo" src="{{row.logo}}" mode="aspectFit" />
               <view wx:else class="model-logo initial">{{row.initial}}</view>
               <text class="model-name">{{row.name}}</text>
             </button>
+            <view wx:if="{{row.purchaseActions.length}}" class="purchase-links">
+              <button wx:for="{{row.purchaseActions}}" wx:for-item="action" wx:key="kind" class="purchase-link"
+                data-kind="{{card.kind}}" data-rank="{{row.rank}}" data-purchase="{{action.kind}}" catchtap="copyPurchaseLink"
+                aria-label="{{row.name}} · {{action.title}} · {{labels.copyLink}}">{{action.title}}</button>
+            </view>
+            </view>
             <text class="country-cell">{{row.flag}}</text>
-            <view class="openness-cell" aria-label="{{row.openness === 'open' ? labels.open : row.openness === 'closed' ? labels.closed : labels.unknown}}">
+            <view wx:if="{{grouping !== 'company'}}" class="openness-cell" aria-label="{{row.openness === 'open' ? labels.open : row.openness === 'closed' ? labels.closed : labels.unknown}}">
               <image wx:if="{{row.opennessIcon}}" class="openness-icon" src="{{row.opennessIcon}}" mode="aspectFit" aria-hidden="true" />
               <text wx:else>—</text>
             </view>

@@ -1,0 +1,637 @@
+{
+  "aliases": {
+    "moonshot": "kimi",
+    "moonshotai": "kimi",
+    "xai": "spacexai",
+    "bytedanceseed": "bytedance",
+    "lumaai": "luma",
+    "lumalabs": "luma",
+    "alibabaath": "alibaba",
+    "qwen": "alibaba"
+  },
+  "vendors": {
+    "anthropic": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "Claude",
+            "url": "https://claude.com/pricing",
+            "site": "universal"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "Anthropic API",
+            "url": "https://platform.claude.com/settings/billing",
+            "site": "universal"
+          }
+        ]
+      }
+    },
+    "openai": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "ChatGPT / Codex",
+            "url": "https://chatgpt.com/pricing",
+            "site": "universal"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "OpenAI API",
+            "url": "https://platform.openai.com/settings/organization/billing/overview",
+            "site": "universal"
+          }
+        ]
+      }
+    },
+    "alibaba": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "中国大陆",
+            "url": "https://www.qianwenai.com/benefits/tokenplan",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://www.qwencloud.com/pricing/token-plan",
+            "site": "international"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "中国大陆",
+            "url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://www.alibabacloud.com/en/product/modelstudio",
+            "site": "international"
+          }
+        ]
+      },
+      "image": {
+        "payAsYouGo": [
+          {
+            "label": "中国大陆",
+            "url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://www.alibabacloud.com/en/product/modelstudio",
+            "site": "international"
+          }
+        ]
+      },
+      "video": {
+        "payAsYouGo": [
+          {
+            "label": "中国大陆",
+            "url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://www.alibabacloud.com/en/product/modelstudio",
+            "site": "international"
+          }
+        ]
+      }
+    },
+    "zai": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "中国大陆",
+            "url": "https://bigmodel.cn/glm-coding",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://z.ai/subscribe",
+            "site": "international"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "中国大陆",
+            "url": "https://open.bigmodel.cn/pricing",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://z.ai/pricing",
+            "site": "international"
+          }
+        ]
+      }
+    },
+    "meta": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "Muse Code",
+            "url": "https://dev.meta.ai/products/muse-code",
+            "site": "universal"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "Meta Model API",
+            "url": "https://dev.meta.ai/docs/pricing-rate-limits",
+            "site": "universal"
+          }
+        ]
+      }
+    },
+    "spacexai": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "Grok",
+            "url": "https://grok.com/plans",
+            "site": "universal"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "xAI API",
+            "url": "https://console.x.ai/team/billing",
+            "site": "universal"
+          }
+        ]
+      }
+    },
+    "stepfun": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "Step Plan",
+            "url": "https://platform.stepfun.com/step-plan",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "Step Plan",
+            "url": "https://platform.stepfun.ai/step-plan",
+            "site": "international"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "StepFun API",
+            "url": "https://platform.stepfun.ai/docs/en/guides/pricing/details",
+            "site": "universal"
+          }
+        ]
+      },
+      "image": {}
+    },
+    "kimi": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "Kimi Code",
+            "url": "https://www.kimi.com/code",
+            "site": "universal"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "Kimi API",
+            "url": "https://platform.kimi.com/console/pay",
+            "site": "universal"
+          }
+        ]
+      }
+    },
+    "google": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "Google AI",
+            "url": "https://one.google.com/about/google-ai-plans/",
+            "site": "universal"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "Gemini API",
+            "url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "site": "universal"
+          }
+        ]
+      }
+    },
+    "deepseek": {
+      "default": {
+        "payAsYouGo": [
+          {
+            "label": "DeepSeek API",
+            "url": "https://platform.deepseek.com/top_up",
+            "site": "universal"
+          }
+        ]
+      }
+    },
+    "tencent": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "中国大陆 · 混元",
+            "url": "https://console.cloud.tencent.com/tokenhub/tokenplan/hy",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "中国大陆 · 通用",
+            "url": "https://console.cloud.tencent.com/tokenhub/tokenplan/common",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://console.tencentcloud.com/tokenhub/tokenplan/common",
+            "site": "international"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "中国大陆",
+            "url": "https://cloud.tencent.com/product/tclm",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://www.tencentcloud.com/products/hunyuan",
+            "site": "international"
+          }
+        ]
+      }
+    },
+    "minimax": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "MiniMax Coding Plan",
+            "url": "https://platform.minimax.cn/subscribe/coding-plan",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "MiniMax Coding Plan",
+            "url": "https://platform.minimax.io/subscribe/coding-plan",
+            "site": "international"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "MiniMax API",
+            "url": "https://platform.minimax.cn/docs/pricing/overview",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "MiniMax API",
+            "url": "https://platform.minimax.io/docs/pricing/overview",
+            "site": "international"
+          }
+        ]
+      },
+      "video": {
+        "codingPlan": [
+          {
+            "label": "中国大陆",
+            "url": "https://hailuoai.com/subscribe",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://hailuoai.video/subscribe",
+            "site": "international"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "MiniMax API",
+            "url": "https://platform.minimax.cn/docs/pricing/overview",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "MiniMax API",
+            "url": "https://platform.minimax.io/docs/pricing/overview",
+            "site": "international"
+          }
+        ]
+      },
+      "image": {
+        "codingPlan": [
+          {
+            "label": "中国大陆",
+            "url": "https://hailuoai.com/subscribe",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://hailuoai.video/subscribe",
+            "site": "international"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "MiniMax API",
+            "url": "https://platform.minimax.cn/docs/pricing/overview",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "MiniMax API",
+            "url": "https://platform.minimax.io/docs/pricing/overview",
+            "site": "international"
+          }
+        ]
+      }
+    },
+    "klingai": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "中国大陆",
+            "url": "https://klingai.com/app/membership/membership-plan",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://app.klingai.com/global/membership/membership-plan",
+            "site": "international"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "中国大陆",
+            "url": "https://klingai.com/dev/pricing",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://klingai.com/global/dev/pricing",
+            "site": "international"
+          }
+        ]
+      }
+    },
+    "bytedance": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "Volcengine Coding Plan",
+            "url": "https://www.volcengine.com/activity/codingplan",
+            "site": "mainlandChina"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "中国大陆",
+            "url": "https://www.volcengine.com/docs/82379/1544106",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://docs.byteplus.com/en/docs/modelark/1544106",
+            "site": "international"
+          }
+        ]
+      },
+      "image": {
+        "codingPlan": [
+          {
+            "label": "中国大陆",
+            "url": "https://jimeng.jianying.com/ai-tool/home",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://dreamina.capcut.com/pricing/dreamina-price",
+            "site": "international"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "中国大陆",
+            "url": "https://www.volcengine.com/docs/82379/1544106",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://docs.byteplus.com/en/docs/modelark/1544106",
+            "site": "international"
+          }
+        ]
+      },
+      "video": {
+        "codingPlan": [
+          {
+            "label": "中国大陆",
+            "url": "https://jimeng.jianying.com/ai-tool/home",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://dreamina.capcut.com/pricing/dreamina-price",
+            "site": "international"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "中国大陆",
+            "url": "https://www.volcengine.com/docs/82379/1544106",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://docs.byteplus.com/en/docs/modelark/1544106",
+            "site": "international"
+          }
+        ]
+      }
+    },
+    "xiaomi": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "中国大陆",
+            "url": "https://mimo.mi.com/docs/zh-CN/price/token-plan",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://mimo.mi.com/docs/en-US/price/token-plan",
+            "site": "international"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "中国大陆",
+            "url": "https://mimo.mi.com/docs/zh-CN/price/pay-as-you-go",
+            "site": "mainlandChina"
+          },
+          {
+            "label": "国际站",
+            "url": "https://mimo.mi.com/docs/en-US/price/pay-as-you-go",
+            "site": "international"
+          }
+        ]
+      }
+    },
+    "krea": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "Krea",
+            "url": "https://www.krea.ai/pricing",
+            "site": "universal"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "Krea API",
+            "url": "https://www.krea.ai/app/api/pricing",
+            "site": "universal"
+          }
+        ]
+      }
+    },
+    "ideogram": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "Ideogram",
+            "url": "https://ideogram.ai/pricing/",
+            "site": "universal"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "Ideogram API",
+            "url": "https://ideogram.ai/pricing/?pricing_tab=api",
+            "site": "universal"
+          }
+        ]
+      }
+    },
+    "runway": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "Runway",
+            "url": "https://runway.com/pricing",
+            "site": "universal"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "Runway API",
+            "url": "https://docs.dev.runwayml.com/guides/pricing",
+            "site": "universal"
+          }
+        ]
+      }
+    },
+    "luma": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "Luma",
+            "url": "https://lumalabs.ai/pricing",
+            "site": "universal"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "Luma API",
+            "url": "https://docs.agents.lumalabs.ai/guides/pricing/",
+            "site": "universal"
+          }
+        ]
+      }
+    },
+    "blackforestlabs": {
+      "default": {
+        "payAsYouGo": [
+          {
+            "label": "BFL API",
+            "url": "https://bfl.ai/pricing",
+            "site": "universal"
+          }
+        ]
+      }
+    },
+    "fal": {
+      "default": {
+        "payAsYouGo": [
+          {
+            "label": "fal API",
+            "url": "https://fal.ai/pricing",
+            "site": "universal"
+          }
+        ]
+      }
+    },
+    "pixverse": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "PixVerse",
+            "url": "https://app.pixverse.ai/subscribe",
+            "site": "universal"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "PixVerse API",
+            "url": "https://platform.pixverse.ai/billing",
+            "site": "universal"
+          }
+        ]
+      }
+    },
+    "devin": {
+      "default": {
+        "codingPlan": [
+          {
+            "label": "Devin",
+            "url": "https://devin.ai/pricing",
+            "site": "universal"
+          }
+        ],
+        "payAsYouGo": [
+          {
+            "label": "Devin API",
+            "url": "https://app.devin.ai/settings/plans",
+            "site": "universal"
+          }
+        ]
+      }
+    },
+    "opencode": {
+      "default": {
+        "payAsYouGo": [
+          {
+            "label": "OpenCode Zen",
+            "url": "https://opencode.ai/zen",
+            "site": "universal"
+          }
+        ]
+      }
+    },
+    "microsoftai": {
+      "default": {
+        "payAsYouGo": [
+          {
+            "label": "Azure AI Foundry",
+            "url": "https://azure.microsoft.com/en-us/pricing/details/ai-foundry-models/microsoft/",
+            "site": "universal"
+          }
+        ]
+      }
+    }
+  }
+}
