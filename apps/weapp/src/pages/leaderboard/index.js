@@ -387,7 +387,7 @@ definePage(query => {
   }
   const refreshCategory = () => Promise.all(current.value.kinds.map(refreshKind))
   async function pullRefresh() {
-    if (pullRefreshing.value) return
+    if (backgroundLocked.value || pullRefreshing.value) return
     pullRefreshing.value = true
     try { await refreshCategory() } finally { pullRefreshing.value = false }
   }

@@ -2,50 +2,79 @@
   <view class="about-nav" style="padding-top:{{statusBar}}px;">
     <button class="tap" bindtap="back" aria-label="{{labels.back}}"><van-icon name="arrow-left" size="21px" /></button><text>{{labels.about}}</text>
   </view>
-  <view class="about-brand">
-    <view class="brand-wordmark" style="{{brandTitle.style}}" aria-label="{{labels.name}}">
-      <image class="brand-letter-logo" src="{{dark ? '/assets/header-logo-dark.png' : '/assets/header-logo.png'}}" mode="aspectFit" style="{{brandTitle.logoStyle}}" aria-hidden="true" />
-      <image wx:for="{{brandTitle.glyphs}}" wx:key="key" class="brand-glyph" src="{{item.source}}{{dark ? '-dark' : ''}}.svg" mode="aspectFit" style="{{item.style}}" aria-hidden="true" />
+  <view class="about-main">
+    <view class="about-hero">
+      <view class="about-brand">
+        <view class="brand-wordmark" style="{{brandTitle.style}}" aria-label="{{labels.name}}">
+          <image class="brand-letter-logo" src="{{dark ? '/assets/header-logo-dark.png' : '/assets/header-logo.png'}}" mode="scaleToFill" style="{{brandTitle.logoStyle}}" aria-hidden="true" />
+          <image wx:for="{{brandTitle.glyphs}}" wx:key="key" class="brand-glyph" src="{{item.source}}{{dark ? '-dark' : ''}}.svg" mode="scaleToFill" style="{{item.style}}" aria-hidden="true" />
+        </view>
+        <text class="about-version mono">v{{version}}</text>
+      </view>
+      <view class="about-description">
+        <text wx:for="{{descriptionLines}}" wx:key="*this" class="about-description-line">{{item}}</text>
+      </view>
+      <view class="hero-rule" aria-hidden="true"><view /><view /></view>
     </view>
-    <text class="muted about-version">v{{version}}</text>
-  </view>
-  <text class="about-description">{{description}}</text>
-  <view class="about-card investment-card">
-    <text class="section-title">{{investment.title}}</text>
-    <text class="investment-heading">{{investment.engineeringTitle}}</text>
-    <view class="investment-metrics">
-      <view wx:for="{{investment.metrics}}" wx:key="id" class="investment-metric">
-        <text class="investment-value">{{item.value}}</text>
-        <text class="investment-label">{{item.label}}</text>
+    <button class="quota-card" data-url="{{desktopDownloadURL}}" bindtap="copyLink" aria-label="{{desktopTitle}} · {{desktopDownloadLabel}} · {{labels.copyLink}}">
+      <view class="quota-icon" aria-hidden="true"><view class="pc-screen" /><view class="pc-stand" /></view>
+      <text class="quota-title">{{desktopTitle}}</text>
+      <view class="quota-action"><text>{{desktopDownloadLabel}}</text><van-icon name="link-o" size="16px" /></view>
+    </button>
+    <view class="about-section sources-section">
+      <text class="section-title">{{sourcesTitle}}</text>
+      <view class="source-grid">
+        <button wx:for="{{items}}" wx:key="id" class="source-link source-{{item.id}}" data-url="{{item.url}}" bindtap="copyLink" aria-label="{{item.title}} · {{labels.copyLink}}">
+          <view class="source-topline"><text class="source-monogram" aria-hidden="true">{{item.mark}}</text><van-icon name="link-o" size="14px" /></view>
+          <text class="source-name">{{item.title}}</text>
+          <text class="source-domain">{{item.domain}}</text>
+        </button>
       </view>
     </view>
-    <text class="investment-note">{{investment.note}}</text>
-    <text class="investment-heading budget-heading">{{investment.budgetTitle}}</text>
-    <text class="investment-note budget-intro">{{investment.budgetIntro}}</text>
-    <view wx:for="{{investment.groups}}" wx:for-item="group" wx:key="id" class="cost-group">
-      <view class="cost-heading"><text class="cost-group-title">{{group.title}}</text><text class="cost-amount">{{group.amountText}}</text></view>
-      <view wx:for="{{group.items}}" wx:key="id" class="investment-item">
-        <view class="cost-heading"><text class="investment-item-title">{{item.title}}</text><text class="cost-amount {{item.amount === null ? 'cost-unaccounted' : ''}}">{{item.amountText}}</text></view>
-        <text class="investment-note">{{item.body}}</text>
+    <view class="about-card investment-card">
+      <text class="section-title">{{investment.title}}</text>
+      <view class="investment-details">
+        <text class="investment-heading">{{investment.engineeringTitle}}</text>
+        <view class="investment-metrics">
+          <view wx:for="{{investment.metrics}}" wx:key="id" class="investment-metric">
+            <text class="investment-value">{{item.value}}</text>
+            <text class="investment-label">{{item.label}}</text>
+          </view>
+        </view>
+        <text class="investment-note">{{investment.note}}</text>
+        <text class="investment-heading budget-heading">{{investment.budgetTitle}}</text>
+        <text class="investment-note budget-intro">{{investment.budgetIntro}}</text>
+        <view wx:for="{{costGroups}}" wx:for-item="group" wx:key="id" class="cost-group {{group.collapsed ? '' : 'is-expanded'}}">
+          <button class="cost-group-toggle" data-id="{{group.id}}" bindtap="toggleCostGroup" aria-expanded="{{!group.collapsed}}" aria-label="{{group.toggleLabel}}">
+            <text class="cost-group-title">{{group.title}}</text>
+            <view class="cost-group-amount"><text class="cost-amount">{{group.amountText}}</text><van-icon name="{{group.collapsed ? 'arrow-down' : 'arrow-up'}}" size="12px" /></view>
+          </button>
+          <block wx:if="{{!group.collapsed}}">
+            <view wx:for="{{group.items}}" wx:key="id" class="investment-item">
+              <view class="cost-heading"><text class="investment-item-title">{{item.title}}</text><text class="cost-amount {{item.amount === null ? 'cost-unaccounted' : ''}}">{{item.amountText}}</text></view>
+              <text class="investment-note">{{item.body}}</text>
+            </view>
+          </block>
+        </view>
+        <view class="cost-heading cost-total"><text>{{investment.totalTitle}}</text><text class="cost-total-value">{{investment.totalText}}</text></view>
+        <text class="investment-note cost-note">{{investment.costNote}}</text>
       </view>
     </view>
-    <view class="cost-heading cost-total"><text>{{investment.totalTitle}}</text><text class="cost-total-value">{{investment.totalText}}</text></view>
-    <text class="investment-note cost-note">{{investment.costNote}}</text>
-  </view>
-  <view class="about-card"><text class="section-title">{{desktopTitle}}</text>
-    <button class="download-link" data-url="{{desktopDownloadURL}}" bindtap="copyLink">{{desktopDownloadLabel}}</button>
-  </view>
-  <view class="about-card"><text class="section-title">{{sourcesTitle}}</text>
-    <button wx:for="{{items}}" wx:key="id" class="source-link" data-url="{{item.url}}" bindtap="copyLink"><text>{{item.title}}</text></button>
-  </view>
-  <view class="about-card notices"><text class="section-title">{{noticesTitle}}</text>
-    <text class="muted notice-intro">{{noticesIntro}}</text>
-    <view wx:for="{{notices}}" wx:key="id">
-      <button class="license-toggle" data-id="{{item.id}}" bindtap="toggleNotice" aria-expanded="{{notice === item.id}}">
-        <view class="license-heading"><text>{{item.title}}</text><text class="license-type">{{item.licenseName}}</text></view>
-        <van-icon name="{{notice === item.id ? 'arrow-up' : 'arrow-down'}}" size="13px" />
-      </button>
-      <text wx:if="{{notice === item.id}}" class="license" selectable>{{item.license}}</text>
+    <view class="about-card notices">
+      <view class="notices-heading">
+        <text class="section-title">{{noticesTitle}}</text>
+        <button class="contribute-link" data-url="{{desktopDownloadURL}}" bindtap="copyLink" aria-label="{{contributeLabel}} · {{labels.copyLink}}">
+          <text>{{contributeLabel}}</text><van-icon name="link-o" size="14px" />
+        </button>
+      </view>
+      <text class="muted notice-intro">{{noticesIntro}}</text>
+      <view wx:for="{{notices}}" wx:key="id">
+        <button class="license-toggle" data-id="{{item.id}}" bindtap="toggleNotice" aria-expanded="{{notice === item.id}}">
+          <view class="license-heading"><text>{{item.title}}</text><text class="license-type">{{item.licenseName}}</text></view>
+          <van-icon name="{{notice === item.id ? 'arrow-up' : 'arrow-down'}}" size="13px" />
+        </button>
+        <text wx:if="{{notice === item.id}}" class="license" selectable>{{item.license}}</text>
+      </view>
     </view>
   </view>
 </view>

@@ -3,7 +3,15 @@ import { text } from './catalog.js'
 const count = value => String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 
 // Reference budgets from Watrek's PRODUCT_COSTS, restricted to services used here.
-// All amounts below are annual CNY budgets; tokens use its ¥2,000/month budget.
+// Infrastructure/certification are annual budgets; tokens accumulate over development time.
+// BenchGauge's first commit (5b79092), rather than Watrek's development start.
+const DEVELOPMENT_STARTED_AT = Date.parse('2026-09-21T17:09:38+08:00')
+const MEAN_MONTH_MS = (365.2425 / 12) * 24 * 60 * 60 * 1000
+const TOKEN_COST_PER_MONTH = 2000
+
+function developmentMonths(now) {
+  return Number.isFinite(now) ? Math.max(0, Math.round((now - DEVELOPMENT_STARTED_AT) / MEAN_MONTH_MS)) : 0
+}
 const costGroups = [
   { id: 'infrastructure', title: ['Infrastructure', '基础设施', '基礎設施'], items: [
     { id: 'server', amount: 1200, title: ['Cloud services', '云服务', '雲端服務'],
@@ -15,13 +23,13 @@ const costGroups = [
   ] },
   { id: 'platform', title: ['Platform certification', '平台认证', '平台認證'], items: [
     { id: 'weapp', amount: 300, title: ['Mini-program certification', '小程序认证', '小程式認證'],
-      body: ['Uses Watrek’s certification budget as a provision; actual fees depend on the registered entity and platform rules.',
-        '参考 Watrek 同项认证预算预留，实际费用按主体类型与平台规则确定。', '參考 Watrek 同項認證預算預留，實際費用按主體類型與平台規則確定。'] },
+      body: ['Provision for mini-program certification; actual fees depend on the registered entity and platform rules.',
+        '小程序认证费用预留，实际费用按主体类型与平台规则确定。', '小程式認證費用預留，實際費用按主體類型與平台規則確定。'] },
   ] },
   { id: 'development', title: ['Development and operations', '研发与经营', '研發與經營'], items: [
-    { id: 'tokens', amount: 2000 * 12, title: ['AI tokens', '词元', '詞元'],
-      body: ['Budgeted at ¥2,000 per month for research, development and validation; annualized over 12 months.',
-        '用于研究、开发与验证，按每月 ¥2,000、全年 12 个月折算。', '用於研究、開發與驗證，按每月 ¥2,000、全年 12 個月換算。'] },
+    { id: 'tokens', monthlyAmount: TOKEN_COST_PER_MONTH, title: ['AI tokens', '词元', '詞元'],
+      body: ['For research, development and validation.',
+        '用于研究、开发与验证。', '用於研究、開發與驗證。'] },
     { id: 'staff', amount: null, title: ['Labor', '人力', '人力'],
       body: ['Feature development, platform adaptation, testing and release maintenance.', '功能研发、各端适配、测试验证与版本维护。', '功能研發、各端適配、測試驗證與版本維護。'] },
     { id: 'data', amount: null, title: ['Data maintenance', '数据维护', '資料維護'],
@@ -31,13 +39,16 @@ const costGroups = [
   ] },
 ]
 
-export function investmentContent(stats, language) {
+export function investmentContent(stats, language, { now = Date.now() } = {}) {
   const money = amount => amount == null ? text(['Not totaled', '暂未核算', '暫未核算'], language)
     : `${text(['~¥', '约¥', '約¥'], language)}${count(amount)}`
   const groups = costGroups.map(group => {
-    const amount = group.items.reduce((sum, item) => sum + (item.amount ?? 0), 0)
-    return { id: group.id, title: text(group.title, language), amount, amountText: money(amount),
-      items: group.items.map(item => ({ ...item, title: text(item.title, language), body: text(item.body, language), amountText: money(item.amount) })) }
+    const items = group.items.map(item => {
+      const amount = item.monthlyAmount == null ? item.amount : developmentMonths(now) * item.monthlyAmount
+      return { ...item, amount, title: text(item.title, language), body: text(item.body, language), amountText: money(amount) }
+    })
+    const amount = items.reduce((sum, item) => sum + (item.amount ?? 0), 0)
+    return { id: group.id, title: text(group.title, language), amount, amountText: money(amount), items }
   })
   const total = groups.reduce((sum, group) => sum + group.amount, 0)
   return {
@@ -48,16 +59,16 @@ export function investmentContent(stats, language) {
       { id: 'lines', value: count(stats.codeLineCount), label: text(['Lines of code', '代码行数', '程式碼行數'], language) },
     ],
     note: text([
-      'Commits cover the full Git history. Lines count tracked text across the apps, shared components and services, excluding dependencies, generated output and binary files. Updated at build time.',
-      '提交次数按完整 Git 历史累计；代码行数统计各端应用、共享组件与服务的已跟踪文本，不含依赖、生成产物和二进制。构建时自动更新。',
-      '提交次數按完整 Git 歷史累計；程式碼行數統計各端應用、共用元件與服務的已追蹤文字，不含依賴、產生的檔案和二進位檔案。建置時自動更新。',
+      'Commit counts come from version control. Lines count tracked text across the apps, shared components and services, excluding dependencies, generated output and binary files. Updated at build time.',
+      '提交次数按版本控制工具累计；代码行数统计各端应用、共享组件与服务的已跟踪文本，不含依赖、生成产物和二进制。构建时自动更新。',
+      '提交次數按版本控制工具累計；程式碼行數統計各端應用、共用元件與服務的已追蹤文字，不含依賴、產生的檔案和二進位檔案。建置時自動更新。',
     ], language),
-    budgetTitle: text(['Annual budget', '年度预算', '年度預算'], language),
-    budgetIntro: text(['Reference annual budgets from Watrek for comparable items, assuming about 1,000 users. Amounts are in CNY and are estimates, not actual bills; usage affects costs.',
-      '参考 Watrek 同类项目的年度预算，按约一千名用户估算，金额单位为人民币元。以下为预算参考，非实际账单，随用量浮动。',
-      '參考 Watrek 同類項目的年度預算，按約一千名使用者估算，金額單位為人民幣元。以下為預算參考，非實際帳單，隨用量浮動。'], language),
+    budgetTitle: text(['Budgets and accumulated investment', '预算与累计投入', '預算與累計投入'], language),
+    budgetIntro: text(['Infrastructure and certification are annual estimates; AI tokens are accumulated development investment. Amounts are in CNY and are estimates, not actual bills; usage affects costs.',
+      '基础设施与认证为年度预算，词元为累计研发投入。金额单位为人民币元，非实际账单，随用量浮动。',
+      '基礎設施與認證為年度預算，詞元為累計研發投入。金額單位為人民幣元，非實際帳單，隨用量浮動。'], language),
     groups, total, totalText: money(total),
-    totalTitle: text(['Estimated annual total', '年度预算合计', '年度預算合計'], language),
+    totalTitle: text(['Estimated total', '估算合计', '估算合計'], language),
     costNote: text(['Labor, data maintenance and operations are not yet included in this total. Engineering counters are not converted to monetary costs.',
       '暂未计入人力、数据维护、运营等开销；工程统计不折算为金额。', '暫未計入人力、資料維護、營運等開銷；工程統計不折算為金額。'], language),
   }
