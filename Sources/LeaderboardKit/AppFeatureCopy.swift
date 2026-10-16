@@ -5,6 +5,10 @@ public enum AppFeatureCopy {
     public static func subtitle(language: AppLanguage) -> String {
         language.text("Dual boards & quota tracking", "双榜对照 & 余量追踪")
     }
+    public static func subtitleRows(language: AppLanguage) -> [String] {
+        let parts = subtitle(language: language).components(separatedBy: " & ")
+        return [parts[0] + " &", parts[1]]
+    }
     public static func quotaTitle(language: AppLanguage) -> String {
         language.text("Quota tracking", "余量追踪")
     }

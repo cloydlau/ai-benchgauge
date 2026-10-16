@@ -198,18 +198,24 @@ sealed partial class MainWindow
         }
     }
 
-    // Align the subtitle with the title's native visible bottom.
-    sealed class HeaderCaptionStack(HeaderInkLabel title, HeaderInkLabel subtitle) : Panel
+    // Both caption rows share the title's native painted top and bottom.
+    sealed class HeaderCaptionStack(HeaderInkLabel title, HeaderInkLabel first, HeaderInkLabel second) : Panel
     {
-        public void AddLabels() { Children.Add(subtitle); }
+        double scale = 1;
+        public void AddLabels() { Children.Add(first); Children.Add(second); }
         protected override Size MeasureOverride(Size available) {
-            subtitle.Height = subtitle.VisibleInkHeight;
-            subtitle.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            return new Size(subtitle.DesiredSize.Width, 27);
+            foreach (var label in new[] { first, second }) {
+                label.Height = label.VisibleInkHeight;
+                label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            }
+            scale = title.VisibleInkHeight * 0.8 / (first.Height + second.Height);
+            return new Size(Math.Max(first.DesiredSize.Width, second.DesiredSize.Width) * scale, 27);
         }
         protected override Size ArrangeOverride(Size size) {
-            var top = title.VisibleInkTop + title.VisibleInkHeight - subtitle.Height;
-            subtitle.Arrange(new Rect(0, top, subtitle.DesiredSize.Width, subtitle.Height));
+            first.RenderTransform = second.RenderTransform = new ScaleTransform(scale, scale);
+            first.Arrange(new Rect(0, title.VisibleInkTop, first.DesiredSize.Width, first.Height));
+            second.Arrange(new Rect(0, title.VisibleInkTop + title.VisibleInkHeight - second.Height * scale,
+                second.DesiredSize.Width, second.Height));
             return size;
         }
     }
@@ -330,12 +336,22 @@ sealed partial class MainWindow
             FontSize = 21, Height = 27, Foreground = PanelInk };
         var titleInk = (HeaderInkLabel)HeaderInk(headerTitle);
         brand.Children.Add(titleInk);
-        var subtitleSpec = Caption(Tr("Dual boards & quota tracking", "双榜对照 & 余量追踪", "雙榜對照 & 餘量追蹤"), PanelMuted, 12);
+        var subtitleSpec = Caption(Tr("Dual boards &", "双榜对照 &", "雙榜對照 &"), PanelMuted, 12);
         subtitleSpec.FontWeight = FontWeights.SemiBold;
         var subtitleInk = new HeaderInkLabel(subtitleSpec) { AlignInkTop = true, DimsAmpersand = true };
-        var captions = new HeaderCaptionStack(titleInk, subtitleInk) {
+        var quotaSpec = Caption(Tr("Quota tracking ?", "余量追踪 ?", "餘量追蹤 ?"), PanelMuted, 12);
+        quotaSpec.FontWeight = FontWeights.SemiBold;
+        var quotaInk = new HeaderInkLabel(quotaSpec) { AlignInkTop = true };
+        var captions = new HeaderCaptionStack(titleInk, subtitleInk, quotaInk) {
             Height = 27, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0)
         };
+        captions.Cursor = Cursors.Hand;
+        captions.ToolTip = Tr("About quota tracking", "了解余量追踪", "瞭解餘量追蹤");
+        captions.MouseLeftButtonUp += (_, _) => MessageBox.Show(this,
+            Tr("Quota tracking is available in AI BenchGauge for Mac and Windows. Open the desktop app to view your models’ remaining quotas and usage progress.",
+                "余量追踪目前在 Mac 和 Windows 版提供，可集中查看模型的剩余额度与使用进度。",
+                "餘量追蹤目前在 Mac 和 Windows 版提供，可集中查看模型的剩餘額度與使用進度。"),
+            Tr("Quota tracking", "余量追踪", "餘量追蹤"), MessageBoxButton.OK, MessageBoxImage.Information);
         captions.AddLabels(); brand.Children.Add(captions);
         titleLine.Children.Add(brand);
         var freshness = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };

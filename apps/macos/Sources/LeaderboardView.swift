@@ -334,7 +334,6 @@ struct LeaderboardView: View {
 
     private var appTitle: some View {
         let title = language.appName
-        let subtitle = AppFeatureCopy.subtitle(language: language)
         let english = language == .english
         return DesktopBrandHeadingLayout {
             Group {
@@ -355,10 +354,15 @@ struct LeaderboardView: View {
                     : dimensions[.bottom]
             }
             .accessibilityIdentifier("brand-title")
-            FeatureSubtitle(language: language).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
+            Button { QuotaTrackingHelpAlert.make(language: language).runModal() } label: {
+                FeatureSubtitle(language: language, height: BrandTitleMetrics.inkHeight(language: language))
+                    .foregroundStyle(.secondary)
+            }.buttonStyle(.plain)
+                .help(AppFeatureCopy.quotaHelpLabel(language: language))
+                .accessibilityLabel(AppFeatureCopy.subtitle(language: language))
                 .accessibilityIdentifier("brand-subtitle")
             .alignmentGuide(.desktopBrandInkBottom) { dimensions in
-                Self.textInkEdge(dimensions, text: subtitle, font: .systemFont(ofSize: 12, weight: .semibold), top: false)
+                dimensions.height
             }
         }
     }
