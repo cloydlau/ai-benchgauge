@@ -38,6 +38,8 @@ FC 提供所有平台共用的 HTTPS 接口；OSS 为每张榜单保存一个 `l
 
 ## 自动品牌资料
 
+国家归属统一遵循 `fc/leaderboard-policy.json` 的 `countryOverrides`：港澳台代码（`HK`、`MO`、`TW`，含三字代码及常见中英文名称）归一为中国 `CN`，展示中国国旗及中国名称。该规则覆盖上游字段解析、自动总部查询、共享缓存读取、小程序旧快照、模型/公司筛选和分享链接；Swift 使用生成的同一份规则，Windows 也从该文件读取规则以迁移旧筛选设置。原始排名、分数和榜单时间不受影响。
+
 每次榜单刷新和新快照贡献都会按厂商识别缺失资料；普通读取只使用缓存。厂商名先去除格式差异并合并已有别名，已知厂商的新模型和不同榜单复用同一份资料。编码代理榜缺失厂商时，可从明确的 `Harness - Model` 家族识别归属；未知归属不猜测，也不继承另一家代理工具的图标。
 
 优先使用原站的厂商图标。共享服务接受 Artificial Analysis 自有 `/img/logos/` HTTPS 图片，逐跳校验重定向和体积，拒绝 SVG 外部引用及活动内容。Sharp 在服务端转换为 64×64 的透明 PNG（最多 16 KiB），纯白透明图标转深色墨迹以适应白色图标底板，空白图片不缓存。服务持久保存图片和厂商资料，通过榜单 JSON 的 `entry.brand` 返回 PNG 的 Base64 数据；Apple 的离线快照、公司聚合及导出，以及 Windows 引擎响应均保留图片。这避免客户端等待远程 SVG 或导出时丢失图标。客户端优先共享 PNG，再用打包图标，最终显示首字母。
@@ -131,6 +133,24 @@ node Scripts/deploy-shared-leaderboards.mjs
 2026-10-13 修复 MAGI 的国家缺失：真实 AA 视频榜中的 `MAGI-2 Preview (0912)` 属于 `Sand.ai`，共享 `sandai` 国家记录此前为查询失败，且本地没有兜底映射。根据 [Sand.ai 官方模型归属](https://sand.ai/about-us)及[网宿科技对 Sand.ai 的正式披露](https://static.cninfo.com.cn/finalpage/2026-09-29/1225587991.PDF)中的中国研发/运营主体资料，补充 `CN`；境外控股或服务法人不用于替代模型开发者地区。共享资料目录和 Swift 本地映射同时覆盖 `Sand.ai` / `Sand AI` / `SANDAI`。未知厂商的类似模型名仍保持未知。
 
 线上只修复私有 OSS 中的 `benchgauge/countries/sandai.json`，不需要重新发布整个 FC 函数。读取接口已验证该 MAGI 行返回 `ready` / `CN`，排名、模型名、分数、厂商及榜单抓取时间均与修复前一致；现有客户端刷新共享榜单即可取得。29 项服务端测试及 6 项 Swift 国家测试通过，覆盖失败记录纠正、缓存保存、公司聚合和国家筛选。公开响应与核对记录保存在忽略目录 `work/magi-country/`。
+
+2026-10-16 修复 ERNIE 的国家缺失：Arena 文本榜中 4 个 ERNIE 条目的厂商均为 `Baidu`，共享 `baidu` 国家资料此前为查询失败。根据[百度官方地址资料](https://home.baidu.com/contact.html)补充 `CN`，同步加入服务端目录和 Swift 本地兜底。线上仅修正私有 OSS 的 `benchgauge/countries/baidu.json`，公开读取接口已验证这 4 条均返回 `ready` / `CN`，各条目除国家资料外的字段及榜单更新时间保持不变；客户端刷新即可取得，无需重新部署整个函数。13 项服务端国家测试和 4 项 Swift 国家测试通过，备份和线上核对结果保存在忽略目录 `work/ernie-country/`。
+
+2026-10-16 修复 Inkling 的国家缺失：Arena 文本榜将 `inkling` 和 `Inkling Small` 的厂商标为 `Thinky`，共享国家记录此前查询失败；原目录只识别 `Thinking Machines`。按[官方模型卡](https://thinkingmachines.ai/model-card/inkling/)核实开发者，并依据[官方隐私说明](https://thinkingmachines.ai/legal/privacy/)的美国所在地资料，将 `Thinky` / `Thinking Machines Lab` 合并为 `thinkingmachines`，共用 `US` 国家资料。Swift 策略由目录重新生成。线上仅备份并修正私有 OSS 的 `benchgauge/countries/thinky.json`，兼容尚未部署别名规则的服务；公开接口中两条目均已验证为 `ready` / `US`，模型名、厂商、排名、分数等条目字段保持不变。备份及核对结果位于忽略目录 `work/inkling-country/`。33 项服务端/共享规则测试、88 项小程序测试及 5 项 Swift 国家测试通过，小程序构建完成。
+
+2026-10-16 修复 Amazon Nova 的国家缺失：Arena 文本榜中 10 个 Nova 条目的厂商均为 `Amazon`，共享国家记录此前查询失败且无目录兜底。依据 [Amazon 官方总部资料](https://www.aboutamazon.com/workplace/facilities)补充 `amazon` → `US`，同步加入 Swift 本地映射。线上备份并修正私有 OSS 的 `benchgauge/countries/amazon.json`，公开接口已验证这 10 条均为 `ready` / `US`；除国家资料外的条目字段及榜单时间均保持不变，刷新即可生效，无需重新部署整个函数。15 项服务端国家测试及 6 项 Swift 国家测试通过，备份和核对结果位于忽略目录 `work/nova-country/`。
+
+2026-10-16 修复 LongCat 的国家缺失：Arena 文本榜中的 `longcat-flash-chat-2602-exp` 和 `longcat-flash-chat` 均属 `Meituan`，共享国家记录此前查询失败且无目录兜底。按[美团官方模型发布](https://tech.meituan.com/2025/09/01/LongCat-Flash-Chat.html)核实归属，并依据[美团 2025 年报](https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0424/2026042400179.pdf)所列中国北京总部，补充 `meituan` → `CN`，同步加入 Swift 本地映射。线上备份并修正私有 OSS 的 `benchgauge/countries/meituan.json`，公开接口已验证两个条目均为 `ready` / `CN`；其余条目字段及榜单时间保持不变，刷新即可生效。16 项服务端国家测试及 7 项 Swift 国家测试通过，备份及核对结果位于忽略目录 `work/longcat-country/`。
+
+2026-10-16 修复 Solar 的国家缺失：`solar-pro4` 的 `Upstage` 共享国家查询失败，`solar-10.7b-instruct-v1.0` 的源数据还缺少厂商。按 [Upstage 官网](https://www.upstage.ai/)列出的韩国开发主体 Upstage Co., Ltd. 及首尔地址补充 `upstage` → `KR`；美国办公室不替代该模型开发主体的归属。旧版归属由[官方模型卡](https://huggingface.co/upstage/SOLAR-10.7B-Instruct-v1.0)核实，以完整型号精确匹配，仅补充缺失的厂商，不覆盖已有厂商、不匹配微调版或名称前缀。目录中的 `modelDevelopers` 同步生成 Swift 策略，共享服务读取时补齐厂商并复用国家资料。
+
+已备份并修正私有 OSS 的 `benchgauge/countries/upstage.json`；为兼容已有客户端，从当前线上代码包构建仅改动五个国家/身份规则文件的更新，保留其余代码、函数配置和排行榜快照。公开接口已验证两个 Solar 条目均为 `Upstage` / `ready` / `KR`，排名、分数、模型 ID 及榜单时间保持不变。57 项服务端测试、8 项 Swift 国家测试、89 项小程序测试及小程序构建通过，备份、发布包和核对结果位于忽略目录 `work/solar-country/`。
+
+2026-10-16 修复 Trinity 的国家缺失：Arena 文本榜的 `trinity-large-preview` 与 `trinity-large-thinking` 均缺少厂商，国家状态为 `missing`。依据[两个型号的官方模型卡](https://huggingface.co/arcee-ai/Trinity-Large-Preview)及其 [Thinking 版模型卡](https://huggingface.co/arcee-ai/Trinity-Large-Thinking)核实开发者，并按 [Arcee AI 官方简介](https://www.arcee.ai/about)所述美国模型实验室，补充精确型号 → `arceeai`、公司名 `Arcee AI` 和国家 `US`；不推断其他前缀或微调版、不覆盖已有开发者。Swift 策略同步生成并补齐国家兜底。
+
+从当前线上包构建仅修改三份 JSON 目录的更新，发布前逐项确认仅增加上述映射，其余代码及函数配置保留。公开接口已核验两个条目均为 `Arcee AI` / `ready` / `US`；厂商品牌标识随归属补为 `arceeai`，排名、分数、模型 ID、模型标识、其他条目及榜单时间保持不变。59 项服务端测试、9 项 Swift 国家测试、89 项小程序测试及小程序构建通过。备份、发布包和核对结果位于忽略目录 `work/trinity-country/`。
+
+2026-10-16 全量排查八类共享榜单的 895 条记录，将国家覆盖从 759 条提升到 890 条，补齐 131 条；其余 5 条个人/跨机构开源型号保留未知，并列明核实资料。新增 41 个开发主体的国家资料、49 个精确型号归属，修正三种厂商别名的输出名称，兼容旧客户端的国家身份校验。Swift 国家兜底改由共享目录生成，并提供只读快照覆盖排查脚本。仅更新四个国家/身份规则文件，未写排行榜快照或修改函数配置；线上真实响应已通过新旧身份校验、小程序归一化、国旗及模型/公司国家筛选检查。61 项服务端测试、10 项 Swift 国家测试、95 项小程序测试和小程序构建通过。来源、逐榜结果及保留未知的依据见[国家资料覆盖排查](country-coverage-audit.md)，备份及核对结果位于忽略目录 `work/country-audit/`。
 
 ## 微信小程序客户端
 

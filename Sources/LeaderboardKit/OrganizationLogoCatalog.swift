@@ -25,6 +25,7 @@ public enum OrganizationLogoCatalog {
             return "devin"
         }
         return hostedModelKey(from: modelName)
+            ?? LeaderboardBrandPolicy.modelDevelopers[(modelName ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()]
     }
 
     /// The developer of the lead model may differ from the organization

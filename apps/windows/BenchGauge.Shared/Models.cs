@@ -27,6 +27,23 @@ public sealed record EngineResponse(int Id, DisplayState? Result, string? Author
     bool? QwenAuthenticated = null, bool? QwenQuotaCaptured = null,
     string? UserCode = null, string? LoginState = null, double? PollInterval = null, double? ExpiresIn = null,
     bool? QwenQuotaRefreshNeeded = null);
+public static class LeaderboardCountryPolicy
+{
+    static readonly Dictionary<string, string> CountryOverrides = ReadOverrides();
+    static Dictionary<string, string> ReadOverrides()
+    {
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("BenchGauge.Shared.leaderboard-policy.json")
+            ?? throw new InvalidOperationException("Missing leaderboard policy");
+        using var document = JsonDocument.Parse(stream);
+        return document.RootElement.GetProperty("countryOverrides").EnumerateObject()
+            .ToDictionary(item => item.Name, item => item.Value.GetString()!);
+    }
+    public static string NormalizeFilter(string value)
+    {
+        var code = value?.Trim().ToUpperInvariant();
+        return code is not null && (code == "CN" || CountryOverrides.GetValueOrDefault(code) == "CN") ? "china" : value ?? "";
+    }
+}
 public sealed class Preferences
 {
     public string Category { get; set; } = "general";
@@ -36,7 +53,12 @@ public sealed class Preferences
     public bool XaiSubscriptionWebsiteConnected { get; set; }
     public string PanelMode { get; set; } = "clickToClose";
     public Dictionary<string, string> Sources { get; set; } = [];
-    public Dictionary<string, string> Countries { get; set; } = [];
+    Dictionary<string, string> countries = [];
+    public Dictionary<string, string> Countries
+    {
+        get => countries;
+        set => countries = value.ToDictionary(item => item.Key, item => LeaderboardCountryPolicy.NormalizeFilter(item.Value));
+    }
     public double? WindowLeft { get; set; }
     public double? WindowTop { get; set; }
     public double? WindowWidth { get; set; }

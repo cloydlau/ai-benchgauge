@@ -1,4 +1,9 @@
 {
+  "arceeai": {
+    "countryCode": "US",
+    "sourceURL": "https://www.arcee.ai/about",
+    "source": "official"
+  },
   "qwen": {
     "countryCode": "CN",
     "source": "existing-catalog"
@@ -44,9 +49,29 @@
     "sourceURL": "https://static.cninfo.com.cn/finalpage/2026-09-29/1225587991.PDF",
     "source": "verified-disclosure"
   },
+  "baidu": {
+    "countryCode": "CN",
+    "sourceURL": "https://home.baidu.com/contact.html",
+    "source": "official"
+  },
+  "meituan": {
+    "countryCode": "CN",
+    "sourceURL": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0424/2026042400179.pdf",
+    "source": "verified-disclosure"
+  },
   "anthropic": {
     "countryCode": "US",
     "source": "existing-catalog"
+  },
+  "amazon": {
+    "countryCode": "US",
+    "sourceURL": "https://www.aboutamazon.com/workplace/facilities",
+    "source": "official"
+  },
+  "upstage": {
+    "countryCode": "KR",
+    "sourceURL": "https://www.upstage.ai/",
+    "source": "official"
   },
   "openai": {
     "countryCode": "US",
@@ -102,7 +127,8 @@
   },
   "thinkingmachines": {
     "countryCode": "US",
-    "source": "existing-catalog"
+    "sourceURL": "https://thinkingmachines.ai/legal/privacy/",
+    "source": "official"
   },
   "github": {
     "countryCode": "US",
@@ -141,6 +167,211 @@
   "sapiensai": {
     "countryCode": "SG",
     "sourceURL": "https://www.eznewswire.com/newsroom/agnes-ai-singapore-first-lab-global-benchmark-leaderboard",
+    "source": "official"
+  },
+  "cohere": {
+    "countryCode": "CA",
+    "sourceURL": "https://cohere.com/privacy",
+    "source": "official"
+  },
+  "antgroup": {
+    "countryCode": "CN",
+    "sourceURL": "https://www.antgroup.com/en/about/our-offices",
+    "source": "official"
+  },
+  "inceptionai": {
+    "countryCode": "US",
+    "sourceURL": "https://www.inceptionlabs.ai/blog/mercury-refreshed",
+    "source": "official"
+  },
+  "ibm": {
+    "countryCode": "US",
+    "sourceURL": "https://www.ibm.com/contact/global",
+    "source": "official"
+  },
+  "ai2": {
+    "countryCode": "US",
+    "sourceURL": "https://allenai.org/about",
+    "source": "official"
+  },
+  "primeintellect": {
+    "countryCode": "US",
+    "sourceURL": "https://www.primeintellect.ai/careers",
+    "source": "official"
+  },
+  "nexusflow": {
+    "countryCode": "US",
+    "sourceURL": "https://people.eecs.berkeley.edu/~banghua/cv.pdf",
+    "source": "official"
+  },
+  "ai21labs": {
+    "countryCode": "IL",
+    "sourceURL": "https://www.ai21.com/terms-policies/privacy-policy/",
+    "source": "official"
+  },
+  "reka": {
+    "countryCode": "US",
+    "sourceURL": "https://www.reka.ai/privacy-policy",
+    "source": "official"
+  },
+  "01ai": {
+    "countryCode": "CN",
+    "sourceURL": "https://www.01.ai/Yi",
+    "source": "official"
+  },
+  "shanghaiailaboratory": {
+    "countryCode": "CN",
+    "sourceURL": "https://huggingface.co/internlm/internlm2_5-20b-chat",
+    "source": "official"
+  },
+  "princetonnlp": {
+    "countryCode": "US",
+    "sourceURL": "https://pli.princeton.edu/blog/2024/simpo-new-way-teach-ai-models-follow-human-preferences",
+    "source": "official"
+  },
+  "databricks": {
+    "countryCode": "US",
+    "sourceURL": "https://www.databricks.com/sites/default/files/legal/databricks-msa-9-02-2025.pdf",
+    "source": "official"
+  },
+  "mosaicml": {
+    "countryCode": "US",
+    "sourceURL": "https://www.databricks.com/company/newsroom/press-releases/databricks-completes-acquisition-mosaicml",
+    "source": "official"
+  },
+  "snowflake": {
+    "countryCode": "US",
+    "sourceURL": "https://www.sec.gov/Archives/edgar/data/1640147/000164014725000052/snow-20250131.htm",
+    "source": "official"
+  },
+  "lmsys": {
+    "countryCode": "US",
+    "sourceURL": "https://lmsys.org/blog/2023-03-30-vicuna/",
+    "source": "official"
+  },
+  "ucberkeley": {
+    "countryCode": "US",
+    "sourceURL": "https://starling.cs.berkeley.edu/",
+    "source": "official"
+  },
+  "universityofwashington": {
+    "countryCode": "US",
+    "sourceURL": "https://arxiv.org/abs/2305.14314",
+    "source": "official"
+  },
+  "huggingface": {
+    "countryCode": "US",
+    "sourceURL": "https://huggingface.co/privacy",
+    "source": "official"
+  },
+  "togetherai": {
+    "countryCode": "US",
+    "sourceURL": "https://www.together.ai/terms-of-service",
+    "source": "official"
+  },
+  "nomicai": {
+    "countryCode": "US",
+    "sourceURL": "https://www.nomic.ai/about",
+    "source": "official"
+  },
+  "laion": {
+    "countryCode": "DE",
+    "sourceURL": "https://laion.ai/gep-policy/",
+    "source": "official"
+  },
+  "stabilityai": {
+    "countryCode": "GB",
+    "sourceURL": "https://find-and-update.company-information.service.gov.uk/company/12295325",
+    "source": "verified-disclosure"
+  },
+  "poolside": {
+    "countryCode": "US",
+    "sourceURL": "https://www.linkedin.com/company/poolsideai",
+    "source": "official"
+  },
+  "recraft": {
+    "countryCode": "GB",
+    "sourceURL": "https://www.recraft.ai/about",
+    "source": "official"
+  },
+  "hidream": {
+    "countryCode": "CN",
+    "sourceURL": "https://www.hidreamai.com/home",
+    "source": "official"
+  },
+  "prunaai": {
+    "countryCode": "DE",
+    "sourceURL": "https://docs.api.pruna.ai/terms-dpa",
+    "source": "official"
+  },
+  "vidu": {
+    "countryCode": "CN",
+    "sourceURL": "https://platform.vidu.cn/docs/open-platform-privacy-policy",
+    "source": "official"
+  },
+  "leonardoai": {
+    "countryCode": "AU",
+    "sourceURL": "https://leonardo.ai/privacy-policy",
+    "source": "official"
+  },
+  "bria": {
+    "countryCode": "IL",
+    "sourceURL": "https://downloads.regulations.gov/COLC-2023-0006-8396/attachment_1.pdf",
+    "source": "official"
+  },
+  "vectorspacelab": {
+    "countryCode": "CN",
+    "sourceURL": "https://vectorspacelab.github.io/OmniGen/",
+    "source": "official"
+  },
+  "lightricks": {
+    "countryCode": "IL",
+    "sourceURL": "https://static.lightricks.com/legal/ai-terms-of-use.html",
+    "source": "official"
+  },
+  "pika": {
+    "countryCode": "US",
+    "sourceURL": "https://pika.art/privacy-policy",
+    "source": "official"
+  },
+  "creatify": {
+    "countryCode": "US",
+    "sourceURL": "https://creatify.ai/ambassador",
+    "source": "official"
+  },
+  "kandinsky": {
+    "countryCode": "RU",
+    "sourceURL": "https://github.com/kandinskylab/kandinsky-5",
+    "source": "official"
+  },
+  "genmoai": {
+    "countryCode": "US",
+    "sourceURL": "https://www.genmo.ai/terms-of-service",
+    "source": "official"
+  },
+  "instituteoffoundationmodels": {
+    "countryCode": "AE",
+    "sourceURL": "https://ifm.ai/k2/press-release/",
+    "source": "official"
+  },
+  "kuaishou": {
+    "countryCode": "CN",
+    "sourceURL": "https://ir.kuaishou.com/corporate-information",
+    "source": "official"
+  },
+  "nousresearch": {
+    "countryCode": "US",
+    "sourceURL": "https://shop.nousresearch.com/policies/privacy-policy",
+    "source": "official"
+  },
+  "stanford": {
+    "countryCode": "US",
+    "sourceURL": "https://crfm.stanford.edu/2023/03/13/alpaca.html",
+    "source": "official"
+  },
+  "technologyinnovationinstitute": {
+    "countryCode": "AE",
+    "sourceURL": "https://www.tii.ae/news/uaes-technology-innovation-institute-launches-falcon-foundation-champion-open-sourcing",
     "source": "official"
   }
 }

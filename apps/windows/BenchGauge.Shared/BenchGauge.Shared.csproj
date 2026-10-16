@@ -3,5 +3,6 @@
   <ItemGroup>
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />
     <EmbeddedResource Include="../../../config/app.json" Link="app.json" />
+    <EmbeddedResource Include="../../../fc/leaderboard-policy.json" Link="leaderboard-policy.json" />
   </ItemGroup>
 </Project>

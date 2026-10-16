@@ -88,3 +88,15 @@ test('system language follows supported locales until an explicit local choice o
   assert.equal(pagePreferences({}, { language: 'en' }, 'zh_CN').language, 'en')
   assert.equal(pagePreferences({ language: 'zh-TW' }, {}, 'en_US').languageMode, 'manual')
 })
+test('saved and incoming shared Hong Kong, Macao and Taiwan filters migrate to China', () => {
+  for (const code of ['HK', 'MO', 'TW']) {
+    const saved = { category: 'general', face: 0, filters: { artificialAnalysis: { country: code, openness: 'open' } } }
+    assert.equal(normalizePreferences(saved).filters.artificialAnalysis.country, 'CN')
+    assert.equal(pagePreferences({}, saved).filters.artificialAnalysis.country, 'CN')
+    const path = sharePath(saved, 'light')
+    const state = JSON.parse(decodeURIComponent(path.split('?state=')[1]))
+    assert.ok(Object.values(state.x).every(pair => pair[0] === 'CN'))
+    state.x.artificialAnalysis[0] = code
+    assert.equal(readSharedPreferences({ state: JSON.stringify(state) }).filters.artificialAnalysis.country, 'CN')
+  }
+})

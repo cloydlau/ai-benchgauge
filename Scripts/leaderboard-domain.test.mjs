@@ -6,6 +6,7 @@ import {join} from 'node:path'
 import {execFileSync} from 'node:child_process'
 import {latestTimestamp,companyRows,createBrandRules,replacementFailure} from '../fc/domain.mjs'
 const catalog=JSON.parse(readFileSync(new URL('../fc/brand-catalog.json',import.meta.url)))
+const countries=JSON.parse(readFileSync(new URL('../fc/country-catalog.json',import.meta.url)))
 const policy=JSON.parse(readFileSync(new URL('../fc/leaderboard-policy.json',import.meta.url)))
 test('Apple/Windows generated policy cannot drift from the server/mini-program catalogs',()=>{
  const script=new URL('./generate-leaderboard-policy.mjs',import.meta.url)
@@ -13,9 +14,13 @@ test('Apple/Windows generated policy cannot drift from the server/mini-program c
  const dir=mkdtempSync(join(tmpdir(),'board-policy-'))
  try{
   mkdirSync(join(dir,'fc'));mkdirSync(join(dir,'Sources/LeaderboardKit'),{recursive:true})
-  writeFileSync(join(dir,'fc/brand-catalog.json'),JSON.stringify(catalog));writeFileSync(join(dir,'fc/leaderboard-policy.json'),JSON.stringify(policy))
+  writeFileSync(join(dir,'fc/country-catalog.json'),JSON.stringify(countries));writeFileSync(join(dir,'fc/brand-catalog.json'),JSON.stringify(catalog));writeFileSync(join(dir,'fc/leaderboard-policy.json'),JSON.stringify(policy))
   execFileSync(process.execPath,[script.pathname,'--root',dir])
   execFileSync(process.execPath,[script.pathname,'--root',dir,'--check'])
+  const legacyCatalog={...catalog};delete legacyCatalog.modelDevelopers
+  writeFileSync(join(dir,'fc/brand-catalog.json'),JSON.stringify(legacyCatalog))
+  execFileSync(process.execPath,[script.pathname,'--root',dir])
+  assert.match(readFileSync(join(dir,'Sources/LeaderboardKit/LeaderboardBrandPolicy.generated.swift'),'utf8'),/modelDevelopersStorage: \[String: String\] = \[\n\n    \]/)
   writeFileSync(join(dir,'Sources/LeaderboardKit/LeaderboardBrandPolicy.generated.swift'),'stale')
   assert.throws(()=>execFileSync(process.execPath,[script.pathname,'--root',dir,'--check'],{stdio:'pipe'}),/Command failed/)
  }finally{rmSync(dir,{recursive:true,force:true})}
@@ -23,6 +28,26 @@ test('Apple/Windows generated policy cannot drift from the server/mini-program c
 test('shared date vectors select the latest actual timestamp, with no invented publication date',()=>{
  for(const row of JSON.parse(readFileSync(new URL('../Tests/fixtures/mobile-times.json',import.meta.url))))assert.equal(latestTimestamp(row),row.expected)
  assert.equal(latestTimestamp(null),null);assert.equal(latestTimestamp({sourceUpdatedAt:'invalid'}),null)
+})
+test('verified Trinity identities share an Arcee AI company without capturing variants or another owner',()=>{
+ const rules=createBrandRules(catalog)
+ const names=['trinity-large-preview','trinity-large-thinking']
+ for(const name of names)assert.equal(rules.brandKey({name}),'arceeai')
+ assert.equal(rules.brandKey({name:' TRINITY-LARGE-THINKING ',organization:'Unknown'}),'arceeai')
+ assert.equal(rules.brandKey({name:'trinity-large-thinking-finetune'}),null)
+ assert.equal(rules.brandKey({name:names[0],organization:'Other Maker'}),'othermaker')
+ const rows=companyRows(names.map((name,index)=>({rank:index+1,name,score:100-index})))
+ assert.equal(rows.length,1);assert.equal(rows[0].name,'Arcee AI');assert.equal(rows[0].components.length,2)
+})
+test('verified Solar identity repairs an absent developer without capturing variants or another owner',()=>{
+ const rules=createBrandRules(catalog)
+ assert.equal(rules.brandKey({name:'solar-10.7b-instruct-v1.0'}),'upstage')
+ assert.equal(rules.brandKey({name:'SOLAR-10.7B-Instruct-v1.0',organization:'Unknown'}),'upstage')
+ assert.equal(rules.brandKey({name:'solar-10.7b-instruct-v1.0-finetune'}),null)
+ assert.equal(rules.brandKey({name:'solar-10.7b-instruct-v1.0',organization:'Other Maker'}),'othermaker')
+ const rows=companyRows([{rank:1,name:'solar-pro4',organization:'Upstage',score:100},
+  {rank:2,name:'solar-10.7b-instruct-v1.0',score:90}])
+ assert.equal(rows.length,1);assert.equal(rows[0].name,'Upstage');assert.equal(rows[0].components.length,2)
 })
 test('hosted models determine company standings consistently, ignoring fusion sidekicks',()=>{
  const rows=companyRows([{rank:1,name:'Claude Code - Qwen3.8 Max',organization:'Anthropic',score:90},
