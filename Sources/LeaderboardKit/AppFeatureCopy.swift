@@ -6,6 +6,7 @@ public enum AppFeatureCopy {
         language.text("Dual boards & quota tracking", "双榜对照 & 余量追踪")
     }
     public static func subtitleRows(language: AppLanguage) -> [String] {
+        guard language == .english else { return [subtitle(language: language)] }
         let parts = subtitle(language: language).components(separatedBy: " & ")
         return [parts[0] + " &", parts[1]]
     }

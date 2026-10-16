@@ -7,24 +7,47 @@ import AppKit
 
 struct AppFeatureCopyTests {
     #if canImport(SwiftUI) && canImport(AppKit)
+    @Test func emptySubtitleHasNoInkAndPreservesItsAllocatedHeight() {
+        let artwork = FeatureSubtitleArtwork.make(rows: [], height: 24)
+        #expect(artwork.letters.isEmpty)
+        #expect(artwork.symbols.isEmpty)
+        #expect(artwork.size == CGSize(width: 0, height: 24))
+    }
+
     @MainActor @Test func nativeSubtitleRendersInEveryLanguageAndAppearance() throws {
         _ = NSApplication.shared
         for language in AppLanguage.allCases {
             let height = BrandTitleMetrics.inkHeight(language: language)
             let artwork = FeatureSubtitleArtwork.make(language: language, height: height)
             let bounds = artwork.letters.boundingBoxOfPath.union(artwork.symbols.boundingBoxOfPath)
-            #expect(abs(bounds.minY) < 0.01)
+            if language == .english { #expect(abs(bounds.minY) < 0.01) }
+            else { #expect(bounds.minY > 0) }
             #expect(abs(bounds.maxY - height) < 0.01)
+            let narrowWidth = artwork.size.width * 0.65
+            let fitted = artwork.fitted(toWidth: narrowWidth)
+            let fittedBounds = fitted.letters.boundingBoxOfPath.union(fitted.symbols.boundingBoxOfPath)
+            #expect(fittedBounds.minX >= -0.01)
+            #expect(fittedBounds.maxX <= narrowWidth + 0.01)
+            #expect(abs(fittedBounds.maxY - height) < 0.01)
+            #expect(abs(fittedBounds.height - bounds.height * 0.65) < 0.01)
             for scheme in [ColorScheme.light, .dark] {
-                let view = FeatureSubtitle(language: language, height: height)
-                    .foregroundStyle(scheme == .dark ? Color.white : Color.black)
-                    .frame(width: 320, height: 28)
-                    .environment(\.colorScheme, scheme)
-                let image = try #require(ImageRenderer(content: view).cgImage)
-                #expect(image.width == 320)
-                #expect(image.height == 28)
-                let data = try #require(image.dataProvider?.data)
-                #expect((data as Data).contains { $0 != 0 })
+                for width in [CGFloat(320), ceil(narrowWidth)] {
+                    let view = FeatureSubtitle(language: language, height: height)
+                        .foregroundStyle(scheme == .dark ? Color.white : Color.black)
+                        .frame(width: width, height: 28)
+                        .environment(\.colorScheme, scheme)
+                    let image = try #require(ImageRenderer(content: view).cgImage)
+                    #expect(image.width == Int(width))
+                    #expect(image.height == 28)
+                    let data = try #require(image.dataProvider?.data)
+                    #expect((data as Data).contains { $0 != 0 })
+                    if let root = ProcessInfo.processInfo.environment["BENCHGAUGE_CAPTION_CAPTURE_ROOT"] {
+                        let folder = URL(fileURLWithPath: root)
+                        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                        let png = try #require(NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]))
+                        try png.write(to: folder.appendingPathComponent("\(language.rawValue)-\(scheme)-\(Int(width)).png"))
+                    }
+                }
             }
         }
     }
@@ -34,9 +57,13 @@ struct AppFeatureCopyTests {
         for language in AppLanguage.allCases {
             let subtitle = AppFeatureCopy.subtitle(language: language)
             let rows = AppFeatureCopy.subtitleRows(language: language)
-            #expect(rows.count == 2)
-            #expect(rows[0].hasSuffix(" &"))
-            #expect(!rows[1].contains("&"))
+            if language == .english {
+                #expect(rows.count == 2)
+                #expect(rows[0].hasSuffix(" &"))
+                #expect(!rows[1].contains("&"))
+            } else {
+                #expect(rows == [subtitle])
+            }
             let title = AppFeatureCopy.quotaTitle(language: language)
             let help = AppFeatureCopy.quotaHelpLabel(language: language)
             let message = AppFeatureCopy.quotaMessage(language: language)

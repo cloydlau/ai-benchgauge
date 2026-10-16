@@ -290,12 +290,11 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
             let help = app.buttons["quota-tracking-help"]
             XCTAssertTrue(help.waitForExistence(timeout: 10))
             let caption = chinese ? "双榜对照 & 余量追踪" : "Dual boards & quota tracking"
-            let parts = caption.components(separatedBy: " & ")
-            let textWidth = [parts[0] + " &", parts[1] + " ?"].map {
-                ($0 as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: 14)]).width
-            }.max()!
-            XCTAssertGreaterThanOrEqual(help.frame.width, textWidth,
-                                        "The full subtitle must have its natural reading width")
+            XCTAssertEqual(help.label, caption)
+            XCTAssertGreaterThan(help.frame.width, 0)
+            XCTAssertGreaterThanOrEqual(help.frame.minX, app.frame.minX)
+            XCTAssertLessThanOrEqual(help.frame.maxX, app.frame.maxX,
+                                     "The complete caption must fit inside the narrow viewport")
             let grouping = app.segmentedControls["grouping"]
             XCTAssertFalse(help.frame.intersects(grouping.frame))
             XCTAssertTrue(help.isHittable)

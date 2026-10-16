@@ -25,8 +25,12 @@ private extension VerticalAlignment {
 }
 
 private struct DesktopBrandHeadingLayout: Layout {
-    private func measurements(_ subviews: Subviews) -> ([ViewDimensions], [CGPoint], CGSize) {
-        let dimensions = subviews.map { $0.dimensions(in: .unspecified) }
+    private func measurements(_ subviews: Subviews, width: CGFloat? = nil) -> ([ViewDimensions], [CGPoint], CGSize) {
+        var dimensions = subviews.map { $0.dimensions(in: .unspecified) }
+        if let width {
+            dimensions[1] = subviews[1].dimensions(in: ProposedViewSize(
+                width: max(1, width - dimensions[0].width - 6), height: nil))
+        }
         let span = dimensions[0][.desktopBrandInkBottom] - dimensions[0][.desktopBrandInkTop]
         let x = dimensions[0].width + 6
         var origins = [CGPoint(x: 0, y: -dimensions[0][.desktopBrandInkTop]),
@@ -37,10 +41,10 @@ private struct DesktopBrandHeadingLayout: Layout {
         return (dimensions, origins, CGSize(width: x + dimensions[1].width, height: height))
     }
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        measurements(subviews).2
+        measurements(subviews, width: proposal.width).2
     }
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let (dimensions, origins, _) = measurements(subviews)
+        let (dimensions, origins, _) = measurements(subviews, width: bounds.width)
         for index in subviews.indices {
             subviews[index].place(at: CGPoint(x: bounds.minX + origins[index].x, y: bounds.minY + origins[index].y),
                 anchor: .topLeading, proposal: ProposedViewSize(width: dimensions[index].width, height: dimensions[index].height))

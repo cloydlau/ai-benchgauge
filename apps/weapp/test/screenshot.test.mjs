@@ -41,6 +41,29 @@ test('empty filters still export readable source metadata in one image', () => {
   assert.ok(image.height > 300)
 })
 
+test('company exports hide source headings and values and reclaim the column for complete names', () => {
+  for (const dark of [false, true]) {
+    const source = model([2, 2], dark), renders = []
+    for (const grouping of ['model', 'company', 'model']) {
+      const h = canvasHarness()
+      source.grouping = grouping
+      const image = planScreenshot(h.context, source)
+      drawScreenshot(h.context, source, image, new Map())
+      const text = h.commands.filter(([name]) => name === 'fillText')
+      assert.equal(text.filter(command => command[1] === source.labels.source).length, grouping === 'company' ? 0 : 2)
+      assert.equal(text.filter(command => [source.labels.open, source.labels.closed].includes(command[1])).length, grouping === 'company' ? 0 : 4)
+      for (const board of image.boards) for (const row of board.rows) {
+        assert.equal(row.lines.join(''), row.name)
+        assert.ok(text.some(command => command[1] === row.scoreText))
+      }
+      renders.push({ image, countryX: text.find(command => command[1] === source.labels.country)[2] })
+    }
+    assert.equal(renders[1].countryX - renders[0].countryX, 47)
+    assert.ok(renders[1].image.rows[0].height < renders[0].image.rows[0].height)
+    assert.deepEqual(renders[2], renders[0])
+  }
+})
+
 test('bounded canvas strips produce one valid full-height PNG and clean up assets', async () => {
   const h = canvasHarness(), source = model([140, 0]), progress = []
   const old = '/private-test/benchgauge-screenshot-old.png', unrelated = '/private-test/other-image.png'

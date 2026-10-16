@@ -1,16 +1,17 @@
-<view class="shell leaderboard {{dark ? 'dark' : ''}}" style="--country-column:{{labels.country === 'Country' ? 84 : 58}}rpx;--source-column:{{labels.source.length === 2 ? 58 : 76}}rpx;">
+<page-meta page-style="{{backgroundLocked ? 'overflow:hidden;' : ''}}" />
+<view class="shell leaderboard {{dark ? 'dark' : ''}} {{grouping === 'company' ? 'company-view' : ''}}" style="--country-column:{{labels.country === 'Country' ? 84 : 58}}rpx;--source-column:{{labels.source.length === 2 ? 58 : 76}}rpx;">
   <view class="brand-head {{labels.name === 'AI BenchGauge' ? 'brand-en' : ''}}" style="min-height:{{navHeight}}px;padding-top:{{headerTop}}px;padding-right:{{capsuleWidth}}px;">
     <view class="brand-copy">
       <view class="brand-title brand-wordmark" style="{{brandTitle.style}}" aria-label="{{labels.name}}">
-        <image class="brand-letter-logo" src="{{dark ? '/assets/header-logo-dark.png' : '/assets/header-logo.png'}}" mode="aspectFit" style="{{brandTitle.logoStyle}}" aria-hidden="true" />
-        <image wx:for="{{brandTitle.glyphs}}" wx:key="key" class="brand-glyph" src="{{item.source}}{{dark ? '-dark' : ''}}.svg" mode="aspectFit" style="{{item.style}}" aria-hidden="true" />
+        <image class="brand-letter-logo" src="{{dark ? '/assets/header-logo-dark.png' : '/assets/header-logo.png'}}" mode="scaleToFill" style="{{brandTitle.logoStyle}}" aria-hidden="true" />
+        <image wx:for="{{brandTitle.glyphs}}" wx:key="key" class="brand-glyph" src="{{item.source}}{{dark ? '-dark' : ''}}.svg" mode="scaleToFill" style="{{item.style}}" aria-hidden="true" />
       </view>
-      <button class="subtitle" style="height:{{brandTitle.height}}px;font-size:{{brandTitle.height * 0.4}}px;" bindtap="quotaHelp" aria-label="{{labels.subtitle}}">
+      <button class="subtitle {{labels.name === 'AI BenchGauge' ? '' : 'subtitle-single-line'}}" style="height:{{brandTitle.subtitleHeight}}px;font-size:{{brandTitle.subtitleFontSize}}px;" bindtap="quotaHelp" aria-label="{{labels.subtitle}}">
         <view class="subtitle-line"><text>{{subtitleParts[0]}}</text><text class="subtitle-symbol" aria-hidden="true">{{'&'}}</text></view>
-        <view class="subtitle-line"><text>{{subtitleParts[1]}}</text><view class="subtitle-help" aria-hidden="true"><van-icon name="question-o" size="{{brandTitle.height * 0.32}}px" custom-style="opacity:0.55;" /></view></view>
+        <view class="subtitle-line"><text>{{subtitleParts[1]}}</text><view class="subtitle-help" aria-hidden="true"><van-icon name="question-o" size="{{brandTitle.subtitleFontSize * (labels.name === 'AI BenchGauge' ? 0.8 : 1)}}px" custom-style="opacity:0.55;" /></view></view>
       </button>
     </view>
-    <view class="pill grouping">
+    <view class="pill grouping" style="height:{{groupingControl.height}}px;width:{{groupingControl.width}}px;font-size:{{groupingControl.fontSize}}px;">
       <button class="pill-option {{grouping === 'model' ? 'selected' : ''}}" data-id="model" bindtap="selectGrouping">{{labels.models}}</button>
       <button class="pill-option {{grouping === 'company' ? 'selected' : ''}}" data-id="company" bindtap="selectGrouping">{{labels.companies}}</button>
     </view>

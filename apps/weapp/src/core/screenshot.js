@@ -5,7 +5,7 @@ export const screenshotWidth = 1000
 export const screenshotStripHeight = 1024
 const top = 238, bottom = 54, margin = 24, gap = 20
 const columnWidth = (screenshotWidth - margin * 2 - gap) / 2
-const nameWidth = columnWidth - 237
+const sourceColumnWidth = 47
 
 export function wrapText(context, value, width) {
   const lines = []; let line = ''
@@ -24,6 +24,7 @@ export function wrapText(context, value, width) {
 
 export function planScreenshot(context, model) {
   context.font = '14px sans-serif'
+  const nameWidth = columnWidth - 237 + (model.grouping === 'company' ? sourceColumnWidth : 0)
   const boards = model.boards.map(board => ({ ...board,
     rows: board.rows.map(row => ({ ...row, lines: wrapText(context, row.name, nameWidth) })) }))
   const count = Math.max(...boards.map(board => board.rows.length), 0)
@@ -47,26 +48,32 @@ function rounded(context, x, y, width, height, radius, color) {
   context.lineTo(x, y + radius); context.quadraticCurveTo(x, y, x + radius, y)
   context.closePath(); context.fill()
 }
-function text(context, value, x, y, size, color, { bold = false, align = 'left' } = {}) {
-  context.font = `${bold ? '600 ' : ''}${size}px sans-serif`
+function text(context, value, x, y, size, color, { bold = false, align = 'left', numeric = false } = {}) {
+  context.font = `${bold ? '600 ' : ''}${size}px ${numeric ? 'monospace' : 'sans-serif'}`
   context.fillStyle = color; context.textAlign = align; context.textBaseline = 'middle'
   context.fillText(String(value), x, y)
 }
 
 export function drawScreenshot(context, model, image, images, { offset = 0, height: stripHeight = image.height } = {}) {
+  const showSource = model.grouping !== 'company'
+  const extraNameWidth = showSource ? 0 : sourceColumnWidth
   const colors = model.dark
     ? { background: '#10151c', card: '#19212c', ink: '#edf2f7', muted: '#8b98ab', line: '#2a3544', blue: '#67b1ff', purple: '#cd91f7', open: '#77d9a1' }
     : { background: '#f5f7fa', card: '#ffffff', ink: '#17202c', muted: '#7c8797', line: '#e7ebf1', blue: '#1675dc', purple: '#9657c8', open: '#188966' }
   context.fillStyle = colors.background; context.fillRect(0, 0, screenshotWidth, image.height)
-  const title = brandTitleLayout(context, model.labels.name, 27)
+  const title = brandTitleLayout(context, model.labels.name, 23)
   const titleY = 40 - title.height / 2
   const headerLogo = images.get(brandLogoSource(model.dark))
   if (headerLogo) drawBrandLogo(context, headerLogo, title, margin, titleY)
   context.fillStyle = colors.ink
   drawBrandGlyphs(context, title, margin, titleY)
   const subtitle = model.labels.subtitle.split(' & '), captionX = margin + title.width + 6
-  text(context, subtitle[0] + ' &', captionX, titleY + title.height * 0.2, title.height * 0.4, colors.muted)
-  text(context, subtitle[1] + ' ?', captionX, titleY + title.height * 0.8, title.height * 0.4, colors.muted)
+  if (model.labels.name === 'AI BenchGauge') {
+    text(context, subtitle[0] + ' &', captionX, 40 - title.height * 0.375, title.height * 0.5, colors.muted)
+    text(context, subtitle[1] + ' ?', captionX, 40 + title.height * 0.375, title.height * 0.5, colors.muted)
+  } else {
+    text(context, model.labels.subtitle + ' ?', captionX, titleY + title.height / 2, 12, colors.muted)
+  }
   text(context, `${model.groupingLabel} · ${model.categoryLabel}`, screenshotWidth - margin, 40, 15, colors.muted, { align: 'right' })
   image.boards.forEach((board, column) => {
     const x = margin + column * (columnWidth + gap), accent = column ? colors.purple : colors.blue
@@ -76,11 +83,11 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
     context.font = '13px sans-serif'
     wrapText(context, board.summary, columnWidth - 150).forEach((line, index) => text(context, line, x + 16, 132 + index * 17, 13, colors.muted))
     text(context, board.filterLabel, x + 16, 179, 12, colors.muted)
-    const countryX = x + columnWidth - 122, sourceX = x + columnWidth - 75, scoreX = x + columnWidth - 14
+    const countryX = x + columnWidth - 122 + extraNameWidth, sourceX = x + columnWidth - 75, scoreX = x + columnWidth - 14
     text(context, model.labels.rank, x + 24, 213, 12, colors.muted, { align: 'center' })
     text(context, board.title, x + 49, 213, 13, accent, { bold: true })
     text(context, model.labels.country, countryX, 213, 11, colors.muted, { align: 'center' })
-    text(context, model.labels.source, sourceX, 213, 11, colors.muted, { align: 'center' })
+    if (showSource) text(context, model.labels.source, sourceX, 213, 11, colors.muted, { align: 'center' })
     text(context, model.labels.score, scoreX, 213, 12, colors.muted, { align: 'right' })
     context.strokeStyle = colors.line; context.lineWidth = 1; context.beginPath()
     context.moveTo(x + 12, 232); context.lineTo(x + columnWidth - 12, 232); context.stroke()
@@ -90,8 +97,8 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
       const row = pair[column]; if (!row) return
       const center = y + height / 2
       if (row.rank % 2 === 0) rounded(context, x + 8, y, columnWidth - 16, height, 6, model.dark ? '#1d2733' : '#f8f9fb')
-      text(context, row.rank, x + 24, center, 14, colors.muted, { align: 'center' })
-      const nameX = x + 48, cellWidth = columnWidth - 190
+      text(context, row.rank, x + 24, center, 14, colors.muted, { align: 'center', numeric: true })
+      const nameX = x + 48, cellWidth = columnWidth - 190 + extraNameWidth
       rounded(context, nameX, y + 4, cellWidth, height - 8, 5, row.fill.match(/rgba\([^)]*\)/)?.[0] || colors.background)
       const logo = images.get(row.logo)
       if (logo) context.drawImage(logo, nameX + 7, center - 12, 24, 24)
@@ -101,10 +108,12 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
       }
       row.lines.forEach((line, index) => text(context, line, nameX + 39, center + (index - (row.lines.length - 1) / 2) * 18, 14, colors.ink))
       text(context, row.flag, countryX, center, 17, colors.ink, { align: 'center' })
-      const statusIcon = images.get(row.opennessIcon)
-      if (statusIcon) context.drawImage(statusIcon, sourceX - 7, center - 7, 14, 14)
-      else text(context, row.openness === 'open' ? model.labels.open : row.openness === 'closed' ? model.labels.closed : '—', sourceX, center, 10, colors.muted, { align: 'center' })
-      text(context, row.scoreText, scoreX, center, 14, colors.muted, { align: 'right' })
+      if (showSource) {
+        const statusIcon = images.get(row.opennessIcon)
+        if (statusIcon) context.drawImage(statusIcon, sourceX - 7, center - 7, 14, 14)
+        else text(context, row.openness === 'open' ? model.labels.open : row.openness === 'closed' ? model.labels.closed : '—', sourceX, center, 10, colors.muted, { align: 'center' })
+      }
+      text(context, row.scoreText, scoreX, center, 14, colors.muted, { align: 'right', numeric: true })
     })
   })
   text(context, model.labels.name, margin, image.height - 26, 12, colors.muted)
