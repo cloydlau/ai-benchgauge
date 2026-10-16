@@ -5,6 +5,7 @@ import { once } from 'node:events';
 import { readFileSync } from 'node:fs';
 import { SharedLeaderboards, refreshInterval, grantLifetime } from '../fc/service.mjs';
 import { parseBoard, sources, modelOpenness } from '../fc/parser.mjs';
+import { withCodingOpenness } from '../fc/model-openness.mjs';
 import { OSSStore } from '../fc/oss-store.mjs';
 import { handler, storageConfiguration } from '../fc/server.mjs';
 import { deploymentConfiguration, existingRuntimeCredentials, checkExistingBucket } from './deploy-shared-leaderboards.mjs';
@@ -264,6 +265,69 @@ test('openness uses explicit public-weight/license metadata and keeps unavailabl
     assert.equal(parseBoard(kind, html(kind), time).entries[0].openness, undefined);
   }
 });
+test('coding openness matches model identities and inference settings without guessing variants or conflicts', () => {
+  const entries = [
+    { name: "OpenCode - GLM-5.3 ({'reasoning_effort': 'max'})" },
+    { name: 'Codex - GPT-6.1 Sol (high)' },
+    { name: 'Harness - Unknown model', modelID: 'exact-model-id' },
+    { name: 'Harness - Tiny 32B' },
+    { name: 'Harness - Dated (0902)' },
+    { name: 'Harness - Conflicting model' },
+    { name: 'Harness - GPT-6.1 Sol + GLM-5.3' },
+    { name: 'Harness - GLM-5.3', openness: 'closed' },
+    { name: 'Harness - GPT-61 Sol' },
+    { name: 'Harness - Unlisted model' },
+  ];
+  const board = { kind: 'artificialAnalysisCodingAgent', entries };
+  const references = [{ entries: [
+    { name: 'GLM-5.3 (Max)', openness: 'open' },
+    { name: 'GPT-6.1 Sol (Max, Default Fallback)', openness: 'closed' },
+    { name: 'Known model', modelID: 'exact-model-id', openness: 'open' },
+    { name: 'Tiny 7B', openness: 'open' },
+    { name: 'Dated (0813)', openness: 'closed' },
+    { name: 'Conflicting model', openness: 'open' },
+  ] }, { entries: [{ name: 'Conflicting model', openness: 'closed' }] }];
+  const result = withCodingOpenness(board, references);
+  assert.deepEqual(result.entries.map(entry => entry.openness), ['open', 'closed', 'open', undefined, undefined, undefined, undefined, 'closed', undefined, undefined]);
+  assert.equal(board.entries[0].openness, undefined);
+  assert.equal(withCodingOpenness({ ...board, kind: 'arenaText' }, references).entries, entries);
+  assert.equal(withCodingOpenness({ ...board, kind: 'codeArenaWebDev', entries: [{ name: 'GLM-5.3 (high)' }] }, references).entries[0].openness, 'open');
+});
+
+test('cached coding reads use existing model metadata without writing rankings or acquiring refresh grants', async () => {
+  const store = new MemoryStore();
+  const board = parseBoard('artificialAnalysisCodingAgent', html('artificialAnalysisCodingAgent'), time);
+  await store.writeBoard(board.kind, board);
+  await store.writeBoard('artificialAnalysis', { entries: [{ modelID: 'model-0', openness: 'open' }] });
+  const original = structuredClone(board);
+  const service = new SharedLeaderboards(store, { clock: () => time + 90 * 86400000 });
+  const response = await service.read(board.kind);
+  assert.equal(response.board.entries[0].openness, 'open');
+  assert.deepEqual({ ...response.board, entries: response.board.entries.map(({ openness, ...entry }) => entry) }, original);
+  assert.deepEqual(await store.readBoard(board.kind), original);
+  assert.equal(store.states.size, 0);
+  await store.writeBoard('artificialAnalysis', { entries: [{ modelID: 'model-0', openness: 'closed' }] });
+  assert.equal((await service.read(board.kind)).board.entries[0].openness, 'closed');
+  const read = store.readBoard.bind(store);
+  store.readBoard = async kind => { if (kind !== board.kind) throw Error('Metadata storage unavailable'); return read(kind); };
+  assert.deepEqual((await service.read(board.kind)).board, original);
+});
+
+test('coding refresh and contribution return matched metadata but persist only source-declared openness', async () => {
+  const store = new MemoryStore(), service = new SharedLeaderboards(store, { clock: () => time });
+  await store.writeBoard('artificialAnalysis', { entries: [{ modelID: 'model-0', openness: 'open' }] });
+  const { grant } = await service.refresh('artificialAnalysisCodingAgent');
+  const response = await service.contribute('artificialAnalysisCodingAgent', grant.token, html('artificialAnalysisCodingAgent'));
+  assert.equal(response.board.entries[0].openness, 'open');
+  assert.equal((await store.readBoard('artificialAnalysisCodingAgent')).entries[0].openness, undefined);
+  const state = structuredClone(await store.readState('artificialAnalysisCodingAgent'));
+  const cached = await service.refresh('artificialAnalysisCodingAgent');
+  assert.equal(cached.board.entries[0].openness, 'open');
+  assert.equal(cached.grant, undefined);
+  assert.deepEqual(await store.readState('artificialAnalysisCodingAgent'), state);
+  assert.deepEqual(await service.read('codeArenaWebDev'), { board: null });
+});
+
 test('explicit model logo metadata remains separate from creator logo during parsing', () => {
   const source = html('artificialAnalysis', '2026-10-10T00:00:00Z', 22, '/img/logos/model-family.svg');
   const board = parseBoard('artificialAnalysis', source, time);

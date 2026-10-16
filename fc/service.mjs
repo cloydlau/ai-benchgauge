@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { replacementFailure } from './domain.mjs';
 import { parseBoard, sources } from './parser.mjs';
+import { codingKinds, withCodingOpenness } from './model-openness.mjs';
 
 export const refreshInterval = 30 * 60 * 1000;
 export const grantLifetime = 90 * 1000;
@@ -20,18 +21,24 @@ export class SharedLeaderboards {
     if (this.countries) board = await this.countries.enrich(board, options);
     return board;
   }
+  async withModelOpenness(board) {
+    if (!codingKinds.has(board?.kind) || board.entries.every(entry => ['open', 'closed'].includes(entry.openness))) return board;
+    const kinds = ['artificialAnalysis', 'arenaText', 'codeArenaWebDev'].filter(kind => kind !== board.kind);
+    const results = await Promise.allSettled(kinds.map(kind => this.store.readBoard(kind)));
+    return withCodingOpenness(board, results.filter(result => result.status === 'fulfilled').map(result => result.value));
+  }
   checkKind(kind) {
     if (!Object.hasOwn(sources, kind)) throw new RequestError(404, 'Unknown leaderboard');
   }
   async read(kind) {
     this.checkKind(kind);
     const board = await this.store.readBoard(kind);
-    return { board: await this.enrich(board) };
+    return { board: await this.withModelOpenness(await this.enrich(board)) };
   }
   async refresh(kind) {
     this.checkKind(kind);
     const cached = await this.store.readBoard(kind);
-    const board = await this.enrich(cached, { acquire: true });
+    const board = await this.withModelOpenness(await this.enrich(cached, { acquire: true }));
     // Failure to coordinate must NOT give permission to contact the source.
     try {
       const { position, state } = await this.store.readState(kind);
@@ -71,6 +78,6 @@ export class SharedLeaderboards {
     }
     board = await this.enrich(board, { acquire: true });
     await this.store.writeBoard(kind, board);
-    return { board };
+    return { board: await this.withModelOpenness(board) };
   }
 }
