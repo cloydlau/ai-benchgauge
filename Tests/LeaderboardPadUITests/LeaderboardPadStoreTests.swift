@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 import LeaderboardKit
-import LeaderboardPadUI
+@testable import LeaderboardPadUI
 
 private actor FetchGate {
     private var continuations: [LeaderboardKind: CheckedContinuation<Leaderboard, Never>] = [:]
@@ -73,7 +73,7 @@ private actor FetchGate {
     #expect(relaunched.category == .video)
     #expect(relaunched.grouping == .company)
     #expect(relaunched.language == .traditionalChinese)
-    #expect(relaunched.country(for: .arenaText) == .china)
+    #expect(relaunched.countryFilter(for: .arenaText) == .unknown)
     #expect(relaunched.countryFilter(for: .artificialAnalysis) == .unknown)
     #expect(relaunched.snapshot.boards[.arenaText] == cached)
 }
@@ -152,7 +152,7 @@ private actor RecoveringBoardSource {
     #expect(store.refreshing.isEmpty)
 }
 
-@MainActor @Test func sourceFiltersPersistIndependentlyOfCountryAndOtherBoards() throws {
+@MainActor @Test func sourceFiltersAreSharedAcrossCategoriesAndPersistIndependentlyOfCountry() throws {
     let name = "source-filter-\(UUID().uuidString)"
     let defaults = try #require(UserDefaults(suiteName: name))
     defer { defaults.removePersistentDomain(forName: name) }
@@ -161,12 +161,44 @@ private actor RecoveringBoardSource {
     store.setOpennessFilter(.unknown, for: .arenaText)
     store.setCountryFilter(.country(.china), for: .artificialAnalysis)
     let restored = LeaderboardPadStore(defaults: defaults)
-    #expect(restored.opennessFilter(for: .artificialAnalysis) == .open)
+    #expect(restored.opennessFilter(for: .artificialAnalysis) == .unknown)
     #expect(restored.opennessFilter(for: .arenaText) == .unknown)
-    #expect(restored.opennessFilter(for: .arenaTextToVideo) == .all)
+    #expect(restored.opennessFilter(for: .arenaTextToVideo) == .unknown)
     #expect(restored.countryFilter(for: .artificialAnalysis) == .country(.china))
     restored.setOpennessFilter(.all, for: .artificialAnalysis)
     #expect(defaults.string(forKey: "openness.artificialAnalysis") == nil)
     #expect(restored.countryFilter(for: .artificialAnalysis) == .country(.china))
-    #expect(restored.opennessFilter(for: .arenaText) == .unknown)
+    #expect(restored.opennessFilter(for: .arenaText) == .all)
+    for kind in LeaderboardKind.allCases {
+        #expect(restored.countryFilter(for: kind) == .country(.china))
+        #expect(restored.opennessFilter(for: kind) == .all)
+    }
+    restored.setCountryFilter(.all, for: .arenaTextToVideo)
+    let cleared = LeaderboardPadStore(defaults: defaults)
+    #expect(LeaderboardKind.allCases.allSatisfy { cleared.countryFilter(for: $0) == .all })
+}
+
+@MainActor @Test func legacyFiltersMigrateFromTheVisibleCategoryAndClearedGlobalFiltersWin() throws {
+    let name = "mobile-migration-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    CategoryPreference.save(.video, to: defaults)
+    defaults.set("CN", forKey: "country.artificialAnalysisTextToVideo")
+    defaults.set("open", forKey: "openness.arenaTextToVideo")
+    defaults.set(1, forKey: "mobileSelectedSource")
+    let store = LeaderboardPadStore(defaults: defaults)
+    #expect(store.selectedSource == 1)
+    #expect(LeaderboardKind.allCases.allSatisfy { store.countryFilter(for: $0) == .country(.china) && store.opennessFilter(for: $0) == .open })
+    store.category = .image
+    let moved = LeaderboardPadStore(defaults: defaults)
+    #expect(moved.countryFilter(for: .arenaTextToImage) == .country(.china))
+    #expect(moved.opennessFilter(for: .arenaTextToImage) == .open)
+    let frozen = LeaderboardPadStore(exporting: store)
+    store.setCountryFilter(.all, for: .arenaText)
+    store.setOpennessFilter(.all, for: .arenaText)
+    #expect(frozen.countryFilter(for: .arenaText) == .country(.china))
+    #expect(frozen.opennessFilter(for: .arenaText) == .open)
+    defaults.set("CN", forKey: "country.artificialAnalysisTextToVideo")
+    let restored = LeaderboardPadStore(defaults: defaults)
+    #expect(LeaderboardKind.allCases.allSatisfy { restored.countryFilter(for: $0) == .all && restored.opennessFilter(for: $0) == .all })
 }

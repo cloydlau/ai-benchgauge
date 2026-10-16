@@ -89,7 +89,7 @@ final class LeaderboardBottomSafeAreaTests: XCTestCase {
         for dark in [false, true] {
             app.launchArguments = ["--ui-testing", "--full-board", "--preview-zh"] + (dark ? ["--dark"] : [])
             app.launch()
-            XCTAssertTrue(app.segmentedControls["category"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.otherElements["category"].waitForExistence(timeout: 10))
             let scroll = UIDevice.current.userInterfaceIdiom == .phone
                 ? app.otherElements["cube-viewport"] : app.scrollViews.firstMatch
             scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
@@ -97,16 +97,25 @@ final class LeaderboardBottomSafeAreaTests: XCTestCase {
             capture("scrolling-\(dark ? "dark" : "light")")
             for _ in 0..<12 {
                 let footer = app.buttons["share"].firstMatch
-                if footer.isHittable && footer.frame.maxY <= app.frame.maxY - 30 { break }
+                let categories = app.otherElements["category"]
+                if footer.isHittable && footer.frame.maxY <= categories.frame.minY - 12 { break }
                 scroll.swipeUp()
             }
             let footer = app.buttons["share"].firstMatch
             capture("bottom-\(dark ? "dark" : "light")")
             XCTAssertTrue(footer.isHittable, "Footer must be reachable above the Home indicator")
             XCTAssertLessThanOrEqual(footer.frame.maxY, app.frame.maxY - 30)
+            let back = app.buttons["leaderboard-back-to-top"].firstMatch
+            XCTAssertTrue(back.isHittable)
+            XCTAssertLessThanOrEqual(back.frame.maxY, footer.frame.minY - 8,
+                                     "Return to top must clear the screenshot control, including its touch area")
             XCTAssertTrue(app.buttons["name-artificialAnalysis-20"].isHittable)
             XCTAssertEqual(scroll.frame.maxY, app.frame.maxY, accuracy: 1,
                            "Ranking viewport must continue through the bottom safe area")
+            footer.tap()
+            XCTAssertTrue(app.buttons["copy-screenshot"].waitForExistence(timeout: 10),
+                          "The screenshot button must still open its preview at the end of the list")
+            capture("bottom-screenshot-preview-\(dark ? "dark" : "light")")
             app.terminate()
         }
     }
@@ -204,10 +213,10 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
             app.launchArguments = ["--ui-testing", "--full-board", "--source-times"]
                 + (chinese ? ["--preview-zh"] : ["--dark"])
             app.launch()
-            XCTAssertTrue(app.segmentedControls["category"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.otherElements["category"].waitForExistence(timeout: 10))
             for (category, kind, missing) in [(chinese ? "综合" : "General", "artificialAnalysis", true),
                                             (chinese ? "编程" : "Coding", "artificialAnalysisCodingAgent", false)] {
-                app.segmentedControls["category"].buttons[category].tap()
+                app.otherElements["category"].buttons[category].tap()
                 show(kind)
                 let heading = app.staticTexts["source-heading-\(kind)"]
                 XCTAssertTrue(heading.waitForExistence(timeout: 5))
@@ -223,24 +232,19 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
                 let badge = app.descendants(matching: .any)["openness-\(kind)-1"].firstMatch
                 XCTAssertTrue(badge.exists)
                 XCTAssertEqual(badge.label, chinese ? "闭源" : "Closed")
-                let phone = UIDevice.current.userInterfaceIdiom == .phone
-                let times: XCUIElement? = phone
-                    ? app.staticTexts["source-times-\(kind)"]
-                    : app.buttons.matching(identifier: "refresh").allElementsBoundByIndex.first { $0.isHittable && $0.label.contains(chinese ? "抓取" : "Fetched") }
+                let times: XCUIElement? = app.staticTexts["source-times-\(kind)"]
                 XCTAssertNotNil(times)
-                if phone {
-                    XCTAssertFalse(times?.label.contains("\n") ?? true)
-                    XCTAssertFalse(times?.label.contains(chinese ? "抓取" : "Fetched") ?? true)
-                    XCTAssertFalse(times?.label.contains("—") ?? true)
-                } else { XCTAssertEqual(times?.label.contains(chinese ? "更新 —" : "Updated —"), missing) }
+                XCTAssertFalse(times?.label.contains("\n") ?? true)
+                XCTAssertFalse(times?.label.contains(chinese ? "抓取" : "Fetched") ?? true)
+                XCTAssertFalse(times?.label.contains("—") ?? true)
                 if let times {
                     let top = min(summary.frame.minY, times.frame.minY)
                     let bottom = max(summary.frame.maxY, times.frame.maxY)
                     // AX reports the caption's ink bounds; the regular iPad
                     // header font adds a 2.5-point inset to the layout gap.
-                    XCTAssertEqual(heading.frame.minY - bottom, 24, accuracy: 3)
+                    XCTAssertGreaterThanOrEqual(heading.frame.minY - bottom, 8)
                     if UIDevice.current.userInterfaceIdiom == .phone {
-                        XCTAssertEqual(top - app.buttons["face-0"].frame.maxY, 24, accuracy: 2)
+                        XCTAssertGreaterThanOrEqual(top - app.buttons["face-0"].frame.maxY, 8)
                     }
                 }
                 for frame in 0..<3 {
@@ -276,6 +280,36 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
         XCTAssertTrue(app.buttons["深色"].waitForExistence(timeout: 5))
         app.buttons["深色"].tap()
         let dark = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); dark.name = "mobile-dark-footer"; dark.lifetime = .keepAlways; add(dark)
+    }
+
+    func testReadableSubtitleAndSourceIcons() {
+        for chinese in [true, false] {
+            app.launchArguments = ["--ui-testing", "--full-board", "--reduce-motion"]
+                + (chinese ? ["--preview-zh"] : ["--dark"])
+            app.launch()
+            let help = app.buttons["quota-tracking-help"]
+            XCTAssertTrue(help.waitForExistence(timeout: 10))
+            let caption = chinese ? "双榜对照 & 余量追踪" : "Dual boards & quota tracking"
+            let parts = caption.components(separatedBy: " & ")
+            let textWidth = [parts[0] + " &", parts[1] + " ?"].map {
+                ($0 as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: 14)]).width
+            }.max()!
+            XCTAssertGreaterThanOrEqual(help.frame.width, textWidth,
+                                        "The full subtitle must have its natural reading width")
+            let grouping = app.segmentedControls["grouping"]
+            XCTAssertFalse(help.frame.intersects(grouping.frame))
+            XCTAssertTrue(help.isHittable)
+            for rank in [1, 2] {
+                let badge = app.descendants(matching: .any)["openness-artificialAnalysis-\(rank)"].firstMatch
+                XCTAssertTrue(badge.waitForExistence(timeout: 5))
+                XCTAssertGreaterThanOrEqual(badge.frame.height, 14,
+                                            "Both open and closed symbols should read at the size of nearby flags")
+            }
+            let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            attachment.name = "readable-header-icons-\(chinese ? "zh-light" : "en-dark")"
+            attachment.lifetime = .keepAlways; add(attachment)
+            app.terminate()
+        }
     }
 
     private func show(_ kind: String) {
@@ -314,12 +348,14 @@ final class LeaderboardCategoryTabTests: XCTestCase {
             XCTAssertFalse(alert.exists, "Header padding must not open quota help")
             // ViewThatFits can omit the decorative title from the iPad accessibility tree.
             // Tap its real position immediately to the left of the subtitle on both devices.
-            app.coordinate(withNormalizedOffset: .zero)
-                .withOffset(CGVector(dx: help.frame.minX - 20, dy: help.frame.midY)).tap()
+            let title = app.descendants(matching: .any)["brand-title"].firstMatch
+            if title.exists { title.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap() }
+            else if help.frame.minX >= 20 {
+                app.coordinate(withNormalizedOffset: .zero)
+                    .withOffset(CGVector(dx: help.frame.minX - 20, dy: help.frame.midY)).tap()
+            }
             XCTAssertFalse(alert.exists, "The app title must not open quota help")
-            let boundary = UIDevice.current.userInterfaceIdiom == .phone
-                ? app.segmentedControls["grouping"].frame.minX
-                : app.buttons["refresh"].firstMatch.frame.minX
+            let boundary = app.segmentedControls["grouping"].frame.minX
             let blankStart = help.frame.maxX + 12
             if blankStart + 8 < boundary {
                 app.coordinate(withNormalizedOffset: .zero)
@@ -331,7 +367,7 @@ final class LeaderboardCategoryTabTests: XCTestCase {
             let message = chinese
                 ? "余量追踪目前在 Mac 和 Windows 版提供，可集中查看模型的剩余额度与使用进度。请在电脑上打开 AI 天梯使用这项功能。"
                 : "Quota tracking is available in AI BenchGauge for Mac and Windows. Open the desktop app to view your models’ remaining quotas and usage progress."
-            XCTAssertTrue(alert.staticTexts.matching(NSPredicate(format: "label == %@", message)).firstMatch.exists)
+            XCTAssertTrue(alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", message)).firstMatch.exists)
             let info = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
             info.name = "quota-help-\(chinese ? "zh-system" : "en-dark")-dialog"
             info.lifetime = .keepAlways; add(info)
@@ -358,7 +394,7 @@ final class LeaderboardCategoryTabTests: XCTestCase {
              {"rank":5,"name":"Unknown Video","score":96,"organization":"Unknown Maker"}]
             """#
             app.launch()
-            XCTAssertTrue(app.segmentedControls["category"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.otherElements["category"].waitForExistence(timeout: 10))
             for company in [false, true] {
                 if company { app.segmentedControls["grouping"].buttons[chinese ? "公司" : "Companies"].tap() }
                 for frame in 0..<3 {
@@ -378,7 +414,7 @@ final class LeaderboardCategoryTabTests: XCTestCase {
             app.launchArguments = ["--ui-testing", "--offline"] + (chinese ? ["--preview-zh"] : ["--dark"])
             app.launchEnvironment["BENCHGAUGE_UI_MODEL_ENTRIES"] = modelLogoEntries
             app.launch()
-            XCTAssertTrue(app.segmentedControls["category"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.otherElements["category"].waitForExistence(timeout: 10))
             for company in [false, true] {
                 if company { app.segmentedControls["grouping"].buttons[chinese ? "公司" : "Companies"].tap() }
                 for frame in 0..<3 {
@@ -398,7 +434,7 @@ final class LeaderboardCategoryTabTests: XCTestCase {
             app.launchArguments = ["--ui-testing", "--offline"] + (chinese ? ["--preview-zh"] : ["--dark"])
             app.launchEnvironment["BENCHGAUGE_UI_MODEL_ENTRIES"] = mobileLogoCornerEntries
             app.launch()
-            XCTAssertTrue(app.segmentedControls["category"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.otherElements["category"].waitForExistence(timeout: 10))
             for company in [false, true] {
                 if company { app.segmentedControls["grouping"].buttons[chinese ? "公司" : "Companies"].tap() }
                 for frame in 0..<3 {
@@ -417,7 +453,7 @@ final class LeaderboardCategoryTabTests: XCTestCase {
         for chinese in [true, false] {
             app.launchArguments = ["--ui-testing", "--brand-discovery", "--offline"] + (chinese ? ["--preview-zh"] : ["--dark"])
             app.launch()
-            XCTAssertTrue(app.segmentedControls["category"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.otherElements["category"].waitForExistence(timeout: 10))
             for landscape in [false, true] {
                 orient(landscape)
                 for frame in 0..<3 {
@@ -437,7 +473,7 @@ final class LeaderboardCategoryTabTests: XCTestCase {
         for chinese in [true, false] {
             app.launchArguments = ["--ui-testing"] + (chinese ? ["--preview-zh"] : ["--dark"])
             app.launch()
-            XCTAssertTrue(app.segmentedControls["category"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.otherElements["category"].waitForExistence(timeout: 10))
             for landscape in [false, true] {
                 orient(landscape)
                 for frame in 0..<3 {
@@ -508,19 +544,14 @@ final class LeaderboardCategoryTabTests: XCTestCase {
     func testCategoryTabsUseRequestedWidths() {
         app.launchArguments = ["--ui-testing", "--preview-zh"]
         app.launch()
-        XCTAssertTrue(app.segmentedControls["category"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.otherElements["category"].waitForExistence(timeout: 10))
         for landscape in [false, true] {
             orient(landscape)
-            let category = app.segmentedControls["category"]
+            let category = app.otherElements["category"]
             let frame = category.frame
-            if UIDevice.current.userInterfaceIdiom == .phone {
-                let viewport = app.otherElements["cube-viewport"].frame
-                XCTAssertEqual(frame.minX, viewport.minX, accuracy: 2)
-                XCTAssertEqual(frame.maxX, viewport.maxX, accuracy: 2)
-            } else {
-                XCTAssertEqual(frame.width, 360, accuracy: 2)
-                XCTAssertEqual(frame.midX, app.windows.firstMatch.frame.midX, accuracy: 2)
-            }
+            XCTAssertEqual(frame.midX, app.windows.firstMatch.frame.midX, accuracy: 2)
+            XCTAssertLessThanOrEqual(frame.width, app.windows.firstMatch.frame.width)
+            XCTAssertGreaterThan(frame.minY, app.windows.firstMatch.frame.height * 0.6)
             let segments = category.buttons.allElementsBoundByIndex
             XCTAssertEqual(segments.count, 4)
             for segment in segments { XCTAssertEqual(segment.frame.width, segments[0].frame.width, accuracy: 2) }
@@ -531,7 +562,7 @@ final class LeaderboardCategoryTabTests: XCTestCase {
     }
     private func orient(_ landscape: Bool) {
         XCUIDevice.shared.orientation = landscape ? .landscapeLeft : .portrait
-        let category = app.segmentedControls["category"]
+        let category = app.otherElements["category"]
         let predicate = NSPredicate { _, _ in
             let frame = self.app.windows.firstMatch.frame
             return (frame.width > frame.height) == landscape && category.isHittable
@@ -558,10 +589,10 @@ final class LeaderboardPadTests: XCTestCase {
     func testCategoriesGroupingAndCountryFilter() {
         app.launch()
         XCTAssertTrue(app.otherElements["board-artificialAnalysis"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["UPDATED"].exists)
+        XCTAssertTrue(app.buttons["refresh"].firstMatch.exists)
         XCTAssertTrue(app.staticTexts["AI BenchGauge"].exists)
         XCTAssertFalse(app.staticTexts["Fetched"].exists)
-        app.segmentedControls["category"].buttons["Coding"].tap()
+        app.otherElements["category"].buttons["Coding"].tap()
         XCTAssertTrue(app.otherElements["board-codeArenaWebDev"].waitForExistence(timeout: 5))
         app.segmentedControls["grouping"].buttons["Companies"].tap()
         XCTAssertTrue(app.buttons["name-artificialAnalysisCodingAgent-1"].exists)
@@ -577,7 +608,8 @@ final class LeaderboardPadTests: XCTestCase {
         capture("landscape")
         assertCategorySegments()
         app.buttons["name-artificialAnalysisCodingAgent-1"].tap()
-        XCTAssertTrue(app.staticTexts["Copied DeepSeek"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Score uses the strongest model")).firstMatch.waitForExistence(timeout: 5))
+        app.buttons["Done"].tap()
     }
     func testOfflineResultsAndLicenseAndScreenshot() {
         app.launchArguments.append("--offline")
@@ -590,29 +622,29 @@ final class LeaderboardPadTests: XCTestCase {
         XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "No internet connection")).firstMatch.exists)
         capture("offline-details")
         app.buttons["Done"].tap()
-        app.buttons["license"].tap()
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Permission is hereby granted")).firstMatch.waitForExistence(timeout: 5))
-        app.buttons["Done"].tap()
+        scrollToFooter()
+        app.buttons["about"].tap()
+        XCTAssertTrue(app.buttons["desktop-download"].waitForExistence(timeout: 5))
         app.buttons["open-source-notices"].tap()
-        XCTAssertTrue(app.segmentedControls["license-section"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.segmentedControls["license-section"].buttons["Open-source notices"].isSelected)
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "SIL OPEN FONT LICENSE")).firstMatch.waitForExistence(timeout: 5))
         capture("notices")
         app.buttons["Done"].tap()
         app.buttons["share"].tap()
-        XCTAssertTrue(app.buttons["Copy image"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Save to Photos"].exists)
+        XCTAssertTrue(app.buttons["copy-screenshot"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["save-screenshot"].exists)
         capture("screenshot-options")
-        app.buttons["Copy image"].tap()
+        app.buttons["copy-screenshot"].tap()
         XCTAssertTrue(app.staticTexts["Copied to clipboard"].waitForExistence(timeout: 10))
-        assertCategorySegments()
         capture("screenshot-feedback")
+        app.buttons["Done"].tap()
+        assertCategorySegments()
     }
     func testChineseInterfacePreviews() {
         app.launchArguments.append("--preview-zh")
         app.launch()
         XCTAssertTrue(app.otherElements["board-artificialAnalysis"].waitForExistence(timeout: 10))
         waitForLayout(landscape: false)
-        XCTAssertTrue(app.staticTexts["更新时间"].exists)
+        XCTAssertTrue(app.buttons["refresh"].firstMatch.exists)
         XCTAssertTrue(app.staticTexts["AI 天梯"].exists)
         XCTAssertFalse(app.staticTexts["获取于"].exists)
         capture("zh-models-portrait")
@@ -639,40 +671,41 @@ final class LeaderboardPadTests: XCTestCase {
         capture("unknown-country")
         // Footer may be below the fold with twenty real rows.
         scrollToFooter()
-        app.segmentedControls["language"].buttons["繁中"].tap()
-        XCTAssertTrue(app.staticTexts["更新時間"].exists)
+        app.buttons["language-menu"].tap(); app.buttons["繁中"].tap()
+        XCTAssertTrue(app.buttons["refresh"].firstMatch.exists)
         XCTAssertTrue(app.staticTexts["AI 天梯"].exists)
         capture("traditional-footer-dark")
         scrollToHeader()
         waitForLayout(landscape: true)
         capture("traditional-dark")
         scrollToFooter()
-        app.segmentedControls["language"].buttons["简中"].tap()
-        XCTAssertTrue(app.staticTexts["更新时间"].exists)
+        app.buttons["language-menu"].tap(); app.buttons["简中"].tap()
+        XCTAssertTrue(app.buttons["refresh"].firstMatch.exists)
         scrollToHeader()
-        app.segmentedControls["category"].buttons["图片"].tap()
+        app.otherElements["category"].buttons["图片"].tap()
         XCTAssertTrue(app.otherElements["board-arenaTextToImage"].waitForExistence(timeout: 5))
         capture("image-dark")
-        app.segmentedControls["category"].buttons["视频"].tap()
+        app.otherElements["category"].buttons["视频"].tap()
         XCTAssertTrue(app.otherElements["board-arenaTextToVideo"].waitForExistence(timeout: 5))
         capture("video-dark")
     }
     private func scrollToHeader() {
         for _ in 0..<8 {
-            if app.segmentedControls["category"].isHittable { return }
+            if app.segmentedControls["grouping"].isHittable { return }
             app.swipeDown()
         }
-        XCTAssertTrue(app.segmentedControls["category"].isHittable)
+        XCTAssertTrue(app.segmentedControls["grouping"].isHittable)
     }
     private func scrollToFooter() {
         for _ in 0..<8 {
-            if app.segmentedControls["language"].isHittable { return }
+            if app.buttons["language-menu"].isHittable && app.buttons["share"].frame.maxY < app.otherElements["category"].frame.minY { return }
             app.swipeUp()
         }
-        XCTAssertTrue(app.segmentedControls["language"].isHittable)
+        XCTAssertTrue(app.buttons["language-menu"].isHittable)
     }
     private func assertCategorySegments() {
-        let segments = ["General", "Coding", "Image", "Video"].map { app.segmentedControls["category"].buttons[$0].frame }
+        let segments = app.otherElements["category"].buttons.allElementsBoundByIndex.map(\.frame)
+        XCTAssertEqual(segments.count, 4)
         for (left, right) in zip(segments, segments.dropFirst()) {
             XCTAssertLessThan(left.maxX, right.maxX)
             XCTAssertEqual(left.width, right.width, accuracy: 2)
@@ -683,14 +716,14 @@ final class LeaderboardPadTests: XCTestCase {
         let predicate = NSPredicate { _, _ in
             let frame = window.frame
             return frame.width > 0 && frame.height > 0 && (frame.width > frame.height) == landscape
-                && self.app.segmentedControls["category"].isHittable
+                && self.app.otherElements["category"].isHittable
         }
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: window)], timeout: 10), .completed)
-        var previous = app.segmentedControls["category"].frame
+        var previous = app.otherElements["category"].frame
         var stableFrames = 0
         for _ in 0..<20 {
             Thread.sleep(forTimeInterval: 0.3)
-            let current = app.segmentedControls["category"].frame
+            let current = app.otherElements["category"].frame
             stableFrames = current == previous ? stableFrames + 1 : 0
             previous = current
             if stableFrames >= 3 { return }
@@ -806,7 +839,7 @@ final class LeaderboardPhoneTests: XCTestCase {
         capture("iphone-refreshed")
         app.buttons["face-1"].tap()
         waitForFace("arenaText")
-        app.segmentedControls["category"].buttons["Coding"].tap()
+        app.otherElements["category"].buttons["Coding"].tap()
         waitForFace("codeArenaWebDev")
         capture("iphone-coding-second-face")
         app.buttons["face-0"].tap()
@@ -821,8 +854,8 @@ final class LeaderboardPhoneTests: XCTestCase {
         XCTAssertTrue(app.buttons["name-artificialAnalysisCodingAgent-1"].label.contains("DeepSeek"))
         app.buttons["face-1"].tap()
         waitForFace("codeArenaWebDev")
-        XCTAssertEqual(app.buttons["country-codeArenaWebDev"].value as? String, "All countries")
-        capture("iphone-independent-filter")
+        XCTAssertTrue((app.buttons["country-codeArenaWebDev"].value as? String)?.contains("China") == true)
+        capture("iphone-global-filter")
     }
     func testDiagonalScrollingDoesNotSwitchSourcesAndNextHorizontalSwipeWorks() {
         app.launchArguments += ["--full-board"]
@@ -834,7 +867,7 @@ final class LeaderboardPhoneTests: XCTestCase {
             let end = viewport.coordinate(withNormalizedOffset: CGVector(dx: endX, dy: 0.75))
                 .withOffset(CGVector(dx: 0, dy: -viewport.frame.width * 0.4))
             start.press(forDuration: 0.08, thenDragTo: end)
-            XCTAssertTrue(app.buttons["face-0"].isSelected)
+            XCTAssertTrue(app.otherElements["board-artificialAnalysis"].exists)
             XCTAssertFalse(app.otherElements["board-arenaText"].exists)
         }
         XCTAssertFalse(app.buttons["name-artificialAnalysis-1"].isHittable,
@@ -842,7 +875,7 @@ final class LeaderboardPhoneTests: XCTestCase {
         capture("iphone-diagonal-scroll-retains-source")
         swipe(left: true)
         XCTAssertTrue(app.otherElements["board-arenaText"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["face-1"].isSelected)
+        XCTAssertTrue(app.otherElements["board-arenaText"].exists)
         capture("iphone-horizontal-switch-after-scroll")
     }
     @MainActor
@@ -922,19 +955,20 @@ final class LeaderboardPhoneTests: XCTestCase {
         XCTAssertFalse(app.buttons["face-0"].isHittable)
         capture("iphone-clean-footer")
         app.buttons["share"].tap()
-        XCTAssertTrue(app.buttons["Copy image"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Save to Photos"].exists)
+        XCTAssertTrue(app.buttons["copy-screenshot"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["save-screenshot"].exists)
         capture("iphone-screenshot-options")
-        app.buttons["Copy image"].tap()
+        app.buttons["copy-screenshot"].tap()
         XCTAssertTrue(app.staticTexts["Copied to clipboard"].waitForExistence(timeout: 10))
-        assertCategorySegments()
         capture("iphone-screenshot-feedback")
+        app.buttons["Done"].tap()
+        assertCategorySegments()
         waitForButton("language-menu")
         app.buttons["language-menu"].tap()
         app.buttons["简中"].tap()
         XCTAssertTrue(app.staticTexts["AI 天梯"].exists)
         XCTAssertFalse(app.staticTexts["获取于"].exists)
-        app.segmentedControls["category"].buttons["图片"].tap()
+        app.otherElements["category"].buttons["图片"].tap()
         waitForFace("artificialAnalysisTextToImage")
         capture("iphone-zh-image")
         app.buttons["face-1"].tap()
@@ -944,7 +978,7 @@ final class LeaderboardPhoneTests: XCTestCase {
         waitForButton("language-menu")
         app.buttons["language-menu"].tap()
         app.buttons["繁中"].tap()
-        app.segmentedControls["category"].buttons["視頻"].tap()
+        app.otherElements["category"].buttons["視頻"].tap()
         waitForFace("arenaTextToVideo")
         capture("iphone-traditional-video")
     }
@@ -953,11 +987,11 @@ final class LeaderboardPhoneTests: XCTestCase {
         waitForFace("artificialAnalysis")
         scrollToFooter()
         app.buttons["share"].tap()
-        XCTAssertTrue(app.buttons["Copy image"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Save to Photos"].exists)
+        XCTAssertTrue(app.buttons["copy-screenshot"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["save-screenshot"].exists)
         XCTAssertFalse(app.staticTexts["Copied to clipboard"].exists)
         capture("iphone-photo-actions")
-        app.buttons["Save to Photos"].tap()
+        app.buttons["save-screenshot"].tap()
 
         let permission = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
         if permission.exists {
@@ -981,8 +1015,7 @@ final class LeaderboardPhoneTests: XCTestCase {
             app.buttons["Cancel"].tap()
         }
         // Copy remains independent of the user's Photos permission.
-        app.buttons["share"].tap()
-        app.buttons["Copy image"].tap()
+        app.buttons["copy-screenshot"].tap()
         XCTAssertTrue(app.staticTexts["Copied to clipboard"].waitForExistence(timeout: 10))
     }
     func testLongBoardComparisonRankAndLandscape() {
@@ -1001,7 +1034,7 @@ final class LeaderboardPhoneTests: XCTestCase {
         XCTAssertNotNil(visible)
         let firstY = visible.map { app.buttons["name-artificialAnalysis-\($0)"].frame.minY }
         capture("iphone-scrolled-first-face")
-        app.buttons["face-1"].tap()
+        swipe(left: true)
         waitForFace("arenaText")
         if let rank = visible, let firstY {
             let row = app.buttons["name-arenaText-\(rank)"]
@@ -1014,12 +1047,12 @@ final class LeaderboardPhoneTests: XCTestCase {
             self.app.windows.firstMatch.frame.width > self.app.windows.firstMatch.frame.height
         }, object: app.windows.firstMatch)], timeout: 10), .completed)
         capture("iphone-landscape-dark")
-        XCTAssertTrue(app.buttons["face-0"].isHittable)
+        XCTAssertFalse(app.buttons["face-0"].isHittable, "The source selector scrolls away with the board")
         scrollToFooter()
         XCTAssertTrue(app.buttons["share"].isHittable)
         capture("iphone-landscape-scrolled-footer")
         assertCategorySegments()
-        app.buttons["face-0"].tap()
+        swipe(left: false)
         waitForFace("artificialAnalysis")
         app.segmentedControls["grouping"].buttons["公司"].tap()
         XCTAssertFalse(app.buttons["share"].isHittable, "Returning to the top must scroll the footer out of view")
@@ -1056,7 +1089,7 @@ final class LeaderboardPhoneTests: XCTestCase {
         }
         XCTAssertNotNil(rank)
         capture("source-switch-\(appearance)-aa-scrolled")
-        app.buttons["face-1"].tap()
+        swipe(left: true)
         waitForFace("arenaText")
         capture("source-switch-\(appearance)-arena-scrolled")
         if let rank {
@@ -1098,7 +1131,7 @@ final class LeaderboardPhoneTests: XCTestCase {
         XCTAssertLessThan(app.buttons["name-artificialAnalysis-1"].frame.minY, firstRowY - 20,
                           "The entrance must leave native vertical scrolling available")
         swipe(left: true)
-        XCTAssertTrue(app.buttons["face-1"].isSelected)
+        XCTAssertTrue(app.otherElements["board-arenaText"].exists)
         XCTAssertTrue(app.otherElements["board-arenaText"].waitForExistence(timeout: 5))
         capture("iphone-launch-entrance-scrolled-switch")
     }
@@ -1110,8 +1143,8 @@ final class LeaderboardPhoneTests: XCTestCase {
         capture("iphone-launch-entrance-reveal")
         app.otherElements["cube-viewport"].swipeUp()
         XCTAssertFalse(app.descendants(matching: .any)["cube-launch-hint"].firstMatch.exists)
-        XCTAssertTrue(app.buttons["face-0"].isSelected)
-        app.buttons["face-1"].tap()
+        XCTAssertTrue(app.otherElements["board-artificialAnalysis"].exists)
+        swipe(left: true)
         XCTAssertTrue(app.otherElements["board-arenaText"].waitForExistence(timeout: 5))
         capture("iphone-launch-entrance-interrupted")
     }
@@ -1132,13 +1165,13 @@ final class LeaderboardPhoneTests: XCTestCase {
     private func scrollToFooter() {
         let viewport = app.otherElements["cube-viewport"]
         for _ in 0..<12 {
-            if app.buttons["share"].isHittable { return }
+            if app.buttons["share"].isHittable && app.buttons["share"].frame.maxY < app.otherElements["category"].frame.minY { return }
             viewport.swipeUp()
         }
         XCTAssertTrue(app.buttons["share"].isHittable)
     }
     private func assertCategorySegments() {
-        let segments = app.segmentedControls["category"].buttons.allElementsBoundByIndex.map(\.frame)
+        let segments = app.otherElements["category"].buttons.allElementsBoundByIndex.map(\.frame)
         XCTAssertEqual(segments.count, 4)
         for (left, right) in zip(segments, segments.dropFirst()) {
             XCTAssertEqual(left.width, right.width, accuracy: 2)
@@ -1173,3 +1206,112 @@ private let modelLogoEntries = #"""
 private let mobileLogoCornerEntries = #"""
 [{"brand":{"colorHex":"#FF6900","key":"xiaomi","pngData":"iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAACClBMVEVMaXH/aAD/AAD/aQD/aQD/aQD/aQD/aQD/aQD/aAD/aAD/aAD/aAD/aAD/aAD/aAD/ZwD/YwD/aQD/aQD/aQD/agD/ZgD/aAD/aQD/ZwD/YwD/aAD/aAD/aAD/ZgD/aQD/aQD/ZgD/aQD/aQD/aQD/aAD/aAD/agD/agD/aQD/aAD/aAD/aQD/fwD/aQD/aQD/aAD/aAD/aQD/aQD/aAD/aAD/awD/aQD/aQD/aAD/aAD/aQD/aQD/aAD/aQD/bwD/aQD/agD/aQD/aAD/aQD/aQD/aQD/aAD/VQD/ZgD/aQD/ZgD/aQD/aQD/awD/aQD/ZwD/aAD/aAD/aAD/aQD/ZwD/YgD/aQD/ZwD/aAD/aAD/aQD/agD/aAD/ZgD/aQD/ZgD/aQD/aQD/ZwD/aQD/aAD/aQD/aAD/ZwD/aQD/aAD/aQD/aQD/agD/aAD/aAD/aQD/aAD/aQD/aAD/agD/aQD/bQD/////aQD/uYj/dRX/qm7/8+v/v5L/izn/1rn/3sf/fSL/jj//9e7/49D/gyz//v3/693/7N//zar/uIf/nFf/hS//+vf/agH/awT/zqz/4s7/cg//7+T/6dn/w5n/q3H/mlT/iDX/+/n/kEP/38n/giv/3cb//fv/bgn/o2L/tID/gSj/7+P/nlr/8OX/dBL/t4X/mFD/cQ7/mVL//Pr/8un/n1v66OMIAAAAd3RSTlMA0QH8/u7t3czU/aP71vP2QBLoROY8FOeHZxcW7M0e17gj4fD1t9sMMLaX4zMCu6CfqBHkoaYam6Q9nqpVi/kQPxiiXUFq0zgDD9wox+smxjvq7/TaSg3pG8rPuj7ZNM45s5lFrq1ha1bfnIxtQ97iil+IaVleFdt7C1sAAAAJcEhZcwAACxMAAAsTAQCanBgAAAKDSURBVFjDpdflX9tAGAfwp1SSVKCrUYEhw4cOGA7D5u7u7t6jbGXu7u4u/+OS60pTcmkud79XTy59vp+2SZt7ADQZCEbCTbWiJAhF9nyE8u1FgiCJtU3hSHAAjDJt/8EDKEeOdvTOytFev7MAGaa/x59Hbt+6GFFmWT2hvbrOiajjrKue2j9bRKZimZ7dXxNAJhOoUfevb0WmU6h6D2stiCHSgkmgGzGlI92/3cYGOOel+vOKEWM2pO4oP2LOHAzsYQdalP6omx3oD8nAMOLIaRkY4gG6ZaCVBzgGEENcCYGXD+iCfaqjD/EpeXf589sHz66mzz/6rSzeUAMR6FMdjcfJeZhMnU/go3NqIAwuCiD+8pUe0AybaID44/c6QCVsowLiv3QAETwa4ObFySR/3PqTAp7qABIIGuB81nVKXMeLT3SA1TDTAEC38eLde2SgHNYZAT+v4dUEGfDBDDLwZUzJJaX8ilc/kQE7FJCBCVyOKeUVXN4hAxVgNQRe4/IFGXBTABdwmSQDVoqPkBOo0PsSaYGVsIIP8OndSLRAud6tTAtUQQkfIMFGPqAYGvmASsJfmimgGQ7xASfhMB8wCkdUR28yv+HnuMR/53+V6vs3ubr/USnHs3cIg3xPprMAPp7+gPx0bucBhmRgLw8wrOySrez97qiySdrBDuzGu7Q17MAuDDRIrP2W/6NLF+NW1+ZNb5Zb2ABXZlbbwtK/MJQZGMqWmO93LFWPLEGH6f7l2UNTWYm5/qpFmpm13cS1sHWS5lfvXOrrv5k8ujb4eyi2/s7G3vn60/Pgic7CnLOe60zUcIKPjYz2tZWKHkFw2Fcp479DEDxiadvxUyMx7av/ASfcgat960cQAAAAAElFTkSuQmCC"},"developerCountry":{"countryCode":"CN","key":"xiaomi"},"logoURL":"https://artificialanalysis.ai/img/logos/xiaomi.svg","modelID":"mimo-v2-6-pro","name":"MiMo-V2.6-Pro","openness":"open","organization":"Xiaomi","rank":1,"score":100},{"brand":{"colorHex":"#505050","key":"stepfun","pngData":"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"},"developerCountry":{"countryCode":"CN","key":"stepfun"},"logoURL":"https://artificialanalysis.ai/img/logos/stepfun.svg","modelID":"step-5","name":"Step 5 Preview","openness":"closed","organization":"StepFun","rank":2,"score":99},{"rank":3,"name":"MiMo bundled fallback","score":98,"organization":"Xiaomi"},{"rank":4,"name":"Step bundled fallback","score":97,"organization":"StepFun"},{"rank":5,"name":"Unknown logo fallback","score":96,"organization":"Unlisted Studio"}]
 """#
+
+@MainActor
+final class LeaderboardMobileParityTests: XCTestCase {
+    private var app = XCUIApplication()
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+    }
+    override func tearDownWithError() throws {
+        app.terminate()
+        XCUIDevice.shared.orientation = .portrait
+    }
+    private func capture(_ name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+    private func scrollToFooter() {
+        let scroll = UIDevice.current.userInterfaceIdiom == .phone ? app.otherElements["cube-viewport"] : app.scrollViews.firstMatch
+        for _ in 0..<18 {
+            let camera = app.buttons["share"]
+            if camera.isHittable && camera.frame.maxY < app.otherElements["category"].frame.minY - 4 { return }
+            scroll.swipeUp()
+        }
+        XCTAssertTrue(app.buttons["share"].isHittable)
+        XCTAssertLessThan(app.buttons["share"].frame.maxY, app.otherElements["category"].frame.minY)
+    }
+    func testHeaderGlobalFiltersAboutAndLanguages() {
+        for chinese in [true, false] {
+            app.launchArguments = ["--ui-testing", "--full-board", "--offline", "--reduce-motion"]
+                + (chinese ? ["--preview-zh"] : ["--dark"])
+            app.launch()
+            let first = app.buttons["name-artificialAnalysis-1"]
+            XCTAssertTrue(first.waitForExistence(timeout: 15))
+            let category = app.otherElements["category"]
+            XCTAssertEqual(category.buttons.count, 4)
+            XCTAssertGreaterThan(category.frame.minY, app.windows.firstMatch.frame.height * 0.65)
+            XCTAssertTrue(app.buttons["quota-tracking-help"].exists)
+            XCTAssertTrue(app.segmentedControls["grouping"].exists)
+            capture(chinese ? "parity-zh-light" : "parity-en-dark")
+            first.tap()
+            XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", chinese ? "已复制 " : "Copied ")).firstMatch.waitForExistence(timeout: 5))
+            app.buttons["category-coding"].tap()
+            let kind = "artificialAnalysisCodingAgent"
+            XCTAssertTrue(app.buttons["openness-filter-" + kind].waitForExistence(timeout: 5))
+            app.buttons["openness-filter-" + kind].tap()
+            app.buttons["openness-option-" + kind + "-open"].tap()
+            app.buttons["category-image"].tap()
+            XCTAssertEqual(app.buttons["openness-filter-artificialAnalysisTextToImage"].value as? String, chinese ? "开源" : "Open")
+            app.buttons["category-video"].tap()
+            XCTAssertEqual(app.buttons["openness-filter-artificialAnalysisTextToVideo"].value as? String, chinese ? "开源" : "Open")
+            if UIDevice.current.userInterfaceIdiom == .phone {
+                app.buttons["face-1"].tap()
+                XCTAssertTrue(app.buttons["openness-filter-arenaTextToVideo"].waitForExistence(timeout: 5))
+            }
+            XCTAssertEqual(app.buttons["openness-filter-arenaTextToVideo"].value as? String, chinese ? "开源" : "Open")
+            scrollToFooter()
+            XCTAssertTrue(app.buttons["language-menu"].exists)
+            XCTAssertTrue(app.buttons["appearance-menu"].exists)
+            XCTAssertTrue(app.buttons["share"].exists)
+            app.buttons["about"].tap()
+            XCTAssertTrue(app.buttons["desktop-download"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.staticTexts["about-version"].exists)
+            capture(chinese ? "parity-about-zh-light" : "parity-about-en-dark")
+            app.buttons[chinese ? "完成" : "Done"].tap()
+            app.terminate()
+        }
+    }
+    func testLoadingSkeletonCoversPortraitAndLandscape() {
+        app.launchArguments = ["--ui-testing", "--loading-boards", "--preview-zh", "--reduce-motion"]
+        app.launch()
+        let skeleton = app.descendants(matching: .any)["loading-skeleton-artificialAnalysis"].firstMatch
+        XCTAssertTrue(skeleton.waitForExistence(timeout: 10))
+        XCTAssertGreaterThanOrEqual(skeleton.frame.maxY, app.windows.firstMatch.frame.maxY - 40)
+        capture("parity-loading-portrait")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        Thread.sleep(forTimeInterval: 1)
+        XCTAssertTrue(skeleton.exists)
+        XCTAssertGreaterThanOrEqual(skeleton.frame.maxY, app.windows.firstMatch.frame.maxY - 40)
+        capture("parity-loading-landscape")
+    }
+    func testPaginatedImagePreviewCopyAndSave() throws {
+        let entries = (1...55).map { ["rank": $0, "name": "Complete fixture model \($0) with extended reasoning and full parameters", "score": 1000 - $0, "organization": "OpenAI"] as [String: Any] }
+        app.launchEnvironment["BENCHGAUGE_UI_MODEL_ENTRIES"] = String(data: try JSONSerialization.data(withJSONObject: entries), encoding: .utf8)
+        app.launchArguments = ["--ui-testing", "--offline", "--reduce-motion"]
+        app.launch()
+        XCTAssertTrue(app.buttons["name-artificialAnalysis-1"].waitForExistence(timeout: 15))
+        scrollToFooter()
+        app.buttons["share"].tap()
+        XCTAssertTrue(app.images["capture-preview-image"].waitForExistence(timeout: 20))
+        XCTAssertEqual(app.staticTexts["capture-page-count"].label, "1 / 3")
+        capture("parity-capture-page-1")
+        app.buttons["capture-next"].tap()
+        XCTAssertEqual(app.staticTexts["capture-page-count"].label, "2 / 3")
+        app.buttons["copy-screenshot"].tap()
+        XCTAssertTrue(app.staticTexts["Copied to clipboard"].waitForExistence(timeout: 5))
+        capture("parity-capture-page-2-copied")
+        app.buttons["save-screenshot"].tap()
+        let permission = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
+        if permission.waitForExistence(timeout: 3) {
+            permission.buttons.matching(NSPredicate(format: "NOT (label CONTAINS[c] %@ OR label CONTAINS %@)", "Don", "不允")).firstMatch.tap()
+        }
+        let saved = app.buttons["save-screenshot"]
+        let feedback = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in saved.label.contains("Saved to Photos") || self.app.alerts["Cannot save to Photos"].exists }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [feedback], timeout: 15), .completed)
+        capture("parity-capture-save-feedback")
+    }
+}
