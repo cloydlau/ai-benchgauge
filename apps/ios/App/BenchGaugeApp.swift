@@ -13,10 +13,6 @@ struct BenchGaugeApp: App {
         #endif
     }
     var body: some Scene {
-        WindowGroup { LeaderboardPadView(store: store)
-                #if DEBUG
-                .preferredColorScheme(ProcessInfo.processInfo.arguments.contains("--dark") ? .dark : nil)
-                #endif
-        }
+        WindowGroup { LeaderboardPadView(store: store) }
     }
 }

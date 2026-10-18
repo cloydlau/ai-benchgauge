@@ -1,4 +1,6 @@
 import Testing
+import Combine
+import Foundation
 @testable import LeaderboardPadUI
 
 @Test func cubeScrollIntentAndBounds() {
@@ -57,7 +59,7 @@ import Testing
     let serial = cube.beginEntrance(reduceMotion: false)!
     #expect(cube.entranceActive && cube.entranceHintVisible)
     #expect(cube.position > 0 && cube.position < 0.5)
-    #expect(cube.face == 0 && cube.rank == nil)
+    #expect(cube.face == 0 && cube.scroll.rank == nil)
     cube.settleEntrance(serial)
     #expect(!cube.entranceActive && cube.entranceHintVisible)
     cube.finishEntrance(serial)
@@ -106,4 +108,57 @@ import Testing
     ]
     #expect(LeaderboardCube.visibleRank(frames, height: 500, topInset: 40) == 2)
     #expect(LeaderboardCube.visibleRank(frames, height: 40, topInset: 40) == nil)
+}
+
+@Test @MainActor func continuousScrollingDoesNotInvalidateTheCubeOrRepeatHiddenTabUpdates() {
+    let cube = LeaderboardCubeState()
+    var cubeUpdates = 0
+    var overlayUpdates = 0
+    let cubeSubscription = cube.objectWillChange.sink { cubeUpdates += 1 }
+    let scrollSubscription = cube.scroll.objectWillChange.sink { overlayUpdates += 1 }
+    defer { cubeSubscription.cancel(); scrollSubscription.cancel() }
+
+    // Three seconds of geometry at 120 Hz, crossing many comparison rows.
+    var frames: [Int: LeaderboardRankFrame] = [:]
+    for frame in 0..<360 {
+        let travel = CGFloat(frame * 4)
+        frames = [0: LeaderboardRankFrame(minY: 48 - travel, maxY: 4000 - travel),
+                  -1: LeaderboardRankFrame(minY: 0, maxY: 40)]
+        for rank in 1...80 {
+            let top = 200 + CGFloat((rank - 1) * 44) - travel
+            frames[rank] = LeaderboardRankFrame(minY: top, maxY: top + 44)
+        }
+        cube.scroll.update(frames: frames, height: 700)
+    }
+    #expect(cubeUpdates == 0)
+    #expect(overlayUpdates <= 14)
+    #expect(cube.scroll.sourceTabsOffset == 48)
+    #expect(cube.scroll.canReturnToTop)
+    #expect(cube.scroll.rank == 30)
+    #expect(cube.scroll.columnHeaderHeight == 40)
+    #expect(cube.scroll.comparisonRowHeight == 44)
+
+    let settledUpdates = overlayUpdates
+    for _ in 0..<120 { cube.scroll.update(frames: frames, height: 700) }
+    #expect(overlayUpdates == settledUpdates)
+    cube.position = 1
+    #expect(cubeUpdates == 1, "Cube animations must still notify their own observers")
+
+    cube.scroll.reset()
+    #expect(cube.scroll.rank == nil)
+    #expect(cube.scroll.sourceTabsOffset == 0)
+    #expect(!cube.scroll.canReturnToTop)
+}
+
+@Test @MainActor func comparisonScrollKeepsTopAndVariableRowHeightsWhenReturning() {
+    let scroll = LeaderboardCubeScrollState()
+    scroll.update(frames: [0: LeaderboardRankFrame(minY: -100, maxY: 1200),
+        -1: LeaderboardRankFrame(minY: 0, maxY: 48),
+        1: LeaderboardRankFrame(minY: -50, maxY: 30),
+        2: LeaderboardRankFrame(minY: 30, maxY: 110)], height: 700)
+    #expect(scroll.rank == 2 && scroll.canReturnToTop)
+    #expect(scroll.comparisonRowHeight == 80)
+    scroll.update(frames: [0: LeaderboardRankFrame(minY: 48, maxY: 1400)], height: 700)
+    #expect(scroll.rank == 0 && !scroll.canReturnToTop)
+    #expect(scroll.sourceTabsOffset == 0)
 }

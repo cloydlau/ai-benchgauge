@@ -4,6 +4,8 @@ Universal native SwiftUI app for iOS / iPadOS 17 or later. There is currently no
 
 The mobile interface follows the mini-program: the shared calligraphic title, subtitle help and model/company selector form an adaptive header; a floating glass category bar stays at the bottom. iPhone and narrow iPad windows switch the two boards with the existing cube gesture. The source selector stays outside the rotating faces and scrolls away with their content. Wide iPad windows retain side-by-side boards. The first entrance reveal yields immediately to interaction and respects Reduce Motion.
 
+Country flags and model source symbols are tappable: a native popover spells out the localized country name or Open / Closed / Unknown status. Tap outside to dismiss it. Image exports retain the plain symbols.
+
 All eight leaderboards share one country filter and one openness filter. Choices survive category/source changes and relaunch, and country options include the union of cached boards. Old per-board preferences migrate from the visible category; clearing a global filter takes precedence over older saved values. Models retain their source ranks. Company standings use the strongest matching model. A model-name tap copies its complete name; company names and scores open company score details.
 
 Cached rows remain visible during refresh. An uncached request shows table-shaped skeleton rows sized to fill the current viewport, including after rotation; a finished empty request shows the empty state. Each live board has one latest source/fetch timestamp and quiet automatic refresh. Existing shared-service refresh/contribution rules remain in place, and source failures keep the previous data and original timestamps.
@@ -61,6 +63,22 @@ Select the **BenchGauge** scheme and an iPhone or iPad simulator/device in Xcode
 Simulator checks cover portrait/landscape. Before distribution, also verify on a real iPhone and iPad in portrait and landscape, with large Dynamic Type, dark mode, offline relaunch, company details and screenshot copying. Confirm full-screen presentation on older systems and check system-controlled windowing on newer ones. A Mac compilation of the SwiftUI module is not a substitute for native mobile validation.
 
 ## Validation status
+
+### Shared mobile model search (2026-10-17)
+
+The model column heading has a search button. Its bounds anchor a 320 ms two-sided expansion to the entire header row while the original headings fade out; focus is delayed until expansion finishes. Reduce Motion skips the transition. Search filters existing model names locally with case, accent and width folding and whitespace-separated terms, intersecting the country/openness filters. Original ranks and the source's pre-search leading score remain unchanged, including exported pages.
+
+The query is shared across sources and categories for the current store session. Losing focus collapses the field without clearing the query. Pinned search fields have square corners. Company standings ignore the query and omit the control; returning to models restores it. Clear keeps editing, Cancel clears and collapses, and Clear filters also resets the query. Search does not issue requests or save preferences. Native interaction fixtures cover English/light, Chinese/dark, source/category/grouping changes, empty results, clear/cancel and filtering from a pinned header. Review evidence is kept in ignored `work/mobile-model-search/`.
+
+### Scroll update isolation and ProMotion (2026-10-17)
+
+The phone cube previously published its source-tab offset for every scroll geometry update, even after the offset had reached its 48-point limit. Both complete boards and the brand heading observed that object. Scroll geometry now lives in a separate object observed only by the source tabs and return-to-top overlay. Comparison rank and measured row/header heights remain current without publishing; unchanged offset and button visibility values no longer publish. The drag-axis gesture state is also written only when its direction changes.
+
+Inactive and rotating faces disable their controls as well as hit testing. Attribute hints dismiss when disabled, so a horizontal gesture that starts over a badge cannot leave a popover blocking the incoming board.
+
+The incoming board now aligns to the comparison rank when a horizontal drag begins, rather than waiting for face selection at the end. This prevents its initial source-tab spacer and metadata from appearing as a blank shaded band above the scrolled table during rotation. Native before/after recordings and the source-switch regression remain in ignored `work/ios-cube-tab-remnant/`.
+
+`CADisableMinimumFrameDurationOnPhone` enables refresh rates above the system default on ProMotion iPhones, following [Apple's guidance](https://developer.apple.com/documentation/quartzcore/optimizing-iphone-and-ipad-apps-to-support-promotion-displays). SwiftUI retains control of frame pacing; this does not force a fixed 120 Hz rate. Notification-count regression tests simulate 360 scroll geometry updates and verify that they do not invalidate the cube, while preserving comparison position, variable row heights and returning to the top. Simulator interaction checks and notification counts cannot establish frame pacing on the reported iPhone 17 Pro; real-device profiling remains necessary.
 
 ### Screenshot actions (2026-10-12)
 
@@ -139,3 +157,51 @@ Current local source snapshots, before/after native originals, build/test logs a
 On 2026-10-15, the final source passed an unsigned Release build for the physical-device SDK, a simulator test build, 17 Swift UI/store/rendering tests and 9 iOS build-script checks. The final `phone-final.xcresult` contains three passing tests for paginated preview/copy/save, top/scrolled source switching and swipe-versus-copy gestures; `pad-final.xcresult` contains four passing tests for the adaptive header/global filters/About, portrait/landscape skeleton coverage, paginated preview/permission feedback and Chinese model/company layouts. Earlier checks in the same work directory also passed complete rankings/return-to-top, footer reachability, combined filters, Reduced Motion and iPad company/country details. A stale test that tapped the scrolled-away selector was updated to use the swipe gesture, and the Chinese title's accessibility label was restored before the final reruns.
 
 Native originals were reviewed on iPhone 18 Pro (402 × 874 points, 3×) and iPad Pro 11-inch M5 (834 × 1210 points, 2×), iOS/iPadOS 27.0 with Xcode 27.0. Review covers light/dark headers, About/version alignment, full-viewport skeletons, long names, company layouts, source-switch positions and multi-page images. System menus/sheets and the paired wide-iPad layout are intentional native differences. Source hashes are recorded in `source-sha256.txt`; no physical-device or public-release verification is claimed.
+
+### Mobile spacing parity (2026-10-16)
+
+The mobile heading aligns the subtitle to the title's painted bottom edge while retaining its 44-point help target. Source tabs leave a 10-point gap before the card; metadata/column-heading spacing is tighter and source symbols use 14-point sizing. At the end of a ranking, reserved content space places the return-to-top control below the footer and above the bottom categories. Wide iPad overlays already sit inside the bottom safe area; the extended phone viewport includes that inset explicitly.
+
+Verified with Xcode 27.0 on iOS 27.0 simulators: iPhone 18 Pro at 3× and iPad Pro 11-inch (M5) at 2×. Four iPhone regressions (header/icons, footer reachability, source switching and landscape comparison) and two iPad regressions pass, with the landscape case passing separately in `landscape-verified.xcresult`. Earlier landscape runs exposed stale test gestures over the category bar and an offscreen-rank-1 assertion incompatible with lazy rows; those checks now finish scrolling within the clear viewport and wait for the preserved visible rows. Nine iOS build-script checks also pass. Source hashes, native originals, logs and result bundles remain in ignored `work/ios-spacing-20261016/`; this covers simulator rendering and interaction, not a physical-device or release review.
+
+### Cube projection containment (2026-10-16)
+
+Cube faces now share a fixed-size compositing group before the viewport clip. Native vertical scroll indicators are hidden while dragging, turning, entering, or holding a projected preview, then return when the face is flat. This keeps scroll chrome from becoming a stretched vertical edge during the turn. Debug-only `--cube-preview` accepts `BENCHGAUGE_UI_CUBE_POSITION` for repeatable intermediate poses; it consumes the entrance animation so vertical scrolling preserves the chosen pose.
+
+The native regression compares a blank strip immediately above the ranking viewport with the flat reference at multiple projected angles, before/after scrolling and in both themes; it also captures landscape. Static pre-fix previews did not reproduce the reported intermittent upward overflow. Originals and verification records stay in ignored `work/ios-cube-clipping-20261016/`.
+
+The final simulator build and both native regressions pass on iPhone 18 Pro / iOS 27.0 at 3× with Xcode 27.0. The interaction regression covers swipes, tabs, refresh, company details and country menus after turning. A native Simulator recording also covers both turn directions: 96 decoded sampled frames across the two turn windows leave the header guard strip unchanged, with no vertical intrusions. The recording, extracted frames, source hashes and `after.xcresult` are retained with the native originals; real-device frame timing remains unverified.
+
+### Source tab transitions (2026-10-16)
+
+The compact source selector now shares one sliding selection background. Its position, blue/purple fill and label colors use the mini-program's 320 ms cubic Bézier curve `(0.22, 0.7, 0.2, 1)`. Reduced Motion disables this selector animation. An opaque page-colored backing keeps the rotating cube's shading out of the stationary tabs while retaining their scroll-away behavior and touch targets.
+
+The final simulator build and both light/dark source-switch regressions pass on iPhone 18 Pro / iOS 27.0 at 3× with Xcode 27.0. These exercise taps in both directions, swipes and preserved scrolled ranks. The Reduced Motion swipe/button regression also passed before the final backing-only adjustment. Native recording frames were reviewed in both themes and directions: the selection moves between the labels, their colors interpolate, and cube shading stays behind the tabs. Sources, recordings, extracted frames and result bundles remain in ignored `work/ios-source-tabs-20261016/`, with final verification under `final/`. Physical-device animation timing remains unverified.
+
+### About page parity (2026-10-16)
+
+About now follows the mini-program's hero/version, sentence-separated description, quota lookup link, two-column source cards, engineering counters, independently expandable cost groups, estimated total and contribution/notices footer. The version retains painted-bottom alignment with the brand. Native sheet navigation, system symbols and the font license actually bundled by iOS remain platform-specific; dependency notices from the web runtime are not presented as iOS dependencies.
+
+Project preparation (`node Scripts/ios-project.mjs`, the build script, or local deployment preparation) generates and bundles `AboutContent.json` under ignored build output. It imports the mini-program's descriptions, source URLs, localized investment content and engineering counter implementation. CI fetches full history for those counters. Native code recalculates monthly token investment using the same start date, average month and rounding rule, leaving unaccounted costs excluded from the total. Shared About inputs also participate in native CI triggers and local deployment fingerprints.
+
+The final simulator test build, 29 targeted JavaScript checks and the Swift monthly-cost boundary test pass. Native About interaction tests pass on iPhone 18 Pro (3×) and iPad Pro 11-inch M5 (2×), iOS/iPadOS 27.0 with Xcode 27.0, covering Chinese/light and English/dark layouts, desktop/source/contribution link copying, expanded cost sections, totals, full license text and dismissal. Native originals were reviewed for those states; source hashes, generated content, logs and results stay in ignored `work/ios-about-20261016/`. The current mini-program runtime was inspected through DevTools; its window produced a small 93 × 200 reference, so layout matching also follows its WXML/CSS. Physical devices, landscape and large Dynamic Type for this page remain unverified.
+
+### Search keyboard and bottom categories (2026-10-17)
+
+The leaderboard root ignores the keyboard's bottom safe-area inset, so the keyboard covers the floating category bar instead of lifting it above the keys. Dismissing the keyboard reveals the bar at its original position. The search field, query filtering and subsequent category changes retain their existing behavior.
+
+A native baseline regression reproduced a 295-point upward shift on iPhone (category minY 774 → 479). After the fix, all four native UI regressions pass: English/light and Simplified Chinese/dark on iPhone 18 Pro and iPad Pro 11-inch (M5), iOS/iPadOS 27.0 with Xcode 27.0. Tests compare category positions within one point before/during/after keyboard presentation, keep search above the keyboard, submit a query and verify category switching after dismissal. Reviewed original simulator captures show the keyboard covering the bar and the restored bar after dismissal. Originals (phone 1206×2622 at 3×, iPad 1668×2420 at 2×), frozen sources, source hashes, logs and xcresult bundles remain under ignored `work/ios-keyboard-tabbar/`. This validates simulator behavior; physical devices, landscape and floating/split iPad keyboards were not covered in this run.
+
+### Pinned search horizontal insets (2026-10-17)
+
+Pinned native search fields use zero horizontal padding; ordinary fields retain their 8-point inset. The mini-program also removes the pinned open header's horizontal margin/padding and the search content's horizontal padding, preserving the ordinary 12rpx content inset. Page/card spacing remains unchanged.
+
+The existing iPhone pinned-header search UI regression passes on iPhone 18 Pro, iOS 27.0 (3×), covering query entry with the software keyboard, visible filtered results, submission and cancellation. Original simulator captures were reviewed. The mini-program build passes; DevTools confirms pinned header margin/padding and search padding are all zero, while ordinary search padding remains 6px at the 375-point viewport (12rpx). Before/after mini-program originals and native xcresult/screenshots remain in ignored `work/pinned-search-insets/`. Physical-device verification was not performed for this styling change.
+
+The follow-up `testSearchPaddingChangesOnlyAfterHeaderPins` compares the same iPhone search field before scrolling and after its header pins. It verifies both leading and trailing positions differ by exactly 8 points (±1), and passes against the existing conditional implementation without a UI code change. Original normal/pinned captures and xcresult are retained under ignored `work/search-padding-state/`. Mini-program runtime readback also confirms horizontal search padding transitions 6px → 0px → 6px when scrolling down and back to the top.
+
+### Pinned header vertical insets (2026-10-18)
+
+Pinned column headers redistribute the existing 12-point vertical inset from top 4/bottom 8 to top 6/bottom 6. The same measured pinned state controls the column labels and expanded search. Header height and ordinary 4/8 spacing remain unchanged; horizontal search padding still becomes zero only when pinned.
+
+The simulator build and existing horizontal search-padding UI regression pass on iPhone 18 Pro, iOS 27.0 (3×). Reviewed original search captures show normal and pinned spacing; logs, xcresult and originals remain under ignored `work/pinned-header-center/`. Two new centering tests compare header height and content centers in English/light and Chinese/dark, including expanded search. Their initial locator incorrectly expected an Other element; the native header is StaticText. The corrected type-independent locator has not completed its final rerun: it remained behind other native builds and was cancelled while queued. Those centering assertions, collapsed-header visual review, iPad and physical-device verification are not signed off by this local run.

@@ -84,6 +84,14 @@ final class AppState: ObservableObject {
     @Published private(set) var currentCodexModelConfiguration: CodexModelConfiguration?
     @Published private(set) var codexTaskCounts: CodexTaskCounts?
     @Published private(set) var codexDesktopRunning = false
+    @Published private(set) var showsCodexTaskStatus: Bool
+    var isCodexTaskStatusVisible: Bool { showsCodexTaskStatus && codexDesktopRunning }
+
+    func setShowsCodexTaskStatus(_ enabled: Bool) {
+        guard showsCodexTaskStatus != enabled else { return }
+        showsCodexTaskStatus = enabled
+        CodexTaskStatusPreference.save(enabled, to: defaults)
+    }
     private let codexTaskMonitor = CodexTaskMonitor()
     private var codexTaskRefresh: Task<Void, Never>?
     private var codexTaskWorkspaceObservers: [NSObjectProtocol] = []
@@ -136,6 +144,7 @@ final class AppState: ObservableObject {
         self.cache = cache
         self.defaults = defaults
         self.configuration = configuration
+        showsCodexTaskStatus = CodexTaskStatusPreference.load(from: defaults)
         claudeKeychainConsent = ClaudeKeychainConsentPreference.load(from: defaults)
         currentCodexModelConfiguration = CCSwitchProviderStore.currentCodexModelConfiguration()
         panelMode = PanelModePreference.load(from: defaults)
@@ -730,7 +739,8 @@ final class AppState: ObservableObject {
         }
     }
 
-    /// Forces a refresh-token exchange rather than relying on a quota request.
+    /// Requests renewal while CC Switch is stopped; otherwise defers without
+    /// rotating the token cached by its running proxy.
     /// Runs while the panel is hidden or Codex/user activity is idle. This task
     /// is separate from quotaTask so ordinary quota refresh cancellation cannot
     /// postpone renewal or interrupt saving a rotated token.

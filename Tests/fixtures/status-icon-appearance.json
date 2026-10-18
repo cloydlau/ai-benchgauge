@@ -27,7 +27,7 @@
       "language": "en",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarIconOnly",
+      "showsCodexTaskStatus": true, "scenario": "menuBarIconOnly",
       "codexDesktopRunning": false,
       "taskCounts": {
         "running": 4,
@@ -40,7 +40,7 @@
       "language": "en",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarIconText",
+      "showsCodexTaskStatus": true, "scenario": "menuBarIconText",
       "codexDesktopRunning": true,
       "taskCounts": {
         "running": 4,
@@ -53,7 +53,7 @@
       "language": "en",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarIconQuota",
+      "showsCodexTaskStatus": true, "scenario": "menuBarIconQuota",
       "codexDesktopRunning": false,
       "taskCounts": {
         "running": 4,
@@ -66,7 +66,7 @@
       "language": "zh",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarIconQuota",
+      "showsCodexTaskStatus": true, "scenario": "menuBarIconQuota",
       "codexDesktopRunning": false,
       "taskCounts": {
         "running": 4,
@@ -79,7 +79,7 @@
       "language": "en",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarIconHighlighted",
+      "showsCodexTaskStatus": true, "scenario": "menuBarIconHighlighted",
       "codexDesktopRunning": true,
       "taskCounts": {
         "running": 4,
@@ -92,7 +92,7 @@
       "language": "en",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarIconAppearance",
+      "showsCodexTaskStatus": true, "scenario": "menuBarIconAppearance",
       "codexDesktopRunning": true,
       "taskCounts": {
         "running": 4,
@@ -105,7 +105,7 @@
       "language": "en",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarIconLifecycle",
+      "showsCodexTaskStatus": true, "scenario": "menuBarIconLifecycle",
       "codexDesktopRunning": false,
       "taskCounts": {
         "running": 4,
@@ -119,7 +119,7 @@
       "language": "en",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarIconLifecycle",
+      "showsCodexTaskStatus": true, "scenario": "menuBarIconLifecycle",
       "codexDesktopRunning": true,
       "taskCounts": {
         "running": 4,

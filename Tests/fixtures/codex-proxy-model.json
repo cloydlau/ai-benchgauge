@@ -167,7 +167,7 @@
       "language": "en",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarProxyKimi",
+      "showsCodexTaskStatus": true, "scenario": "menuBarProxyKimi",
       "codexModel": "kimi-k3",
       "codexProvider": "custom",
       "codexBaseURL": "http://127.0.0.1:15721/v1"
@@ -177,7 +177,7 @@
       "language": "zh",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarProxyKimi",
+      "showsCodexTaskStatus": true, "scenario": "menuBarProxyKimi",
       "codexModel": "kimi-k3",
       "codexProvider": "custom",
       "codexBaseURL": "http://127.0.0.1:15721/v1"
@@ -187,7 +187,7 @@
       "language": "zh-Hant",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarProxyKimi",
+      "showsCodexTaskStatus": true, "scenario": "menuBarProxyKimi",
       "codexModel": "kimi-k3",
       "codexProvider": "custom",
       "codexBaseURL": "http://127.0.0.1:15721/v1"
@@ -197,7 +197,7 @@
       "language": "en",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarProxyKimiPending",
+      "showsCodexTaskStatus": true, "scenario": "menuBarProxyKimiPending",
       "codexModel": "kimi-k3",
       "codexProvider": "custom",
       "codexBaseURL": "http://127.0.0.1:15721/v1"
@@ -207,7 +207,7 @@
       "language": "zh",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarProxyKimiPending",
+      "showsCodexTaskStatus": true, "scenario": "menuBarProxyKimiPending",
       "codexModel": "kimi-k3",
       "codexProvider": "custom",
       "codexBaseURL": "http://127.0.0.1:15721/v1"
@@ -217,7 +217,7 @@
       "language": "zh-Hant",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarProxyKimiPending",
+      "showsCodexTaskStatus": true, "scenario": "menuBarProxyKimiPending",
       "codexModel": "kimi-k3",
       "codexProvider": "custom",
       "codexBaseURL": "http://127.0.0.1:15721/v1"
@@ -227,7 +227,7 @@
       "language": "en",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarProxyKimiReauth",
+      "showsCodexTaskStatus": true, "scenario": "menuBarProxyKimiReauth",
       "codexModel": "kimi-k3",
       "codexProvider": "custom",
       "codexBaseURL": "http://127.0.0.1:15721/v1"
@@ -237,7 +237,7 @@
       "language": "zh",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarProxyKimiReauth",
+      "showsCodexTaskStatus": true, "scenario": "menuBarProxyKimiReauth",
       "codexModel": "kimi-k3",
       "codexProvider": "custom",
       "codexBaseURL": "http://127.0.0.1:15721/v1"
@@ -247,7 +247,7 @@
       "language": "zh-Hant",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarProxyKimiReauth",
+      "showsCodexTaskStatus": true, "scenario": "menuBarProxyKimiReauth",
       "codexModel": "kimi-k3",
       "codexProvider": "custom",
       "codexBaseURL": "http://127.0.0.1:15721/v1"
@@ -257,7 +257,7 @@
       "language": "en",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarProxyAmbiguous",
+      "showsCodexTaskStatus": true, "scenario": "menuBarProxyAmbiguous",
       "codexModel": "kimi-k3",
       "codexProvider": "custom",
       "codexBaseURL": "http://127.0.0.1:15721/v1"
@@ -267,7 +267,7 @@
       "language": "zh",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarProxyAmbiguous",
+      "showsCodexTaskStatus": true, "scenario": "menuBarProxyAmbiguous",
       "codexModel": "kimi-k3",
       "codexProvider": "custom",
       "codexBaseURL": "http://127.0.0.1:15721/v1"
@@ -277,7 +277,7 @@
       "language": "zh-Hant",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarProxyAmbiguous",
+      "showsCodexTaskStatus": true, "scenario": "menuBarProxyAmbiguous",
       "codexModel": "kimi-k3",
       "codexProvider": "custom",
       "codexBaseURL": "http://127.0.0.1:15721/v1"
@@ -287,7 +287,7 @@
       "language": "en",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarProxyUnknown",
+      "showsCodexTaskStatus": true, "scenario": "menuBarProxyUnknown",
       "codexModel": "unknown-proxy-model",
       "codexProvider": "custom",
       "codexBaseURL": "http://127.0.0.1:15721/v1"
@@ -297,7 +297,7 @@
       "language": "zh",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarProxyUnknown",
+      "showsCodexTaskStatus": true, "scenario": "menuBarProxyUnknown",
       "codexModel": "unknown-proxy-model",
       "codexProvider": "custom",
       "codexBaseURL": "http://127.0.0.1:15721/v1"
@@ -307,7 +307,7 @@
       "language": "zh-Hant",
       "width": 420,
       "height": 22,
-      "scenario": "menuBarProxyUnknown",
+      "showsCodexTaskStatus": true, "scenario": "menuBarProxyUnknown",
       "codexModel": "unknown-proxy-model",
       "codexProvider": "custom",
       "codexBaseURL": "http://127.0.0.1:15721/v1"

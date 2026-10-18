@@ -12,6 +12,8 @@ enum DebugFixtures {
         let name = "ai-benchgauge-ui-tests"
         let defaults = UserDefaults(suiteName: name)!
         defaults.removePersistentDomain(forName: name)
+        // Set the initial preference without overriding subsequent menu choices.
+        defaults.set(arguments.contains("--dark") ? "dark" : "light", forKey: "mobileAppearance")
         let language: AppLanguage = arguments.contains("--preview-zh") ? .chinese : .english
         language.save(to: defaults)
         if arguments.contains("--preview-companies") { GroupingPreference.save(.company, to: defaults) }

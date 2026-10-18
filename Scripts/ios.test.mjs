@@ -108,6 +108,7 @@ test('iPad uses one full-screen scene with rotation and respects newer system wi
   assert.match(info, /<key>UIRequiresFullScreen<\/key>\s*<true\/>/)
   assert.match(info, /<key>UIRequiresFullScreenIgnoredStartingWithVersion<\/key>\s*<string>26<\/string>/)
   assert.match(info, /<key>UIApplicationSupportsMultipleScenes<\/key>\s*<false\/>/)
+  assert.match(info, /<key>CADisableMinimumFrameDurationOnPhone<\/key>\s*<true\/>/)
   assert.ok(!info.includes('NSAppTransportSecurity'))
 })
 
@@ -134,10 +135,13 @@ test('iPhone, iPad and desktop source copy uses the shared presentation rules', 
   assert.ok(desktopLenses.includes('LeaderboardPresentation.explanation(kind'))
   assert.ok(!desktopLenses.includes('language.text('))
   const ui = readFileSync(new URL('../apps/ios/UI/LeaderboardPadView.swift', import.meta.url), 'utf8')
-  for (const method of ['title', 'sourceSummary', 'sourceHelp']) {
+  for (const method of ['title', 'sourceHelp']) {
     assert.ok(desktop.includes(`LeaderboardPresentation.${method}(`))
     assert.ok(ui.includes(`LeaderboardPresentation.${method}(`))
   }
+  // Source summaries remain in the mobile presentation. Desktop keeps the
+  // shared titles/help without the extra summary and timestamp row.
+  assert.ok(ui.includes('LeaderboardPresentation.sourceSummary('))
   assert.ok(ui.includes('store.language.appName'))
   assert.ok(!ui.includes('获取于'))
   assert.ok(!ui.includes('"Fetched"'))

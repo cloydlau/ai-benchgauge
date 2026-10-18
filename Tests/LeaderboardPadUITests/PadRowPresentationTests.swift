@@ -3,6 +3,51 @@ import Testing
 import LeaderboardKit
 @testable import LeaderboardPadUI
 
+@MainActor @Test func modelSearchIsSharedAcrossBoardsAndCategoriesButNeverFiltersCompanies() throws {
+    let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let cache = LeaderboardCache(fileURL: directory.appending(path: "boards.json"))
+    let entries = [
+        LeaderboardEntry(rank: 1, name: "Leader", score: 100, organization: "Alpha Labs", openness: .closed),
+        LeaderboardEntry(rank: 2, name: "Alpha Pro", score: 80, organization: "Maker One", openness: .open),
+        LeaderboardEntry(rank: 3, name: "Alpha Mini", score: 70, organization: "Maker Two", openness: .closed),
+    ]
+    cache.save(LeaderboardSnapshot(boards: Dictionary(uniqueKeysWithValues: LeaderboardKind.allCases.map {
+        ($0, Leaderboard(kind: $0, title: "Fixture", entries: entries))
+    })))
+    let suite = UUID().uuidString
+    let defaults = try #require(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let store = LeaderboardPadStore(defaults: defaults, cache: cache)
+    let initial = store.rowPresentation(for: .artificialAnalysis)
+    store.modelSearchQuery = " ALPHA pro "
+    store.modelSearchPresented = true
+    for kind in LeaderboardKind.allCases {
+        let rows = store.rowPresentation(for: kind)
+        #expect(rows.rows.map(\.rank) == [2])
+        #expect(rows.leaderScore == 100)
+        #expect(rows.page(0..<1).leaderScore == 100)
+    }
+    #expect(initial !== store.rowPresentation(for: .artificialAnalysis))
+    let searched = store.rowPresentation(for: .arenaText)
+    store.selectedSource = 1
+    store.category = .coding
+    #expect(store.modelSearchQuery == " ALPHA pro ")
+    #expect(store.modelSearchPresented)
+    #expect(searched === store.rowPresentation(for: .arenaText))
+    store.grouping = .company
+    #expect(store.rowPresentation(for: .arenaText).rows.count == 3)
+    store.grouping = .model
+    #expect(store.rowPresentation(for: .arenaText).rows.map(\.rank) == [2])
+    store.modelSearchQuery = "Alpha"
+    store.setOpennessFilter(.closed, for: .arenaText)
+    #expect(store.rowPresentation(for: .arenaText).rows.map(\.rank) == [3])
+    store.modelSearchQuery = "Maker"
+    #expect(store.rowPresentation(for: .arenaText).rows.isEmpty)
+    store.modelSearchQuery = ""
+    #expect(store.rowPresentation(for: .arenaText).rows.map(\.rank) == [1, 3])
+}
+
 @MainActor @Test func longBoardPresentationIsReusedUntilDataOrFiltersChange() throws {
     let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: directory) }

@@ -32,7 +32,7 @@
       "language": "en",
       "width": 420,
       "height": 24,
-      "scenario": "menuBarPresence",
+      "showsCodexTaskStatus": true, "scenario": "menuBarPresence",
       "codexDesktopRunning": false,
       "taskCounts": null
     },
@@ -41,7 +41,7 @@
       "language": "zh",
       "width": 420,
       "height": 24,
-      "scenario": "menuBarPresence",
+      "showsCodexTaskStatus": true, "scenario": "menuBarPresence",
       "codexDesktopRunning": false,
       "taskCounts": null
     },
@@ -50,7 +50,7 @@
       "language": "en",
       "width": 420,
       "height": 24,
-      "scenario": "menuBarPresence",
+      "showsCodexTaskStatus": true, "scenario": "menuBarPresence",
       "codexDesktopRunning": false,
       "taskCounts": {
         "running": 0,
@@ -63,7 +63,7 @@
       "language": "zh",
       "width": 420,
       "height": 24,
-      "scenario": "menuBarPresence",
+      "showsCodexTaskStatus": true, "scenario": "menuBarPresence",
       "codexDesktopRunning": false,
       "taskCounts": {
         "running": 0,
@@ -76,7 +76,7 @@
       "language": "en",
       "width": 420,
       "height": 24,
-      "scenario": "menuBarPresence",
+      "showsCodexTaskStatus": true, "scenario": "menuBarPresence",
       "codexDesktopRunning": true,
       "taskCounts": {
         "running": 3,
@@ -90,7 +90,7 @@
       "language": "zh",
       "width": 420,
       "height": 24,
-      "scenario": "menuBarPresence",
+      "showsCodexTaskStatus": true, "scenario": "menuBarPresence",
       "codexDesktopRunning": true,
       "taskCounts": {
         "running": 3,
@@ -104,7 +104,7 @@
       "language": "en",
       "width": 420,
       "height": 24,
-      "scenario": "menuBarPresence",
+      "showsCodexTaskStatus": true, "scenario": "menuBarPresence",
       "codexDesktopRunning": false,
       "taskCounts": {
         "running": 0,
@@ -118,7 +118,7 @@
       "language": "zh",
       "width": 420,
       "height": 24,
-      "scenario": "menuBarPresence",
+      "showsCodexTaskStatus": true, "scenario": "menuBarPresence",
       "codexDesktopRunning": false,
       "taskCounts": {
         "running": 0,
@@ -132,7 +132,7 @@
       "language": "en",
       "width": 420,
       "height": 24,
-      "scenario": "menuBarPresence",
+      "showsCodexTaskStatus": true, "scenario": "menuBarPresence",
       "codexDesktopRunning": true,
       "taskCounts": null
     },
@@ -141,7 +141,7 @@
       "language": "zh",
       "width": 420,
       "height": 24,
-      "scenario": "menuBarPresence",
+      "showsCodexTaskStatus": true, "scenario": "menuBarPresence",
       "codexDesktopRunning": true,
       "taskCounts": null
     },
@@ -150,7 +150,7 @@
       "language": "en",
       "width": 420,
       "height": 24,
-      "scenario": "menuBarPresenceIconOnly",
+      "showsCodexTaskStatus": true, "scenario": "menuBarPresenceIconOnly",
       "codexDesktopRunning": false,
       "taskCounts": null
     },
@@ -159,7 +159,7 @@
       "language": "zh",
       "width": 420,
       "height": 24,
-      "scenario": "menuBarPresenceIconOnly",
+      "showsCodexTaskStatus": true, "scenario": "menuBarPresenceIconOnly",
       "codexDesktopRunning": false,
       "taskCounts": null
     }

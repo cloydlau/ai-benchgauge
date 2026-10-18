@@ -12,6 +12,10 @@ public final class LeaderboardPadStore: ObservableObject {
     @Published public var appearance: String { didSet { defaults.set(appearance, forKey: "mobileAppearance") } }
     @Published public var selectedSource: Int { didSet { defaults.set(selectedSource, forKey: "mobileSelectedSource") } }
     @Published public var language: AppLanguage { didSet { rowPresentations.removeAll(); language.save(to: defaults) } }
+    // One transient model filter follows every source/category. Companies ignore it.
+    @Published public var modelSearchQuery = "" { didSet { rowPresentations.removeAll() } }
+    @Published public var modelSearchPresented = false
+    @Published public var modelSearchEditing = false
     @Published private var filters: [LeaderboardKind: LeaderboardCountryFilter] = [:]
     @Published private var opennessFilters: [LeaderboardKind: LeaderboardOpennessFilter] = [:]
     private var attempts: [LeaderboardKind: Date] = [:]
@@ -24,7 +28,7 @@ public final class LeaderboardPadStore: ObservableObject {
     func rowPresentation(for kind: LeaderboardKind) -> PadRowPresentation {
         if let cached = rowPresentations[kind] { return cached }
         let value = PadRowPresentation(board: snapshot.boards[kind], grouping: grouping,
-            country: countryFilter(for: kind), openness: opennessFilter(for: kind), language: language)
+            country: countryFilter(for: kind), openness: opennessFilter(for: kind), language: language, modelQuery: modelSearchQuery)
         rowPresentations[kind] = value
         return value
     }
@@ -84,6 +88,7 @@ public final class LeaderboardPadStore: ObservableObject {
         selectedSource = source.selectedSource
         filters = source.filters
         opennessFilters = source.opennessFilters
+        modelSearchQuery = source.modelSearchQuery
     }
     public func countryFilter(for kind: LeaderboardKind) -> LeaderboardCountryFilter { filters[kind] ?? .all }
     public func opennessFilter(for kind: LeaderboardKind) -> LeaderboardOpennessFilter { opennessFilters[kind] ?? .all }

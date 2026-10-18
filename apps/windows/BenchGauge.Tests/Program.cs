@@ -6,6 +6,20 @@ using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Security;
 
+foreach (var sample in new[] {
+    (Score: 100d, Leader: 100d, Expected: 1d), (50, 100, 0.5), (99.6, 100, 0.996), (0, 100, 0),
+    (120, 100, 1), (1, 0, 1), (-1, 100, 1), (double.NaN, 100, 1),
+    (double.PositiveInfinity, 100, 1), (1, double.PositiveInfinity, 1), (1, double.NaN, 1) })
+    if (ScoreShare.FillRatio(sample.Score, sample.Leader) != sample.Expected)
+        throw new Exception("Incorrect score background ratio");
+
+foreach (var sample in new[] {
+    (Score: 56d, Leader: 57.6d, Expected: "97%"), (97.5, 100, "98%"), (0, 100, "0%"),
+    (100, 100, ""), (99.6, 100, ""), (101, 100, ""), (1, 0, ""), (-1, 100, ""),
+    (double.NaN, 100, ""), (1, double.PositiveInfinity, ""), (double.PositiveInfinity, 1, "") })
+    if (ScoreShare.Format(sample.Score, sample.Leader) != sample.Expected)
+        throw new Exception("Incorrect score share");
+
 foreach (var code in new[] { "CN", "HK", "MO", "TW", " hk ", "mo", "tw", "HKG", "MAC", "TWN", "Hong Kong", "Macao", "Macau", "Taiwan", "香港", "澳门", "澳門", "台湾", "台灣", "臺灣" })
 {
     var saved = JsonSerializer.Deserialize<Preferences>(JsonSerializer.Serialize(new { countries = new { arenaText = code } }), AppConfig.Json)!;

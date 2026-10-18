@@ -2,6 +2,37 @@ import Foundation
 import Testing
 import LeaderboardKit
 
+@Test func modelNameSearchFoldsCaseAccentsWidthAndWhitespaceWithoutLookingAtProviders() {
+    #expect(LeaderboardPresentation.modelNameMatches("Café Ａlpha 中文模型", query: "  CAFE alpha 中文 "))
+    #expect(!LeaderboardPresentation.modelNameMatches("Alpha Mini", query: "alpha pro"))
+    #expect(LeaderboardPresentation.modelNameMatches("Anything", query: " \n "))
+    let entries = [LeaderboardEntry(rank: 1, name: "Unrelated", score: 100, organization: "Alpha Labs"),
+                   LeaderboardEntry(rank: 4, name: "Alpha Pro", score: 90, organization: "Other Labs")]
+    let board = Leaderboard(kind: .arenaText, title: "Fixture", entries: entries)
+    #expect(LeaderboardPresentation.rows(board, grouping: .model, filter: .all, modelQuery: "alpha").map(\.rank) == [4])
+    #expect(LeaderboardPresentation.rows(board, grouping: .company, filter: .all, modelQuery: "no match").count == 2)
+}
+
+@Test func scoreSharesUseRoundedRatiosAndHideUnusableOrLeadingScores() {
+    for (score, leader, expected): (Double, Double?, String) in [
+        (56, 57.6, "97%"), (97.5, 100, "98%"), (0, 100, "0%"),
+        (100, 100, ""), (99.6, 100, ""), (101, 100, ""), (1, 0, ""),
+        (-1, 100, ""), (.nan, 100, ""), (1, .infinity, ""), (.infinity, 1, ""), (1, nil, "")
+    ] {
+        #expect(LeaderboardPresentation.scoreShareText(score, leaderScore: leader) == expected)
+    }
+}
+
+@Test func scoreBackgroundsUseExactBoundedRatiosAndKeepInvalidBaselinesFull() {
+    for (score, leader, expected): (Double, Double?, Double) in [
+        (100, 100, 1), (50, 100, 0.5), (99.6, 100, 0.996), (0, 100, 0),
+        (120, 100, 1), (1, 0, 1), (1, nil, 1), (-1, 100, 1),
+        (.nan, 100, 1), (.infinity, 100, 1), (1, .infinity, 1), (1, .nan, 1)
+    ] {
+        #expect(LeaderboardPresentation.scoreFillRatio(score, leaderScore: leader) == expected)
+    }
+}
+
 @Test func sourceHelpKeepsTheSameExplanationAcrossCompactAndDetailedViews() {
     let date = Date(timeIntervalSince1970: 1_700_000_000)
     for kind in LeaderboardKind.allCases {

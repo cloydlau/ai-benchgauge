@@ -202,6 +202,7 @@ static class VisualTests
     {
         ("en", "登录失效") => "Login expired", ("en", "查询中") => "Checking",
         ("en", "查询失败") => "Query failed", ("zh-Hant", "查询失败") => "查詢失敗",
+        ("en", "未订购") => "Not subscribed", ("zh-Hant", "未订购") => "未訂購",
         ("en", " · 至11月18日") => " · to Nov 18", ("zh-Hant", " · 至11月18日") => " · 至11月18日",
         ("en", "未配置") => "Not configured", ("zh-Hant", "登录失效") => "登錄失效",
         ("en", "至10月5日") => "to Oct 5", ("en", "至10月24日") => "to Oct 24",
