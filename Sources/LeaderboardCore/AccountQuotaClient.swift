@@ -241,7 +241,7 @@ public actor AccountQuotaClient {
     private let qwenQuotaSource: any QwenQuotaSource
     private let officialQuotaSource: (any OfficialAccountQuotaSource)?
     private let now: @Sendable () -> Date
-    private let xaiTokens = XAIAccessTokens()
+    private let xaiTokens: XAIAccessTokens
     private let xaiSubscriptionDateStore: XAISubscriptionDateStore
     private let openAIPlanExpiryStore: OpenAIPlanExpiryStore
     private var lastGoodXAISubscriptionDatesByAccountID: [String: Date] = [:]
@@ -253,13 +253,19 @@ public actor AccountQuotaClient {
         officialQuotaSource: (any OfficialAccountQuotaSource)? = nil,
         now: @escaping @Sendable () -> Date = { Date() },
         xaiSubscriptionDateStore: XAISubscriptionDateStore? = nil,
-        openAIPlanExpiryStore: OpenAIPlanExpiryStore? = nil
+        openAIPlanExpiryStore: OpenAIPlanExpiryStore? = nil,
+        xaiRefreshAllowed: (@Sendable () -> Bool)? = nil
     ) {
         self.transport = transport
         self.authFileURL = authFileURL
         self.qwenQuotaSource = qwenQuotaSource
         self.officialQuotaSource = officialQuotaSource
         self.now = now
+        if let xaiRefreshAllowed {
+            self.xaiTokens = XAIAccessTokens(refreshAllowed: xaiRefreshAllowed)
+        } else {
+            self.xaiTokens = XAIAccessTokens()
+        }
         self.openAIPlanExpiryStore = openAIPlanExpiryStore ?? (authFileURL == XaiAuthFile.defaultURL
             ? OpenAIPlanExpiryStore()
             : OpenAIPlanExpiryStore(fileURL: authFileURL.appendingPathExtension("openai-plan-expiry.json")))
@@ -334,7 +340,7 @@ public actor AccountQuotaClient {
         return targets.compactMap { byID[$0.id] }
     }
 
-    /// Rotates the selected xAI login without querying its billing API. The
+    /// Rotates the selected xAI login only while CC Switch is stopped. The
     /// scheduler uses the returned outcome to distinguish a renewed login from
     /// a transient failure that should be retried.
     public func keepAliveXAI(authFileURL: URL? = nil) async throws -> XAIOAuthKeepAliveOutcome {
@@ -496,6 +502,16 @@ public actor AccountQuotaClient {
             return chip(target, target.accessToken != nil && [401, 403].contains(response.statusCode) ? .reauth : reason)
         case nil:
             break
+        }
+        // With an expired Kimi Code plan, the authenticated usages endpoint
+        // returns HTTP 200 with {}. Only this observed response means no plan;
+        // an unparseable body or an HTTP authentication failure is not evidence.
+        if target.kind == .kimi, response.statusCode == 200,
+           let body = try? JSONSerialization.jsonObject(with: response.body) as? [String: Any],
+           body.isEmpty {
+            return AccountQuotaChip(id: target.id, shortName: target.shortName, modelName: target.modelName,
+                websiteURL: target.websiteURL, kind: target.kind, isCurrent: target.isCurrent,
+                status: .note(text: AccountQuotaMessage.kimiNoCodingPlan, help: AccountQuotaMessage.kimiNoCodingPlanHelp))
         }
         let parsed: ProviderQuotaParseResult
         switch target.kind {
@@ -886,9 +902,13 @@ actor XAIAccessTokens {
     }
 
     private let rotateRefreshToken: @Sendable (URL, String, String, String) -> Bool
+    private let refreshAllowed: @Sendable () -> Bool
     init(rotateRefreshToken: @escaping @Sendable (URL, String, String, String) -> Bool = { url, account, old, new in
         XaiAuthFile.commitRefreshTokenReplacement(at: url, accountID: account, oldToken: old, newToken: new)
-    }) { self.rotateRefreshToken = rotateRefreshToken }
+    }, refreshAllowed: @escaping @Sendable () -> Bool = { !CCSwitchProcess.isRunning() }) {
+        self.rotateRefreshToken = rotateRefreshToken
+        self.refreshAllowed = refreshAllowed
+    }
 
     private var cached: CachedToken?
     private var tokenEndpoint: URL?
@@ -1018,6 +1038,9 @@ actor XAIAccessTokens {
         authFileURL: URL,
         now: Date
     ) async throws -> XAITokenResult {
+        // A temporary deferral uses the existing transient-failure path: keep
+        // last-good quota data stale and retry, never prompt for a new login.
+        guard refreshAllowed() else { return .failure(.network) }
         if let inFlightRefresh {
             let result = try await inFlightRefresh.task.value
             if inFlightRefresh.account == account, inFlightRefresh.url == authFileURL { return result }
@@ -1051,6 +1074,12 @@ actor XAIAccessTokens {
             return .failure(reason)
         }
 
+        // Discovery suspends this actor. CC Switch may have started or changed
+        // the file in the meantime; do not send the earlier token snapshot.
+        guard refreshAllowed(),
+              case let .account(current) = Self.readLogin(at: authFileURL), current == account else {
+            return .failure(.network)
+        }
         var request = URLRequest(url: endpoint, timeoutInterval: 15)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")

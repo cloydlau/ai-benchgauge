@@ -170,7 +170,7 @@ struct OpenAIConnectionTests {
 
     @Test
     func testManagedQuotaIncludesMatchingAccountExpiryUsingTheRefreshedProfileToken() async throws {
-        let transport = OpenAIPlanExpiryTransport(body: Data(#"{"accounts":{"other-account":{"entitlement":{"expires_at":"2026-10-01T00:00:00Z"}},"original-account":{"entitlement":{"expires_at":"2026-10-24T00:00:00Z","renews_at":"2026-10-15T00:00:00Z"}}}}"#.utf8))
+        let transport = OpenAIPlanExpiryTransport(body: Data(#"{"accounts":{"other-account":{"entitlement":{"has_active_subscription":true,"expires_at":"2026-10-01T00:00:00Z"}},"original-account":{"entitlement":{"has_active_subscription":true,"expires_at":"2026-10-24T00:00:00Z","renews_at":"2026-10-15T00:00:00Z"}}}}"#.utf8))
         let (root, source, rpc) = try await fixture(transport: transport)
         defer { try? FileManager.default.removeItem(at: root) }
         let attempt = try await source.startLogin(for: target())
@@ -198,7 +198,7 @@ struct OpenAIConnectionTests {
     func testManagedExpirySurvivesTemporaryFailureAndAppRestart() async throws {
         let end = Date(timeIntervalSince1970: floor(Date().timeIntervalSince1970) + 86_400)
         let body = try JSONSerialization.data(withJSONObject: ["accounts": ["original-account":
-            ["entitlement": ["expires_at": end.timeIntervalSince1970]]]])
+            ["entitlement": ["has_active_subscription": true, "expires_at": end.timeIntervalSince1970]]]])
         let transport = OpenAIPlanExpiryTransport(body: body)
         let (root, source, rpc) = try await fixture(transport: transport)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -220,7 +220,7 @@ struct OpenAIConnectionTests {
     func testManagedQuotaKeepsUsageWhenExpiryIsUnavailableAndNeverUsesRenewalOrAnotherAccount() async throws {
         let scenarios: [(Int, Data)] = [
             (200, Data(#"{"accounts":{"original-account":{"entitlement":{"renews_at":"2026-10-24T00:00:00Z"}}}}"#.utf8)),
-            (200, Data(#"{"accounts":{"other-account":{"entitlement":{"expires_at":"2026-10-24T00:00:00Z"}}}}"#.utf8)),
+            (200, Data(#"{"accounts":{"other-account":{"entitlement":{"has_active_subscription":true,"expires_at":"2026-10-24T00:00:00Z"}}}}"#.utf8)),
             (200, Data("not-json".utf8)),
             (200, Data(repeating: 0, count: 1_048_577)),
             (401, Data()), (403, Data()), (500, Data()),

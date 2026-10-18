@@ -6,6 +6,19 @@ import CryptoKit
 import CPlatformSupport
 #endif
 
+/// Explicitly opt in to the desktop menu-bar task projection.
+public enum CodexTaskStatusPreference {
+    public static let userDefaultsKey = "AIBenchGauge.showsCodexTaskStatus"
+
+    public static func load(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: userDefaultsKey)
+    }
+
+    public static func save(_ enabled: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: userDefaultsKey)
+    }
+}
+
 public struct CodexTaskCounts: Equatable, Sendable, Codable {
     public var running: Int
     public var unread: Int

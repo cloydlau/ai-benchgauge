@@ -99,6 +99,8 @@ public enum GLMQuotaRecoveryAction: Sendable {
 public enum AccountQuotaMessage {
     public static let querying = "查询中"
     public static let queryFailed = "查询失败"
+    public static let kimiNoCodingPlan = "未订购"
+    public static let kimiNoCodingPlanHelp = "Kimi Code 未返回有效套餐额度；套餐可能已过期或未订购，请检查套餐与 Key 所属账号。"
     public static let glmNoCodingPlan = "未订购"
     public static let glmNoCodingPlanHelp = "套餐可能已过期或未订购；请在 CC Switch 检查 GLM Key 与套餐账号。"
     public static let glmConfigurationHelp = "点击打开 CC Switch，检查 GLM Key 与 Coding Plan 套餐账号；修改后重新打开本面板刷新余量。"
@@ -657,12 +659,13 @@ public enum AccountQuotaFormatting {
     }
 
     /// Plans with remaining quota, funded metered balances, exhausted plans,
-    /// explicitly unsubscribed plans, depleted metered balances, then pending
-    /// queries (in stored order regardless of provider/current selection). Unknown
-    /// amounts are not evidence of a zero balance. Within plan groups, soonest
-    /// expiry comes first. A chip sorts by the expiry its card shows: the plan
-    /// end when there is one, otherwise a monthly quota reset. Shorter usage
-    /// resets are not subscription deadlines. Missing expiry sorts after dated
+    /// explicitly unsubscribed plans, depleted metered balances, unavailable
+    /// results, then pending queries (in stored order regardless of provider/current
+    /// selection). Failures and missing data do not establish usable quota or a
+    /// zero balance, so they cannot inherit the provider’s normal billing group.
+    /// Within plan groups, soonest expiry comes first. A chip sorts by the expiry its card shows: the plan
+    /// end when there is one, otherwise a monthly quota reset for non-OpenAI
+    /// providers. OpenAI usage resets are not subscription deadlines. Missing expiry sorts after dated
     /// plans, ties keep the stored order, and the current provider is not
     /// pinned.
     public static func sortedChips(_ chips: [AccountQuotaChip]) -> [AccountQuotaChip] {
@@ -681,18 +684,22 @@ public enum AccountQuotaFormatting {
     }
 
     private static func billingPriority(_ chip: AccountQuotaChip) -> Int {
-        if case .pending = chip.status { return 5 }
+        // Classify unavailable results before provider kind, otherwise a failed
+        // plan looks usable and a failed wallet looks funded.
+        switch chip.status {
+        case .pending: return 6
+        case let .note(text, _), let .message(text):
+            return text == AccountQuotaMessage.glmNoCodingPlan ? 3 : 5
+        case let .windows(windows) where windows.isEmpty: return 5
+        case let .balances(balances) where balances.isEmpty: return 5
+        default: break
+        }
         if isPayAsYouGo(chip) {
             if case let .balances(balances) = chip.status, !balances.isEmpty,
                balances.allSatisfy({ $0.amount.isFinite && $0.amount <= 0 }) {
                 return 4
             }
             return 1
-        }
-        switch chip.status {
-        case let .note(text, _), let .message(text):
-            if text == AccountQuotaMessage.glmNoCodingPlan { return 3 }
-        default: break
         }
         // A plan with no quota left is unusable right now, so it sorts after
         // metered balances that still have funds.
@@ -715,7 +722,7 @@ public enum AccountQuotaFormatting {
     private static func chipExpiry(_ chip: AccountQuotaChip) -> Date? {
         switch chip.status {
         case let .windows(windows):
-            return windowPeriodEnd(windows)
+            return windowPeriodEnd(windows, kind: chip.kind)
         case let .qwenPlan(plan):
             return plan.expiresAt
         case let .qwenWebsite(quota):
@@ -753,7 +760,7 @@ public enum AccountQuotaFormatting {
         case let .message(text):
             return [QuotaTextRun(text: text, tone: .orange)]
         case let .windows(windows):
-            let runs = windowRuns(windows, now: now)
+            let runs = windowRuns(windows, kind: chip.kind, now: now)
             if runs.isEmpty {
                 return [QuotaTextRun(text: AccountQuotaMessage.queryFailed, tone: .orange)]
             }
@@ -870,8 +877,11 @@ public enum AccountQuotaFormatting {
         windows.first(where: { $0.name == ParsedQuotaWindow.planExpiryName })
     }
 
-    private static func windowPeriodEnd(_ windows: [ParsedQuotaWindow]) -> Date? {
-        planPeriodEnd(windows) ?? windows.first(where: { $0.name == "monthly" })?.resetsAt
+    private static func windowPeriodEnd(_ windows: [ParsedQuotaWindow], kind: CCSwitchQuotaKind) -> Date? {
+        if let end = planPeriodEnd(windows) { return end }
+        // A GPT usage reset must never replace a missing subscription boundary.
+        guard kind != .officialNote else { return nil }
+        return windows.first(where: { $0.name == "monthly" })?.resetsAt
     }
 
     private static func remainingPercent(utilization: Double) -> Double {
@@ -942,7 +952,7 @@ public enum AccountQuotaFormatting {
         return formatter.string(from: date)
     }
 
-    private static func windowRuns(_ windows: [ParsedQuotaWindow], now: Date) -> [QuotaTextRun] {
+    private static func windowRuns(_ windows: [ParsedQuotaWindow], kind: CCSwitchQuotaKind, now: Date) -> [QuotaTextRun] {
         var runs: [QuotaTextRun] = []
         for window in orderedUsageWindows(windows) {
             appendSeparator(&runs)
@@ -959,7 +969,7 @@ public enum AccountQuotaFormatting {
             } else {
                 runs.append(contentsOf: periodEndRuns(until: end, now: now))
             }
-        } else if let end = windowPeriodEnd(windows) {
+        } else if let end = windowPeriodEnd(windows, kind: kind) {
             appendSeparator(&runs)
             runs.append(contentsOf: periodEndRuns(until: end, now: now))
         }

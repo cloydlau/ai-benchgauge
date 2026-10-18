@@ -1,7 +1,27 @@
 #include "PlatformSupport.h"
 #ifdef _WIN32
 #include <windows.h>
+#include <tlhelp32.h>
+#include <wchar.h>
 #include <bcrypt.h>
+int bg_ccswitch_running(void) {
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snapshot == INVALID_HANDLE_VALUE) return 1;
+    PROCESSENTRY32W entry = {0};
+    entry.dwSize = sizeof(entry);
+    int running = 1;
+    if (Process32FirstW(snapshot, &entry)) {
+        do {
+            if (_wcsicmp(entry.szExeFile, L"cc-switch.exe") == 0) {
+                CloseHandle(snapshot);
+                return 1;
+            }
+        } while (Process32NextW(snapshot, &entry));
+        running = GetLastError() == ERROR_NO_MORE_FILES ? 0 : 1;
+    }
+    CloseHandle(snapshot);
+    return running;
+}
 int bg_sha256(const uint8_t *bytes, int32_t length, uint8_t result[32]) {
     if (length < 0) return 0;
     BCRYPT_ALG_HANDLE algorithm = NULL;
@@ -36,6 +56,7 @@ int bg_file_status(const char *path) {
     return attributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT) ? 2 : 1;
 }
 #else
+int bg_ccswitch_running(void) { return 1; }
 void *bg_lock_file(const char *path) { return NULL; }
 void bg_unlock_file(void *handle) {}
 int bg_file_status(const char *path) { return -1; }

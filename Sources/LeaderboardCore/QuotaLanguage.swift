@@ -35,6 +35,7 @@ public extension AppLanguage {
             "未登录": "Not signed in", "网络错误": "Network error",
             "无可用余额": "No balance", "未连接": "Connect",
             AccountQuotaMessage.glmNoCodingPlan: "Not subscribed",
+            AccountQuotaMessage.kimiNoCodingPlanHelp: "Kimi Code returned no active plan quota. The plan may have expired or not been purchased; check the plan and the account owning the key.",
             AccountQuotaMessage.glmNoCodingPlanHelp: "The plan may have expired or not been purchased. Check the GLM key and subscription account in CC Switch.",
             AccountQuotaMessage.qwenNoPlanHelp: "The Qwen site shows no active individual plan. Check the plan and signed-in account.",
             AccountQuotaMessage.glmConfigurationHelp: "Click to open CC Switch and check the GLM key and Coding Plan account. Reopen this panel after changing the configuration to refresh usage.",

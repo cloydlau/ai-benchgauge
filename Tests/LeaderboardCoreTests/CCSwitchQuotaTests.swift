@@ -7,6 +7,80 @@ import LeaderboardCore
 import Testing
 
 struct CCSwitchQuotaCatalogTests {
+    @Test(arguments: [false, true])
+    func kimiExpiredPlanShowsNotSubscribedAndReplacesPreviousQuota(oauth: Bool) async throws {
+        let target = quotaTarget(id: "kimi", name: "Kimi", kind: .kimi,
+            key: oauth ? nil : "unit-test-key", current: true, accessToken: oauth ? "unit-test-oauth" : nil)
+        let transport = ScriptedQuotaTransport { request in
+            #expect(request.url?.absoluteString == "https://api.kimi.com/coding/v1/usages")
+            return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(" { \n } ".utf8))
+        }
+        let previous = AccountQuotaChip(id: target.id, shortName: target.shortName,
+            websiteURL: target.websiteURL, kind: .kimi, isCurrent: true,
+            status: .windows([ParsedQuotaWindow(name: "monthly", utilization: 40,
+                resetsAt: Date(timeIntervalSince1970: 1_792_166_400))]))
+        let chips = try await AccountQuotaClient(transport: transport).refresh(targets: [target], previous: [previous])
+        let chip = try #require(chips.first)
+        #expect(chip.status == .note(text: AccountQuotaMessage.kimiNoCodingPlan, help: AccountQuotaMessage.kimiNoCodingPlanHelp))
+        #expect(!chip.isStale)
+        #expect(chip.isCurrent)
+        #expect(AccountQuotaFormatting.plainSummary(for: chip, now: Date()) == "未订购")
+        #expect(AccountQuotaFormatting.isDimmed(chip))
+        #expect(!AccountQuotaFormatting.isExhausted(chip))
+        #expect(transport.requests.count == 1)
+        let metered = AccountQuotaChip(id: "metered", shortName: "DeepSeek", websiteURL: nil,
+            kind: .deepseek, isCurrent: false, status: .balances([ParsedBalance(currency: "CNY", amount: 1)]))
+        #expect(AccountQuotaFormatting.sortedChips([chip, metered]).map(\.id) == ["metered", "kimi"])
+        #expect(AppLanguage.english.quotaText(AccountQuotaMessage.kimiNoCodingPlan) == "Not subscribed")
+        #expect(AppLanguage.traditionalChinese.quotaText(AccountQuotaMessage.kimiNoCodingPlan) == "未訂購")
+        let help = AccountQuotaFormatting.help(for: chip, now: Date())
+        #expect(help.contains(AccountQuotaMessage.kimiNoCodingPlanHelp))
+        #expect(!help.contains("unit-test"))
+        #expect(AppLanguage.english.quotaText(AccountQuotaMessage.kimiNoCodingPlanHelp).hasPrefix("Kimi Code returned"))
+    }
+
+    @Test(arguments: [200, 204, 401, 403, 429, 500])
+    func kimiMissingPlanDoesNotHideFailures(statusCode: Int) async throws {
+        // Only a successful, exactly empty JSON object is the observed no-plan
+        // response. Empty bytes, errors and unknown shapes remain failures.
+        let payloads = statusCode == 200
+            ? ["", "not-json", "[]", "null", #"{"error":{"type":"invalid_authentication_error"}}"#,
+               #"{"unexpected":"unit-test-secret"}"#, #"{"usages":[]}"#, #"{"limits":[]}"#]
+            : ["{}"]
+        for payload in payloads {
+            for oauth in [false, true] {
+                let transport = ScriptedQuotaTransport { _ in
+                    AccountQuotaHTTPResponse(statusCode: statusCode, headers: [:], body: Data(payload.utf8))
+                }
+                let result = try await AccountQuotaClient(transport: transport).refresh(targets: [
+                    quotaTarget(id: "kimi", name: "Kimi", kind: .kimi, key: oauth ? nil : "unit-test-key",
+                        accessToken: oauth ? "unit-test-oauth" : nil)
+                ])
+                let expected = [429, 500].contains(statusCode) ? AccountQuotaMessage.network
+                    : (oauth && [401, 403].contains(statusCode) ? AccountQuotaMessage.reauthRequired : AccountQuotaMessage.queryFailed)
+                let chip = try #require(result.first)
+                #expect(AccountQuotaFormatting.plainSummary(for: chip, now: Date()) == expected)
+                #expect(!AccountQuotaFormatting.isDimmed(chip))
+            }
+        }
+    }
+
+    @Test func kimiRenewedPlanReturnsToNormalQuota() async throws {
+        let transport = ScriptedQuotaTransport { _ in
+            AccountQuotaHTTPResponse(statusCode: 200, headers: [:],
+                body: Data(#"{"usages":{"limit_5h":{"used_ratio":0.25}}}"#.utf8))
+        }
+        let previous = chip(kind: .kimi, status: .note(text: AccountQuotaMessage.kimiNoCodingPlan,
+            help: AccountQuotaMessage.kimiNoCodingPlanHelp))
+        let result = try await AccountQuotaClient(transport: transport).refresh(targets: [
+            quotaTarget(id: previous.id, name: "Kimi", kind: .kimi, key: "unit-test-key")
+        ], previous: [previous])
+        let current = try #require(result.first)
+        #expect(current.status == .windows([ParsedQuotaWindow(name: "five_hour", utilization: 25, resetsAt: nil)]))
+        #expect(!AccountQuotaFormatting.isDimmed(current))
+        #expect(!current.isStale)
+    }
+
     @Test
     func testXAIUsesNewSharedLoginInsteadOfCachedAccessFromTheSameAccount() async throws {
         let root = FileManager.default.temporaryDirectory.appending(path: "xai-shared-cache-\(UUID().uuidString)")
@@ -25,7 +99,7 @@ struct CCSwitchQuotaCatalogTests {
             default: return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data())
             }
         }
-        let client = AccountQuotaClient(transport: transport, authFileURL: authURL)
+        let client = AccountQuotaClient(transport: transport, authFileURL: authURL, xaiRefreshAllowed: { true })
         let target = quotaTarget(id: "xai", name: "xAI", kind: .xaiOAuth, key: nil)
         _ = try await client.refresh(targets: [target])
         let before = try Data(contentsOf: authURL)
@@ -921,36 +995,60 @@ struct AccountQuotaFormattingTests {
             ),
         ]
 
-        #expect((AccountQuotaFormatting.sortedChips(chips).map(\.id)) == (["website", "current", "plan", "same", "latest", "note", "balance"]))
+        #expect((AccountQuotaFormatting.sortedChips(chips).map(\.id)) == (["website", "current", "plan", "same", "latest", "balance", "note"]))
     }
 
     @Test
-    func testUndatedAndFailedPlansAlwaysPrecedePayAsYouGoProviders() {
-        let plans: [AccountQuotaChip.Status] = [
+    func testUnavailableQuotaFollowsResolvedResultsForEveryProvider() {
+        let unavailable: [AccountQuotaChip.Status] = [
             .note(text: AccountQuotaMessage.notConfigured, help: ""),
+            .note(text: AccountQuotaMessage.network, help: ""),
             .message(AccountQuotaMessage.queryFailed), .message(AccountQuotaMessage.reauthRequired),
             .message(AccountQuotaMessage.notLoggedIn), .message(AccountQuotaMessage.network),
-            .windows([ParsedQuotaWindow(name: "weekly_limit", utilization: 25,
-                resetsAt: Date(timeIntervalSince1970: 1_700_000_000))]),
-            .windows([]),
+            .message(AccountQuotaMessage.connectOfficial), .windows([]), .balances([]),
         ]
-        let metered: [AccountQuotaChip.Status] = [
-            .message(AccountQuotaMessage.queryFailed),
-            .message(AccountQuotaMessage.notConfigured), .balances([]),
-            .balances([ParsedBalance(currency: "CNY", amount: 0)]),
-            .balances([ParsedBalance(currency: "CNY", amount: 12.36)]),
+        let resolved = [
+            quotaChip(id: "undatedPlan", kind: .xaiOAuth, status: .windows([
+                ParsedQuotaWindow(name: "weekly_limit", utilization: 25, resetsAt: nil)])),
+            quotaChip(id: "funded", kind: .deepseek, status: .balances([ParsedBalance(currency: "CNY", amount: 12)])),
+            quotaChip(id: "exhausted", kind: .kimi, status: .windows([
+                ParsedQuotaWindow(name: "weekly_limit", utilization: 100, resetsAt: nil)])),
+            quotaChip(id: "unsubscribed", kind: .qwen, status: .message(AccountQuotaMessage.qwenNoPlan)),
+            quotaChip(id: "zero", kind: .luma, status: .balances([ParsedBalance(currency: "USD", amount: 0)])),
         ]
-        for planStatus in plans {
-            for kind in [CCSwitchQuotaKind.deepseek, .stepfun, .blackForestLabs, .luma] {
-                for balanceStatus in metered {
-                    let plan = quotaChip(id: "xai", kind: .xaiOAuth, status: planStatus)
-                    let balance = quotaChip(id: "metered", kind: kind, isCurrent: true, status: balanceStatus)
-                    for input in [[balance, plan], [plan, balance]] {
-                        #expect(AccountQuotaFormatting.sortedChips(input).map(\.id) == ["xai", "metered"])
+        for kind in [CCSwitchQuotaKind.officialNote, .kimi, .zhipu, .deepseek, .qwen, .xaiOAuth,
+                     .minimax, .stepfun, .blackForestLabs, .luma, .claude, .gemini] {
+            for status in unavailable {
+                for isCurrent in [false, true] {
+                    let failed = quotaChip(id: "unavailable", kind: kind, isCurrent: isCurrent, status: status)
+                    for result in resolved {
+                        for input in [[failed, result], [result, failed]] {
+                            #expect(AccountQuotaFormatting.sortedChips(input).map(\.id) == [result.id, "unavailable"])
+                        }
                     }
                 }
             }
         }
+    }
+
+    @Test
+    func testUnavailableResultsKeepStoredOrderAndRecoverNormalPriority() {
+        let failed = quotaChip(id: "plan", kind: .kimi, isCurrent: true, status: .message(AccountQuotaMessage.network))
+        let failedBalance = quotaChip(id: "wallet", kind: .deepseek, status: .message(AccountQuotaMessage.network))
+        let funded = quotaChip(id: "funded", kind: .luma, status: .balances([ParsedBalance(currency: "USD", amount: 1)]))
+        let pending = quotaChip(id: "pending", kind: .officialNote, status: .pending)
+        #expect(AccountQuotaFormatting.sortedChips([pending, failedBalance, failed, funded]).map(\.id)
+            == ["funded", "wallet", "plan", "pending"])
+        #expect(AccountQuotaFormatting.sortedChips([failed, pending, funded, failedBalance]).map(\.id)
+            == ["funded", "plan", "wallet", "pending"])
+        let recovered = quotaChip(id: "plan", kind: .kimi, status: .windows([
+            ParsedQuotaWindow(name: "weekly_limit", utilization: 25, resetsAt: nil)]))
+        #expect(AccountQuotaFormatting.sortedChips([failedBalance, funded, recovered]).map(\.id)
+            == ["plan", "funded", "wallet"])
+        // A retained successful value is still data, even after a refresh fails.
+        let saved = AccountQuotaChip(id: "saved", shortName: "Kimi", websiteURL: nil, kind: .kimi,
+            isCurrent: false, status: recovered.status, isStale: true)
+        #expect(AccountQuotaFormatting.sortedChips([failed, funded, saved]).map(\.id) == ["saved", "funded", "plan"])
     }
 
     @Test
@@ -969,7 +1067,7 @@ struct AccountQuotaFormattingTests {
             quotaChip(id: "balanceResult", kind: .minimax, status: .balances([ParsedBalance(currency: "CNY", amount: 3)])),
         ]
         #expect(AccountQuotaFormatting.sortedChips(chips).map(\.id) ==
-            ["soon", "late", "xai", "undated", "deepseek", "luma", "balanceResult"])
+            ["soon", "late", "luma", "balanceResult", "deepseek", "xai", "undated"])
     }
 
     @Test
@@ -1025,7 +1123,7 @@ struct AccountQuotaFormattingTests {
     }
 
     @Test
-    func testUnsubscribedPlansFollowMeteredIncludingUnknownAmounts() {
+    func testUnsubscribedPlansPrecedeUnknownAmounts() {
         let unknownAmounts: [AccountQuotaChip.Status] = [
             .message(AccountQuotaMessage.queryFailed), .message(AccountQuotaMessage.network),
             .note(text: AccountQuotaMessage.notConfigured, help: ""), .balances([]),
@@ -1036,7 +1134,7 @@ struct AccountQuotaFormattingTests {
                 let plan = quotaChip(id: "notSubscribed", kind: kind, status: missingPlan)
                 for amount in unknownAmounts {
                     let metered = quotaChip(id: "metered", kind: .deepseek, status: amount)
-                    #expect(AccountQuotaFormatting.sortedChips([plan, metered]).map(\.id) == ["metered", "notSubscribed"])
+                    #expect(AccountQuotaFormatting.sortedChips([plan, metered]).map(\.id) == ["notSubscribed", "metered"])
                 }
             }
         }
@@ -1097,7 +1195,7 @@ struct AccountQuotaFormattingTests {
             == ["metered", "zero", "plan"])
         let failedPlan = quotaChip(id: "plan", kind: .kimi, status: .message(AccountQuotaMessage.queryFailed))
         #expect(AccountQuotaFormatting.sortedChips([pendingMetered, zero, failedPlan]).map(\.id)
-            == ["plan", "zero", "metered"])
+            == ["zero", "plan", "metered"])
     }
 
     @Test
@@ -1527,8 +1625,8 @@ struct CCSwitchQuotaParserTests {
     func testParsesOpenAIPlanExpiryOnlyFromTheMatchingAccount() {
         let iso = Data(#"""
         {"accounts":{
-          "other":{"entitlement":{"expires_at":"2026-01-01T00:00:00Z","renews_at":"2026-12-01T00:00:00Z"}},
-          "account-id":{"entitlement":{"expires_at":"2026-10-15T00:00:00Z","renews_at":"2026-09-15T00:00:00Z"}}
+          "other":{"entitlement":{"has_active_subscription":true,"expires_at":"2026-01-01T00:00:00Z","renews_at":"2026-12-01T00:00:00Z"}},
+          "account-id":{"entitlement":{"has_active_subscription":true,"expires_at":"2026-10-15T00:00:00Z","renews_at":"2026-09-15T00:00:00Z"}}
         },"account_ordering":["other","account-id"]}
         """#.utf8)
         let window = CCSwitchQuotaParsers.parseOpenAIPlanExpiry(iso, accountID: "account-id")
@@ -1539,7 +1637,7 @@ struct CCSwitchQuotaParserTests {
         #expect((window?.resetsAt) != (ISO8601DateFormatter().date(from: "2026-01-01T00:00:00Z")))
 
         let millis = Data(#"""
-        {"accounts":{"account-id":{"entitlement":{"expires_at":1790000000000,"renews_at":1700000000}}}}
+        {"accounts":{"account-id":{"entitlement":{"has_active_subscription":true,"expires_at":1790000000000,"renews_at":1700000000}}}}
         """#.utf8)
         #expect((CCSwitchQuotaParsers.parseOpenAIPlanExpiry(millis, accountID: "account-id")?.resetsAt) == (Date(timeIntervalSince1970: 1_790_000_000)))
         #expect((CCSwitchQuotaParsers.parseOpenAIPlanExpiry(iso, accountID: "missing")) == nil)
@@ -1564,11 +1662,11 @@ struct CCSwitchQuotaParserTests {
         """#.utf8)
         #expect((CCSwitchQuotaParsers.parseOpenAIPlanExpiry(signedIn, accountID: "account-id")?.resetsAt) == expires)
 
-        let named = Data(#"{"accounts":{"default":{"account_id":"account-id","entitlement":{"expires_at":"2026-10-15T00:00:00Z"}}}}"#.utf8)
+        let named = Data(#"{"accounts":{"default":{"account_id":"account-id","entitlement":{"has_active_subscription":true,"expires_at":"2026-10-15T00:00:00Z"}}}}"#.utf8)
         #expect((CCSwitchQuotaParsers.parseOpenAIPlanExpiry(named, accountID: "account-id")?.resetsAt) == expires)
         #expect((CCSwitchQuotaParsers.parseOpenAIPlanExpiry(named, accountID: "other-account")) == nil)
 
-        let workspace = Data(#"{"accounts":{"team-1":{"entitlement":{"expires_at":"2026-10-15T00:00:00Z"}}},"last_account_id":"team-1"}"#.utf8)
+        let workspace = Data(#"{"accounts":{"team-1":{"entitlement":{"has_active_subscription":true,"expires_at":"2026-10-15T00:00:00Z"}}},"last_account_id":"team-1"}"#.utf8)
         #expect((CCSwitchQuotaParsers.parseOpenAIPlanExpiry(workspace, accountID: "account-id")?.resetsAt) == expires)
 
         // A plan without an active subscription reports a placeholder instead
@@ -1578,11 +1676,11 @@ struct CCSwitchQuotaParserTests {
 
         // The signed-in entry wins over an unrelated one, and an entry naming
         // or keyed by another account is never this account's boundary.
-        let withExtra = Data(#"{"accounts":{"other":{"entitlement":{"expires_at":"2026-01-01T00:00:00Z"}},"default":{"entitlement":{"expires_at":"2026-10-15T00:00:00Z"}}}}"#.utf8)
+        let withExtra = Data(#"{"accounts":{"other":{"entitlement":{"has_active_subscription":true,"expires_at":"2026-01-01T00:00:00Z"}},"default":{"entitlement":{"has_active_subscription":true,"expires_at":"2026-10-15T00:00:00Z"}}}}"#.utf8)
         #expect((CCSwitchQuotaParsers.parseOpenAIPlanExpiry(withExtra, accountID: "account-id")?.resetsAt) == expires)
-        let foreign = Data(#"{"accounts":{"other-account":{"entitlement":{"expires_at":"2026-10-15T00:00:00Z"}}}}"#.utf8)
+        let foreign = Data(#"{"accounts":{"other-account":{"entitlement":{"has_active_subscription":true,"expires_at":"2026-10-15T00:00:00Z"}}}}"#.utf8)
         #expect((CCSwitchQuotaParsers.parseOpenAIPlanExpiry(foreign, accountID: "account-id")) == nil)
-        let foreignNamed = Data(#"{"accounts":{"default":{"account_id":"other-account","entitlement":{"expires_at":"2026-10-15T00:00:00Z"}}}}"#.utf8)
+        let foreignNamed = Data(#"{"accounts":{"default":{"account_id":"other-account","entitlement":{"has_active_subscription":true,"expires_at":"2026-10-15T00:00:00Z"}}}}"#.utf8)
         #expect((CCSwitchQuotaParsers.parseOpenAIPlanExpiry(foreignNamed, accountID: "account-id")) == nil)
     }
 }
@@ -1687,8 +1785,8 @@ struct AccountQuotaClientTests {
         ]
         let check = #"""
         {"accounts":{
-          "other-account":{"entitlement":{"expires_at":"2026-01-01T00:00:00Z","renews_at":"2026-12-31T00:00:00Z"}},
-          "account-id":{"entitlement":{"expires_at":"2026-10-15T00:00:00Z","renews_at":"2026-09-15T00:00:00Z"}}
+          "other-account":{"entitlement":{"has_active_subscription":true,"expires_at":"2026-01-01T00:00:00Z","renews_at":"2026-12-31T00:00:00Z"}},
+          "account-id":{"entitlement":{"has_active_subscription":true,"expires_at":"2026-10-15T00:00:00Z","renews_at":"2026-09-15T00:00:00Z"}}
         },"account_ordering":["other-account"]}
         """#
         let matched = ScriptedQuotaTransport { request in
@@ -1900,7 +1998,7 @@ struct AccountQuotaClientTests {
                 return AccountQuotaHTTPResponse(statusCode: 500, headers: [:], body: Data())
             }
         }
-        let client = AccountQuotaClient(transport: transport, authFileURL: authURL)
+        let client = AccountQuotaClient(transport: transport, authFileURL: authURL, xaiRefreshAllowed: { true })
         let target = quotaTarget(id: "xai", name: "xAI", kind: .xaiOAuth, key: nil)
 
         _ = try await client.refresh(targets: [target], authFileURL: authURL)
@@ -1961,7 +2059,7 @@ struct AccountQuotaClientTests {
             return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(
                 #"{"access_token":"unit-test-access","refresh_token":"unit-test-rotated","expires_in":3600}"#.utf8))
         }
-        let client = AccountQuotaClient(transport: transport, authFileURL: authURL)
+        let client = AccountQuotaClient(transport: transport, authFileURL: authURL, xaiRefreshAllowed: { true })
         #expect(try await client.keepAliveXAI(authFileURL: authURL) == .retry)
         let snapshot = try #require(XaiAuthFile.parse(Data(contentsOf: authURL)))
         let account = try #require(XaiAuthFile.selectedAccount(snapshot))
@@ -1980,7 +2078,7 @@ struct AccountQuotaClientTests {
         let authURL = directory.appending(path: "auth.json")
         try Data(xaiAuthJSON(requiresReauth: false).utf8).write(to: authURL)
         let transport = ConcurrentXAIQuotaTransport()
-        let client = AccountQuotaClient(transport: transport, authFileURL: authURL)
+        let client = AccountQuotaClient(transport: transport, authFileURL: authURL, xaiRefreshAllowed: { true })
         let results = try await withThrowingTaskGroup(of: XAIOAuthKeepAliveOutcome.self) { group in
             for _ in 0..<10 { group.addTask { try await client.keepAliveXAI(authFileURL: authURL) } }
             var results: [XAIOAuthKeepAliveOutcome] = []
@@ -2306,7 +2404,8 @@ struct AccountQuotaClientTests {
         }
         let client = AccountQuotaClient(
             transport: transport,
-            authFileURL: directory.appending(path: "unused.json")
+            authFileURL: directory.appending(path: "unused.json"),
+            xaiRefreshAllowed: { true }
         )
         let chips = try await client.refresh(
             targets: [quotaTarget(id: "xai", name: "xAI", kind: .xaiOAuth, key: nil)],

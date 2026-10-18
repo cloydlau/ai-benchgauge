@@ -17,7 +17,7 @@ struct OpenAIPlanExpiryTests {
     @Test func temporaryFailuresRetainOnlyTheSameAccountsFutureDateAcrossRestart() async throws {
         let store = store()
         defer { try? FileManager.default.removeItem(at: store.fileURL.deletingLastPathComponent()) }
-        let body = Data(#"{"accounts":{"account-id":{"entitlement":{"expires_at":1800086400}}}}"#.utf8)
+        let body = Data(#"{"accounts":{"account-id":{"entitlement":{"has_active_subscription":true,"expires_at":1800086400}}}}"#.utf8)
         let fresh = try await AccountQuotaClient.officialPlanExpiry(accessToken: "test", accountID: "account-id",
             transport: ExpiryTransport(body: body), store: store, now: now)
         #expect(fresh?.resetsAt == end)
@@ -42,14 +42,15 @@ struct OpenAIPlanExpiryTests {
         defer { try? FileManager.default.removeItem(at: store.fileURL.deletingLastPathComponent()) }
         try store.save(accountID: "account-id", expiresAt: end)
         let updated = try await AccountQuotaClient.officialPlanExpiry(accessToken: "test", accountID: "account-id",
-            transport: ExpiryTransport(body: Data(#"{"accounts":{"default":{"entitlement":{"expires_at":1800172800}}}}"#.utf8)),
+            transport: ExpiryTransport(body: Data(#"{"accounts":{"default":{"entitlement":{"has_active_subscription":true,"expires_at":1800172800}}}}"#.utf8)),
             store: store, now: now)
         #expect(updated?.resetsAt == end.addingTimeInterval(86_400))
         #expect(store.cachedWindow(accountID: "account-id", now: now)?.resetsAt == updated?.resetsAt)
         for body in [
+            #"{"accounts":{"default":{"entitlement":{"expires_at":1800172800}}}}"#,
             #"{"accounts":{"default":{"entitlement":{"has_active_subscription":false,"expires_at":1800172800}}}}"#,
             #"{"accounts":{"default":{"entitlement":{"renews_at":1800172800}}}}"#,
-            #"{"accounts":{"other":{"account_id":"another-account","entitlement":{"expires_at":1800172800}}}}"#
+            #"{"accounts":{"other":{"account_id":"another-account","entitlement":{"has_active_subscription":true,"expires_at":1800172800}}}}"#
         ] {
             try store.save(accountID: "account-id", expiresAt: end)
             let missing = try await AccountQuotaClient.officialPlanExpiry(accessToken: "test", accountID: "account-id",
@@ -57,6 +58,23 @@ struct OpenAIPlanExpiryTests {
             #expect(missing == nil)
             #expect(store.cachedWindow(accountID: "account-id", now: now) == nil)
         }
+    }
+
+    @Test func expiredSubscriptionClearsSavedDateWithoutShowingMonthlyResetAsRenewal() async throws {
+        let store = store()
+        defer { try? FileManager.default.removeItem(at: store.fileURL.deletingLastPathComponent()) }
+        try store.save(accountID: "account-id", expiresAt: end)
+        let transport = ExpiryTransport(
+            body: Data(#"{"accounts":{"account-id":{"entitlement":{"has_active_subscription":false,"expires_at":1802678400}}}}"#.utf8),
+            usage: Data(#"{"rate_limit":{"primary_window":{"used_percent":20,"limit_window_seconds":2592000,"reset_at":1802678400}}}"#.utf8))
+        let target = CCSwitchQuotaTarget(id: "official", shortName: "OpenAI", websiteURL: nil,
+            kind: .officialNote, isCurrent: true, apiKey: nil, baseURL: nil, accessToken: "test", accountID: "account-id")
+        let client = AccountQuotaClient(transport: transport, now: { now }, openAIPlanExpiryStore: store)
+        let card = try #require(try await client.refresh(targets: [target]).first)
+        #expect(AccountQuotaFormatting.plainSummary(for: card, now: now) == "1mo 80%")
+        #expect(AccountQuotaFormatting.help(for: card, now: now).contains("1mo重置"))
+        #expect(AccountQuotaFormatting.deadlineColorLevel(for: card, now: now) == nil)
+        #expect(store.cachedWindow(accountID: "account-id", now: now) == nil)
     }
 
     @Test func cancellationDoesNotReadOrEraseTheSavedDate() async throws {
@@ -91,11 +109,11 @@ private struct ExpiryTransport: AccountQuotaTransport {
     var status = 200
     var body = Data()
     var failure: (any Error)?
+    var usage = Data(#"{"rate_limit":{"primary_window":{"used_percent":20,"limit_window_seconds":18000,"reset_at":1800003600}}}"#.utf8)
 
     func data(for request: URLRequest) async throws -> AccountQuotaHTTPResponse {
         if request.url?.path == "/backend-api/wham/usage" {
-            return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body:
-                Data(#"{"rate_limit":{"primary_window":{"used_percent":20,"limit_window_seconds":18000,"reset_at":1800003600}}}"#.utf8))
+            return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: usage)
         }
         if let failure { throw failure }
         return AccountQuotaHTTPResponse(statusCode: status, headers: [:], body: body)
