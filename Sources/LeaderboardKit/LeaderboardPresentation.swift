@@ -92,7 +92,7 @@ public enum LeaderboardPresentation {
         case .artificialAnalysisTextToImage: language.text("Curated prompts", "场景化盲测")
         case .artificialAnalysisTextToVideo: language.text("Matched settings", "统一设置")
         case .arenaText: language.text("User votes", "用户盲测")
-        case .epochECI: language.text("Calibrated scoring", "难度校准")
+        case .epochECI: language.text("Calibrated tests", "难度校准")
         case .codeArenaWebDev: language.text("WebDev votes", "网页开发盲选")
         case .arenaTextToImage, .arenaTextToVideo: language.text("User prompts", "用户出题")
         }
