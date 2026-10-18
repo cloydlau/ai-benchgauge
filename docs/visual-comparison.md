@@ -1095,3 +1095,21 @@ in ignored `work/eci-tab-label/`; captures use the same fixture and viewport,
 with Simplified/Traditional Chinese and English, light/dark themes, and
 850/1100-point widths. Capture status and review are recorded in that folder.
 
+
+
+## ECI relative score presentation — 2026-10-18
+
+All clients now supply ECI's leading filtered/grouped score to the same ratio
+formatters as the other sources. Percent captions and proportional name fills
+use the unsearched leader; searching does not rebase the result. Original ECI
+scores retain two decimal places. Existing invalid-baseline and rounded-100%
+caption omission rules apply equally to ECI.
+
+Regression coverage includes an ECI leader above 100, model/company grouping,
+openness filtering, model search, virtualized page rows and mobile paging.
+Native Mac before/after originals and review metadata are retained in ignored
+`work/eci-relative-scores/`, using identical fixtures and 850/1100×720-point
+viewports, three languages, both themes and shown/refreshed/settled checkpoints.
+Windows native screenshots and a source-matched cloud CI visual artifact are
+unavailable on this host; Windows visual approval is not claimed. Mini-program
+runtime connection failures, if any, are recorded with the task evidence.

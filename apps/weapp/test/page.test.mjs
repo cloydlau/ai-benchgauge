@@ -103,7 +103,7 @@ test('one live model query survives source/category/company switches and clearin
     assert.equal(card.count, 1)
     assert.equal(card.rows[0].rank, 997)
     assert.equal(card.rows[0].top, 0)
-    assert.equal(card.rows[0].scoreShare, card.kind === 'epochECI' ? '' : '0%')
+    assert.equal(card.rows[0].scoreShare, '0%')
   }
   assert.equal(h.requests.length, initialRequests, 'Filtering must not fetch a board')
   h.page.selectFace(event({ index: 1 }))
@@ -1372,8 +1372,8 @@ test('Epoch is a third live source with original score precision, persistent sha
   assert.equal(h.page.cubeFaces.value.length, 3);
   assert.equal(h.page.cards.value[2].kind, 'epochECI');
   assert.equal(h.page.cards.value[2].rows[1].scoreText, '98.00');
-  assert.equal(h.page.cards.value[2].rows[1].scoreShare, '');
-  assert.equal(h.page.cards.value[2].rows[1].fillPercent, 100);
+  assert.equal(h.page.cards.value[2].rows[1].scoreShare, '99%');
+  assert.equal(h.page.cards.value[2].rows[1].fillPercent, 98.98989898989899);
   assert.match(h.page.sourceSelection.value, /\/ 3/);
   const shared = pagePreferences(Object.fromEntries(new URL('https://shared.example' + globalThis.__benchHooks.share().path).searchParams));
   assert.equal(shared.face, 2);

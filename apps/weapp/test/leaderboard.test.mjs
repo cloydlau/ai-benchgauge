@@ -41,6 +41,24 @@ test('score shares round consistently and omit leaders, near ties and invalid ba
   assert.deepEqual(visibleRows(board([entry(1, 'A', 200), entry(2, 'B', 100)])).map(row => row.scoreShare), ['', '50%'])
 })
 
+test('ECI ratios use the filtered unsearched leader in model and company views, independent of score scale', () => {
+  const source = board([
+    entry(1, 'Leader', 150.25, 'OpenAI', { openness: 'closed' }),
+    entry(2, 'Half', 75.125, 'Anthropic', { openness: 'open' }),
+    entry(3, 'Quarter', 37.5625, 'DeepSeek', { openness: 'open' }),
+  ], { kind: 'epochECI' })
+  for (const grouping of ['model', 'company']) {
+    const rows = visibleRows(source, { grouping })
+    assert.deepEqual(rows.map(row => row.scoreShare), ['', '50%', '25%'])
+    assert.deepEqual(rows.map(row => row.fillPercent), [100, 50, 25])
+    assert.equal(rows[1].scoreText, '75.13')
+    assert.deepEqual(visibleRows(source, { grouping, openness: 'open' }).map(row => row.scoreShare), ['', '50%'])
+  }
+  const searched = visibleRows(source, { query: 'Quarter' })
+  assert.equal(searched[0].scoreShare, '25%')
+  assert.equal(searched[0].fillPercent, 25)
+})
+
 test('score backgrounds use the unsearched leader, retain full leader width and handle unusable baselines', () => {
   const source = board([entry(1, 'Leader', 100), entry(2, 'Half', 50), entry(3, 'Zero', 0)])
   for (const dark of [false, true]) {
