@@ -1076,3 +1076,22 @@ Mac and Windows remove the explanatory source summaries and updated/fetched time
 Ignored `work/desktop-header-row/review.html` and `review.json` retain source hashes, original source snapshots, build logs and 60 after native Mac frames, paired with the 60 immediate baseline originals in `work/ios-logo-theme/after-mac/macos`. The identical fixture hash is `31d620116eae774cc0f19694e88dde1528885ccecfa350108bc9d509343b72a8`; both phases use 900/1100×720-point viewports, English/Simplified/Traditional Chinese, model/company grouping, both themes and quota empty/error states. Actual environment is macOS 27.0.1 (26A434), 1× backing scale, local uncommitted sources. Review confirms the table header moves up, the description/time band is gone, and neighboring controls and long-name truncation remain intact. All 20 refreshed/settled content comparisons are identical outside the rightmost 12 pixels containing the fading native scrollbar; full originals retain that animation.
 
 Native Mac compilation and Windows WPF Release cross-compilation pass (Windows: zero warnings/errors). Native Windows screenshots, actual Windows DPI review and a source-matched CI artifact are unavailable; Windows visual approval is not claimed. These captures do not replace the installed application or constitute protected release approval.
+
+
+## ECI source tab caption — 2026-10-18
+
+The ECI method caption now reads “能力指数” / “能力指數” /
+“Capability index” in the shared Apple presentation, Windows source tabs and
+mini-program cube tabs. Source titles and links still identify Epoch AI / ECI.
+This keeps the Chinese caption at four characters alongside the existing
+task-benchmark and user-vote captions.
+
+The existing mini-program page tests and production build pass. The official
+WeChat DevTools MCP confirms the canonical `apps/weapp` project is imported
+and reuses its window, but `automation_runtime_info(currentPage)` times out;
+no simulator visual verification is claimed. Native Windows screenshots are
+unavailable on this macOS host. Mac before/after capture evidence is retained
+in ignored `work/eci-tab-label/`; captures use the same fixture and viewport,
+with Simplified/Traditional Chinese and English, light/dark themes, and
+850/1100-point widths. Capture status and review are recorded in that folder.
+

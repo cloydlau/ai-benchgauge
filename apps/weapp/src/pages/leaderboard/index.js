@@ -268,7 +268,7 @@ definePage(query => {
     icon: ['apps-o', 'code', 'photo-o', 'video-o'][index] })))
   const categoryIndex = computed(() => categories.findIndex(item => item.id === category.value))
   const current = computed(() => categoryFor(category.value))
-  const tabs = computed(() => current.value.kinds.map(kind => kind === 'epochECI' ? 'Epoch ECI' : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
+  const tabs = computed(() => current.value.kinds.map(kind => kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
   const filterFor = kind => ({ country: 'all', openness: 'all', ...filters.value[kind] })
   const countriesFor = kind => countryOptions({ entries: Object.values(snapshots.value).flatMap(board => board?.entries || []) }, language.value, filterFor(kind).country)
   function setFilters(filter) {
