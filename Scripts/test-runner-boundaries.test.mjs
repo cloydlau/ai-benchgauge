@@ -4,10 +4,11 @@ import fs from 'node:fs'
 import cp from 'node:child_process'
 import { syncBuiltinESMExports } from 'node:module'
 import { EventEmitter } from 'node:events'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
-import { runTests, testCommands, testInputSignature } from './test.mjs'
+import { runTests, testCommands, testInputSignature, testEnvironment } from './test.mjs'
 import { runTestGate } from './test-repair.mjs'
+import { cacheLock } from './build-cache.mjs'
 
 function fixture(t) {
   const root = fs.realpathSync(fs.mkdtempSync(join(tmpdir(), 'benchgauge-runner-unit-')))
@@ -42,6 +43,23 @@ function mockCommands(t, { mode = '', collector = 0 } = {}) {
   return calls
 }
 
+test('Xcode discovery reads the caller selection and safely retains it when discovery fails', t => {
+  const root = fixture(t), xcodeDeveloperDir = join(root, 'Xcode.app/Contents/Developer')
+  fs.mkdirSync(join(xcodeDeveloperDir, 'usr/bin'), { recursive: true })
+  fs.writeFileSync(join(xcodeDeveloperDir, 'usr/bin/xcodebuild'), '')
+  const env = { PATH: '/fixture/bin' }, options = { platform: 'darwin', xcodeDeveloperDir }
+  let output = { status: 0, stdout: '/Library/Developer/CommandLineTools\n' }
+  t.mock.method(cp, 'spawnSync', (command, args, config) => {
+    assert.equal(command, 'xcode-select'); assert.deepEqual(args, ['-p']); assert.equal(config.env, env)
+    return output
+  })
+  syncBuiltinESMExports()
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports() })
+  assert.equal(testEnvironment(env, options).DEVELOPER_DIR, xcodeDeveloperDir)
+  output = { status: 1 }
+  assert.equal(testEnvironment(env, options), env)
+})
+
 test('real runner default command path streams output and isolates inherited private state', async t => {
   const root = fixture(t), calls = mockCommands(t)
   const result = await runTests({ root, logger, env: { ...process.env, GIT_INDEX_FILE: 'fixture-private-index', BENCHGAUGE_TEST_PASS: 'fixture-parent-pass' } })
@@ -51,6 +69,8 @@ test('real runner default command path streams output and isolates inherited pri
   const childEnv = calls.find(call => call[1][0] === '--test')[2].env
   assert.equal(childEnv.GIT_INDEX_FILE, undefined); assert.equal(childEnv.BENCHGAUGE_TEST_PASS, undefined)
   assert.equal(childEnv.TZ, 'Asia/Shanghai')
+  assert.equal(calls.find(call => call[0] === 'xcrun')[2].env.DEVELOPER_DIR, childEnv.DEVELOPER_DIR,
+    'Plugin discovery and the Swift child must use the same developer directory')
   assert.match(fs.readFileSync(result.logPath, 'utf8'), /fixture output/)
   assert.match(fs.readFileSync(result.logPath, 'utf8'), /fixture error stream/)
   const gated = await runTestGate({ root, env: { ...process.env, TEST_AUTO_REPAIR: '0' } })
@@ -101,6 +121,41 @@ test('runner waits for an owned lock and rehashes edits made during the wait', a
   await assert.rejects(runTests({ root, coreOnly: true, scriptsOnly: true }), /不能同时/)
 })
 
+test('runner waits for the shared native-build lease before executing native tests', async t => {
+  const root = fixture(t); mockCommands(t)
+  const held = await cacheLock(root)
+  const messages = []
+  const running = runTests({ root, logger: { log: message => messages.push(message), error() {} } })
+  setTimeout(() => held.release(), 10)
+  const result = await running
+  assert.equal(result.status, 0)
+  assert.ok(messages.some(message => message.includes('等待当前构建结束')))
+  assert.equal(fs.existsSync(join(root, 'work/build-cache/native.lock')), false)
+})
+
+test('relocated Swift workspaces recover under the cache lease before native tests', async t => {
+  const root = fixture(t), backups = [], messages = [], rename = fs.renameSync
+  for (const name of ['.build', 'work/unit-test-build']) {
+    const cache = join(root, name)
+    fs.mkdirSync(join(cache, 'artifacts/fixture/Kit.xcframework'), { recursive: true })
+    fs.writeFileSync(join(cache, 'workspace-state.json'), JSON.stringify({ object: { artifacts: [{ source: { type: 'remote' },
+      path: join('/previous/project', name, 'artifacts/fixture/Kit.xcframework') }] } }))
+  }
+  t.mock.method(fs, 'renameSync', (from, to) => {
+    if ([join(root, '.build'), join(root, 'work/unit-test-build')].includes(from)) {
+      assert.equal(fs.existsSync(join(root, 'work/build-cache/native.lock')), true)
+      backups.push(dirname(to))
+    }
+    return rename(from, to)
+  })
+  mockCommands(t)
+  t.after(() => { for (const path of backups) fs.rmSync(path, { recursive: true, force: true }) })
+  const result = await runTests({ root, logger: { log: message => messages.push(message), error() {} } })
+  assert.equal(result.status, 0)
+  assert.equal(backups.length, 2)
+  assert.ok(messages.some(message => message.includes('仓库搬迁')))
+})
+
 test('Windows test target is included and unsupported files do not affect signatures', t => {
   const root = fixture(t); mockCommands(t)
   fs.mkdirSync(join(root, 'apps/windows/BenchGauge.Tests'), { recursive: true })
@@ -121,7 +176,9 @@ test('Windows test target is included and unsupported files do not affect signat
 test('runner CLI validates flags, forwards lock errors and executes only isolated fixture commands', t => {
   const root=fixture(t)
   fs.copyFileSync(new URL('./test.mjs',import.meta.url),join(root,'Scripts/test.mjs'))
-  fs.writeFileSync(join(root,'Scripts/commit-lock.mjs'), `export const acquireCommitLock=()=>process.env.UNIT_BUSY==='1'?{acquired:false,reason:'error'}:{acquired:true,release(){}}`)
+  fs.copyFileSync(new URL('./build-cache.mjs',import.meta.url),join(root,'Scripts/build-cache.mjs'))
+  fs.copyFileSync(new URL('./prepare-swift-workspace.mjs',import.meta.url),join(root,'Scripts/prepare-swift-workspace.mjs'))
+  fs.writeFileSync(join(root,'Scripts/commit-lock.mjs'), `export const pidState=()=> 'gone'; export const acquireCommitLock=()=>process.env.UNIT_BUSY==='1'?{acquired:false,reason:'error'}:{acquired:true,release(){}}`)
   fs.writeFileSync(join(root,'Scripts/node-executable.mjs'), `export const nodeExecutable=()=>process.execPath`)
   fs.writeFileSync(join(root,'Scripts/test-repair.mjs'), `export const runTestGate=async()=>({status:0})`)
   fs.writeFileSync(join(root,'hook.cjs'), `const cp=require('node:child_process'),{EventEmitter}=require('node:events');cp.spawnSync=()=>({status:0});cp.spawn=()=>{const child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();queueMicrotask(()=>child.emit('close',0));return child};require('node:module').syncBuiltinESMExports();`)

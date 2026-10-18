@@ -4,6 +4,7 @@ import { mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { generateIOSProject } from './ios-project.mjs'
+import { withBuildCache } from './build-cache.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 export function iosSimulator(devices, family = 'iPad') {
@@ -66,6 +67,6 @@ export function runIOSBuild(mode = 'check', env = process.env, family = 'both') 
   return 0
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  try { process.exitCode = runIOSBuild(process.argv[2] || 'check', process.env, process.argv[3] || 'both') }
+  try { process.exitCode = await withBuildCache(root, 'ios', () => runIOSBuild(process.argv[2] || 'check', process.env, process.argv[3] || 'both')) }
   catch (error) { console.error(`[ios] ${error.message}`); process.exitCode = 1 }
 }

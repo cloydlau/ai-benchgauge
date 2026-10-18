@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { writeIOSAbout } from './ios-about.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const id = value => createHash('sha256').update(value).digest('hex').slice(0, 24).toUpperCase()
@@ -12,7 +13,7 @@ const xml = value => String(value).replaceAll('&', '&amp;').replaceAll('"', '&qu
 // A small deterministic project keeps platform sources under apps/ios without
 // adding XcodeGen/CocoaPods or storing machine-specific Xcode configuration.
 export function iosProject({ version, appStoreID = null, buildNumber = '1', team = '', sourceDirectory = '', packageDirectory = '../..',
-  logoDirectory = '../../assets/logos', assetDirectory }) {
+  logoDirectory = '../../assets/logos', assetDirectory, aboutContentPath }) {
   if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('iOS version must be major.minor.patch')
   if (!/^\d+$/.test(String(buildNumber))) throw new Error('iOS build number must be an integer')
   if (team && !/^[A-Z0-9]{10}$/.test(team)) throw new Error('Apple team ID must contain 10 uppercase letters/digits')
@@ -34,6 +35,10 @@ export function iosProject({ version, appStoreID = null, buildNumber = '1', team
     `isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ${q(language)}; path = ${q(join(packageDirectory, 'assets/localizations', `${language}.lproj/InfoPlist.strings`))}; sourceTree = "<group>";`))
   const nameFile = put('localized-name', `isa = PBXVariantGroup; children = ${list(localizedNames)}; name = InfoPlist.strings; sourceTree = "<group>";`)
   const resources = [assetFile, privacyFile, logoFile, nameFile].map(fileRef => put(`resource-${fileRef}`, `isa = PBXBuildFile; fileRef = ${fileRef};`))
+  if (aboutContentPath) {
+    const file = put('about-content', `isa = PBXFileReference; lastKnownFileType = text.json; path = ${q(aboutContentPath)}; sourceTree = "<absolute>";`)
+    resources.push(put('about-content-build', `isa = PBXBuildFile; fileRef = ${file};`))
+  }
   const infoFile = put('info', `isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = ${q(sourcePath('App/Info.plist'))}; sourceTree = "<group>";`)
   const appProduct = put('app-product', 'isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "AI BenchGauge.app"; sourceTree = BUILT_PRODUCTS_DIR;')
   const testProduct = put('test-product', 'isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BenchGaugeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR;')
@@ -93,7 +98,9 @@ export function iosProject({ version, appStoreID = null, buildNumber = '1', team
 
 export function generateIOSProject(directory = root, options = {}) {
   const { version, appStoreID = null } = JSON.parse(readFileSync(join(directory, 'config/app.json'), 'utf8'))
-  const generated = iosProject({ version, appStoreID, ...options })
+  const aboutContentPath = writeIOSAbout(directory,
+    join(options.projectDirectory || join(directory, 'work/ios-about'), 'AboutContent.json'), options.engineeringStats)
+  const generated = iosProject({ version, appStoreID, ...options, aboutContentPath })
   const projectPath = join(options.projectDirectory || join(directory, 'apps/ios'), 'AI-BenchGauge.xcodeproj')
   mkdirSync(join(projectPath, 'xcshareddata/xcschemes'), { recursive: true })
   writeFileSync(join(projectPath, 'project.pbxproj'), generated.project)

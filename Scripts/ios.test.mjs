@@ -118,7 +118,7 @@ test('App Store distribution uses the configured Apple ID and permits an unpubli
   mkdirSync(join(directory, 'config'), { recursive: true })
   for (const appStoreID of [null, '1234567890']) {
     writeFileSync(join(directory, 'config/app.json'), JSON.stringify({ version: '0.1.2', appStoreID }))
-    const path = generateIOSProject(directory)
+    const path = generateIOSProject(directory, { engineeringStats: { commitCount: 12, codeLineCount: 345 } })
     const project = readFileSync(join(path, 'project.pbxproj'), 'utf8')
     assert.ok(project.includes(`BENCHGAUGE_APP_STORE_ID = "${appStoreID ?? ''}"`))
   }
@@ -166,6 +166,7 @@ test('SDK build and family-specific UI checks are independently runnable', () =>
   const original = join(directory, 'apps/ios/AI-BenchGauge.xcodeproj')
   mkdirSync(original, { recursive: true }); writeFileSync(join(original, 'project.pbxproj'), 'personal Xcode settings')
   const generated = generateIOSProject(directory, { projectDirectory: join(directory, 'work/ios-deploy/Project'),
+    engineeringStats: { commitCount: 12, codeLineCount: 345 },
     sourceDirectory: join(directory, 'apps/ios'), packageDirectory: directory, logoDirectory: join(directory, 'assets/logos'),
     assetDirectory: join(directory, 'work/ios-deploy/Assets.xcassets'), team: 'ABCDEFGHIJ' })
   const project = readFileSync(join(generated, 'project.pbxproj'), 'utf8')

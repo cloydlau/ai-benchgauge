@@ -45,3 +45,7 @@ apps/weapp/private.*.key
 apps/weapp/*.private.key
 apps/weapp/.last-publish*
 apps/weapp/preview-qrcode.jpg
+
+# Swift coverage output
+*.profraw
+*.profdata

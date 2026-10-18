@@ -21,53 +21,8 @@ on_err() {
 trap on_err ERR
 
 node "$ROOT/Scripts/validate-app-config.mjs"
-node "$ROOT/Scripts/prepare-swift-workspace.mjs"
-
 if [[ "${BENCHGAUGE_SKIP_TESTS:-0}" != "1" ]]; then
   node "$ROOT/Scripts/test.mjs" --gate
 fi
 
-build_args=(-c release --package-path "$ROOT" --cache-path "$ROOT/work/swiftpm-cache"
-  --manifest-cache local --disable-build-manifest-caching --disable-sandbox -debug-info-format none)
-if [[ "${APP_UNIVERSAL:-0}" == "1" ]]; then
-  build_args+=(--arch arm64 --arch x86_64)
-fi
-export CLANG_MODULE_CACHE_PATH="$ROOT/work/clang-modules"
-swift build "${build_args[@]}" --product leaderboard-menu
-BIN="$(swift build "${build_args[@]}" --show-bin-path)/leaderboard-menu"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$ROOT/apps/macos/Sources/Resources/Info.plist" "$APP/Contents/Info.plist"
-cp "$ROOT/config/app.json" "$APP/Contents/Resources/app.json"
-cp "$ROOT/assets/brand/AI-BenchGauge.icns" "$APP/Contents/Resources/AI-BenchGauge.icns"
-mkdir -p "$APP/Contents/Resources/brand"
-cp "$ROOT/assets/brand/"menu-template*.png "$APP/Contents/Resources/brand/"
-cp "$ROOT/assets/brand/"header-logo*.png "$APP/Contents/Resources/brand/"
-cp -R "$ROOT/assets/localizations/"*.lproj "$APP/Contents/Resources/"
-rm -rf "$APP/Contents/Resources/Fonts"
-cp -R "$ROOT/Sources/LeaderboardKit/Resources/Fonts" "$APP/Contents/Resources/Fonts"
-cp "$BIN" "$APP/Contents/MacOS/leaderboard-menu"
-rm -rf "$APP/Contents/Resources/logos"
-cp -R "$ROOT/assets/logos" "$APP/Contents/Resources/logos"
-rm -rf "$APP/Contents/Resources/Licenses"
-cp -R "$ROOT/apps/macos/Sources/Resources/Licenses" "$APP/Contents/Resources/Licenses"
-# Keep the application notice identical to the repository's license.
-cp "$ROOT/LICENSE" "$APP/Contents/Resources/Licenses/AI-BenchGauge.txt"
-FRAMEWORK="$APP/Contents/Frameworks/Sparkle.framework"
-mkdir -p "$APP/Contents/Frameworks"
-rm -rf "$FRAMEWORK"
-ditto "$ROOT/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework" "$FRAMEWORK"
-# Preserve Sparkle helper entitlements and sign from the innermost components out.
-sign_args=(--force --sign "${APP_SIGNING_IDENTITY:--}" --preserve-metadata=identifier,entitlements,flags)
-if [[ "${APP_SIGNING_IDENTITY:--}" != "-" ]]; then
-  sign_args+=(--timestamp --options runtime)
-fi
-codesign "${sign_args[@]}" "$FRAMEWORK/Versions/B/Autoupdate"
-for component in "$FRAMEWORK/Versions/B/XPCServices/"*.xpc "$FRAMEWORK/Versions/B/Updater.app"; do
-  codesign "${sign_args[@]}" "$component"
-done
-codesign "${sign_args[@]}" "$FRAMEWORK"
-codesign "${sign_args[@]}" "$APP"
-codesign --verify --deep --strict "$APP"
-
-printf 'Built %s\n' "$APP"
-notify success "构建成功" "已生成 outputs/AI-BenchGauge.app"
+exec node "$ROOT/Scripts/build-cache.mjs" run macos -- zsh "$ROOT/Scripts/package-macos.sh"

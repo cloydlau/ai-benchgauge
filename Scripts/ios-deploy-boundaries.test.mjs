@@ -6,7 +6,7 @@ import { syncBuiltinESMExports } from 'node:module'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
-import { claimWorker, configuration, deploymentPaths, deploymentTick, readJSON, writeJSON, bundleID, availableDevice } from './ios-deploy.mjs'
+import { claimWorker, configuration, deploymentPaths, deploymentTick, mobileCheck, readJSON, writeJSON, bundleID, availableDevice } from './ios-deploy.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 const preload = String.raw`
@@ -71,6 +71,8 @@ function fixture(t, mode = '') {
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
   fs.mkdirSync(join(directory, 'Scripts'))
   fs.copyFileSync(join(root, 'Scripts/ios-deploy.mjs'), join(directory, 'Scripts/ios-deploy.mjs'))
+  fs.writeFileSync(join(directory, 'Scripts/build-cache.mjs'), 'export async function withBuildCache(root, profile, action) { return action() }')
+  fs.writeFileSync(join(directory, 'Scripts/node-executable.mjs'), 'export const nodeExecutable = () => process.env.BENCHGAUGE_NODE || process.execPath')
   fs.writeFileSync(join(directory, 'Scripts/calmmit.mjs'), `export const ci = { load: async () => ({ readSourceFingerprint: async () => globalThis.unitFingerprint() }) }`)
   fs.writeFileSync(join(directory, 'Scripts/test.mjs'), `export const testInputSignature = () => globalThis.unitSignature()`)
   fs.writeFileSync(join(directory, 'Scripts/ios-project.mjs'), `export function generateIOSProject(root, options) { if (options.team !== 'ABCDEFGHIJ') throw new Error('wrong team') }`)
@@ -274,4 +276,67 @@ test('a contender cannot steal a worker lock recreated between its two mkdir cal
    else assert.throws(()=>claimWorker(f.paths.lock,2,()=>false),{code:'EACCES'})
   }finally{fs.mkdirSync=original;syncBuiltinESMExports();fs.rmSync(f.paths.lock,{recursive:true,force:true})}
  }
+})
+
+
+test('mobile checks and device builds recover after their running Node binary is removed', async t => {
+  const f = fixture(t), calls = []
+  const config = { device: 'phone', team: 'ABCDEFGHIJ', developerDir: 'fixture', launchAfterInstall: false }
+  writeJSON(f.paths.checkpoint, { fingerprint: 'fixture' })
+  writeJSON(f.paths.request, { id: 'request', fingerprint: 'fixture' })
+  const bin = join(f.directory, 'bin')
+  fs.mkdirSync(bin)
+  fs.symlinkSync(process.execPath, join(bin, 'node'))
+  const expected = fs.realpathSync(process.execPath)
+  const original = { execPath: process.execPath, PATH: process.env.PATH,
+    BENCHGAUGE_NODE: process.env.BENCHGAUGE_NODE, CALMMIT_NODE: process.env.CALMMIT_NODE }
+  const execute = async (command, args) => {
+    calls.push([command, ...args])
+    if (command === 'xcrun') return JSON.stringify({ result: { devices: [{ identifier: 'phone', properties: {
+      hardware: { reality: 'physical', platform: 'iOS' }, connection: { pairingState: 'paired', state: 'connected' },
+    } }] } })
+    if (command === 'xcodebuild') {
+      fs.mkdirSync(f.paths.app, { recursive: true })
+      fs.writeFileSync(join(f.paths.app, 'embedded.mobileprovision'), 'fixture')
+    }
+    return command === '/usr/libexec/PlistBuddy' ? bundleID : ''
+  }
+  try {
+    process.execPath = join(f.directory, 'removed-runtime/node')
+    process.env.PATH = bin
+    delete process.env.BENCHGAUGE_NODE
+    delete process.env.CALMMIT_NODE
+    await mobileCheck({ paths: f.paths, config, fingerprint: async () => 'fixture', execute })
+    assert.equal(await deploymentTick({ paths: f.paths, config, fingerprint: async () => 'fixture', execute,
+      record: () => {} }), 'idle')
+    const preparations = calls.filter(call => call.includes('prepare'))
+    assert.equal(preparations.length, 2)
+    assert.ok(preparations.every(call => call[0] === expected))
+    assert.ok(calls.some(call => call.includes('install')))
+    assert.equal(readJSON(f.paths.receipt).status, 'success')
+  } finally {
+    process.execPath = original.execPath
+    for (const key of ['PATH', 'BENCHGAUGE_NODE', 'CALMMIT_NODE']) {
+      if (original[key] === undefined) delete process.env[key]
+      else process.env[key] = original[key]
+    }
+  }
+})
+
+test('checked CLI and detached workers honor the selected Node runtime', t => {
+  const f = fixture(t)
+  const previous = process.env.BENCHGAUGE_NODE
+  try {
+    process.env.BENCHGAUGE_NODE = join(f.directory, 'selected-node')
+    const result = f.invoke('checked')
+    assert.equal(result.status, 0, result.stderr)
+    for (const action of ['Scripts/check-syntax.mjs', 'prepare', 'watch']) {
+      const calls = f.calls().filter(call => call.includes(action))
+      assert.ok(calls.length > 0, action)
+      assert.ok(calls.every(call => call[0] === process.env.BENCHGAUGE_NODE), action)
+    }
+  } finally {
+    if (previous === undefined) delete process.env.BENCHGAUGE_NODE
+    else process.env.BENCHGAUGE_NODE = previous
+  }
 })
