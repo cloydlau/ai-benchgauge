@@ -1117,7 +1117,7 @@ runtime connection failures, if any, are recorded with the task evidence.
 ## ECI scoring-method label — 2026-10-18
 
 The ECI method caption now reads “难度校准” / “難度校準” /
-“Calibrated scoring”, alongside the existing task-benchmark and user-vote
+“Calibrated tests”, alongside the existing task-benchmark and user-vote
 captions. “Capability index” names the resulting metric rather than the scoring
 method. ECI is also based on task benchmarks; its summary now explains that it
 estimates general capability while accounting for benchmark difficulty and

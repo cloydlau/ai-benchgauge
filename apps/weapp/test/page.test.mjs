@@ -893,7 +893,7 @@ test('actual filter/settings handlers share source filters, react to theme, copy
   assert.equal(h.page.sheet.value.actions.length, 3)
   h.page.sheetSelect({ detail: h.page.sheet.value.actions.find(action => action.value === 'dark') })
   assert.ok(h.page.dark.value)
-  assert.deepEqual(h.page.tabs.value, ['Task benchmarks', 'User votes', 'Calibrated scoring'])
+  assert.deepEqual(h.page.tabs.value, ['Task benchmarks', 'User votes', 'Calibrated tests'])
   h.page.selectCategory(event({ id: 'image' }))
   assert.equal(h.page.cards.value[0].title, 'Artificial Analysis Text to Image')
   h.respondAll(); await new Promise(resolve => setImmediate(resolve))
