@@ -90,7 +90,8 @@
     "kuaishou": "Kuaishou",
     "nousresearch": "Nous Research",
     "stanford": "Stanford",
-    "technologyinnovationinstitute": "Technology Innovation Institute"
+    "technologyinnovationinstitute": "Technology Innovation Institute",
+    "openlmresearch": "OpenLM Research"
   },
   "companySort": [
     "scoreDescending",
@@ -104,6 +105,78 @@
     "internlm2_5-20b-chat": {
       "openness": "open",
       "sourceURL": "https://huggingface.co/internlm/internlm2_5-20b-chat"
+    },
+    "qwen2.5-coder-14b": {
+      "openness": "open",
+      "sourceURL": "https://huggingface.co/Qwen/Qwen2.5-Coder-14B"
+    },
+    "qwen2.5-coder-3b": {
+      "openness": "open",
+      "sourceURL": "https://huggingface.co/Qwen/Qwen2.5-Coder-3B"
+    },
+    "qwen2.5-coder-0.5b": {
+      "openness": "open",
+      "sourceURL": "https://huggingface.co/Qwen/Qwen2.5-Coder-0.5B"
+    },
+    "codeqwen1.5-7b": {
+      "openness": "open",
+      "sourceURL": "https://huggingface.co/Qwen/CodeQwen1.5-7B"
+    },
+    "qwen-1_8b": {
+      "openness": "open",
+      "sourceURL": "https://huggingface.co/Qwen/Qwen-1_8B"
+    },
+    "internlm-20b": {
+      "openness": "open",
+      "sourceURL": "https://huggingface.co/internlm/internlm-20b"
+    },
+    "internlm-7b": {
+      "openness": "open",
+      "sourceURL": "https://huggingface.co/internlm/internlm-7b"
+    },
+    "deepseek-coder-v2-lite-base": {
+      "openness": "open",
+      "sourceURL": "https://huggingface.co/deepseek-ai/DeepSeek-Coder-V2-Lite-Base"
+    },
+    "yi-9b": {
+      "openness": "open",
+      "sourceURL": "https://huggingface.co/01-ai/Yi-9B"
+    },
+    "chatglm2-6b": {
+      "openness": "open",
+      "sourceURL": "https://huggingface.co/zai-org/chatglm2-6b"
+    },
+    "vicuna-13b-v1.1": {
+      "openness": "open",
+      "sourceURL": "https://huggingface.co/lmsys/vicuna-13b-v1.1"
+    },
+    "open_llama_7b": {
+      "openness": "open",
+      "sourceURL": "https://huggingface.co/openlm-research/open_llama_7b"
+    },
+    "redpajama-incite-7b-base": {
+      "openness": "open",
+      "sourceURL": "https://huggingface.co/togethercomputer/RedPajama-INCITE-7B-Base"
+    },
+    "stablelm-tuned-alpha-7b": {
+      "openness": "open",
+      "sourceURL": "https://huggingface.co/stabilityai/stablelm-tuned-alpha-7b"
+    },
+    "palm 2-l": {
+      "openness": "closed",
+      "sourceURL": "https://arxiv.org/abs/2305.10403"
+    },
+    "palm 2-m": {
+      "openness": "closed",
+      "sourceURL": "https://arxiv.org/abs/2305.10403"
+    },
+    "palm 2-s": {
+      "openness": "closed",
+      "sourceURL": "https://arxiv.org/abs/2305.10403"
+    },
+    "intellect-1": {
+      "openness": "open",
+      "sourceURL": "https://huggingface.co/PrimeIntellect/INTELLECT-1"
     }
   }
 }

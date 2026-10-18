@@ -52,6 +52,13 @@ enum LeaderboardBrandPolicy {
         "uwashington": "universityofwashington",
         "tii": "technologyinnovationinstitute",
         "ifm": "instituteoffoundationmodels",
+        "googledeepmind": "google",
+        "googledeepmindgoogle": "google",
+        "metaai": "meta",
+        "mistralai": "mistral",
+        "zaizhipuai": "zai",
+        "microsoftresearch": "microsoftai",
+        "coherecoherelabsformerlycohereforai": "cohere",
     ]
     static var aliases: [String: String] { aliasesStorage }
     private static let modelDevelopersStorage: [String: String] = [
@@ -108,6 +115,21 @@ enum LeaderboardBrandPolicy {
         "claude code - step 5 preview": "stepfun",
         "alpaca-13b": "stanford",
         "falcon-180b-chat": "technologyinnovationinstitute",
+        "qwen2.5-coder-14b": "qwen",
+        "qwen2.5-coder-3b": "qwen",
+        "qwen2.5-coder-0.5b": "qwen",
+        "codeqwen1.5-7b": "qwen",
+        "qwen-1_8b": "qwen",
+        "internlm-20b": "shanghaiailaboratory",
+        "internlm-7b": "shanghaiailaboratory",
+        "deepseek-coder-v2-lite-base": "deepseek",
+        "yi-9b": "01ai",
+        "vicuna-13b-v1.1": "lmsys",
+        "open_llama_7b": "openlmresearch",
+        "redpajama-incite-7b-base": "togetherai",
+        "palm 2-l": "google",
+        "palm 2-m": "google",
+        "palm 2-s": "google",
     ]
     static var modelDevelopers: [String: String] { modelDevelopersStorage }
     private static let countryCodesStorage: [String: String] = [
@@ -268,10 +290,29 @@ enum LeaderboardBrandPolicy {
         "nousresearch": "Nous Research",
         "stanford": "Stanford",
         "technologyinnovationinstitute": "Technology Innovation Institute",
+        "openlmresearch": "OpenLM Research",
     ]
     static var companyNames: [String: String] { companyNamesStorage }
     private static let verifiedModelOpennessStorage: [String: String] = [
         "internlm2_5-20b-chat": "open",
+        "qwen2.5-coder-14b": "open",
+        "qwen2.5-coder-3b": "open",
+        "qwen2.5-coder-0.5b": "open",
+        "codeqwen1.5-7b": "open",
+        "qwen-1_8b": "open",
+        "internlm-20b": "open",
+        "internlm-7b": "open",
+        "deepseek-coder-v2-lite-base": "open",
+        "yi-9b": "open",
+        "chatglm2-6b": "open",
+        "vicuna-13b-v1.1": "open",
+        "open_llama_7b": "open",
+        "redpajama-incite-7b-base": "open",
+        "stablelm-tuned-alpha-7b": "open",
+        "palm 2-l": "closed",
+        "palm 2-m": "closed",
+        "palm 2-s": "closed",
+        "intellect-1": "open",
     ]
     static var verifiedModelOpenness: [String: String] { verifiedModelOpennessStorage }
     private static let modelFamiliesStorage: [(family: String, key: String)] = [
