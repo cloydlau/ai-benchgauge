@@ -30,7 +30,7 @@ export function createRowRenderer(mapRow) {
     const rows = Array.from({ length: end - start }, (_, offset) => {
       const index = start + offset
       return reuse && previous.rows[index - previous.start]
-        || { ...mapRow(entries[index]), top: index * rowHeight }
+        || { ...mapRow(entries[index], entries), top: index * rowHeight }
     })
     previous = { entries, start, end, rowHeight, variant, rows }
     return rows

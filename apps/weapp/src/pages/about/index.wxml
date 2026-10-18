@@ -6,7 +6,7 @@
     <view class="about-hero">
       <view class="about-brand">
         <view class="brand-wordmark" style="{{brandTitle.style}}" aria-label="{{labels.name}}">
-          <image class="brand-letter-logo" src="{{dark ? '/assets/header-logo-dark.png' : '/assets/header-logo.png'}}" mode="scaleToFill" style="{{brandTitle.logoStyle}}" aria-hidden="true" />
+          <image wx:if="{{brandTitle.logoWidth > 0 && brandTitle.logoHeight > 0}}" class="brand-letter-logo" src="{{dark ? '/assets/header-logo-dark.png' : '/assets/header-logo.png'}}" mode="scaleToFill" style="{{brandTitle.logoStyle}}" aria-hidden="true" />
           <image wx:for="{{brandTitle.glyphs}}" wx:key="key" class="brand-glyph" src="{{item.source}}{{dark ? '-dark' : ''}}.svg" mode="scaleToFill" style="{{item.style}}" aria-hidden="true" />
         </view>
         <text class="about-version mono">v{{version}}</text>

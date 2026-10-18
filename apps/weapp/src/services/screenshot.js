@@ -14,7 +14,7 @@ async function loadImages(platform, canvas, sources) {
     try {
       if (/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(source)) {
         path = `${directory}/${index++}.png`; fs.writeFileSync(path, source.split(',')[1], 'base64'); files.push(path)
-      } else if (!/^\/assets\/(?:(?:logos|openness)\/)?[a-zA-Z0-9_-]+\.png$/.test(source)) return
+      } else if (!/^\/assets\/(?:(?:logos|openness|flags)\/)?[a-zA-Z0-9_-]+\.png$/.test(source)) return
       const image = canvas.createImage()
       await new Promise((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error('Logo load timed out')), 5000)
@@ -47,7 +47,7 @@ export async function exportScreenshot({ platform, canvas, model, isActive = () 
         if (name.startsWith('benchgauge-screenshot-') && name.endsWith('.png')) removeScreenshot(platform, `${platform.env.USER_DATA_PATH}/${name}`)
       }
     } catch { /* Cleanup availability must not prevent a new export. */ }
-    assets = await loadImages(platform, canvas, [brandLogoSource(model.dark), ...model.boards.flatMap(board => board.rows.flatMap(row => [row.logo, row.opennessIcon]))])
+    assets = await loadImages(platform, canvas, [brandLogoSource(model.dark), ...model.boards.flatMap(board => board.rows.flatMap(row => [row.logo, row.opennessIcon, row.flagImage]))])
     const chunks = []
     let byteLength = 0
     const png = createPNGStream(screenshotWidth, image.height, bytes => { chunks.push(bytes); byteLength += bytes.length })

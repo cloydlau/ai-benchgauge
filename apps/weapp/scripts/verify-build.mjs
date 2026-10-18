@@ -1,6 +1,7 @@
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { bundledFlags } from '../src/core/flag-catalog.js'
 
 const root = fileURLToPath(new URL('../dist/', import.meta.url))
 const app = JSON.parse(readFileSync(resolve(root, 'app.json')))
@@ -40,5 +41,9 @@ for (const glyph of ['zh-I', 'zh-tian', 'zh-ti', 'en-I', 'en-name']) {
   }
 }
 if (!existsSync(resolve(root, 'assets/brand-glyphs/LICENSE.txt'))) throw new Error('Missing title font license')
+for (const code of bundledFlags) {
+  if (!existsSync(resolve(root, `assets/flags/${code.toLowerCase()}.png`))) throw new Error(`Missing country flag: ${code}`)
+}
+if (!existsSync(resolve(root, 'assets/flags/LICENSE.txt'))) throw new Error('Missing flag license')
 if (!existsSync(resolve(root, 'app.wxss'))) throw new Error('Missing global styles')
 console.log(`Verified ${app.pages.length} pages, assets and all relative runtime modules.`)

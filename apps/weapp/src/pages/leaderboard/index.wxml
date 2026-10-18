@@ -3,7 +3,7 @@
   <view class="brand-head {{labels.name === 'AI BenchGauge' ? 'brand-en' : ''}}" style="min-height:{{navHeight}}px;padding-top:{{headerTop}}px;padding-right:{{capsuleWidth}}px;">
     <view class="brand-copy">
       <view class="brand-title brand-wordmark" style="{{brandTitle.style}}" aria-label="{{labels.name}}">
-        <image class="brand-letter-logo" src="{{dark ? '/assets/header-logo-dark.png' : '/assets/header-logo.png'}}" mode="scaleToFill" style="{{brandTitle.logoStyle}}" aria-hidden="true" />
+        <image wx:if="{{brandTitle.logoWidth > 0 && brandTitle.logoHeight > 0}}" class="brand-letter-logo" src="{{dark ? '/assets/header-logo-dark.png' : '/assets/header-logo.png'}}" mode="scaleToFill" style="{{brandTitle.logoStyle}}" aria-hidden="true" />
         <image wx:for="{{brandTitle.glyphs}}" wx:key="key" class="brand-glyph" src="{{item.source}}{{dark ? '-dark' : ''}}.svg" mode="scaleToFill" style="{{item.style}}" aria-hidden="true" />
       </view>
       <button class="subtitle {{labels.name === 'AI BenchGauge' ? '' : 'subtitle-single-line'}}" style="height:{{brandTitle.subtitleHeight}}px;font-size:{{brandTitle.subtitleFontSize}}px;" bindtap="quotaHelp" aria-label="{{labels.subtitle}}">
@@ -22,26 +22,30 @@
     <button wx:for="{{tabs}}" wx:key="*this" class="source-tab source-{{index}} {{face === index ? 'active' : ''}}"
       data-index="{{index}}" bindtap="selectFace" role="tab" aria-selected="{{face === index}}">{{item}}</button>
   </view>
-  <view class="boards" style="{{entranceStyle}}" bindtouchstart="cubeStart" bindtouchmove="cubeMove" bindtouchend="cubeEnd" bindtouchcancel="cubeCancel">
+  <view class="boards" style="{{entranceStyle}}{{cubeViewportStyle}}" bindtouchstart="cubeStart" bindtouchmove="cubeMove" bindtouchend="cubeEnd" bindtouchcancel="cubeCancel">
     <view wx:if="{{entranceHintVisible}}" class="cube-launch-hint"><text>↕ {{labels.cubeScroll}}</text><view class="cube-hint-divider" /><text>↔ {{labels.cubeSwitch}}</text></view>
     <view wx:for="{{cards}}" wx:for-item="card" wx:key="kind" class="board-face" style="{{cubeFaces[card.index].style}}" aria-hidden="{{face !== card.index}}">
       <scroll-view id="board-scroll-{{card.kind}}" class="board-scroll" scroll-y="{{!backgroundLocked && (!cubeDragging || face !== card.index)}}" enhanced show-scrollbar="{{false}}"
-        refresher-enabled="{{!backgroundLocked && (!cubeDragging || face !== card.index)}}" refresher-triggered="{{pullRefreshing}}" refresher-background="{{dark ? '#10151c' : '#f5f7fa'}}"
+        refresher-enabled="{{!backgroundLocked && (!cubeDragging || face !== card.index)}}" refresher-triggered="{{pullRefreshing}}" refresher-background="{{dark ? '#101216' : '#f4f5f7'}}"
         data-kind="{{card.kind}}" scroll-anchoring="{{false}}"
         bindscroll="scroll" bindrefresherrefresh="pullRefresh">
         <view class="source-tabs-spacer" style="height:{{sourceTabsExtent}}px;" aria-hidden="true" />
         <view class="board-card source-{{card.index}}">
           <view class="metadata">
             <button class="summary" data-kind="{{card.kind}}" bindtap="sourceHelp">{{card.summary}}</button>
-            <button class="times mono {{card.loading ? 'times-loading' : ''}}" data-kind="{{card.kind}}" bindtap="refreshTap" aria-label="{{card.loading ? labels.loading : labels.refresh}}" aria-busy="{{card.loading}}">
+            <button class="times mono" data-kind="{{card.kind}}" bindtap="refreshTap" aria-label="{{card.loading ? labels.loading : labels.refresh}}" aria-busy="{{card.loading}}">
+              <view wx:if="{{card.loading}}" class="time-loading" aria-hidden="true" />
               <text class="time-value">{{card.time}}</text>
-              <view wx:if="{{card.loading}}" class="time-skeleton" aria-hidden="true" />
             </button>
           </view>
           <view id="head-anchor-{{card.kind}}" class="table-head-anchor" aria-hidden="true" />
-          <view class="table-head table-grid {{card.headerPinned ? 'table-head-pinned' : ''}}">
+          <view id="table-head-{{card.kind}}" class="table-head {{card.headerPinned ? 'table-head-pinned' : ''}} {{modelSearchVisible ? 'model-search-open' : ''}}">
+          <view class="table-head-content table-grid" aria-hidden="{{modelSearchVisible}}">
             <text class="rank-cell">{{labels.rank}}</text>
+            <view class="model-heading">
             <button class="source-heading" data-kind="{{card.kind}}" bindtap="copyBoardTitle" aria-label="{{labels.copyName}} {{card.title}}">{{card.title}}</button>
+            <button wx:if="{{grouping === 'model'}}" id="model-filter-{{card.kind}}" class="model-filter-toggle" data-kind="{{card.kind}}" bindtap="openModelSearch" aria-label="{{labels.searchModels}}"><van-icon name="search" size="13px" /></button>
+            </view>
             <button class="filter {{card.countryFiltered ? 'filtered' : ''}}" data-kind="{{card.kind}}" data-mode="country" bindtap="filterMenu">
               <view class="filter-label">{{labels.country}}<view class="filter-arrow" aria-hidden="true"><van-icon name="arrow-down" size="7px" /></view></view>
             </button>
@@ -49,6 +53,16 @@
               <view class="filter-label">{{labels.source}}<view class="filter-arrow" aria-hidden="true"><van-icon name="arrow-down" size="7px" /></view></view>
             </button>
             <text class="score-cell">{{labels.score}}</text>
+          </view>
+          <view class="model-search" style="{{card.searchStyle}}" aria-hidden="{{!modelSearchVisible}}">
+            <view class="model-search-content">
+              <van-icon name="search" size="14px" />
+              <input wx:if="{{modelSearchVisible}}" class="model-search-input" value="{{modelSearchQuery}}" placeholder="{{labels.searchModels}}" placeholder-class="model-search-placeholder"
+                focus="{{modelSearchFocused && card.index === face}}" disabled="{{card.index !== face}}" confirm-type="done" bindinput="inputModelSearch" bindfocus="focusModelSearch" bindblur="deferModelSearchBlur" bindconfirm="blurModelSearch" aria-label="{{labels.searchModels}}" />
+              <button wx:if="{{modelSearchQuery}}" class="model-search-clear" bindtouchstart="beginModelSearchClear" bindtouchcancel="cancelModelSearchClear" bindtap="clearModelSearch" aria-label="{{labels.clearSearch}}"><van-icon name="clear" size="13px" /></button>
+              <button class="model-search-cancel" bindtap="closeModelSearch">{{labels.cancel}}</button>
+            </view>
+          </view>
           </view>
           <view wx:if="{{card.loading && !card.hasBoard}}" class="ranking-skeleton" aria-label="{{labels.loading}}" aria-role="text">
             <view wx:for="{{skeletonRows}}" wx:key="*this" class="skeleton-row table-grid" style="height:{{card.rowHeight}}px;" aria-hidden="true">
@@ -65,8 +79,9 @@
           </view>
           <view id="rows-{{card.kind}}" class="virtual-rows" style="height:{{card.height}}px;">
           <view wx:for="{{card.rows}}" wx:for-item="row" wx:key="rank" style="top:{{row.top}}px;height:{{card.rowHeight}}px;" class="table-row table-grid {{row.rank % 2 === 0 ? 'alternate' : ''}}">
+            <view class="row-fill-track" aria-hidden="true"><view class="name-fill" style="{{row.fill}}width:{{row.fillPercent}}%;" /></view>
             <text class="rank-cell mono">{{row.medal}}</text>
-            <view class="name-cell {{row.purchaseActions.length ? 'with-purchase-links' : ''}}" style="{{row.fill}}">
+            <view class="name-cell {{row.purchaseActions.length ? 'with-purchase-links' : ''}}">
             <button class="name-action" data-kind="{{card.kind}}" data-rank="{{row.rank}}" bindtap="rowDetails" aria-label="{{row.name}}">
               <image wx:if="{{row.logo}}" class="model-logo" src="{{row.logo}}" mode="aspectFit" />
               <view wx:else class="model-logo initial">{{row.initial}}</view>
@@ -78,12 +93,16 @@
                 aria-label="{{row.name}} · {{action.title}} · {{labels.copyLink}}">{{action.title}}</button>
             </view>
             </view>
-            <text class="country-cell">{{row.flag}}</text>
-            <view wx:if="{{grouping !== 'company'}}" class="openness-cell" aria-label="{{row.openness === 'open' ? labels.open : row.openness === 'closed' ? labels.closed : labels.unknown}}">
+            <button wx:if="{{row.countryUnknown}}" class="country-cell country-help" bindtap="countryHelp" aria-label="{{labels.unknownCountryTitle}}">?</button>
+            <button wx:else class="country-cell attribute-action" data-kind="{{card.kind}}" data-rank="{{row.rank}}" data-attribute="country" catchtap="attributeHint" aria-label="{{row.countryName}}">{{row.flag}}</button>
+            <button wx:if="{{grouping !== 'company'}}" class="openness-cell attribute-action" data-kind="{{card.kind}}" data-rank="{{row.rank}}" data-attribute="openness" catchtap="attributeHint" aria-label="{{row.openness === 'open' ? labels.open : row.openness === 'closed' ? labels.closed : labels.unknown}}">
               <image wx:if="{{row.opennessIcon}}" class="openness-icon" src="{{row.opennessIcon}}" mode="aspectFit" aria-hidden="true" />
               <text wx:else>—</text>
+            </button>
+            <view class="score-cell score-value mono">
+              <text>{{row.scoreText}}</text>
+              <text wx:if="{{row.scoreShare}}" class="score-share">{{row.scoreShare}}</text>
             </view>
-            <text class="score-cell mono">{{row.scoreText}}</text>
           </view>
           </view>
         </view>
@@ -108,10 +127,11 @@
       <van-icon wx:else name="{{item.icon}}" size="18px" /><text class="category-label">{{item.label}}</text>
     </button>
   </view>
-  <van-action-sheet show="{{sheet.open}}" catch:touchstart title="{{sheet.title}}" actions="{{sheet.actions}}" bindselect="sheetSelect" bindclose="closeSheet" custom-class="settings-sheet {{dark ? 'dark-sheet' : ''}}" />
-  <van-dialog id="company-details" show="{{companyDetails.open}}" catch:touchstart use-title-slot use-slot
+  <!-- Let Vant receive option/button touches; backgroundLocked locks the boards. -->
+  <van-action-sheet show="{{sheet.open}}" title="{{sheet.title}}" actions="{{sheet.actions}}" bindselect="sheetSelect" bindclose="closeSheet" custom-class="settings-sheet {{dark ? 'dark-sheet' : ''}}" />
+  <van-dialog id="company-details" show="{{companyDetails.open}}" use-title-slot use-slot
     show-cancel-button confirm-button-text="{{labels.copyName}}" cancel-button-text="{{labels.cancel}}"
-    confirm-button-color="{{dark ? '#67b1ff' : '#1675dc'}}" cancel-button-color="{{dark ? '#edf2f7' : '#17202c'}}"
+    confirm-button-color="{{dark ? '#d1dce8' : '#414d5c'}}" cancel-button-color="{{dark ? '#f2f5fa' : '#20262f'}}"
     custom-style="background:var(--card);color:var(--ink);--dialog-has-title-message-text-color:var(--muted);--button-default-background-color:var(--card);"
     bindconfirm="copyCompanyName" bindcancel="closeCompanyDetails" bindclose="closeCompanyDetails">
     <view slot="title" class="company-details-title">{{companyDetails.name}}</view>
@@ -123,13 +143,14 @@
       </view>
     </view>
   </van-dialog>
-  <van-dialog show="{{showingFeatureHelp}}" catch:touchstart title="{{labels.featureDetails}}" message="{{quotaHelpContent}}"
+  <van-dialog show="{{showingFeatureHelp}}" title="{{labels.featureDetails}}" message="{{quotaHelpContent}}"
     show-cancel-button confirm-button-text="{{labels.gotIt}}" cancel-button-text="{{labels.desktopLink}}"
-    confirm-button-color="{{dark ? '#67b1ff' : '#1675dc'}}" cancel-button-color="{{dark ? '#edf2f7' : '#17202c'}}"
+    confirm-button-color="{{dark ? '#d1dce8' : '#414d5c'}}" cancel-button-color="{{dark ? '#f2f5fa' : '#20262f'}}"
     custom-style="background:var(--card);color:var(--ink);--dialog-has-title-message-text-color:var(--muted);--button-default-background-color:var(--card);"
     bindconfirm="closeFeatureHelp" bindcancel="copyDesktopLink" bindclose="closeFeatureHelp" />
   <canvas id="leaderboard-export" type="2d" class="export-canvas" aria-hidden="true" />
-  <van-popup show="{{capture.open}}" catch:touchstart position="bottom" round bindclose="closeCapture" close-on-click-overlay="{{!capture.saving}}" custom-class="capture-popup {{dark ? 'dark-sheet' : ''}}">
+  <!-- capture-panel already includes the bottom safe area; avoid a second strip below it. -->
+  <van-popup show="{{capture.open}}" position="bottom" round safe-area-inset-bottom="{{false}}" bindclose="closeCapture" close-on-click-overlay="{{!capture.saving}}" custom-class="capture-popup {{dark ? 'dark-sheet' : ''}}">
     <view class="capture-panel shell {{dark ? 'dark' : ''}}">
       <view class="capture-heading"><text>{{labels.screenshot}}</text><button class="tap" bindtap="closeCapture" disabled="{{capture.saving}}" aria-label="{{labels.close}}"><van-icon name="cross" size="18px" /></button></view>
       <scroll-view scroll-y class="capture-images"><image wx:if="{{capture.path}}" class="capture-image" src="{{capture.path}}" mode="widthFix" bindtap="previewScreenshot" /></scroll-view>

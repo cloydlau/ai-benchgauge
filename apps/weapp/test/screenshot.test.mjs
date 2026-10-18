@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFileSync, readdirSync } from 'node:fs'
+import { bundledFlags } from '../src/core/flag-catalog.js'
 import { planScreenshot, drawScreenshot, screenshotStripHeight, screenshotWidth } from '../src/core/screenshot.js'
 import { exportScreenshot, removeScreenshot } from '../src/services/screenshot.js'
 import { rowView } from '../src/core/leaderboard.js'
@@ -18,6 +20,42 @@ const model = (counts = [415, 32], dark = false) => ({
       score: count - index, openness: index % 2 ? 'open' : 'closed', developerCountry: { countryCode: 'US' } }, { dark })) })),
 })
 
+test('exported score shares sit below the score without changing row geometry', () => {
+  for (const dark of [false, true]) {
+    const h = canvasHarness(), source = model([2, 0], dark)
+    const before = planScreenshot(h.context, source)
+    source.boards[0].rows[1].scoreShare = '50%'
+    const image = planScreenshot(h.context, source)
+    assert.deepEqual(image.rows.map(row => [row.y, row.height]), before.rows.map(row => [row.y, row.height]))
+    drawScreenshot(h.context, source, image, new Map())
+    const share = h.commands.find(([name, value]) => name === 'fillText' && value === '50%')
+    const row = image.rows[1]
+    assert.equal(share[3], row.y + row.height / 2 + 12)
+    assert.ok(share[3] + 5 < row.y + row.height)
+  }
+})
+
+test('exported score bars span every column after rank without narrowing name layout', () => {
+  for (const dark of [false, true]) for (const grouping of ['model', 'company']) {
+    const h = canvasHarness(), source = model([3, 0], dark)
+    source.grouping = grouping
+    const before = planScreenshot(h.context, source)
+    source.boards[0].rows = [100, 50, 0].map((score, index) => rowView({
+      rank: index + 1, name: source.boards[0].rows[index].name, score,
+    }, { dark, leaderScore: 100 }))
+    const image = planScreenshot(h.context, source)
+    assert.deepEqual(image.rows.map(row => [row.y, row.height, row.pair[0].lines]),
+      before.rows.map(row => [row.y, row.height, row.pair[0].lines]))
+    drawScreenshot(h.context, source, image, new Map())
+    for (const [index, width] of [410, 205, 0].entries()) {
+      const y = image.rows[index].y + 4
+      const start = h.commands.findIndex(([name, x, top]) => name === 'moveTo' && x === 77 && top === y)
+      if (!width) assert.equal(start, -1)
+      else assert.deepEqual(h.commands[start + 1], ['lineTo', 72 + width - 5, y])
+    }
+  }
+})
+
 test('one complete comparison retains every model and rank without page counters', () => {
   const h = canvasHarness(), source = model(), image = planScreenshot(h.context, source)
   assert.ok(image.height > 10000)
@@ -30,7 +68,7 @@ test('one complete comparison retains every model and rank without page counters
     const source = model([4, 0], dark), image = planScreenshot(h.context, source)
     drawScreenshot(h.context, source, image, new Map())
     const text = h.commands.filter(([name]) => name === 'fillText').map(command => command[1])
-    for (const value of ['No matching entries', source.labels.name, '10/14 23:00', '🇺🇸']) assert.ok(text.includes(value))
+    for (const value of ['No matching entries', source.labels.name, '10/14 23:00', 'US']) assert.ok(text.includes(value))
     assert.ok(!text.some(value => /^\d+ \/ \d+$/.test(value)))
   }
 })
@@ -100,4 +138,52 @@ test('failed and cancelled exports release their canvas and partial PNG', async 
     assert.equal(h.files.size, 0)
     assert.equal(h.canvas.width, 1); assert.equal(h.canvas.height, 1)
   }
+})
+
+test('bundled country flags are valid PNGs and obey shared country normalization', () => {
+  const directory = new URL('../assets/flags/', import.meta.url)
+  assert.deepEqual(readdirSync(directory).filter(name => name.endsWith('.png')).sort(), [...bundledFlags].map(code => `${code.toLowerCase()}.png`).sort())
+  for (const code of bundledFlags) {
+    const png = readFileSync(new URL(`${code.toLowerCase()}.png`, directory))
+    assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10], code)
+    assert.equal(png.readUInt32BE(16), 64, code); assert.equal(png.readUInt32BE(20), 48, code)
+  }
+  for (const code of ['CN', 'HK', 'MO', 'TW', ' cn ']) {
+    const row = rowView({ rank: 1, name: 'Model', score: 1, developerCountry: { countryCode: code } })
+    assert.equal(row.countryCode, 'CN'); assert.equal(row.flagImage, '/assets/flags/cn.png')
+  }
+  for (const code of ['HK', 'MO', 'TW']) assert.ok(!bundledFlags.has(code))
+  assert.match(readFileSync(new URL('LICENSE', directory), 'utf8'), /MIT License/)
+})
+
+test('country raster assets render in both columns, themes and groupings, including later strips', async () => {
+  for (const dark of [false, true]) for (const grouping of ['model', 'company']) {
+    const h = canvasHarness(), source = model([35, 35], dark)
+    source.grouping = grouping
+    const codes = ['US', 'CN', 'FR', 'CA', 'GB', 'JP']
+    for (const board of source.boards) board.rows = board.rows.map((row, index) => ({ ...row,
+      ...rowView({ rank: row.rank, name: row.name, score: row.score, developerCountry: { countryCode: codes[index % codes.length] } }, { dark }) }))
+    const plan = planScreenshot(h.context, source)
+    await exportScreenshot({ ...h, model: source })
+    const draws = h.commands.filter(([name, image]) => name === 'drawImage' && image.src?.startsWith('/assets/flags/'))
+    for (const [index, row] of plan.rows.entries()) for (const column of [0, 1]) {
+      const x = 24 + column * 486 + 466 - 122 + (grouping === 'company' ? 47 : 0)
+      assert.ok(draws.some(([, image, left, top, width, height]) => image.src === `/assets/flags/${codes[index % codes.length].toLowerCase()}.png`
+        && left === x - 12 && top === row.y + row.height / 2 - 9 && width === 24 && height === 18))
+    }
+    assert.ok(plan.rows.at(-1).y > screenshotStripHeight)
+    assert.ok(!h.commands.some(([name, value]) => name === 'fillText' && /[\u{1F1E6}-\u{1F1FF}]/u.test(value)))
+  }
+})
+
+test('unavailable flag images and unknown countries export readable fallbacks', async () => {
+  const h = canvasHarness(), source = model([3, 0])
+  source.boards[0].rows = ['US', 'ZZ', null].map((code, index) => rowView({ rank: index + 1, name: 'Model', score: 1,
+    developerCountry: { countryCode: code } }))
+  source.boards[0].rows[0].flagImage = '/assets/flags/missing.png'
+  assert.equal(source.boards[0].rows[1].flagImage, '')
+  await exportScreenshot({ ...h, model: source })
+  const values = h.commands.filter(([name]) => name === 'fillText').map(([, value]) => value)
+  for (const value of ['US', 'ZZ', '?']) assert.ok(values.includes(value))
+  assert.ok(!values.some(value => /[\u{1F1E6}-\u{1F1FF}]/u.test(value)))
 })

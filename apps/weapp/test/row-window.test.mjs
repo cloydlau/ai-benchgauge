@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { rowGeometry, resolveRowWindow, createRowRenderer } from '../src/core/row-window.js'
+import { rowView } from '../src/core/leaderboard.js'
+
+test('scroll windows retain the full board leader and refresh their cached ratios after filtering', () => {
+  const render = createRowRenderer((entry, entries) => rowView(entry, { leaderScore: entries[0]?.score }))
+  const entries = [100, 80, 60, 40].map((score, i) => ({ rank: i + 1, name: `M${i}`, score }))
+  const range = { start: 2, end: 4, rowHeight: 48, variant: 'model' }
+  assert.deepEqual(render({ entries, ...range }).map(row => row.scoreShare), ['60%', '40%'])
+  assert.deepEqual(render({ entries: entries.slice(1), ...range, start: 1, end: 3 }).map(row => row.scoreShare), ['75%', '50%'])
+})
 
 test('buffered windows keep every visible row covered without depending on total count', () => {
   for (const width of [320, 375, 414, 834]) {
