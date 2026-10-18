@@ -57,8 +57,14 @@ for (key, text, font) in [("zh-I", "I", latin), ("zh-tian", "天", chinese), ("z
     glyphs[key] = ["text": text, "width": width, "height": height, "commands": commands,
                    "font": CTFontCopyPostScriptName(font) as String]
     let d = commands.map { $0.map { String(describing: $0) }.joined(separator: " ") }.joined(separator: " ")
-    for (suffix, color) in [("", "#17202c"), ("-dark", "#edf2f7")] {
-        let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 \(width) \(height)\"><path fill=\"\(color)\" d=\"\(d)\"/></svg>\n"
+    let palettes: [(String, [(Double, String)])] = [
+        ("", [(0, "#303945"), (0.42, "#8894A2"), (0.5, "#414D5C"), (1, "#6C7888")]),
+        ("-dark", [(0, "#F5F7FA"), (0.42, "#A5AFBC"), (0.5, "#E0E6EE"), (1, "#8D99A8")]),
+    ]
+    for (suffix, stops) in palettes {
+        let colors = stops.map { "<stop offset=\"\($0.0)\" stop-color=\"\($0.1)\"/>" }.joined()
+        let gradient = "<linearGradient id=\"brand\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"\(height)\" gradientUnits=\"userSpaceOnUse\">\(colors)</linearGradient>"
+        let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 \(width) \(height)\"><defs>\(gradient)</defs><path fill=\"url(#brand)\" d=\"\(d)\"/></svg>\n"
         try svg.write(to: directory.appending(path: "\(key)\(suffix).svg"), atomically: true, encoding: .utf8)
     }
 }

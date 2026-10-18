@@ -3,6 +3,8 @@ import Foundation
 
 // The selected D geometry is shared by every exported platform and size.
 struct Design: Decodable {
+    let material: String?
+    let artwork: String?
     let canvas: CGFloat
     let tileRadius: CGFloat
     let background: [String]
@@ -18,6 +20,10 @@ struct Design: Decodable {
 let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
 let directory = root.appending(path: "assets/brand")
 let design = try JSONDecoder().decode(Design.self, from: Data(contentsOf: directory.appending(path: "design.json")))
+// Keep the user-approved rendered material as the icon master. The vector
+// geometry remains authoritative for small transparent and monochrome marks.
+let artworkData = try design.artwork.map { try Data(contentsOf: directory.appending(path: $0)) }
+let artworkImage = artworkData.map { NSBitmapImageRep(data: $0)!.cgImage! }
 let colorSpace = CGColorSpaceCreateDeviceRGB()
 func color(_ hex: String) -> CGColor {
     let value = UInt32(hex.dropFirst(), radix: 16)!
@@ -32,7 +38,56 @@ func gradient(_ context: CGContext, colors: [String], start: CGPoint, end: CGPoi
 func accent(_ context: CGContext, colors: [String]? = nil) {
     gradient(context, colors: colors ?? design.accent, start: point(design.accentStart), end: point(design.accentEnd))
 }
+let metalLocations: [CGFloat] = [0, 0.14, 0.32, 0.53, 0.64, 0.76, 0.92, 1]
+let darkMetal = ["#727C88", "#F5F7FA", "#D6DDE5", "#A1ACBA", "#404A58", "#8E9CAA", "#E5ECF3", "#687584"]
+let lightMetal = ["#414B59", "#AEB9C5", "#EDF1F5", "#788594", "#253140", "#697787", "#BDC7D2", "#465362"]
+func metalGradient(_ context: CGContext, colors: [String], locations: [CGFloat], start: CGPoint, end: CGPoint) {
+    let value = CGGradient(colorsSpace: colorSpace, colors: colors.map(color) as CFArray, locations: locations)!
+    context.drawLinearGradient(value, start: start, end: end, options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+}
+func metalGlyph(_ context: CGContext, dark: Bool) {
+    // Cylindrical rod reflections run across the original stroke, not along it.
+    for edge in design.edges {
+        let a = point(design.nodes[edge[0]]), b = point(design.nodes[edge[1]])
+        let dx = b.x - a.x, dy = b.y - a.y, length = hypot(dx, dy)
+        let normal = CGPoint(x: -dy / length * design.lineWidth / 2, y: dx / length * design.lineWidth / 2)
+        let middle = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
+        context.saveGState()
+        context.setLineWidth(design.lineWidth); context.setLineCap(.round)
+        context.move(to: a); context.addLine(to: b); context.replacePathWithStrokedPath(); context.clip()
+        metalGradient(context, colors: dark ? ["#596575", "#F7F9FC", "#A2AEBC", "#414D5C", "#BBC6D2"]
+            : ["#354150", "#DCE3EB", "#8391A2", "#253140", "#8291A1"],
+            locations: [0, 0.25, 0.46, 0.73, 1],
+            start: CGPoint(x: middle.x - normal.x, y: middle.y - normal.y),
+            end: CGPoint(x: middle.x + normal.x, y: middle.y + normal.y))
+        context.restoreGState()
+    }
+    // Reflected light/dark bands and a narrow bevel stay inside each silhouette.
+    for (index, node) in design.nodes.enumerated() {
+        let rect = CGRect(x: node[0] - node[2], y: node[1] - node[2], width: node[2] * 2, height: node[2] * 2)
+        context.saveGState(); context.addEllipse(in: rect); context.clip()
+        metalGradient(context, colors: dark ? darkMetal : lightMetal, locations: metalLocations,
+            start: CGPoint(x: rect.minX, y: rect.minY), end: CGPoint(x: rect.midX, y: rect.maxY))
+        context.setLineWidth(0.8)
+        context.setStrokeColor(color(dark ? "#DCE4EC" : "#4A5767"))
+        context.strokeEllipse(in: rect.insetBy(dx: 0.4, dy: 0.4))
+        context.restoreGState()
+        if index == design.nodes.count - 1 {
+            let radius = design.outputCoreRadius
+            let core = CGRect(x: node[0] - radius, y: node[1] - radius, width: radius * 2, height: radius * 2)
+            context.saveGState(); context.addEllipse(in: core); context.clip()
+            gradient(context, colors: dark ? ["#F2F5F8", "#A7B2BF"] : ["#ACB7C4", "#536173"],
+                start: CGPoint(x: core.minX, y: core.minY), end: CGPoint(x: core.maxX, y: core.maxY))
+            context.setLineWidth(0.8); context.setStrokeColor(color(dark ? "#5F6C7A" : "#303C4B"))
+            context.strokeEllipse(in: core.insetBy(dx: 0.4, dy: 0.4)); context.restoreGState()
+        }
+    }
+}
 func glyph(_ context: CGContext, monochrome: Bool = false, ink: String? = nil, accentColors: [String]? = nil) {
+    if !monochrome && design.material == "polished-platinum" {
+        metalGlyph(context, dark: ink == nil)
+        return
+    }
     let nodeInk = ink ?? design.ink
     context.saveGState()
     context.setLineWidth(design.lineWidth); context.setLineCap(.round); context.setLineJoin(.round)
@@ -79,7 +134,7 @@ func headerMarkPNG(dark: Bool) -> Data {
     context.translateBy(x: 0, y: CGFloat(height)); context.scaleBy(x: scale, y: -scale)
     context.translateBy(x: -bounds.minX, y: -bounds.minY)
     if dark { glyph(context) }
-    else { glyph(context, ink: "#206B69", accentColors: ["#348D89", "#50ADA4"]) }
+    else { glyph(context, ink: "#465362", accentColors: ["#536173", "#ACB7C4"]) }
     return cleanPNG(NSBitmapImageRep(cgImage: context.makeImage()!).representation(using: .png, properties: [:])!)
 }
 func png(size: Int, variant: Variant) -> Data {
@@ -101,12 +156,25 @@ func png(size: Int, variant: Variant) -> Data {
         if variant != .ios {
             context.addPath(CGPath(roundedRect: rect, cornerWidth: design.tileRadius, cornerHeight: design.tileRadius, transform: nil)); context.clip()
         }
-        gradient(context, colors: design.background, start: .zero, end: CGPoint(x: design.canvas, y: design.canvas))
-        context.restoreGState(); glyph(context)
+        if let artworkImage {
+            // The surrounding context uses top-left vector coordinates. Undo
+            // that flip only for CGImage drawing so the approved bitmap is upright.
+            context.translateBy(x: 0, y: design.canvas); context.scaleBy(x: 1, y: -1)
+            context.interpolationQuality = .high
+            context.draw(artworkImage, in: rect)
+        } else {
+            gradient(context, colors: design.background, start: .zero, end: CGPoint(x: design.canvas, y: design.canvas))
+        }
+        context.restoreGState()
+        if artworkImage == nil { glyph(context) }
     }
     return cleanPNG(NSBitmapImageRep(cgImage: context.makeImage()!).representation(using: .png, properties: [:])!)
 }
 func svg(background: Bool, monochrome: Bool = false) -> String {
+    if background, !monochrome, let artworkData {
+        return "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 256 256\"><defs><clipPath id=\"tile\"><rect width=\"256\" height=\"256\" rx=\"\(design.tileRadius)\"/></clipPath></defs><image width=\"256\" height=\"256\" clip-path=\"url(#tile)\" href=\"data:image/png;base64,\(artworkData.base64EncodedString())\"/></svg>\n"
+    }
+    if !monochrome && design.material == "polished-platinum" { return metalSVG() }
     let stroke = monochrome ? "currentColor" : "url(#accent)"
     let fill = monochrome ? "currentColor" : design.ink
     var result = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 256 256\" color=\"#25314B\">\n"
@@ -122,6 +190,31 @@ func svg(background: Bool, monochrome: Bool = false) -> String {
         if output && !monochrome { result += "<circle cx=\"\(node[0])\" cy=\"\(node[1])\" r=\"\(design.outputCoreRadius)\" fill=\"\(fill)\"/>\n" }
     }
     return result + "</svg>\n"
+}
+func metalSVG() -> String {
+    func stops(_ colors: [String], _ locations: [CGFloat]) -> String {
+        zip(colors, locations).map { "<stop offset=\"\($0.1)\" stop-color=\"\($0.0)\"/>" }.joined()
+    }
+    var defs = "<linearGradient id=\"node\" x1=\"0\" y1=\"0\" x2=\"0.5\" y2=\"1\">\(stops(darkMetal, metalLocations))</linearGradient>"
+    defs += "<linearGradient id=\"core\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop stop-color=\"#F2F5F8\"/><stop offset=\"1\" stop-color=\"#A7B2BF\"/></linearGradient>"
+    var body = ""
+    for (index, edge) in design.edges.enumerated() {
+        let a = point(design.nodes[edge[0]]), b = point(design.nodes[edge[1]])
+        let dx = b.x - a.x, dy = b.y - a.y, length = hypot(dx, dy)
+        let nx = -dy / length * design.lineWidth / 2, ny = dx / length * design.lineWidth / 2
+        let mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2
+        defs += "<linearGradient id=\"rod\(index)\" gradientUnits=\"userSpaceOnUse\" x1=\"\(mx - nx)\" y1=\"\(my - ny)\" x2=\"\(mx + nx)\" y2=\"\(my + ny)\">\(stops(["#596575", "#F7F9FC", "#A2AEBC", "#414D5C", "#BBC6D2"], [0, 0.25, 0.46, 0.73, 1]))</linearGradient>"
+        body += "<path d=\"M\(a.x) \(a.y)L\(b.x) \(b.y)\" fill=\"none\" stroke=\"url(#rod\(index))\" stroke-width=\"\(design.lineWidth)\" stroke-linecap=\"round\"/>"
+    }
+    for (index, node) in design.nodes.enumerated() {
+        body += "<circle cx=\"\(node[0])\" cy=\"\(node[1])\" r=\"\(node[2])\" fill=\"url(#node)\"/>"
+        body += "<circle cx=\"\(node[0])\" cy=\"\(node[1])\" r=\"\(node[2] - 0.4)\" fill=\"none\" stroke=\"#DCE4EC\" stroke-width=\"0.8\"/>"
+        if index == design.nodes.count - 1 {
+            body += "<circle cx=\"\(node[0])\" cy=\"\(node[1])\" r=\"\(design.outputCoreRadius)\" fill=\"url(#core)\"/>"
+            body += "<circle cx=\"\(node[0])\" cy=\"\(node[1])\" r=\"\(design.outputCoreRadius - 0.4)\" fill=\"none\" stroke=\"#5F6C7A\" stroke-width=\"0.8\"/>"
+        }
+    }
+    return "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 256 256\"><defs>\(defs)</defs>\(body)</svg>\n"
 }
 func little<T: FixedWidthInteger>(_ value: T) -> Data { var value = value.littleEndian; return withUnsafeBytes(of: &value) { Data($0) } }
 func big(_ value: UInt32) -> Data { var value = value.bigEndian; return withUnsafeBytes(of: &value) { Data($0) } }

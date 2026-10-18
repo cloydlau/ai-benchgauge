@@ -18,8 +18,8 @@ public enum AppFeatureCopy {
     }
     public static func quotaMessage(language: AppLanguage) -> String {
         language.text(
-            "Quota tracking is available in AI BenchGauge for Mac and Windows. Open the desktop app to view your models’ remaining quotas and usage progress.",
-            "余量追踪目前在 Mac 和 Windows 版提供，可集中查看模型的剩余额度与使用进度。请在电脑上打开 AI 天梯使用这项功能。"
+            "Quota tracking is available in the PC edition of AI BenchGauge. Open the desktop app to view your models’ remaining quotas and usage progress.",
+            "余量追踪目前在 PC 端提供，可集中查看模型的剩余额度与使用进度。请在电脑上打开 AI 天梯使用这项功能。"
         )
     }
 }

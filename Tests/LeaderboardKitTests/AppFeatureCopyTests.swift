@@ -20,15 +20,15 @@ struct AppFeatureCopyTests {
             let height = BrandTitleMetrics.inkHeight(language: language)
             let artwork = FeatureSubtitleArtwork.make(language: language, height: height)
             let bounds = artwork.letters.boundingBoxOfPath.union(artwork.symbols.boundingBoxOfPath)
-            if language == .english { #expect(abs(bounds.minY) < 0.01) }
-            else { #expect(bounds.minY > 0) }
-            #expect(abs(bounds.maxY - height) < 0.01)
+            #expect(abs(bounds.midY - height / 2) < 0.01)
+            #expect(bounds.minY >= -0.01)
+            #expect(bounds.maxY <= height + 0.01)
             let narrowWidth = artwork.size.width * 0.65
             let fitted = artwork.fitted(toWidth: narrowWidth)
             let fittedBounds = fitted.letters.boundingBoxOfPath.union(fitted.symbols.boundingBoxOfPath)
             #expect(fittedBounds.minX >= -0.01)
             #expect(fittedBounds.maxX <= narrowWidth + 0.01)
-            #expect(abs(fittedBounds.maxY - height) < 0.01)
+            #expect(abs(fittedBounds.midY - height / 2) < 0.01)
             #expect(abs(fittedBounds.height - bounds.height * 0.65) < 0.01)
             for scheme in [ColorScheme.light, .dark] {
                 for width in [CGFloat(320), ceil(narrowWidth)] {
@@ -67,8 +67,9 @@ struct AppFeatureCopyTests {
             let title = AppFeatureCopy.quotaTitle(language: language)
             let help = AppFeatureCopy.quotaHelpLabel(language: language)
             let message = AppFeatureCopy.quotaMessage(language: language)
-            #expect(message.contains("Mac"))
-            #expect(message.contains("Windows"))
+            #expect(message.contains("PC"))
+            #expect(!message.contains("Windows"))
+            #expect(!message.contains("Mac"))
             #expect(message.contains(language.appName))
             switch language {
             case .english:

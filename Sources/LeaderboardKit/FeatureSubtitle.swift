@@ -2,7 +2,7 @@
 import CoreText
 import SwiftUI
 
-/// Keep Chinese on one bottom-aligned line; fit English rows to the title’s painted edges.
+/// Center Chinese's single line and English's two rows within the title's painted height.
 public struct FeatureSubtitle: View {
     public let language: AppLanguage
     public let height: CGFloat
@@ -50,7 +50,7 @@ struct FeatureSubtitleArtwork {
     static func fittingTransform(size: CGSize, width: CGFloat) -> CGAffineTransform {
         let scale = min(1, max(0, width) / size.width)
         return CGAffineTransform(a: scale, b: 0, c: 0, d: scale,
-            tx: 0, ty: size.height * (1 - scale))
+            tx: 0, ty: size.height * (1 - scale) / 2)
     }
 
     func fitted(toWidth width: CGFloat) -> Self {
@@ -74,11 +74,18 @@ struct FeatureSubtitleArtwork {
             return (text, CTLineCreateWithAttributedString(NSAttributedString(string: text,
                 attributes: [NSAttributedString.Key(kCTFontAttributeName as String): font])))
         }
-        let bounds = lines.map { CTLineGetBoundsWithOptions($0.1, .useGlyphPathBounds) }
+        let bounds = lines.map { text, line in
+            var bounds = CTLineGetBoundsWithOptions(line, .useGlyphPathBounds)
+            if text.hasSuffix(" ?") {
+                let helpX = CTLineGetOffsetForStringIndex(line, (text as NSString).length - 1, nil)
+                bounds.size.width = max(bounds.width, helpX + bounds.height + 1 - bounds.minX)
+            }
+            return bounds
+        }
         let rowGap = rows.count > 1 ? height * 0.2 : 0
         let inkHeight = bounds.reduce(0) { $0 + $1.height }
-        let scale = rows.count > 1 ? (height - rowGap) / inkHeight : 1
-        var y = (height - inkHeight * scale - rowGap) / scale
+        let scale = rows.count > 1 ? (height - rowGap) / inkHeight : min(1, height / max(1, inkHeight))
+        var y = (height - inkHeight * scale - rowGap) / (2 * scale)
         let letters = CGMutablePath(), symbols = CGMutablePath()
         for (index, pair) in lines.enumerated() {
             for run in CTLineGetGlyphRuns(pair.1) as! [CTRun] {
@@ -96,7 +103,22 @@ struct FeatureSubtitleArtwork {
                         tx: (positions[glyph].x - bounds[index].minX) * scale,
                         ty: (y + bounds[index].maxY - positions[glyph].y) * scale)
                     let character = (pair.0 as NSString).character(at: indices[glyph])
-                    (character == 38 || character == 63 ? symbols : letters).addPath(path, transform: transform)
+                    if character == 63 {
+                        let ink = path.boundingBoxOfPath
+                        let diameter = bounds[index].height
+                        let stroke = diameter * 0.075
+                        let circle = CGRect(x: ink.minX, y: bounds[index].minY - positions[glyph].y,
+                            width: diameter, height: diameter)
+                        let ring = CGPath(ellipseIn: circle.insetBy(dx: stroke / 2, dy: stroke / 2), transform: nil)
+                            .copy(strokingWithWidth: stroke, lineCap: .round, lineJoin: .round, miterLimit: 1)
+                        symbols.addPath(ring, transform: transform)
+                        let questionScale = diameter * 0.56 / ink.height
+                        let question = CGAffineTransform(a: questionScale, b: 0, c: 0, d: questionScale,
+                            tx: circle.midX - ink.midX * questionScale, ty: circle.midY - ink.midY * questionScale)
+                        if let centered = path.copy(using: [question]) { symbols.addPath(centered, transform: transform) }
+                    } else {
+                        (character == 38 ? symbols : letters).addPath(path, transform: transform)
+                    }
                 }
             }
             y += bounds[index].height + rowGap / scale

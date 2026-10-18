@@ -11,7 +11,7 @@ public struct ChineseBrandTitle: View {
         let inkBottom = layout.path.boundingBoxOfPath.maxY
         let initial = layout.initial
         ZStack(alignment: .topLeading) {
-            Path(layout.pathWithoutInitial).fill(.foreground)
+            Path(layout.pathWithoutInitial).fill(BrandTitleGradient())
             BrandLogo().frame(width: initial.width, height: initial.width / BrandLogo.aspectRatio)
                 .position(x: initial.midX, y: initial.midY)
         }

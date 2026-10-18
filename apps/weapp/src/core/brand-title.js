@@ -50,8 +50,14 @@ export function drawBrandLogo(context, image, title, x, y) {
   }
 }
 
-export function drawBrandGlyphs(context, title, x, y) {
+export function drawBrandGlyphs(context, title, x, y, { dark = false } = {}) {
   const methods = { M: 'moveTo', L: 'lineTo', Q: 'quadraticCurveTo', C: 'bezierCurveTo', Z: 'closePath' }
+  // Match the native wordmark's neutral silver reflection bands in both themes.
+  const colors = dark ? ['#F5F7FA', '#A5AFBC', '#E0E6EE', '#8D99A8'] : ['#303945', '#8894A2', '#414D5C', '#6C7888']
+  const offsets = [0, 0.42, 0.5, 1]
+  const gradient = context.createLinearGradient(0, y, 0, y + title.height)
+  offsets.forEach((offset, index) => gradient.addColorStop(offset, colors[index]))
+  context.fillStyle = gradient
   for (const glyph of title.glyphs) {
     context.beginPath()
     for (const [command, ...points] of brandGlyphs[glyph.key].commands) {
