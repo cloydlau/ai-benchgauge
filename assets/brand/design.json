@@ -1,14 +1,16 @@
 {
   "name": "D — Neural network",
+  "material": "polished-platinum",
+  "artwork": "platinum-silver-source.png",
   "canvas": 256,
   "tileRadius": 58,
   "background": [
-    "#0B222B",
-    "#173E43"
+    "#101216",
+    "#292E37"
   ],
   "accent": [
-    "#56B9BA",
-    "#65D5C5"
+    "#8E9CAB",
+    "#D1DCE8"
   ],
   "accentStart": [
     128,
@@ -18,7 +20,7 @@
     128,
     45
   ],
-  "ink": "#C2F2DB",
+  "ink": "#F2F5FA",
   "lineWidth": 9,
   "nodes": [
     [

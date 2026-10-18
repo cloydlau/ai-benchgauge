@@ -31,30 +31,29 @@ test('generated iPad icon is opaque, 1024px and carries no private PNG metadata'
   assert.equal(png.readUInt32BE(16), 1024)
   assert.equal(png.readUInt32BE(20), 1024)
   assert.equal(png[25], 2) // RGB without an alpha channel.
-  const design = JSON.parse(readFileSync(new URL('../assets/brand/design.json', import.meta.url), 'utf8'))
   const inspected = spawnSync('swift', ['-e', `
     import AppKit
     import Foundation
     let image = NSBitmapImageRep(data: try! Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments.last!)))!
-    let pixels = [(50, 50), (280, 784), (336, 664), (512, 196)].map { x, y -> [Double] in
+    let pixels = [(50, 50), (280, 784), (336, 664), (512, 196), (360, 495), (400, 565)].map { x, y -> [Double] in
       let color = image.colorAt(x: x, y: y)!.usingColorSpace(.deviceRGB)!
       return [color.redComponent, color.greenComponent, color.blueComponent, color.alphaComponent].map { Double($0) }
     }
-    // PNG export converts AppKit's calibrated drawing colors to sRGB.
-    let hex = UInt32(CommandLine.arguments[CommandLine.arguments.count - 2].dropFirst(), radix: 16)!
-    let ink = NSColor(calibratedRed: CGFloat((hex >> 16) & 255) / 255,
-        green: CGFloat((hex >> 8) & 255) / 255, blue: CGFloat(hex & 255) / 255,
-        alpha: 1).usingColorSpace(.deviceRGB)!
-    let expected = [ink.redComponent, ink.greenComponent, ink.blueComponent, ink.alphaComponent].map { Double($0) }
-    print(String(data: try! JSONSerialization.data(withJSONObject: pixels + [expected]), encoding: .utf8)!)
-  `, design.ink, output], { encoding: 'utf8', timeout: 60_000 })
+    print(String(data: try! JSONSerialization.data(withJSONObject: pixels), encoding: .utf8)!)
+  `, output], { encoding: 'utf8', timeout: 60_000 })
   assert.equal(inspected.status, 0, inspected.stderr)
-  const [background, node, connection, outputNode, ink] = JSON.parse(inspected.stdout)
-  assert.ok(background.slice(0, 3).every(value => value > 0 && value < 0.3))
-  assert.ok(node.slice(0, 3).every((value, index) => Math.abs(value - ink[index]) < 0.005))
-  assert.ok(connection[2] > connection[0] && connection[1] > 0.5)
-  assert.ok(outputNode[1] > outputNode[0] && outputNode[2] > outputNode[0])
-  for (const pixel of [background, node, connection, outputNode]) assert.equal(pixel[3], 1)
+  const [background, node, connection, outputNode, highlight, reflection] = JSON.parse(inspected.stdout)
+  assert.ok(background.slice(0, 3).every(value => value >= 0 && value < 0.3))
+  // The selected artwork is neutral reflective silver, including its bright
+  // softbox and dark mirrored band. A flat gray/white or old blue export fails.
+  for (const pixel of [node, connection, outputNode]) {
+    const channels = pixel.slice(0, 3)
+    assert.ok(Math.max(...channels) - Math.min(...channels) < 0.1)
+    assert.ok(channels.every(value => value > 0.3))
+  }
+  assert.ok(highlight.slice(0, 3).every(value => value > 0.9))
+  assert.ok(reflection.slice(0, 3).every(value => value < 0.2))
+  for (const pixel of [background, node, connection, outputNode, highlight, reflection]) assert.equal(pixel[3], 1)
 })
 test('iPad checks build both Release SDKs and run deterministic simulator UI tests', () => {
   const plan = iosBuildPlan('check', { device: uuid, phone: '00000000-0000-0000-0000-000000000002', directory: '/repo' })

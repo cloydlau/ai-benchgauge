@@ -59,18 +59,18 @@ See [compatibility details, validation scope, and the Intel support assessment](
 | **Plan and API links** | Available plan and pay-as-you-go links appear only in company view. Simplified Chinese prefers mainland China sites; other interface languages prefer international sites. |
 | **License notices** | Footer links open a scrollable sheet for the app's MIT license and third-party notices, with full license text available offline. See the [notice inventory](docs/third-party-notices.md) for the current audit status. |
 | **Updates that stay out of the way** | Opening the panel checks for updates. Rankings update daily, retry hourly after a failed daily update, and remain available from the local cache when a source is temporarily down. |
-| **Codex task counts (macOS)** | See running and completed-unread task counts in the menu bar, plus failures when present. Appears while the ChatGPT/Codex desktop app is running; updates locally without model or quota API calls. |
+| **Codex task counts (macOS)** | See running and completed-unread task counts in the menu bar, plus failures when present. Off by default; enable **Codex tasks** in the footer to show counts while the ChatGPT/Codex desktop app is running. Updates locally without model or quota API calls. |
 | **Codex model label** | Uses the most recently user-interacted local desktop chat's actual model/provider, excluding archived chats and subagents. Falls back to `config.toml` when session metadata is unavailable. macOS checks changes every two seconds; this is not foreground-tab detection. |
 
 ### Codex task counts
 
-On macOS, the menu bar shows `▶ 2  ✓ 1` while the ChatGPT/Codex desktop app is running:
+On macOS, enable **Codex tasks** in the bottom footer to show `▶ 2  ✓ 1` in the menu bar while the ChatGPT/Codex desktop app is running. This option is off by default and remembers your choice across launches:
 
 - `▶`: tasks currently executing; tasks waiting for approval or your input are excluded.
 - `✓`: completed tasks you have not yet viewed, rather than a cumulative completion total.
 - `!`: failed tasks; this segment appears only when the count is greater than zero. Recoverable tool errors do not count as task failures.
 
-Hover over the menu bar item for the labels. Counts follow local desktop tasks; archived tasks, agent subtasks and remote hosts are excluded. Updates use read-only local status data and consume no model/API quota. If status data is temporarily unavailable, `▶ —  ✓ —` appears instead of zero. Closing the desktop app hides the entire task block; installing Codex or running its CLI alone does not show it. Task counting is currently macOS-only.
+Hover over the menu bar item for the labels. Counts follow local desktop tasks; archived tasks, agent subtasks and remote hosts are excluded. Updates use read-only local status data and consume no model/API quota. If status data is temporarily unavailable, `▶ —  ✓ —` appears instead of zero. Turning the footer switch off hides task counts, highlights and their tooltip immediately. Closing the desktop app also hides the entire task block; installing Codex or running its CLI alone does not show it. Task counting is currently macOS-only.
 
 ### How account quotas work
 

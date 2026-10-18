@@ -28,8 +28,10 @@ test('screen SVGs and Canvas exports consume identical native glyph contours in 
     const title = brandTitleLayout(null, name, 21), h = canvasHarness()
     drawBrandGlyphs(h.context, title, 10, 20)
     assert.equal(h.commands.filter(([method]) => method === 'fill').length, title.glyphs.length)
+    assert.equal(h.commands.filter(([method]) => method === 'createLinearGradient').length, 1)
     assert.ok(h.commands.some(([method]) => method === 'bezierCurveTo' || method === 'quadraticCurveTo'))
-    assert.ok(h.commands.every(command => command.slice(1).every(Number.isFinite)))
+    const numeric = new Set(['moveTo', 'lineTo', 'quadraticCurveTo', 'bezierCurveTo'])
+    assert.ok(h.commands.filter(([method]) => numeric.has(method)).every(command => command.slice(1).every(Number.isFinite)))
     assert.ok(!h.commands.some(([method]) => method === 'fillText'))
     for (const glyph of title.glyphs) {
       const outline = brandGlyphs[glyph.key]
@@ -38,7 +40,14 @@ test('screen SVGs and Canvas exports consume identical native glyph contours in 
         const tokens = svg.match(/ d="([^"]+)"/)[1].split(/\s+/).map(token => /^[MLQCZ]$/.test(token) ? token : Number(token))
         assert.deepEqual(tokens, outline.commands.flat())
         assert.deepEqual(svg.match(/viewBox="([^"]+)"/)[1].split(' ').map(Number), [0, 0, outline.width, outline.height])
-        assert.ok(svg.includes(dark ? '#edf2f7' : '#17202c'))
+        assert.ok(svg.includes('fill="url(#brand)"'))
+        assert.ok(svg.includes(dark ? '#F5F7FA' : '#303945'))
+        assert.ok(svg.includes(dark ? '#8D99A8' : '#6C7888'))
+        const themed = canvasHarness()
+        drawBrandGlyphs(themed.context, title, 10, 20, { dark })
+        const stops = [...svg.matchAll(/<stop offset="([^"]+)" stop-color="([^"]+)"/g)]
+          .map(([, offset, color]) => ['addColorStop', Number(offset), color])
+        assert.deepEqual(themed.commands.filter(([method]) => method === 'addColorStop'), stops)
       }
     }
   }
