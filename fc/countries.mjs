@@ -93,6 +93,10 @@ export class CountryRegistry {
     board = { ...board, entries: board.entries.map(entry => {
       // Verified spelling aliases describe the same owner. Emit its canonical
       // name so older clients can validate the country key without new aliases.
+      const hint = entry.countryHint;
+      if (hint && normalizedBrandKey(hint.key) === brandKey(entry)) {
+        entry = { ...entry, countryHint: { ...hint, key: brandKey(entry) } };
+      }
       const canonicalName = brandCatalog.organizationNames?.[identity(entry.organization)];
       if (canonicalName && normalizedBrandKey(canonicalName) === normalizedBrandKey(entry.organization)) {
         return { ...entry, organization: canonicalName };

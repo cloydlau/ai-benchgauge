@@ -164,7 +164,11 @@ export class BrandRegistry {
       const cached = resolved.get(key);
       // Retain saved PNGs if the registry temporarily cannot be read.
       const saved = [entry.organizationBrand, entry.brand].find(brand => brand?.key === key);
-      const organizationBrand = cached ?? saved ?? { key: key ?? '', colorHex: catalog.colors[key] ?? fallbackColor(key ?? entry.name), status: key ? 'pending' : 'unknown' };
+      const bundled = catalog.providerLogos?.[key];
+      const verified = bundled && validPNG(Buffer.from(bundled.pngData ?? '', 'base64'))
+        ? { key, ...bundled, status: 'ready' } : null;
+      const organizationBrand = (cached?.pngData ? cached : null)
+        ?? (saved?.pngData ? saved : null) ?? verified ?? cached ?? saved ?? { key: key ?? '', colorHex: catalog.colors[key] ?? fallbackColor(key ?? entry.name), status: key ? 'pending' : 'unknown' };
       const model = modelLogo(entry, board.kind);
       const savedModel = model && entry.brand?.key === model.key
         && validPNG(Buffer.from(entry.brand.pngData ?? '', 'base64')) ? entry.brand : null;

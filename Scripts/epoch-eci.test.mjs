@@ -68,3 +68,74 @@ test('Epoch contributions use the same source-bound shared grant and persist an 
     assert.equal((await fetch(url + '/contribute', { method: 'POST', headers: { ...headers, 'Content-Type': 'text/html' }, body: csv() })).status, 415);
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
+
+test('ECI aliases, missing developers and exact openness repair existing shared snapshots without changing rankings', async () => {
+  const { BrandRegistry, validPNG, brandKey } = await import('../fc/brands.mjs');
+  const { CountryRegistry } = await import('../fc/countries.mjs');
+  const { SharedLeaderboards } = await import('../fc/service.mjs');
+  const { readFileSync } = await import('node:fs');
+  const catalog = JSON.parse(readFileSync(new URL('../fc/brand-catalog.json', import.meta.url)));
+  const cases = [
+    ['Gemini example', 'Google DeepMind', 'google', 'US'],
+    ['Gemini example', 'Google DeepMind,Google', 'google', 'US'],
+    ['Muse example', 'Meta AI', 'meta', 'US'],
+    ['Mistral example', 'Mistral AI', 'mistral', 'FR'],
+    ['GLM example', 'Z.ai (Zhipu AI)', 'zai', 'CN'],
+    ['Phi example', 'Microsoft Research', 'microsoftai', 'US'],
+    ['Command R+', 'Cohere,Cohere Labs (formerly Cohere for AI)', 'cohere', 'CA'],
+    ['Qwen2.5-Coder-14B', undefined, 'qwen', 'CN', 'open'],
+    ['DeepSeek-Coder-V2-Lite-Base', undefined, 'deepseek', 'CN', 'open'],
+    ['internlm-20b', undefined, 'shanghaiailaboratory', 'CN', 'open'],
+    ['Yi-9B', undefined, '01ai', 'CN', 'open'],
+    ['PaLM 2-L', undefined, 'google', 'US', 'closed'],
+    ['RedPajama-INCITE-7B-Base', undefined, 'togetherai', 'US', 'open'],
+    ['open_llama_7b', undefined, 'openlmresearch', undefined, 'open'],
+    ['Baichuan2-13B', 'Baichuan', 'baichuan', 'CN', 'open'],
+    ['StarCoder 2 15B', 'Hugging Face,ServiceNow,Nvidia,BigCode', 'huggingfaceservicenownvidiabigcode', 'US', 'open'],
+  ];
+  const entries = cases.map(([name, organization, key, code], i) => ({ rank: i + 1, name, modelID: name, organization,
+    score: 171.234 - i, ...(organization && { countryHint: { key: organization.toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''), countryCode: code } }),
+    brand: { key, status: 'missing' }, ...(i >= 14 && { openness: 'open' }) }));
+  const input = { kind: 'epochECI', fetchedAt: '2026-10-18T00:00:00Z', entries };
+  let downloads = 0, writes = 0;
+  const store = { async readBoard() { return input; }, async readBrand() { throw Error('OSS unavailable'); },
+    async readCountry() { return null; }, async writeBoard() { writes++; } };
+  const brands = new BrandRegistry(store, { download: async () => { downloads++; throw Error('offline'); } });
+  const service = new SharedLeaderboards(store, { brands, countries: new CountryRegistry(store) });
+  const { board } = await service.read('epochECI');
+  assert.equal(downloads, 0); assert.equal(writes, 0);
+  assert.equal(board.fetchedAt, input.fetchedAt);
+  for (const [i, [, , key, country, openness]] of cases.entries()) {
+    const entry = board.entries[i];
+    assert.equal(brandKey(entry), key);
+    assert.equal((entry.organizationBrand ?? entry.brand).key, key);
+    assert.ok(validPNG(Buffer.from(entry.brand.pngData, 'base64')), entry.name);
+    assert.equal(entry.developerCountry.countryCode, country, entry.name);
+    assert.equal(entry.openness, openness, entry.name);
+    assert.equal(entry.rank, entries[i].rank); assert.equal(entry.score, entries[i].score); assert.equal(entry.modelID, entries[i].modelID);
+  }
+  for (const [key, logo] of Object.entries(catalog.providerLogos)) {
+    assert.ok(validPNG(Buffer.from(logo.pngData, 'base64')), key);
+    assert.equal(new URL(logo.sourceURL).protocol, 'https:');
+    assert.equal(new URL(logo.referenceURL).protocol, 'https:');
+  }
+});
+
+test('ECI repairs never guess a neighboring variant, replace explicit openness, or claim a community country', async () => {
+  const { SharedLeaderboards } = await import('../fc/service.mjs');
+  const { brandKey } = await import('../fc/brands.mjs');
+  const entries = [
+    { modelID: 'Qwen2.5-Coder-14B', name: 'Qwen2.5-Coder-14B', openness: 'closed' },
+    { modelID: 'Qwen2.5-Coder-14B-preview', name: 'Qwen2.5-Coder-14B-preview' },
+    { modelID: 'unknown', name: 'Qwen mysterious model' },
+    { modelID: 'Yi-9B', name: 'Yi-9B', organization: 'Another developer' },
+    { modelID: 'Gemini 4 Argon', name: 'Gemini 4 Argon', organization: 'Google DeepMind' },
+  ];
+  const service = new SharedLeaderboards({ async readBoard() { return { kind: 'epochECI', entries }; } });
+  const { board } = await service.read('epochECI');
+  assert.equal(board.entries[0].openness, 'closed');
+  assert.equal(board.entries[1].openness, undefined); assert.equal(brandKey(board.entries[1]), null);
+  assert.equal(board.entries[2].openness, undefined); assert.equal(brandKey(board.entries[2]), null);
+  assert.equal(brandKey(board.entries[3]), 'anotherdeveloper');
+  assert.equal(board.entries[4].openness, undefined);
+});

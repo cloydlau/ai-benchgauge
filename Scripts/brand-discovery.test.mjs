@@ -260,5 +260,8 @@ test('source provider marks do not override verified model marks or inherit a ha
   // Qwen is shared with the real Alibaba entry, never Anthropic's source SVG.
   assert.deepEqual(result.entries[2].brand, result.entries[1].brand);
   const alone = await new BrandRegistry(new Store()).enrich({ ...input, entries: input.entries.slice(2) }, { acquire: true });
-  assert.equal(alone.entries[0].brand.pngData, undefined);
+  // The verified bundled Qwen mark remains available without any source SVG.
+  const catalog = JSON.parse(readFileSync(new URL('../fc/brand-catalog.json', import.meta.url)));
+  assert.equal(alone.entries[0].brand.pngData, catalog.providerLogos.qwen.pngData);
+  assert.equal(alone.entries[0].brand.key, 'qwen');
 });

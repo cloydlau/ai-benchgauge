@@ -52,3 +52,33 @@ private func eciCSV(_ first: [String: String] = [:], count: Int = 22) -> String 
     #expect(try EpochECIParser.rows("a,b\n\n\"c\",\"d\"\r") == [["a", "b"], ["c", "d"]])
     #expect(try EpochECIParser.rows("a,b") == [["a", "b"]])
 }
+
+@Test func epochMetadataMatchesSharedIdentitiesWithoutGuessingVariants() throws {
+    for (organization, key) in [("Google DeepMind", "google"), ("Meta AI", "meta"),
+                                ("Mistral AI", "mistral"), ("Z.ai (Zhipu AI)", "zai"),
+                                ("Microsoft Research", "microsoftai")] {
+        let board = try EpochECIParser.parse(eciCSV(["Organization": organization]))
+        let row = board.entries[0]
+        #expect(OrganizationLogoCatalog.developerKey(organization: row.organization) == key)
+        #expect(row.developerCountry?.key == key)
+        #expect(OrganizationRegion.country(for: row)?.regionCode == "US")
+        #expect(OrganizationLogoCatalog.bundledLogoKey(forOrganization: organization) == key)
+    }
+    for (id, country, openness) in [("Qwen2.5-Coder-14B", "CN", ModelOpenness.open),
+                                   ("internlm-20b", "CN", .open), ("DeepSeek-Coder-V2-Lite-Base", "CN", .open),
+                                   ("Yi-9B", "CN", .open), ("PaLM 2-L", "US", .closed),
+                                   ("RedPajama-INCITE-7B-Base", "US", .open)] {
+        let board = try EpochECIParser.parse(eciCSV(["Model": id, "Display name": id, "Organization": "",
+                                                    "Country (of organization)": "", "Accessibility group": "Other"]))
+        #expect(board.entries[0].resolvedOpenness == openness)
+        #expect(OrganizationRegion.country(for: board.entries[0])?.regionCode == country)
+    }
+    let community = LeaderboardEntry(rank: 1, name: "open_llama_7b", score: 10, modelID: "open_llama_7b")
+    #expect(community.resolvedOpenness == .open)
+    #expect(OrganizationRegion.country(for: community) == nil)
+    let preview = LeaderboardEntry(rank: 1, name: "Qwen2.5-Coder-14B-preview", score: 10, modelID: "Qwen2.5-Coder-14B-preview")
+    #expect(preview.resolvedOpenness == nil)
+    #expect(OrganizationRegion.country(for: preview) == nil)
+    let explicit = LeaderboardEntry(rank: 1, name: "Qwen2.5-Coder-14B", score: 10, modelID: "Qwen2.5-Coder-14B", openness: .closed)
+    #expect(explicit.resolvedOpenness == .closed)
+}
