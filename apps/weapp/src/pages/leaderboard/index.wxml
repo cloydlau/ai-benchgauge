@@ -58,7 +58,7 @@
             <view class="model-search-content">
               <van-icon name="search" size="14px" />
               <input wx:if="{{modelSearchVisible}}" class="model-search-input" value="{{modelSearchQuery}}" placeholder="{{labels.searchModels}}" placeholder-class="model-search-placeholder"
-                focus="{{modelSearchFocused && card.index === face}}" disabled="{{card.index !== face}}" confirm-type="done" bindinput="inputModelSearch" bindfocus="focusModelSearch" bindblur="deferModelSearchBlur" bindconfirm="blurModelSearch" aria-label="{{labels.searchModels}}" />
+                focus="{{modelSearchFocused && card.index === face}}" disabled="{{card.index !== face}}" confirm-type="done" bindinput="inputModelSearch" bindfocus="focusModelSearch" bindblur="deferModelSearchBlur" bindconfirm="deferModelSearchBlur" aria-label="{{labels.searchModels}}" />
               <button wx:if="{{modelSearchQuery}}" class="model-search-clear" bindtouchstart="beginModelSearchClear" bindtouchcancel="cancelModelSearchClear" bindtap="clearModelSearch" aria-label="{{labels.clearSearch}}"><van-icon name="clear" size="13px" /></button>
               <button class="model-search-cancel" bindtap="closeModelSearch">{{labels.cancel}}</button>
             </view>

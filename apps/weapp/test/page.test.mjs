@@ -131,26 +131,55 @@ test('one live model query survives source/category/company switches and clearin
   globalThis.__benchHooks.unload()
 })
 
-test('blur collapses search without clearing the shared query and clear can retain focus', async () => {
+test('blur retains a nonempty search and its results without restoring keyboard focus', async () => {
   const h = setup({}, 1000)
   const loading = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await loading
   h.page.openModelSearch()
   await new Promise(resolve => setTimeout(resolve, 30))
   h.page.inputModelSearch({ detail: { value: 'Model 997' } })
   h.page.deferModelSearchBlur()
-  await new Promise(resolve => setTimeout(resolve, 100))
-  assert.equal(h.page.modelSearchVisible.value, false)
+  await new Promise(resolve => setTimeout(resolve, 350))
+  assert.equal(h.page.modelSearchVisible.value, true)
+  assert.equal(h.page.modelSearchFocused.value, false, 'Blur must cancel the pending opening focus')
   assert.equal(h.page.modelSearchQuery.value, 'Model 997')
   assert.equal(h.page.cards.value[0].count, 1)
   h.page.focusModelSearch()
-  assert.equal(h.page.modelSearchFocused.value, false, 'Late native focus events must not disable cube gestures after collapse')
-  h.page.openModelSearch()
-  await new Promise(resolve => setTimeout(resolve, 30))
+  assert.equal(h.page.modelSearchFocused.value, true)
   h.page.deferModelSearchBlur()
   h.page.clearModelSearch()
   await new Promise(resolve => setTimeout(resolve, 100))
   assert.equal(h.page.modelSearchVisible.value, true)
   assert.equal(h.page.modelSearchFocused.value, true)
+  assert.equal(h.page.modelSearchQuery.value, '')
+  globalThis.__benchHooks.unload()
+})
+
+test('automatic blur exits only when the latest query trims to empty', async () => {
+  for (const query of ['', '   ', '\t\n\u3000', 'Model', '  Model \u3000']) {
+    const h = setup()
+    h.page.openModelSearch()
+    await new Promise(resolve => setTimeout(resolve, 30))
+    h.page.inputModelSearch({ detail: { value: query } })
+    h.page.deferModelSearchBlur()
+    await new Promise(resolve => setTimeout(resolve, 100))
+    assert.equal(h.page.modelSearchVisible.value, Boolean(query.trim()), JSON.stringify(query))
+    assert.equal(h.page.modelSearchFocused.value, false)
+    assert.equal(h.page.modelSearchQuery.value, query)
+    if (!query.trim()) {
+      h.page.focusModelSearch()
+      assert.equal(h.page.modelSearchFocused.value, false, 'Late focus must not reopen collapsed search')
+    }
+    globalThis.__benchHooks.unload()
+  }
+  const h = setup()
+  h.page.openModelSearch()
+  await new Promise(resolve => setTimeout(resolve, 30))
+  h.page.deferModelSearchBlur()
+  h.page.inputModelSearch({ detail: { value: 'arrived after blur' } })
+  await new Promise(resolve => setTimeout(resolve, 100))
+  assert.equal(h.page.modelSearchVisible.value, true, 'Check the latest query when the delayed blur completes')
+  h.page.closeModelSearch()
+  assert.equal(h.page.modelSearchVisible.value, false, 'Explicit Cancel still exits a nonempty search')
   assert.equal(h.page.modelSearchQuery.value, '')
   globalThis.__benchHooks.unload()
 })
@@ -211,7 +240,7 @@ test('cancelled Clear gestures and leaving the page cannot leave focus recovery 
     else if (leave === 'cancelSearch') { h.page.clearModelSearch(); h.page.closeModelSearch() }
     else { h.page.clearModelSearch(); globalThis.__benchHooks[leave]() }
     await new Promise(resolve => setTimeout(resolve, 120))
-    assert.equal(h.page.modelSearchVisible.value, false, leave)
+    assert.equal(h.page.modelSearchVisible.value, leave === 'cancelGesture', leave)
     assert.equal(h.page.modelSearchFocused.value, false, leave)
     globalThis.__benchHooks.unload()
   }

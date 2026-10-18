@@ -545,12 +545,16 @@ definePage(query => {
   }
   function deferModelSearchBlur() {
     modelSearchFocused.value = false
+    clearTimeout(searchFocusTimer)
     clearTimeout(searchBlurTimer)
     // Native blur may arrive before or after the Clear tap. Keep this gesture
     // separate from leaving search, until the input confirms its focus again.
     if (clearingModelSearch) { restoreModelSearchFocus(); return }
     // Let Clear/Cancel receive their tap before removing the native input.
-    searchBlurTimer = setTimeout(blurModelSearch, 80)
+    searchBlurTimer = setTimeout(() => {
+      // Keep the query and results visible after dismissing the keyboard.
+      if (!modelSearchQuery.value.trim()) blurModelSearch()
+    }, 80)
   }
   function focusModelSearch() {
     if (!modelSearchVisible.value) return
