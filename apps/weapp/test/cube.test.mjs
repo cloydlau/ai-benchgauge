@@ -20,11 +20,11 @@ test('cube gesture locks vertical scrolling, clamps edges and distinguishes flic
   assert.equal(cubeDestination(back, 375, 700), 0)
 })
 
-test('a paused drag switches at 30% width in both directions without accepting smaller or outward drags', () => {
+test('a paused drag switches at 25% width in both directions without accepting smaller or outward drags', () => {
   for (const width of [320, 375, 430]) {
     for (const face of [0, 1]) {
       const direction = face === 0 ? -1 : 1
-      for (const [fraction, expected] of [[0.29, face], [0.30, 1 - face], [0.31, 1 - face], [-0.4, face]]) {
+      for (const [fraction, expected] of [[0.24, face], [0.25, 1 - face], [0.26, 1 - face], [-0.4, face]]) {
         const gesture = cubeGesture(face, width / 2, 100, 0)
         moveCubeGesture(gesture, width / 2 + direction * width * fraction, 102, 500, width)
         assert.equal(cubeDestination(gesture, width, 700), expected)

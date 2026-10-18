@@ -58,15 +58,14 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
   const showSource = model.grouping !== 'company'
   const extraNameWidth = showSource ? 0 : sourceColumnWidth
   const colors = model.dark
-    ? { background: '#10151c', card: '#19212c', ink: '#edf2f7', muted: '#8b98ab', line: '#2a3544', blue: '#67b1ff', purple: '#cd91f7', open: '#77d9a1' }
-    : { background: '#f5f7fa', card: '#ffffff', ink: '#17202c', muted: '#7c8797', line: '#e7ebf1', blue: '#1675dc', purple: '#9657c8', open: '#188966' }
+    ? { background: '#101216', card: '#1b1f26', ink: '#f2f5fa', muted: '#a2acba', line: '#343b46', blue: '#67b1ff', purple: '#cd91f7', open: '#77d9a1' }
+    : { background: '#f4f5f7', card: '#ffffff', ink: '#20262f', muted: '#687382', line: '#dfe3e9', blue: '#1675dc', purple: '#9657c8', open: '#188966' }
   context.fillStyle = colors.background; context.fillRect(0, 0, screenshotWidth, image.height)
   const title = brandTitleLayout(context, model.labels.name, 23)
   const titleY = 40 - title.height / 2
   const headerLogo = images.get(brandLogoSource(model.dark))
   if (headerLogo) drawBrandLogo(context, headerLogo, title, margin, titleY)
-  context.fillStyle = colors.ink
-  drawBrandGlyphs(context, title, margin, titleY)
+  drawBrandGlyphs(context, title, margin, titleY, { dark: model.dark })
   const subtitle = model.labels.subtitle.split(' & '), captionX = margin + title.width + 6
   if (model.labels.name === 'AI BenchGauge') {
     text(context, subtitle[0] + ' &', captionX, 40 - title.height * 0.375, title.height * 0.5, colors.muted)
@@ -96,10 +95,11 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
       if (y + height <= offset || y >= offset + stripHeight) return
       const row = pair[column]; if (!row) return
       const center = y + height / 2
-      if (row.rank % 2 === 0) rounded(context, x + 8, y, columnWidth - 16, height, 6, model.dark ? '#1d2733' : '#f8f9fb')
+      if (row.rank % 2 === 0) rounded(context, x + 8, y, columnWidth - 16, height, 6, model.dark ? '#242a33' : '#f8f9fb')
       text(context, row.rank, x + 24, center, 14, colors.muted, { align: 'center', numeric: true })
-      const nameX = x + 48, cellWidth = columnWidth - 190 + extraNameWidth
-      rounded(context, nameX, y + 4, cellWidth, height - 8, 5, row.fill.match(/rgba\([^)]*\)/)?.[0] || colors.background)
+      const nameX = x + 48
+      const fillWidth = (columnWidth - 48 - 8) * row.fillPercent / 100
+      if (fillWidth > 0) rounded(context, nameX, y + 4, fillWidth, height - 8, Math.min(5, fillWidth / 2), row.fill.match(/rgba\([^)]*\)/)?.[0] || colors.background)
       const logo = images.get(row.logo)
       if (logo) context.drawImage(logo, nameX + 7, center - 12, 24, 24)
       else {
@@ -107,13 +107,22 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
         text(context, row.initial, nameX + 19, center, 12, '#506070', { bold: true, align: 'center' })
       }
       row.lines.forEach((line, index) => text(context, line, nameX + 39, center + (index - (row.lines.length - 1) / 2) * 18, 14, colors.ink))
-      text(context, row.flag, countryX, center, 17, colors.ink, { align: 'center' })
+      // Canvas fonts on phones may lack regional-indicator emoji. Raster flags
+      // render consistently; a failed asset still leaves readable attribution.
+      const flag = images.get(row.flagImage)
+      if (flag) {
+        rounded(context, countryX - 13, center - 10, 26, 20, 1, colors.line)
+        context.drawImage(flag, countryX - 12, center - 9, 24, 18)
+      } else text(context, row.countryUnknown ? '?' : row.countryCode, countryX, center, 12, colors.ink, { align: 'center' })
       if (showSource) {
         const statusIcon = images.get(row.opennessIcon)
         if (statusIcon) context.drawImage(statusIcon, sourceX - 7, center - 7, 14, 14)
         else text(context, row.openness === 'open' ? model.labels.open : row.openness === 'closed' ? model.labels.closed : '—', sourceX, center, 10, colors.muted, { align: 'center' })
       }
       text(context, row.scoreText, scoreX, center, 14, colors.muted, { align: 'right', numeric: true })
+      if (row.scoreShare) {
+        text(context, row.scoreShare, scoreX, center + 12, 9, accent, { align: 'right', numeric: true })
+      }
     })
   })
   text(context, model.labels.name, margin, image.height - 26, 12, colors.muted)

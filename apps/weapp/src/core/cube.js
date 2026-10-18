@@ -29,12 +29,12 @@ export function moveCubeGesture(gesture, x, y, time, width) {
 }
 
 export function cubeDestination(gesture, width, time) {
-  // Commit after 30% of the screen in either direction, retaining natural
+  // Commit after 25% of the screen in either direction, retaining natural
   // finger tracking. A flick can advance sooner; a pause drops old velocity.
   const velocity = time - gesture.lastTime < 100 ? gesture.velocity : 0
   const projected = clamp(gesture.position - velocity * 160 / Math.max(1, width))
   const progress = gesture.face === 0 ? projected : 1 - projected
-  return progress >= 0.30 ? 1 - gesture.face : gesture.face
+  return progress >= 0.25 ? 1 - gesture.face : gesture.face
 }
 
 export function matchingScroll({ scrollTop, origin, nextOrigin, rowHeight, count }) {

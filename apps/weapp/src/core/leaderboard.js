@@ -1,9 +1,10 @@
 import { opennessIcon } from './openness-icon.js'
+import { bundledFlags } from './flag-catalog.js'
 import { boards, text, copy, hasOwn } from './catalog.js'
 import brandCatalog from '../../../../fc/brand-catalog.json' with { type: 'json' }
 import companyCatalog from '../../../../assets/logos/company-catalog.json' with { type: 'json' }
 import { purchaseLinks, preferredPurchaseLink } from './purchase-links.js'
-import { canReplace, countryCode, companyRows, latestTimestamp, createBrandRules, normalizedCountryCode } from '../../../../fc/domain.mjs'
+import { canReplace, countryCode, companyRows, latestTimestamp, createBrandRules, normalizedCountryCode, resolvedOpenness } from '../../../../fc/domain.mjs'
 export { canReplace, countryCode, companyRows, latestTimestamp } from '../../../../fc/domain.mjs'
 const brandRules = createBrandRules(brandCatalog)
 const bundledBrands = new Set(Object.keys(brandCatalog.colors))
@@ -19,7 +20,7 @@ export function normalizeBoard(value, kind) {
     if (!Number.isInteger(entry.rank) || entry.rank <= 0 || seen.has(entry.rank)
       || typeof entry.name !== 'string' || !entry.name.trim() || !Number.isFinite(entry.score) || entry.score < 0) throw new Error('Invalid ranking entry')
     seen.add(entry.rank)
-    return { ...entry, name: entry.name.trim(), openness: ['open', 'closed'].includes(entry.openness) ? entry.openness : null,
+    return { ...entry, name: entry.name.trim(), openness: resolvedOpenness(entry),
       ...(entry.developerCountry && { developerCountry: { ...entry.developerCountry, countryCode: normalizedCountryCode(entry.developerCountry.countryCode) } }) }
   }).sort((a, b) => a.rank - b.rank)
   return { ...value, entries }
@@ -36,11 +37,15 @@ const countryNames = {
   KR: ['South Korea', '韩国', '韓國'], AE: ['United Arab Emirates', '阿联酋', '阿聯酋'], CH: ['Switzerland', '瑞士', '瑞士'],
   AU: ['Australia', '澳大利亚', '澳大利亞'], RU: ['Russia', '俄罗斯', '俄羅斯'],
 }
+export function countryName(value, language = 'en') {
+  const code = normalizedCountryCode(value)
+  return code ? (countryNames[code] ? text(countryNames[code], language) : code) : text(copy.unknown, language)
+}
 export function countryOptions(board, language, selected = 'all') {
   const codes = [...new Set([...(board?.entries || []).map(countryCode),
     ...(/^(unknown|[A-Z]{2})$/.test(selected) ? [normalizedCountryCode(selected) ?? selected] : [])])].sort()
   return [{ value: 'all', label: text(copy.all, language) }, ...codes.map(code => ({ value: code,
-    label: code === 'unknown' ? text(copy.unknown, language) : `${countryFlag(code)} ${countryNames[code] ? text(countryNames[code], language) : code}` }))]
+    label: code === 'unknown' ? text(copy.unknown, language) : `${countryFlag(code)} ${countryName(code, language)}` }))]
 }
 
 export function formatTime(value) {
@@ -48,7 +53,12 @@ export function formatTime(value) {
   if (!value || !Number.isFinite(date.getTime())) return '—'
   return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
-export function rowView(entry, { company = false, dark = false, details = true, language = 'en', category = 'general' } = {}) {
+export function scoreShareText(score, leaderScore) {
+  if (!Number.isFinite(score) || score < 0 || !Number.isFinite(leaderScore) || leaderScore <= 0) return ''
+  const percent = Math.round(score / leaderScore * 100)
+  return percent < 100 ? `${percent}%` : ''
+}
+export function rowView(entry, { company = false, dark = false, details = true, language = 'en', category = 'general', leaderScore } = {}) {
   const productKey = !company ? brandRules.bundledProductKey(entry) : null
   const modelBrand = !company ? brandRules.knownModelBrand(entry) : null
   const brand = company ? entry.organizationBrand || entry.brand : entry.brand?.key?.startsWith('model-') ? entry.brand : modelBrand || entry.brand
@@ -68,23 +78,36 @@ export function rowView(entry, { company = false, dark = false, details = true, 
     const link = preferredPurchaseLink(links[kind], language)
     return link ? [{ kind, title: text(copy[label], language), url: link.url }] : []
   }) : []
+  const code = countryCode(entry)
   return { rank: entry.rank, name: entry.name, score: entry.score, logo: image,
     purchaseActions: actions,
-    initial: [...entry.name][0], flag: countryFlag(countryCode(entry)),
+    initial: [...entry.name][0], countryUnknown: countryCode(entry) === 'unknown', countryName: countryName(countryCode(entry), language),
+    flag: countryCode(entry) === 'unknown' ? '?' : countryFlag(countryCode(entry)),
+    countryCode: code, flagImage: bundledFlags.has(code) ? `/assets/flags/${code.toLowerCase()}.png` : '',
     components: details ? entry.components?.map(member => ({ name: member.name, rank: member.rank, score: member.score.toFixed(1) })) || [] : [],
-    scoreText: entry.score.toFixed(1), openness: company ? null : entry.openness,
-    opennessIcon: opennessIcon(company ? null : entry.openness, dark),
+    scoreText: entry.score.toFixed(1), scoreShare: scoreShareText(entry.score, leaderScore), openness: company ? null : resolvedOpenness(entry),
+    opennessIcon: opennessIcon(company ? null : resolvedOpenness(entry), dark),
     fill: `background-color:rgba(${rgb},${dark ? '0.26' : '0.18'});`,
+    fillPercent: Number.isFinite(entry.score) && entry.score >= 0 && Number.isFinite(leaderScore) && leaderScore > 0
+      ? Math.min(100, entry.score / leaderScore * 100) : 100,
     medal: ['🥇', '🥈', '🥉'][entry.rank - 1] || String(entry.rank),
   }
 }
-export function rankedEntries(board, { grouping = 'model', country = 'all', openness = 'all' } = {}) {
+export function modelNameMatches(name, query) {
+  if (!String(query || '').trim()) return true
+  const fold = value => String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const tokens = fold(query).trim().split(/\s+/).filter(Boolean)
+  const value = fold(name)
+  return tokens.every(token => value.includes(token))
+}
+export function rankedEntries(board, { grouping = 'model', country = 'all', openness = 'all', query = '' } = {}) {
   country = normalizedCountryCode(country) ?? country
   const entries = (board?.entries || []).filter(entry => (country === 'all' || countryCode(entry) === country)
-    && (openness === 'all' || (entry.openness || 'unknown') === openness))
-  return grouping === 'company' ? companyRows(entries) : entries
+    && (openness === 'all' || (resolvedOpenness(entry) || 'unknown') === openness))
+  return grouping === 'company' ? companyRows(entries) : entries.filter(entry => modelNameMatches(entry.name, query))
 }
-export function visibleRows(board, { grouping = 'model', country = 'all', openness = 'all', dark = false, language = 'en', category = 'general' } = {}) {
-  const rows = rankedEntries(board, { grouping, country, openness })
-  return rows.map(entry => rowView(entry, { company: grouping === 'company', dark, language, category }))
+export function visibleRows(board, { grouping = 'model', country = 'all', openness = 'all', query = '', dark = false, language = 'en', category = 'general' } = {}) {
+  const leaderScore = rankedEntries(board, { grouping, country, openness })[0]?.score
+  const rows = rankedEntries(board, { grouping, country, openness, query })
+  return rows.map(entry => rowView(entry, { company: grouping === 'company', dark, language, category, leaderScore }))
 }

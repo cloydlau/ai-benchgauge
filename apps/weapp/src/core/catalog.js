@@ -37,7 +37,13 @@ export const copy = {
   name: ['AI BenchGauge', 'AI 天梯', 'AI 天梯'], subtitle: ['Dual boards & quota tracking', '双榜对照 & 余量追踪', '雙榜對照 & 餘量追蹤'],
   tasks: ['Task benchmarks', '任务测评', '任務測評'], votes: ['User votes', '用户盲测', '使用者盲測'],
   models: ['Models', '模型', '模型'], companies: ['Companies', '公司', '公司'], rank: ['Rank', '排名', '排名'],
+  searchModels: ['Search models', '搜索模型', '搜尋模型'], clearSearch: ['Clear search', '清空搜索', '清空搜尋'],
   score: ['Score', '分数', '分數'], source: ['Source', '源码', '原始碼'], country: ['Country', '国家', '國家'],
+  unknownCountryTitle: ['Why no country?', '为什么没有国家归属？', '為什麼沒有國家歸屬？'],
+  unknownCountryExplanation: [
+    'Country reflects the model developer’s headquarters. Some models are community projects or collaborations, or lack enough reliable information to identify one developer and headquarters. We leave them unassigned rather than guess from the model name, language, base model or hosting provider.',
+    '国家归属依据模型开发者的总部所在地。部分模型属于社区项目或多方合作，也可能缺少足够可靠的信息来确认开发者及其总部，因此暂不归属到某个国家。我们不会根据模型名称、语言、基座模型或托管平台猜测归属。',
+    '國家歸屬依據模型開發者的總部所在地。部分模型屬於社群專案或多方合作，也可能缺少足夠可靠的資訊來確認開發者及其總部，因此暫不歸屬到某個國家。我們不會根據模型名稱、語言、基礎模型或託管平台猜測歸屬。'],
   all: ['All', '全部', '全部'], open: ['Open', '开源', '開源'], closed: ['Closed', '闭源', '閉源'], unknown: ['Unknown', '未知', '未知'],
   updated: ['Updated', '更新', '更新'], fetched: ['Fetched', '抓取', '擷取'], refresh: ['Refresh', '刷新', '重新整理'],
   loading: ['Loading shared rankings…', '正在读取共享榜单…', '正在讀取共享榜單…'],
@@ -63,6 +69,6 @@ export const copy = {
   leaderboardComplete: ['End of this leaderboard', '本榜单已列完', '本榜單已列完'],
   featureDetails: ['Dual boards & quota tracking', '双榜对照 & 余量追踪', '雙榜對照 & 餘量追蹤'],
   gotIt: ['Got it', '我知道了', '我知道了'], desktopLink: ['PC link', 'PC 端链接', 'PC 端連結'],
-  quotaHelp: ['Quota tracking is available in the Mac and Windows editions. Open the desktop app to check account balances and usage.', '余量追踪目前在 Mac 和 Windows 版提供。请在电脑上打开 AI 天梯查看账号额度与使用进度。', '餘量追蹤目前在 Mac 和 Windows 版提供。請在電腦上開啟 AI 天梯查看帳號額度與使用進度。'],
+  quotaHelp: ['Quota tracking is available in the PC edition. Open the desktop app to check account balances and usage.', '余量追踪目前在 PC 端提供。请在电脑上打开 AI 天梯查看账号额度与使用进度。', '餘量追蹤目前在 PC 端提供。請在電腦上開啟 AI 天梯查看帳號額度與使用進度。'],
   cubeScroll: ['Scroll', '上下滚动', '上下捲動'], cubeSwitch: ['Switch boards', '左右切换', '左右切換'],
 }

@@ -8,6 +8,7 @@ const count = value => String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 const DEVELOPMENT_STARTED_AT = Date.parse('2026-09-21T17:09:38+08:00')
 const MEAN_MONTH_MS = (365.2425 / 12) * 24 * 60 * 60 * 1000
 const TOKEN_COST_PER_MONTH = 2000
+export const investmentSchedule = { startedAt: DEVELOPMENT_STARTED_AT, meanMonthMilliseconds: MEAN_MONTH_MS }
 
 function developmentMonths(now) {
   return Number.isFinite(now) ? Math.max(0, Math.round((now - DEVELOPMENT_STARTED_AT) / MEAN_MONTH_MS)) : 0
@@ -59,14 +60,14 @@ export function investmentContent(stats, language, { now = Date.now() } = {}) {
       { id: 'lines', value: count(stats.codeLineCount), label: text(['Lines of code', '代码行数', '程式碼行數'], language) },
     ],
     note: text([
-      'Commit counts come from version control. Lines count tracked text across the apps, shared components and services, excluding dependencies, generated output and binary files. Updated at build time.',
-      '提交次数按版本控制工具累计；代码行数统计各端应用、共享组件与服务的已跟踪文本，不含依赖、生成产物和二进制。构建时自动更新。',
-      '提交次數按版本控制工具累計；程式碼行數統計各端應用、共用元件與服務的已追蹤文字，不含依賴、產生的檔案和二進位檔案。建置時自動更新。',
+      'Commit counts come from version control. Lines count tracked text across the apps, shared components and services, excluding dependencies, generated output and binary files.',
+      '提交次数按版本控制工具累计；代码行数统计各端应用、共享组件与服务的已跟踪文本，不含依赖、生成产物和二进制。',
+      '提交次數按版本控制工具累計；程式碼行數統計各端應用、共用元件與服務的已追蹤文字，不含依賴、產生的檔案和二進位檔案。',
     ], language),
     budgetTitle: text(['Budgets and accumulated investment', '预算与累计投入', '預算與累計投入'], language),
-    budgetIntro: text(['Infrastructure and certification are annual estimates; AI tokens are accumulated development investment. Amounts are in CNY and are estimates, not actual bills; usage affects costs.',
-      '基础设施与认证为年度预算，词元为累计研发投入。金额单位为人民币元，非实际账单，随用量浮动。',
-      '基礎設施與認證為年度預算，詞元為累計研發投入。金額單位為人民幣元，非實際帳單，隨用量浮動。'], language),
+    budgetIntro: text(['Infrastructure and certification are annual estimates. Amounts are in CNY and are estimates, not actual bills; usage affects costs.',
+      '基础设施与认证为年度预算。金额单位为人民币元，非实际账单，随用量浮动。',
+      '基礎設施與認證為年度預算。金額單位為人民幣元，非實際帳單，隨用量浮動。'], language),
     groups, total, totalText: money(total),
     totalTitle: text(['Estimated total', '估算合计', '估算合計'], language),
     costNote: text(['Labor, data maintenance and operations are not yet included in this total. Engineering counters are not converted to monetary costs.',

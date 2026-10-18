@@ -1,6 +1,6 @@
 import { definePage, ref, computed, onLoad, onReady, onShow, onHide, onUnload, onShareAppMessage, onResize } from '@vue-mini/core'
 import { boards, categories, categoryFor, copy, text, languages, boardTitle, hasOwn, desktopDownloadURL } from '../../core/catalog.js'
-import { rankedEntries, rowView, countryOptions, formatTime, latestTimestamp } from '../../core/leaderboard.js'
+import { rankedEntries, rowView, countryCode, countryName, countryOptions, formatTime, latestTimestamp } from '../../core/leaderboard.js'
 import { createBoardStore } from '../../services/boards.js'
 import { rowGeometry, resolveRowWindow, createRowRenderer } from '../../core/row-window.js'
 import { exportScreenshot, removeScreenshot, saveScreenshotImage } from '../../services/screenshot.js'
@@ -16,10 +16,18 @@ definePage(query => {
   const languageMode = ref(initial.languageMode)
   const category = ref(initial.category)
   const grouping = ref(initial.grouping)
+  const modelSearchQuery = ref('')
+  const modelSearchOpen = ref(false)
+  const modelSearchFocused = ref(false)
+  const modelSearchVisible = computed(() => grouping.value === 'model' && modelSearchOpen.value)
+  const searchOrigins = ref({})
+  let searchFocusTimer, searchExpandTimer, searchBlurTimer, searchSerial = 0
+  let clearingModelSearch = false
   const face = ref(initial.face)
   const sourceTabsHeight = ref(42)
   const sourceTabsOffset = ref(0)
   const sourceTabsExtent = computed(() => sourceTabsHeight.value + 8)
+  const cubeViewportStyle = computed(() => `--cube-top:${Math.max(0, sourceTabsExtent.value - sourceTabsOffset.value)}px;`)
   const sourceTabsStyle = computed(() => `transform:translateY(-${sourceTabsOffset.value}px);pointer-events:${sourceTabsOffset.value >= sourceTabsExtent.value ? 'none' : 'auto'};`)
   function updateSourceTabs(top) {
     sourceTabsOffset.value = Math.min(sourceTabsExtent.value, Math.max(0, top))
@@ -94,6 +102,7 @@ definePage(query => {
     syncWindow(to, true)
   }
   function turnCube(destination) {
+    blurModelSearch()
     cubeDragging.value = false
     entranceProgress.value = 1; entranceHintVisible.value = false
     clearTimeout(cubeTimer); clearTimeout(entranceTimer)
@@ -117,7 +126,7 @@ definePage(query => {
   function touchPoint(event) { return event.touches?.[0] || event.changedTouches?.[0] }
   function cubeStart(event) {
     const point = touchPoint(event)
-    if (!point || event.touches?.length > 1 || backgroundLocked.value) return
+    if (!point || event.touches?.length > 1 || backgroundLocked.value || modelSearchFocused.value) return
     stopCube(); entrancePlayed = true
     // A new touch takes ownership from any queued programmatic navigation.
     scrollRequests.clear(); cancelSourceTabsSync()
@@ -260,16 +269,23 @@ definePage(query => {
   // Keep full model data out of the Vue-to-WeChat bridge. Sorting/filtering
   // are cached independently of scroll positions; only window rows are mapped.
   const rankedCards = computed(() => current.value.kinds.map(kind => ({ kind,
-    entries: rankedEntries(snapshots.value[kind], { ...filterFor(kind), grouping: grouping.value }) })))
-  const cards = computed(() => rankedCards.value.map(({ kind, entries }, index) => {
+    leaderScore: rankedEntries(snapshots.value[kind], { ...filterFor(kind), grouping: grouping.value })[0]?.score,
+    entries: rankedEntries(snapshots.value[kind], { ...filterFor(kind), grouping: grouping.value, query: modelSearchQuery.value }) })))
+  const cards = computed(() => rankedCards.value.map(({ kind, entries, leaderScore }, index) => {
     const board = snapshots.value[kind]
     const filter = filterFor(kind)
     const range = rangeFor(kind, entries.length)
     return { kind, title: boardTitle(kind, language.value), index, summary: text(boards[kind].summaries, language.value),
       updated: formatTime(board?.sourceUpdatedAt), fetched: formatTime(board?.fetchedAt), time: formatTime(latestTimestamp(board)),
-      count: entries.length, height: entries.length * geometry.value.rowHeight, rowHeight: geometry.value.rowHeight,
-      rows: renderRows(kind, entries, range),
-      hasBoard: !!board, filtered: filter.country !== 'all' || filter.openness !== 'all',
+      count: entries.length,
+      // Keep the editing header pinned when a query reduces a long list to a
+      // few rows; native scroll views otherwise clamp their offset to zero.
+      height: Math.max(entries.length * geometry.value.rowHeight, (modelSearchVisible.value || grouping.value === 'model' && !!modelSearchQuery.value.trim())
+        ? Math.max(0, (viewports[kind] || geometry.value.viewportHeight) - geometry.value.rowHeight - (entries.length ? 0 : 200)) : 0),
+      rowHeight: geometry.value.rowHeight,
+      rows: renderRows(kind, entries, range, leaderScore),
+      searchStyle: modelSearchVisible.value ? 'left:0px;right:0px;' : searchOrigins.value[kind] || 'left:50%;right:50%;',
+      hasBoard: !!board, filtered: filter.country !== 'all' || filter.openness !== 'all' || grouping.value === 'model' && !!modelSearchQuery.value.trim(),
       countryFiltered: filter.country !== 'all', sourceFiltered: filter.openness !== 'all',
       loading: !!refreshing.value[kind],
       headerPinned: !!pinnedHeaders.value[kind],
@@ -277,12 +293,12 @@ definePage(query => {
   }))
   const backToTop = computed(() => !!backTopBoards.value[current.value.kinds[face.value]])
 
-  function renderRows(kind, entries, range) {
-    if (!rowRenderers.has(kind)) rowRenderers.set(kind, createRowRenderer(entry =>
+  function renderRows(kind, entries, range, leaderScore) {
+    if (!rowRenderers.has(kind)) rowRenderers.set(kind, createRowRenderer((entry, entries) =>
       rowView(entry, { company: grouping.value === 'company', dark: dark.value, details: false,
-        language: language.value, category: category.value })))
+        language: language.value, category: category.value, leaderScore: rankedCards.value.find(card => card.kind === kind)?.leaderScore })))
     return rowRenderers.get(kind)({ entries, ...range, rowHeight: geometry.value.rowHeight,
-      variant: `${grouping.value}:${dark.value}:${language.value}:${category.value}` })
+      variant: `${grouping.value}:${dark.value}:${language.value}:${category.value}:${leaderScore}` })
   }
 
   function rangeFor(kind, count, force = false) {
@@ -404,7 +420,7 @@ definePage(query => {
   measure()
   onResize(measure)
   function updateTheme() {
-    wx.setNavigationBarColor({ frontColor: dark.value ? '#ffffff' : '#000000', backgroundColor: dark.value ? '#10151c' : '#f5f7fa' })
+    wx.setNavigationBarColor({ frontColor: dark.value ? '#ffffff' : '#000000', backgroundColor: dark.value ? '#101216' : '#f4f5f7' })
   }
   const themeListener = event => { systemTheme.value = event.theme; sharedAppearance.value = null; updateTheme(); persist() }
   wx.onThemeChange?.(themeListener)
@@ -447,8 +463,8 @@ definePage(query => {
     for (const kind of current.value.kinds) if (!lastAttempt[kind] || Date.now() - lastAttempt[kind] > 600000) refreshKind(kind)
     playEntrance()
   })
-  onHide(() => { pageVisible = false; stopCube(); cancelSourceTabsSync() })
-  onUnload(() => { stopCube(); cancelSourceTabsSync(); alive = false; measureSerial++; scrollRequests.clear(); rowRenderers.clear(); store.dispose(); wx.offThemeChange?.(themeListener)
+  onHide(() => { pageVisible = false; blurModelSearch(); clearTimeout(searchExpandTimer); stopCube(); cancelSourceTabsSync() })
+  onUnload(() => { blurModelSearch(); clearTimeout(searchExpandTimer); stopCube(); cancelSourceTabsSync(); alive = false; measureSerial++; scrollRequests.clear(); rowRenderers.clear(); store.dispose(); wx.offThemeChange?.(themeListener)
     if (!capture.value.saving) removeScreenshot(wx, capture.value.path)
     if (capturing.value || capture.value.saving) wx.hideLoading() })
   onShareAppMessage(() => ({ title: `${tabs.value[face.value]}｜${tr('tagline')}`,
@@ -466,10 +482,10 @@ definePage(query => {
       }
       return
     }
-    stopCube(); entrancePlayed = true
+    blurModelSearch(); stopCube(); entrancePlayed = true
     category.value = id; rowRenderers.clear(); resetScroll(); persist(); refreshCategory()
   }
-  function selectGrouping(event) { stopCube(); entrancePlayed = true; grouping.value = event.currentTarget.dataset.id; resetScroll(); persist() }
+  function selectGrouping(event) { blurModelSearch(); stopCube(); entrancePlayed = true; grouping.value = event.currentTarget.dataset.id; resetScroll(); persist() }
   function selectFace(event) {
     if (Date.now() < suppressTapUntil) return
     const destination = Number(event.currentTarget.dataset.index)
@@ -504,7 +520,7 @@ definePage(query => {
   }
   function showSheet(mode, kind, actions, title) { stopCube(); entrancePlayed = true; sheet.value = { open: true, mode, kind, actions, title } }
   function selectedActions(actions, selected) {
-    return actions.map(action => ({ ...action, color: action.value === selected ? '#1675dc' : '' }))
+    return actions.map(action => ({ ...action, color: action.value === selected ? (dark.value ? '#d1dce8' : '#414d5c') : '' }))
   }
   function filterMenu(event) {
     const { kind, mode } = event.currentTarget.dataset
@@ -515,7 +531,106 @@ definePage(query => {
       tr(mode === 'country' ? 'country' : 'source'))
   }
   function clearFilters() {
+    modelSearchQuery.value = ''
     setFilters({ country: 'all', openness: 'all' }); persist()
+  }
+  function blurModelSearch() {
+    clearingModelSearch = false
+    searchSerial++
+    clearTimeout(searchFocusTimer)
+    clearTimeout(searchExpandTimer)
+    clearTimeout(searchBlurTimer)
+    modelSearchFocused.value = false
+    modelSearchOpen.value = false
+  }
+  function deferModelSearchBlur() {
+    modelSearchFocused.value = false
+    clearTimeout(searchBlurTimer)
+    // Native blur may arrive before or after the Clear tap. Keep this gesture
+    // separate from leaving search, until the input confirms its focus again.
+    if (clearingModelSearch) { restoreModelSearchFocus(); return }
+    // Let Clear/Cancel receive their tap before removing the native input.
+    searchBlurTimer = setTimeout(blurModelSearch, 80)
+  }
+  function focusModelSearch() {
+    if (!modelSearchVisible.value) return
+    clearingModelSearch = false
+    clearTimeout(searchBlurTimer)
+    modelSearchFocused.value = true
+  }
+  function restoreModelSearchFocus() {
+    clearTimeout(searchFocusTimer)
+    modelSearchFocused.value = false
+    const serial = searchSerial
+    searchFocusTimer = setTimeout(() => {
+      if (alive && serial === searchSerial && modelSearchVisible.value) modelSearchFocused.value = true
+    }, 0)
+  }
+  function beginModelSearchClear() {
+    if (!modelSearchVisible.value) return
+    clearingModelSearch = true
+    clearTimeout(searchBlurTimer)
+  }
+  function cancelModelSearchClear() {
+    clearingModelSearch = false
+    clearTimeout(searchFocusTimer)
+    if (!modelSearchFocused.value) deferModelSearchBlur()
+  }
+  function openModelSearch() {
+    if (grouping.value !== 'model' || cubeBusy.value || backgroundLocked.value) return
+    stopCube(); entrancePlayed = true
+    clearTimeout(searchBlurTimer)
+    const serial = ++searchSerial
+    const expand = () => {
+      if (!alive || serial !== searchSerial || grouping.value !== 'model') return
+      modelSearchOpen.value = true
+      clearTimeout(searchFocusTimer)
+      searchFocusTimer = setTimeout(() => {
+        if (alive && serial === searchSerial && modelSearchVisible.value) modelSearchFocused.value = true
+      }, 320)
+    }
+    if (modelSearchOpen.value) { expand(); return }
+    const query = wx.createSelectorQuery()
+    for (const kind of current.value.kinds) {
+      query.select(`#table-head-${kind}`).boundingClientRect()
+      query.select(`#model-filter-${kind}`).boundingClientRect()
+    }
+    query.exec(rects => {
+      if (!alive || serial !== searchSerial) return
+      searchOrigins.value = Object.fromEntries(current.value.kinds.flatMap((kind, index) => {
+        const head = rects[index * 2], icon = rects[index * 2 + 1]
+        if (!head?.width || !icon?.width) return []
+        return [[kind, `left:${Math.max(0, icon.left - head.left)}px;right:${Math.max(0, head.right - icon.right)}px;`]]
+      }))
+      // Paint the icon-sized starting bounds before expanding both edges.
+      clearTimeout(searchExpandTimer)
+      searchExpandTimer = setTimeout(expand, 24)
+    })
+  }
+  function inputModelSearch(event) {
+    const value = String(event.detail.value || '')
+    if (value === modelSearchQuery.value) return
+    modelSearchQuery.value = value
+    for (const kind of current.value.kinds) {
+      const top = pinnedHeaders.value[kind] ? headerOffsets[kind] || 0 : 0
+      scrollPositions[kind] = top
+      backTopBoards.value = { ...backTopBoards.value, [kind]: false }
+      requestScroll(kind, top)
+      syncWindow(kind, true)
+    }
+    measureLists()
+  }
+  function clearModelSearch() {
+    if (!modelSearchVisible.value) return
+    beginModelSearchClear()
+    inputModelSearch({ detail: { value: '' } })
+    restoreModelSearchFocus()
+  }
+  function closeModelSearch() {
+    blurModelSearch(); clearTimeout(searchExpandTimer)
+    modelSearchOpen.value = false
+    inputModelSearch({ detail: { value: '' } })
+    wx.hideKeyboard?.()
   }
   function preferences(event) {
     const mode = event?.currentTarget?.dataset?.mode || 'language'
@@ -539,6 +654,9 @@ definePage(query => {
     sheet.value = { ...sheet.value, open: false }; persist()
   }
   function closeSheet() { sheet.value = { ...sheet.value, open: false } }
+  function countryHelp() {
+    wx.showModal({ title: tr('unknownCountryTitle'), content: tr('unknownCountryExplanation'), showCancel: false, confirmText: 'OK' })
+  }
   function sourceHelp(event) {
     const kind = event.currentTarget.dataset.kind
     const board = snapshots.value[kind]
@@ -583,6 +701,17 @@ definePage(query => {
     stopCube(); entrancePlayed = true
     companyDetails.value = { open: true, name: row.name, content, members: row.components }
   }
+  function attributeHint(event) {
+    if (cubeBusy.value || backgroundLocked.value || Date.now() < suppressTapUntil) return
+    const { kind, rank, attribute } = event.currentTarget.dataset
+    if (kind !== current.value.kinds[face.value] || !['country', 'openness'].includes(attribute)) return
+    if (attribute === 'openness' && grouping.value === 'company') return
+    const entry = rankedCards.value.find(card => card.kind === kind)?.entries.find(row => row.rank === Number(rank))
+    if (!entry) return
+    const title = attribute === 'country' ? countryName(countryCode(entry), language.value)
+      : tr(entry.openness === 'open' ? 'open' : entry.openness === 'closed' ? 'closed' : 'unknown')
+    wx.showToast({ title, icon: 'none', duration: 1800 })
+  }
   function closeCompanyDetails() {
     companyDetails.value = { ...companyDetails.value, open: false }
   }
@@ -608,13 +737,13 @@ definePage(query => {
         categoryLabel: text(current.value.labels, language.value),
         boards: current.value.kinds.map((kind, index) => {
           const board = snapshots.value[kind], filter = filterFor(kind)
-          const country = countriesFor(kind).find(option => option.value === filter.country)?.label || tr('unknown')
+          const country = filter.country === 'all' ? tr('all') : countryName(filter.country, language.value)
           return { title: boardTitle(kind, language.value), tab: tabs.value[index],
             summary: text(boards[kind].summaries, language.value), time: formatTime(latestTimestamp(board)),
             filterLabel: `${tr('country')}: ${country} · ${tr('source')}: ${tr(filter.openness)}`,
             empty: tr(board ? 'empty' : 'noBoard'),
-            rows: rankedEntries(board, { ...filter, grouping: grouping.value }).map(entry =>
-              rowView(entry, { company: grouping.value === 'company', dark: dark.value, details: false })) }
+            rows: rankedCards.value[index].entries.map(entry =>
+              rowView(entry, { company: grouping.value === 'company', dark: dark.value, details: false, leaderScore: rankedCards.value[index].leaderScore })) }
         }) }
       const canvas = await new Promise((resolve, reject) => {
         wx.createSelectorQuery().select('#leaderboard-export').fields({ node: true }).exec(result => {
@@ -671,12 +800,13 @@ definePage(query => {
   const copyDesktopLink = () => { closeFeatureHelp(); copyText(desktopDownloadURL) }
   const refreshTap = event => refreshKind(event.currentTarget.dataset.kind)
   return { labels, subtitleParts, brandTitle, groupingControl, categoryItems, categoryIndex, category, grouping, face, dark, cards, tabs, backToTop, skeletonRows,
+    modelSearchQuery, modelSearchVisible, modelSearchFocused, openModelSearch, inputModelSearch, beginModelSearchClear, cancelModelSearchClear, clearModelSearch, closeModelSearch, blurModelSearch, deferModelSearchBlur, focusModelSearch,
     statusBar, navHeight, headerTop, capsuleWidth, sheet, backgroundLocked,
-    cubeFaces, sourceSelection, sourceTabsStyle, sourceTabsExtent,
+    cubeFaces, sourceSelection, sourceTabsStyle, sourceTabsExtent, cubeViewportStyle,
     cubePosition, cubeDuration, cubeBusy, cubeDragging, entranceStyle, entranceHintVisible,
-    cubeStart, cubeMove, cubeEnd, cubeCancel,
+    cubeStart, cubeMove, cubeEnd, cubeCancel, attributeHint,
     selectCategory, selectGrouping, selectFace, changeFace, scroll, top, filterMenu,
-    clearFilters, preferences, sheetSelect, closeSheet, sourceHelp, copyBoardTitle, copyPurchaseLink, rowDetails, companyDetails, closeCompanyDetails, copyCompanyName, about,
+    clearFilters, preferences, sheetSelect, closeSheet, sourceHelp, countryHelp, copyBoardTitle, copyPurchaseLink, rowDetails, companyDetails, closeCompanyDetails, copyCompanyName, about,
     quotaHelp, quotaHelpContent, showingFeatureHelp, closeFeatureHelp, copyDesktopLink, refreshTap, refreshCategory, pullRefresh, pullRefreshing,
     capturing, capture, screenshot, closeCapture, previewScreenshot, saveScreenshot }
 }, { canShareToOthers: true })

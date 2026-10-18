@@ -74,6 +74,194 @@ function setup(preferences = {}, count = 0, query = {}, systemTheme = 'light', s
 }
 const event = dataset => ({ currentTarget: { dataset } })
 
+test('leaving the page while search bounds are pending cannot expand or focus it later', async () => {
+  const h = setup()
+  let measured
+  wx.createSelectorQuery = () => {
+    const query = { select: () => ({ boundingClientRect: () => query }), exec: callback => { measured = callback } }
+    return query
+  }
+  h.page.openModelSearch()
+  globalThis.__benchHooks.hide()
+  measured([])
+  await new Promise(resolve => setTimeout(resolve, 40))
+  assert.equal(h.page.modelSearchVisible.value, false)
+  assert.equal(h.page.modelSearchFocused.value, false)
+  globalThis.__benchHooks.unload()
+})
+
+test('one live model query survives source/category/company switches and clearing restores both boards', async () => {
+  const h = setup({}, 1000)
+  const loading = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await loading
+  const initialRequests = h.requests.length
+  h.page.openModelSearch()
+  await new Promise(resolve => setTimeout(resolve, 30))
+  assert.equal(h.page.modelSearchVisible.value, true)
+  h.page.inputModelSearch({ detail: { value: 'Model 997' } })
+  for (const card of h.page.cards.value) {
+    assert.equal(card.count, 1)
+    assert.equal(card.rows[0].rank, 997)
+    assert.equal(card.rows[0].top, 0)
+    assert.equal(card.rows[0].scoreShare, '0%')
+  }
+  assert.equal(h.requests.length, initialRequests, 'Filtering must not fetch a board')
+  h.page.selectFace(event({ index: 1 }))
+  assert.equal(h.page.modelSearchQuery.value, 'Model 997')
+  assert.equal(h.page.cards.value[1].count, 1)
+  h.page.selectGrouping(event({ id: 'company' }))
+  assert.equal(h.page.modelSearchVisible.value, false)
+  assert.equal(h.page.cards.value[0].count, 1000)
+  h.page.selectGrouping(event({ id: 'model' }))
+  assert.equal(h.page.modelSearchVisible.value, false)
+  assert.equal(h.page.cards.value[0].count, 1)
+  h.page.selectCategory(event({ id: 'coding' }))
+  h.respond(initialRequests); h.respond(initialRequests + 1)
+  await new Promise(resolve => setTimeout(resolve, 0))
+  assert.equal(h.page.modelSearchQuery.value, 'Model 997')
+  assert.ok(h.page.cards.value.every(card => card.count === 1))
+  h.page.inputModelSearch({ detail: { value: 'no match' } })
+  assert.ok(h.page.cards.value.every(card => card.count === 0 && card.filtered))
+  h.page.clearFilters()
+  assert.equal(h.page.modelSearchQuery.value, '')
+  assert.ok(h.page.cards.value.every(card => card.count === 1000))
+  h.page.closeModelSearch()
+  await new Promise(resolve => setTimeout(resolve, 330))
+  assert.equal(h.page.modelSearchVisible.value, false)
+  assert.equal(h.page.modelSearchFocused.value, false, 'A pending focus must not reopen the keyboard after cancel')
+  globalThis.__benchHooks.unload()
+})
+
+test('blur collapses search without clearing the shared query and clear can retain focus', async () => {
+  const h = setup({}, 1000)
+  const loading = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await loading
+  h.page.openModelSearch()
+  await new Promise(resolve => setTimeout(resolve, 30))
+  h.page.inputModelSearch({ detail: { value: 'Model 997' } })
+  h.page.deferModelSearchBlur()
+  await new Promise(resolve => setTimeout(resolve, 100))
+  assert.equal(h.page.modelSearchVisible.value, false)
+  assert.equal(h.page.modelSearchQuery.value, 'Model 997')
+  assert.equal(h.page.cards.value[0].count, 1)
+  h.page.focusModelSearch()
+  assert.equal(h.page.modelSearchFocused.value, false, 'Late native focus events must not disable cube gestures after collapse')
+  h.page.openModelSearch()
+  await new Promise(resolve => setTimeout(resolve, 30))
+  h.page.deferModelSearchBlur()
+  h.page.clearModelSearch()
+  await new Promise(resolve => setTimeout(resolve, 100))
+  assert.equal(h.page.modelSearchVisible.value, true)
+  assert.equal(h.page.modelSearchFocused.value, true)
+  assert.equal(h.page.modelSearchQuery.value, '')
+  globalThis.__benchHooks.unload()
+})
+
+test('clearing keeps search open when the native blur arrives after the clear tap', async () => {
+  const h = setup()
+  h.page.openModelSearch()
+  await new Promise(resolve => setTimeout(resolve, 30))
+  h.page.inputModelSearch({ detail: { value: 'Model' } })
+  h.page.clearModelSearch()
+  h.page.deferModelSearchBlur()
+  await new Promise(resolve => setTimeout(resolve, 120))
+  assert.equal(h.page.modelSearchQuery.value, '')
+  assert.equal(h.page.modelSearchVisible.value, true, 'A delayed blur from Clear must not exit search')
+  assert.equal(h.page.modelSearchFocused.value, true)
+  h.page.focusModelSearch()
+  h.page.inputModelSearch({ detail: { value: 'Again' } })
+  assert.equal(h.page.modelSearchQuery.value, 'Again')
+  h.page.closeModelSearch()
+  await new Promise(resolve => setTimeout(resolve, 120))
+  assert.equal(h.page.modelSearchVisible.value, false)
+  assert.equal(h.page.modelSearchFocused.value, false)
+  globalThis.__benchHooks.unload()
+})
+
+test('a slow Clear gesture survives blur, restores all rows and leaves later outside blur unchanged', async () => {
+  const h = setup({}, 1000)
+  const loading = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await loading
+  h.page.openModelSearch()
+  await new Promise(resolve => setTimeout(resolve, 30))
+  h.page.inputModelSearch({ detail: { value: 'Model 997' } })
+  h.page.beginModelSearchClear()
+  h.page.deferModelSearchBlur()
+  await new Promise(resolve => setTimeout(resolve, 120))
+  assert.equal(h.page.modelSearchVisible.value, true)
+  h.page.focusModelSearch()
+  h.page.clearModelSearch()
+  await new Promise(resolve => setTimeout(resolve, 20))
+  assert.equal(h.page.modelSearchVisible.value, true)
+  assert.equal(h.page.modelSearchFocused.value, true)
+  assert.ok(h.page.cards.value.every(card => card.count === 1000))
+  h.page.focusModelSearch()
+  h.page.deferModelSearchBlur()
+  await new Promise(resolve => setTimeout(resolve, 120))
+  assert.equal(h.page.modelSearchVisible.value, false, 'An unrelated outside blur still leaves search')
+  globalThis.__benchHooks.unload()
+})
+
+test('cancelled Clear gestures and leaving the page cannot leave focus recovery running', async () => {
+  for (const leave of ['cancelGesture', 'cancelSearch', 'hide', 'unload']) {
+    const h = setup()
+    h.page.openModelSearch()
+    await new Promise(resolve => setTimeout(resolve, 30))
+    h.page.inputModelSearch({ detail: { value: 'Model' } })
+    h.page.beginModelSearchClear()
+    h.page.deferModelSearchBlur()
+    if (leave === 'cancelGesture') h.page.cancelModelSearchClear()
+    else if (leave === 'cancelSearch') { h.page.clearModelSearch(); h.page.closeModelSearch() }
+    else { h.page.clearModelSearch(); globalThis.__benchHooks[leave]() }
+    await new Promise(resolve => setTimeout(resolve, 120))
+    assert.equal(h.page.modelSearchVisible.value, false, leave)
+    assert.equal(h.page.modelSearchFocused.value, false, leave)
+    globalThis.__benchHooks.unload()
+  }
+})
+
+test('country and source taps explain the current row in each language without copying or opening details', async () => {
+  for (const [language, country, closed, open] of [
+    ['zh-CN', '美国', '闭源', '开源'], ['zh-TW', '美國', '閉源', '開源'], ['en', 'United States', 'Closed', 'Open'],
+  ]) {
+    const h = setup({ language })
+    const loading = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await loading
+    const kind = h.page.cards.value[0].kind, toasts = []
+    wx.showToast = options => toasts.push(options)
+    const tap = (attribute, rank = 1, extra = {}) => h.page.attributeHint(event({ kind, rank, attribute, ...extra }))
+    tap('country'); assert.equal(toasts.at(-1).title, country)
+    tap('openness'); assert.equal(toasts.at(-1).title, closed)
+    tap('openness', 2); assert.equal(toasts.at(-1).title, open)
+    assert.ok(toasts.every(toast => toast.icon === 'none' && toast.duration === 1800))
+    const count = toasts.length
+    tap('country', 999); tap('country', 1, { kind: h.page.cards.value[1].kind }); tap('bad')
+    h.page.cubeBusy.value = true; tap('country'); h.page.cubeBusy.value = false
+    h.page.quotaHelp(); tap('country'); h.page.closeFeatureHelp()
+    assert.equal(toasts.length, count)
+    assert.deepEqual(h.clipboard, []); assert.deepEqual(h.modals, [])
+    h.page.selectGrouping(event({ id: 'company' }))
+    tap('openness'); assert.equal(toasts.length, count)
+    tap('country'); assert.equal(toasts.at(-1).title, country)
+    assert.equal(h.page.companyDetails.value.open, false)
+    globalThis.__benchHooks.unload()
+  }
+})
+
+test('unknown source taps remain unknown and swiping across an attribute does not show a hint', async () => {
+  const h = setup({ language: 'zh-CN' }, 0, {}, 'light', 'zh_CN', {
+    artificialAnalysis: { kind: 'artificialAnalysis', fetchedAt: '2026-10-13T12:00:00Z', entries: [
+      { rank: 1, name: 'Unverified fixture', score: 80, organization: 'Unverified studio', openness: null },
+    ] },
+  }), toasts = []
+  wx.showToast = options => toasts.push(options)
+  const kind = h.page.cards.value[0].kind
+  const tap = () => h.page.attributeHint(event({ kind, rank: 1, attribute: 'country' }))
+  tap(); assert.equal(toasts.at(-1).title, '未知')
+  h.page.attributeHint(event({ kind, rank: 1, attribute: 'openness' }))
+  assert.equal(toasts.at(-1).title, '未知')
+  const touch = (x, y) => ({ touches: [{ clientX: x, clientY: y }] })
+  h.page.cubeStart(touch(280, 200)); h.page.cubeMove(touch(40, 200)); h.page.cubeEnd()
+  tap(); assert.equal(toasts.length, 2)
+  globalThis.__benchHooks.unload()
+})
+
 test('all custom overlays lock the page and native boards without disabling popup content scrolling', () => {
   const template = readFileSync(new URL('../src/pages/leaderboard/index.wxml', import.meta.url), 'utf8')
   assert.match(template, /^<page-meta page-style="\{\{backgroundLocked \? 'overflow:hidden;' : ''\}\}" \/>/)
@@ -83,7 +271,9 @@ test('all custom overlays lock the page and native boards without disabling popu
   }
   const overlays = template.match(/<van-(?:dialog|action-sheet|popup)\b[^>]*>/g)
   assert.equal(overlays.length, 4)
-  for (const overlay of overlays) assert.match(overlay, /catch:touchstart/)
+  // Intercepting touchstart on Vant's host swallows native taps on its choices
+  // and buttons. The board bindings above provide the background scroll lock.
+  for (const overlay of overlays) assert.doesNotMatch(overlay, /catch:touchstart/)
   // Catching touchmove on a common ancestor would also suppress inner scrolling.
   assert.doesNotMatch(template, /catch:touchmove/)
   assert.match(template, /hidden="\{\{!backToTop \|\| cubeBusy \|\| backgroundLocked\}\}"/)
@@ -213,7 +403,8 @@ test('subtitle help offers dismissal and copies the desktop link only on its lin
     assert.equal(h.page.showingFeatureHelp.value, true)
     assert.equal(h.page.labels.value.featureDetails, title)
     assert.equal(h.page.quotaHelpContent.value, h.page.labels.value.quotaHelp)
-    assert.match(h.page.quotaHelpContent.value, /Mac.*Windows/)
+    assert.match(h.page.quotaHelpContent.value, /PC/)
+    assert.doesNotMatch(h.page.quotaHelpContent.value, /Mac|Windows/)
     assert.equal(h.page.labels.value.gotIt, gotIt)
     assert.equal(h.page.labels.value.desktopLink, desktopLink)
     h.page.closeFeatureHelp()
@@ -382,8 +573,10 @@ test('filter highlights update on selection before closing and stay current acro
   }
   h.page.filterMenu(event({ kind, mode: 'country' })); check(h.page, 'all')
   for (const selected of ['CN', 'US', 'all', 'CN']) {
+    assert.equal(h.page.backgroundLocked.value, true)
     h.page.sheetSelect({ detail: h.page.sheet.value.actions.find(action => action.value === selected) })
     assert.equal(h.page.sheet.value.open, false)
+    assert.equal(h.page.backgroundLocked.value, false)
     check(h.page, selected)
     assert.equal(h.page.cards.value[0].count, selected === 'all' ? 2 : 1)
     h.page.filterMenu(event({ kind, mode: 'country' })); check(h.page, selected)
@@ -737,6 +930,12 @@ test('the screenshot button exports only the current pair as one complete image 
   h.page.closeCapture(); assert.equal(h.page.capture.value.open, false)
   assert.equal(h.page.backgroundLocked.value, false)
   assert.equal(canvas.files.has(path), false, 'Closing the preview removes its temporary PNG')
+  h.page.filterMenu(event({ kind: 'artificialAnalysis', mode: 'country' }))
+  h.page.sheetSelect({ detail: h.page.sheet.value.actions.find(action => action.value === 'unknown') })
+  await h.page.screenshot()
+  assert.ok(canvas.commands.some(([command, value]) => command === 'fillText' && value.includes('国家: 未知')))
+  assert.ok(!canvas.commands.some(([command, value]) => command === 'fillText' && /[\u{1F1E6}-\u{1F1FF}]/u.test(value)))
+  h.page.closeCapture()
   globalThis.__benchHooks.unload()
 })
 
@@ -1118,3 +1317,13 @@ test('saving another setting keeps automatic language following the host on a la
   assert.equal(restarted.page.labels.value.name, 'AI BenchGauge')
   globalThis.__benchHooks.unload()
 })
+
+test('unassigned country help uses the current language and a generic explanation',()=>{
+ for(const language of ['en','zh-CN','zh-TW']) {
+  const h=setup({language,languageMode:'manual'});h.page.countryHelp();
+  assert.equal(h.modals.length,1);assert.equal(h.modals[0].showCancel,false);
+  assert.equal(h.modals[0].confirmText,'OK');
+  assert.equal(h.modals[0].title,text(copy.unknownCountryTitle,language));
+  assert.equal(h.modals[0].content,text(copy.unknownCountryExplanation,language));
+ }
+});

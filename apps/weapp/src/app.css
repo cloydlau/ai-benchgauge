@@ -1,16 +1,16 @@
 @import 'tailwindcss';
-page { height: 100%; background: #f5f7fa; }
+page { height: 100%; background: #f4f5f7; }
 view, scroll-view, swiper, swiper-item { box-sizing: border-box; }
 button { color: inherit; margin: 0; padding: 0; font: inherit; background: transparent; border-radius: 0; line-height: inherit; }
 button::after { border: 0; }
 .shell {
-  --bg: #f5f7fa; --card: #fff; --ink: #17202c; --muted: #7c8797; --line: #e7ebf1;
-  --chip: #e9edf3; --blue: #1675dc; --purple: #9657c8; --active: #e4f0ff;
+  --bg: #f4f5f7; --card: #fff; --ink: #20262f; --muted: #687382; --line: #dfe3e9;
+  --chip: #e7eaf0; --accent: #414d5c; --blue: #1675dc; --purple: #9657c8; --active: #e1e6ed;
   color: var(--ink); background: var(--bg); font-size: 26rpx;
 }
 .shell.dark {
-  --bg: #10151c; --card: #19212c; --ink: #edf2f7; --muted: #8b98ab; --line: #2a3544;
-  --chip: #202b39; --blue: #67b1ff; --purple: #cd91f7; --active: #1d3752;
+  --bg: #101216; --card: #1b1f26; --ink: #f2f5fa; --muted: #a2acba; --line: #343b46;
+  --chip: #272e38; --accent: #d1dce8; --blue: #67b1ff; --purple: #cd91f7; --active: #343e4b;
 }
 .muted { color: var(--muted); }
 .tap { min-height: 44px; display: flex; align-items: center; justify-content: center; }
@@ -21,5 +21,7 @@ button::after { border: 0; }
 .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 20rpx); }
 
 .brand-wordmark { position: relative; flex-shrink: 0; }
-.brand-letter-logo { position: absolute; left: 0; border-radius: 0; }
-.brand-glyph { position: absolute; display: block; }
+/* The first native frame can precede the Vue bridge's geometry. Keep images
+   size-less until their measured inline dimensions arrive. */
+.brand-letter-logo { position: absolute; left: 0; width: 0; height: 0; border-radius: 0; }
+.brand-glyph { position: absolute; display: block; width: 0; height: 0; }

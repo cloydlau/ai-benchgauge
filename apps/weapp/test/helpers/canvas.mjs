@@ -5,8 +5,14 @@ export function canvasHarness() {
     context[name] = (...args) => commands.push([name, ...args])
   }
   const canvas = { width: 1, height: 1, getContext: () => context, createImage: () => ({
-    set src(path) { queueMicrotask(() => path.includes('missing') ? this.onerror() : this.onload()) },
+    get src() { return this.path },
+    set src(path) { this.path = path; queueMicrotask(() => path.includes('missing') ? this.onerror() : this.onload()) },
   }) }
+  context.createLinearGradient = (...args) => {
+    const gradient = { addColorStop: (...stop) => commands.push(['addColorStop', ...stop]) }
+    commands.push(['createLinearGradient', ...args])
+    return gradient
+  }
   context.getImageData = (x, y, width, height) => {
     exported.push({ width: canvas.width, height: canvas.height })
     return { data: new Uint8ClampedArray(width * height * 4) }

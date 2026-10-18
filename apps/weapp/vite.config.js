@@ -18,6 +18,7 @@ const notices = [
   ['Vue Mini', '@vue-mini/core'], ['Vant Weapp', '@vant/weapp'], ['Tailwind CSS', 'tailwindcss'], ['fflate', 'fflate'],
 ].map(([name, packageName]) => ({ name, license: readFileSync(new URL(`node_modules/${packageName}/LICENSE`, import.meta.url), 'utf8') }))
 notices.push({ name: 'Lucide Icons', licenseName: 'ISC', license: readFileSync(new URL('assets/openness/LICENSE', import.meta.url), 'utf8') })
+notices.push({ name: 'flag-icons', license: readFileSync(new URL('assets/flags/LICENSE', import.meta.url), 'utf8') })
 notices.push({ name: 'Slide Xiaxing / BenchGauge Calligraphy', licenseName: 'SIL OFL 1.1',
   license: readFileSync(resolve(root, 'Sources/LeaderboardKit/Resources/Fonts/SlideFont-OFL.txt'), 'utf8') })
 const coreRequire = createRequire(realpathSync(fileURLToPath(new URL('node_modules/@vue-mini/core/package.json', import.meta.url))))
@@ -43,6 +44,9 @@ export default defineConfig({
   server: { watch: { usePolling: true, interval: 400, ignored: ['**/dist/**', '**/node_modules/**'] } },
   weapp: {
     srcRoot: './src',
+    // The post-build Vant pruning removes unused components from this output.
+    // Recopy dependencies so later builds can use newly introduced components.
+    npm: { cache: false },
     chunks: { sharedStrategy: 'duplicate', sharedMode: 'inline' },
     hmr: { sharedChunks: 'full' },
     autoImportComponents: { resolvers: [VantResolver()] },
@@ -65,6 +69,10 @@ export default defineConfig({
           emit(`assets/openness/${name}`, new URL(`assets/openness/${name}`, import.meta.url))
         }
         emit('assets/openness/LICENSE.txt', new URL('assets/openness/LICENSE', import.meta.url))
+        for (const name of readdirSync(new URL('assets/flags/', import.meta.url)).filter(name => name.endsWith('.png'))) {
+          emit(`assets/flags/${name}`, new URL(`assets/flags/${name}`, import.meta.url))
+        }
+        emit('assets/flags/LICENSE.txt', new URL('assets/flags/LICENSE', import.meta.url))
         emit('assets/LICENSE.txt', resolve(root, 'LICENSE'))
       },
     },

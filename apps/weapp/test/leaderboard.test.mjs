@@ -5,11 +5,53 @@ import { createHash } from 'node:crypto'
 import brandCatalog from '../../../fc/brand-catalog.json' with { type: 'json' }
 import companyCatalog from '../../../assets/logos/company-catalog.json' with { type: 'json' }
 import { boards, categories, copy, languages, text } from '../src/core/catalog.js'
-import { normalizeBoard, canReplace, countryCode, countryFlag, countryOptions, companyRows, visibleRows, formatTime, rowView } from '../src/core/leaderboard.js'
+import { normalizeBoard, canReplace, countryCode, countryFlag, countryOptions, companyRows, visibleRows, formatTime, rowView, scoreShareText, modelNameMatches } from '../src/core/leaderboard.js'
 
 const kind = 'artificialAnalysis'
 const entry = (rank, name, score, organization, fields = {}) => ({ rank, name, score, organization, ...fields })
 const board = (entries, fields = {}) => ({ kind, fetchedAt: '2026-10-13T12:00:00Z', entries, ...fields })
+
+test('model search combines name tokens with existing filters, keeps ranks and the unsearched leader, and ignores company names', () => {
+  const source = board([
+    entry(1, 'Leader', 100, 'Alpha Labs', { openness: 'closed' }),
+    entry(2, 'Alpha Pro', 80, 'Maker One', { openness: 'open' }),
+    entry(3, 'Alpha Mini', 70, 'Maker Two', { openness: 'closed' }),
+    entry(4, 'Beta', 60, 'Alpha Labs', { openness: 'open' }),
+  ])
+  assert.deepEqual(visibleRows(source, { query: '  ALPHA  pro ' }).map(row => [row.rank, row.name, row.scoreShare]), [[2, 'Alpha Pro', '80%']])
+  assert.deepEqual(visibleRows(source, { query: 'alpha', openness: 'open' }).map(row => row.rank), [2])
+  assert.equal(visibleRows(source, { query: 'Maker' }).length, 0)
+  assert.deepEqual(visibleRows(source, { grouping: 'company', query: 'nothing' }), visibleRows(source, { grouping: 'company' }))
+  assert.equal(visibleRows(source, { query: ' \n ' }).length, 4)
+  assert.equal(modelNameMatches('Café Ａlpha 中文模型', ' cafe alpha 中文 '), true)
+})
+
+test('score shares round consistently and omit leaders, near ties and invalid baselines', () => {
+  for (const [score, leader, expected] of [[56, 57.6, '97%'], [97.5, 100, '98%'], [0, 100, '0%'],
+    [100, 100, ''], [99.6, 100, ''], [101, 100, ''], [1, 0, ''], [-1, 100, ''],
+    [NaN, 100, ''], [1, Infinity, ''], [Infinity, 1, ''], [1, undefined, '']]) {
+    assert.equal(scoreShareText(score, leader), expected)
+  }
+  const source = board([entry(1, 'Closed', 100, 'OpenAI', { openness: 'closed' }),
+    entry(2, 'Open A', 80, 'OpenAI', { openness: 'open' }),
+    entry(3, 'Open B', 60, 'Anthropic', { openness: 'open' })])
+  for (const grouping of ['model', 'company']) {
+    assert.deepEqual(visibleRows(source, { grouping, openness: 'open' }).map(row => row.scoreShare), ['', '75%'])
+  }
+  assert.deepEqual(visibleRows(board([entry(1, 'A', 200), entry(2, 'B', 100)])).map(row => row.scoreShare), ['', '50%'])
+})
+
+test('score backgrounds use the unsearched leader, retain full leader width and handle unusable baselines', () => {
+  const source = board([entry(1, 'Leader', 100), entry(2, 'Half', 50), entry(3, 'Zero', 0)])
+  for (const dark of [false, true]) {
+    assert.deepEqual(visibleRows(source, { dark }).map(row => row.fillPercent), [100, 50, 0])
+    assert.equal(visibleRows(source, { dark, query: 'Half' })[0].fillPercent, 50)
+  }
+  for (const [score, leaderScore, expected] of [[99.6, 100, 99.6], [120, 100, 100], [5, 0, 100],
+    [5, undefined, 100], [5, Infinity, 100], [-1, 100, 100]]) {
+    assert.equal(rowView(entry(2, 'Model', score), { leaderScore }).fillPercent, expected)
+  }
+})
 
 test('the four categories cover exactly the eight existing shared API kinds and all translations', () => {
   assert.equal(categories.length, 4)
