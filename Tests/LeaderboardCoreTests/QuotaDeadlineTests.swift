@@ -133,16 +133,29 @@ struct QuotaDeadlineTests {
     }
 
     @Test
-    func testSubscriptionAndMonthlyUsageBoundariesHaveTheSameCardPhrase() {
-        let boundaries = [
-            ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: monthly),
-            ParsedQuotaWindow(name: "monthly", utilization: 25, resetsAt: monthly),
-        ]
-        for boundary in boundaries {
-            let summary = AccountQuotaFormatting.plainSummary(for: chip(.officialNote, .windows([boundary])), now: now)
-            #expect(summary.hasSuffix("至10月24日"))
-                #expect(!(summary.contains("月度重置")))
-        }
+    func testOfficialMonthlyResetCannotReplaceSubscriptionBoundary() {
+        let reset = ParsedQuotaWindow(name: "monthly", utilization: 25, resetsAt: monthly)
+        let official = chip(.officialNote, .windows([reset]))
+        #expect(AccountQuotaFormatting.plainSummary(for: official, now: now) == "1mo 75%")
+        #expect(AccountQuotaFormatting.help(for: official, now: now).contains("1mo重置"))
+        #expect(AccountQuotaFormatting.deadlineColorLevel(for: official, now: monthly.addingTimeInterval(-3600)) == nil)
+        #expect(AccountQuotaFormatting.plainSummary(for: chip(.kimi, .windows([reset])), now: now).hasSuffix("至10月24日"))
+
+        let end = now.addingTimeInterval(3600)
+        let plan = ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: end)
+        let verified = chip(.officialNote, .windows([reset, plan]))
+        #expect(AccountQuotaFormatting.plainSummary(for: verified, now: now).contains("至9月28日"))
+        #expect(!AccountQuotaFormatting.plainSummary(for: verified, now: now).contains("至10月24日"))
+    }
+
+    @Test
+    func testOfficialMonthlyResetDoesNotSupplyDeadlineSortKey() {
+        let official = chip(.officialNote, .windows([
+            ParsedQuotaWindow(name: "monthly", utilization: 25, resetsAt: now.addingTimeInterval(3600))
+        ]))
+        let kimi = AccountQuotaChip(id: "kimi", shortName: "Kimi", websiteURL: nil, kind: .kimi,
+            isCurrent: false, status: .windows([ParsedQuotaWindow(name: "monthly", utilization: 25, resetsAt: monthly)]))
+        #expect(AccountQuotaFormatting.sortedChips([official, kimi]).map(\.id) == ["kimi", "test"])
     }
 
     @Test

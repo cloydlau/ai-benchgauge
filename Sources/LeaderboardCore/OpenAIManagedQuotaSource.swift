@@ -10,8 +10,9 @@ import FoundationNetworking
 #endif
 
 public protocol OfficialAccountQuotaSource: Sendable {
-    /// Nil means this provider has never been connected here. An expired app
-    /// login returns a reauth chip, so old CC Switch credentials cannot mask it.
+    /// Nil lets the caller query the discovered credentials: either no app
+    /// profile applies or the same account has a newer, unexpired login.
+    /// An expired app login never falls back to an older CC Switch snapshot.
     func loadQuota(for target: CCSwitchQuotaTarget) async throws -> AccountQuotaChip?
 }
 
@@ -167,15 +168,28 @@ public actor OpenAIManagedQuotaSource: OfficialAccountQuotaSource {
         }
         // A canceled/wrong-account browser flow can replace auth.json before
         // its completion is accepted. Never query that account under an old binding.
-        guard savedAccountID(for: target.id) == binding.accountID else {
+        guard let managedCredentials = savedCredentials(for: target.id),
+              managedCredentials.accountID == binding.accountID else {
             return chip(target, status: .message(AccountQuotaMessage.reauthRequired))
+        }
+        // Discovery may already have replaced CC Switch's stale snapshot with
+        // the current Codex login. Do not override that newer login with this
+        // app's older profile, whose token may have been revoked before expiry.
+        // Keep both account checks above and leave refresh-token ownership with
+        // each client; the caller validates the chosen access token upstream.
+        if target.accountID == binding.accountID,
+           let discoveredExpiry = OfficialQuotaDiscovery.tokenExpiry(target.accessToken),
+           discoveredExpiry > Date().addingTimeInterval(60),
+           let managedExpiry = OfficialQuotaDiscovery.tokenExpiry(managedCredentials.accessToken),
+           discoveredExpiry > managedExpiry {
+            return nil
         }
         let server = session(for: target.id)
         do {
             // A usable access token does not depend on the renewal endpoint
             // being reachable. Let usage rejection trigger renewal if needed.
             let shouldRefresh: Bool
-            if let expiry = OfficialQuotaDiscovery.tokenExpiry(savedCredentials(for: target.id)?.accessToken) {
+            if let expiry = OfficialQuotaDiscovery.tokenExpiry(managedCredentials.accessToken) {
                 shouldRefresh = expiry <= Date().addingTimeInterval(60)
             } else {
                 shouldRefresh = lastRefresh[target.id].map { Date().timeIntervalSince($0) >= 600 } ?? true

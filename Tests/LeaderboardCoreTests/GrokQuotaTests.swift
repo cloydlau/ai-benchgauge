@@ -91,7 +91,7 @@ struct GrokQuotaTests {
             let body = credits(type: 2, end: "2026-10-05T12:00:00Z")
             let transport = GrokFixtureTransport(status: status, billingBody: body)
             let fixedNow = now
-            let client = AccountQuotaClient(transport: transport, authFileURL: auth, now: { fixedNow })
+            let client = AccountQuotaClient(transport: transport, authFileURL: auth, now: { fixedNow }, xaiRefreshAllowed: { true })
             let target = CCSwitchQuotaTarget(id: "xai", shortName: "xAI", websiteURL: nil, kind: .xaiOAuth, isCurrent: false, apiKey: nil, baseURL: nil)
             let result = try await client.refresh(targets: [target])
             let resultChip = try #require(result.first)
@@ -111,7 +111,7 @@ struct GrokQuotaTests {
             let fixedNow = now
             let transport = GrokIdentityFixtureTransport(base: GrokFixtureTransport(status: 403, billingBody: credits(type: 2, end: "2026-10-05T12:00:00Z")),
                 identityStatus: status, switchAuth: switchAccount ? auth : nil)
-            let client = AccountQuotaClient(transport: transport, authFileURL: auth, now: { fixedNow }, xaiSubscriptionDateStore: store)
+            let client = AccountQuotaClient(transport: transport, authFileURL: auth, now: { fixedNow }, xaiSubscriptionDateStore: store, xaiRefreshAllowed: { true })
             let body = Data(#"{"subscriptions":[{"xaiUserId":"canonical-user","status":"SUBSCRIPTION_STATUS_ACTIVE","tier":"SUBSCRIPTION_TIER_GROK_PRO","billingPeriodEnd":"2026-11-18T12:00:00Z"}]}"#.utf8)
             #expect(try await !client.captureXAIWebsiteSubscription(body))
             #expect(store.record(accountID: "test", now: now) == nil)
@@ -129,7 +129,7 @@ struct GrokQuotaTests {
         let store = XAISubscriptionDateStore(fileURL: directory.appending(path: "dates.json"))
         let fixedNow = now
         let client = AccountQuotaClient(transport: GrokFixtureTransport(status: 403, billingBody: credits(type: 2, end: "2026-10-05T12:00:00Z")),
-            authFileURL: auth, now: { fixedNow }, xaiSubscriptionDateStore: store)
+            authFileURL: auth, now: { fixedNow }, xaiSubscriptionDateStore: store, xaiRefreshAllowed: { true })
         func response(userID: String?, date: String = "2026-11-18T12:00:00Z") throws -> Data {
             var record = ["status": "SUBSCRIPTION_STATUS_ACTIVE", "tier": "SUBSCRIPTION_TIER_GROK_PRO", "billingPeriodEnd": date]
             record["xaiUserId"] = userID
@@ -159,7 +159,7 @@ struct GrokQuotaTests {
         let fixedNow = now
         let client = AccountQuotaClient(transport: GrokFixtureTransport(status: 200,
             billingBody: credits(type: 2, end: "2026-10-05T12:00:00Z"), subscriptionEnd: "2026-11-18T12:00:00Z"),
-            authFileURL: auth, now: { fixedNow })
+            authFileURL: auth, now: { fixedNow }, xaiRefreshAllowed: { true })
         let target = CCSwitchQuotaTarget(id: "xai", shortName: "xAI", websiteURL: nil, kind: .xaiOAuth, isCurrent: false, apiKey: nil, baseURL: nil)
         let chip = try #require(try await client.refresh(targets: [target]).first)
         #expect(AccountQuotaFormatting.plainSummary(for: chip, now: now) == "7d 75% · 至11月18日")
@@ -180,7 +180,8 @@ struct GrokQuotaTests {
             transport: GrokSubscriptionOutageTransport(success: success, outage: outage),
             authFileURL: auth,
             now: { fixedNow },
-            xaiSubscriptionDateStore: store
+            xaiSubscriptionDateStore: store,
+            xaiRefreshAllowed: { true }
         )
         let target = CCSwitchQuotaTarget(id: "xai", shortName: "xAI", websiteURL: nil, kind: .xaiOAuth, isCurrent: false, apiKey: nil, baseURL: nil)
         let live = try #require(try await client.refresh(targets: [target]).first)
@@ -206,7 +207,7 @@ struct GrokQuotaTests {
         #expect(store.record(accountID: "other", now: now) != nil)
         let fixedNow = now
         let client = AccountQuotaClient(transport: GrokFixtureTransport(status: 403, billingBody: credits(type: 2, end: "2026-10-05T12:00:00Z")),
-            authFileURL: auth, now: { fixedNow }, xaiSubscriptionDateStore: store)
+            authFileURL: auth, now: { fixedNow }, xaiSubscriptionDateStore: store, xaiRefreshAllowed: { true })
         let target = CCSwitchQuotaTarget(id: "xai", shortName: "xAI", websiteURL: nil, kind: .xaiOAuth, isCurrent: false, apiKey: nil, baseURL: nil)
         let chip = try #require(try await client.refresh(targets: [target]).first)
         #expect(AccountQuotaFormatting.plainSummary(for: chip, now: now) == "7d 75%")
@@ -231,7 +232,7 @@ struct GrokQuotaTests {
         ] {
             try store.save(.init(accountID: accountID, periodEnd: date, source: .cached))
             let client = AccountQuotaClient(transport: GrokFixtureTransport(status: status, billingBody: credits(type: 2, end: "2026-10-05T12:00:00Z")),
-                authFileURL: auth, now: { fixedNow }, xaiSubscriptionDateStore: store)
+                authFileURL: auth, now: { fixedNow }, xaiSubscriptionDateStore: store, xaiRefreshAllowed: { true })
             let chip = try #require(try await client.refresh(targets: [target]).first)
             #expect(AccountQuotaFormatting.plainSummary(for: chip, now: now) == expected)
             if status == 200 {
@@ -241,7 +242,7 @@ struct GrokQuotaTests {
         }
         // A later subscription outage reuses the actual API date, not the older cached date.
         let client = AccountQuotaClient(transport: GrokFixtureTransport(status: 403, billingBody: credits(type: 2, end: "2026-10-05T12:00:00Z")),
-            authFileURL: auth, now: { fixedNow }, xaiSubscriptionDateStore: store)
+            authFileURL: auth, now: { fixedNow }, xaiSubscriptionDateStore: store, xaiRefreshAllowed: { true })
         let cached = try #require(try await client.refresh(targets: [target]).first)
         #expect(AccountQuotaFormatting.plainSummary(for: cached, now: now) == "7d 75% · 至10月24日")
         #expect(AccountQuotaFormatting.help(for: cached, now: now).contains("已保存的查询结果"))
@@ -373,7 +374,7 @@ extension GrokQuotaTests {
         let auth = root.appendingPathComponent("auth.json")
         try Data(#"{"accounts":{"fixture":{"refresh_token":"fixture"}}}"#.utf8).write(to: auth)
         for cancelled in [false, true] {
-            let tokens = XAIAccessTokens()
+            let tokens = XAIAccessTokens(refreshAllowed: { true })
             let transport = GrokOptionalFailureTransport(billing: credits(type: 2, end: "2026-10-05T12:00:00Z"), cancelled: cancelled)
             if cancelled { await #expect(throws: CancellationError.self) { try await tokens.billing(transport: transport, authFileURL: auth, now: now) } }
             else {

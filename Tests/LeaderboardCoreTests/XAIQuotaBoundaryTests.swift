@@ -29,12 +29,12 @@ struct XAIQuotaBoundaryTests {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let auth = root.appendingPathComponent("auth.json")
         try bytes("{\"default_account_id\":\"fixture\",\"accounts\":{\"fixture\":{\"account_id\":\"fixture\",\"refresh_token\":\"fixture-refresh\",\"requires_reauth\":\(reauth)}}}").write(to: auth)
-        return (root, AccountQuotaClient(transport: XAIQuotaBoundaryTransport(steps), authFileURL: auth))
+        return (root, AccountQuotaClient(transport: XAIQuotaBoundaryTransport(steps), authFileURL: auth, xaiRefreshAllowed: { true }))
     }
 
     @Test func missingLoginAndDiscoveryFailuresHaveExplicitKeepaliveOutcomes() async throws {
         let missing = FileManager.default.temporaryDirectory.appendingPathComponent("missing-auth-\(UUID()).json")
-        #expect(try await AccountQuotaClient(transport: XAIQuotaBoundaryTransport([]), authFileURL: missing).keepAliveXAI() == .loginRequired)
+        #expect(try await AccountQuotaClient(transport: XAIQuotaBoundaryTransport([]), authFileURL: missing, xaiRefreshAllowed: { true }).keepAliveXAI() == .loginRequired)
         let (reauthRoot, reauth) = try fixture([], reauth: true)
         defer { try? FileManager.default.removeItem(at: reauthRoot) }
         #expect(try await reauth.keepAliveXAI() == .loginRequired)
@@ -139,13 +139,13 @@ struct XAITokenWriteBoundaryTests {
 extension XAIQuotaBoundaryTests {
     @Test func missingSubscriptionIdentityAndRejectedRotationNeverReturnAnotherAccount() async throws {
         let missing = FileManager.default.temporaryDirectory.appendingPathComponent("missing-\(UUID())")
-        let tokens = XAIAccessTokens()
+        let tokens = XAIAccessTokens(refreshAllowed: { true })
         #expect(try await tokens.subscriptionUserID(transport: XAIQuotaBoundaryTransport([]), authFileURL: missing, now: Date()) == nil)
         let (root, _) = try fixture([])
         defer { try? FileManager.default.removeItem(at: root) }
         let auth = root.appendingPathComponent("auth.json")
         #expect(try await tokens.subscriptionUserID(transport: XAIQuotaBoundaryTransport([discovery, .response(401, [:], bytes("{}"))]), authFileURL: auth, now: Date()) == nil)
-        let failed = XAIAccessTokens(rotateRefreshToken: { _, _, _, _ in false })
+        let failed = XAIAccessTokens(rotateRefreshToken: { _, _, _, _ in false }, refreshAllowed: { true })
         let result = try await failed.forceRefresh(transport: XAIQuotaBoundaryTransport([discovery, .response(200, [:], bytes(#"{"access_token":"fixture","refresh_token":"rotated"}"#))]), authFileURL: auth, now: Date())
         if case .failure(.failed) = result {} else { Issue.record("A rejected atomic token replacement was accepted") }
         #expect(String(decoding: try Data(contentsOf: auth), as: UTF8.self).contains("fixture-refresh"))
@@ -180,7 +180,7 @@ extension XAIQuotaBoundaryTests {
             let (one, _) = try fixture([]), (two, _) = try fixture([])
             defer { try? FileManager.default.removeItem(at: one); try? FileManager.default.removeItem(at: two) }
             let transport = GatedXAIQuotaBoundaryTransport([discovery, .response(200, [:], bytes(#"{"access_token":"one","refresh_token":"first"}"#)), .response(200, [:], bytes(#"{"access_token":"two","refresh_token":"second"}"#))])
-            let tokens = XAIAccessTokens()
+            let tokens = XAIAccessTokens(refreshAllowed: { true })
             let first = Task { try await tokens.forceRefresh(transport: transport, authFileURL: one.appendingPathComponent("auth.json"), now: Date()) }
             await transport.waitUntilBlocked()
             let second = Task { try await tokens.forceRefresh(transport: transport, authFileURL: two.appendingPathComponent("auth.json"), now: Date()) }

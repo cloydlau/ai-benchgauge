@@ -69,6 +69,7 @@ public enum CCSwitchQuotaParsers {
     /// establishes cancellation or renewal status. `renews_at` is a billing
     /// date, not this entitlement boundary. A plan without an active
     /// subscription reports a far-future placeholder instead of a boundary.
+    /// Require an explicit active subscription and reject free-plan placeholders.
     /// Nil when the account does not match or the field is missing, so the
     /// usage card still succeeds.
     public static func parseOpenAIPlanExpiry(_ data: Data, accountID: String) -> ParsedQuotaWindow? {
@@ -82,10 +83,16 @@ public enum CCSwitchQuotaParsers {
                   selectedKey: accountIdentifier(body["last_account_id"])
               ),
               let entitlement = account["entitlement"] as? [String: Any],
-              entitlement["has_active_subscription"] as? Bool != false,
-              let expiresAt = resetDate(entitlement["expires_at"]) else {
+              let active = entitlement["has_active_subscription"],
+              CCSwitchJSON.isBoolean(active), active as? Bool == true,
+              (entitlement["subscription_plan"] as? String)?
+                  .trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != "chatgptfreeplan",
+              let expiresAt = resetDate(entitlement["expires_at"]),
+              // 2999-01-01 UTC: the free entitlement sentinel year.
+              expiresAt < Date(timeIntervalSince1970: 32_472_144_000) else {
             return nil
         }
+        // Keep verified dates unchanged, including today or a passed boundary.
         return ParsedQuotaWindow(
             name: ParsedQuotaWindow.planExpiryName,
             utilization: 0,

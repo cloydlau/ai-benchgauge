@@ -61,6 +61,32 @@ bidirectional renewal needs CC Switch to reload before reads/mutations and coope
 on serialization; BenchGauge cannot add that behavior to an unmodified CC Switch.
 No claim of an end-to-end live CC Switch proxy recovery is made from fixture tests.
 
+## Refresh ownership
+
+BenchGauge does not exchange a shared refresh token while CC Switch is running.
+This guard covers scheduled keep-alive, quota reads and subscription identity
+verification in the shared token actor. Keep-alive returns `retry`; quota reads
+may use an unexpired access token only if its account and refresh token still
+match the shared file. Otherwise they retain last-good quota data as stale through
+the transient-failure path. Deferral never marks the shared login as requiring
+reauthentication. Process-enumeration errors on Windows/Linux also defer renewal.
+
+When CC Switch is stopped, the existing direct refresh and atomic write-back
+remain available. The process and selected login are checked again after OpenID
+discovery and immediately before sending the token request. These checks reduce
+the startup race; they cannot serialize a launch after the final check. The
+unmodified CC Switch does not honor a cross-process refresh lock.
+
+The CC Switch source inspected on 2026-10-17 still caches credentials in
+`XaiOAuthManager`. Its public proxy `/models` handler serves a local catalog;
+`/health` and `/status` also do not renew OAuth. The xAI refresh occurs in the
+authenticated model-forwarding path. BenchGauge therefore does not use these
+probes as evidence of renewal or send paid model requests for keep-alive. An
+always-running, idle CC Switch session can still expire: complete idle renewal
+requires a supported CC Switch refresh/reload interface or a separate OAuth
+session. This change prevents BenchGauge's competing rotation; it cannot repair
+an already invalidated token.
+
 ## Validation
 
 The offline tests exercise successful shared-file round trips, reauth, metadata
@@ -69,6 +95,10 @@ in-flight token/userinfo requests, polling/backoff, expiry, denial, network retr
 trusted hosts, corrupt stores, missing token/identity and secure storage. A quota
 regression test replaces the same account's CC Switch refresh token and verifies
 the next request uses a new access token.
+Ownership tests cover deferral without network/file mutation, stale quota
+retention, cached-access expiry, resumption after exit, startup or login changes
+during discovery, and the default native process check. Existing offline token
+tests inject refresh permission so results do not depend on installed apps.
 
 `Tests/fixtures/xai-device-login.json` covers seven dialog states in English,
 Simplified Chinese and Traditional Chinese, light/dark and three checkpoints.

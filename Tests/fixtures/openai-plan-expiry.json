@@ -246,6 +246,48 @@
       "width": 900,
       "height": 600,
       "scenario": "openAIExpiry-missing"
+    },
+    {
+      "id": "openai-expiry-monthly-without-plan-en-600",
+      "language": "en",
+      "width": 600,
+      "height": 600,
+      "scenario": "openAIExpiry-monthlyWithoutPlan"
+    },
+    {
+      "id": "openai-expiry-monthly-without-plan-en-900",
+      "language": "en",
+      "width": 900,
+      "height": 600,
+      "scenario": "openAIExpiry-monthlyWithoutPlan"
+    },
+    {
+      "id": "openai-expiry-monthly-without-plan-zh-600",
+      "language": "zh",
+      "width": 600,
+      "height": 600,
+      "scenario": "openAIExpiry-monthlyWithoutPlan"
+    },
+    {
+      "id": "openai-expiry-monthly-without-plan-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 600,
+      "scenario": "openAIExpiry-monthlyWithoutPlan"
+    },
+    {
+      "id": "openai-expiry-monthly-without-plan-zh-Hant-600",
+      "language": "zh-Hant",
+      "width": 600,
+      "height": 600,
+      "scenario": "openAIExpiry-monthlyWithoutPlan"
+    },
+    {
+      "id": "openai-expiry-monthly-without-plan-zh-Hant-900",
+      "language": "zh-Hant",
+      "width": 900,
+      "height": 600,
+      "scenario": "openAIExpiry-monthlyWithoutPlan"
     }
   ],
   "quotaScenarios": {
@@ -319,6 +361,32 @@
             "name": "weekly_limit",
             "utilization": 35,
             "resetsAt": "2026-10-15T00:00:00Z"
+          }
+        ]
+      }
+    ],
+    "openAIExpiry-monthlyWithoutPlan": [
+      {
+        "id": "official",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "modelName": "gpt-6.1-sol",
+        "runs": [],
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 20,
+            "resetsAt": "2026-10-11T13:00:00Z"
+          },
+          {
+            "name": "weekly_limit",
+            "utilization": 35,
+            "resetsAt": "2026-10-15T00:00:00Z"
+          },
+          {
+            "name": "monthly",
+            "utilization": 25,
+            "resetsAt": "2026-11-16T13:40:13Z"
           }
         ]
       }
