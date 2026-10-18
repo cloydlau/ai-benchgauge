@@ -278,7 +278,7 @@ definePage(query => {
   // Keep full model data out of the Vue-to-WeChat bridge. Sorting/filtering
   // are cached independently of scroll positions; only window rows are mapped.
   const rankedCards = computed(() => current.value.kinds.map(kind => ({ kind,
-    leaderScore: kind === 'epochECI' ? undefined : rankedEntries(snapshots.value[kind], { ...filterFor(kind), grouping: grouping.value })[0]?.score,
+    leaderScore: rankedEntries(snapshots.value[kind], { ...filterFor(kind), grouping: grouping.value })[0]?.score,
     entries: rankedEntries(snapshots.value[kind], { ...filterFor(kind), grouping: grouping.value, query: modelSearchQuery.value }) })))
   const cards = computed(() => rankedCards.value.map(({ kind, entries, leaderScore }, index) => {
     const board = snapshots.value[kind]

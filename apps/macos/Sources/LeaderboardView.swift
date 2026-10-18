@@ -1136,7 +1136,7 @@ struct LeaderboardView: View {
                 ),
                 right: cellModel(
                     for: index < right.count ? right[index] : nil,
-                    organizationLogos: organizationLogos, leaderScore: rightKind == .epochECI ? nil : right.first?.entry.score
+                    organizationLogos: organizationLogos, leaderScore: right.first?.entry.score
                 )
             )
         }

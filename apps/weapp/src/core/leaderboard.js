@@ -107,7 +107,7 @@ export function rankedEntries(board, { grouping = 'model', country = 'all', open
   return grouping === 'company' ? companyRows(entries) : entries.filter(entry => modelNameMatches(entry.name, query))
 }
 export function visibleRows(board, { grouping = 'model', country = 'all', openness = 'all', query = '', dark = false, language = 'en', category = 'general' } = {}) {
-  const leaderScore = board?.kind === 'epochECI' ? undefined : rankedEntries(board, { grouping, country, openness })[0]?.score
+  const leaderScore = rankedEntries(board, { grouping, country, openness })[0]?.score
   const rows = rankedEntries(board, { grouping, country, openness, query })
   return rows.map(entry => rowView(entry, { company: grouping === 'company', dark, language, category, kind: board?.kind, leaderScore }))
 }

@@ -584,7 +584,7 @@ sealed partial class MainWindow
                 var column = side == 0 ? 1 : 5;
                 if (index >= entries[side].Length) continue;
                 var entry = entries[side][index];
-                var leaderScore = pair[side].Kind == "epochECI" ? 0 : entries[side][0].Score;
+                var leaderScore = entries[side][0].Score;
                 AddCell(row, ModelCell(entry, leaderScore), column);
                 var score = new Grid();
                 score.Children.Add(Center(Caption(entry.Score.ToString(pair[side].Kind == "epochECI" ? "0.00" : "0.0", CultureInfo.InvariantCulture), PanelMuted, 13, numeric: true)));
