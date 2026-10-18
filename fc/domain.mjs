@@ -1,5 +1,6 @@
 import catalog from './brand-catalog.json' with { type: 'json' }
 import policy from './leaderboard-policy.json' with { type: 'json' }
+import countries from './country-catalog.json' with { type: 'json' }
 // Pure leaderboard rules shared by the FC service and WeChat client.
 // Platform adapters own network/storage and UI formatting; this module owns identity and selection.
 const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object, key)
@@ -29,7 +30,9 @@ export function createBrandRules(catalog) {
     }
     if (!organization || ['unknown','other','na','none'].includes(organization)) {
       const name = String(entry.name ?? '').trim().toLowerCase()
-      const verified = hasOwn(catalog.modelDevelopers ?? {}, name) ? catalog.modelDevelopers[name] : null
+      const id = !String(entry.organization ?? '').trim() ? String(entry.modelID ?? '').trim().toLowerCase() : ''
+      const developers = catalog.modelDevelopers ?? {}
+      const verified = [id, name].filter(Boolean).map(key => hasOwn(developers, key) ? developers[key] : null).find(Boolean) ?? null
       return normalizedBrandKey(entry.name).startsWith('devin') ? 'devin' : hosted ?? verified
     }
     return hosted ?? organization
@@ -59,8 +62,14 @@ export function normalizedCountryCode(value) {
   if (hasOwn(policy.countryOverrides, code)) return policy.countryOverrides[code]
   return /^[A-Z]{2}$/.test(code) ? code : null
 }
+export function resolvedOpenness(entry) {
+  if (['open', 'closed'].includes(entry.openness)) return entry.openness
+  const id = String(entry.modelID ?? '').trim().toLowerCase()
+  return policy.verifiedModelOpenness?.[id]?.openness ?? null
+}
 export function countryCode(entry) {
-  return normalizedCountryCode(entry.developerCountry?.countryCode) ?? 'unknown'
+  return normalizedCountryCode(entry.developerCountry?.countryCode)
+    ?? normalizedCountryCode(countries[rules.brandKey(entry)]?.countryCode) ?? 'unknown'
 }
 const rules = createBrandRules(catalog)
 function companyIdentity(entry) {

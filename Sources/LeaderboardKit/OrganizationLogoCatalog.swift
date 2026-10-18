@@ -12,7 +12,7 @@ public enum OrganizationLogoCatalog {
     /// Missing organizations can reuse a known hosted-model family. A Devin
     /// name prefix keeps the Devin mark; its row wash still follows the lead.
     /// Other ambiguous names do not imply a manufacturer.
-    public static func resolvedKey(organization: String?, modelName: String? = nil) -> String? {
+    public static func resolvedKey(organization: String?, modelName: String? = nil, modelID: String? = nil) -> String? {
         let organizationKey = normalizedKey(organization ?? "")
         if !organizationKey.isEmpty && !["unknown", "other", "na", "none"].contains(organizationKey) {
             if let hosted = hostedModelKey(from: modelName), hosted != organizationKey {
@@ -24,15 +24,18 @@ public enum OrganizationLogoCatalog {
         if inferred.hasPrefix("devin") {
             return "devin"
         }
+        let id = (organization ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? (modelID ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased() : ""
         return hostedModelKey(from: modelName)
+            ?? LeaderboardBrandPolicy.modelDevelopers[id]
             ?? LeaderboardBrandPolicy.modelDevelopers[(modelName ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()]
     }
 
     /// The developer of the lead model may differ from the organization
     /// operating a coding harness (including Devin Fusion).
-    public static func developerKey(organization: String?, modelName: String? = nil) -> String? {
+    public static func developerKey(organization: String?, modelName: String? = nil, modelID: String? = nil) -> String? {
         hostedModelKey(from: modelName)
-            ?? resolvedKey(organization: organization, modelName: modelName)
+            ?? resolvedKey(organization: organization, modelName: modelName, modelID: modelID)
     }
 
     /// Brand of the lead model in `Harness - Model`. Nil when the label is
@@ -105,10 +108,10 @@ public enum OrganizationLogoCatalog {
            UInt32(brand.colorHex.dropFirst(), radix: 16) != nil { return brand.colorHex }
         if let known = brandColorHex(forOrganization: entry.organization, modelName: entry.name) { return known }
         if let brand = entry.brand,
-           brand.key == (resolvedKey(organization: entry.organization, modelName: entry.name) ?? ""),
+           brand.key == (resolvedKey(organization: entry.organization, modelName: entry.name, modelID: entry.modelID) ?? ""),
            brand.colorHex.count == 7, brand.colorHex.first == "#",
            UInt32(brand.colorHex.dropFirst(), radix: 16) != nil { return brand.colorHex }
-        return fallbackColorHex(for: resolvedKey(organization: entry.organization, modelName: entry.name) ?? entry.name)
+        return fallbackColorHex(for: resolvedKey(organization: entry.organization, modelName: entry.name, modelID: entry.modelID) ?? entry.name)
     }
 
     /// A provider PNG must not replace a bundled product mark. Explicit model

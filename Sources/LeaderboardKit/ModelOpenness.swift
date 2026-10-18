@@ -6,9 +6,9 @@ public enum LeaderboardOpennessFilter: String, CaseIterable, Codable, Sendable {
     public func matches(_ entry: LeaderboardEntry) -> Bool {
         switch self {
         case .all: true
-        case .open: entry.openness == .open
-        case .closed: entry.openness == .closed
-        case .unknown: entry.openness == nil
+        case .open: entry.resolvedOpenness == .open
+        case .closed: entry.resolvedOpenness == .closed
+        case .unknown: entry.resolvedOpenness == nil
         }
     }
 
@@ -71,5 +71,14 @@ public enum ModelOpenness: String, Codable, Equatable, Sendable {
                (url.scheme == "http" || url.scheme == "https"), url.host != nil { return .open }
         }
         return fromLicense(value["license"] as? String)
+    }
+}
+
+public extension LeaderboardEntry {
+    /// Exact identities with a verified public-weight release fill omitted source metadata.
+    /// Explicit upstream classifications always win.
+    var resolvedOpenness: ModelOpenness? {
+        openness ?? LeaderboardBrandPolicy.verifiedModelOpenness[(modelID ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()]
+            .flatMap(ModelOpenness.init(rawValue:))
     }
 }

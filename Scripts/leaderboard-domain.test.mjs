@@ -4,7 +4,7 @@ import {readFileSync,mkdtempSync,mkdirSync,writeFileSync,rmSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {execFileSync} from 'node:child_process'
-import {latestTimestamp,companyRows,createBrandRules,replacementFailure} from '../fc/domain.mjs'
+import {latestTimestamp,companyRows,createBrandRules,replacementFailure,countryCode,resolvedOpenness} from '../fc/domain.mjs'
 const catalog=JSON.parse(readFileSync(new URL('../fc/brand-catalog.json',import.meta.url)))
 const countries=JSON.parse(readFileSync(new URL('../fc/country-catalog.json',import.meta.url)))
 const policy=JSON.parse(readFileSync(new URL('../fc/leaderboard-policy.json',import.meta.url)))
@@ -21,6 +21,11 @@ test('Apple/Windows generated policy cannot drift from the server/mini-program c
   writeFileSync(join(dir,'fc/brand-catalog.json'),JSON.stringify(legacyCatalog))
   execFileSync(process.execPath,[script.pathname,'--root',dir])
   assert.match(readFileSync(join(dir,'Sources/LeaderboardKit/LeaderboardBrandPolicy.generated.swift'),'utf8'),/modelDevelopersStorage: \[String: String\] = \[\n\n    \]/)
+  const legacyPolicy={...policy};delete legacyPolicy.verifiedModelOpenness
+  writeFileSync(join(dir,'fc/leaderboard-policy.json'),JSON.stringify(legacyPolicy))
+  execFileSync(process.execPath,[script.pathname,'--root',dir])
+  execFileSync(process.execPath,[script.pathname,'--root',dir,'--check'])
+  assert.match(readFileSync(join(dir,'Sources/LeaderboardKit/LeaderboardBrandPolicy.generated.swift'),'utf8'),/verifiedModelOpennessStorage: \[String: String\] = \[\n\n    \]/)
   writeFileSync(join(dir,'Sources/LeaderboardKit/LeaderboardBrandPolicy.generated.swift'),'stale')
   assert.throws(()=>execFileSync(process.execPath,[script.pathname,'--root',dir,'--check'],{stdio:'pipe'}),/Command failed/)
  }finally{rmSync(dir,{recursive:true,force:true})}
@@ -75,4 +80,26 @@ test('company aggregation reuses a matching sibling provider image while retaini
  assert.equal(hosted.name,'Alibaba')
  assert.deepEqual(hosted.organizationBrand,{key:'qwen'})
  assert.deepEqual(hosted.brand,{key:'qwen'})
+})
+
+test('cached display names resolve exact model IDs without assigning unrelated developers',()=>{
+ const rules=createBrandRules(catalog)
+ for(const id of ['yi-lightning',' YI-LIGHTNING ']) {
+  const row={name:'Yi Lightning',modelID:id,developerCountry:{key:'',status:'missing'}}
+  assert.equal(rules.brandKey(row),'01ai')
+  assert.equal(countryCode(row),'CN')
+  assert.equal(countryCode(companyRows([{...row,rank:1,score:99}])[0]),'CN')
+ }
+ assert.equal(rules.brandKey({name:'Yi Lightning',modelID:'yi-lightning-finetune'}),null)
+ assert.equal(rules.brandKey({name:'Yi Lightning',modelID:'yi-lightning',organization:'Other Maker'}),'othermaker')
+ assert.equal(countryCode({name:'OpenChat 3.5',modelID:'openchat-3.5'}),'unknown')
+ assert.equal(countryCode({name:'Trinity Large Preview',modelID:'trinity-large'}),'US')
+ assert.equal(countryCode({name:'Known',organization:'OpenAI',developerCountry:{countryCode:'TW'}}),'CN')
+})
+
+test('verified openness fills only the exact public model and respects explicit upstream classifications',()=>{
+ assert.equal(resolvedOpenness({modelID:'internlm2_5-20b-chat'}),'open')
+ assert.equal(resolvedOpenness({modelID:'internlm2_5-20b-chat-quantized'}),null)
+ assert.equal(resolvedOpenness({name:'InternLM2.5 20B Chat'}),null)
+ assert.equal(resolvedOpenness({modelID:'internlm2_5-20b-chat',openness:'closed'}),'closed')
 })

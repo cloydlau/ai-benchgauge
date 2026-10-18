@@ -17,7 +17,7 @@ public enum CompanyLeaderboard {
             guard entry.rank > 0 else { continue }
             guard let key = OrganizationLogoCatalog.resolvedKey(
                 organization: entry.organization,
-                modelName: entry.name
+                modelName: entry.name, modelID: entry.modelID
             ) else { continue }
             grouped[key, default: []].append(entry)
         }

@@ -30,7 +30,10 @@ export function withCodingOpenness(board, references) {
   }
   return { ...board, entries: board.entries.map(entry => {
     if (statuses.has(entry.openness)) return entry;
-    const name = board.kind === 'artificialAnalysisCodingAgent' ? entry.name.split(' - ').at(-1) : entry.name;
+    let name = board.kind === 'artificialAnalysisCodingAgent' ? entry.name.split(' - ').at(-1) : entry.name;
+    // Claude Code omits the Claude brand on some exact lead-model labels.
+    if (board.kind === 'artificialAnalysisCodingAgent' && entry.name.startsWith('Claude Code - ')
+        && /^(?:Sonnet|Opus|Haiku|Fable)\s+\d/.test(name)) name = `Claude ${name}`;
     const evidence = new Set([...(ids.get(entry.modelID) ?? []), ...(names.get(modelName(name)) ?? [])]);
     return evidence.size === 1 ? { ...entry, openness: [...evidence][0] } : entry;
   }) };
