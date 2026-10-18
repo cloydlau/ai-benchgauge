@@ -102,7 +102,7 @@ public enum LeaderboardPresentation {
         switch kind {
         case .artificialAnalysis: language.text("Combines standardized tests across several abilities.", "汇总多项标准化测试，适合看综合能力")
         case .artificialAnalysisCodingAgent: language.text("Scores coding agents on software engineering tasks.", "通过软件工程任务，检验编程智能体的完成能力")
-        case .epochECI: language.text("Epoch AI combines benchmark results into a capability index. ECI is not a percentage and has no fixed maximum.", "Epoch AI 汇总多项测试的能力指数；ECI 不是百分制，没有固定满分")
+        case .epochECI: language.text("Epoch AI combines benchmark results into a capability index.", "Epoch AI 汇总多项测试的能力指数")
         case .arenaText: language.text("People compare anonymous answers to real prompts.", "真实提问下盲选回答，贴近用户偏好")
         case .codeArenaWebDev: language.text("People pick the better result from paired web builds.", "用户盲选网页成品，侧重实际观感")
         case .artificialAnalysisTextToImage: language.text("Blind votes across a balanced set of image use cases.", "按用途均衡选题，盲选图片质量")
