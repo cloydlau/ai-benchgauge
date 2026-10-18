@@ -66,11 +66,13 @@ struct LeaderboardView: View {
     private static let minimumWidth: CGFloat = 850
     // macOS Table adds its own padding around fixed-width columns.
     // Nine native columns: the two added columns also get AppKit cell insets.
-    private static let tableChromeBaseWidth: CGFloat = 320
-    // Preserve the panel footprint and give reclaimed column space to names.
-    private static let preferredTableChromeWidth: CGFloat = 592
-    private static let countryColumnWidth: CGFloat = 36
-    private static let opennessColumnWidth: CGFloat = 56
+    private static let rankColumnWidth: CGFloat = 36
+    private static let tableChromeBaseWidth: CGFloat = 308
+    // Reduce the panel by the same amount as its fixed columns, preserving
+    // the name space required by every category and company purchase links.
+    private static let preferredTableChromeWidth: CGFloat = 524
+    private static let countryColumnWidth: CGFloat = 32
+    private static let opennessColumnWidth: CGFloat = 32
     /// Row height SwiftUI settles on for these cells. The panel height has to
     /// preserve the existing viewport; additional rows scroll inside it.
     private static let tableRowHeight: CGFloat = 32
@@ -583,7 +585,7 @@ struct LeaderboardView: View {
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .center)
             }
-            .width(48)
+            .width(Self.rankColumnWidth)
             .alignment(.center)
 
             TableColumn(Self.boardColumnTitle(
@@ -1865,7 +1867,7 @@ private struct OpennessCell: View {
     let language: AppLanguage
 
     var body: some View {
-        ModelOpennessBadge(model?.entry.resolvedOpenness, language: language)
+        ModelOpennessBadge(model?.entry.resolvedOpenness, language: language, showsTitle: false, iconSize: 11)
             .frame(maxWidth: .infinity, alignment: .center)
             .help(ModelOpenness.help(language: language))
     }

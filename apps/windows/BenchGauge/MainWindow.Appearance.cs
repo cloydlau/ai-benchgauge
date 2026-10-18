@@ -634,19 +634,20 @@ sealed partial class MainWindow
             : "M 3,6 L 3,3 C 3,0 9,0 9,3 L 9,6")));
         var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         var icon = new Image { Source = new DrawingImage(drawing), Width = 10, Height = 10,
-            Stretch = Stretch.Uniform, Margin = new Thickness(0, 0, 3, 0) };
+            Stretch = Stretch.Uniform };
         content.Children.Add(icon);
-        var label = Caption(title, ink, 11); label.FontWeight = FontWeights.Medium; content.Children.Add(label);
-        var badge = new Border { Child = content, Background = Tint(hex, panelDark ? 0.16 : 0.10),
-            CornerRadius = new CornerRadius(4), Padding = new Thickness(4, 3, 4, 3),
+        var badge = new Border { Child = content, ToolTip = title,
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         System.Windows.Automation.AutomationProperties.SetName(badge, title);
         return badge;
     }
+    double CountryColumnWidth => prefs.Language == "en" ? 48 : 40;
+    double SourceColumnWidth => prefs.Language == "en" ? 44 : 36;
+
     Grid TableGrid()
     {
         var grid = new Grid(); var compact = renderedPanelWidth < 850;
-        foreach (var width in new[] { new GridLength(60), new GridLength(1, GridUnitType.Star), new GridLength(compact ? 44 : 52), new GridLength(60), new GridLength(compact ? 56 : 78), new GridLength(1, GridUnitType.Star), new GridLength(compact ? 44 : 52), new GridLength(60), new GridLength(compact ? 56 : 78) })
+        foreach (var width in new[] { new GridLength(40), new GridLength(1, GridUnitType.Star), new GridLength(CountryColumnWidth), new GridLength(SourceColumnWidth), new GridLength(compact ? 56 : 78), new GridLength(1, GridUnitType.Star), new GridLength(CountryColumnWidth), new GridLength(SourceColumnWidth), new GridLength(compact ? 56 : 78) })
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
         return grid;
     }

@@ -32,9 +32,10 @@ sealed partial class MainWindow
             (entry.ApiTitle is null ? 0 : MeasurePanelText(entry.ApiTitle, 12) + 14)).DefaultIfEmpty(0).Max();
         var header = state?.Boards.Select(board => MeasurePanelText(SourceLens(board), 11) + 10)
             .DefaultIfEmpty(0).Max() ?? 0;
-        // Match Mac's minimum and 560-point allowance for table chrome. Use
-        // native Windows font metrics so titles fit without changing font size.
-        var desired = Math.Max(850, Math.Ceiling(Math.Max(column, header) * 2 + 560));
+        // Shrink the popup with the fixed columns, keeping the measured name
+        // allowance stable across categories. English filter titles need more room.
+        var chrome = 560 - (60 - 40) - 2 * (52 - CountryColumnWidth) - 2 * (60 - SourceColumnWidth);
+        var desired = Math.Max(850, Math.Ceiling(Math.Max(column, header) * 2 + chrome));
         var area = SystemParameters.WorkArea;
         var target = Math.Min(desired, Math.Max(MinWidth, area.Width - 16));
         if (Math.Abs(Width - target) < 0.5) return;
