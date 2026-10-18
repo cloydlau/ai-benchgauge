@@ -1113,3 +1113,24 @@ viewports, three languages, both themes and shown/refreshed/settled checkpoints.
 Windows native screenshots and a source-matched cloud CI visual artifact are
 unavailable on this host; Windows visual approval is not claimed. Mini-program
 runtime connection failures, if any, are recorded with the task evidence.
+
+## ECI scoring-method label — 2026-10-18
+
+The ECI method caption now reads “难度校准” / “難度校準” /
+“Calibrated scoring”, alongside the existing task-benchmark and user-vote
+captions. “Capability index” names the resulting metric rather than the scoring
+method. ECI is also based on task benchmarks; its summary now explains that it
+estimates general capability while accounting for benchmark difficulty and
+discrimination. This is a description of its distinguishing calculation, not a
+claim that ECI and task benchmarking are disjoint evaluation categories.
+
+Methodology: https://epoch.ai/data/eci-documentation/methodology
+
+Native local Mac before/after evidence is kept in ignored
+`work/eci-method-label/`, using the same fixture and viewport in each pair,
+with English, simplified/traditional Chinese, light/dark themes and
+shown/refreshed/settled frames. Source hashes and actual OS/backing scale
+are recorded with the comparison. Other uncommitted working-tree changes are
+kept separate from this commit. Windows native screenshots and a source-matched
+CI comparison artifact remain unavailable; no protected release approval or
+Windows visual verification is claimed.
