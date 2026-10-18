@@ -6,6 +6,7 @@ struct MobileCategoryBar: View {
     @Binding var category: LeaderboardCategory
     let language: AppLanguage
     let select: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var selection
 
@@ -29,10 +30,10 @@ struct MobileCategoryBar: View {
                         Text(LeaderboardPresentation.title(item, language: language)).font(.system(size: 11, weight: category == item ? .semibold : .regular))
                     }
                     .frame(maxWidth: .infinity, minHeight: 50)
-                    .foregroundStyle(category == item ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(category == item ? BrandTheme.accent(for: colorScheme) : Color.secondary)
                     .background {
                         if category == item {
-                            Capsule().fill(.background.opacity(0.75)).matchedGeometryEffect(id: "selection", in: selection)
+                            Capsule().fill(BrandTheme.selection(for: colorScheme)).matchedGeometryEffect(id: "selection", in: selection)
                                 .shadow(color: .black.opacity(0.06), radius: 3, y: 1)
                         }
                     }

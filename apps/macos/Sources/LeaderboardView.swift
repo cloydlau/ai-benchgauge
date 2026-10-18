@@ -33,8 +33,9 @@ private struct DesktopBrandHeadingLayout: Layout {
         }
         let span = dimensions[0][.desktopBrandInkBottom] - dimensions[0][.desktopBrandInkTop]
         let x = dimensions[0].width + 6
+        let subtitleCenter = span / 2
         var origins = [CGPoint(x: 0, y: -dimensions[0][.desktopBrandInkTop]),
-                       CGPoint(x: x, y: span - dimensions[1][.desktopBrandInkBottom])]
+                       CGPoint(x: x, y: subtitleCenter - dimensions[1].height / 2)]
         let top = origins.map(\.y).min() ?? 0
         for index in origins.indices { origins[index].y -= top }
         let height = zip(dimensions, origins).map { $0.0.height + $0.1.y }.max() ?? 0
@@ -157,10 +158,9 @@ struct LeaderboardView: View {
         let view = LeaderboardView(state: state, maximumWidth: maximumWidth)
         let header = NSHostingView(rootView: view.header.frame(width: width))
         let footer = NSHostingView(rootView: view.footer.frame(width: width))
-        let metadata = NSHostingView(rootView: view.sourceMetadata.frame(width: width))
         // Native header plus visible rows plus the bordered style's insets.
         // Country and source filters can shorten the table.
-        return ceil(header.fittingSize.height + metadata.fittingSize.height + SourceTableHeaderView.height
+        return ceil(header.fittingSize.height + SourceTableHeaderView.height
             + CGFloat(visibleRowCount(for: state)) * tableRowHeight
             + tableBorderHeight + 1 + footer.fittingSize.height)
     }
@@ -194,7 +194,9 @@ struct LeaderboardView: View {
             footer
         }
         .frame(width: contentWidth, height: contentHeight)
-        .background(.background)
+        .background(BrandTheme.background(for: colorScheme))
+        .tint(BrandTheme.accent(for: colorScheme))
+        .accentColor(BrandTheme.accent(for: colorScheme))
         .sheet(item: $screenshot.licenseSection) { section in
             LicenseNoticesView(section: section, language: language)
         }
@@ -279,17 +281,17 @@ struct LeaderboardView: View {
                 // ImageRenderer cannot draw AppKit-backed Link controls.
                 Text("CC Switch")
                     .underline()
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(BrandTheme.accent(for: colorScheme))
             } else if installed {
                 Button(action: state.openCCSwitch) {
                     Text("CC Switch").underline()
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(BrandTheme.accent(for: colorScheme))
                 .pointingHandCursor()
             } else {
                 Link(destination: CCSwitchProviderStore.downloadURL) {
-                    Text("CC Switch").underline()
+                    Text("CC Switch").underline().foregroundColor(BrandTheme.accent(for: colorScheme))
                 }
                 .pointingHandCursor()
             }
@@ -556,45 +558,7 @@ struct LeaderboardView: View {
 
     // Both name columns grow with the longest visible name. The country and
     // score columns stay aligned across rows and both halves of the table.
-    private var sourceMetadata: some View {
-        HStack(alignment: .top, spacing: 24) {
-            boardMetadata(selectedCategory.leftKind)
-            boardMetadata(selectedCategory.rightKind)
-        }.padding(.horizontal, 18).padding(.vertical, 12)
-    }
-
-    private func boardMetadata(_ kind: LeaderboardKind) -> some View {
-        let board = state.snapshot.boards[kind]
-        let times = LeaderboardPresentation.sourceTimes(board, language: language)
-        return HStack(alignment: .top, spacing: 12) {
-            Link(destination: kind.sourceURL) {
-                Text(LeaderboardPresentation.sourceSummary(kind, language: language))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }.buttonStyle(.plain).foregroundStyle(.secondary)
-                .help(LeaderboardPresentation.sourceHelp(kind, language: language, board: board))
-            ViewThatFits(in: .horizontal) {
-                ZStack(alignment: .trailing) {
-                    Text(tr("Updated 12/31 23:59 · Fetched 12/31 23:59", "更新 12/31 23:59 · 抓取 12/31 23:59")).hidden()
-                    Text(times.updated + " · " + times.fetched)
-                }.fixedSize()
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text(times.updated)
-                    Text(times.fetched)
-                }.fixedSize()
-            }.monospacedDigit().foregroundStyle(.secondary)
-                .help(LeaderboardPresentation.sourceTimeHelp(board, language: language))
-        }.font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     private var table: some View {
-        VStack(spacing: 0) {
-            sourceMetadata
-            tableContent
-        }
-    }
-
-    private var tableContent: some View {
         let lenses = selectedCategory.sourceLenses(language: language)
         return Table(rows) {
             TableColumn(tr("Rank", "排名")) { row in
@@ -627,7 +591,7 @@ struct LeaderboardView: View {
             .alignment(.center)
 
             TableColumn(tr("Score", "分数")) { row in
-                ScoreCell(model: row.left, scoreDigits: 1)
+                ScoreCell(model: row.left, scoreDigits: 1, shareColor: .blue)
             }
             .width(60)
             .alignment(.center)
@@ -654,7 +618,7 @@ struct LeaderboardView: View {
             .alignment(.center)
 
             TableColumn(tr("Score", "分数")) { row in
-                ScoreCell(model: row.right, scoreDigits: 1)
+                ScoreCell(model: row.right, scoreDigits: 1, shareColor: .purple)
             }
             .width(60)
             .alignment(.center)
@@ -893,6 +857,7 @@ struct LeaderboardView: View {
             footerRow(compact: false, showsSourceLinks: true)
             footerRow(compact: false, showsSourceLinks: false)
             footerRow(compact: true, showsSourceLinks: false)
+            footerRow(compact: true, showsSourceLinks: false, stacked: true)
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -937,8 +902,11 @@ struct LeaderboardView: View {
         }
     }
 
-    private func footerRow(compact: Bool, showsSourceLinks: Bool) -> some View {
-        HStack(spacing: compact ? 4 : 7) {
+    private func footerRow(compact: Bool, showsSourceLinks: Bool, stacked: Bool = false) -> some View {
+        let layout = stacked
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: compact ? 4 : 7))
+        return layout {
             HStack(spacing: compact ? 4 : 7) {
                 footerAttribution(compact: compact)
                 Text("·")
@@ -952,7 +920,7 @@ struct LeaderboardView: View {
                 .accessibilityIdentifier("open-source-notices")
                 .fixedSize()
             }
-            Spacer(minLength: 8)
+            if !stacked { Spacer(minLength: 8) }
             HStack(spacing: compact ? 4 : 7) {
                 if showsSourceLinks {
                     footerSources
@@ -1017,6 +985,19 @@ struct LeaderboardView: View {
 
     private func footerControls(compact: Bool) -> some View {
         HStack(spacing: compact ? 4 : 7) {
+            Toggle(tr("Codex task counts", "Codex 任务统计"), isOn: Binding(
+                get: { state.showsCodexTaskStatus },
+                set: { state.setShowsCodexTaskStatus($0) }
+            ))
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            .fixedSize()
+            .help(tr("Show running, unread and failed Codex task counts in the menu bar", "在菜单栏显示 Codex 运行中、待查看和报错的任务数量"))
+            .accessibilityLabel(tr("Show Codex task counts in the menu bar", "在菜单栏显示 Codex 任务统计"))
+            .accessibilityIdentifier("codex-task-status-toggle")
+
+            Text("·")
+
             Button {
                 captureScreenshot()
             } label: {
@@ -1132,11 +1113,11 @@ struct LeaderboardView: View {
                 rank: index + 1,
                 left: cellModel(
                     for: index < left.count ? left[index] : nil,
-                    organizationLogos: organizationLogos
+                    organizationLogos: organizationLogos, leaderScore: left.first?.entry.score
                 ),
                 right: cellModel(
                     for: index < right.count ? right[index] : nil,
-                    organizationLogos: organizationLogos
+                    organizationLogos: organizationLogos, leaderScore: right.first?.entry.score
                 )
             )
         }
@@ -1168,7 +1149,7 @@ struct LeaderboardView: View {
 
     private func cellModel(
         for displayed: DisplayedLeaderboardEntry?,
-        organizationLogos: [String: URL]
+        organizationLogos: [String: URL], leaderScore: Double?
     ) -> LeaderboardCellModel? {
         guard let displayed else { return nil }
         let entry = displayed.entry
@@ -1186,7 +1167,8 @@ struct LeaderboardView: View {
                     modelName: entry.name
                 ),
             scoreHelp: displayed.scoreHelp,
-            isCompany: displayed.isCompany
+            isCompany: displayed.isCompany,
+            leaderScore: leaderScore
         )
     }
 
@@ -1653,7 +1635,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
 
     private func drawFilterHeader(title: String, active: Bool, in rect: NSRect) {
         let font = NSFont.systemFont(ofSize: 9.5, weight: .medium)
-        let tint = active ? NSColor.controlAccentColor : NSColor.labelColor
+        let tint = active ? NSColor(BrandTheme.accent(for: effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .dark : .light)) : NSColor.labelColor
         // Header cells ignore `alignment` once an attributed string is set, so
         // the centring has to live in the string's paragraph style.
         let paragraph = NSMutableParagraphStyle()
@@ -1751,6 +1733,7 @@ private struct LeaderboardCellModel {
     let logoURL: URL?
     let scoreHelp: String?
     let isCompany: Bool
+    var leaderScore: Double? = nil
 
     func brandColor(isDark: Bool) -> Color? {
         guard let brandHex else { return nil }
@@ -1853,8 +1836,8 @@ private struct LeaderboardCell: View {
     private var cellBackground: some View {
         Group {
             if let brandColor = model?.brandColor(isDark: colorScheme == .dark) {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(brandColor.opacity(0.34))
+                LeaderboardScoreBackground(color: brandColor.opacity(0.34),
+                    score: model?.entry.score ?? 0, leaderScore: model?.leaderScore)
             }
         }
     }
@@ -1865,7 +1848,7 @@ private struct OpennessCell: View {
     let language: AppLanguage
 
     var body: some View {
-        ModelOpennessBadge(model?.entry.openness, language: language)
+        ModelOpennessBadge(model?.entry.resolvedOpenness, language: language)
             .frame(maxWidth: .infinity, alignment: .center)
             .help(ModelOpenness.help(language: language))
     }
@@ -1880,19 +1863,27 @@ private struct CountryCell: View {
     }
 
     var body: some View {
-        Text(country?.flagEmoji ?? "-")
-            .font(.system(size: 17))
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.vertical, 2)
-            .modifier(OptionalHelp(text: country?.localizedName(language: language)))
-            .accessibilityLabel(country?.localizedName(language: language)
-                                ?? language.text("Country unknown", "未知"))
+        Group {
+            if let country {
+                Text(country.flagEmoji)
+                    .font(.system(size: 17))
+                    .help(country.localizedName(language: language))
+                    .accessibilityLabel(country.localizedName(language: language))
+            } else if model != nil {
+                UnknownCountryButton(language: language).frame(height: 20)
+            } else {
+                Text("-")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.vertical, 2)
     }
 }
 
 private struct ScoreCell: View {
     let model: LeaderboardCellModel?
     let scoreDigits: Int
+    let shareColor: Color
 
     var body: some View {
         Group {
@@ -1900,6 +1891,14 @@ private struct ScoreCell: View {
                 Text(entry.score.formatted(.number.precision(.fractionLength(scoreDigits))))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
+                    .overlay(alignment: .bottom) {
+                        let share = LeaderboardPresentation.scoreShareText(entry.score, leaderScore: model?.leaderScore)
+                        if !share.isEmpty {
+                            Text(share).font(.system(size: 8)).monospacedDigit()
+                                .foregroundStyle(shareColor).offset(y: 9)
+                                .allowsHitTesting(false)
+                        }
+                    }
             } else {
                 Text("-")
                     .foregroundStyle(.secondary)
@@ -2314,18 +2313,10 @@ private struct ModelLogoView: View {
     let name: String
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .fill(.white)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .strokeBorder(.quaternary, lineWidth: 0.5)
-                )
-            logoContent
-                .padding(2.5)
-        }
-        .frame(width: 20, height: 20)
-        .accessibilityHidden(true)
+        logoContent
+            .frame(width: 20, height: 20)
+            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+            .accessibilityHidden(true)
     }
 
     @ViewBuilder
@@ -2363,6 +2354,8 @@ private struct ModelLogoView: View {
         Text(OrganizationLogoCatalog.initial(organization: organization, modelName: name))
             .font(.system(size: 10, weight: .semibold))
             .foregroundStyle(.black.opacity(0.65))
+            .frame(width: 20, height: 20)
+            .background(.white)
     }
 }
 

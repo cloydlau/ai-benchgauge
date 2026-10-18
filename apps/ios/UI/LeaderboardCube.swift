@@ -7,10 +7,9 @@ final class LeaderboardCubeState: ObservableObject {
     @Published var dragging = false
     @Published var turning = false
     var turnSerial = 0
-    @Published var sourceTabsOffset: CGFloat = 0
-    @Published var rank: Int?
-    var columnHeaderHeight: CGFloat = 0
-    var comparisonRowHeight: CGFloat = 44
+    // Scroll geometry changes every frame. Only the small overlays observe it;
+    // publishing it on the cube would invalidate both boards and the heading.
+    let scroll = LeaderboardCubeScrollState()
     @Published var generation = 0
     @Published var entranceProgress: Double = 1
     @Published var entranceActive = false
@@ -45,6 +44,38 @@ final class LeaderboardCubeState: ObservableObject {
         entranceHintVisible = false
         entranceProgress = 1
         position = Double(face)
+    }
+}
+
+@MainActor
+final class LeaderboardCubeScrollState: ObservableObject {
+    @Published private(set) var sourceTabsOffset: CGFloat = 0
+    @Published private(set) var canReturnToTop = false
+    private(set) var rank: Int?
+    private(set) var columnHeaderHeight: CGFloat = 0
+    private(set) var comparisonRowHeight: CGFloat = 44
+
+    func update(frames: [Int: LeaderboardRankFrame], height: CGFloat) {
+        let offset = min(48, max(0, 48 - (frames[0]?.minY ?? 48)))
+        if sourceTabsOffset != offset { sourceTabsOffset = offset }
+        let heading = frames[-1]
+        columnHeaderHeight = heading.map { $0.maxY - $0.minY } ?? 0
+        // Keep the exact comparison position without notifying views as each
+        // row passes the pinned header. Only button visibility needs a redraw.
+        rank = (frames[0]?.minY ?? -.infinity) >= -1 ? 0
+            : LeaderboardCube.visibleRank(frames.filter { $0.key > 0 }, height: height,
+                topInset: columnHeaderHeight)
+        if let rank, let row = frames[rank] { comparisonRowHeight = row.maxY - row.minY }
+        let canReturn = (rank ?? 0) > 1
+        if canReturnToTop != canReturn { canReturnToTop = canReturn }
+    }
+
+    func reset() {
+        rank = nil
+        columnHeaderHeight = 0
+        comparisonRowHeight = 44
+        if sourceTabsOffset != 0 { sourceTabsOffset = 0 }
+        if canReturnToTop { canReturnToTop = false }
     }
 }
 

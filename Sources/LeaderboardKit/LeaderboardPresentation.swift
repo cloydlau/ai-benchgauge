@@ -2,15 +2,39 @@ import Foundation
 
 /// Shared presentation rules for Mac, iPhone and iPad leaderboards.
 public enum LeaderboardPresentation {
+    /// Keep text layout independent of the background's exact source-score ratio.
+    public static func scoreFillRatio(_ score: Double, leaderScore: Double?) -> Double {
+        guard score.isFinite, score >= 0, let leaderScore, leaderScore.isFinite, leaderScore > 0 else { return 1 }
+        return min(1, score / leaderScore)
+    }
+
+    /// Each filtered/grouped source supplies its own leading score.
+    public static func scoreShareText(_ score: Double, leaderScore: Double?) -> String {
+        guard score.isFinite, score >= 0, let leaderScore, leaderScore.isFinite, leaderScore > 0 else { return "" }
+        let percent = (score / leaderScore * 100).rounded(.toNearestOrAwayFromZero)
+        guard percent < 100 else { return "" }
+        return "\(Int(percent))%"
+    }
+
     public static func rows(_ board: Leaderboard?, grouping: LeaderboardGrouping,
                             country: OrganizationCountry? = nil) -> [LeaderboardEntry] {
         rows(board, grouping: grouping, filter: country.map(LeaderboardCountryFilter.country) ?? .all)
     }
 
     public static func rows(_ board: Leaderboard?, grouping: LeaderboardGrouping,
-                            filter: LeaderboardCountryFilter, openness: LeaderboardOpennessFilter = .all) -> [LeaderboardEntry] {
+                            filter: LeaderboardCountryFilter, openness: LeaderboardOpennessFilter = .all,
+                            modelQuery: String = "") -> [LeaderboardEntry] {
         let entries = filteredEntries(board, country: filter, openness: openness)
-        return grouping == .company ? CompanyLeaderboard.rank(entries).map(\.entry) : entries
+        return grouping == .company ? CompanyLeaderboard.rank(entries).map(\.entry)
+            : entries.filter { modelNameMatches($0.name, query: modelQuery) }
+    }
+
+    public static func modelNameMatches(_ name: String, query: String) -> Bool {
+        guard !query.allSatisfy(\.isWhitespace) else { return true }
+        let locale = Locale(identifier: "en_US_POSIX")
+        let fold: (String) -> String = { $0.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: locale) }
+        let value = fold(name)
+        return fold(query).split(whereSeparator: \.isWhitespace).allSatisfy { value.contains($0) }
     }
 
     public static func companies(_ board: Leaderboard?, filter: LeaderboardCountryFilter,

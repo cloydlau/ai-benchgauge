@@ -8,7 +8,7 @@ import SwiftUI
 @MainActor
 enum NativeVisualCapture {
     enum CaptureError: Error { case blankFrame(String) }
-    struct Entry: Decodable { let rank: Int; let name: String; let score: Double; let organization: String; let logo: String; let openness: ModelOpenness?; let brand: OrganizationBrand?; let organizationBrand: OrganizationBrand?; let developerCountry: OrganizationCountryMetadata? }
+    struct Entry: Decodable { let rank: Int; let name: String; let score: Double; let modelID: String?; let organization: String; let logo: String; let openness: ModelOpenness?; let brand: OrganizationBrand?; let organizationBrand: OrganizationBrand?; let developerCountry: OrganizationCountryMetadata? }
     struct Board: Decodable { let kind: String; let title: String; let entries: [Entry]; let sourceUpdatedAt: String?; let sourceTimeUnavailable: Bool?; let fetchedAt: String? }
     struct Quota: Decodable {
         struct Run: Decodable { let text: String }
@@ -19,7 +19,7 @@ enum NativeVisualCapture {
         let balances: [Balance]?
     }
     struct State: Decodable { let boards: [Board]; let quotas: [Quota]; let quotaUpdatedAt: String? }
-    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String?; let codexModel: String?; let codexProvider: String?; let codexBaseURL: String?; let taskCounts: CodexTaskCounts?; let refreshedTaskCounts: CodexTaskCounts?; let codexDesktopRunning: Bool?; let refreshedCodexDesktopRunning: Bool?; let officialAccountChecking: Bool?; let sources: [String: LeaderboardOpennessFilter]?; let countries: [String: String]?; let grouping: LeaderboardGrouping?; let category: LeaderboardCategory?; let rowCount: Int? }
+    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String?; let codexModel: String?; let codexProvider: String?; let codexBaseURL: String?; let taskCounts: CodexTaskCounts?; let refreshedTaskCounts: CodexTaskCounts?; let codexDesktopRunning: Bool?; let refreshedCodexDesktopRunning: Bool?; let showsCodexTaskStatus: Bool?; let refreshedShowsCodexTaskStatus: Bool?; let officialAccountChecking: Bool?; let sources: [String: LeaderboardOpennessFilter]?; let countries: [String: String]?; let grouping: LeaderboardGrouping?; let category: LeaderboardCategory?; let rowCount: Int? }
     struct Fixture: Decodable { let state: State; let cases: [Case]; let quotaScenarios: [String: [Quota]]? }
 
     static func run() async throws {
@@ -39,7 +39,7 @@ enum NativeVisualCapture {
         let boards = Dictionary(uniqueKeysWithValues: fixture.state.boards.map { board in
             let kind = LeaderboardKind(rawValue: board.kind)!
             let entries = board.entries.map { entry in
-                LeaderboardEntry(rank: entry.rank, name: entry.name, score: entry.score, organization: entry.organization,
+                LeaderboardEntry(rank: entry.rank, name: entry.name, score: entry.score, modelID: entry.modelID, organization: entry.organization,
                     logoURL: root.appending(path: "assets/logos/\(entry.logo).png"), openness: entry.openness, brand: entry.brand, organizationBrand: entry.organizationBrand, developerCountry: entry.developerCountry)
             }
             return (kind, Leaderboard(kind: kind, title: board.title, sourceUpdatedAt: board.sourceTimeUnavailable == true ? nil : board.sourceUpdatedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, fetchedAt: board.fetchedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, entries: entries))
@@ -48,10 +48,12 @@ enum NativeVisualCapture {
         func chip(_ quota: Quota) -> AccountQuotaChip {
             let status: AccountQuotaChip.Status
             switch quota.status {
+            case "network": status = .message(AccountQuotaMessage.network)
             case "reauth": status = .message(AccountQuotaMessage.reauthRequired)
             case "pending": status = .pending
             case "unconnected": status = .note(text: AccountQuotaMessage.connectOfficial, help: AccountQuotaMessage.connectOfficialHelp)
             case "qwenWebsite": status = .qwenWebsite(QwenWebsiteQuota(periodLabel: "1mo", remainingPercent: 42, resetsAt: nil))
+            case "notSubscribed": status = .note(text: AccountQuotaMessage.kimiNoCodingPlan, help: AccountQuotaMessage.kimiNoCodingPlanHelp)
             case "queryFailed":
                 status = quota.name == "Qwen" && quota.failureReason == "noPlan"
                     ? .note(text: AccountQuotaMessage.qwenNoPlan, help: AccountQuotaMessage.qwenNoPlanHelp)
@@ -104,6 +106,9 @@ enum NativeVisualCapture {
                                      kind: chip.kind, isCurrent: chip.isCurrent, status: chip.status, isStale: true)
                 } : visibleChips
                 func apply(refreshed: Bool = false) {
+                    state.setShowsCodexTaskStatus(refreshed
+                        ? (test.refreshedShowsCodexTaskStatus ?? test.showsCodexTaskStatus ?? false)
+                        : (test.showsCodexTaskStatus ?? false))
                     state.applyVisualFixture(snapshot: LeaderboardSnapshot(boards: fetchedBoards), chips: shownChips,
                         language: AppLanguage(rawValue: test.language)!, errors: errors,
                         emptyState: test.scenario == "empty" ? .notInstalled : (test.scenario == "installedEmpty" ? .installedEmpty : nil),
@@ -156,13 +161,13 @@ enum NativeVisualCapture {
                         statusAppearances.append(button.effectiveAppearance.name.rawValue)
                         let label = button.attributedTitle.string
                         let help = button.toolTip ?? ""
-                        guard label.contains("▶") == state.codexDesktopRunning,
-                              state.codexDesktopRunning || !help.contains("Codex") else {
+                        guard label.contains("▶") == state.isCodexTaskStatusVisible,
+                              state.isCodexTaskStatusVisible || !help.contains("Codex") else {
                             throw CaptureError.blankFrame("\(test.id): incorrect task-block visibility")
                         }
                         statusLabels.append(label)
                         statusHelp.append(help)
-                        if test.scenario == "menuBarTaskColors" {
+                        if ["menuBarTaskColors", "menuBarTaskToggle"].contains(test.scenario) {
                             taskHighlights.append(try taskHighlightMetadata(button: button, state: state))
                         }
                         var captured: Data?
@@ -224,6 +229,23 @@ enum NativeVisualCapture {
                     if frame == 1 { apply() }
                     try await Task.sleep(for: .milliseconds(300))
                     host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                    if test.scenario == "taskStatusFooter", frame == 0 {
+                        func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+                        let original = state.showsCodexTaskStatus
+                        for enabled in [!original, original] {
+                            guard let toggle = descendants(host).compactMap({ $0 as? NSSwitch }).first(where: { !$0.isHidden }),
+                                  host.bounds.contains(toggle.convert(toggle.bounds, to: host)) else {
+                                throw CaptureError.blankFrame("\(test.id): footer switch missing or clipped")
+                            }
+                            toggle.performClick(nil)
+                            try await Task.sleep(for: .milliseconds(100))
+                            host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                            guard state.showsCodexTaskStatus == enabled,
+                                  CodexTaskStatusPreference.load(from: defaults) == enabled else {
+                                throw CaptureError.blankFrame("\(test.id): footer switch did not update and persist")
+                            }
+                        }
+                    }
                     let captureView = (isClaudeConsentAlert || isQuotaHelpAlert) ? window.attachedSheet?.contentView : host
                     let png = (test.scenario == "addModelDialog" || test.scenario.hasPrefix("xaiSubscriptionDialog") || test.scenario.hasPrefix("xaiDeviceDialog") || isClaudeConsentAlert || isQuotaHelpAlert)
                         ? captureView.flatMap { PanelScreenshot.captureForm(view: $0, minimumVariety: 1) }
@@ -327,7 +349,7 @@ enum NativeVisualCapture {
             }
             segments.append(["text": (title.string as NSString).substring(with: range), "color": rgb])
         }
-        let expected = state.codexDesktopRunning ? state.codexTaskCounts.map {
+        let expected = state.isCodexTaskStatusVisible ? state.codexTaskCounts.map {
             [$0.running, $0.unread, $0.failed].filter { $0 > 0 }.map(String.init)
         } ?? [] : []
         guard segments.compactMap({ $0["text"] }) == expected else {

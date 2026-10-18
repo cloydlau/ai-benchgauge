@@ -32,45 +32,46 @@ private struct PadRankingTop: PreferenceKey {
     static var defaultValue: CGFloat { 0 }
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
-private struct PadFooterTop: PreferenceKey {
-    static var defaultValue: CGFloat { .infinity }
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = min(value, nextValue()) }
-}
-private extension View {
-    func trackingFooter(in coordinateSpace: String) -> some View {
-        background {
-            GeometryReader { geometry in
-                Color.clear.preference(key: PadFooterTop.self,
-                    value: geometry.frame(in: .named(coordinateSpace)).minY)
-            }
-        }
-    }
+// Share the same clearance with the scroll content: at the end of a list the
+// footer sits above the control, which sits above the bottom category bar.
+private enum PadBottomControls {
+    static let buttonBottom: CGFloat = 78
+    static let footerPadding: CGFloat = buttonBottom + 44 + 16
 }
 
 @MainActor
-private final class PadFooterPosition: ObservableObject {
-    // Command Line Tools do not ship SwiftUI's @State macro plugin.
-    @Published var top: CGFloat = .infinity
-}
-
-@MainActor
-private struct PadFooterAvoidingControl<Control: View>: ViewModifier {
-    let viewportHeight: CGFloat
+private struct PadBackToTopControl<Control: View>: ViewModifier {
     let bottomInset: CGFloat
     let trailingInset: CGFloat
     let visible: Bool
     let control: Control
-    @StateObject private var footer = PadFooterPosition()
 
     func body(content: Content) -> some View {
-        content
-            .onPreferenceChange(PadFooterTop.self) { footer.top = $0 }
-            .overlay(alignment: .bottomTrailing) {
-                if visible {
-                    control.offset(x: -trailingInset,
-                        y: -max(bottomInset + 100, viewportHeight - footer.top + 12))
-                }
+        content.overlay(alignment: .bottomTrailing) {
+            if visible {
+                control.offset(x: -trailingInset, y: -(bottomInset + PadBottomControls.buttonBottom))
             }
+        }
+    }
+}
+@MainActor
+private struct PadCubeSourceTabs: ViewModifier {
+    @ObservedObject var scroll: LeaderboardCubeScrollState
+    func body(content: Content) -> some View {
+        content.offset(y: -scroll.sourceTabsOffset)
+            .allowsHitTesting(scroll.sourceTabsOffset < 48)
+            .accessibilityHidden(scroll.sourceTabsOffset >= 48)
+    }
+}
+@MainActor
+private struct PadCubeBackToTopControl<Control: View>: ViewModifier {
+    @ObservedObject var scroll: LeaderboardCubeScrollState
+    let active: Bool
+    let bottomInset: CGFloat
+    let control: Control
+    func body(content: Content) -> some View {
+        content.modifier(PadBackToTopControl(bottomInset: bottomInset,
+            trailingInset: 12, visible: active && scroll.canReturnToTop, control: control))
     }
 }
 @MainActor
@@ -109,7 +110,7 @@ private extension VerticalAlignment {
     static let padTitleInkBottom = VerticalAlignment(PadTitleInkBottom.self)
 }
 
-// Place the subtitle beside the title's visible bottom, independent of font line boxes.
+// Center the subtitle on the title's visible ink, independent of font line boxes.
 private struct PadBrandHeadingLayout: Layout {
     var compact = false
     private func measurements(_ subviews: Subviews, width: CGFloat? = nil) -> ([ViewDimensions], [CGPoint], CGSize) {
@@ -118,7 +119,7 @@ private struct PadBrandHeadingLayout: Layout {
         let titleInkHeight = d[0][.padTitleInkBottom] - d[0][.padTitleInkTop]
         let x = d[0].width + 6
         var origins = [CGPoint(x: 0, y: -d[0][.padTitleInkTop]),
-                       CGPoint(x: x, y: titleInkHeight - d[1][.padTitleInkBottom])]
+                       CGPoint(x: x, y: (titleInkHeight - d[1].height) / 2)]
         let top = origins.map(\.y).min() ?? 0
         for index in origins.indices { origins[index].y -= top }
         let height = zip(d, origins).map { $0.0.height + $0.1.y }.max() ?? 0
@@ -193,7 +194,11 @@ public struct LeaderboardPadView: View {
         } else { self.appStoreURL = nil }
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--cube-preview") {
-            _cube = StateObject(wrappedValue: LeaderboardCubeState(position: 0.5))
+            let preview = LeaderboardCubeState()
+            preview.finishEntrance()
+            let position = Double(ProcessInfo.processInfo.environment["BENCHGAUGE_UI_CUBE_POSITION"] ?? "") ?? 0.5
+            preview.position = position.isFinite ? min(1, max(0, position)) : 0.5
+            _cube = StateObject(wrappedValue: preview)
         } else if ProcessInfo.processInfo.arguments.contains("--ui-testing") && ProcessInfo.processInfo.arguments.contains("--arena-preview") {
             let preview = LeaderboardCubeState(position: 1)
             preview.face = 1
@@ -237,6 +242,8 @@ public struct LeaderboardPadView: View {
                 pairedBoards(bottomInset: geometry.safeAreaInsets.bottom, viewportHeight: geometry.size.height)
             }
         }
+        .tint(BrandTheme.accent(for: colorScheme))
+        .accentColor(BrandTheme.accent(for: colorScheme))
         .background { Color.padBackground.ignoresSafeArea() }
         .overlay(alignment: .bottom) {
             MobileCategoryBar(category: $store.category, language: store.language, select: cancelCubeEntrance)
@@ -259,6 +266,8 @@ public struct LeaderboardPadView: View {
                     .accessibilityIdentifier("capture-progress")
             }
         }
+        // Keep the floating categories at the screen bottom, underneath the keyboard.
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .sheet(isPresented: $presentation.showingAbout) { aboutSheet }
         #if os(iOS)
         .sheet(isPresented: $presentation.showingCapture, onDismiss: clearCapturedPages) { screenshotPreview }
@@ -296,8 +305,10 @@ public struct LeaderboardPadView: View {
     }
     private func mobileInlineHeader(titleSize: CGFloat) -> some View {
         HStack(spacing: 6) {
-            mobileBrandTitle(size: titleSize).fixedSize(horizontal: true, vertical: false)
-            featureHelp(height: BrandTitleMetrics.inkHeight(language: store.language, fontSize: titleSize))
+            PadBrandHeadingLayout(compact: true) {
+                mobileBrandTitle(size: titleSize).fixedSize(horizontal: true, vertical: false)
+                featureHelp(height: BrandTitleMetrics.inkHeight(language: store.language, fontSize: titleSize))
+            }
             Spacer(minLength: 0)
             mobileGrouping
         }
@@ -314,10 +325,19 @@ public struct LeaderboardPadView: View {
         #endif
     }
     private func mobileBrandTitle(size: CGFloat) -> some View {
-        Group {
+        let ink = store.language == .english ? Self.textInkBounds(store.language.appName,
+            font: CTFontCreateWithName("SnellRoundhand-Bold" as CFString, size, nil)) : nil
+        let inkHeight = BrandTitleMetrics.inkHeight(language: store.language, fontSize: size)
+        return Group {
                 if store.language == .english { appTitle(fontSize: size) }
                 else { appTitle.scaleEffect(size / 21, anchor: .leading).padding(.trailing, max(0, (size / 21 - 1) * 65)) }
         }.frame(height: 44)
+                .alignmentGuide(.padTitleInkTop) { dimensions in
+                    ink.map { dimensions[.firstTextBaseline] - $0.maxY } ?? (dimensions.height - inkHeight) / 2
+                }
+                .alignmentGuide(.padTitleInkBottom) { dimensions in
+                    ink.map { dimensions[.firstTextBaseline] - $0.minY } ?? (dimensions.height + inkHeight) / 2
+                }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(store.language.appName)
                 .accessibilityAddTraits(.isStaticText)
@@ -327,54 +347,13 @@ public struct LeaderboardPadView: View {
         Button { presentation.showingQuotaTrackingHelp = true } label: {
             FeatureSubtitle(language: store.language, height: height).foregroundStyle(.secondary)
                 .frame(minHeight: 44).contentShape(Rectangle())
-        }.buttonStyle(.plain).accessibilityIdentifier("quota-tracking-help")
+        }.buttonStyle(.plain)
+            .accessibilityIdentifier("quota-tracking-help")
             .accessibilityLabel(AppFeatureCopy.subtitle(language: store.language))
     }
     private var aboutSheet: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    HStack(alignment: .bottom, spacing: 10) {
-                        appTitle
-                        Text("v" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""))
-                            .font(.system(size: 10)).foregroundStyle(.secondary).accessibilityIdentifier("about-version")
-                    }.padding(.top, 24)
-                    Text(tr("Compare task benchmarks and blind user votes across different AI model capabilities.", "对照任务测评与用户盲测，比较模型在不同场景下的表现。"))
-                        .font(.subheadline).foregroundStyle(.secondary)
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text(tr("PC download", "PC 端下载")).font(.subheadline.weight(.semibold))
-                        Button(tr("Download the latest desktop version", "下载最新电脑端版本")) {
-                            copyName(Self.repositoryURL.appending(path: "releases/latest").absoluteString)
-                        }.font(.subheadline).accessibilityIdentifier("desktop-download")
-                    }.frame(maxWidth: .infinity, alignment: .leading).padding(18).background(Color.padCard, in: RoundedRectangle(cornerRadius: 12))
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text(tr("Leaderboard sources", "榜单来源")).font(.subheadline.weight(.semibold))
-                        Button("Artificial Analysis") { copyName("https://artificialanalysis.ai/") }
-                        Divider()
-                        Button("Arena") { copyName("https://arena.ai/leaderboard") }
-                    }.font(.subheadline).frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(18).background(Color.padCard, in: RoundedRectangle(cornerRadius: 12))
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text(tr("Open-source notices", "开源声明")).font(.subheadline.weight(.semibold))
-                        Text(tr("Third-party software follows its original licenses. Tap to read the full copyright and license text.", "第三方软件分别遵循其原始许可证。点按查看完整版权与许可文本。"))
-                            .font(.caption).foregroundStyle(.secondary)
-                        DisclosureGroup {
-                            Text(BrandFont.licenseText).font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
-                        } label: {
-                            HStack {
-                                Text(tr("Third-party notice 01", "第三方软件声明 01"))
-                                Text("SIL OFL 1.1").font(.caption).foregroundStyle(.secondary)
-                            }.font(.subheadline)
-                        }.accessibilityIdentifier("open-source-notices")
-                    }.padding(18).background(Color.padCard, in: RoundedRectangle(cornerRadius: 12))
-                }.padding(20)
-            }.background(Color.padBackground)
-                .navigationTitle(tr("About", "关于"))
-                #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-                #endif
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button(tr("Done", "完成")) { presentation.showingAbout = false } } }
-        }
+        PadAboutView(language: store.language, brand: appTitle(fontSize: 24),
+                     copyLink: copyName, dismiss: { presentation.showingAbout = false })
         .overlay(alignment: .bottom) {
             if let note = presentation.note { Text(note).font(.footnote).padding(12).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8)).padding(20) }
         }
@@ -425,17 +404,30 @@ public struct LeaderboardPadView: View {
                         .font(.caption.weight(.semibold))
                         .lineLimit(2).frame(maxWidth: .infinity, minHeight: 38)
                         .foregroundStyle(cube.face == index ? (index == 0 ? Color.blue : Color.purple) : Color.secondary)
-                        .background(cube.face == index ? (index == 0 ? Color.blue : Color.purple).opacity(0.12) : Color.secondary.opacity(0.06),
-                                    in: RoundedRectangle(cornerRadius: 8))
+                        .contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityIdentifier("face-\(index)")
                     .accessibilityAddTraits(cube.face == index ? .isSelected : [])
             }
         }
+        .background(alignment: .leading) {
+            GeometryReader { geometry in
+                let tabWidth = (geometry.size.width - 6) / 2
+                RoundedRectangle(cornerRadius: 8)
+                    .fill((cube.face == 0 ? Color.blue : Color.purple).opacity(0.12))
+                    .frame(width: tabWidth)
+                    .offset(x: CGFloat(cube.face) * (tabWidth + 6))
+            }
+            .allowsHitTesting(false)
+        }
+        .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+        // Keep the rotating faces' shading behind the stationary tab bar.
+        .background(Color.padBackground)
+        .animation(usesReducedMotion ? nil : .timingCurve(0.22, 0.7, 0.2, 1, duration: 0.32), value: cube.face)
     }
     private func resetComparison() {
         cancelCubeEntrance()
-        cube.rank = nil
-        cube.sourceTabsOffset = 0
+        store.modelSearchEditing = false
+        cube.scroll.reset()
         cube.generation += 1
         if cube.dragging { turnCube(to: cube.face) }
     }
@@ -527,15 +519,17 @@ public struct LeaderboardPadView: View {
                     cubeFace(kind, index: index, size: geometry.size, bottomInset: bottomInset)
                 }
             }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            // Flatten the projected scroll layers before applying the viewport
+            // clip, so their perspective edges cannot escape into the heading.
+            .compositingGroup()
             .id(cube.generation)
             .opacity(0.65 + cube.entranceProgress * 0.35)
             .scaleEffect(usesReducedMotion ? 1 : 0.985 + cube.entranceProgress * 0.015)
             .offset(y: usesReducedMotion ? 0 : (1 - cube.entranceProgress) * 12)
             .clipped()
             .overlay(alignment: .top) {
-                cubeSelector.offset(y: -cube.sourceTabsOffset)
-                    .allowsHitTesting(cube.sourceTabsOffset < 58)
-                    .accessibilityHidden(cube.sourceTabsOffset >= 58)
+                cubeSelector.modifier(PadCubeSourceTabs(scroll: cube.scroll))
             }
             .clipped()
             .overlay(alignment: .bottom) {
@@ -549,11 +543,12 @@ public struct LeaderboardPadView: View {
             .contentShape(Rectangle())
             .simultaneousGesture(DragGesture(minimumDistance: 8)
                 .updating($cubeDragAxis) { value, axis, _ in
-                    axis = LeaderboardCube.dragAxis(current: axis, x: value.translation.width, y: value.translation.height)
+                    let next = LeaderboardCube.dragAxis(current: axis, x: value.translation.width, y: value.translation.height)
+                    if axis != next { axis = next }
                 }
                 .onChanged { value in
                     cancelCubeEntrance()
-                    guard !cube.turning else { return }
+                    guard !cube.turning, !store.modelSearchEditing else { return }
                     guard LeaderboardCube.dragAxis(current: cubeDragAxis, x: value.translation.width, y: value.translation.height) == .horizontal else { return }
                     cube.dragging = true
                     if !usesReducedMotion {
@@ -610,10 +605,10 @@ public struct LeaderboardPadView: View {
                             }
                         }
                     boardPair(wide: true, viewportHeight: viewportHeight)
-                    compactFooter.trackingFooter(in: "paired-rankings")
+                    compactFooter
                 }
-                .padding(18)
-                .padding(.bottom, bottomInset + 112)
+                .padding(.horizontal, 18).padding(.top, 18)
+                .padding(.bottom, bottomInset + PadBottomControls.footerPadding)
                 .frame(maxWidth: 1100)
                 .frame(maxWidth: .infinity)
             }
@@ -622,7 +617,9 @@ public struct LeaderboardPadView: View {
             .modifier(PadLeaderboardScrollEdges(edges: .bottom))
             .ignoresSafeArea(.container, edges: .bottom)
             .refreshable { await store.refresh(force: true) }
-            .modifier(PadFooterAvoidingControl(viewportHeight: viewportHeight, bottomInset: bottomInset,
+            // This overlay is inside the paired layout's safe-area bounds;
+            // the phone cube's explicitly extended viewport needs its inset.
+            .modifier(PadBackToTopControl(bottomInset: 0,
                 trailingInset: 20, visible: presentation.pairScrolled,
                 control: rankingBackToTop {
                         withAnimation(usesReducedMotion ? nil : .easeOut(duration: 0.25)) {
@@ -634,10 +631,12 @@ public struct LeaderboardPadView: View {
 
     private func cubeFace(_ kind: LeaderboardKind, index: Int, size: CGSize, bottomInset: CGFloat) -> some View {
         let generation = cube.generation
+        let hidesIndicator = cube.dragging || cube.turning || cube.entranceActive
+            || abs(cube.position - Double(index)) > 0.0001
         return ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
-                    Color.clear.frame(height: 48).id(PadComparisonScrollTarget.top)
+                    Color.clear.frame(height: 38).id(PadComparisonScrollTarget.top)
                     boardCard(kind, compact: true, viewportHeight: size.height)
                         .background {
                             GeometryReader { geometry in
@@ -646,47 +645,40 @@ public struct LeaderboardPadView: View {
                                     value: [0: LeaderboardRankFrame(minY: frame.minY, maxY: frame.maxY)])
                             }
                         }
-                    compactFooter.trackingFooter(in: "rank-scroll-\(kind.rawValue)")
+                    compactFooter
                 }
-                .padding(.bottom, bottomInset + 112)
+                .padding(.bottom, bottomInset + PadBottomControls.footerPadding)
             }
+                .scrollDismissesKeyboard(.interactively)
+                .onChange(of: store.modelSearchQuery) { _, _ in
+                    guard store.grouping == .model, cube.scroll.canReturnToTop else { return }
+                    var transaction = Transaction(); transaction.disablesAnimations = true
+                    withTransaction(transaction) { proxy.scrollTo("model-header-\(kind.rawValue)", anchor: .top) }
+                }
+                // UIKit's scroll indicator should not become a projected cube edge.
+                .scrollIndicators(hidesIndicator ? .hidden : .automatic, axes: .vertical)
                 .modifier(PadLeaderboardScrollEdges())
                 .coordinateSpace(name: "rank-scroll-\(kind.rawValue)")
                 .onPreferenceChange(LeaderboardRankFrames.self) { frames in
                     Task { @MainActor in
                         guard generation == cube.generation, index == cube.face,
                               !cube.dragging && !cube.turning && !cube.entranceActive else { return }
-                        // Zero identifies the full card's top, including its
-                        // source and column headers. Only align a ranking row
-                        // once the user has actually scrolled past that top.
-                        // The pinned header covers part of the scroll viewport.
-                        // Compare the first row below it, rather than a hidden row.
-                        cube.sourceTabsOffset = min(58, max(0, 58 - (frames[0]?.minY ?? 58)))
-                        let heading = frames[-1]
-                        cube.columnHeaderHeight = heading.map { $0.maxY - $0.minY } ?? 0
-                        let rank = (frames[0]?.minY ?? -.infinity) >= -1 ? 0
-                            : LeaderboardCube.visibleRank(frames.filter { $0.key > 0 }, height: size.height,
-                                topInset: cube.columnHeaderHeight)
-                        if let rank, let row = frames[rank] { cube.comparisonRowHeight = row.maxY - row.minY }
-                        if cube.rank != rank { cube.rank = rank }
+                        cube.scroll.update(frames: frames, height: size.height)
                     }
                 }
+                .onChange(of: cube.dragging) { _, dragging in
+                    // Align the incoming board before it rotates into view.
+                    // Waiting for face selection exposes its top/tab spacer
+                    // throughout the drag when the outgoing board is scrolled.
+                    if dragging && index != cube.face { alignCubeFace(proxy, height: size.height) }
+                }
                 .onChange(of: cube.face) { _, face in
-                    if face == index, let rank = cube.rank {
-                        // Move the incoming source to the same ranking position
-                        // before rotating it into view; never animate the scroll.
-                        var transaction = Transaction(); transaction.disablesAnimations = true
-                        let target: PadComparisonScrollTarget = rank == 0 ? .top : .rank(rank)
-                        let inset = cube.columnHeaderHeight + 4
-                        let anchor = rank == 0 ? UnitPoint.top : UnitPoint(x: 0.5,
-                            y: min(1, inset / max(1, size.height - cube.comparisonRowHeight)))
-                        withTransaction(transaction) { proxy.scrollTo(target, anchor: anchor) }
-                    }
+                    if face == index { alignCubeFace(proxy, height: size.height) }
                 }
                 .refreshable { await store.refresh(force: true) }
                 .frame(width: size.width, height: size.height)
-                .modifier(PadFooterAvoidingControl(viewportHeight: size.height, bottomInset: bottomInset,
-                    trailingInset: 12, visible: index == cube.face && (cube.rank ?? 0) > 1,
+                .modifier(PadCubeBackToTopControl(scroll: cube.scroll,
+                    active: index == cube.face, bottomInset: bottomInset,
                     control: rankingBackToTop {
                             withAnimation(usesReducedMotion ? nil : .easeOut(duration: 0.25)) {
                                 proxy.scrollTo(PadComparisonScrollTarget.top, anchor: .top)
@@ -694,9 +686,19 @@ public struct LeaderboardPadView: View {
                     }))
                 .background(Color.padBackground)
                 .modifier(CubeFace(position: cube.position, face: index, width: size.width, reduceMotion: usesReducedMotion))
+                .disabled(index != cube.face || cube.dragging || cube.turning)
                 .allowsHitTesting(index == cube.face && !cube.dragging && !cube.turning)
                 .accessibilityHidden(index != cube.face || cube.dragging)
         }
+    }
+    private func alignCubeFace(_ proxy: ScrollViewProxy, height: CGFloat) {
+        guard let rank = cube.scroll.rank else { return }
+        var transaction = Transaction(); transaction.disablesAnimations = true
+        let target: PadComparisonScrollTarget = rank == 0 ? .top : .rank(rank)
+        let inset = cube.scroll.columnHeaderHeight + 4
+        let anchor = rank == 0 ? UnitPoint.top : UnitPoint(x: 0.5,
+            y: min(1, inset / max(1, height - cube.scroll.comparisonRowHeight)))
+        withTransaction(transaction) { proxy.scrollTo(target, anchor: anchor) }
     }
     private var compactFooter: some View {
         HStack(spacing: 4) {
@@ -749,10 +751,12 @@ public struct LeaderboardPadView: View {
         PadBoardCard(kind: kind, board: store.snapshot.boards[kind], rowPresentation: pageRows.map { store.rowPresentation(for: kind).page($0) } ?? store.rowPresentation(for: kind), grouping: store.grouping,
             language: store.language, filter: store.countryFilter(for: kind), opennessFilter: store.opennessFilter(for: kind),
             countryOptions: store.availableCountryFilters, skeletonHeight: viewportHeight,
+            modelSearchQuery: $store.modelSearchQuery, modelSearchPresented: $store.modelSearchPresented,
+            modelSearchEditing: $store.modelSearchEditing,
             isRefreshing: store.refreshing.contains(kind), isImage: isImage, compact: compact, exportScheme: exportScheme,
             refresh: { Task { await store.refresh(force: true) } },
             selectCountry: { store.setCountryFilter($0, for: kind); resetComparison() },
-            clearFilters: { store.setCountryFilter(.all, for: kind); store.setOpennessFilter(.all, for: kind); resetComparison() },
+            clearFilters: { store.modelSearchQuery = ""; store.setCountryFilter(.all, for: kind); store.setOpennessFilter(.all, for: kind); resetComparison() },
             selectOpenness: { store.setOpennessFilter($0, for: kind); resetComparison() }, copyName: { name in
                 cancelCubeEntrance()
                 // A simultaneous cube drag can also release a name button.
@@ -1014,6 +1018,9 @@ private struct PadBoardCard: View {
     let opennessFilter: LeaderboardOpennessFilter
     let countryOptions: [LeaderboardCountryFilter]
     let skeletonHeight: CGFloat
+    @Binding var modelSearchQuery: String
+    @Binding var modelSearchPresented: Bool
+    @Binding var modelSearchEditing: Bool
     let isRefreshing: Bool
     let isImage: Bool
     let compact: Bool
@@ -1024,6 +1031,11 @@ private struct PadBoardCard: View {
     let selectOpenness: (LeaderboardOpennessFilter) -> Void
     let copyName: (String) -> Void
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @FocusState private var searchFocused: Bool
+    @State private var searchFocusTask: Task<Void, Never>?
+    @State private var headerPinned = false
     @StateObject private var detail = PadBoardDetail()
     private func tr(_ en: String, _ zh: String) -> String { language.text(en, zh) }
     private var rows: [LeaderboardEntry] { rowPresentation.rows }
@@ -1042,7 +1054,8 @@ private struct PadBoardCard: View {
         #endif
     }
     private var columnSpacing: CGFloat { compactColumns ? 4 : 8 }
-    @ScaledMetric(relativeTo: .body) private var opennessIconSize: CGFloat = 17
+    @ScaledMetric(relativeTo: .body) private var opennessIconSize: CGFloat = 14
+    @ScaledMetric(relativeTo: .caption2) private var timeFontSize: CGFloat = 11
     private var columnPadding: CGFloat { compactColumns ? 6 : 8 }
     private var columnHeaderFont: Font { compactColumns ? .caption2 : .caption }
     @ScaledMetric(relativeTo: .caption2) private var compactFilterHeaderSize: CGFloat = 10
@@ -1105,8 +1118,41 @@ private struct PadBoardCard: View {
         }.lineLimit(1).fixedSize(horizontal: true, vertical: false)
     }
     var body: some View {
-        if isImage { cardContent }
-        else { interactiveCard }
+        Group {
+            if isImage { cardContent }
+            else { interactiveCard }
+        }
+        .onChange(of: searchFocused) { _, focused in
+            modelSearchEditing = focused
+            if !focused { modelSearchPresented = false }
+        }
+        .onChange(of: isEnabled) { _, enabled in if !enabled { endSearchEditing() } }
+        .onChange(of: grouping) { _, _ in endSearchEditing() }
+        .onDisappear { endSearchEditing() }
+    }
+    private var searchVisible: Bool { !isImage && grouping == .model && modelSearchPresented }
+    // Redistribute the same 12-point inset when pinned, keeping the rows below stationary.
+    private var headerTopPadding: CGFloat { headerPinned ? 6 : 4 }
+    private var headerBottomPadding: CGFloat { headerPinned ? 6 : 8 }
+    private func endSearchEditing() {
+        searchFocusTask?.cancel()
+        searchFocused = false
+        modelSearchPresented = false
+    }
+    private func openModelSearch() {
+        modelSearchPresented = true
+        searchFocusTask?.cancel()
+        searchFocusTask = Task { @MainActor in
+            do { try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 320)) }
+            catch { return }
+            guard modelSearchPresented, grouping == .model, isEnabled else { return }
+            searchFocused = true
+        }
+    }
+    private func closeModelSearch() {
+        endSearchEditing()
+        modelSearchPresented = false
+        modelSearchQuery = ""
     }
     private var timeLabels: some View {
         Text(LeaderboardPresentation.displayTime(board, language: language))
@@ -1132,7 +1178,17 @@ private struct PadBoardCard: View {
             }
             if isImage { timeLabels }
             else {
-                Button(action: refresh) { timeLabels }
+                Button(action: refresh) {
+                    HStack(spacing: timeFontSize * 0.6) {
+                        if isRefreshing {
+                            ProgressView().controlSize(.mini).tint(secondaryForeground)
+                                .scaleEffect(timeFontSize / 20)
+                                .frame(width: timeFontSize, height: timeFontSize)
+                                .accessibilityHidden(true)
+                        }
+                        timeLabels
+                    }
+                }
                     .buttonStyle(.plain).disabled(isRefreshing)
                     .accessibilityHint(tr("Tap to refresh. Source update may be unavailable.", "点击刷新；来源可能不提供更新时间。"))
                     .accessibilityIdentifier("refresh")
@@ -1152,18 +1208,31 @@ private struct PadBoardCard: View {
                      + ModelOpenness.columnTitle(language: language) + ": " + opennessFilter.title(language: language))
                     .font(.caption).foregroundStyle(secondaryForeground)
             }
-        }.padding(.horizontal, columnPadding).padding(.vertical, 12)
+        }.padding(.horizontal, columnPadding).padding(.top, 12).padding(.bottom, 6)
     }
     private var columnHeader: some View {
         VStack(spacing: 0) {
+            ZStack(alignment: .leading) {
             HStack(spacing: columnSpacing) {
                 Text(tr("Rank", "排名")).lineLimit(1).frame(width: rankColumnWidth)
+                HStack(spacing: 2) {
                 Text(kind.sourceLinkTitle)
                     .font(columnHeaderFont.weight(.semibold))
                     .foregroundStyle(kind.sourcePrefix == "Arena" ? Color.purple : Color.blue)
                     .lineLimit(1).minimumScaleFactor(0.8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityIdentifier("source-heading-\(kind.rawValue)")
+                if !isImage && grouping == .model {
+                    Button(action: openModelSearch) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 12))
+                            .frame(width: 28, height: 28).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(tr("Search models", "搜索模型"))
+                    .accessibilityIdentifier("model-filter-\(kind.rawValue)")
+                    .anchorPreference(key: MobileModelSearchOrigin.self, value: .bounds) { $0 }
+                }
+                }.frame(maxWidth: .infinity, alignment: .leading)
                 if isImage { countryColumn { countryHeaderLabel } }
                 else {
                     countryColumn {
@@ -1192,16 +1261,46 @@ private struct PadBoardCard: View {
                         } label: { opennessHeaderLabel }
                         .buttonStyle(.plain).accessibilityIdentifier("openness-filter-\(kind.rawValue)")
                         .accessibilityValue(opennessFilter.title(language: language))
-                        .foregroundStyle(opennessFilter == .all ? secondaryForeground : Color.accentColor)
+                        .foregroundStyle(opennessFilter == .all ? secondaryForeground : BrandTheme.accent(for: colorScheme))
                         .help(ModelOpenness.help(language: language))
                     }
                 }
                 scoreColumn { Text(tr("Score", "分数")).font(columnHeaderFont) }
             }.font(columnHeaderFont).foregroundStyle(secondaryForeground).padding(.horizontal, columnPadding)
-                .padding(.top, 12).padding(.bottom, 8)
+                .padding(.top, headerTopPadding).padding(.bottom, headerBottomPadding)
+                .opacity(searchVisible ? 0 : 1)
+                .allowsHitTesting(!searchVisible)
+                .accessibilityElement(children: .contain)
+                .accessibilityHidden(searchVisible)
+            }
+                .overlayPreferenceValue(MobileModelSearchOrigin.self) { anchor in
+                    if let anchor, !isImage && grouping == .model {
+                        GeometryReader { geometry in
+                            let origin = geometry[anchor]
+                            MobileModelSearchBar(query: $modelSearchQuery, focus: $searchFocused,
+                                kind: kind, language: language,
+                                pinned: headerPinned,
+                                close: closeModelSearch)
+                                .padding(.top, headerTopPadding).padding(.bottom, headerBottomPadding)
+                                .frame(width: searchVisible ? geometry.size.width : origin.width, height: geometry.size.height)
+                                .clipped()
+                                .offset(x: searchVisible ? 0 : origin.minX)
+                                .opacity(searchVisible ? 1 : 0)
+                                .allowsHitTesting(searchVisible)
+                                .accessibilityHidden(!searchVisible)
+                        }
+                    }
+                }
+                .animation(reduceMotion ? nil : .timingCurve(0.4, 0, 0.2, 1, duration: 0.32), value: searchVisible)
             Divider()
         }
         .background(isImage ? (displayScheme == .dark ? Color.black : Color.white) : Color.padCard)
+        .id("model-header-\(kind.rawValue)")
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("column-header-\(kind.rawValue)")
+        .onGeometryChange(for: Bool.self) { geometry in
+            compact && !isImage && geometry.frame(in: .named("rank-scroll-\(kind.rawValue)")).minY <= 0.5
+        } action: { headerPinned = $0 }
         .background {
             if compact && !isImage {
                 GeometryReader { geometry in
@@ -1218,7 +1317,7 @@ private struct PadBoardCard: View {
                 VStack(spacing: 12) {
                     Image(systemName: "chart.bar").font(.title2)
                     Text(tr("No matching entries", "暂无符合条件的模型"))
-                    if filter != .all || opennessFilter != .all {
+                    if filter != .all || opennessFilter != .all || grouping == .model && !modelSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         Button(tr("Clear filters", "清除筛选"), action: clearFilters)
                             .accessibilityIdentifier("clear-filters-\(kind.rawValue)")
                     }
@@ -1281,7 +1380,10 @@ private struct PadBoardCard: View {
                 LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                     cardMetadata
                     Section {
-                        cardRows
+                        if searchVisible || grouping == .model && !modelSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            VStack(spacing: 0) { cardRows }
+                                .frame(minHeight: max(0, skeletonHeight - 50), alignment: .top)
+                        } else { cardRows }
                     } header: {
                         columnHeader
                     }
@@ -1347,34 +1449,79 @@ private struct PadBoardCard: View {
         return HStack(alignment: .center, spacing: columnSpacing) {
             Text(LeaderboardPresentation.rankLabel(rank)).font(compactColumns ? .caption : .subheadline)
                 .monospacedDigit().foregroundStyle(primaryForeground).frame(width: rankColumnWidth)
-            HStack(spacing: 6) {
-                PadOrganizationLogo(entry: entry, isCompany: grouping == .company)
-                entryName(entry)
-            }.padding(.horizontal, 5).padding(.vertical, 3)
-                // Fill the 44-point minimum row, leaving 4 points on each side.
-                .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
-                .background(brandColor(entry).opacity(displayScheme == .dark ? 0.26 : 0.18), in: RoundedRectangle(cornerRadius: 5))
-                .alignmentGuide(.padNameTop) { $0[.top] }
-                .padding(.vertical, 4)
-            countryColumn { Text(country?.flagEmoji ?? "-").foregroundStyle(primaryForeground) }
-                .accessibilityLabel(country?.localizedName(language: language) ?? tr("Country unknown", "未知"))
-            opennessColumn {
-                ModelOpennessBadge(entry.openness, language: language, colorScheme: displayScheme,
-                    showsTitle: !compactColumns,
-                    accessibilityIdentifier: "openness-\(kind.rawValue)-\(entry.id)", iconSize: opennessIconSize)
+            HStack(alignment: .center, spacing: columnSpacing) {
+                HStack(spacing: 6) {
+                    PadOrganizationLogo(entry: entry, isCompany: grouping == .company)
+                    entryName(entry)
+                }.padding(.horizontal, 5).padding(.vertical, 3)
+                    // Keep the name content and controls at their existing row height.
+                    .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+                    .alignmentGuide(.padNameTop) { $0[.top] }
+                    .padding(.vertical, 4)
+                countryColumn {
+                    if let country {
+                        countryFlag(country.flagEmoji, title: country.localizedName(language: language), entry: entry)
+                    } else {
+                        UnknownCountryButton(language: language)
+                    }
+                }
+                opennessColumn {
+                    opennessBadge(entry)
+                }
+                if grouping == .company && !isImage {
+                    Button { detail.selectedCompany = LeaderboardPresentation.companies(board, filter: filter, openness: opennessFilter).first { $0.entry.id == entry.id } } label: {
+                        scoreColumn { scoreValue(entry) }.frame(height: 44)
+                    }.buttonStyle(.plain).foregroundStyle(.secondary)
+                    .accessibilityLabel("\(entry.name), \(entry.score), \(tr("score details", "分数说明"))")
+                    .accessibilityIdentifier("score-\(kind.rawValue)-\(entry.id)")
+                } else {
+                    scoreColumn { scoreValue(entry).foregroundStyle(secondaryForeground) }
+                }
             }
-            if grouping == .company && !isImage {
-                Button { detail.selectedCompany = LeaderboardPresentation.companies(board, filter: filter, openness: opennessFilter).first { $0.entry.id == entry.id } } label: {
-                    scoreColumn { Text(entry.score, format: .number.grouping(.never).precision(.fractionLength(1))).monospacedDigit() }.frame(height: 44)
-                }.buttonStyle(.plain).foregroundStyle(.secondary)
-                .accessibilityLabel("\(entry.name), \(entry.score), \(tr("score details", "分数说明"))")
-                .accessibilityIdentifier("score-\(kind.rawValue)-\(entry.id)")
-            } else {
-                scoreColumn { Text(entry.score, format: .number.grouping(.never).precision(.fractionLength(1))).monospacedDigit().foregroundStyle(secondaryForeground) }
+            .background {
+                LeaderboardScoreBackground(color: brandColor(entry).opacity(displayScheme == .dark ? 0.26 : 0.18),
+                    score: entry.score, leaderScore: rowPresentation.leaderScore)
+                    .padding(.vertical, 4)
             }
         }
         .font(.subheadline).padding(.horizontal, columnPadding).frame(minHeight: 48)
         .background(rank.isMultiple(of: 2) ? Color.secondary.opacity(0.05) : Color.clear)
+    }
+    @ViewBuilder private func countryFlag(_ flag: String, title: String, entry: LeaderboardEntry) -> some View {
+        #if os(iOS)
+        if !isImage {
+            MobileAttributeHint(title: title, identifier: "country-\(kind.rawValue)-\(entry.id)") {
+                Text(flag).foregroundStyle(primaryForeground)
+            }
+        } else { Text(flag).foregroundStyle(primaryForeground).accessibilityLabel(title) }
+        #else
+        Text(flag).foregroundStyle(primaryForeground).accessibilityLabel(title)
+        #endif
+    }
+    @ViewBuilder private func opennessBadge(_ entry: LeaderboardEntry) -> some View {
+        let identifier = "openness-\(kind.rawValue)-\(entry.id)"
+        let badge = ModelOpennessBadge(entry.resolvedOpenness, language: language, colorScheme: displayScheme,
+            showsTitle: !compactColumns, accessibilityIdentifier: identifier, iconSize: opennessIconSize)
+        #if os(iOS)
+        if !isImage && grouping == .model {
+            MobileAttributeHint(title: entry.resolvedOpenness?.title(language: language) ?? tr("Unknown", "未知"), identifier: identifier) {
+                badge
+            }
+        } else { badge }
+        #else
+        badge
+        #endif
+    }
+    private func scoreValue(_ entry: LeaderboardEntry) -> some View {
+        Text(entry.score, format: .number.grouping(.never).precision(.fractionLength(1))).monospacedDigit()
+            .overlay(alignment: .bottomTrailing) {
+                let share = LeaderboardPresentation.scoreShareText(entry.score, leaderScore: rowPresentation.leaderScore)
+                if !share.isEmpty {
+                    Text(share).font(.system(size: 8)).monospacedDigit()
+                        .foregroundStyle(kind.sourcePrefix == "Arena" ? Color.purple : Color.blue).offset(y: 10)
+                        .allowsHitTesting(false)
+                }
+            }
     }
     @ViewBuilder private func entryName(_ entry: LeaderboardEntry) -> some View {
         if isImage { Text(entry.name).foregroundStyle(primaryForeground).fixedSize(horizontal: false, vertical: true) }
@@ -1441,16 +1588,12 @@ private struct PadOrganizationLogo: View {
                 Text(OrganizationLogoCatalog.initial(organization: entry.organization, modelName: entry.name))
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.black.opacity(0.65))
+                    .frame(width: 20, height: 20)
+                    .background(.white)
             }
         }
-        .padding(2.5)
         .frame(width: 20, height: 20)
-        .background(.white, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .strokeBorder(.quaternary, lineWidth: 0.5)
-        }
         .accessibilityHidden(true)
     }
 }
@@ -1471,13 +1614,13 @@ private struct PadLeaderboardScrollEdges: ViewModifier {
     }
 }
 
-private extension Color {
+extension Color {
     static var padBackground: Color {
         #if os(iOS)
         Color(uiColor: UIColor { traits in
             traits.userInterfaceStyle == .dark
-                ? UIColor(red: 16.0 / 255, green: 21.0 / 255, blue: 28.0 / 255, alpha: 1)
-                : UIColor(red: 245.0 / 255, green: 247.0 / 255, blue: 250.0 / 255, alpha: 1)
+                ? UIColor(red: 16.0 / 255, green: 18.0 / 255, blue: 22.0 / 255, alpha: 1)
+                : UIColor(red: 244.0 / 255, green: 245.0 / 255, blue: 247.0 / 255, alpha: 1)
         })
         #else
         Color(nsColor: .windowBackgroundColor)
@@ -1486,7 +1629,7 @@ private extension Color {
     static var padCard: Color {
         #if os(iOS)
         Color(uiColor: UIColor { traits in
-            traits.userInterfaceStyle == .dark ? UIColor(red: 25.0 / 255, green: 33.0 / 255, blue: 44.0 / 255, alpha: 1) : .white
+            traits.userInterfaceStyle == .dark ? UIColor(red: 27.0 / 255, green: 31.0 / 255, blue: 38.0 / 255, alpha: 1) : .white
         })
         #else
         padBackground

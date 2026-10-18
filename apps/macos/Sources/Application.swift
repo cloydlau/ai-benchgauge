@@ -103,6 +103,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
     private static let taskLogger = Logger(subsystem: "com.cloydlau.ai-benchgauge", category: "CodexTaskStatusItem")
     private var loggedTaskCounts: CodexTaskCounts?
     private var loggedCodexDesktopRunning: Bool?
+    private var loggedShowsCodexTaskStatus: Bool?
     private var hasLoggedTaskCounts = false
     @IBOutlet private var button: NSStatusBarButton?
     private static let brandTemplate: NSImage? = {
@@ -263,18 +264,19 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
             labels.append("\(quota.name) · \(quotaText)")
             help.append("\(quota.fullName) · \(quotaText)")
         }
-        if state.codexDesktopRunning {
+        if state.isCodexTaskStatusVisible {
             labels.append(CodexTaskCounts.menuBarText(state.codexTaskCounts))
             help.append(CodexTaskCounts.help(state.codexTaskCounts, chinese: state.selectedLanguage.rawValue == "zh"))
         }
-        if !hasLoggedTaskCounts || loggedTaskCounts != state.codexTaskCounts || loggedCodexDesktopRunning != state.codexDesktopRunning {
+        if !hasLoggedTaskCounts || loggedTaskCounts != state.codexTaskCounts || loggedCodexDesktopRunning != state.codexDesktopRunning || loggedShowsCodexTaskStatus != state.showsCodexTaskStatus {
             hasLoggedTaskCounts = true
             loggedTaskCounts = state.codexTaskCounts
             loggedCodexDesktopRunning = state.codexDesktopRunning
-            if state.codexDesktopRunning {
+            loggedShowsCodexTaskStatus = state.showsCodexTaskStatus
+            if state.isCodexTaskStatusVisible {
                 Self.taskLogger.notice("Rendering task counts: \(CodexTaskCounts.menuBarText(self.state.codexTaskCounts), privacy: .public)")
             } else {
-                Self.taskLogger.notice("Task counts hidden: Codex desktop is not running")
+                Self.taskLogger.notice("Task counts hidden: disabled or Codex desktop is not running")
             }
         }
         setStatusItemLabel(button, label: labels.joined(separator: " · "))
@@ -304,7 +306,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
             title.append(NSAttributedString(string: " ", attributes: [.font: font]))
         }
         title.append(NSAttributedString(string: label, attributes: [.font: font]))
-        if state.codexDesktopRunning, let counts = state.codexTaskCounts {
+        if state.isCodexTaskStatusVisible, let counts = state.codexTaskCounts {
             let taskText = CodexTaskCounts.menuBarText(counts)
             // Scope styling to the task suffix, never model names or quota amounts.
             if title.string.hasSuffix(taskText) {

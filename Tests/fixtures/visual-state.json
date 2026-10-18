@@ -1724,6 +1724,144 @@
       "scenario": "virtualRanking",
       "mode": "panel",
       "rowCount": 5000
+    },
+    {
+      "id": "kimiNotSubscribed-en-600",
+      "language": "en",
+      "width": 600,
+      "height": 820,
+      "scenario": "kimiNotSubscribed",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "kimiNotSubscribed-en-900",
+      "language": "en",
+      "width": 900,
+      "height": 820,
+      "scenario": "kimiNotSubscribed",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "kimiNotSubscribed-zh-600",
+      "language": "zh",
+      "width": 600,
+      "height": 820,
+      "scenario": "kimiNotSubscribed",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "kimiNotSubscribed-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 820,
+      "scenario": "kimiNotSubscribed",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "kimiNotSubscribed-zh-Hant-600",
+      "language": "zh-Hant",
+      "width": 600,
+      "height": 820,
+      "scenario": "kimiNotSubscribed",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "kimiNotSubscribed-zh-Hant-900",
+      "language": "zh-Hant",
+      "width": 900,
+      "height": 820,
+      "scenario": "kimiNotSubscribed",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "openaiRenewedLogin-en-600",
+      "language": "en",
+      "width": 600,
+      "height": 820,
+      "scenario": "openaiRenewedLogin",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "openaiRenewedLogin-en-900",
+      "language": "en",
+      "width": 900,
+      "height": 820,
+      "scenario": "openaiRenewedLogin",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "openaiRenewedLogin-zh-600",
+      "language": "zh",
+      "width": 600,
+      "height": 820,
+      "scenario": "openaiRenewedLogin",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "openaiRenewedLogin-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 820,
+      "scenario": "openaiRenewedLogin",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "openaiRenewedLogin-zh-Hant-600",
+      "language": "zh-Hant",
+      "width": 600,
+      "height": 820,
+      "scenario": "openaiRenewedLogin",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "openaiRenewedLogin-zh-Hant-900",
+      "language": "zh-Hant",
+      "width": 900,
+      "height": 820,
+      "scenario": "openaiRenewedLogin",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "quota-error-sort-en-600",
+      "language": "en",
+      "width": 600,
+      "height": 820,
+      "scenario": "quotaErrorSort"
+    },
+    {
+      "id": "quota-error-sort-en-900",
+      "language": "en",
+      "width": 900,
+      "height": 820,
+      "scenario": "quotaErrorSort"
+    },
+    {
+      "id": "quota-error-sort-zh-600",
+      "language": "zh",
+      "width": 600,
+      "height": 820,
+      "scenario": "quotaErrorSort"
+    },
+    {
+      "id": "quota-error-sort-zh-900",
+      "language": "zh",
+      "width": 900,
+      "height": 820,
+      "scenario": "quotaErrorSort"
+    },
+    {
+      "id": "quota-error-sort-zh-Hant-600",
+      "language": "zh-Hant",
+      "width": 600,
+      "height": 820,
+      "scenario": "quotaErrorSort"
+    },
+    {
+      "id": "quota-error-sort-zh-Hant-900",
+      "language": "zh-Hant",
+      "width": 900,
+      "height": 820,
+      "scenario": "quotaErrorSort"
     }
   ],
   "quotaScenarios": {
@@ -2882,6 +3020,314 @@
           }
         ],
         "status": "queryFailed"
+      }
+    ],
+    "kimiNotSubscribed": [
+      {
+        "id": "fixture-0",
+        "name": "OpenAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "88%",
+            "light": "#3D8437",
+            "dark": "#99D37C"
+          }
+        ],
+        "accentLight": "#3D8437"
+      },
+      {
+        "id": "kimi-neighbor-balance",
+        "name": "DeepSeek",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic balance",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "¥12.36",
+            "light": "#3D8437",
+            "dark": "#99D37C"
+          }
+        ],
+        "balances": [
+          {
+            "currency": "CNY",
+            "amount": 12.36
+          }
+        ],
+        "accentLight": "#3D8437",
+        "isDimmed": false
+      },
+      {
+        "id": "kimi-expired-plan",
+        "name": "Kimi",
+        "isCurrent": true,
+        "isStale": false,
+        "help": "Synthetic expired Kimi plan; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "未订购",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "accentLight": "#666666",
+        "status": "notSubscribed",
+        "isDimmed": true
+      }
+    ],
+    "openaiRenewedLogin": [
+      {
+        "id": "openai-renewed-login",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "isStale": false,
+        "help": "Synthetic same-account renewed login; weekly quota exhausted, authentication valid",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "5h 100% · 7d 0%",
+            "light": "#C33030",
+            "dark": "#FF8A80"
+          }
+        ],
+        "accentLight": "#C33030",
+        "modelName": "gpt-fixture",
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 0,
+            "resetsAt": null
+          },
+          {
+            "name": "weekly_limit",
+            "utilization": 100,
+            "resetsAt": null
+          }
+        ],
+        "isDimmed": false
+      }
+    ],
+    "quotaErrorSort": [
+      {
+        "id": "normal-plan",
+        "name": "OpenAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic quota sorting fixture; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d 75%",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 25,
+            "resetsAt": null
+          }
+        ]
+      },
+      {
+        "id": "funded",
+        "name": "DeepSeek",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic quota sorting fixture; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "¥12.36",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "balances": [
+          {
+            "currency": "CNY",
+            "amount": 12.36
+          }
+        ]
+      },
+      {
+        "id": "exhausted",
+        "name": "Qwen",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic quota sorting fixture; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d 0%",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "windows": [
+          {
+            "name": "weekly_limit",
+            "utilization": 100,
+            "resetsAt": null
+          }
+        ]
+      },
+      {
+        "id": "unsubscribed",
+        "name": "Kimi",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic quota sorting fixture; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "未订购",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "status": "notSubscribed"
+      },
+      {
+        "id": "zero-balance",
+        "name": "DeepSeek",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic quota sorting fixture; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "¥0.00",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "balances": [
+          {
+            "currency": "CNY",
+            "amount": 0
+          }
+        ]
+      },
+      {
+        "id": "network-plan",
+        "name": "GLM",
+        "isCurrent": true,
+        "isStale": false,
+        "help": "Synthetic quota sorting fixture; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "网络错误",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "status": "network"
+      },
+      {
+        "id": "network-metered",
+        "name": "DeepSeek",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic quota sorting fixture; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "网络错误",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "status": "network"
+      },
+      {
+        "id": "query-failed",
+        "name": "xAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic quota sorting fixture; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "查询失败",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "status": "queryFailed"
+      },
+      {
+        "id": "login-expired",
+        "name": "OpenAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic quota sorting fixture; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "登录失效",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "status": "reauth"
+      },
+      {
+        "id": "pending",
+        "name": "Kimi",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic quota sorting fixture; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "查询中",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          }
+        ],
+        "status": "pending"
       }
     ]
   }
