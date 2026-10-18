@@ -4,7 +4,7 @@ import { rankedEntries, rowView, countryCode, countryName, countryOptions, forma
 import { createBoardStore } from '../../services/boards.js'
 import { rowGeometry, resolveRowWindow, createRowRenderer } from '../../core/row-window.js'
 import { exportScreenshot, removeScreenshot, saveScreenshotImage } from '../../services/screenshot.js'
-import { cubeFaceStyle, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll } from '../../core/cube.js'
+import { cubeIndex, cubeTarget, cubeRenderedFace, cubeFaceStyle, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll } from '../../core/cube.js'
 import { createBrandMeasurer } from '../../core/brand-title.js'
 import { pagePreferences, sharePath, systemLanguage } from '../../core/share-state.js'
 import { purchaseLinks, preferredPurchaseLink } from '../../core/purchase-links.js'
@@ -60,6 +60,8 @@ definePage(query => {
     }, 96)
   }
   const cubePosition = ref(initial.face)
+  const cubeOrigin = ref(initial.face)
+  const cubeDirection = ref(1)
   const cubeDuration = ref(0)
   const cubeBusy = ref(false)
   const cubeDragging = ref(false)
@@ -67,10 +69,11 @@ definePage(query => {
   const entranceHintVisible = ref(false)
   const entranceStyle = computed(() => entranceProgress.value === 1 ? 'transition-duration:420ms;opacity:1;transform:none;'
     : 'transition-duration:0ms;opacity:0.65;transform:translateY(6px) scale(0.9925);')
-  const cubeFaces = computed(() => current.value.kinds.map((_, index) => ({
-    style: cubeFaceStyle(index, cubePosition.value, cubeDuration.value, cubeBusy.value),
-    shade: Math.abs(index - cubePosition.value) * 0.18,
-  })))
+  const cubeFaces = computed(() => current.value.kinds.map((_, index) => {
+    const position = cubeRenderedFace(index, cubeOrigin.value, cubeDirection.value, current.value.kinds.length)
+    return { style: cubeFaceStyle(position, cubePosition.value, cubeDuration.value, cubeBusy.value),
+      shade: Math.abs(position - cubePosition.value) * 0.18 }
+  }))
   const sourceSelection = computed(() => {
     const position = face.value
     const from = dark.value ? [29, 55, 82] : [228, 240, 255]
@@ -87,7 +90,7 @@ definePage(query => {
     lastCategoryTap = null
     cubeDragging.value = false
     clearTimeout(cubeTimer); clearTimeout(entranceTimer)
-    gesture = null; cubeDuration.value = 0; cubeBusy.value = false; cubePosition.value = face.value
+    gesture = null; cubeDuration.value = 0; cubeBusy.value = false; cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1
     entranceProgress.value = 1; entranceHintVisible.value = false
   }
   function alignFace(destination) {
@@ -101,13 +104,17 @@ definePage(query => {
     backTopBoards.value = { ...backTopBoards.value, [to]: target > 400 }
     syncWindow(to, true)
   }
-  function turnCube(destination) {
+  function turnCube(destination, position = cubeTarget(face.value, destination, current.value.kinds.length)) {
+    destination = cubeIndex(destination, current.value.kinds.length)
     blurModelSearch()
     cubeDragging.value = false
     entranceProgress.value = 1; entranceHintVisible.value = false
     clearTimeout(cubeTimer); clearTimeout(entranceTimer)
     if (!cubeBusy.value && destination === face.value && cubePosition.value === destination) { gesture = null; return }
-    if (gesture?.axis !== 'horizontal') alignFace(destination)
+    const direction = position === face.value ? cubeDirection.value : Math.sign(position - face.value)
+    if (gesture?.axis !== 'horizontal') cubePosition.value = face.value
+    if (gesture?.axis !== 'horizontal' || direction !== cubeDirection.value) alignFace(destination)
+    cubeOrigin.value = face.value; cubeDirection.value = direction
     face.value = destination; gesture = null
     updateSourceTabs(scrollPositions[current.value.kinds[destination]] || 0)
     cubeBusy.value = true; cubeDuration.value = 0
@@ -116,10 +123,12 @@ definePage(query => {
     // frames give a tab tap the same geometry as an interactive drag.
     cubeTimer = setTimeout(() => {
       if (!alive) return
-      cubeDuration.value = 320; cubePosition.value = destination
+      cubeDuration.value = 320; cubePosition.value = position
       cubeTimer = setTimeout(() => {
         if (!alive) return
-        cubeBusy.value = false; cubeDuration.value = 0; measureLists()
+        cubeBusy.value = false; cubeDuration.value = 0
+        cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1
+        measureLists()
       }, 340)
     }, 24)
   }
@@ -141,20 +150,16 @@ definePage(query => {
     if (gesture.axis !== 'horizontal') return
     cubeDragging.value = true
     suppressTapUntil = Date.now() + 400
-    const outwardDistance = gesture.face === 0 ? point.clientX - gesture.x
-      : gesture.face === current.value.kinds.length - 1 ? gesture.x - point.clientX : 0
-    if (outwardDistance >= 24 && !gesture.edgeNotified) {
-      gesture.edgeNotified = true
-      try { wx.vibrateShort?.({ type: 'light', fail() {} }) } catch { /* Haptics are optional on unsupported devices. */ }
-    }
-    // An outward swipe stays on the current face without moving the other
-    // board's scroll position. Reversing inward can still start a normal turn.
-    if (!cubeBusy.value && gesture.position === face.value) return
-    if (!cubeBusy.value) alignFace(gesture.position > face.value ? face.value + 1 : face.value - 1)
+    const direction = gesture.position < gesture.face ? -1 : 1
+    if (!cubeBusy.value || direction !== cubeDirection.value) alignFace(cubeIndex(gesture.face + direction, current.value.kinds.length))
+    cubeOrigin.value = gesture.face; cubeDirection.value = direction
     cubeBusy.value = true; cubePosition.value = gesture.position
   }
   function cubeEnd() {
-    if (gesture?.axis === 'horizontal') turnCube(cubeDestination(gesture, cubeWidth, Date.now()))
+    if (gesture?.axis === 'horizontal') {
+      const position = cubeDestination(gesture, cubeWidth, Date.now())
+      turnCube(position, position)
+    }
     else gesture = null
   }
   function cubeCancel() {
@@ -167,6 +172,7 @@ definePage(query => {
     entrancePlayed = true
     entranceTimer = setTimeout(() => {
       if (!alive || !pageVisible || gesture) return
+      cubeOrigin.value = face.value; cubeDirection.value = face.value ? -1 : 1
       alignFace(face.value === 0 ? 1 : face.value - 1)
       cubeBusy.value = true; cubeDuration.value = 0
       cubePosition.value = face.value + (face.value ? -0.09 : 0.09)
@@ -181,7 +187,9 @@ definePage(query => {
           cubeDuration.value = 700; cubePosition.value = face.value
           entranceTimer = setTimeout(() => {
             if (!alive) return
-            cubeBusy.value = false; cubeDuration.value = 0; measureLists()
+            cubeBusy.value = false; cubeDuration.value = 0
+            cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1
+            measureLists()
             entranceTimer = setTimeout(() => { entranceHintVisible.value = false }, 1600)
           }, 750)
         }, 550)
@@ -484,7 +492,7 @@ definePage(query => {
       return
     }
     blurModelSearch(); stopCube(); entrancePlayed = true
-    category.value = id; face.value = Math.min(face.value, current.value.kinds.length - 1); cubePosition.value = face.value; rowRenderers.clear(); resetScroll(); persist(); refreshCategory()
+    category.value = id; face.value = Math.min(face.value, current.value.kinds.length - 1); cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1; rowRenderers.clear(); resetScroll(); persist(); refreshCategory()
   }
   function selectGrouping(event) { blurModelSearch(); stopCube(); entrancePlayed = true; grouping.value = event.currentTarget.dataset.id; resetScroll(); persist() }
   function selectFace(event) {
@@ -506,7 +514,7 @@ definePage(query => {
       // Native scrolling wins before horizontal intent is locked. Small native
       // offsets already queued by a slanted swipe must not cancel a cube drag.
       gesture.axis = 'vertical'; gesture.position = face.value
-      cubeBusy.value = false; cubeDuration.value = 0; cubePosition.value = face.value
+      cubeBusy.value = false; cubeDuration.value = 0; cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1
     }
     scrollPositions[kind] = top
     if (kind === current.value.kinds[face.value]) { updateSourceTabs(top); syncSourceTabsAfterScroll(kind) }

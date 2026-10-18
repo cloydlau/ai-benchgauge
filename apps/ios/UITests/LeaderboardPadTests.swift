@@ -1151,6 +1151,31 @@ final class LeaderboardPhoneTests: XCTestCase {
             app.terminate()
         }
     }
+    func testCubeWrapsForwardAndBackwardWithoutMovingTheViewport() {
+        app.launch()
+        waitForFace("artificialAnalysis")
+        let viewport = app.otherElements["cube-viewport"].frame
+        for kind in ["arenaText", "epochECI", "artificialAnalysis", "arenaText", "epochECI", "artificialAnalysis"] {
+            swipe(left: true)
+            waitForFace(kind)
+            XCTAssertEqual(app.otherElements["cube-viewport"].frame, viewport)
+        }
+        capture("iphone-cube-wrap-forward")
+        for kind in ["epochECI", "arenaText", "artificialAnalysis"] {
+            swipe(left: false)
+            waitForFace(kind)
+        }
+        capture("iphone-cube-wrap-backward")
+        app.otherElements["category"].buttons["Coding"].tap()
+        waitForFace("artificialAnalysisCodingAgent")
+        for kind in ["codeArenaWebDev", "artificialAnalysisCodingAgent", "codeArenaWebDev", "artificialAnalysisCodingAgent"] {
+            swipe(left: true)
+            waitForFace(kind)
+        }
+        swipe(left: false)
+        waitForFace("codeArenaWebDev")
+        capture("iphone-cube-two-sources-wrap")
+    }
     func testSwipeAndTapBothFacesThenRefresh() {
         app.launch()
         waitForFace("artificialAnalysis")

@@ -1017,54 +1017,58 @@ test('cube drag preserves virtual windows and scroll rank, cancels safely and ne
   assert.equal(h.page.cubeBusy.value, false); assert.equal(h.page.category.value, 'coding')
 })
 
-test('outward cube swipes give one light haptic per gesture at both ends without changing boards or scroll positions', () => {
-  for (const face of [0, 2]) {
-    const h = setup({ face }), vibrations = []
-    wx.vibrateShort = options => { vibrations.push(options.type); options.fail() }
-    const touch = (x, y = 200) => ({ touches: [{ clientX: x, clientY: y }] })
-    const direction = face === 0 ? 1 : -1
-    h.page.cubeStart(touch(180))
-    h.page.cubeMove(touch(180 + direction * 18))
-    assert.deepEqual(vibrations, [])
-    h.page.cubeMove(touch(180 + direction * 30))
-    h.page.cubeMove(touch(180 + direction * 90))
-    h.page.cubeEnd()
-    assert.deepEqual(vibrations, ['light'])
-    assert.equal(h.page.face.value, face)
-    assert.equal(h.page.cubePosition.value, face)
-    assert.equal(h.page.cubeBusy.value, false)
-    assert.equal(h.page.cubeDragging.value, false)
-    assert.deepEqual(h.scrolls, [])
-    assert.deepEqual(h.writes, [])
-    h.page.cubeStart(touch(180))
-    h.page.cubeMove(touch(180 + direction * 40))
-    h.page.cubeCancel()
-    assert.deepEqual(vibrations, ['light', 'light'])
-    h.page.cubeStart(touch(180))
-    h.page.cubeMove(touch(180 + direction * 40, 260))
-    h.page.cubeEnd()
-    assert.equal(vibrations.length, 2, 'Vertical scrolling must not vibrate')
-    h.page.cubeStart(touch(180))
-    h.page.cubeMove(touch(180 + direction * 40))
-    h.page.cubeMove(touch(180 - direction * 150))
-    h.page.cubeEnd()
-    assert.equal(vibrations.length, 3)
-    assert.equal(h.page.face.value, face === 0 ? 1 : face - 1, 'Reversing inward must still turn normally')
+test('cube wraps indefinitely in both directions, keeps rank and rebases its animation after each seam', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const touch = x => ({ touches: [{ clientX: x, clientY: 200 }] })
+  for (const category of ['general', 'coding']) for (const direction of [-1, 1]) {
+    const count = category === 'general' ? 3 : 2
+    const h = setup({ category, face: direction > 0 ? count - 1 : 0 }, 1000)
+    const loading = globalThis.__benchHooks.load(); h.respondAll(); await loading
+    const kind = h.page.cards.value[h.page.face.value].kind
+    h.page.scroll({ currentTarget: { dataset: { kind } }, detail: { scrollTop: 2400 } })
+    for (let turn = 0; turn < count * 2; turn++) {
+      const origin = h.page.face.value, next = (origin + direction + count) % count
+      h.page.cubeStart(touch(180)); h.page.cubeMove(touch(180 - direction * 240))
+      assert.equal(h.page.cubeDragging.value, true)
+      assert.equal(h.page.cubeBusy.value, true)
+      assert.equal(h.scrolls.at(-1).top, 2400)
+      assert.ok(h.page.cards.value[next].rows.some(row => row.rank === 51))
+      h.page.cubeEnd()
+      assert.equal(h.page.face.value, next)
+      assert.equal(h.writes.filter(write => write.key === 'benchgauge.preferences').at(-1).value.face, next)
+      t.mock.timers.tick(24)
+      assert.equal(h.page.cubePosition.value, origin + direction)
+      assert.match(h.page.cubeFaces.value[next].style, /transform:none/)
+      t.mock.timers.tick(340)
+      assert.equal(h.page.cubePosition.value, next)
+      assert.equal(h.page.cubeBusy.value, false)
+      assert.match(h.page.cubeFaces.value[next].style, /transform:none.*pointer-events:auto/)
+    }
     globalThis.__benchHooks.unload()
   }
 })
 
-test('unsupported haptics do not interrupt an outward swipe or the next inward turn', () => {
-  for (const vibrate of [undefined, () => { throw new Error('unsupported') }]) {
-    const h = setup()
-    wx.vibrateShort = vibrate
-    const touch = x => ({ touches: [{ clientX: x, clientY: 200 }] })
-    h.page.cubeStart(touch(180)); h.page.cubeMove(touch(240)); h.page.cubeEnd()
-    assert.equal(h.page.cubeBusy.value, false)
-    h.page.cubeStart(touch(250)); h.page.cubeMove(touch(40)); h.page.cubeEnd()
-    assert.equal(h.page.face.value, 1)
-    globalThis.__benchHooks.unload()
-  }
+test('cancelled and reversed boundary drags cannot commit a wrap or let an old timer overwrite navigation', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const h = setup(), touch = x => ({ touches: [{ clientX: x, clientY: 200 }] })
+  h.page.cubeStart(touch(180)); h.page.cubeMove(touch(300)); h.page.cubeCancel()
+  t.mock.timers.tick(24); t.mock.timers.tick(340)
+  assert.equal(h.page.face.value, 0); assert.equal(h.page.cubePosition.value, 0)
+  h.page.cubeStart(touch(180)); h.page.cubeMove(touch(300)); h.page.cubeMove(touch(-60)); h.page.cubeEnd()
+  assert.equal(h.page.face.value, 1, 'Reversing before release uses the final direction')
+  t.mock.timers.tick(24)
+  h.page.cubeStart(touch(180)); h.page.cubeMove(touch(420)); h.page.cubeEnd()
+  assert.equal(h.page.face.value, 0)
+  t.mock.timers.tick(24); t.mock.timers.tick(340)
+  assert.equal(h.page.cubePosition.value, 0)
+  h.page.cubeStart(touch(180)); h.page.cubeMove(touch(420)); h.page.cubeEnd()
+  assert.equal(h.page.face.value, 2)
+  globalThis.__benchHooks.hide()
+  t.mock.timers.tick(400)
+  assert.equal(h.page.cubePosition.value, 2); assert.equal(h.page.cubeBusy.value, false)
+  h.page.selectCategory(event({ id: 'coding' }))
+  assert.equal(h.page.face.value, 1); assert.equal(h.page.cubePosition.value, 1)
+  globalThis.__benchHooks.unload()
 })
 
 test('native vertical scroll before direction lock keeps ownership until touch end and the next horizontal swipe still works', async () => {
@@ -1133,6 +1137,9 @@ for (const face of [0, 1]) test(`first entrance reveals both faces, fades in and
   assert.match(h.page.entranceStyle.value, /transform:none/)
   t.mock.timers.tick(550)
   assert.equal(h.page.cubePosition.value, face); assert.equal(h.page.cubeDuration.value, 700)
+  assert.match(h.page.cubeFaces.value[face ? 0 : 1].style, face
+    ? /rotateY\(-90deg\).*transform-origin:right center/
+    : /rotateY\(90deg\).*transform-origin:left center/)
   t.mock.timers.tick(750)
   assert.equal(h.page.cubeBusy.value, false)
   assert.equal(h.page.entranceHintVisible.value, true)

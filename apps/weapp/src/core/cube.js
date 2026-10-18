@@ -1,4 +1,14 @@
-const clamp = (value, count = 2) => Math.max(0, Math.min(count - 1, value))
+export const cubeIndex = (face, count) => ((face % count) + count) % count
+
+export function cubeTarget(face, destination, count) {
+  const target = cubeIndex(destination, count), distance = target - face
+  return Math.abs(distance) * 2 > count ? target + (distance > 0 ? -count : count) : target
+}
+
+export function cubeRenderedFace(index, origin, direction, count) {
+  if (index === origin) return origin
+  return index === cubeIndex(origin + direction, count) ? origin + direction : origin + direction * 2
+}
 
 // Match the native App's edge-hinged, 90-degree faces. At rest the active
 // scroll-view has no transform, so its native hit testing stays ordinary.
@@ -25,7 +35,7 @@ export function moveCubeGesture(gesture, x, y, time, width) {
   const elapsed = time - gesture.lastTime
   if (elapsed > 0) gesture.velocity = (x - gesture.lastX) / elapsed
   gesture.lastX = x; gesture.lastTime = time
-  if (gesture.axis === 'horizontal') gesture.position = Math.max(Math.max(0, gesture.face - 1), Math.min(Math.min(gesture.count - 1, gesture.face + 1), gesture.face - dx / Math.max(1, width)))
+  if (gesture.axis === 'horizontal') gesture.position = Math.max(gesture.face - 1, Math.min(gesture.face + 1, gesture.face - dx / Math.max(1, width)))
   return gesture
 }
 
@@ -33,9 +43,9 @@ export function cubeDestination(gesture, width, time) {
   // Commit after 25% of the screen in either direction, retaining natural
   // finger tracking. A flick can advance sooner; a pause drops old velocity.
   const velocity = time - gesture.lastTime < 100 ? gesture.velocity : 0
-  const projected = clamp(gesture.position - velocity * 160 / Math.max(1, width), gesture.count)
+  const projected = Math.max(gesture.face - 1, Math.min(gesture.face + 1, gesture.position - velocity * 160 / Math.max(1, width)))
   const travel = projected - gesture.face
-  return Math.abs(travel) >= 0.25 ? clamp(gesture.face + Math.sign(travel), gesture.count) : gesture.face
+  return Math.abs(travel) >= 0.25 ? gesture.face + Math.sign(travel) : gesture.face
 }
 
 export function matchingScroll({ scrollTop, origin, nextOrigin, rowHeight, count }) {

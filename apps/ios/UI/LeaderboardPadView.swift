@@ -430,24 +430,31 @@ public struct LeaderboardPadView: View {
         store.modelSearchEditing = false
         cube.scroll.reset()
         cube.generation += 1
-        if cube.face >= store.category.boardKinds.count {
-            cube.face = store.category.boardKinds.count - 1
-            cube.position = Double(cube.face); store.selectedSource = cube.face
+        var transaction = Transaction(); transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            cube.face = min(cube.face, store.category.boardKinds.count - 1)
+            cube.finishTurn()
+            store.selectedSource = cube.face
         }
-        if cube.dragging { turnCube(to: cube.face) }
     }
-    private func turnCube(to face: Int) {
+    private func turnCube(to face: Int, position: Int? = nil) {
         cancelCubeEntrance()
+        var transaction = Transaction(); transaction.disablesAnimations = true
+        if cube.turning { withTransaction(transaction) { cube.finishTurn() } }
+        let count = store.category.boardKinds.count
+        let target = position ?? LeaderboardCube.target(face: cube.face, destination: face, count: count)
+        if !cube.dragging { cube.origin = cube.face }
+        if target != cube.origin { cube.direction = target > cube.origin ? 1 : -1 }
         cube.dragging = false
         cube.turnSerial += 1
         let serial = cube.turnSerial
         cube.turning = true
-        cube.face = face
-        store.selectedSource = face
+        cube.face = LeaderboardCube.normalized(face, count: count)
+        store.selectedSource = cube.face
         withAnimation(.easeInOut(duration: usesReducedMotion ? 0.18 : 0.42)) {
-            cube.position = Double(face)
+            cube.position = Double(target)
         } completion: {
-            if cube.turnSerial == serial { cube.turning = false }
+            withTransaction(transaction) { cube.finishTurn(serial) }
         }
     }
     private var cubeContentReady: Bool {
@@ -466,7 +473,7 @@ public struct LeaderboardPadView: View {
         if arguments.contains("--cube-entrance-preview") {
             guard cube.beginEntrance(reduceMotion: usesReducedMotion) != nil else { return }
             cube.entranceProgress = 1
-            if !usesReducedMotion { cube.position = 0.28 }
+            if !usesReducedMotion { cube.position = Double(cube.face) + (cube.face == 0 ? 0.28 : -0.28) }
             return
         }
         guard !arguments.contains("--cube-preview"), !arguments.contains("--arena-preview"),
@@ -478,7 +485,7 @@ public struct LeaderboardPadView: View {
             guard let serial = cube.beginEntrance(reduceMotion: usesReducedMotion) else { return }
             withAnimation(.smooth(duration: 0.42)) {
                 cube.entranceProgress = 1
-                if !usesReducedMotion { cube.position = 0.28 }
+                if !usesReducedMotion { cube.position = Double(cube.face) + (cube.face == 0 ? 0.28 : -0.28) }
             }
             try await Task.sleep(for: .milliseconds(550))
             guard cube.isCurrentEntrance(serial) else { return }
@@ -555,6 +562,8 @@ public struct LeaderboardPadView: View {
                     cancelCubeEntrance()
                     guard !cube.turning, !store.modelSearchEditing else { return }
                     guard LeaderboardCube.dragAxis(current: cubeDragAxis, x: value.translation.width, y: value.translation.height) == .horizontal else { return }
+                    cube.origin = cube.face
+                    cube.direction = value.translation.width > 0 ? -1 : 1
                     cube.dragging = true
                     if !usesReducedMotion {
                         cube.position = LeaderboardCube.position(face: cube.face, translation: value.translation.width, width: geometry.size.width, count: store.category.boardKinds.count)
@@ -562,8 +571,9 @@ public struct LeaderboardPadView: View {
                 }
                 .onEnded { value in
                     guard cube.dragging else { return }
-                    turnCube(to: LeaderboardCube.destination(face: cube.face, translation: value.translation.width,
-                                                             predicted: value.predictedEndTranslation.width, width: geometry.size.width, count: store.category.boardKinds.count))
+                    let target = LeaderboardCube.destination(face: cube.face, translation: value.translation.width,
+                        predicted: value.predictedEndTranslation.width, width: geometry.size.width, count: store.category.boardKinds.count)
+                    turnCube(to: target, position: target)
                 })
             .onChange(of: cubeDragAxis) { _, axis in
                 // GestureState also resets on cancellation, so the next touch
@@ -577,8 +587,8 @@ public struct LeaderboardPadView: View {
             .accessibilityHint(tr("Scroll vertically to explore; switch boards horizontally.", "上下滚动查看，左右切换榜单。"))
             .accessibilityAdjustableAction { direction in
                 switch direction {
-                case .increment: turnCube(to: min(store.category.boardKinds.count - 1, cube.face + 1))
-                case .decrement: turnCube(to: max(0, cube.face - 1))
+                case .increment: turnCube(to: cube.face + 1, position: cube.face + 1)
+                case .decrement: turnCube(to: cube.face - 1, position: cube.face - 1)
                 @unknown default: break
                 }
             }
@@ -690,7 +700,7 @@ public struct LeaderboardPadView: View {
                             }
                     }))
                 .background(Color.padBackground)
-                .modifier(CubeFace(position: cube.position, face: index, width: size.width, reduceMotion: usesReducedMotion))
+                .modifier(CubeFace(position: cube.position, face: LeaderboardCube.renderedFace(index, origin: cube.origin, direction: cube.direction, count: store.category.boardKinds.count), width: size.width, reduceMotion: usesReducedMotion))
                 .disabled(index != cube.face || cube.dragging || cube.turning)
                 .allowsHitTesting(index == cube.face && !cube.dragging && !cube.turning)
                 .accessibilityHidden(index != cube.face || cube.dragging)
