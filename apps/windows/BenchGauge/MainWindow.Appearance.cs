@@ -719,7 +719,7 @@ sealed partial class MainWindow
     string SourceLens(Board board) => board.Kind switch
     {
         "artificialAnalysis" => Tr("Task benchmarks", "任务测评", "任務測評"),
-        "epochECI" => "Epoch ECI",
+        "epochECI" => Tr("Capability index", "能力指数", "能力指數"),
         "arenaText" => Tr("User votes", "用户盲测", "使用者盲測"),
         "artificialAnalysisCodingAgent" => Tr("Task completion", "任务完成率", "任務完成率"),
         "codeArenaWebDev" => Tr("WebDev votes", "网页开发盲选", "網頁開發盲選"),

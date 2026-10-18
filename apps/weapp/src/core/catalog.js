@@ -37,6 +37,7 @@ export const copy = {
     `用户盲测看体验，任务测评看能力。${tagline[1]}`,
     `使用者盲測看體驗，任務測評看能力。${tagline[2]}`],
   name: ['AI BenchGauge', 'AI 天梯', 'AI 天梯'], subtitle: ['Dual boards & quota tracking', '双榜对照 & 余量追踪', '雙榜對照 & 餘量追蹤'],
+  capabilityIndex: ['Capability index', '能力指数', '能力指數'],
   tasks: ['Task benchmarks', '任务测评', '任務測評'], votes: ['User votes', '用户盲测', '使用者盲測'],
   models: ['Models', '模型', '模型'], companies: ['Companies', '公司', '公司'], rank: ['Rank', '排名', '排名'],
   searchModels: ['Search models', '搜索模型', '搜尋模型'], clearSearch: ['Clear search', '清空搜索', '清空搜尋'],
