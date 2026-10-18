@@ -11,7 +11,7 @@ export const leaderboardSources = [
   { id: 'arena', title: 'Arena', url: 'https://arena.ai/leaderboard' },
 ]
 export const boards = {
-  epochECI: { title: 'Epoch ECI', summaries: ['Epoch AI combines benchmarks into a capability index. ECI is not a percentage and has no fixed maximum.', 'Epoch AI 汇总多项测试的能力指数；ECI 不是百分制，没有固定满分', 'Epoch AI 彙總多項測試的能力指數；ECI 不是百分制，沒有固定滿分'], url: 'https://epoch.ai/eci' },
+  epochECI: { title: 'Epoch ECI', summaries: ['Epoch AI combines benchmarks into a capability index.', 'Epoch AI 汇总多项测试的能力指数', 'Epoch AI 彙總多項測試的能力指數'], url: 'https://epoch.ai/eci' },
   artificialAnalysis: { title: 'Artificial Analysis', summaries: ['Combines standardized tests across several abilities.', '汇总多项标准化测试，适合看综合能力', '彙總多項標準化測試，適合看綜合能力'], url: 'https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index' },
   arenaText: { title: 'Text Arena', summaries: ['People compare anonymous answers to real prompts.', '真实提问下盲选回答，贴近用户偏好', '真實提問下盲選回答，貼近使用者偏好'], url: 'https://arena.ai/leaderboard/text' },
   artificialAnalysisCodingAgent: { title: 'Artificial Analysis 编程', titles: ["Artificial Analysis Coding", "Artificial Analysis 编程", "Artificial Analysis 編程"], summaries: ['Scores coding agents on software engineering tasks.', '通过软件工程任务，检验编程智能体的完成能力', '透過軟體工程任務，檢驗程式設計智能體的完成能力'], url: 'https://artificialanalysis.ai/agents/coding-agents' },
