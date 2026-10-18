@@ -4,6 +4,8 @@ import SwiftUI
 final class LeaderboardCubeState: ObservableObject {
     @Published var position: Double
     @Published var face = 0
+    @Published var origin = 0
+    @Published var direction = 1
     @Published var dragging = false
     @Published var turning = false
     var turnSerial = 0
@@ -16,7 +18,18 @@ final class LeaderboardCubeState: ObservableObject {
     @Published var entranceHintVisible = false
     private(set) var entrancePlayed = false
     private var entranceSerial = 0
-    init(position: Double = 0) { self.position = position }
+    init(position: Double = 0) { self.position = position; origin = Int(position.rounded()) }
+
+    /// Rebase a completed wrap without animating back through the other boards.
+    func finishTurn(_ serial: Int? = nil) {
+        if let serial, serial != turnSerial { return }
+        turnSerial += 1
+        position = Double(face)
+        origin = face
+        direction = 1
+        dragging = false
+        turning = false
+    }
 
     func beginEntrance(reduceMotion: Bool) -> Int? {
         guard !entrancePlayed, !dragging, !turning else { return nil }
@@ -25,6 +38,8 @@ final class LeaderboardCubeState: ObservableObject {
         entranceActive = true
         entranceHintVisible = true
         entranceProgress = 0
+        origin = face
+        direction = face == 0 ? 1 : -1
         position = reduceMotion ? Double(face) : Double(face) + (face == 0 ? 0.18 : -0.18)
         return entranceSerial
     }
@@ -90,13 +105,29 @@ enum LeaderboardCube {
         return abs(y) >= 8 ? .vertical : .undecided
     }
     static func position(face: Int, translation: Double, width: Double, count: Int = 2) -> Double {
-        guard width > 0 else { return Double(face) }
-        return min(Double(min(count - 1, face + 1)), max(Double(max(0, face - 1)), Double(face) - translation / width))
+        guard width > 0, count > 1 else { return Double(face) }
+        return min(Double(face + 1), max(Double(face - 1), Double(face) - translation / width))
     }
     static func destination(face: Int, translation: Double, predicted: Double, width: Double, count: Int = 2) -> Int {
         let travel = abs(predicted) > abs(translation) ? predicted : translation
         let target = Int(position(face: face, translation: travel, width: width, count: count).rounded())
         return min(face + 1, max(face - 1, target))
+    }
+    static func normalized(_ face: Int, count: Int) -> Int {
+        let count = max(1, count)
+        return ((face % count) + count) % count
+    }
+    /// Tab taps take the shortest route; swipes pass their signed virtual target.
+    static func target(face: Int, destination: Int, count: Int) -> Int {
+        let target = normalized(destination, count: count)
+        let distance = target - face
+        return abs(distance) * 2 > count ? target + (distance > 0 ? -count : count) : target
+    }
+    /// Keep outgoing/incoming hosts on fixed adjacent sides throughout a turn.
+    /// Two-source categories need this direction to disambiguate the same neighbour.
+    static func renderedFace(_ face: Int, origin: Int, direction: Int, count: Int) -> Int {
+        if face == origin { return origin }
+        return face == normalized(origin + direction, count: count) ? origin + direction : origin + direction * 2
     }
     static func visibleRank(_ frames: [Int: LeaderboardRankFrame], height: CGFloat, topInset: CGFloat = 0) -> Int? {
         guard height > topInset else { return nil }

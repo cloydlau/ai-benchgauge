@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { cubeFaceStyle, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll } from '../src/core/cube.js'
+import { cubeIndex, cubeTarget, cubeRenderedFace, cubeFaceStyle, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll } from '../src/core/cube.js'
 
-test('cube gesture locks vertical scrolling, clamps edges and distinguishes flicks from paused drags', () => {
+test('cube gesture locks vertical scrolling, limits each turn to one neighbour and distinguishes flicks from paused drags', () => {
   const vertical = cubeGesture(0, 200, 100, 0)
   moveCubeGesture(vertical, 202, 120, 20, 375)
   moveCubeGesture(vertical, 50, 160, 60, 375)
@@ -20,14 +20,14 @@ test('cube gesture locks vertical scrolling, clamps edges and distinguishes flic
   assert.equal(cubeDestination(back, 375, 700), 0)
 })
 
-test('a paused drag switches at 25% width in both directions without accepting smaller or outward drags', () => {
+test('a paused drag switches at 25% width in both directions without accepting smaller drags', () => {
   for (const width of [320, 375, 430]) {
     for (const face of [0, 1]) {
       const direction = face === 0 ? -1 : 1
-      for (const [fraction, expected] of [[0.24, face], [0.25, 1 - face], [0.26, 1 - face], [-0.4, face]]) {
+      for (const [fraction, expected] of [[0.24, face], [0.25, 1 - face], [0.26, 1 - face], [-0.4, 1 - face]]) {
         const gesture = cubeGesture(face, width / 2, 100, 0)
         moveCubeGesture(gesture, width / 2 + direction * width * fraction, 102, 500, width)
-        assert.equal(cubeDestination(gesture, width, 700), expected)
+        assert.equal(cubeIndex(cubeDestination(gesture, width, 700), 2), expected)
       }
       const vertical = cubeGesture(face, width / 2, 100, 0)
       moveCubeGesture(vertical, width / 2 + direction * width * 0.4, 400, 500, width)
@@ -84,7 +84,7 @@ test('source switching matches the first fully visible row and clamps shorter or
   assert.equal(matchingScroll({ scrollTop: 1080, origin: 110, nextOrigin: 130, rowHeight: 48, count: 0 }), 130)
 })
 
-test('three-source cube turns from Arena to Epoch and back with correct hinge and outer bounds', () => {
+test('three-source cube turns from Arena to Epoch and back with correct hinge and cyclic outer neighbours', () => {
   const next = cubeGesture(1, 250, 100, 0, 3);
   moveCubeGesture(next, 100, 100, 200, 375);
   assert.equal(next.position, 1.4);
@@ -93,8 +93,35 @@ test('three-source cube turns from Arena to Epoch and back with correct hinge an
   moveCubeGesture(back, 260, 100, 200, 375);
   assert.equal(cubeDestination(back, 375, 500), 1);
   moveCubeGesture(back, -200, 100, 600, 375);
-  assert.equal(back.position, 2);
+  assert.equal(back.position, 2.8);
   assert.match(cubeFaceStyle(1, 1.4), /transform-origin:right center/);
   assert.match(cubeFaceStyle(2, 1.4), /transform-origin:left center/);
   assert.match(cubeFaceStyle(2, 2), /transform:none/);
 });
+
+test('cyclic two- and three-source cubes keep both hosts on adjacent hinges across every seam', () => {
+  for (const count of [2, 3]) for (const direction of [-1, 1]) {
+    let face = direction > 0 ? count - 1 : 0
+    for (let turn = 0; turn < count * 3; turn++) {
+      const drag = cubeGesture(face, 180, 100, 0, count)
+      moveCubeGesture(drag, 180 - direction * 240, 102, 400, 375)
+      const target = cubeDestination(drag, 375, 600)
+      assert.equal(target, face + direction)
+      const next = cubeIndex(target, count), position = face + direction * 0.5
+      const outgoing = cubeRenderedFace(face, face, direction, count)
+      const incoming = cubeRenderedFace(next, face, direction, count)
+      assert.equal(outgoing - position, -direction * 0.5)
+      assert.equal(incoming - position, direction * 0.5)
+      assert.match(cubeFaceStyle(incoming, position, 0, true), /opacity:1/)
+      assert.match(cubeFaceStyle(incoming, target, 320, true), /transform:none/)
+      for (let other = 0; other < count; other++) if (other !== face && other !== next) {
+        assert.match(cubeFaceStyle(cubeRenderedFace(other, face, direction, count), position, 0, true), /opacity:0/)
+      }
+      face = next
+    }
+  }
+  assert.equal(cubeTarget(2, 0, 3), 3)
+  assert.equal(cubeTarget(0, 2, 3), -1)
+  assert.equal(cubeTarget(0, 1, 2), 1)
+  assert.equal(cubeTarget(1, 0, 2), 0)
+})

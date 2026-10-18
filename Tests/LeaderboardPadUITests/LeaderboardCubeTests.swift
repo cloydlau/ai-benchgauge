@@ -7,8 +7,8 @@ import Foundation
     #expect(!LeaderboardCube.isHorizontal(x: 30, y: 80))
     #expect(!LeaderboardCube.isHorizontal(x: 30, y: 30))
     #expect(LeaderboardCube.isHorizontal(x: -80, y: 15))
-    #expect(LeaderboardCube.position(face: 0, translation: 120, width: 300) == 0)
-    #expect(LeaderboardCube.position(face: 1, translation: -120, width: 300) == 1)
+    #expect(LeaderboardCube.position(face: 0, translation: 120, width: 300) == -0.4)
+    #expect(LeaderboardCube.position(face: 1, translation: -120, width: 300) == 1.4)
     #expect(LeaderboardCube.position(face: 0, translation: -150, width: 300) == 0.5)
     #expect(LeaderboardCube.position(face: 1, translation: 150, width: 300) == 0.5)
     #expect(LeaderboardCube.position(face: 1, translation: 150, width: 0) == 1)
@@ -165,8 +165,58 @@ import Foundation
 
 @Test func cubeSupportsThirdSourceWithoutSkippingAdjacentFaces() {
     #expect(LeaderboardCube.position(face: 1, translation: -150, width: 300, count: 3) == 1.5)
-    #expect(LeaderboardCube.position(face: 2, translation: -150, width: 300, count: 3) == 2)
+    #expect(LeaderboardCube.position(face: 2, translation: -150, width: 300, count: 3) == 2.5)
     #expect(LeaderboardCube.destination(face: 1, translation: -200, predicted: -200, width: 300, count: 3) == 2)
     #expect(LeaderboardCube.destination(face: 2, translation: 200, predicted: 200, width: 300, count: 3) == 1)
     #expect(LeaderboardCube.destination(face: 0, translation: -2000, predicted: -2000, width: 300, count: 3) == 1)
+}
+
+@Test func cubeLoopsInBothDirectionsWithStableHingesForTwoAndThreeSources() {
+    for count in [2, 3] {
+        for direction in [-1, 1] {
+            var face = direction > 0 ? count - 1 : 0
+            for _ in 0..<(count * 3) {
+                let target = LeaderboardCube.destination(face: face, translation: Double(-direction * 220),
+                    predicted: Double(-direction * 240), width: 300, count: count)
+                #expect(target == face + direction)
+                let next = LeaderboardCube.normalized(target, count: count)
+                let outgoing = LeaderboardCube.renderedFace(face, origin: face, direction: direction, count: count)
+                let incoming = LeaderboardCube.renderedFace(next, origin: face, direction: direction, count: count)
+                let middle = Double(face) + Double(direction) * 0.5
+                #expect(Double(outgoing) - middle == Double(-direction) * 0.5)
+                #expect(Double(incoming) - middle == Double(direction) * 0.5)
+                for other in 0..<count where other != face && other != next {
+                    #expect(abs(Double(LeaderboardCube.renderedFace(other, origin: face, direction: direction, count: count)) - middle) > 1)
+                }
+                #expect((0..<count).contains(next))
+                face = next
+            }
+        }
+    }
+    #expect(LeaderboardCube.target(face: 2, destination: 0, count: 3) == 3)
+    #expect(LeaderboardCube.target(face: 0, destination: 2, count: 3) == -1)
+    #expect(LeaderboardCube.target(face: 1, destination: 0, count: 2) == 0)
+    #expect(LeaderboardCube.target(face: 0, destination: 1, count: 2) == 1)
+    #expect(LeaderboardCube.normalized(-7, count: 3) == 2)
+    #expect(LeaderboardCube.normalized(3, count: 0) == 0)
+    #expect(LeaderboardCube.position(face: 0, translation: -300, width: 300, count: 1) == 0)
+}
+
+@Test @MainActor func completedOrInterruptedWrapRebasesAndIgnoresStaleCompletions() {
+    let cube = LeaderboardCubeState(position: 2)
+    cube.face = 0; cube.origin = 2; cube.direction = 1
+    cube.position = 3; cube.turning = true; cube.turnSerial = 8
+    cube.finishTurn(7)
+    #expect(cube.position == 3 && cube.turning)
+    cube.finishTurn(8)
+    #expect(cube.position == 0 && cube.origin == 0 && !cube.turning)
+    cube.face = 2; cube.origin = 0; cube.direction = -1
+    cube.position = -0.6; cube.dragging = true
+    cube.finishTurn()
+    #expect(cube.position == 2 && cube.origin == 2 && !cube.dragging)
+    cube.finishTurn(8)
+    #expect(cube.position == 2 && cube.face == 2)
+    let serial = cube.beginEntrance(reduceMotion: false)!
+    #expect(cube.origin == 2 && cube.direction == -1 && cube.position > 1.5)
+    cube.finishEntrance(serial)
 }
