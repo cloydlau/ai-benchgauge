@@ -98,6 +98,15 @@
 .table-grid { display: grid; grid-template-columns: 44rpx minmax(0,1fr) var(--country-column) var(--source-column) 75rpx; gap: 6rpx; align-items: center; }
 .company-view .table-grid { grid-template-columns: 44rpx minmax(0,1fr) var(--country-column) 75rpx; }
 .table-head { position: sticky; top: 0; z-index: 3; background: var(--card); padding: 0 2rpx 16rpx; margin: 0 4rpx 6rpx; border-bottom: 1rpx solid var(--line); color: var(--muted); font-size: 21rpx; }
+/* Mask the card inset and fractional sticky-position seams without moving the columns. */
+.table-head::before {
+  content: ""; position: absolute; z-index: -1; pointer-events: none;
+  top: -1px; bottom: 0;
+  left: calc(0px - var(--board-inline-padding) - 4rpx);
+  right: calc(0px - var(--board-inline-padding) - 4rpx);
+  background: var(--card);
+}
+.table-head-pinned.model-search-open::before { left: 0; right: 0; background: var(--bg); }
 .table-head-anchor { height: 0; }
 .table-head-pinned { padding-bottom: 0; margin-bottom: 0; }
 .table-head-content { min-height: 28px; opacity: 1; transition: opacity .22s ease; }
