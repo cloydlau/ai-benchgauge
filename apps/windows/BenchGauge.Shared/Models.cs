@@ -47,6 +47,7 @@ public static class LeaderboardCountryPolicy
 public sealed class Preferences
 {
     public string Category { get; set; } = "general";
+    public string GeneralComparison { get; set; } = "arenaText";
     public string Grouping { get; set; } = "model";
     public string Language { get; set; } = System.Globalization.CultureInfo.CurrentUICulture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase) ? "zh" : "en";
     public bool QwenWebsiteConnected { get; set; }

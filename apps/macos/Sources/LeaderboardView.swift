@@ -323,6 +323,7 @@ struct LeaderboardView: View {
                 HStack(spacing: 8) {
                     groupingPicker
                     categoryPicker
+                    comparisonPicker
                 }
             }
         } else {
@@ -332,6 +333,7 @@ struct LeaderboardView: View {
                 HStack(spacing: 8) {
                     groupingPicker
                     categoryPicker
+                    comparisonPicker
                 }
                 freshness.frame(maxWidth: .infinity, alignment: .trailing)
             }
@@ -398,6 +400,17 @@ struct LeaderboardView: View {
         .help(tr("Company scores use each company's strongest model.", "按公司查看时，以最强模型分数为准，弱型号不拉低"))
     }
 
+    @ViewBuilder private var comparisonPicker: some View {
+        if selectedCategory == .general {
+            Picker(tr("Compare with", "对照来源"), selection: $state.generalComparison) {
+                Text("Arena").tag(LeaderboardKind.arenaText)
+                Text("Epoch ECI").tag(LeaderboardKind.epochECI)
+            }.labelsHidden().frame(width: 112)
+                .accessibilityIdentifier("general-comparison-source")
+                .help(tr("Choose the second general leaderboard", "选择综合榜的第二个对照来源"))
+        }
+    }
+
     private var categoryPicker: some View {
         CategorySegmentedControl(
             language: language,
@@ -409,6 +422,9 @@ struct LeaderboardView: View {
         .frame(width: CategorySegmentedControl.width, height: CategorySegmentedControl.height)
         .help(tr("Switch leaderboard category", "切换榜单类别"))
     }
+
+    private var rightKind: LeaderboardKind { selectedCategory == .general ? state.generalComparison : selectedCategory.rightKind }
+    private var rightColumnTitle: String { LeaderboardPresentation.title(rightKind, language: language) }
 
     private var selectedCategory: LeaderboardCategory {
         state.selectedCategory
@@ -559,7 +575,8 @@ struct LeaderboardView: View {
     // Both name columns grow with the longest visible name. The country and
     // score columns stay aligned across rows and both halves of the table.
     private var table: some View {
-        let lenses = selectedCategory.sourceLenses(language: language)
+        let lenses = (aa: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(selectedCategory.leftKind, language: language)),
+                      arena: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(rightKind, language: language)))
         return Table(rows) {
             TableColumn(tr("Rank", "排名")) { row in
                 Text(LeaderboardPresentation.rankLabel(row.rank))
@@ -597,8 +614,8 @@ struct LeaderboardView: View {
             .alignment(.center)
 
             TableColumn(Self.boardColumnTitle(
-                selectedCategory.rightColumnTitle,
-                kind: selectedCategory.rightKind,
+                rightColumnTitle,
+                kind: rightKind,
                 state: state
             )) { row in
                 LeaderboardCell(model: row.right, language: language, onCopyName: nameCopyAction)
@@ -618,7 +635,7 @@ struct LeaderboardView: View {
             .alignment(.center)
 
             TableColumn(tr("Score", "分数")) { row in
-                ScoreCell(model: row.right, scoreDigits: 1, shareColor: .purple)
+                ScoreCell(model: row.right, scoreDigits: rightKind == .epochECI ? 2 : 1, shareColor: .purple)
             }
             .width(60)
             .alignment(.center)
@@ -631,18 +648,18 @@ struct LeaderboardView: View {
             leftHelp: selectedCategory.leftColumnTitle + tr(". ", "。")
                 + LeaderboardPresentation.sourceHelp(selectedCategory.leftKind, language: language,
                     board: state.snapshot.boards[selectedCategory.leftKind], includesFetchTime: false),
-            rightHelp: selectedCategory.rightColumnTitle + tr(". ", "。")
-                + LeaderboardPresentation.sourceHelp(selectedCategory.rightKind, language: language,
-                    board: state.snapshot.boards[selectedCategory.rightKind], includesFetchTime: false),
+            rightHelp: rightColumnTitle + tr(". ", "。")
+                + LeaderboardPresentation.sourceHelp(rightKind, language: language,
+                    board: state.snapshot.boards[rightKind], includesFetchTime: false),
             leftKind: selectedCategory.leftKind,
-            rightKind: selectedCategory.rightKind,
+            rightKind: rightKind,
             language: language,
             leftFilter: state.countryFilters[selectedCategory.leftKind] ?? .all,
-            rightFilter: state.countryFilters[selectedCategory.rightKind] ?? .all,
+            rightFilter: state.countryFilters[rightKind] ?? .all,
             leftCountryOptions: countryOptions(for: selectedCategory.leftKind),
-            rightCountryOptions: countryOptions(for: selectedCategory.rightKind),
+            rightCountryOptions: countryOptions(for: rightKind),
             leftOpenness: state.opennessFilters[selectedCategory.leftKind] ?? .all,
-            rightOpenness: state.opennessFilters[selectedCategory.rightKind] ?? .all,
+            rightOpenness: state.opennessFilters[rightKind] ?? .all,
             onOpennessFilter: { kind, filter in state.selectOpennessFilter(filter, for: kind) },
             onCountryFilter: { kind, filter in
                 state.selectCountryFilter(filter, for: kind)
@@ -893,7 +910,7 @@ struct LeaderboardView: View {
                 if showsSources {
                     Text(selectedCategory.leftKind.sourceLinkTitle)
                     Text("·")
-                    Text(selectedCategory.rightKind.sourceLinkTitle)
+                    Text(rightKind.sourceLinkTitle)
                     Text("·")
                 }
                 Text("Cloyd Lau · MIT License")
@@ -928,8 +945,8 @@ struct LeaderboardView: View {
                     Menu(tr("Sources", "数据来源")) {
                         sourceLink(title: selectedCategory.leftKind.sourceLinkTitle,
                                    url: selectedCategory.leftKind.sourceURL.absoluteString)
-                        sourceLink(title: selectedCategory.rightKind.sourceLinkTitle,
-                                   url: selectedCategory.rightKind.sourceURL.absoluteString)
+                        sourceLink(title: rightKind.sourceLinkTitle,
+                                   url: rightKind.sourceURL.absoluteString)
                     }
                     .menuStyle(.borderlessButton)
                     .fixedSize()
@@ -976,8 +993,8 @@ struct LeaderboardView: View {
             )
             Text("·")
             sourceLink(
-                title: selectedCategory.rightKind.sourceLinkTitle,
-                url: selectedCategory.rightKind.sourceURL.absoluteString
+                title: rightKind.sourceLinkTitle,
+                url: rightKind.sourceURL.absoluteString
             )
         }
         .fixedSize(horizontal: true, vertical: false)
@@ -1089,7 +1106,7 @@ struct LeaderboardView: View {
     /// aggregation. Grouping is a local view and must not look like a fetch.
     private var needsSkeleton: Bool {
         let leftEmpty = state.snapshot.boards[selectedCategory.leftKind]?.entries.isEmpty ?? true
-        let rightEmpty = state.snapshot.boards[selectedCategory.rightKind]?.entries.isEmpty ?? true
+        let rightEmpty = state.snapshot.boards[rightKind]?.entries.isEmpty ?? true
         return leftEmpty && rightEmpty
     }
 
@@ -1105,7 +1122,7 @@ struct LeaderboardView: View {
         }
 
         let left = displayedEntries(kind: selectedCategory.leftKind)
-        let right = displayedEntries(kind: selectedCategory.rightKind)
+        let right = displayedEntries(kind: rightKind)
         let organizationLogos = self.organizationLogos
 
         return (0..<max(Self.visibleRowCount(for: state), left.count, right.count)).map { index in
@@ -1117,7 +1134,7 @@ struct LeaderboardView: View {
                 ),
                 right: cellModel(
                     for: index < right.count ? right[index] : nil,
-                    organizationLogos: organizationLogos, leaderScore: right.first?.entry.score
+                    organizationLogos: organizationLogos, leaderScore: rightKind == .epochECI ? nil : right.first?.entry.score
                 )
             )
         }
@@ -1174,7 +1191,7 @@ struct LeaderboardView: View {
 
     private var organizationLogos: [String: URL] {
         var logos: [String: URL] = [:]
-        for kind in [selectedCategory.leftKind, selectedCategory.rightKind] {
+        for kind in [selectedCategory.leftKind, rightKind] {
             for item in state.snapshot.boards[kind]?.organizationLogoURLs ?? [:] {
                 let key = OrganizationLogoCatalog.normalizedKey(item.key)
                 if !key.isEmpty {

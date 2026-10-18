@@ -61,7 +61,7 @@ function setup(preferences = {}, count = 0, query = {}, systemTheme = 'light', s
   }
   const page = globalThis.__benchPageFactory(query)
   const respond = index => {
-    const request = requests[index]; const kind = request.options.url.split('/').at(-1)
+    const request = requests[index]; request.responded = true; const kind = request.options.url.split('/').at(-1)
     request.options.success({ statusCode: 200, data: { board: { kind, fetchedAt: '2026-10-13T12:00:00Z', entries: count ? Array.from({ length: count }, (_, i) => ({
       rank: i + 1, name: `Model ${i + 1}`, score: count - i, organization: `Maker ${i + 1}`,
       openness: i % 2 ? 'open' : 'closed',
@@ -70,7 +70,8 @@ function setup(preferences = {}, count = 0, query = {}, systemTheme = 'light', s
       { rank: 2, name: 'Open model', score: 98, organization: 'DeepSeek', openness: 'open', developerCountry: { key: 'deepseek', countryCode: 'CN' } },
     ] } } }); request.options.complete()
   }
-  return { page, requests, writes, modals, clipboard, scrolls, respond, theme: theme => themeListener?.({ theme }) }
+  const respondAll = () => requests.forEach((request, index) => { if (!request.responded) { request.responded = true; respond(index) } })
+  return { page, requests, writes, modals, clipboard, scrolls, respond, respondAll, theme: theme => themeListener?.({ theme }) }
 }
 const event = dataset => ({ currentTarget: { dataset } })
 
@@ -92,7 +93,7 @@ test('leaving the page while search bounds are pending cannot expand or focus it
 
 test('one live model query survives source/category/company switches and clearing restores both boards', async () => {
   const h = setup({}, 1000)
-  const loading = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await loading
+  const loading = globalThis.__benchHooks.load(); h.respondAll(); await loading
   const initialRequests = h.requests.length
   h.page.openModelSearch()
   await new Promise(resolve => setTimeout(resolve, 30))
@@ -102,7 +103,7 @@ test('one live model query survives source/category/company switches and clearin
     assert.equal(card.count, 1)
     assert.equal(card.rows[0].rank, 997)
     assert.equal(card.rows[0].top, 0)
-    assert.equal(card.rows[0].scoreShare, '0%')
+    assert.equal(card.rows[0].scoreShare, card.kind === 'epochECI' ? '' : '0%')
   }
   assert.equal(h.requests.length, initialRequests, 'Filtering must not fetch a board')
   h.page.selectFace(event({ index: 1 }))
@@ -115,7 +116,7 @@ test('one live model query survives source/category/company switches and clearin
   assert.equal(h.page.modelSearchVisible.value, false)
   assert.equal(h.page.cards.value[0].count, 1)
   h.page.selectCategory(event({ id: 'coding' }))
-  h.respond(initialRequests); h.respond(initialRequests + 1)
+  h.respondAll()
   await new Promise(resolve => setTimeout(resolve, 0))
   assert.equal(h.page.modelSearchQuery.value, 'Model 997')
   assert.ok(h.page.cards.value.every(card => card.count === 1))
@@ -133,7 +134,7 @@ test('one live model query survives source/category/company switches and clearin
 
 test('blur retains a nonempty search and its results without restoring keyboard focus', async () => {
   const h = setup({}, 1000)
-  const loading = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await loading
+  const loading = globalThis.__benchHooks.load(); h.respondAll(); await loading
   h.page.openModelSearch()
   await new Promise(resolve => setTimeout(resolve, 30))
   h.page.inputModelSearch({ detail: { value: 'Model 997' } })
@@ -207,7 +208,7 @@ test('clearing keeps search open when the native blur arrives after the clear ta
 
 test('a slow Clear gesture survives blur, restores all rows and leaves later outside blur unchanged', async () => {
   const h = setup({}, 1000)
-  const loading = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await loading
+  const loading = globalThis.__benchHooks.load(); h.respondAll(); await loading
   h.page.openModelSearch()
   await new Promise(resolve => setTimeout(resolve, 30))
   h.page.inputModelSearch({ detail: { value: 'Model 997' } })
@@ -251,7 +252,7 @@ test('country and source taps explain the current row in each language without c
     ['zh-CN', '美国', '闭源', '开源'], ['zh-TW', '美國', '閉源', '開源'], ['en', 'United States', 'Closed', 'Open'],
   ]) {
     const h = setup({ language })
-    const loading = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await loading
+    const loading = globalThis.__benchHooks.load(); h.respondAll(); await loading
     const kind = h.page.cards.value[0].kind, toasts = []
     wx.showToast = options => toasts.push(options)
     const tap = (attribute, rank = 1, extra = {}) => h.page.attributeHint(event({ kind, rank, attribute, ...extra }))
@@ -310,7 +311,7 @@ test('all custom overlays lock the page and native boards without disabling popu
 
 test('company, filter, settings and help overlays block gestures and refresh while preserving the scroll window', async () => {
   const h = setup({ grouping: 'company' }, 1000)
-  const loading = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await loading
+  const loading = globalThis.__benchHooks.load(); h.respondAll(); await loading
   const kind = h.page.cards.value[0].kind
   h.page.scroll({ currentTarget: { dataset: { kind } }, detail: { scrollTop: 2400 } })
   const rows = h.page.cards.value[0].rows, tabs = h.page.sourceTabsStyle.value, scrollCount = h.scrolls.length
@@ -322,7 +323,7 @@ test('company, filter, settings and help overlays block gestures and refresh whi
     assert.equal(h.page.cubeDragging.value, false)
     assert.equal(h.page.cubeBusy.value, false)
     await h.page.pullRefresh()
-    assert.equal(h.requests.length, 2)
+    assert.equal(h.requests.length, 3)
     assert.equal(h.page.pullRefreshing.value, false)
     assert.deepEqual(h.page.cards.value[0].rows, rows)
     assert.equal(h.page.sourceTabsStyle.value, tabs)
@@ -351,7 +352,7 @@ test('company purchase buttons copy the resolved official link with the standard
   for (const language of ['zh-CN', 'en', 'zh-TW']) {
     const h = setup({ grouping: 'company', language })
     const loading = globalThis.__benchHooks.load()
-    h.respond(0); h.respond(1); await loading
+    h.respondAll(); await loading
     const card = h.page.cards.value[0]
     const row = card.rows.find(row => row.name === 'OpenAI')
     assert.equal(row.purchaseActions.length, 2)
@@ -386,7 +387,7 @@ test('company purchase buttons copy the resolved official link with the standard
 test('purchase links update after switching the interface language inside the same virtual window', async () => {
   const h = setup({ grouping: 'company', language: 'zh-CN' })
   const loading = globalThis.__benchHooks.load()
-  for (let index = 0; index < 2; index++) {
+  for (let index = 0; index < h.requests.length; index++) {
     const request = h.requests[index], kind = request.options.url.split('/').at(-1)
     request.options.success({ statusCode: 200, data: { board: { kind, fetchedAt: '2026-10-16T00:00:00Z',
       entries: [{ rank: 1, name: 'MiniMax M', organization: 'MiniMax', score: 99 }] } } })
@@ -423,9 +424,9 @@ test('loading skeletons cover the viewport at startup and after tall or landscap
 
 test('subtitle help offers dismissal and copies the desktop link only on its link action in every language', () => {
   for (const [language, title, gotIt, desktopLink] of [
-    ['en', 'Dual boards & quota tracking', 'Got it', 'PC link'],
-    ['zh-CN', '双榜对照 & 余量追踪', '我知道了', 'PC 端链接'],
-    ['zh-TW', '雙榜對照 & 餘量追蹤', '我知道了', 'PC 端連結'],
+    ['en', 'Multiple leaderboards & quota tracking', 'Got it', 'PC link'],
+    ['zh-CN', '多榜对照 & 余量追踪', '我知道了', 'PC 端链接'],
+    ['zh-TW', '多榜對照 & 餘量追蹤', '我知道了', 'PC 端連結'],
   ]) {
     const h = setup({ language })
     h.page.quotaHelp()
@@ -481,7 +482,7 @@ test('automatic refresh failures quietly retain rows and time; only a manual pul
   const h = setup()
   const first = globalThis.__benchHooks.load()
   assert.equal(h.page.pullRefreshing.value, false)
-  h.respond(0); h.respond(1); await first
+  h.respondAll(); await first
   const before = h.page.cards.value.map(card => ({ rows: card.rows, time: card.time }))
   const retry = h.page.refreshCategory()
   assert.equal(h.page.pullRefreshing.value, false)
@@ -505,15 +506,15 @@ test('page lifecycle paints independent sources, honors the new tabs/headings an
   assert.equal(h.page.navHeight.value, 68)
   assert.equal(h.page.capsuleWidth.value, 113)
   globalThis.__benchHooks.show()
-  assert.equal(h.requests.length, 2)
-  assert.deepEqual(h.page.tabs.value, ['任务测评', '用户盲测'])
+  assert.equal(h.requests.length, 3)
+  assert.deepEqual(h.page.tabs.value, ['任务测评', '用户盲测', 'Epoch ECI'])
   h.respond(1); await Promise.resolve(); await Promise.resolve()
-  h.respond(0); await loading
-  assert.deepEqual(h.page.cards.value.map(card => [card.title, card.rows.length]), [['Artificial Analysis', 2], ['Text Arena', 2]])
+  h.respond(0); h.respond(2); await loading
+  assert.deepEqual(h.page.cards.value.map(card => [card.title, card.rows.length]), [['Artificial Analysis', 2], ['Text Arena', 2], ['Epoch ECI', 2]])
   assert.equal(h.page.cards.value[0].updated, '—')
   h.page.selectFace(event({ index: 1 })); assert.equal(h.page.face.value, 1)
-  h.page.selectCategory(event({ id: 'video' })); assert.equal(h.requests.length, 4)
-  h.respond(2); h.respond(3); await new Promise(resolve => setImmediate(resolve))
+  h.page.selectCategory(event({ id: 'video' })); assert.equal(h.requests.length, 5)
+  h.respondAll(); await new Promise(resolve => setImmediate(resolve))
   assert.equal(h.page.cards.value[0].kind, 'artificialAnalysisTextToVideo')
   const shared = pagePreferences(Object.fromEntries(new URL('https://shared.example' + globalThis.__benchHooks.share().path).searchParams))
   assert.equal(shared.category, 'video')
@@ -537,7 +538,7 @@ test('menu sharing restores live choices and all filters over conflicting receiv
   const sender = setup({ filters: { artificialAnalysis: { country: 'US', openness: 'closed' } } })
   assert.equal(globalThis.__benchPageConfig.canShareToOthers, true)
   sender.page.selectCategory(event({ id: 'video' }))
-  sender.respond(0); sender.respond(1); await new Promise(resolve => setImmediate(resolve))
+  sender.respondAll(); await new Promise(resolve => setImmediate(resolve))
   sender.page.selectGrouping(event({ id: 'company' }))
   sender.page.changeFace({ detail: { current: 1 } })
   sender.page.preferences(event({ mode: 'language' }))
@@ -562,7 +563,7 @@ test('menu sharing restores live choices and all filters over conflicting receiv
   assert.equal(receiver.page.labels.value.source, '原始碼')
   const saved = receiver.writes.find(write => write.key === 'benchgauge.preferences').value
   assert.deepEqual(pagePreferences({}, saved), { ...expected, fromShare: false })
-  const loaded = globalThis.__benchHooks.load(); receiver.respond(0); receiver.respond(1); await loaded
+  const loaded = globalThis.__benchHooks.load(); receiver.respondAll(); await loaded
   assert.equal(receiver.page.cards.value[1].count, 1)
   assert.equal(receiver.page.cards.value[1].rows[0].name, 'DeepSeek')
   assert.equal(receiver.page.cards.value[1].rows[0].flag, '🇨🇳')
@@ -594,7 +595,7 @@ test('system appearance shares match the sender initially and respond to later r
 
 test('filter highlights update on selection before closing and stay current across reopen and cold start', async () => {
   const h = setup(); const loading = globalThis.__benchHooks.load()
-  h.respond(0); h.respond(1); await loading
+  h.respondAll(); await loading
   const kind = 'artificialAnalysis'
   const check = (page, selected) => {
     assert.deepEqual(page.sheet.value.actions.filter(action => action.color).map(action => action.value), [selected])
@@ -621,7 +622,7 @@ test('filter highlights update on selection before closing and stay current acro
   globalThis.__benchHooks.unload()
   const restored = setup(saved)
   const restoredLoading = globalThis.__benchHooks.load()
-  restored.respond(0); restored.respond(1); await restoredLoading
+  restored.respondAll(); await restoredLoading
   restored.page.filterMenu(event({ kind, mode: 'country' })); check(restored.page, 'CN')
   restored.page.filterMenu(event({ kind, mode: 'openness' })); check(restored.page, 'open')
   globalThis.__benchHooks.unload()
@@ -629,7 +630,7 @@ test('filter highlights update on selection before closing and stay current acro
 
 test('both sources share country and openness, union country choices, reset scroll and clear together', async () => {
   const h = setup(); const loading = globalThis.__benchHooks.load()
-  const kinds = ['artificialAnalysis', 'arenaText']
+  const kinds = ['artificialAnalysis', 'arenaText', 'epochECI']
   for (const [index, kind] of kinds.entries()) {
     h.requests[index].options.success({ statusCode: 200, data: { board: { kind, fetchedAt: '2026-10-13T12:00:00Z', entries: [
       { rank: 1, name: index ? 'China model' : 'US model', score: 90, openness: index ? 'open' : 'closed',
@@ -642,7 +643,7 @@ test('both sources share country and openness, union country choices, reset scro
   h.page.filterMenu(event({ kind: kinds[1], mode: 'country' }))
   assert.deepEqual(h.page.sheet.value.actions.map(action => action.value), ['all', 'CN', 'US'])
   h.page.sheetSelect({ detail: h.page.sheet.value.actions.find(action => action.value === 'CN') })
-  assert.deepEqual(h.page.cards.value.map(card => card.count), [0, 1])
+  assert.deepEqual(h.page.cards.value.map(card => card.count), [0, 1, 1])
   for (const kind of kinds) {
     assert.ok(h.scrolls.some(scroll => scroll.selector === `#board-scroll-${kind}` && scroll.top === 0))
   }
@@ -656,7 +657,7 @@ test('both sources share country and openness, union country choices, reset scro
   const shared = pagePreferences(Object.fromEntries(new URL('https://shared.example' + globalThis.__benchHooks.share().path).searchParams))
   for (const kind of kinds) assert.deepEqual(shared.filters[kind], { country: 'CN', openness: 'open' })
   h.page.clearFilters(event({ kind: kinds[1] }))
-  assert.deepEqual(h.page.cards.value.map(card => [card.count, card.filtered]), [[1, false], [1, false]])
+  assert.deepEqual(h.page.cards.value.map(card => [card.count, card.filtered]), [[1, false], [1, false], [1, false]])
   h.page.filterMenu(event({ kind: kinds[0], mode: 'country' }))
   assert.equal(h.page.sheet.value.actions.find(action => action.color).value, 'all')
   globalThis.__benchHooks.unload()
@@ -664,7 +665,7 @@ test('both sources share country and openness, union country choices, reset scro
 
 test('all categories share filters in both directions, including before data arrives and after clearing', async () => {
   const h = setup(); const loading = globalThis.__benchHooks.load()
-  h.respond(0); h.respond(1); await loading
+  h.respondAll(); await loading
   const select = (kind, mode, value) => {
     h.page.filterMenu(event({ kind, mode }))
     h.page.sheetSelect({ detail: h.page.sheet.value.actions.find(action => action.value === value) })
@@ -677,7 +678,7 @@ test('all categories share filters in both directions, including before data arr
       h.page.filterMenu(event({ kind, mode }))
       assert.equal(h.page.sheet.value.actions.find(action => action.color)?.value, value)
     }
-    h.respond(start); h.respond(start + 1); await new Promise(resolve => setImmediate(resolve))
+    h.respondAll(); await new Promise(resolve => setImmediate(resolve))
     assert.ok(h.page.cards.value.every(card => card.count === 1 && card.rows[0].flag === '🇨🇳' && card.rows[0].openness === 'open'))
   }
   select('arenaTextToVideo', 'country', 'US'); select('arenaTextToVideo', 'openness', 'closed')
@@ -707,7 +708,7 @@ test('all categories share filters in both directions, including before data arr
 
 test('ten thousand rows only cross the bridge in bounded windows, including fast jumps and filter resets', async () => {
   const h = setup({}, 10000)
-  const pending = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await pending
+  const pending = globalThis.__benchHooks.load(); h.respondAll(); await pending
   let card = h.page.cards.value[0]
   assert.equal(card.count, 10000)
   assert.ok(card.rows.length < 50)
@@ -745,7 +746,7 @@ test('the selected category returns only the active board to top on a double tap
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 1000 })
   for (const face of [0, 1]) {
     const h = setup({ face }, 1000)
-    const loading = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await loading
+    const loading = globalThis.__benchHooks.load(); h.respondAll(); await loading
     const kind = h.page.cards.value[face].kind
     h.page.scroll({ ...event({ kind }), detail: { scrollTop: 1200 } })
     const rows = h.page.cards.value[face].rows
@@ -777,7 +778,7 @@ test('measured header origin follows the scroll container and stale layout callb
     select() { return { fields() {}, boundingClientRect() {} } },
     exec: callback => callbacks.push(callback),
   })
-  const pending = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await pending
+  const pending = globalThis.__benchHooks.load(); h.respondAll(); await pending
   const rects = [{ top: 50, height: 480, scrollTop: 0 }, { top: 250 }, { top: 50, height: 0 }, null]
   callbacks.at(-1)(rects)
   const kind = h.page.cards.value[0].kind
@@ -797,16 +798,16 @@ test('scrolling ahead of a pending geometry query cannot move the virtual origin
     select() { return { fields() {}, boundingClientRect() {} } },
     exec: callback => callbacks.push(callback),
   })
-  const loaded = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await loaded
+  const loaded = globalThis.__benchHooks.load(); h.respondAll(); await loaded
   const kind = h.page.cards.value[0].kind
   const atTop = [{ top: 50, height: 480, scrollTop: 0 }, { top: 250 }, null, null]
   callbacks.at(-1)(atTop)
-  const refresh = h.page.refreshTap(event({ kind })); h.respond(2); await refresh
+  const refresh = h.page.refreshTap(event({ kind })); h.respond(3); await refresh
   h.page.scroll({ ...event({ kind }), detail: { scrollTop: 4300 } })
   callbacks.at(-1)(atTop)
   assert.equal(h.page.cards.value[0].rows[0].rank, 74)
   assert.ok(h.page.cards.value[0].rows.some(row => row.rank === 100))
-  const next = h.page.refreshTap(event({ kind })); h.respond(3); await next
+  const next = h.page.refreshTap(event({ kind })); h.respond(4); await next
   h.page.scroll({ ...event({ kind }), detail: { scrollTop: 5000 } })
   callbacks.at(-1)([{ top: 50, height: 480, scrollTop: 4300 }, { top: -4050 }, null, null])
   assert.equal(h.page.cards.value[0].rows[0].rank, 89)
@@ -817,7 +818,7 @@ test('scrolling ahead of a pending geometry query cannot move the virtual origin
 
 test('native scroll commands are explicit, repeatable and discard superseded or unloaded callbacks', async () => {
   const h = setup({}, 1000), loaded = globalThis.__benchHooks.load()
-  h.respond(0); h.respond(1); await loaded
+  h.respondAll(); await loaded
   const callbacks = [], commands = []
   wx.createSelectorQuery = () => ({
     select() { return { node() {} } },
@@ -839,7 +840,7 @@ test('board headings copy their complete localized titles across categories and 
     for (const card of h.page.cards.value) h.page.copyBoardTitle(event({ kind: card.kind }))
     assert.deepEqual(h.clipboard, h.page.cards.value.map(card => card.title))
     h.page.copyBoardTitle(event({ kind: 'invalid' }))
-    assert.equal(h.clipboard.length, 2)
+    assert.equal(h.clipboard.length, category.kinds.length)
     assert.equal(h.modals.length, 0)
     globalThis.__benchHooks.unload()
   }
@@ -864,10 +865,10 @@ test('board-heading copy ignores cube drags and accidental taps immediately afte
 })
 
 test('actual filter/settings handlers share source filters, react to theme, copy full names and repeat back-to-top', async () => {
-  const h = setup(); const loading = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await loading
+  const h = setup(); const loading = globalThis.__benchHooks.load(); h.respondAll(); await loading
   h.page.filterMenu(event({ kind: 'artificialAnalysis', mode: 'openness' }))
   h.page.sheetSelect({ detail: h.page.sheet.value.actions.find(action => action.value === 'open') })
-  assert.deepEqual(h.page.cards.value.map(card => card.rows.length), [1, 1])
+  assert.deepEqual(h.page.cards.value.map(card => card.rows.length), [1, 1, 1])
   h.page.selectGrouping(event({ id: 'company' }))
   assert.equal(h.page.cards.value[0].rows[0].name, 'DeepSeek')
   h.page.rowDetails(event({ kind: 'artificialAnalysis', rank: 1 }))
@@ -892,10 +893,10 @@ test('actual filter/settings handlers share source filters, react to theme, copy
   assert.equal(h.page.sheet.value.actions.length, 3)
   h.page.sheetSelect({ detail: h.page.sheet.value.actions.find(action => action.value === 'dark') })
   assert.ok(h.page.dark.value)
-  assert.deepEqual(h.page.tabs.value, ['Task benchmarks', 'User votes'])
+  assert.deepEqual(h.page.tabs.value, ['Task benchmarks', 'User votes', 'Epoch ECI'])
   h.page.selectCategory(event({ id: 'image' }))
   assert.equal(h.page.cards.value[0].title, 'Artificial Analysis Text to Image')
-  h.respond(2); h.respond(3); await new Promise(resolve => setImmediate(resolve))
+  h.respondAll(); await new Promise(resolve => setImmediate(resolve))
   h.page.selectCategory(event({ id: 'general' }))
   h.page.cubeStart({ touches: [{ clientX: 180, clientY: 300 }] })
   h.page.scroll({ currentTarget: { dataset: { kind: 'artificialAnalysis' } }, detail: { scrollTop: 600 } })
@@ -923,7 +924,7 @@ test('the screenshot button exports only the current pair as one complete image 
       return query
     },
   })
-  const loaded = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await loaded
+  const loaded = globalThis.__benchHooks.load(); h.respondAll(); await loaded
   for (const [kind, value] of [['artificialAnalysis', 'open'], ['arenaText', 'closed']]) {
     h.page.filterMenu(event({ kind, mode: 'openness' }))
     h.page.sheetSelect({ detail: h.page.sheet.value.actions.find(action => action.value === value) })
@@ -972,7 +973,7 @@ test('screenshot failure and absent snapshots keep the page usable without a bla
   const h = setup(), toasts = []
   Object.assign(wx, { showToast: options => toasts.push(options), showLoading() {}, hideLoading() {} })
   await h.page.screenshot(); assert.match(toasts.at(-1).title, /暂未取得/)
-  const loaded = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await loaded
+  const loaded = globalThis.__benchHooks.load(); h.respondAll(); await loaded
   wx.createSelectorQuery = () => { const query = { select() { return { fields: () => query } }, exec: callback => callback([{}]) }; return query }
   await h.page.screenshot()
   assert.match(toasts.at(-1).title, /生成失败/)
@@ -985,7 +986,7 @@ test('screenshot failure and absent snapshots keep the page usable without a bla
 test('cube drag preserves virtual windows and scroll rank, cancels safely and never turns a vertical gesture', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const h = setup({}, 1000), loading = globalThis.__benchHooks.load()
-  h.respond(0); h.respond(1); await loading
+  h.respondAll(); await loading
   const touch = (x, y) => ({ touches: [{ clientX: x, clientY: y }] })
   h.page.cubeStart(touch(250, 200))
   h.page.cubeMove(touch(240, 260))
@@ -1017,7 +1018,7 @@ test('cube drag preserves virtual windows and scroll rank, cancels safely and ne
 })
 
 test('outward cube swipes give one light haptic per gesture at both ends without changing boards or scroll positions', () => {
-  for (const face of [0, 1]) {
+  for (const face of [0, 2]) {
     const h = setup({ face }), vibrations = []
     wx.vibrateShort = options => { vibrations.push(options.type); options.fail() }
     const touch = (x, y = 200) => ({ touches: [{ clientX: x, clientY: y }] })
@@ -1048,7 +1049,7 @@ test('outward cube swipes give one light haptic per gesture at both ends without
     h.page.cubeMove(touch(180 - direction * 150))
     h.page.cubeEnd()
     assert.equal(vibrations.length, 3)
-    assert.equal(h.page.face.value, 1 - face, 'Reversing inward must still turn normally')
+    assert.equal(h.page.face.value, face === 0 ? 1 : face - 1, 'Reversing inward must still turn normally')
     globalThis.__benchHooks.unload()
   }
 })
@@ -1068,7 +1069,7 @@ test('unsupported haptics do not interrupt an outward swipe or the next inward t
 
 test('native vertical scroll before direction lock keeps ownership until touch end and the next horizontal swipe still works', async () => {
   const h = setup({}, 1000), loading = globalThis.__benchHooks.load()
-  h.respond(0); h.respond(1); await loading
+  h.respondAll(); await loading
   const touch = (x, y) => ({ touches: [{ clientX: x, clientY: y }] })
   const kind = h.page.cards.value[0].kind
   h.page.cubeStart(touch(280, 200))
@@ -1090,7 +1091,7 @@ test('native vertical scroll before direction lock keeps ownership until touch e
 test('a locked horizontal swipe tolerates native scroll noise and vertical curvature in both directions', async () => {
   for (const face of [0, 1]) {
     const h = setup({ face }, 1000), loading = globalThis.__benchHooks.load()
-    h.respond(0); h.respond(1); await loading
+    h.respondAll(); await loading
     const touch = (x, y) => ({ touches: [{ clientX: x, clientY: y }] })
     const kind = h.page.cards.value[face].kind
     const direction = face === 0 ? -1 : 1
@@ -1118,7 +1119,7 @@ for (const face of [0, 1]) test(`first entrance reveals both faces, fades in and
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const h = setup({ face }), loading = globalThis.__benchHooks.load()
   globalThis.__benchHooks.show()
-  h.respond(0); h.respond(1); await loading
+  h.respondAll(); await loading
   t.mock.timers.tick(1000)
   assert.equal(h.page.cubeBusy.value, false, 'wait until the native page is ready')
   globalThis.__benchHooks.ready()
@@ -1148,7 +1149,7 @@ test('source tabs retain the selected board during the reveal and an unfinished 
   const h = setup(), loading = globalThis.__benchHooks.load()
   t.after(() => globalThis.__benchHooks.unload())
   globalThis.__benchHooks.show(); globalThis.__benchHooks.ready()
-  h.respond(0); h.respond(1); await loading
+  h.respondAll(); await loading
   const initialSelection = h.page.sourceSelection.value
   t.mock.timers.tick(220); t.mock.timers.tick(24)
   assert.equal(h.page.cubePosition.value, 0.14)
@@ -1171,7 +1172,7 @@ test('source tabs retain the selected board during the reveal and an unfinished 
 test('source tabs scroll out with the active board and return on back-to-top or grouping reset', async t => {
   const h = setup({}, 100), loading = globalThis.__benchHooks.load()
   t.after(() => globalThis.__benchHooks.unload())
-  h.respond(0); h.respond(1); await loading
+  h.respondAll(); await loading
   const scroll = (kind, scrollTop) => h.page.scroll({ currentTarget: { dataset: { kind } }, detail: { scrollTop } })
   assert.match(h.page.sourceTabsStyle.value, /translateY\(-0px\)/)
   scroll('artificialAnalysis', 20)
@@ -1194,7 +1195,7 @@ test('source tabs scroll out with the active board and return on back-to-top or 
 test('settled native offsets restore tabs after a delayed scroll event and discard stale measurements', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const h = setup({}, 1000), loaded = globalThis.__benchHooks.load()
-  h.respond(0); h.respond(1); await loaded
+  h.respondAll(); await loaded
   t.after(() => globalThis.__benchHooks.unload())
   const callbacks = []
   wx.createSelectorQuery = () => {
@@ -1218,7 +1219,7 @@ test('settled native offsets restore tabs after a delayed scroll event and disca
 test('return-to-top rejects queued scroll events while a new touch cancels pending navigation', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const h = setup({}, 1000), loaded = globalThis.__benchHooks.load()
-  h.respond(0); h.respond(1); await loaded
+  h.respondAll(); await loaded
   t.after(() => globalThis.__benchHooks.unload())
   const callbacks = [], commands = []
   wx.createSelectorQuery = () => {
@@ -1266,14 +1267,14 @@ test('the scrolling tab space follows the actual measured tab height', t => {
 
 test('cached boards reveal on ready while network requests are still pending', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
-  const cache = Object.fromEntries(['artificialAnalysis', 'arenaText'].map(kind => [kind, {
+  const cache = Object.fromEntries(['artificialAnalysis', 'arenaText', 'epochECI'].map(kind => [kind, {
     kind, fetchedAt: '2026-10-13T12:00:00Z', entries: [{ rank: 1, name: 'Cached model', score: 99 }],
   }]))
   const h = setup({ face: 1 }, 0, {}, 'light', 'zh_CN', cache)
   const loading = globalThis.__benchHooks.load()
   globalThis.__benchHooks.show(); globalThis.__benchHooks.ready()
   t.mock.timers.tick(220); t.mock.timers.tick(24)
-  assert.equal(h.requests.length, 2)
+  assert.equal(h.requests.length, 3)
   assert.equal(h.page.cubePosition.value, 0.86)
   assert.equal(h.page.entranceHintVisible.value, true)
   globalThis.__benchHooks.unload(); await loading
@@ -1285,7 +1286,7 @@ test('background data cannot start the reveal; touching it cancels all delayed s
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const h = setup(), loading = globalThis.__benchHooks.load()
   globalThis.__benchHooks.show(); globalThis.__benchHooks.ready(); globalThis.__benchHooks.hide()
-  h.respond(0); h.respond(1); await loading; t.mock.timers.tick(1000)
+  h.respondAll(); await loading; t.mock.timers.tick(1000)
   assert.equal(h.page.cubeBusy.value, false)
   globalThis.__benchHooks.show(); t.mock.timers.tick(220); t.mock.timers.tick(24)
   assert.equal(h.page.cubePosition.value, 0.14)
@@ -1299,14 +1300,14 @@ test('background data cannot start the reveal; touching it cancels all delayed s
 test('all controls and global filters survive a local cold start, including manual language', async () => {
   const h = setup({}, 0, {}, 'light', 'en_US')
   assert.equal(h.page.labels.value.name, 'AI BenchGauge')
-  const loading = globalThis.__benchHooks.load(); h.respond(0); h.respond(1); await loading
+  const loading = globalThis.__benchHooks.load(); h.respondAll(); await loading
   const expectedFilters = {}
   for (const category of ['general', 'coding', 'image', 'video']) {
     const start = h.requests.length
     const changed = category !== h.page.category.value
     h.page.selectCategory(event({ id: category }))
     assert.equal(h.requests.length, start + (changed ? 2 : 0))
-    if (changed) { h.respond(start); h.respond(start + 1) }
+    if (changed) { h.respondAll() }
     await new Promise(resolve => setImmediate(resolve))
     for (const [index, card] of h.page.cards.value.entries()) {
       const filter = { country: index ? 'CN' : 'US', openness: index ? 'open' : 'closed' }
@@ -1355,4 +1356,23 @@ test('unassigned country help uses the current language and a generic explanatio
   assert.equal(h.modals[0].title,text(copy.unknownCountryTitle,language));
   assert.equal(h.modals[0].content,text(copy.unknownCountryExplanation,language));
  }
+});
+
+test('Epoch is a third live source with original score precision, persistent sharing and safe category switches', async () => {
+  const h = setup({ face: 2 });
+  const loaded = globalThis.__benchHooks.load(); h.respondAll(); await loaded;
+  assert.equal(h.requests.length, 3);
+  assert.equal(h.page.cubeFaces.value.length, 3);
+  assert.equal(h.page.cards.value[2].kind, 'epochECI');
+  assert.equal(h.page.cards.value[2].rows[1].scoreText, '98.00');
+  assert.equal(h.page.cards.value[2].rows[1].scoreShare, '');
+  assert.equal(h.page.cards.value[2].rows[1].fillPercent, 100);
+  assert.match(h.page.sourceSelection.value, /\/ 3/);
+  const shared = pagePreferences(Object.fromEntries(new URL('https://shared.example' + globalThis.__benchHooks.share().path).searchParams));
+  assert.equal(shared.face, 2);
+  h.page.selectCategory(event({ id: 'coding' })); h.respondAll();
+  assert.equal(h.page.face.value, 1);
+  assert.equal(h.page.cubePosition.value, 1);
+  assert.equal(h.page.cubeFaces.value.length, 2);
+  globalThis.__benchHooks.unload();
 });

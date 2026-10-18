@@ -350,7 +350,7 @@ sealed partial class MainWindow
             FontSize = 21, Height = 27, Foreground = PanelInk };
         var titleInk = (HeaderInkLabel)HeaderInk(headerTitle);
         brand.Children.Add(titleInk);
-        var subtitleSpec = Caption(Tr("Dual boards &", "双榜对照 & 余量追踪 ?", "雙榜對照 & 餘量追蹤 ?"), PanelMuted, 12);
+        var subtitleSpec = Caption(Tr("Multiple leaderboards &", "多榜对照 & 余量追踪 ?", "多榜對照 & 餘量追蹤 ?"), PanelMuted, 12);
         subtitleSpec.FontWeight = FontWeights.SemiBold;
         var subtitleInk = new HeaderInkLabel(subtitleSpec) { AlignInkTop = true, DimsAmpersand = true };
         var quotaSpec = Caption(Tr("Quota tracking ?", "余量追踪 ?", "餘量追蹤 ?"), PanelMuted, 12);
@@ -383,7 +383,13 @@ sealed partial class MainWindow
         var categories = Segments([("general",Tr("General","综合","綜合")),("coding",Tr("Coding","编程","編程")),("image",Tr("Image","图片","圖片")),("video",Tr("Video","视频","視頻"))], prefs.Category, 360,
             async value => { prefs.Category = value; SaveFrame(); await Refresh("state"); await Refresh("refreshBoards"); if (engine is null) Render(); });
         categories.Margin = new Thickness(8, 0, 0, 0); tabs.Children.Add(categories);
-        if (renderedPanelWidth >= (prefs.Language == "en" ? 1300 : 1100))
+        if (prefs.Category == "general")
+        {
+            var sourcePicker = Select([("arenaText", "Arena"), ("epochECI", "Epoch ECI")], prefs.GeneralComparison,
+                value => { prefs.GeneralComparison = value; SaveFrame(); Render(); return Task.CompletedTask; });
+            sourcePicker.Margin = new Thickness(8, 0, 0, 0); tabs.Children.Add(sourcePicker);
+        }
+        if (renderedPanelWidth >= (prefs.Language == "en" ? 1450 : 1250))
         {
             // Equal side columns keep both segmented controls centered.
             var wide = new Grid(); wide.ColumnDefinitions.Add(new ColumnDefinition()); wide.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); wide.ColumnDefinitions.Add(new ColumnDefinition());
@@ -543,7 +549,8 @@ sealed partial class MainWindow
 
     FrameworkElement PairedBoards()
     {
-        var pair = state?.Boards.Take(2).ToArray() ?? [];
+        var pair = state?.Boards.Where(board => prefs.Category != "general" || board.Kind == "artificialAnalysis"
+            || board.Kind == (prefs.GeneralComparison == "epochECI" ? "epochECI" : "arenaText")).Take(2).ToArray() ?? [];
         var table = new Grid();
         table.RowDefinitions.Add(new RowDefinition { Height = new GridLength(24) });
         table.RowDefinitions.Add(new RowDefinition());
@@ -556,7 +563,7 @@ sealed partial class MainWindow
             var board = pair[i]; var column = i == 0 ? 1 : 5;
             var summary = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 9,
                 FontFamily = new FontFamily("Segoe UI"),
-                Margin = new Thickness(5, 0, 4, 0), ToolTip = board.Error ?? board.Title + "\n" + Tr("Scores are not directly comparable across lists", "两榜分数不直接互比", "兩榜分數不直接互比") };
+                Margin = new Thickness(5, 0, 4, 0), ToolTip = board.Error ?? board.Title + "\n" + Tr("Scores are not directly comparable across lists", "各榜分数不直接互比", "各榜分數不直接互比") };
             CenterTextInk(summary);
             summary.FontSize = 11;
             summary.FontWeight = FontWeights.SemiBold;
@@ -576,10 +583,12 @@ sealed partial class MainWindow
             {
                 var column = side == 0 ? 1 : 5;
                 if (index >= entries[side].Length) continue;
-                var entry = entries[side][index]; AddCell(row, ModelCell(entry, entries[side][0].Score), column);
+                var entry = entries[side][index];
+                var leaderScore = pair[side].Kind == "epochECI" ? 0 : entries[side][0].Score;
+                AddCell(row, ModelCell(entry, leaderScore), column);
                 var score = new Grid();
-                score.Children.Add(Center(Caption(entry.Score.ToString("0.0", CultureInfo.InvariantCulture), PanelMuted, 13, numeric: true)));
-                var share = ScoreShare.Format(entry.Score, entries[side][0].Score);
+                score.Children.Add(Center(Caption(entry.Score.ToString(pair[side].Kind == "epochECI" ? "0.00" : "0.0", CultureInfo.InvariantCulture), PanelMuted, 13, numeric: true)));
+                var share = ScoreShare.Format(entry.Score, leaderScore);
                 if (share.Length > 0)
                 {
                     // Canvas children do not contribute to the cell's measured size.
@@ -709,6 +718,7 @@ sealed partial class MainWindow
     string SourceLens(Board board) => board.Kind switch
     {
         "artificialAnalysis" => Tr("Task benchmarks", "任务测评", "任務測評"),
+        "epochECI" => "Epoch ECI",
         "arenaText" => Tr("User votes", "用户盲测", "使用者盲測"),
         "artificialAnalysisCodingAgent" => Tr("Task completion", "任务完成率", "任務完成率"),
         "codeArenaWebDev" => Tr("WebDev votes", "网页开发盲选", "網頁開發盲選"),
@@ -821,8 +831,9 @@ sealed partial class MainWindow
         if (renderedPanelWidth >= 850)
         {
             right.Children.Add(Caption(Tr("Sources ", "数据来源 ", "資料來源 "), PanelMuted, 10));
-            var sources = state?.Boards.Take(2).ToArray() ?? [];
-            for (var i = 0; i < sources.Length; i++) { var source = sources[i]; if (i > 0) right.Children.Add(Caption(" · ", size: 10)); right.Children.Add(FooterButton(source.Kind.StartsWith("artificialAnalysis") ? "Artificial Analysis ↗" : "Arena ↗", () => Open(source.Url))); }
+            var sources = state?.Boards.Where(board => prefs.Category != "general" || board.Kind == "artificialAnalysis"
+                || board.Kind == (prefs.GeneralComparison == "epochECI" ? "epochECI" : "arenaText")).Take(2).ToArray() ?? [];
+            for (var i = 0; i < sources.Length; i++) { var source = sources[i]; if (i > 0) right.Children.Add(Caption(" · ", size: 10)); right.Children.Add(FooterButton(source.Kind == "epochECI" ? "Epoch AI ↗" : source.Kind.StartsWith("artificialAnalysis") ? "Artificial Analysis ↗" : "Arena ↗", () => Open(source.Url))); }
             right.Children.Add(Caption(" · "));
         }
         right.Children.Add(IconButton("camera", Tr("Copy", "截图", "截圖"), Capture)); right.Children.Add(Caption(" · ", size: 10));

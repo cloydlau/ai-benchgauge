@@ -5,7 +5,7 @@ import Testing
 struct LeaderboardCategoryTests {
     @Test
     func testCategoriesMapToTheirLeftAndRightBoards() {
-        #expect((LeaderboardCategory.general.boardKinds) == ([.artificialAnalysis, .arenaText]))
+        #expect((LeaderboardCategory.general.boardKinds) == ([.artificialAnalysis, .arenaText, .epochECI]))
         #expect((LeaderboardCategory.coding.boardKinds) == ([.artificialAnalysisCodingAgent, .codeArenaWebDev]))
         #expect((LeaderboardCategory.image.boardKinds) == ([.artificialAnalysisTextToImage, .arenaTextToImage]))
         #expect((LeaderboardCategory.video.boardKinds) == ([.artificialAnalysisTextToVideo, .arenaTextToVideo]))

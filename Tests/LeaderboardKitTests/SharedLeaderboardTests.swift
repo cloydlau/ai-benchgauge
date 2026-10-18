@@ -198,7 +198,7 @@ private actor CachedBoardRecorder {
 
 @Test func directSourcesAndServiceUseOnlyTheInjectedSession() async throws {
     try await withSharedStub(handler: { request in
-        #expect(request.value(forHTTPHeaderField: "Accept") == "text/html")
+        #expect(request.value(forHTTPHeaderField: "Accept") == (request.url == LeaderboardKind.epochECI.dataURL ? "text/csv" : "text/html"))
         return (200, Data("<html>invalid fixture</html>".utf8))
     }) { original, _ in
         let fetcher = LeaderboardFetcher(session: original.session, sharedEndpoint: nil)
@@ -289,5 +289,32 @@ private actor CachedBoardRecorder {
             #expect(result.snapshot.boards[.arenaText]?.entries.first?.name == "GPT")
             if mode == "expired" { #expect(!SharedHTTPStub.routes.recorded(id).contains { $0.url?.path.hasSuffix("contribute") == true }) }
         }
+    }
+}
+
+@Test func epochContributesOfficialCSVWithBoundSourceURLAndContentType() async throws {
+    let csv = "Model,Display name,eci,Organization,Country (of organization),Accessibility group\n"
+        + (0..<22).map { "model-\($0),Model \($0),\(170 - Double($0)),Maker,US,Closed weights" }.joined(separator: "\n")
+    let expiry = Date().addingTimeInterval(60).timeIntervalSince1970 * 1000
+    try await withSharedStub(handler: { request in
+        if request.url?.host == "epoch.ai" {
+            #expect(request.url == LeaderboardKind.epochECI.dataURL)
+            #expect(request.value(forHTTPHeaderField: "Accept") == "text/csv")
+            return (200, Data(csv.utf8))
+        }
+        if request.url?.path.hasSuffix("/contribute") == true {
+            #expect(request.value(forHTTPHeaderField: "Content-Type") == "text/csv; charset=utf-8")
+            return (200, try responseJSON(["board": sharedBoard(kind: "epochECI")]))
+        }
+        return (200, try responseJSON(["grant": ["token": String(repeating: "a", count: 43), "expiresAt": expiry,
+            "sourceURL": LeaderboardKind.epochECI.dataURL.absoluteString]]))
+    }) { fetcher, id in
+        let board = try await fetcher.fetch(.epochECI)
+        #expect(board.kind == .epochECI)
+        #expect(SharedHTTPStub.routes.recorded(id).count == 3)
+        let direct = LeaderboardFetcher(session: fetcher.session, sharedEndpoint: nil)
+        let parsed = try await direct.fetch(.epochECI)
+        #expect(parsed.entries.count == 22)
+        #expect(parsed.entries[0].score == 170)
     }
 }

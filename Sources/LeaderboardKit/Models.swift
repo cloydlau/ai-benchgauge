@@ -4,6 +4,7 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
     case artificialAnalysis = "artificialAnalysis"
     case artificialAnalysisCodingAgent = "artificialAnalysisCodingAgent"
     case arenaText = "arenaText"
+    case epochECI = "epochECI"
     case codeArenaWebDev = "codeArenaWebDev"
     case artificialAnalysisTextToImage = "artificialAnalysisTextToImage"
     case arenaTextToImage = "arenaTextToImage"
@@ -48,6 +49,8 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
             "https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index"
         case .artificialAnalysisCodingAgent:
             "https://artificialanalysis.ai/agents/coding-agents"
+        case .epochECI:
+            "https://epoch.ai/eci"
         case .arenaText:
             "https://arena.ai/leaderboard/text"
         case .codeArenaWebDev:
@@ -64,6 +67,11 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
         return URL(string: value)!
     }
 
+    /// The official machine-readable source may differ from its public leaderboard.
+    public var dataURL: URL {
+        self == .epochECI ? URL(string: "https://epoch.ai/data/eci_scores.csv")! : sourceURL
+    }
+
     public var sourcePrefix: String {
         switch self {
         case .artificialAnalysis,
@@ -73,6 +81,7 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
             "Artificial Analysis"
         case .arenaText, .codeArenaWebDev, .arenaTextToImage, .arenaTextToVideo:
             "Arena"
+        case .epochECI: "Epoch AI"
         }
     }
 
@@ -81,6 +90,7 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
         case .artificialAnalysis: "Artificial Analysis"
         case .artificialAnalysisCodingAgent: "Artificial Analysis 编程"
         case .arenaText: "Text Arena"
+        case .epochECI: "Epoch ECI"
         case .codeArenaWebDev: "Code Arena"
         case .artificialAnalysisTextToImage: "Artificial Analysis 文生图"
         case .arenaTextToImage: "Arena 文生图"
@@ -109,7 +119,7 @@ public enum LeaderboardCategory: String, Codable, CaseIterable, Identifiable, Se
 
     public var boardKinds: [LeaderboardKind] {
         switch self {
-        case .general: [.artificialAnalysis, .arenaText]
+        case .general: [.artificialAnalysis, .arenaText, .epochECI]
         case .coding: [.artificialAnalysisCodingAgent, .codeArenaWebDev]
         case .image: [.artificialAnalysisTextToImage, .arenaTextToImage]
         case .video: [.artificialAnalysisTextToVideo, .arenaTextToVideo]

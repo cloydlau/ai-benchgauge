@@ -162,3 +162,11 @@ import Foundation
     #expect(scroll.rank == 0 && !scroll.canReturnToTop)
     #expect(scroll.sourceTabsOffset == 0)
 }
+
+@Test func cubeSupportsThirdSourceWithoutSkippingAdjacentFaces() {
+    #expect(LeaderboardCube.position(face: 1, translation: -150, width: 300, count: 3) == 1.5)
+    #expect(LeaderboardCube.position(face: 2, translation: -150, width: 300, count: 3) == 2)
+    #expect(LeaderboardCube.destination(face: 1, translation: -200, predicted: -200, width: 300, count: 3) == 2)
+    #expect(LeaderboardCube.destination(face: 2, translation: 200, predicted: 200, width: 300, count: 3) == 1)
+    #expect(LeaderboardCube.destination(face: 0, translation: -2000, predicted: -2000, width: 300, count: 3) == 1)
+}

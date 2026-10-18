@@ -39,11 +39,12 @@ public final class LeaderboardPadStore: ObservableObject {
         self.cache = cache ?? (try? LeaderboardCache(fileURL: LeaderboardCache.defaultFileURL()))
         self.service = service
         self.snapshot = self.cache?.load() ?? LeaderboardSnapshot()
-        self.category = CategoryPreference.load(from: defaults)
+        let initialCategory = CategoryPreference.load(from: defaults)
+        self.category = initialCategory
         self.grouping = GroupingPreference.load(from: defaults)
         self.language = AppLanguage.load(from: defaults)
         self.appearance = defaults.string(forKey: "mobileAppearance") ?? "system"
-        self.selectedSource = defaults.integer(forKey: "mobileSelectedSource") == 1 ? 1 : 0
+        self.selectedSource = min(max(0, defaults.integer(forKey: "mobileSelectedSource")), initialCategory.boardKinds.count - 1)
         for kind in LeaderboardKind.allCases {
             if let raw = defaults.string(forKey: "openness.\(kind.rawValue)") {
                 opennessFilters[kind] = LeaderboardOpennessFilter(rawValue: raw)
