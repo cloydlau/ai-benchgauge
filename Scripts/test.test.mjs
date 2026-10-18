@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { runTests, testCommands, testInputSignature, testExecutionContext } from './test.mjs'
+import { runTests, testCommands, testInputSignature, testExecutionContext, testEnvironment } from './test.mjs'
 
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'benchgauge-tests-'))
@@ -15,6 +15,25 @@ function fixture(t) {
   return root
 }
 const logger = { log() {}, error() {} }
+
+test('native tests select full Xcode only for an implicit Command Line Tools selection', t => {
+  const root = fixture(t)
+  const xcodeDeveloperDir = join(root, 'Xcode.app', 'Contents', 'Developer')
+  const options = { platform: 'darwin', xcodeDeveloperDir, selectedDeveloperDir: '/Library/Developer/CommandLineTools' }
+  const env = { PATH: '/fixture/bin' }
+  assert.equal(testEnvironment(env, options), env, 'Missing Xcode must not change the environment')
+  mkdirSync(join(xcodeDeveloperDir, 'usr/bin'), { recursive: true })
+  writeFileSync(join(xcodeDeveloperDir, 'usr/bin/xcodebuild'), '')
+  assert.deepEqual(testEnvironment(env, options), { ...env, DEVELOPER_DIR: xcodeDeveloperDir })
+  assert.equal(env.DEVELOPER_DIR, undefined, 'The caller environment remains unchanged')
+  for (const key of ['DEVELOPER_DIR', 'TOOLCHAINS', 'SDKROOT', 'SWIFT_EXEC', 'SWIFT_DRIVER_SWIFT_FRONTEND_EXEC']) {
+    const explicit = { ...env, [key]: '/custom/toolchain' }
+    assert.equal(testEnvironment(explicit, options), explicit, key)
+  }
+  assert.equal(testEnvironment(env, { ...options, platform: 'linux' }), env)
+  assert.equal(testEnvironment(env, { ...options, selectedDeveloperDir: '/Custom/Xcode.app/Contents/Developer' }), env)
+  assert.equal(testEnvironment(env, { ...options, selectedDeveloperDir: '' }), env)
+})
 
 test('execution context carries only signature settings and explicitly preserves unset values', () => {
   const context = testExecutionContext({ ...process.env, LANG: 'en_GB.UTF-8', TZ: undefined, PRIVATE_TEST_VALUE: 'omit' })

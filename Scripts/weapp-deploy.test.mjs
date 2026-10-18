@@ -8,7 +8,28 @@ import { syncBuiltinESMExports } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { inputSnapshot, sourceSignature, stageInputs, needsUpload, readReceipt } from './weapp-deploy.mjs'
+import { sourcePaths, inputSnapshot, sourceSignature, stageInputs, needsUpload, readReceipt } from './weapp-deploy.mjs'
+
+test('isolated upload can load the real shared domain and detects country catalog updates', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'benchgauge-domain-stage-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  for (const path of ['fc', 'node_modules', 'apps/weapp/node_modules']) mkdirSync(join(root, path), { recursive: true })
+  writeFileSync(join(root, 'apps/weapp/package.json'), '{}')
+  for (const relative of sourcePaths.filter(path => path.startsWith('fc/'))) {
+    copyFileSync(new URL(`../${relative}`, import.meta.url), join(root, relative))
+  }
+  const files = inputSnapshot(root), signature = sourceSignature(files)
+  const stage = join(root, 'stage')
+  stageInputs(root, stage, files)
+  const domain = await import(pathToFileURL(join(stage, 'fc/domain.mjs')).href)
+  assert.equal(domain.countryCode({ name: 'Qwen', organization: 'Alibaba' }), 'CN')
+  assert.equal(domain.normalizedCountryCode('HK'), 'CN')
+  const catalog = join(root, 'fc/country-catalog.json')
+  writeFileSync(catalog, readFileSync(catalog, 'utf8') + '\n')
+  assert.notEqual(sourceSignature(inputSnapshot(root)), signature)
+  const config = JSON.parse(readFileSync(new URL('../calmmit.config.json', import.meta.url)))
+  assert.deepEqual(new Set(config.dev.activity.find(item => item.kind === 'mini-program').sources), new Set(sourcePaths))
+})
 
 test('upload snapshot detects edits and deletions but excludes credentials and generated files', t => {
   const root = mkdtempSync(join(tmpdir(), 'benchgauge-upload-'))

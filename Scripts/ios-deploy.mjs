@@ -3,6 +3,8 @@ import { createHash, randomUUID } from 'node:crypto'
 import { closeSync, cpSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, watch as watchFiles, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { withBuildCache } from './build-cache.mjs'
+import { nodeExecutable } from './node-executable.mjs'
 
 export const root = resolve(import.meta.dirname, '..')
 const script = fileURLToPath(import.meta.url)
@@ -73,7 +75,8 @@ export async function sourceFingerprint() {
   const { readSourceFingerprint } = await ci.load('dev-source')
   const source = await readSourceFingerprint(root, { revision: 'working-tree', paths: ['Sources', 'Tests', 'apps/ios/App', 'apps/ios/UI',
     'apps/ios/UITests', 'apps/macos/Sources', 'apps/windows', 'assets', 'config', 'Package.swift', 'Package.resolved',
-    'Scripts', '.github', 'calmmit.config.json', 'make-app.sh', 'test.sh', 'dev.sh', 'LICENSE'] })
+    'Scripts', '.github', 'apps/weapp/src/core/catalog.js', 'apps/weapp/src/core/investment.js',
+    'apps/weapp/scripts/engineering-investment.mjs', 'calmmit.config.json', 'make-app.sh', 'test.sh', 'dev.sh', 'LICENSE'] })
   const config = configuration(deploymentPaths(root))
   return createHash('sha256').update(JSON.stringify([source, config?.device, config?.team, config?.developerDir])).digest('hex')
 }
@@ -96,7 +99,7 @@ export async function mobileCheck({ paths, config, fingerprint, execute = runCom
   if (!checked || await fingerprint() !== checked) throw new Error('CI 检查期间源码已变化，未加入 iPhone 更新队列；请按最新源码重新检查')
   if (readJSON(paths.mobileCheck)?.fingerprint === checked) return checked
   const env = { ...process.env, DEVELOPER_DIR: config.developerDir }
-  await execute(process.execPath, [script, 'prepare'], { env, log: paths.log, timeout: 120_000 })
+  await execute(nodeExecutable({ env }), [script, 'prepare'], { env, log: paths.log, timeout: 120_000 })
   await execute('xcodebuild', ['-project', paths.project, '-scheme', 'BenchGauge', '-configuration', 'Debug',
     '-destination', 'generic/platform=iOS Simulator', '-derivedDataPath', resolve(paths.directory, 'CheckDerivedData'),
     'CODE_SIGNING_ALLOWED=NO', 'build'], { env, log: paths.log, timeout: 600_000 })
@@ -152,48 +155,52 @@ export async function deploymentTick({ paths, config, fingerprint, execute, reco
   const run = (command, args, options = {}) => execute(command, args, { env, log: paths.log, signal, ...options })
   const data = JSON.parse(await run('xcrun', ['devicectl', 'list', 'devices', '--json-output', '-', '--timeout', '10'], { capture: true, timeout: 15_000 }))
   if (!availableDevice(data, config.device)) { record('waiting-device', 'iPhone 离线，保留待更新版本，重连后自动安装'); return 'pending' }
-  const build = readJSON(paths.built)
-  const needsBuild = build?.fingerprint !== request.fingerprint || !existsSync(paths.app)
-  if (needsBuild) {
-    // A new build overwrites the bundle; invalidate any old receipt before doing so.
-    rmSync(paths.built, { force: true })
-    record('building', '正在为 iPhone 编译并签名')
-    try {
-      await run(process.execPath, [script, 'prepare'], { timeout: 120_000 })
-      await run('xcodebuild', deviceBuildArguments(paths, config), { timeout: 600_000 })
-      if (!existsSync(resolve(paths.app, 'embedded.mobileprovision'))) throw new Error('未生成 iPhone 开发描述文件，请先在 Xcode 完成账号和签名配置')
-      await run('codesign', ['--verify', '--strict', paths.app])
-      const identifier = await run('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleIdentifier', resolve(paths.app, 'Info.plist')], { capture: true })
-      if (identifier.trim() !== bundleID) throw new Error('签名产物的 Bundle ID 与 BenchGauge 不匹配')
-    } catch (error) {
-      if (signal?.aborted) throw error
-      record('build-failed', 'iPhone 编译或签名失败；请查看日志，解决后重新触发 CI 或运行 retry', error.message)
-      return 'idle'
+  const deliver = async () => {
+    const build = readJSON(paths.built)
+    const needsBuild = build?.fingerprint !== request.fingerprint || !existsSync(paths.app)
+    if (needsBuild) {
+      // A new build overwrites the bundle; invalidate any old receipt before doing so.
+      rmSync(paths.built, { force: true })
+      record('building', '正在为 iPhone 编译并签名')
+      try {
+        await run(nodeExecutable({ env }), [script, 'prepare'], { timeout: 120_000 })
+        await run('xcodebuild', deviceBuildArguments(paths, config), { timeout: 600_000 })
+        if (!existsSync(resolve(paths.app, 'embedded.mobileprovision'))) throw new Error('未生成 iPhone 开发描述文件，请先在 Xcode 完成账号和签名配置')
+        await run('codesign', ['--verify', '--strict', paths.app])
+        const identifier = await run('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleIdentifier', resolve(paths.app, 'Info.plist')], { capture: true })
+        if (identifier.trim() !== bundleID) throw new Error('签名产物的 Bundle ID 与 BenchGauge 不匹配')
+      } catch (error) {
+        if (signal?.aborted) throw error
+        record('build-failed', 'iPhone 编译或签名失败；请查看日志，解决后重新触发 CI 或运行 retry', error.message)
+        return 'idle'
+      }
     }
+    // Never install a stale or superseded candidate, even if edits arrived mid-build.
+    if (await fingerprint() !== request.fingerprint || readJSON(paths.request)?.id !== request.id) {
+      record('waiting-ci', '编译期间源码或队列已更新，等待最新检查通过'); return 'pending'
+    }
+    if (needsBuild) writeJSON(paths.built, { fingerprint: request.fingerprint })
+    record('installing', '正在安装到 iPhone')
+    await run('xcrun', ['devicectl', 'device', 'install', 'app', '--device', config.device, '--timeout', '60', paths.app], { timeout: 70_000 })
+    // A successful installation remains delivered even if a locked phone rejects launch.
+    writeJSON(paths.receipt, { schemaVersion: 1, status: 'success', fingerprint: request.fingerprint,
+      ...(request.sourceFingerprint ? { sourceFingerprint: request.sourceFingerprint } : {}),
+      device: config.device, installedAt: new Date().toISOString() })
+    if (config.launchAfterInstall) {
+      try { await run('xcrun', ['devicectl', 'device', 'process', 'launch', '--device', config.device, '--terminate-existing', '--timeout', '20', bundleID], { timeout: 25_000 }) }
+      catch (error) { record('installed', '已安装；手机暂不能自动打开，请解锁后打开 BenchGauge', error.message); return 'idle' }
+    }
+    record('installed', '已自动更新到 iPhone' + (config.launchAfterInstall ? '并打开 BenchGauge' : ''))
+    return 'idle'
   }
-  // Never install a stale or superseded candidate, even if edits arrived mid-build.
-  if (await fingerprint() !== request.fingerprint || readJSON(paths.request)?.id !== request.id) {
-    record('waiting-ci', '编译期间源码或队列已更新，等待最新检查通过'); return 'pending'
-  }
-  if (needsBuild) writeJSON(paths.built, { fingerprint: request.fingerprint })
-  record('installing', '正在安装到 iPhone')
-  await run('xcrun', ['devicectl', 'device', 'install', 'app', '--device', config.device, '--timeout', '60', paths.app], { timeout: 70_000 })
-  // A successful installation remains delivered even if a locked phone rejects launch.
-  writeJSON(paths.receipt, { schemaVersion: 1, status: 'success', fingerprint: request.fingerprint,
-    ...(request.sourceFingerprint ? { sourceFingerprint: request.sourceFingerprint } : {}),
-    device: config.device, installedAt: new Date().toISOString() })
-  if (config.launchAfterInstall) {
-    try { await run('xcrun', ['devicectl', 'device', 'process', 'launch', '--device', config.device, '--terminate-existing', '--timeout', '20', bundleID], { timeout: 25_000 }) }
-    catch (error) { record('installed', '已安装；手机暂不能自动打开，请解锁后打开 BenchGauge', error.message); return 'idle' }
-  }
-  record('installed', '已自动更新到 iPhone' + (config.launchAfterInstall ? '并打开 BenchGauge' : ''))
-  return 'idle'
+  // The lease includes installation: the app bundle lives inside DerivedData.
+  return execute === runCommand ? withBuildCache(root, 'ios-device', deliver, { signal }) : deliver()
 }
 function ensureWorker(paths) {
   const owner = readJSON(resolve(paths.lock, 'owner.json'))
   if (owner && workerAlive(owner.pid)) return
   const fd = openSync(paths.log, 'a', 0o600)
-  const child = spawn(process.execPath, [script, 'watch'], { cwd: root, detached: true, stdio: ['ignore', fd, fd] })
+  const child = spawn(nodeExecutable(), [script, 'watch'], { cwd: root, detached: true, stdio: ['ignore', fd, fd] })
   closeSync(fd); child.unref()
 }
 async function watch(paths) {
@@ -246,7 +253,7 @@ async function main() {
     const passed = readJSON(resolve(root, 'work/test-results/latest.json'))
     const signature = process.env.BENCHGAUGE_TEST_PASS
     if (!signature || passed?.status !== 0 || passed.signature !== signature || testInputSignature() !== signature) throw new Error('手机更新需要当前源码通过完整测试')
-    await runCommand(process.execPath, ['Scripts/check-syntax.mjs'], { env: process.env, log: paths.log, timeout: 600_000 })
+    await runCommand(nodeExecutable(), ['Scripts/check-syntax.mjs'], { env: process.env, log: paths.log, timeout: 600_000 })
     const candidate = await sourceFingerprint()
     if (testInputSignature() !== signature) throw new Error('语法检查期间源码已变化，请重新验证')
     writeJSON(paths.checkpoint, { fingerprint: candidate })
@@ -258,7 +265,7 @@ async function main() {
   const passed = readJSON(resolve(root, 'work/test-results/latest.json'))
   if (passed?.status !== 0 || passed.signature !== testInputSignature()) throw new Error('手机更新需要当前源码通过完整测试')
   if (readJSON(paths.checkpoint)?.fingerprint !== fingerprint) throw new Error('CI 检查期间源码已变化，未加入 iPhone 更新队列；请按最新源码重新检查')
-  await mobileCheck({ paths, config, fingerprint: sourceFingerprint })
+  await withBuildCache(root, 'ios-check', () => mobileCheck({ paths, config, fingerprint: sourceFingerprint }))
   if (passed.signature !== testInputSignature()) throw new Error('iOS 构建检查期间测试依据已变化，请重新验证')
   const previous = readJSON(paths.request)
   const failed = readJSON(paths.status)?.phase === 'build-failed'

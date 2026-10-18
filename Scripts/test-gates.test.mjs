@@ -34,7 +34,7 @@ test('standalone packaging stops before Swift build when the test gate fails', (
 
 test('configured tests=false skips the packaging test gate and still reports build failures', (t) => {
   const { root, original, env } = fixture(t)
-  for (const name of ['make-app.sh', 'ci-build.mjs', 'calmmit.mjs']) copyFileSync(join(original, name), join(root, 'Scripts', name))
+  for (const name of ['make-app.sh', 'package-macos.sh', 'build-cache.mjs', 'ci-build.mjs', 'calmmit.mjs']) copyFileSync(join(original, name), join(root, 'Scripts', name))
   const current = JSON.parse(readFileSync(join(original, '../calmmit.config.json'), 'utf8'))
   const config = { preset: 'custom', library: resolve(original, '..', current.library), steps: { tests: false, build: true }, commands: { build: ['node', 'Scripts/ci-build.mjs'] } }
   writeFileSync(join(root, 'calmmit.config.json'), JSON.stringify(config))

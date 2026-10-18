@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import cp from 'node:child_process'
 import { syncBuiltinESMExports } from 'node:module'
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -78,7 +78,9 @@ test('Swift workspace recovery tolerates absent artifact metadata and unmatched 
 test('project and visual policy CLI entry points validate their input in an isolated directory', t => {
   const root = directory(t)
   mkdirSync(join(root, 'Scripts')); mkdirSync(join(root, 'config'))
-  for (const name of ['ios-project.mjs', 'ios-build.mjs', 'app-config.mjs', 'release-lib.mjs', 'visual-review-policy.mjs', 'prepare-swift-workspace.mjs']) copyFileSync(new URL('./' + name, import.meta.url), join(root, 'Scripts', name))
+  for (const name of ['ios-project.mjs', 'ios-build.mjs', 'build-cache.mjs', 'app-config.mjs', 'release-lib.mjs', 'visual-review-policy.mjs', 'prepare-swift-workspace.mjs']) copyFileSync(new URL('./' + name, import.meta.url), join(root, 'Scripts', name))
+  // ios-about.mjs imports weapp core modules outside Scripts/, so the sandbox stubs it.
+  writeFileSync(join(root, 'Scripts/ios-about.mjs'), 'export function writeIOSAbout(directory, targetPath) { return targetPath }\n')
   copyFileSync(new URL('../config/app.json', import.meta.url), join(root, 'config/app.json'))
   const preload = join(root, 'sandbox.cjs')
   writeFileSync(preload, `
@@ -125,7 +127,9 @@ test('dependency updates and Windows checks retain actual failure status', t => 
 test('iOS build orchestration uses isolated projects and propagates SDK, simulator and compiler failures', async t => {
   const root = directory(t)
   mkdirSync(join(root, 'Scripts')); mkdirSync(join(root, 'config'))
-  for (const name of ['ios-build.mjs', 'ios-project.mjs', 'app-config.mjs', 'release-lib.mjs']) copyFileSync(new URL('./' + name, import.meta.url), join(root, 'Scripts', name))
+  for (const name of ['ios-build.mjs', 'build-cache.mjs', 'ios-project.mjs', 'app-config.mjs', 'release-lib.mjs']) copyFileSync(new URL('./' + name, import.meta.url), join(root, 'Scripts', name))
+  // ios-about.mjs imports weapp core modules outside Scripts/, so the sandbox stubs it.
+  writeFileSync(join(root, 'Scripts/ios-about.mjs'), 'export function writeIOSAbout(directory, targetPath) { return targetPath }\n')
   copyFileSync(new URL('../config/app.json', import.meta.url), join(root, 'config/app.json'))
   const { runIOSBuild } = await import(pathToFileURL(join(root, 'Scripts/ios-build.mjs')).href)
   let mode = 'sdk', builds = [], simulator = 0
@@ -152,6 +156,36 @@ test('iOS build orchestration uses isolated projects and propagates SDK, simulat
   assert.equal(runIOSBuild('test', {}, 'iPhone'), 0)
   assert.equal(runIOSBuild('archive', { APPLE_TEAM_ID: 'ABCDEFGHIJ' }), 0)
   assert.ok(simulator >= 4)
+})
+
+test('iOS CLI holds its managed cache lease through SDK builds and simulator checks', t => {
+  const root = directory(t)
+  mkdirSync(join(root, 'Scripts')); mkdirSync(join(root, 'config'))
+  for (const name of ['ios-build.mjs', 'build-cache.mjs', 'ios-project.mjs', 'app-config.mjs', 'release-lib.mjs']) copyFileSync(new URL('./' + name, import.meta.url), join(root, 'Scripts', name))
+  writeFileSync(join(root, 'Scripts/ios-about.mjs'), 'export function writeIOSAbout(directory, targetPath) { return targetPath }\n')
+  copyFileSync(new URL('../config/app.json', import.meta.url), join(root, 'config/app.json'))
+  const preload = join(root, 'managed-ios.cjs')
+  writeFileSync(preload, `
+const cp=require('node:child_process'), fs=require('node:fs'), path=require('node:path');
+cp.spawnSync=(command,args)=>{
+  if(command==='ps')return {status:0,stdout:'Sat Oct 17 10:00:00 2026'};
+  if(args.includes('simctl'))return {status:0,stdout:JSON.stringify({devices:{'iOS-26-0':[
+    {name:'iPad',isAvailable:true,udid:'00000000-0000-0000-0000-000000000001'},
+    {name:'iPhone',isAvailable:true,udid:'00000000-0000-0000-0000-000000000002'}]}})};
+  if(command==='xcodebuild'){
+    const owner=JSON.parse(fs.readFileSync(path.join(process.env.UNIT_ROOT,'work/build-cache/native.lock')));
+    if(!owner.paths.includes('work/ios-build/Build'))throw Error('Missing build-cache lease');
+  }
+  return {status:0};
+};require('node:module').syncBuiltinESMExports();`)
+  for (const args of [[], ['build'], ['test', 'iPhone']]) {
+    const result = cp.spawnSync(process.execPath, ['--require', preload, join(root, 'Scripts/ios-build.mjs'), ...args], {
+      cwd: root, encoding: 'utf8', env: { ...process.env, UNIT_ROOT: root },
+    })
+    assert.equal(result.status, 0, result.stderr)
+    assert.equal(existsSync(join(root, 'work/build-cache/native.lock')), false)
+    assert.ok(JSON.parse(readFileSync(join(root, 'work/build-cache/registry.json'))).entries.some(entry => entry.path === 'work/ios-build/Build'))
+  }
 })
 
 test('simulator selection rejects missing runtimes, unavailable names and missing destination IDs', () => import('./ios-build.mjs').then(({ iosSimulator, iosBuildPlan }) => {

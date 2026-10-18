@@ -13,6 +13,14 @@ For changes to a desktop interface, obtain real Windows WPF and Mac AppKit / Swi
 
 Generated comparison screenshots stay in ignored `work/` and CI artifacts. Existing privacy/media commit checks remain applicable to any screenshots submitted to Git history.
 
+## Native build cache lifecycle
+
+Use the managed build entry points (`./test.sh`, `./make-app.sh`, `Scripts/ios-build.mjs`, `Scripts/ios-deploy.mjs`). They serialize native builds and track rebuildable caches with a 7-day idle limit and 20 GiB target. Do not create additional persistent Swift scratch directories or Xcode DerivedData trees per task.
+
+For one-off native captures or checks, use `node Scripts/build-cache.mjs run temporary -- <command> [args]`. The child receives `BENCHGAUGE_TEMP_CACHE`; put Swift `--scratch-path` / module caches and Xcode `-derivedDataPath` below that directory. Export screenshots, reports and any deliverable outside it before the command exits. It is automatically reclaimed on success or failure. Do not put source copies, user data, release archives or crash symbols there. Do not nest another managed build entry point inside this command (it already holds the native-build lock).
+
+Only the explicitly registered caches are eligible for automatic eviction. Unregistered `work/` directories, simulator devices/runtimes, release archives, reports and installed applications require separate review. Never infer that a directory is disposable from its name. See [docs/build-cache.md](docs/build-cache.md).
+
 ## WeChat DevTools MCP
 
 For mini-program runtime and UI debugging, use the connected official `wechat-devtools` MCP. The canonical IDE project is this repository's `apps/weapp` directory (not `dist`, the repository root, an old checkout, or an ignored preview fixture). Resolve it to an absolute path from the current checkout and pass it as `project` on every project-specific tool call.

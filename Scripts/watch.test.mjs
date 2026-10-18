@@ -50,7 +50,9 @@ function watcherFixture(t, { binary = 'fresh', restartFails = false, testsFail =
   mkdirSync(join(root, 'Tests'))
   mkdirSync(join(app, 'Contents', 'MacOS'), { recursive: true })
   const original = dirname(fileURLToPath(import.meta.url))
-  for (const name of ['calmmit.mjs', 'watch.mjs', 'test.mjs', 'commit-identity.mjs', 'commit-lock.mjs', 'desktop-notify.mjs', 'git-network.mjs', 'node-executable.mjs']) {
+  // The real test runner is imported for its IPC execution context even though
+  // runTestGate is mocked, so its module dependencies must exist in the fixture.
+  for (const name of ['calmmit.mjs', 'watch.mjs', 'test.mjs', 'build-cache.mjs', 'prepare-swift-workspace.mjs', 'commit-identity.mjs', 'commit-lock.mjs', 'desktop-notify.mjs', 'git-network.mjs', 'node-executable.mjs']) {
     copyFileSync(join(original, name), join(scripts, name))
   }
   // These desktop watcher fixtures never construct or upload a mini-program.

@@ -40,6 +40,10 @@ test('repair gate handles environment failures, busy lock and unattempted repair
 test('Codex repair command validates deadlines and reports, redacts inherited state, then requires real retesting', async t => {
   let mode = 'pass', invocations = 0
   t.mock.method(cp, 'spawnSync', (_command, args, options) => {
+    if (_command === 'xcode-select') {
+      assert.deepEqual(args, ['-p'])
+      return { status: 0, stdout: '/fixture/Xcode.app/Contents/Developer\n' }
+    }
     if (_command === 'git') {
       assert.equal(args[0], 'rev-parse')
       return { status: 0, stdout: args.includes('--absolute-git-dir') ? join(options.cwd, '.git') + '\n' : 'fixture-head\n' }

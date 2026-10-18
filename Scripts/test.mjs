@@ -1,24 +1,39 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { appendFileSync, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'
-import { acquireCommitLock } from './commit-lock.mjs'
+import { acquireCommitLock, pidState } from './commit-lock.mjs'
 import { nodeExecutable } from './node-executable.mjs'
+import { withBuildCache } from './build-cache.mjs'
+import { prepareSwiftWorkspace } from './prepare-swift-workspace.mjs'
 
 export const testRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 export const testEnvironmentKeys = ['PATH', 'DEVELOPER_DIR', 'TOOLCHAINS', 'SDKROOT', 'TZ',
   'SWIFT_EXEC', 'SWIFT_DRIVER_SWIFT_FRONTEND_EXEC', 'NODE_OPTIONS', 'LANG', 'LC_ALL']
 
+export function testEnvironment(env = process.env, { platform = process.platform,
+  xcodeDeveloperDir = '/Applications/Xcode.app/Contents/Developer', selectedDeveloperDir } = {}) {
+  // The Command Line Tools SDK lacks SwiftUI's platform macro plugins. Use the
+  // installed full Xcode for native tests, without changing global xcode-select.
+  if (platform !== 'darwin' || ['DEVELOPER_DIR', 'TOOLCHAINS', 'SDKROOT', 'SWIFT_EXEC',
+    'SWIFT_DRIVER_SWIFT_FRONTEND_EXEC'].some(key => env[key])
+    || !existsSync(join(xcodeDeveloperDir, 'usr/bin/xcodebuild'))) return env
+  const selected = selectedDeveloperDir ?? spawnSync('xcode-select', ['-p'], { env, encoding: 'utf8' }).stdout?.trim()
+  return selected?.endsWith('/CommandLineTools') ? { ...env, DEVELOPER_DIR: xcodeDeveloperDir } : env
+}
+
 export function testExecutionContext(env = process.env) {
+  env = testEnvironment(env)
   return { node: nodeExecutable({ env }), env: Object.fromEntries([...testEnvironmentKeys, 'CALMMIT_PATH']
     .map(key => [key, env[key] ?? null])) }
 }
 
 // Only a pass for the exact inputs may be reused by child commit/build processes.
 export function testInputSignature(root = testRoot, env = process.env, { includeSources = true } = {}) {
+  env = testEnvironment(env)
   const hash = createHash('sha256')
   hash.update(JSON.stringify([process.version, nodeExecutable({ env }), ...testEnvironmentKeys.map(key => env[key])]))
   function collect(path) {
@@ -49,7 +64,8 @@ export function testInputSignature(root = testRoot, env = process.env, { include
   return hash.digest('hex')
 }
 
-export function testCommands(root = testRoot, { coreOnly = false, scriptsOnly = false, coverage = false, swiftcPath, node = nodeExecutable() } = {}) {
+export function testCommands(root = testRoot, { coreOnly = false, scriptsOnly = false, coverage = false, swiftcPath,
+  env = testEnvironment(), node = nodeExecutable({ env }) } = {}) {
   const commands = []
   if (!coreOnly) {
     const files = readdirSync(join(root, 'Scripts')).filter((name) => name.endsWith('.test.mjs')).sort().map((name) => join(root, 'Scripts', name))
@@ -71,7 +87,7 @@ export function testCommands(root = testRoot, { coreOnly = false, scriptsOnly = 
       '--cache-path', join(root, 'work', 'swiftpm-cache'), '--manifest-cache', 'local', '--disable-sandbox']
     if (coverage) args.push('--enable-code-coverage')
     // Swift Build in recent Command Line Tools omits TestingMacros from its search path.
-    const swiftc = swiftcPath ?? spawnSync('xcrun', ['--find', 'swiftc'], { encoding: 'utf8' }).stdout?.trim()
+    const swiftc = swiftcPath ?? spawnSync('xcrun', ['--find', 'swiftc'], { env, encoding: 'utf8' }).stdout?.trim()
     if (swiftc) {
       const plugins = resolve(dirname(swiftc), '..', 'lib', 'swift', 'host', 'plugins', 'testing')
       if (existsSync(plugins)) args.push('-Xswiftc', '-plugin-path', '-Xswiftc', plugins)
@@ -84,8 +100,39 @@ export function testCommands(root = testRoot, { coreOnly = false, scriptsOnly = 
   return commands
 }
 
+// Caller must hold test.lock. Only the just-finished run may bypass its live
+// owner PID; interrupted runs with a live or unverifiable owner stay untouched.
+export function pruneTestResults(directory, { completedCoverageDirectory = null, state = pidState } = {}) {
+  if (!lstatSync(directory).isDirectory()) throw new Error('拒绝清理非真实测试结果目录')
+  const newestFirst = (a, b) => b.started - a.started || b.name.localeCompare(a.name)
+  const coverage = [], failures = []
+  for (const name of readdirSync(directory)) {
+    const path = join(directory, name)
+    const match = /^(coverage|failure)-(\d+)-([1-9]\d*)(\.log)?$/.exec(name)
+    if (!match) continue
+    const stat = lstatSync(path)
+    if (match[1] === 'coverage' && !match[4] && stat.isDirectory()) {
+      if (path !== completedCoverageDirectory && state(Number(match[3])) !== 'gone') continue
+      const summary = join(path, 'summary.json')
+      coverage.push({ name, path, started: Number(match[2]), summary: existsSync(summary) && lstatSync(summary).isFile() })
+    } else if (match[1] === 'failure' && match[4] && stat.isFile()) {
+      failures.push({ name, path, started: Number(match[2]) })
+    }
+  }
+  const latestSummary = coverage.sort(newestFirst).find(run => run.summary)
+  for (const run of coverage) {
+    if (run === latestSummary) {
+      for (const name of readdirSync(run.path)) {
+        if (name !== 'summary.json') rmSync(join(run.path, name), { recursive: true, force: true })
+      }
+    } else rmSync(run.path, { recursive: true, force: true })
+  }
+  for (const run of failures.sort(newestFirst).slice(1)) rmSync(run.path)
+}
+
 export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly = false, coverage = false, gate = false,
   env = process.env, commands, run, logger = console, lockWaitMs = 0 } = {}) {
+  env = testEnvironment(env)
   if (coreOnly && scriptsOnly) throw new Error('--core 和 --scripts 不能同时使用')
   let before = testInputSignature(root, env)
   if (gate && !coreOnly && !scriptsOnly && !coverage && env.BENCHGAUGE_TEST_PASS === before) {
@@ -139,28 +186,39 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
       })
       child.on('close', (code) => resolvePromise(code ?? 1))
     }))
-    const checks = commands ?? testCommands(root, { coreOnly, scriptsOnly, coverage })
+    const checks = commands ?? testCommands(root, { coreOnly, scriptsOnly, coverage, env })
     if (!checks.length) throw new Error('测试列表为空，拒绝报告通过')
-    if (nativeCoverage) {
-      status = await exec(nodeExecutable({ env }), [join(root, 'Scripts', 'swift-coverage.cjs'), root, '--clear'])
+    const runChecks = async () => {
+      if (nativeCoverage) {
+        status = await exec(nodeExecutable({ env }), [join(root, 'Scripts', 'swift-coverage.cjs'), root, '--clear'])
+      }
+      for (const [command, args] of checks) {
+        if (status !== 0) break
+        const heading = `\n[test] ${command} ${args.join(' ')}\n`
+        logger.log(heading.trim()); appendFileSync(logPath, heading)
+        status = await exec(command, args)
+        if (status !== 0) break
+      }
+      if (status === 0 && coverageDirectory) {
+        const result = spawnSync(nodeExecutable({ env }), ['--expose-internals', join(root, 'Scripts', 'coverage-report.cjs'), coverageDirectory, root],
+          { cwd: root, env, encoding: 'utf8' })
+        const output = `${result.stdout || ''}${result.stderr || ''}`
+        process.stdout.write(output); appendFileSync(logPath, output)
+        status = result.status ?? 1
+      }
+      if (status === 0 && nativeCoverage) {
+        status = await exec(nodeExecutable({ env }), [join(root, 'Scripts', 'swift-coverage.cjs'), root])
+      }
     }
-    for (const [command, args] of checks) {
-      if (status !== 0) break
-      const heading = `\n[test] ${command} ${args.join(' ')}\n`
-      logger.log(heading.trim()); appendFileSync(logPath, heading)
-      status = await exec(command, args)
-      if (status !== 0) break
-    }
-    if (status === 0 && coverageDirectory) {
-      const result = spawnSync(nodeExecutable({ env }), ['--expose-internals', join(root, 'Scripts', 'coverage-report.cjs'), coverageDirectory, root],
-        { cwd: root, env, encoding: 'utf8' })
-      const output = `${result.stdout || ''}${result.stderr || ''}`
-      process.stdout.write(output); appendFileSync(logPath, output)
-      status = result.status ?? 1
-    }
-    if (status === 0 && nativeCoverage) {
-      status = await exec(nodeExecutable({ env }), [join(root, 'Scripts', 'swift-coverage.cjs'), root])
-    }
+    // Hold the native-build lease through Swift's coverage validation, so its
+    // scratch directory cannot be reclaimed between testing and reporting.
+    if (!scriptsOnly && !run) await withBuildCache(root, 'tests', async () => {
+      // Packaging previously prepared these before its gate. Keep relocation
+      // recovery ahead of Swift tests, now while holding the shared cache lease.
+      prepareSwiftWorkspace(root, { log: message => logger.log(message) })
+      await runChecks()
+    }, { log: message => logger.log(message) })
+    else await runChecks()
     const after = testInputSignature(root, env)
     if (status === 0 && before !== after) {
       status = 75
@@ -175,6 +233,10 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
     const result = { status, signature: status === 0 && !coreOnly && !scriptsOnly ? before : null, logPath, durationMs: Date.now() - started,
       scope: coreOnly ? 'core' : scriptsOnly ? 'scripts' : 'all', coverage, coverageDirectory }
     writeFileSync(join(directory, 'latest.json'), JSON.stringify(result, null, 2) + '\n')
+    // Reporting and all coverage checks have finished before discarding profiles.
+    // Cleanup trouble must not turn either a pass or a failure into a new verdict.
+    try { pruneTestResults(directory, { completedCoverageDirectory: coverageDirectory }) }
+    catch (error) { logger.error(`[test] 测试记录清理未完成：${error.message}`) }
     logger.log(status === 0 ? '[test] 测试通过' : `[test] 测试未通过，日志：${logPath}`)
     return result
   } finally {

@@ -129,12 +129,16 @@
           "fc/domain.mjs",
           "fc/brand-catalog.json",
           "fc/leaderboard-policy.json",
+          "fc/country-catalog.json",
+          "fc/purchase-links.json",
+          "Scripts/generate-purchase-links.mjs",
+          "Sources/LeaderboardKit/PurchaseLinkData.generated.swift",
           "assets/brand/header-logo.png",
           "assets/brand/header-logo-dark.png",
           "assets/logos",
           "Sources/LeaderboardKit/SharedLeaderboardConfiguration.swift",
-          "Sources/LeaderboardKit/Resources/Fonts/SlideFont-OFL.txt",
           "config/app.json",
+          "Sources/LeaderboardKit/Resources/Fonts/SlideFont-OFL.txt",
           "LICENSE",
           "package.json",
           "pnpm-lock.yaml",
@@ -153,7 +157,9 @@
           "Package.swift",
           "Package.resolved",
           "make-app.sh",
-          "Scripts/make-app.sh"
+          "Scripts/make-app.sh",
+          "Scripts/package-macos.sh",
+          "Scripts/build-cache.mjs"
         ],
         "revisionReceipt": "work/.last-app-deploy",
         "label": "macOS"
