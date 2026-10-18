@@ -507,7 +507,7 @@ test('page lifecycle paints independent sources, honors the new tabs/headings an
   assert.equal(h.page.capsuleWidth.value, 113)
   globalThis.__benchHooks.show()
   assert.equal(h.requests.length, 3)
-  assert.deepEqual(h.page.tabs.value, ['任务测评', '用户盲测', '能力指数'])
+  assert.deepEqual(h.page.tabs.value, ['任务测评', '用户盲测', '难度校准'])
   h.respond(1); await Promise.resolve(); await Promise.resolve()
   h.respond(0); h.respond(2); await loading
   assert.deepEqual(h.page.cards.value.map(card => [card.title, card.rows.length]), [['Artificial Analysis', 2], ['Text Arena', 2], ['Epoch ECI', 2]])
@@ -893,7 +893,7 @@ test('actual filter/settings handlers share source filters, react to theme, copy
   assert.equal(h.page.sheet.value.actions.length, 3)
   h.page.sheetSelect({ detail: h.page.sheet.value.actions.find(action => action.value === 'dark') })
   assert.ok(h.page.dark.value)
-  assert.deepEqual(h.page.tabs.value, ['Task benchmarks', 'User votes', 'Capability index'])
+  assert.deepEqual(h.page.tabs.value, ['Task benchmarks', 'User votes', 'Calibrated scoring'])
   h.page.selectCategory(event({ id: 'image' }))
   assert.equal(h.page.cards.value[0].title, 'Artificial Analysis Text to Image')
   h.respondAll(); await new Promise(resolve => setImmediate(resolve))
