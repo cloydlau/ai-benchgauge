@@ -83,3 +83,18 @@ test('source switching matches the first fully visible row and clamps shorter or
   assert.equal(matchingScroll({ scrollTop: 40, origin: 110, nextOrigin: 130, rowHeight: 48, count: 500 }), 40)
   assert.equal(matchingScroll({ scrollTop: 1080, origin: 110, nextOrigin: 130, rowHeight: 48, count: 0 }), 130)
 })
+
+test('three-source cube turns from Arena to Epoch and back with correct hinge and outer bounds', () => {
+  const next = cubeGesture(1, 250, 100, 0, 3);
+  moveCubeGesture(next, 100, 100, 200, 375);
+  assert.equal(next.position, 1.4);
+  assert.equal(cubeDestination(next, 375, 500), 2);
+  const back = cubeGesture(2, 100, 100, 0, 3);
+  moveCubeGesture(back, 260, 100, 200, 375);
+  assert.equal(cubeDestination(back, 375, 500), 1);
+  moveCubeGesture(back, -200, 100, 600, 375);
+  assert.equal(back.position, 2);
+  assert.match(cubeFaceStyle(1, 1.4), /transform-origin:right center/);
+  assert.match(cubeFaceStyle(2, 1.4), /transform-origin:left center/);
+  assert.match(cubeFaceStyle(2, 2), /transform:none/);
+});

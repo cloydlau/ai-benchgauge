@@ -21,7 +21,8 @@ export function handler(makeService) {
       if (!action) result = await service.read(kind);
       else if (action === 'refresh') result = await service.refresh(kind);
       else {
-        if (!String(request.headers['content-type'] ?? '').startsWith('text/html')) throw new RequestError(415, 'Expected source HTML');
+        const contentType = kind === 'epochECI' ? 'text/csv' : 'text/html';
+        if (!String(request.headers['content-type'] ?? '').startsWith(contentType)) throw new RequestError(415, 'Expected official source data');
         if (Number(request.headers['content-length']) > maxHTMLBytes) throw new RequestError(413, 'Source HTML too large');
         let size = 0; const chunks = [];
         for await (const chunk of request) {

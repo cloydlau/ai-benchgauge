@@ -5,7 +5,7 @@
 [English](README.md) | [简体中文](README.zh-CN.md) | **繁體中文**
 
 <!-- app-description:start (generated from apps/weapp/src/core/catalog.js) -->
-**使用者盲測看體驗，任務測評看能力。雙榜對照，選得明白；餘量追蹤，用得有數。**
+**使用者盲測看體驗，任務測評看能力。多榜對照，選得明白；餘量追蹤，用得有數。**
 <!-- app-description:end -->
 
 `macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `English / 簡中 / 繁中` · [MIT 授權條款](LICENSE)
@@ -106,10 +106,12 @@ xAI 顯示「登錄失效」或「未登錄」時，點擊卡片會開啟 CC Swi
 
 | 分類 | 左側 | 右側 |
 | --- | --- | --- |
-| 綜合 | Artificial Analysis Intelligence Index | Arena · Text |
+| 綜合 | Artificial Analysis Intelligence Index | Arena · Text / Epoch ECI（可切換） |
 | 編程 | Artificial Analysis Coding Agent Index | Code Arena · WebDev |
 | 圖片 | Artificial Analysis · 文生圖 | Arena · 文生圖 |
 | 視頻 | Artificial Analysis · 文生視頻 | Arena · 文生視頻 |
+
+綜合另提供 [Epoch AI 的 ECI](https://epoch.ai/eci)，讀取官方 CSV。桌面端維持兩欄，右側可切換 Arena / Epoch ECI；行動端可切換三個來源。ECI 保留原始指數，顯示兩位小數，不按百分比呈現；CSV 中的模型發布日期不作為榜單更新時間。見[資料與驗證說明](docs/epoch-eci.md)。
 
 圖片和視頻使用對應的專項榜單。Artificial Analysis 只有編程智能體榜的資料帶有批次產生時間 `materializedAt`，應用程式會在該欄位標題顯示這個來源資料時間與版本號；綜合、文生圖、文生視頻三塊沒有公開資料時間，欄位標題不顯示日期，面板上方仍顯示本機擷取時間。Arena 提供投票截止時間時則會顯示該時間。切換分類會優先讀取快取，不必每次都等待網路。
 

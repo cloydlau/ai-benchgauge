@@ -17,7 +17,7 @@ public struct LeaderboardFetcher: Sendable {
 
     public func fetch(_ kind: LeaderboardKind, onCachedBoard: LeaderboardService.BoardUpdate? = nil) async throws -> Leaderboard {
         if let sharedEndpoint { return try await shared(kind, endpoint: sharedEndpoint, onCachedBoard: onCachedBoard) }
-        return try parse(kind, html: await html(kind.sourceURL))
+        return try parse(kind, html: await html(kind.dataURL))
     }
 
     /// Reads FC only; used to paint the Windows view before its background refresh.
@@ -82,16 +82,16 @@ public struct LeaderboardFetcher: Sendable {
     }
 
     private func contribute(_ kind: LeaderboardKind, path: URL, grant: Grant) async throws -> Leaderboard {
-        guard grant.sourceURL == kind.sourceURL,
+        guard grant.sourceURL == kind.dataURL,
               grant.token.utf8.count == 43,
               grant.expiresAt / 1000 > Date().timeIntervalSince1970 else { throw URLError(.badServerResponse) }
-        let source = try await html(kind.sourceURL)
+        let source = try await html(kind.dataURL)
         // Check local parsing before uploading a login page / block page.
         _ = try parse(kind, html: source)
         guard grant.expiresAt / 1000 > Date().timeIntervalSince1970 else { throw URLError(.timedOut) }
         var upload = URLRequest(url: path.appendingPathComponent("contribute"))
         upload.httpMethod = "POST"
-        upload.setValue("text/html; charset=utf-8", forHTTPHeaderField: "Content-Type")
+        upload.setValue(kind == .epochECI ? "text/csv; charset=utf-8" : "text/html; charset=utf-8", forHTTPHeaderField: "Content-Type")
         upload.setValue(grant.token, forHTTPHeaderField: "X-BenchGauge-Grant")
         upload.httpBody = Data(source.utf8)
         let accepted = try await sharedResponse(upload)
@@ -136,6 +136,8 @@ public struct LeaderboardFetcher: Sendable {
 
     private func parse(_ kind: LeaderboardKind, html: String) throws -> Leaderboard {
         switch kind {
+        case .epochECI:
+            return try EpochECIParser.parse(html)
         case .artificialAnalysis:
             return try HTMLLeaderboardParser.artificialAnalysis(fromHTML: html)
         case .artificialAnalysisCodingAgent:
@@ -162,7 +164,7 @@ public struct LeaderboardFetcher: Sendable {
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/606.1.36 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
             forHTTPHeaderField: "User-Agent"
         )
-        request.setValue("text/html", forHTTPHeaderField: "Accept")
+        request.setValue(url.pathExtension == "csv" ? "text/csv" : "text/html", forHTTPHeaderField: "Accept")
         request.cachePolicy = .reloadIgnoringLocalCacheData
 
         let (data, response) = try await session.data(for: request)

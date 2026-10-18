@@ -1,15 +1,17 @@
 export const categories = [
-  { id: 'general', labels: ['General', '综合', '綜合'], kinds: ['artificialAnalysis', 'arenaText'] },
+  { id: 'general', labels: ['General', '综合', '綜合'], kinds: ['artificialAnalysis', 'arenaText', 'epochECI'] },
   { id: 'coding', labels: ['Coding', '编程', '編程'], kinds: ['artificialAnalysisCodingAgent', 'codeArenaWebDev'] },
   { id: 'image', labels: ['Image', '图片', '圖片'], kinds: ['artificialAnalysisTextToImage', 'arenaTextToImage'] },
   { id: 'video', labels: ['Video', '视频', '影片'], kinds: ['artificialAnalysisTextToVideo', 'arenaTextToVideo'] },
 ]
 export const desktopDownloadURL = 'https://github.com/cloydlau/ai-benchgauge/releases/latest'
 export const leaderboardSources = [
+  { id: 'epoch', title: 'Epoch AI', url: 'https://epoch.ai/eci' },
   { id: 'artificialAnalysis', title: 'Artificial Analysis', url: 'https://artificialanalysis.ai/' },
   { id: 'arena', title: 'Arena', url: 'https://arena.ai/leaderboard' },
 ]
 export const boards = {
+  epochECI: { title: 'Epoch ECI', summaries: ['Epoch AI combines benchmarks into a capability index. ECI is not a percentage and has no fixed maximum.', 'Epoch AI 汇总多项测试的能力指数；ECI 不是百分制，没有固定满分', 'Epoch AI 彙總多項測試的能力指數；ECI 不是百分制，沒有固定滿分'], url: 'https://epoch.ai/eci' },
   artificialAnalysis: { title: 'Artificial Analysis', summaries: ['Combines standardized tests across several abilities.', '汇总多项标准化测试，适合看综合能力', '彙總多項標準化測試，適合看綜合能力'], url: 'https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index' },
   arenaText: { title: 'Text Arena', summaries: ['People compare anonymous answers to real prompts.', '真实提问下盲选回答，贴近用户偏好', '真實提問下盲選回答，貼近使用者偏好'], url: 'https://arena.ai/leaderboard/text' },
   artificialAnalysisCodingAgent: { title: 'Artificial Analysis 编程', titles: ["Artificial Analysis Coding", "Artificial Analysis 编程", "Artificial Analysis 編程"], summaries: ['Scores coding agents on software engineering tasks.', '通过软件工程任务，检验编程智能体的完成能力', '透過軟體工程任務，檢驗程式設計智能體的完成能力'], url: 'https://artificialanalysis.ai/agents/coding-agents' },
@@ -25,9 +27,9 @@ export const text = (values, language) => values[Math.max(0, languages.indexOf(l
 export const boardTitle = (kind, language) => boards[kind].titles ? text(boards[kind].titles, language) : boards[kind].title
 export const categoryFor = id => categories.find(category => category.id === id) || categories[0]
 
-const tagline = ['Compare both boards to make informed choices; track quotas to know where you stand.',
-  '双榜对照，选得明白；余量追踪，用得有数。',
-  '雙榜對照，選得明白；餘量追蹤，用得有數。']
+const tagline = ['Compare leaderboards to make informed choices; track quotas to know where you stand.',
+  '多榜对照，选得明白；余量追踪，用得有数。',
+  '多榜對照，選得明白；餘量追蹤，用得有數。']
 
 export const copy = {
   tagline,
@@ -67,7 +69,7 @@ export const copy = {
   photoPermission: ['Allow saving to Photos in Settings, then try again.', '请在设置中允许保存到相册，再点击保存。', '請在設定中允許儲存至相簿，再點選儲存。'],
   settings: ['Open', '打开设置', '開啟設定'], close: ['Close', '关闭', '關閉'],
   leaderboardComplete: ['End of this leaderboard', '本榜单已列完', '本榜單已列完'],
-  featureDetails: ['Dual boards & quota tracking', '双榜对照 & 余量追踪', '雙榜對照 & 餘量追蹤'],
+  featureDetails: ['Multiple leaderboards & quota tracking', '多榜对照 & 余量追踪', '多榜對照 & 餘量追蹤'],
   gotIt: ['Got it', '我知道了', '我知道了'], desktopLink: ['PC link', 'PC 端链接', 'PC 端連結'],
   quotaHelp: ['Quota tracking is available in the PC edition. Open the desktop app to check account balances and usage.', '余量追踪目前在 PC 端提供。请在电脑上打开 AI 天梯查看账号额度与使用进度。', '餘量追蹤目前在 PC 端提供。請在電腦上開啟 AI 天梯查看帳號額度與使用進度。'],
   cubeScroll: ['Scroll', '上下滚动', '上下捲動'], cubeSwitch: ['Switch boards', '左右切换', '左右切換'],

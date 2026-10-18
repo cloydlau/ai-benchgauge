@@ -25,8 +25,8 @@ import LeaderboardKit
     for kind in LeaderboardKind.allCases {
         let rows = store.rowPresentation(for: kind)
         #expect(rows.rows.map(\.rank) == [2])
-        #expect(rows.leaderScore == 100)
-        #expect(rows.page(0..<1).leaderScore == 100)
+        #expect(rows.leaderScore == (kind == .epochECI ? nil : 100))
+        #expect(rows.page(0..<1).leaderScore == (kind == .epochECI ? nil : 100))
     }
     #expect(initial !== store.rowPresentation(for: .artificialAnalysis))
     let searched = store.rowPresentation(for: .arenaText)

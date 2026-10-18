@@ -9,11 +9,11 @@ private actor FetchGate {
     func fetch(_ kind: LeaderboardKind) async -> Leaderboard {
         await withCheckedContinuation { continuation in
             continuations[kind] = continuation
-            if continuations.count == 2 { observer?.resume(); observer = nil }
+            if continuations.count == LeaderboardCategory.general.boardKinds.count { observer?.resume(); observer = nil }
         }
     }
-    func waitForBoth() async {
-        if continuations.count < 2 { await withCheckedContinuation { observer = $0 } }
+    func waitForGeneralSources() async {
+        if continuations.count < LeaderboardCategory.general.boardKinds.count { await withCheckedContinuation { observer = $0 } }
     }
     func release() {
         for (kind, continuation) in continuations {
@@ -37,15 +37,15 @@ private actor FetchGate {
     }
     let store = LeaderboardPadStore(defaults: defaults, cache: LeaderboardCache(fileURL: directory.appending(path: "cache.json")), service: service)
     let first = Task { await store.refresh(force: true) }
-    await gate.waitForBoth()
+    await gate.waitForGeneralSources()
     // Repeated activation or pulling must not launch duplicate requests.
     await store.refresh(force: true)
-    #expect(store.refreshing.count == 2)
+    #expect(store.refreshing.count == LeaderboardCategory.general.boardKinds.count)
     store.category = .image
     await store.refresh(force: true)
     await gate.release()
     await first.value
-    #expect(store.snapshot.boards.count == 4)
+    #expect(store.snapshot.boards.count == LeaderboardCategory.general.boardKinds.count + LeaderboardCategory.image.boardKinds.count)
     #expect(store.snapshot.boards[.arenaTextToImage]?.title == "Image")
     #expect(store.refreshing.isEmpty)
 }

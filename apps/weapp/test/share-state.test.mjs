@@ -9,7 +9,7 @@ test('every category, grouping, source, language and appearance survives sharing
     country: index % 2 ? 'unknown' : 'SG', openness: ['all', 'open', 'closed', 'unknown'][index % 4],
   }]))
   for (const category of categories.map(item => item.id)) for (const grouping of ['model', 'company']) {
-    for (const face of [0, 1]) for (const language of languages) for (const theme of ['light', 'dark', 'system']) {
+    for (const face of categories.find(item => item.id === category).kinds.map((_, index) => index)) for (const language of languages) for (const theme of ['light', 'dark', 'system']) {
       const original = { category, grouping, face, language, theme, filters }
       const path = sharePath(original, 'dark')
       const expected = normalizePreferences({ ...original, appearance: 'dark' })
@@ -30,7 +30,7 @@ test('sharing unfiltered defaults clears every receiver filter instead of inheri
   assert.equal(restored.grouping, 'model')
   assert.equal(restored.theme, 'light')
   assert.equal(restored.fromShare, true)
-  assert.equal(Object.keys(saved.filters).length, 8)
+  assert.equal(Object.keys(saved.filters).length, 9)
 })
 test('malformed and future-version links fall back safely, and legacy links remain supported', () => {
   const saved = { category: 'image', face: 1, language: 'en', theme: 'dark' }

@@ -73,17 +73,17 @@ struct AppFeatureCopyTests {
             #expect(message.contains(language.appName))
             switch language {
             case .english:
-                #expect(subtitle.contains("Dual boards"))
+                #expect(subtitle.contains("Multiple leaderboards"))
                 #expect(title.lowercased().contains("quota"))
                 #expect(help.contains("About"))
                 #expect(message.contains("desktop app"))
             case .chinese:
-                #expect(subtitle.contains("双榜"))
+                #expect(subtitle.contains("多榜"))
                 #expect(title.contains("余量"))
                 #expect(help.contains("了解"))
                 #expect(message.contains("电脑"))
             case .traditionalChinese:
-                #expect(subtitle.contains("雙榜"))
+                #expect(subtitle.contains("多榜"))
                 #expect(title.contains("餘量"))
                 #expect(help.contains("瞭解"))
                 #expect(message.contains("電腦"))

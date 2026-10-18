@@ -76,6 +76,7 @@ public enum LeaderboardPresentation {
         case .artificialAnalysis: "Artificial Analysis Intelligence Index"
         case .artificialAnalysisCodingAgent: "Artificial Analysis Coding Agent Index"
         case .arenaText: "Arena | Text"
+        case .epochECI: "Epoch Capabilities Index"
         case .codeArenaWebDev: "Code Arena | WebDev"
         case .artificialAnalysisTextToImage: "Artificial Analysis | 文生图"
         case .arenaTextToImage: "Arena | 文生图"
@@ -91,6 +92,7 @@ public enum LeaderboardPresentation {
         case .artificialAnalysisTextToImage: language.text("Curated prompts", "场景化盲测")
         case .artificialAnalysisTextToVideo: language.text("Matched settings", "统一设置")
         case .arenaText: language.text("User votes", "用户盲测")
+        case .epochECI: "Epoch ECI"
         case .codeArenaWebDev: language.text("WebDev votes", "网页开发盲选")
         case .arenaTextToImage, .arenaTextToVideo: language.text("User prompts", "用户出题")
         }
@@ -100,6 +102,7 @@ public enum LeaderboardPresentation {
         switch kind {
         case .artificialAnalysis: language.text("Combines standardized tests across several abilities.", "汇总多项标准化测试，适合看综合能力")
         case .artificialAnalysisCodingAgent: language.text("Scores coding agents on software engineering tasks.", "通过软件工程任务，检验编程智能体的完成能力")
+        case .epochECI: language.text("Epoch AI combines benchmark results into a capability index. ECI is not a percentage and has no fixed maximum.", "Epoch AI 汇总多项测试的能力指数；ECI 不是百分制，没有固定满分")
         case .arenaText: language.text("People compare anonymous answers to real prompts.", "真实提问下盲选回答，贴近用户偏好")
         case .codeArenaWebDev: language.text("People pick the better result from paired web builds.", "用户盲选网页成品，侧重实际观感")
         case .artificialAnalysisTextToImage: language.text("Blind votes across a balanced set of image use cases.", "按用途均衡选题，盲选图片质量")
@@ -111,7 +114,7 @@ public enum LeaderboardPresentation {
 
     public static func sourceHelp(_ kind: LeaderboardKind, language: AppLanguage, board: Leaderboard?,
                                   includesFetchTime: Bool = true) -> String {
-        var parts = [sourceSummary(kind, language: language), language.text("Scores are not directly comparable across lists", "两榜分数不直接互比")]
+        var parts = [sourceSummary(kind, language: language), language.text("Scores are not directly comparable across lists", "各榜分数不直接互比")]
         if let date = board?.sourceUpdatedAt {
             let formatter = DateFormatter()
             formatter.locale = language.locale

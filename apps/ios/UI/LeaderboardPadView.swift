@@ -400,10 +400,10 @@ public struct LeaderboardPadView: View {
         HStack(spacing: 6) {
             ForEach(Array(store.category.boardKinds.enumerated()), id: \.offset) { index, kind in
                 Button { turnCube(to: index) } label: {
-                    Text(kind.sourcePrefix == "Arena" ? tr("User votes", "用户盲测") : tr("Task benchmarks", "任务测评"))
+                    Text(LeaderboardPresentation.explanation(kind, language: store.language))
                         .font(.caption.weight(.semibold))
                         .lineLimit(2).frame(maxWidth: .infinity, minHeight: 38)
-                        .foregroundStyle(cube.face == index ? (index == 0 ? Color.blue : Color.purple) : Color.secondary)
+                        .foregroundStyle(cube.face == index ? (index == 0 ? Color.blue : (index == 2 ? Color.teal : Color.purple)) : Color.secondary)
                         .contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityIdentifier("face-\(index)")
                     .accessibilityAddTraits(cube.face == index ? .isSelected : [])
@@ -411,9 +411,10 @@ public struct LeaderboardPadView: View {
         }
         .background(alignment: .leading) {
             GeometryReader { geometry in
-                let tabWidth = (geometry.size.width - 6) / 2
+                let count = store.category.boardKinds.count
+                let tabWidth = (geometry.size.width - CGFloat(count - 1) * 6) / CGFloat(count)
                 RoundedRectangle(cornerRadius: 8)
-                    .fill((cube.face == 0 ? Color.blue : Color.purple).opacity(0.12))
+                    .fill((cube.face == 0 ? Color.blue : (cube.face == 2 ? Color.teal : Color.purple)).opacity(0.12))
                     .frame(width: tabWidth)
                     .offset(x: CGFloat(cube.face) * (tabWidth + 6))
             }
@@ -429,6 +430,10 @@ public struct LeaderboardPadView: View {
         store.modelSearchEditing = false
         cube.scroll.reset()
         cube.generation += 1
+        if cube.face >= store.category.boardKinds.count {
+            cube.face = store.category.boardKinds.count - 1
+            cube.position = Double(cube.face); store.selectedSource = cube.face
+        }
         if cube.dragging { turnCube(to: cube.face) }
     }
     private func turnCube(to face: Int) {
@@ -552,13 +557,13 @@ public struct LeaderboardPadView: View {
                     guard LeaderboardCube.dragAxis(current: cubeDragAxis, x: value.translation.width, y: value.translation.height) == .horizontal else { return }
                     cube.dragging = true
                     if !usesReducedMotion {
-                        cube.position = LeaderboardCube.position(face: cube.face, translation: value.translation.width, width: geometry.size.width)
+                        cube.position = LeaderboardCube.position(face: cube.face, translation: value.translation.width, width: geometry.size.width, count: store.category.boardKinds.count)
                     }
                 }
                 .onEnded { value in
                     guard cube.dragging else { return }
                     turnCube(to: LeaderboardCube.destination(face: cube.face, translation: value.translation.width,
-                                                             predicted: value.predictedEndTranslation.width, width: geometry.size.width))
+                                                             predicted: value.predictedEndTranslation.width, width: geometry.size.width, count: store.category.boardKinds.count))
                 })
             .onChange(of: cubeDragAxis) { _, axis in
                 // GestureState also resets on cancellation, so the next touch
@@ -568,12 +573,12 @@ public struct LeaderboardPadView: View {
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("cube-viewport")
             .accessibilityLabel(LeaderboardPresentation.title(store.category, language: store.language))
-            .accessibilityValue(store.category.boardKinds[cube.face].sourceLinkTitle)
+            .accessibilityValue(store.category.boardKinds[min(cube.face, store.category.boardKinds.count - 1)].sourceLinkTitle)
             .accessibilityHint(tr("Scroll vertically to explore; switch boards horizontally.", "上下滚动查看，左右切换榜单。"))
             .accessibilityAdjustableAction { direction in
                 switch direction {
-                case .increment: turnCube(to: 1)
-                case .decrement: turnCube(to: 0)
+                case .increment: turnCube(to: min(store.category.boardKinds.count - 1, cube.face + 1))
+                case .decrement: turnCube(to: max(0, cube.face - 1))
                 @unknown default: break
                 }
             }
@@ -1218,7 +1223,7 @@ private struct PadBoardCard: View {
                 HStack(spacing: 2) {
                 Text(kind.sourceLinkTitle)
                     .font(columnHeaderFont.weight(.semibold))
-                    .foregroundStyle(kind.sourcePrefix == "Arena" ? Color.purple : Color.blue)
+                    .foregroundStyle(kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue))
                     .lineLimit(1).minimumScaleFactor(0.8)
                     .accessibilityIdentifier("source-heading-\(kind.rawValue)")
                 if !isImage && grouping == .model {
@@ -1513,12 +1518,12 @@ private struct PadBoardCard: View {
         #endif
     }
     private func scoreValue(_ entry: LeaderboardEntry) -> some View {
-        Text(entry.score, format: .number.grouping(.never).precision(.fractionLength(1))).monospacedDigit()
+        Text(entry.score, format: .number.grouping(.never).precision(.fractionLength(kind == .epochECI ? 2 : 1))).monospacedDigit()
             .overlay(alignment: .bottomTrailing) {
                 let share = LeaderboardPresentation.scoreShareText(entry.score, leaderScore: rowPresentation.leaderScore)
                 if !share.isEmpty {
                     Text(share).font(.system(size: 8)).monospacedDigit()
-                        .foregroundStyle(kind.sourcePrefix == "Arena" ? Color.purple : Color.blue).offset(y: 10)
+                        .foregroundStyle(kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue)).offset(y: 10)
                         .allowsHitTesting(false)
                 }
             }

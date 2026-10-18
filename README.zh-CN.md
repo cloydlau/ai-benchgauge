@@ -5,7 +5,7 @@
 [English](README.md) | **简体中文** | [繁體中文](README.zh-Hant.md)
 
 <!-- app-description:start (generated from apps/weapp/src/core/catalog.js) -->
-**用户盲测看体验，任务测评看能力。双榜对照，选得明白；余量追踪，用得有数。**
+**用户盲测看体验，任务测评看能力。多榜对照，选得明白；余量追踪，用得有数。**
 <!-- app-description:end -->
 
 `macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `English / 简中 / 繁中` · [MIT 许可证](LICENSE)
@@ -107,10 +107,12 @@ xAI 显示“登录失效”或“未登录”时，点击卡片会打开 CC Swi
 
 | 分类 | 左侧 | 右侧 |
 | --- | --- | --- |
-| 综合 | Artificial Analysis Intelligence Index | Arena · Text |
+| 综合 | Artificial Analysis Intelligence Index | Arena · Text / Epoch ECI（可切换） |
 | 编程 | Artificial Analysis Coding Agent Index | Code Arena · WebDev |
 | 图片 | Artificial Analysis · 文生图 | Arena · 文生图 |
 | 视频 | Artificial Analysis · 文生视频 | Arena · 文生视频 |
+
+综合还提供 [Epoch AI 的 ECI](https://epoch.ai/eci)，读取官方 CSV。桌面端保持两列，右侧可切换 Arena / Epoch ECI；移动端可切换三个来源。ECI 保留原始指数，显示两位小数，不按百分比展示；CSV 中的模型发布日期不作为榜单更新时间。见[数据与验证说明](docs/epoch-eci.md)。
 
 图片和视频使用对应的专项榜单。Artificial Analysis 只有编程智能体榜的数据里带批次生成时间 `materializedAt`，应用会在该列标题上显示这个源站数据时间和版本号；综合、文生图、文生视频三块没有公开数据时间，列标题不显示日期，面板顶部仍显示本机抓取时间。Arena 有投票截止时间时会显示该时间。切换分类会优先读取缓存，不必每次重新等待网络。
 
@@ -192,4 +194,4 @@ BenchGauge 手机工程已接入 Calmmit：源码变更 → 语法检查、完�
 
 ## 微信小程序开发版
 
-[小程序工程](apps/weapp/README.md) 沿用 Watrek 的 Vue Mini / Vant Weapp / weapp-vite / Tailwind 技术栈，读取同一份共享榜单，支持四类双榜、模型／公司、独立筛选、离线缓存和三种语言。运行 `pnpm build:weapp`，在微信开发者工具导入 `apps/weapp`。已配置 BenchGauge 正式 AppID `wx80689a4ae64a0c33`，已接入本机自动上传并于 2026-10-15 上传开发版 `20261015`；账号额度仍由桌面版提供。
+[小程序工程](apps/weapp/README.md) 沿用 Watrek 的 Vue Mini / Vant Weapp / weapp-vite / Tailwind 技术栈，读取同一份共享榜单，支持四类榜单（综合三个来源，其余各两个）、模型／公司、独立筛选、离线缓存和三种语言。运行 `pnpm build:weapp`，在微信开发者工具导入 `apps/weapp`。已配置 BenchGauge 正式 AppID `wx80689a4ae64a0c33`，已接入本机自动上传并于 2026-10-15 上传开发版 `20261015`；账号额度仍由桌面版提供。

@@ -24,6 +24,9 @@ final class AppState: ObservableObject {
     @Published private(set) var isRefreshing = false
     @Published private(set) var lastErrors: [LeaderboardKind: String] = [:]
     @Published private(set) var schedule = UpdateSchedule.initial()
+    @Published var generalComparison: LeaderboardKind = .arenaText {
+        didSet { defaults.set(generalComparison.rawValue, forKey: "generalComparison") }
+    }
     @Published private(set) var selectedCategory = LeaderboardCategory.general
     @Published private(set) var selectedGrouping = LeaderboardGrouping.model
     @Published private(set) var selectedLanguage = AppLanguage.load()
@@ -143,6 +146,7 @@ final class AppState: ObservableObject {
     ) {
         self.cache = cache
         self.defaults = defaults
+        generalComparison = defaults.string(forKey: "generalComparison").flatMap(LeaderboardKind.init(rawValue:)) == .epochECI ? .epochECI : .arenaText
         self.configuration = configuration
         showsCodexTaskStatus = CodexTaskStatusPreference.load(from: defaults)
         claudeKeychainConsent = ClaudeKeychainConsentPreference.load(from: defaults)

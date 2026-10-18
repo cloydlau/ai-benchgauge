@@ -41,7 +41,7 @@ private func board(_ kind: LeaderboardKind, score: Double = 90, fetchedAt: Date 
     let kinds = LeaderboardCategory.general.boardKinds
     let snapshot = LeaderboardSnapshot(boards: [.arenaText: board(.arenaText, fetchedAt: now.addingTimeInterval(-86_400))])
     #expect(LeaderboardFreshness.dueKinds(kinds, snapshot: snapshot, lastAttempts: [:], now: now) == kinds)
-    #expect(LeaderboardFreshness.dueKinds(kinds, snapshot: snapshot, lastAttempts: [.arenaText: now], now: now) == [.artificialAnalysis])
+    #expect(LeaderboardFreshness.dueKinds(kinds, snapshot: snapshot, lastAttempts: [.arenaText: now], now: now) == [.artificialAnalysis, .epochECI])
     #expect(LeaderboardFreshness.dueKinds([.arenaText], snapshot: snapshot,
         lastAttempts: [.arenaText: now.addingTimeInterval(-300)], now: now) == [.arenaText])
     let fresh = LeaderboardSnapshot(boards: [.arenaText: board(.arenaText, fetchedAt: now.addingTimeInterval(-60))])

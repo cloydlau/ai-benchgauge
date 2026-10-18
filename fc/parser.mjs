@@ -1,3 +1,4 @@
+import { parseEpochECI } from './epoch-eci.mjs';
 import { countryCode } from './countries.mjs';
 import { normalizedBrandKey } from './brands.mjs';
 import { arenaRowLogos } from './source-logos.mjs';
@@ -6,6 +7,7 @@ import { arenaRowLogos } from './source-logos.mjs';
 export const sources = Object.freeze({
   artificialAnalysis: ['https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index', 'Artificial Analysis Intelligence Index'],
   artificialAnalysisCodingAgent: ['https://artificialanalysis.ai/agents/coding-agents', 'Artificial Analysis Coding Agent Index'],
+  epochECI: ['https://epoch.ai/data/eci_scores.csv', 'Epoch Capabilities Index'],
   arenaText: ['https://arena.ai/leaderboard/text', 'Arena | Text'],
   codeArenaWebDev: ['https://arena.ai/leaderboard/code/webdev', 'Code Arena | WebDev'],
   artificialAnalysisTextToImage: ['https://artificialanalysis.ai/image/leaderboard/text-to-image', 'Artificial Analysis | 文生图'],
@@ -92,6 +94,7 @@ export function modelOpenness(value) {
 
 export function parseBoard(kind, html, now) {
   if (!Object.hasOwn(sources, kind) || typeof html !== 'string') throw new Error('Invalid source');
+  if (kind === 'epochECI') return parseEpochECI(html, now);
   const text = payload(html);
   const arena = kind === 'codeArenaWebDev' || kind.startsWith('arena');
   const coding = kind === 'artificialAnalysisCodingAgent';

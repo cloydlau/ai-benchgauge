@@ -3,7 +3,7 @@ import Foundation
 /// Feature labels and platform availability stay consistent across native views.
 public enum AppFeatureCopy {
     public static func subtitle(language: AppLanguage) -> String {
-        language.text("Dual boards & quota tracking", "双榜对照 & 余量追踪")
+        language.text("Multiple leaderboards & quota tracking", "多榜对照 & 余量追踪")
     }
     public static func subtitleRows(language: AppLanguage) -> [String] {
         guard language == .english else { return [subtitle(language: language)] }

@@ -58,7 +58,7 @@ export function scoreShareText(score, leaderScore) {
   const percent = Math.round(score / leaderScore * 100)
   return percent < 100 ? `${percent}%` : ''
 }
-export function rowView(entry, { company = false, dark = false, details = true, language = 'en', category = 'general', leaderScore } = {}) {
+export function rowView(entry, { company = false, dark = false, details = true, language = 'en', category = 'general', kind, leaderScore } = {}) {
   const productKey = !company ? brandRules.bundledProductKey(entry) : null
   const modelBrand = !company ? brandRules.knownModelBrand(entry) : null
   const brand = company ? entry.organizationBrand || entry.brand : entry.brand?.key?.startsWith('model-') ? entry.brand : modelBrand || entry.brand
@@ -84,8 +84,8 @@ export function rowView(entry, { company = false, dark = false, details = true, 
     initial: [...entry.name][0], countryUnknown: countryCode(entry) === 'unknown', countryName: countryName(countryCode(entry), language),
     flag: countryCode(entry) === 'unknown' ? '?' : countryFlag(countryCode(entry)),
     countryCode: code, flagImage: bundledFlags.has(code) ? `/assets/flags/${code.toLowerCase()}.png` : '',
-    components: details ? entry.components?.map(member => ({ name: member.name, rank: member.rank, score: member.score.toFixed(1) })) || [] : [],
-    scoreText: entry.score.toFixed(1), scoreShare: scoreShareText(entry.score, leaderScore), openness: company ? null : resolvedOpenness(entry),
+    components: details ? entry.components?.map(member => ({ name: member.name, rank: member.rank, score: member.score.toFixed(kind === 'epochECI' ? 2 : 1) })) || [] : [],
+    scoreText: entry.score.toFixed(kind === 'epochECI' ? 2 : 1), scoreShare: scoreShareText(entry.score, leaderScore), openness: company ? null : resolvedOpenness(entry),
     opennessIcon: opennessIcon(company ? null : resolvedOpenness(entry), dark),
     fill: `background-color:rgba(${rgb},${dark ? '0.26' : '0.18'});`,
     fillPercent: Number.isFinite(entry.score) && entry.score >= 0 && Number.isFinite(leaderScore) && leaderScore > 0
@@ -107,7 +107,7 @@ export function rankedEntries(board, { grouping = 'model', country = 'all', open
   return grouping === 'company' ? companyRows(entries) : entries.filter(entry => modelNameMatches(entry.name, query))
 }
 export function visibleRows(board, { grouping = 'model', country = 'all', openness = 'all', query = '', dark = false, language = 'en', category = 'general' } = {}) {
-  const leaderScore = rankedEntries(board, { grouping, country, openness })[0]?.score
+  const leaderScore = board?.kind === 'epochECI' ? undefined : rankedEntries(board, { grouping, country, openness })[0]?.score
   const rows = rankedEntries(board, { grouping, country, openness, query })
-  return rows.map(entry => rowView(entry, { company: grouping === 'company', dark, language, category, leaderScore }))
+  return rows.map(entry => rowView(entry, { company: grouping === 'company', dark, language, category, kind: board?.kind, leaderScore }))
 }

@@ -22,6 +22,8 @@ class MemoryStore {
 }
 const time = Date.parse('2026-10-12T00:00:00Z');
 function html(kind = 'arenaText', date = '2026-10-10T00:00:00Z', count = 22, modelLogoURL = undefined) {
+  if (kind === 'epochECI') return 'Model,Display name,eci,Organization,Country (of organization),Accessibility group\n'
+    + Array.from({ length: count }, (_, i) => `model-${i},Model ${i},${100-i},Maker,US,Closed weights`).join('\n');
   const rows = Array.from({ length: count }, (_, i) => {
     if (kind.startsWith('arena') || kind === 'codeArenaWebDev') return { modelDisplayName: `Model ${i}`, rating: 2000 - i, modelKey: `model-${i}`, modelOrganization: 'Maker' };
     if (kind === 'artificialAnalysisCodingAgent') return { displayLabel: `Model ${i}`, indexScore: (100 - i) / 100, display: { creator: { agent: 'Maker' } }, hostModelSlug: `model-${i}`, materializedAt: date };

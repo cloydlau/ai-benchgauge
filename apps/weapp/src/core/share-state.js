@@ -34,7 +34,7 @@ export function normalizePreferences(value, locale) {
   // keep following the host language even when another setting is saved.
   const manualLanguage = languages.includes(value.language) && value.languageMode !== 'system'
   const category = validCategory(value.category) ? value.category : 'general'
-  const face = Number(value.face) === 1 ? 1 : 0
+  const face = Math.max(0, Math.min(categories.find(item => item.id === category).kinds.length - 1, Number.isInteger(Number(value.face)) ? Number(value.face) : 0))
   return {
     category,
     grouping: groupings.includes(value.grouping) ? value.grouping : 'model',
@@ -55,7 +55,7 @@ export function readSharedPreferences(query = {}) {
     const raw = query.state.trim()
     const state = JSON.parse(raw.startsWith('{') ? raw : decodeURIComponent(raw))
     if (!isObject(state) || state.v !== 1 || !validCategory(state.c)
-      || !groupings.includes(state.g) || ![0, 1].includes(state.f)
+      || !groupings.includes(state.g) || !Number.isInteger(state.f) || state.f < 0 || state.f >= categories.find(item => item.id === state.c).kinds.length
       || !languages.includes(state.l) || !themes.includes(state.t)
       || !appearances.includes(state.a) || !isObject(state.x)) return null
     const filters = {}
@@ -75,7 +75,8 @@ export function pagePreferences(query = {}, saved = {}, locale) {
   // Retain older category/face links and the about page's language/theme links.
   if (validCategory(query.category)) preferences.category = query.category
   if (groupings.includes(query.grouping)) preferences.grouping = query.grouping
-  if (query.face === '0' || query.face === '1') preferences.face = Number(query.face)
+  if (/^[0-2]$/.test(query.face)) preferences.face = Number(query.face)
+  preferences.face = Math.min(preferences.face, categories.find(item => item.id === preferences.category).kinds.length - 1)
   if (languages.includes(query.language)) { preferences.language = query.language; preferences.languageMode = 'manual' }
   if (themes.includes(query.theme)) { preferences.theme = query.theme; preferences.appearance = null }
   preferences.filters = normalizeFilters(saved.filters, preferences.category, preferences.face)

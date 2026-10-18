@@ -25,7 +25,7 @@ final class LeaderboardCubeState: ObservableObject {
         entranceActive = true
         entranceHintVisible = true
         entranceProgress = 0
-        position = reduceMotion ? Double(face) : 0.18
+        position = reduceMotion ? Double(face) : Double(face) + (face == 0 ? 0.18 : -0.18)
         return entranceSerial
     }
     func isCurrentEntrance(_ serial: Int) -> Bool {
@@ -79,7 +79,7 @@ final class LeaderboardCubeScrollState: ObservableObject {
     }
 }
 
-/// Two adjacent faces. Horizontal intent is required so a vertical leaderboard
+/// Adjacent source faces. Horizontal intent is required so a vertical leaderboard
 /// scroll never turns the cube; predicted travel permits short, quick flicks.
 enum LeaderboardCube {
     enum DragAxis { case undecided, horizontal, vertical }
@@ -89,13 +89,14 @@ enum LeaderboardCube {
         if isHorizontal(x: x, y: y) { return .horizontal }
         return abs(y) >= 8 ? .vertical : .undecided
     }
-    static func position(face: Int, translation: Double, width: Double) -> Double {
+    static func position(face: Int, translation: Double, width: Double, count: Int = 2) -> Double {
         guard width > 0 else { return Double(face) }
-        return min(1, max(0, Double(face) - translation / width))
+        return min(Double(min(count - 1, face + 1)), max(Double(max(0, face - 1)), Double(face) - translation / width))
     }
-    static func destination(face: Int, translation: Double, predicted: Double, width: Double) -> Int {
+    static func destination(face: Int, translation: Double, predicted: Double, width: Double, count: Int = 2) -> Int {
         let travel = abs(predicted) > abs(translation) ? predicted : translation
-        return position(face: face, translation: travel, width: width) >= 0.5 ? 1 : 0
+        let target = Int(position(face: face, translation: travel, width: width, count: count).rounded())
+        return min(face + 1, max(face - 1, target))
     }
     static func visibleRank(_ frames: [Int: LeaderboardRankFrame], height: CGFloat, topInset: CGFloat = 0) -> Int? {
         guard height > topInset else { return nil }
@@ -126,9 +127,9 @@ struct CubeFace: AnimatableModifier {
         content
             .overlay(Color.black.opacity(reduceMotion ? 0 : abs(distance) * 0.18).allowsHitTesting(false))
             .rotation3DEffect(.degrees(flat ? 0 : distance * 90), axis: (x: 0, y: 1, z: 0),
-                              anchor: flat ? .center : (face == 0 ? .trailing : .leading), perspective: flat ? 0 : 0.65)
+                              anchor: flat ? .center : (distance < 0 ? .trailing : .leading), perspective: flat ? 0 : 0.65)
             .offset(x: flat ? 0 : width * distance)
-            .opacity(reduceMotion ? 1 - abs(distance) : (abs(distance) >= 0.999 ? 0 : 1))
+            .opacity(reduceMotion ? max(0, 1 - abs(distance)) : (abs(distance) >= 0.999 ? 0 : 1))
             .zIndex(1 - abs(distance))
     }
 }

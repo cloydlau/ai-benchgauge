@@ -1,16 +1,17 @@
-const clamp = value => Math.max(0, Math.min(1, value))
+const clamp = (value, count = 2) => Math.max(0, Math.min(count - 1, value))
 
 // Match the native App's edge-hinged, 90-degree faces. At rest the active
 // scroll-view has no transform, so its native hit testing stays ordinary.
 export function cubeFaceStyle(index, position, duration = 0, active = false) {
-  const distance = index - clamp(position)
+  const distance = index - position
   const flat = Math.abs(distance) < 0.0001
   const hidden = Math.abs(distance) > 0.9999
-  return `transform:${flat ? 'none' : `translateX(${distance * 100}%) rotateY(${hidden && !active ? 0 : distance * 90}deg)`};transform-origin:${index ? 'left' : 'right'} center;transition-duration:${duration}ms;opacity:${hidden && !active ? 0 : 1};z-index:${Math.abs(distance) <= 0.5 ? 2 : 1};pointer-events:${flat ? 'auto' : 'none'};`
+  const visibleDuringTurn = active && Math.abs(distance) <= 1.0001
+  return `transform:${flat ? 'none' : `translateX(${distance * 100}%) rotateY(${hidden && !visibleDuringTurn ? 0 : distance * 90}deg)`};transform-origin:${distance > 0 ? 'left' : 'right'} center;transition-duration:${duration}ms;opacity:${hidden && !visibleDuringTurn ? 0 : 1};z-index:${Math.abs(distance) <= 0.5 ? 2 : 1};pointer-events:${flat ? 'auto' : 'none'};`
 }
 
-export function cubeGesture(face, x, y, time) {
-  return { face, x, y, lastX: x, lastTime: time, velocity: 0, axis: '', position: face }
+export function cubeGesture(face, x, y, time, count = 2) {
+  return { face, count, x, y, lastX: x, lastTime: time, velocity: 0, axis: '', position: face }
 }
 
 export function moveCubeGesture(gesture, x, y, time, width) {
@@ -24,7 +25,7 @@ export function moveCubeGesture(gesture, x, y, time, width) {
   const elapsed = time - gesture.lastTime
   if (elapsed > 0) gesture.velocity = (x - gesture.lastX) / elapsed
   gesture.lastX = x; gesture.lastTime = time
-  if (gesture.axis === 'horizontal') gesture.position = clamp(gesture.face - dx / Math.max(1, width))
+  if (gesture.axis === 'horizontal') gesture.position = Math.max(Math.max(0, gesture.face - 1), Math.min(Math.min(gesture.count - 1, gesture.face + 1), gesture.face - dx / Math.max(1, width)))
   return gesture
 }
 
@@ -32,9 +33,9 @@ export function cubeDestination(gesture, width, time) {
   // Commit after 25% of the screen in either direction, retaining natural
   // finger tracking. A flick can advance sooner; a pause drops old velocity.
   const velocity = time - gesture.lastTime < 100 ? gesture.velocity : 0
-  const projected = clamp(gesture.position - velocity * 160 / Math.max(1, width))
-  const progress = gesture.face === 0 ? projected : 1 - projected
-  return progress >= 0.25 ? 1 - gesture.face : gesture.face
+  const projected = clamp(gesture.position - velocity * 160 / Math.max(1, width), gesture.count)
+  const travel = projected - gesture.face
+  return Math.abs(travel) >= 0.25 ? clamp(gesture.face + Math.sign(travel), gesture.count) : gesture.face
 }
 
 export function matchingScroll({ scrollTop, origin, nextOrigin, rowHeight, count }) {

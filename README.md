@@ -3,7 +3,7 @@
 **English** | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-Hant.md)
 
 <!-- app-description:start (generated from apps/weapp/src/core/catalog.js) -->
-**Blind user votes show the experience; task benchmarks show capability. Compare both boards to make informed choices; track quotas to know where you stand.**
+**Blind user votes show the experience; task benchmarks show capability. Compare leaderboards to make informed choices; track quotas to know where you stand.**
 <!-- app-description:end -->
 
 `macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `3 languages` · [MIT License](LICENSE)
@@ -109,10 +109,12 @@ Keep BenchGauge running and allow system notifications. Exhausted providers rema
 
 | Category | Left | Right |
 | --- | --- | --- |
-| General | Artificial Analysis Intelligence Index | Arena · Text |
+| General | Artificial Analysis Intelligence Index | Arena · Text / Epoch ECI (selectable) |
 | Coding | Artificial Analysis Coding Agent Index | Code Arena · WebDev |
 | Image | Artificial Analysis · 文生图 (text-to-image) | Arena · 文生图 (text-to-image) |
 | Video | Artificial Analysis · 文生视频 (text-to-video) | Arena · 文生视频 (text-to-video) |
+
+General also includes [Epoch AI’s ECI](https://epoch.ai/eci), sourced from its official CSV. Desktop keeps two columns and lets you select Arena or Epoch ECI on the right; mobile offers three sources. ECI shows the original index to two decimal places, without treating it as a percentage. The CSV’s model release date is not a leaderboard update time. See [data and verification details](docs/epoch-eci.md).
 
 Image and video use their dedicated boards. The Artificial Analysis Coding Agent Index embeds a `materializedAt` batch stamp in its payload, and the app shows that source data time beside the index version. The other Artificial Analysis boards expose no data timestamp, so their columns show no date and the panel heading keeps this Mac's fetch time. Arena's vote cutoff is shown when available. Switching categories uses cached data first.
 

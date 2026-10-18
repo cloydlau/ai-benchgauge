@@ -11,8 +11,11 @@ struct LeaderboardQuotaProviderTests {
         let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .appending(path: "fixtures/quota-priority-2026-10-01.json")
         let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
-        let snapshot = try decoder.decode(LeaderboardSnapshot.self, from: Data(contentsOf: file))
-        #expect(snapshot.boards.count == 8)
+        var snapshot = try decoder.decode(LeaderboardSnapshot.self, from: Data(contentsOf: file))
+        // The historical fixture predates ECI. Add a source-specific board without rewriting its eight original snapshots.
+        snapshot.boards[.epochECI] = Leaderboard(kind: .epochECI, title: "Epoch Capabilities Index",
+            entries: snapshot.boards[.artificialAnalysis]!.entries)
+        #expect(snapshot.boards.count == 9)
         #expect(LeaderboardCategory.allCases.allSatisfy { $0.boardKinds.allSatisfy { snapshot.boards[$0]?.entries.count == 20 } })
         let organizations = LeaderboardQuotaProviders.rankedOrganizations(in: snapshot)
         #expect(organizations.contains("minimax")) // video only in this snapshot
