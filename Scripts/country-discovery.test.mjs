@@ -342,3 +342,22 @@ test('partial sibling metadata is reused and a discovery time budget preserves r
   const result = await registry.enrich(slow, { acquire: true });
   assert.equal(calls, 1); assert.equal(result.entries[2].developerCountry.countryCode, 'GB');
 });
+
+test('read-time enrichment repairs exact IDs in saved display-name rows without network or ranking changes', async () => {
+ const store = new Store(); let calls = 0;
+ const registry = new CountryRegistry(store, { discover: async () => { calls++; throw Error('unexpected discovery'); } });
+ const input = { kind:'arenaText', fetchedAt:'2026-10-15T00:00:00Z', entries:[
+  {rank:1,name:'Yi Lightning',modelID:'YI-LIGHTNING',score:80,developerCountry:{key:'',status:'missing'}},
+  {rank:2,name:'Yi Lightning',modelID:'yi-lightning',organization:'Other Maker',score:79},
+  {rank:3,name:'OpenChat 3.5',modelID:'openchat-3.5',score:78},
+ ]};
+ const result = await registry.enrich(input);
+ assert.equal(result.entries[0].developerCountry.countryCode,'CN');
+ assert.equal(result.entries[0].developerCountry.key,'01ai');
+ assert.equal(result.entries[1].organization,'Other Maker');
+ assert.equal(result.entries[1].developerCountry.countryCode,undefined);
+ assert.equal(result.entries[2].developerCountry.countryCode,undefined);
+ assert.equal(calls,0); assert.equal(store.records.size,0);
+ assert.deepEqual(result.entries.map(({rank,name,score,modelID})=>({rank,name,score,modelID})),input.entries.map(({rank,name,score,modelID})=>({rank,name,score,modelID})));
+ assert.equal(result.fetchedAt,input.fetchedAt);
+});

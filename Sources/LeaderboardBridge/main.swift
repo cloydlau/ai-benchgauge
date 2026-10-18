@@ -460,7 +460,7 @@ actor Engine {
                              codingURL: PurchaseLinkCatalog.preferredLink(from: links.codingPlan, language: language)?.url.absoluteString,
                              apiURL: PurchaseLinkCatalog.preferredLink(from: links.payAsYouGo, language: language)?.url.absoluteString,
                              help: standings.first { $0.entry.rank == entry.rank }.map { CompanyLeaderboard.scoreHelp(for: $0, language: language) },
-                             openness: entry.openness?.rawValue,
+                             openness: entry.resolvedOpenness?.rawValue,
                              brandColor: OrganizationLogoCatalog.rowBrandColorHex(for: entry),
                              logoPNG: OrganizationLogoCatalog.rowLogoPNGData(for: entry, isCompany: grouping == "company")?.base64EncodedString(),
                              initials: OrganizationLogoCatalog.initial(organization: entry.organization, modelName: entry.name))

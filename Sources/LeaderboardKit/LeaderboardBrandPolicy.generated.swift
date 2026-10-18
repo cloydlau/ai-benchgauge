@@ -57,6 +57,7 @@ enum LeaderboardBrandPolicy {
     private static let modelDevelopersStorage: [String: String] = [
         "solar-10.7b-instruct-v1.0": "upstage",
         "trinity-large-preview": "arceeai",
+        "trinity large preview": "arceeai",
         "trinity-large-thinking": "arceeai",
         "intellect-3": "primeintellect",
         "yi-lightning": "01ai",
@@ -269,6 +270,10 @@ enum LeaderboardBrandPolicy {
         "technologyinnovationinstitute": "Technology Innovation Institute",
     ]
     static var companyNames: [String: String] { companyNamesStorage }
+    private static let verifiedModelOpennessStorage: [String: String] = [
+        "internlm2_5-20b-chat": "open",
+    ]
+    static var verifiedModelOpenness: [String: String] { verifiedModelOpennessStorage }
     private static let modelFamiliesStorage: [(family: String, key: String)] = [
         ("deepseek", "deepseek"),
         ("minimax", "minimax"),

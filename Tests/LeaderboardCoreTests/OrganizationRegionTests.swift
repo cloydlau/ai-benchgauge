@@ -36,6 +36,28 @@ struct OrganizationRegionTests {
     }
 
     @Test
+    func cachedDisplayNamesResolveByExactID() {
+        let entry = LeaderboardEntry(rank: 1, name: "Yi Lightning", score: 80, modelID: "YI-LIGHTNING",
+            developerCountry: OrganizationCountryMetadata(key: "", countryCode: nil))
+        #expect(OrganizationRegion.country(for: entry) == .china)
+        #expect(OrganizationRegion.country(nil, modelName: "Yi Lightning", modelID: "yi-lightning-finetune") == nil)
+        #expect(OrganizationRegion.country("Other Maker", modelName: "Yi Lightning", modelID: "yi-lightning") == nil)
+        #expect(OrganizationRegion.country(nil, modelName: "Trinity Large Preview", modelID: "trinity-large") == .unitedStates)
+        #expect(OrganizationRegion.country(nil, modelName: "OpenChat 3.5", modelID: "openchat-3.5") == nil)
+    }
+
+    @Test
+    func verifiedPublicWeightsFillOnlyExactMissingMetadata() {
+        let entry = LeaderboardEntry(rank: 1, name: "InternLM2.5 20B Chat", score: 80, modelID: "internlm2_5-20b-chat")
+        #expect(entry.openness == nil)
+        #expect(entry.resolvedOpenness == .open)
+        #expect(LeaderboardOpennessFilter.open.matches(entry))
+        #expect(!LeaderboardOpennessFilter.unknown.matches(entry))
+        let variant = LeaderboardEntry(rank: 1, name: entry.name, score: 80, modelID: "internlm2_5-20b-chat-custom")
+        #expect(variant.resolvedOpenness == nil)
+    }
+
+    @Test
     func testCountryFlagsAndSystemLocalizedNames() {
         #expect((OrganizationCountry.china.flagEmoji) == ("🇨🇳"))
         #expect((OrganizationCountry.unitedStates.flagEmoji) == ("🇺🇸"))

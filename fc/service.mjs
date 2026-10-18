@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { replacementFailure } from './domain.mjs';
+import { replacementFailure, resolvedOpenness } from './domain.mjs';
 import { parseBoard, sources } from './parser.mjs';
 import { codingKinds, withCodingOpenness } from './model-openness.mjs';
 
@@ -22,6 +22,10 @@ export class SharedLeaderboards {
     return board;
   }
   async withModelOpenness(board) {
+    if (board?.entries) board = { ...board, entries: board.entries.map(entry => {
+      const openness = resolvedOpenness(entry);
+      return !['open', 'closed'].includes(entry.openness) && openness ? { ...entry, openness } : entry;
+    }) };
     if (!codingKinds.has(board?.kind) || board.entries.every(entry => ['open', 'closed'].includes(entry.openness))) return board;
     const kinds = ['artificialAnalysis', 'arenaText', 'codeArenaWebDev'].filter(kind => kind !== board.kind);
     const results = await Promise.allSettled(kinds.map(kind => this.store.readBoard(kind)));

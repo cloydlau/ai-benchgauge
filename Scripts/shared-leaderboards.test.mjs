@@ -334,3 +334,28 @@ test('explicit model logo metadata remains separate from creator logo during par
   assert.equal(board.entries[0].modelLogoURL,'https://artificialanalysis.ai/img/logos/model-family.svg');
   assert.equal(board.entries[0].logoURL,'https://artificialanalysis.ai/img/logos/maker.svg');
 });
+
+test('Claude Code abbreviated labels match the exact Claude model while variants and conflicts stay unknown', () => {
+ const board={kind:'artificialAnalysisCodingAgent',entries:[
+  {name:'Claude Code - Sonnet 5.5 (max)'}, {name:'Claude Code - Sonnet 5.5 (high)'},
+  {name:'Claude Code - Sonnet 5.6 (max)'}, {name:'Other Harness - Sonnet 5.5 (max)'},
+  {name:'Claude Code - Step 5 Preview'},
+ ]};
+ const references=[{entries:[{name:'Claude Sonnet 5.5 (Max, Default Fallback)',openness:'closed'},
+  {name:'Step 5 Preview',openness:'open'}]},{entries:[{name:'Step 5 Preview',openness:'closed'}]}];
+ assert.deepEqual(withCodingOpenness(board,references).entries.map(e=>e.openness),['closed','closed',undefined,undefined,undefined]);
+});
+
+test('cached public-weight releases fill missing metadata without rewriting stored snapshots', async () => {
+  const store = new MemoryStore();
+  const board = {kind:'arenaText',title:'Arena',fetchedAt:new Date(time).toISOString(),entries:[
+    {rank:1,name:'InternLM2.5 20B Chat',modelID:'internlm2_5-20b-chat',score:80},
+    {rank:2,name:'Custom variant',modelID:'internlm2_5-20b-chat-custom',score:79},
+  ]};
+  await store.writeBoard(board.kind,board);
+  const response = await new SharedLeaderboards(store,{clock:()=>time}).read(board.kind);
+  assert.equal(response.board.entries[0].openness,'open');
+  assert.equal(response.board.entries[1].openness,undefined);
+  assert.deepEqual(await store.readBoard(board.kind),board);
+  assert.equal(store.states.size,0);
+});
