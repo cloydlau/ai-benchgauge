@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { runTests, testCommands, testInputSignature, testExecutionContext, testEnvironment } from './test.mjs'
+import { nativeTestAvailability, runTests, testCommands, testInputSignature, testExecutionContext, testEnvironment } from './test.mjs'
 
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'benchgauge-tests-'))
@@ -25,6 +25,7 @@ test('native tests select full Xcode only for an implicit Command Line Tools sel
   mkdirSync(join(xcodeDeveloperDir, 'usr/bin'), { recursive: true })
   writeFileSync(join(xcodeDeveloperDir, 'usr/bin/xcodebuild'), '')
   assert.deepEqual(testEnvironment(env, options), { ...env, DEVELOPER_DIR: xcodeDeveloperDir })
+  assert.deepEqual(nativeTestAvailability(env, options), { available: true, developerDir: xcodeDeveloperDir })
   assert.equal(env.DEVELOPER_DIR, undefined, 'The caller environment remains unchanged')
   for (const key of ['DEVELOPER_DIR', 'TOOLCHAINS', 'SDKROOT', 'SWIFT_EXEC', 'SWIFT_DRIVER_SWIFT_FRONTEND_EXEC']) {
     const explicit = { ...env, [key]: '/custom/toolchain' }
@@ -33,6 +34,11 @@ test('native tests select full Xcode only for an implicit Command Line Tools sel
   assert.equal(testEnvironment(env, { ...options, platform: 'linux' }), env)
   assert.equal(testEnvironment(env, { ...options, selectedDeveloperDir: '/Custom/Xcode.app/Contents/Developer' }), env)
   assert.equal(testEnvironment(env, { ...options, selectedDeveloperDir: '' }), env)
+  assert.deepEqual(nativeTestAvailability(env, { ...options, xcodeDeveloperDir: join(root, 'Missing Xcode') }), {
+    available: false,
+    reason: '当前 macOS 未安装或未选择完整 Xcode；已跳过 Swift/iOS 原生测试，其余测试继续',
+  })
+  assert.deepEqual(nativeTestAvailability(env, { ...options, platform: 'linux' }), { available: true })
 })
 
 test('execution context carries only signature settings and explicitly preserves unset values', () => {

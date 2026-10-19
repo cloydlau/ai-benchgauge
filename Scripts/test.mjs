@@ -25,6 +25,21 @@ export function testEnvironment(env = process.env, { platform = process.platform
   return selected?.endsWith('/CommandLineTools') ? { ...env, DEVELOPER_DIR: xcodeDeveloperDir } : env
 }
 
+export function nativeTestAvailability(env = process.env, options = {}) {
+  const platform = options.platform ?? process.platform
+  if (platform !== 'darwin') return { available: true }
+  const resolvedEnv = testEnvironment(env, options)
+  const selected = resolvedEnv.DEVELOPER_DIR || options.selectedDeveloperDir
+    || spawnSync('xcode-select', ['-p'], { env: resolvedEnv, encoding: 'utf8' }).stdout?.trim()
+  if (selected && existsSync(join(selected, 'usr/bin/xcodebuild'))) {
+    return { available: true, developerDir: selected }
+  }
+  return {
+    available: false,
+    reason: '当前 macOS 未安装或未选择完整 Xcode；已跳过 Swift/iOS 原生测试，其余测试继续',
+  }
+}
+
 export function testExecutionContext(env = process.env) {
   env = testEnvironment(env)
   return { node: nodeExecutable({ env }), env: Object.fromEntries([...testEnvironmentKeys, 'CALMMIT_PATH']
@@ -131,9 +146,16 @@ export function pruneTestResults(directory, { completedCoverageDirectory = null,
 }
 
 export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly = false, coverage = false, gate = false,
-  env = process.env, commands, run, logger = console, lockWaitMs = 0 } = {}) {
+  env = process.env, commands, run, logger = console, lockWaitMs = 0, nativeAvailable } = {}) {
   env = testEnvironment(env)
   if (coreOnly && scriptsOnly) throw new Error('--core 和 --scripts 不能同时使用')
+  const native = !scriptsOnly && commands == null && run == null
+    ? (nativeAvailable == null ? nativeTestAvailability(env) : {
+        available: nativeAvailable,
+        reason: '当前 macOS 未安装或未选择完整 Xcode；已跳过 Swift/iOS 原生测试，其余测试继续',
+      })
+    : { available: true }
+  const skipNative = !native.available
   let before = testInputSignature(root, env)
   if (gate && !coreOnly && !scriptsOnly && !coverage && env.BENCHGAUGE_TEST_PASS === before) {
     logger.log('[test] 当前代码已通过完整测试，沿用本次流程的结果')
@@ -158,10 +180,16 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
     if (waited) before = testInputSignature(root, env)
     let logPath = env.CI_CHECK_LOG || join(directory, 'latest.log')
     writeFileSync(logPath, '')
+    if (skipNative) {
+      const warning = `[test] 警告：${native.reason}`
+      if (typeof logger.warn === 'function') logger.warn(warning)
+      else logger.log(warning)
+      appendFileSync(logPath, warning + '\n')
+    }
     const started = Date.now()
     const coverageDirectory = coverage && !coreOnly && !run
       ? join(directory, `coverage-${started}-${process.pid}`) : null
-    const nativeCoverage = coverage && !scriptsOnly && !run
+    const nativeCoverage = coverage && !scriptsOnly && !run && !skipNative
     let status = 0
     const exec = run ?? ((command, args) => new Promise((resolvePromise) => {
       const childEnv = { ...env, CLANG_MODULE_CACHE_PATH: join(root, 'work', 'clang-modules'), TZ: 'Asia/Shanghai' }
@@ -186,8 +214,8 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
       })
       child.on('close', (code) => resolvePromise(code ?? 1))
     }))
-    const checks = commands ?? testCommands(root, { coreOnly, scriptsOnly, coverage, env })
-    if (!checks.length) throw new Error('测试列表为空，拒绝报告通过')
+    const checks = commands ?? testCommands(root, { coreOnly, scriptsOnly: scriptsOnly || skipNative, coverage, env })
+    if (!checks.length && !skipNative) throw new Error('测试列表为空，拒绝报告通过')
     const runChecks = async () => {
       if (nativeCoverage) {
         status = await exec(nodeExecutable({ env }), [join(root, 'Scripts', 'swift-coverage.cjs'), root, '--clear'])
@@ -212,7 +240,7 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
     }
     // Hold the native-build lease through Swift's coverage validation, so its
     // scratch directory cannot be reclaimed between testing and reporting.
-    if (!scriptsOnly && !run) await withBuildCache(root, 'tests', async () => {
+    if (!scriptsOnly && !run && !skipNative) await withBuildCache(root, 'tests', async () => {
       // Packaging previously prepared these before its gate. Keep relocation
       // recovery ahead of Swift tests, now while holding the shared cache lease.
       prepareSwiftWorkspace(root, { log: message => logger.log(message) })
@@ -231,7 +259,8 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
       logPath = failurePath
     }
     const result = { status, signature: status === 0 && !coreOnly && !scriptsOnly ? before : null, logPath, durationMs: Date.now() - started,
-      scope: coreOnly ? 'core' : scriptsOnly ? 'scripts' : 'all', coverage, coverageDirectory }
+      scope: coreOnly ? 'core' : scriptsOnly ? 'scripts' : 'all', coverage, coverageDirectory,
+      skipped: skipNative ? [{ suite: 'swift', reason: native.reason }] : [] }
     writeFileSync(join(directory, 'latest.json'), JSON.stringify(result, null, 2) + '\n')
     // Reporting and all coverage checks have finished before discarding profiles.
     // Cleanup trouble must not turn either a pass or a failure into a new verdict.
