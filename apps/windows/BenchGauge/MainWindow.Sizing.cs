@@ -30,12 +30,14 @@ sealed partial class MainWindow
         var column = layout.Select(entry => MeasurePanelText(entry.Name) + 54 +
             (entry.PlanTitle is null ? 0 : MeasurePanelText(entry.PlanTitle, 12) + 14) +
             (entry.ApiTitle is null ? 0 : MeasurePanelText(entry.ApiTitle, 12) + 14)).DefaultIfEmpty(0).Max();
-        var header = state?.Boards.Select(board => MeasurePanelText(SourceLens(board), 11) + 10)
+        var header = state?.Boards.Select(board => MeasurePanelText(BoardTitle(board), 11) + MeasurePanelText(" · " + SourceLens(board), 10)
+            + MeasurePanelText("12/31 23:59", 9) + 18)
             .DefaultIfEmpty(0).Max() ?? 0;
         // Shrink the popup with the fixed columns, keeping the measured name
         // allowance stable across categories. English filter titles need more room.
         var chrome = 560 - (60 - 40) - 2 * (52 - CountryColumnWidth) - 2 * (60 - SourceColumnWidth);
-        var desired = Math.Max(850, Math.Ceiling(Math.Max(column, header) * 2 + chrome));
+        var count = prefs.VisibleBoardKinds().Length;
+        var desired = Math.Max(850, Math.Ceiling(Math.Max(column, header) * count + 40 + (chrome - 40) / 2 * count));
         var area = SystemParameters.WorkArea;
         var target = Math.Min(desired, Math.Max(MinWidth, area.Width - 16));
         if (Math.Abs(Width - target) < 0.5) return;

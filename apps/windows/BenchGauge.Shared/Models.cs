@@ -14,7 +14,7 @@ public sealed record AppConfig(string Version, string Repository, string UpdateP
 }
 public sealed record DisplayState(Board[] Boards, Quota[] Quotas, bool QuotaNeedsCCSwitch, bool QuotaUnavailable, string? TrayText, Alert[] Alerts, LayoutEntry[]? LayoutEntries = null, string? QuotaUpdatedAt = null);
 public sealed record LayoutEntry(string Name, string? PlanTitle, string? ApiTitle);
-public sealed record Board(string Kind, string Title, string Url, string? UpdatedAt, string? Error, Entry[] Entries, string? FetchedAt = null, CountryOption[]? CountryOptions = null);
+public sealed record Board(string Kind, string Title, string Url, string? UpdatedAt, string? Error, Entry[] Entries, string? FetchedAt = null, CountryOption[]? CountryOptions = null, LeaderboardDistribution? Distribution = null);
 public sealed record CountryOption(string Value, string Label);
 public sealed record Entry(int Rank, string Name, double Score, string? Organization, string? Country, string? Logo, string? CodingURL, string? ApiURL, string? Help, string? Openness = null, string? BrandColor = null, string? LogoPNG = null, string? Initials = null);
 public sealed record Quota(string Id, string Name, bool IsCurrent, bool IsStale, string Help, string? Url, bool CanConnect, string? Connection, Run[] Runs, string? AccentLight = null, bool IsDimmed = false);
@@ -47,7 +47,35 @@ public static class LeaderboardCountryPolicy
 public sealed class Preferences
 {
     public string Category { get; set; } = "general";
-    public string GeneralComparison { get; set; } = "arenaText";
+    public Dictionary<string, string[]> BoardSelections { get; set; } = [];
+    public string[] AvailableBoardKinds() => Category switch {
+        "coding" => ["artificialAnalysisCodingAgent", "codeArenaWebDev"],
+        "image" => ["artificialAnalysisTextToImage", "arenaTextToImage"],
+        "video" => ["artificialAnalysisTextToVideo", "arenaTextToVideo"],
+        _ => ["artificialAnalysis", "arenaText", "epochECI"]
+    };
+    public string[] VisibleBoardKinds()
+    {
+        var all = AvailableBoardKinds();
+        var selected = BoardSelections?.GetValueOrDefault(Category);
+        var valid = all.Where(kind => selected is null || selected.Contains(kind)).ToArray();
+        return valid.Length == 0 ? all : valid;
+    }
+    public void ToggleBoard(string kind)
+    {
+        var current = VisibleBoardKinds();
+        if (!AvailableBoardKinds().Contains(kind) || (current.Length == 1 && current.Contains(kind))) return;
+        SetVisibleBoards(AvailableBoardKinds().Where(value => value == kind ? !current.Contains(value) : current.Contains(value)));
+    }
+    public bool SetVisibleBoards(IEnumerable<string> kinds)
+    {
+        var selected = kinds.ToHashSet();
+        var next = AvailableBoardKinds().Where(selected.Contains).ToArray();
+        if (next.Length == 0 || next.SequenceEqual(VisibleBoardKinds())) return false;
+        BoardSelections ??= [];
+        BoardSelections[Category] = next;
+        return true;
+    }
     public string Grouping { get; set; } = "model";
     public string Language { get; set; } = System.Globalization.CultureInfo.CurrentUICulture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase) ? "zh" : "en";
     public bool QwenWebsiteConnected { get; set; }

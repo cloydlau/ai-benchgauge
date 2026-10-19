@@ -30,6 +30,10 @@ export const countryFlag = value => {
   const code = normalizedCountryCode(value)
   return code ? String.fromCodePoint(...[...code].map(letter => letter.charCodeAt(0) + 127397)) : '—'
 }
+export const countryFlagImage = value => {
+  const code = normalizedCountryCode(value)
+  return bundledFlags.has(code) ? `/assets/flags/${code.toLowerCase()}.png` : ''
+}
 const countryNames = {
   US: ['United States', '美国', '美國'], CN: ['China', '中国', '中國'], FR: ['France', '法国', '法國'],
   CA: ['Canada', '加拿大', '加拿大'], IL: ['Israel', '以色列', '以色列'], DE: ['Germany', '德国', '德國'],
@@ -83,7 +87,7 @@ export function rowView(entry, { company = false, dark = false, details = true, 
     purchaseActions: actions,
     initial: [...entry.name][0], countryUnknown: countryCode(entry) === 'unknown', countryName: countryName(countryCode(entry), language),
     flag: countryCode(entry) === 'unknown' ? '?' : countryFlag(countryCode(entry)),
-    countryCode: code, flagImage: bundledFlags.has(code) ? `/assets/flags/${code.toLowerCase()}.png` : '',
+    countryCode: code, flagImage: countryFlagImage(code),
     components: details ? entry.components?.map(member => ({ name: member.name, rank: member.rank, score: member.score.toFixed(kind === 'epochECI' ? 2 : 1) })) || [] : [],
     scoreText: entry.score.toFixed(kind === 'epochECI' ? 2 : 1), scoreShare: scoreShareText(entry.score, leaderScore), openness: company ? null : resolvedOpenness(entry),
     opennessIcon: opennessIcon(company ? null : resolvedOpenness(entry), dark),

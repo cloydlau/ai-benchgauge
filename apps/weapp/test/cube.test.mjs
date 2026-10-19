@@ -2,6 +2,28 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { cubeIndex, cubeTarget, cubeRenderedFace, cubeFaceStyle, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll } from '../src/core/cube.js'
 
+test('left-edge right swipes yield to navigation for the entire gesture without moving or projecting a turn', () => {
+  for (const count of [2, 3]) for (let face = 0; face < count; face++) {
+    for (const x of [0, 16, 32]) {
+      const gesture = cubeGesture(face, x, 200, 0, count)
+      for (const [nextX, nextY, time] of [[x + 1, 201, 10], [280, 220, 30], [-100, 240, 50]]) {
+        moveCubeGesture(gesture, nextX, nextY, time, 375)
+        assert.equal(gesture.axis, 'navigation')
+        assert.equal(gesture.position, face)
+        assert.equal(cubeDestination(gesture, 375, time), face)
+      }
+    }
+  }
+  const ordinary = cubeGesture(1, 33, 200, 0)
+  moveCubeGesture(ordinary, 280, 200, 200, 375)
+  assert.equal(ordinary.axis, 'horizontal')
+  assert.equal(cubeDestination(ordinary, 375, 400), 0)
+  const leftward = cubeGesture(0, 32, 200, 0)
+  moveCubeGesture(leftward, -100, 200, 200, 375)
+  assert.equal(leftward.axis, 'horizontal')
+  assert.equal(cubeDestination(leftward, 375, 400), 1)
+})
+
 test('cube gesture locks vertical scrolling, limits each turn to one neighbour and distinguishes flicks from paused drags', () => {
   const vertical = cubeGesture(0, 200, 100, 0)
   moveCubeGesture(vertical, 202, 120, 20, 375)

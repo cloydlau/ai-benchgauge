@@ -66,7 +66,7 @@
           {
             "rank": 6,
             "name": "GLM-4.6",
-            "score": 92.0,
+            "score": 92,
             "organization": "Z.ai",
             "logo": "zai",
             "country": "china",
@@ -176,7 +176,7 @@
           {
             "rank": 16,
             "name": "GLM-4.6 · secondary evaluation",
-            "score": 79.0,
+            "score": 79,
             "organization": "Z.ai",
             "logo": "zai",
             "country": "china",
@@ -340,7 +340,7 @@
           {
             "rank": 10,
             "name": "Ideogram 3.0",
-            "score": 90.0,
+            "score": 90,
             "organization": "Ideogram",
             "logo": "ideogram",
             "country": "canada",
@@ -450,7 +450,237 @@
           {
             "rank": 20,
             "name": "Ideogram 3.0 · secondary evaluation",
-            "score": 77.0,
+            "score": 77,
+            "organization": "Ideogram",
+            "logo": "ideogram",
+            "country": "canada",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          }
+        ],
+        "fetchedAt": "2026-09-29T00:00:00Z"
+      },
+      {
+        "kind": "epochECI",
+        "title": "Epoch AI | ECI",
+        "url": "https://epoch.ai/data/eci",
+        "updatedAt": "2026-09-29T00:00:00Z",
+        "error": null,
+        "entries": [
+          {
+            "rank": 1,
+            "name": "GPT-5.2 (high)",
+            "score": 150.25,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 2,
+            "name": "Claude Sonnet 4.5 (extended thinking)",
+            "score": 148.07,
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 3,
+            "name": "Gemini 3 Pro Preview",
+            "score": 145.89,
+            "organization": "Google",
+            "logo": "google",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 4,
+            "name": "Qwen3-Max-Thinking 长名称测试模型",
+            "score": 143.71,
+            "organization": "Alibaba",
+            "logo": "qwen",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 5,
+            "name": "DeepSeek-V3.2-Speciale",
+            "score": 141.53,
+            "organization": "DeepSeek",
+            "logo": "deepseek",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 6,
+            "name": "GLM-4.6",
+            "score": 139.35,
+            "organization": "Z.ai",
+            "logo": "zai",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 7,
+            "name": "Kimi K2 Thinking",
+            "score": 137.17,
+            "organization": "Moonshot AI",
+            "logo": "kimi",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 8,
+            "name": "Grok 4 Fast Reasoning",
+            "score": 134.99,
+            "organization": "xAI",
+            "logo": "spacexai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 9,
+            "name": "Mistral Large 3",
+            "score": 132.81,
+            "organization": "Mistral",
+            "logo": "mistral",
+            "country": "france",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 10,
+            "name": "Ideogram 3.0",
+            "score": 130.63,
+            "organization": "Ideogram",
+            "logo": "ideogram",
+            "country": "canada",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 11,
+            "name": "GPT-5.2 (high) · secondary evaluation",
+            "score": 128.45,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 12,
+            "name": "Claude Sonnet 4.5 (extended thinking) · secondary evaluation",
+            "score": 126.27,
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 13,
+            "name": "Gemini 3 Pro Preview · secondary evaluation",
+            "score": 124.09,
+            "organization": "Google",
+            "logo": "google",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 14,
+            "name": "Qwen3-Max-Thinking 长名称测试模型 · secondary evaluation",
+            "score": 121.91,
+            "organization": "Alibaba",
+            "logo": "qwen",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 15,
+            "name": "DeepSeek-V3.2-Speciale · secondary evaluation",
+            "score": 119.72999999999999,
+            "organization": "DeepSeek",
+            "logo": "deepseek",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 16,
+            "name": "GLM-4.6 · secondary evaluation",
+            "score": 117.55,
+            "organization": "Z.ai",
+            "logo": "zai",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 17,
+            "name": "Kimi K2 Thinking · secondary evaluation",
+            "score": 115.37,
+            "organization": "Moonshot AI",
+            "logo": "kimi",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 18,
+            "name": "Grok 4 Fast Reasoning · secondary evaluation",
+            "score": 113.19,
+            "organization": "xAI",
+            "logo": "spacexai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 19,
+            "name": "Mistral Large 3 · secondary evaluation",
+            "score": 111.00999999999999,
+            "organization": "Mistral",
+            "logo": "mistral",
+            "country": "france",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 20,
+            "name": "Ideogram 3.0 · secondary evaluation",
+            "score": 108.83,
             "organization": "Ideogram",
             "logo": "ideogram",
             "country": "canada",
@@ -1862,6 +2092,206 @@
       "width": 900,
       "height": 820,
       "scenario": "quotaErrorSort"
+    },
+    {
+      "id": "desktop-selection-three-en",
+      "language": "en",
+      "width": 1400,
+      "height": 850,
+      "scenario": "boardSelection",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ],
+      "mode": "clickToClose"
+    },
+    {
+      "id": "desktop-selection-three-zh",
+      "language": "zh",
+      "width": 1300,
+      "height": 850,
+      "scenario": "boardSelection",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ],
+      "mode": "clickToClose"
+    },
+    {
+      "id": "desktop-selection-two-hant",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 850,
+      "scenario": "boardSelection",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "epochECI"
+      ],
+      "mode": "clickToClose"
+    },
+    {
+      "id": "desktop-selection-one-eci",
+      "language": "en",
+      "width": 850,
+      "height": 850,
+      "scenario": "boardSelection",
+      "selectedBoards": [
+        "epochECI"
+      ],
+      "mode": "clickToClose"
+    },
+    {
+      "id": "desktop-selection-three-to-one",
+      "language": "en",
+      "width": 1200,
+      "height": 850,
+      "scenario": "boardSelection",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ],
+      "refreshedSelectedBoards": [
+        "arenaText"
+      ],
+      "mode": "clickToClose"
+    },
+    {
+      "id": "desktop-selection-empty-zh",
+      "language": "zh",
+      "width": 850,
+      "height": 850,
+      "scenario": "empty",
+      "selectedBoards": [
+        "epochECI"
+      ],
+      "mode": "clickToClose"
+    },
+    {
+      "id": "desktop-selection-error-zh",
+      "language": "zh",
+      "width": 1100,
+      "height": 850,
+      "scenario": "error",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "epochECI"
+      ],
+      "mode": "clickToClose"
+    },
+    {
+      "id": "desktop-selection-company-en",
+      "language": "en",
+      "width": 1400,
+      "height": 850,
+      "scenario": "boardSelection",
+      "grouping": "company",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ],
+      "mode": "clickToClose"
+    },
+    {
+      "id": "desktop-selection-three-narrow",
+      "language": "en",
+      "width": 600,
+      "height": 850,
+      "scenario": "boardSelection",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ],
+      "mode": "clickToClose"
+    },
+    {
+      "id": "distribution-single-zh",
+      "language": "zh",
+      "width": 850,
+      "height": 700,
+      "scenario": "distributionCharts",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "distribution-three-zh",
+      "language": "zh",
+      "width": 1600,
+      "height": 700,
+      "scenario": "distributionCharts",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ]
+    },
+    {
+      "id": "distribution-narrow-hant",
+      "language": "zh-Hant",
+      "width": 850,
+      "height": 700,
+      "scenario": "distributionCharts",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ]
+    },
+    {
+      "id": "distribution-two-en",
+      "language": "en",
+      "width": 1600,
+      "height": 700,
+      "scenario": "distributionCharts",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "epochECI"
+      ]
+    },
+    {
+      "id": "distribution-company-hant",
+      "language": "zh-Hant",
+      "width": 1200,
+      "height": 700,
+      "scenario": "distributionCharts",
+      "grouping": "company",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ]
+    },
+    {
+      "id": "distribution-empty-zh",
+      "language": "zh",
+      "width": 850,
+      "height": 700,
+      "scenario": "distributionCharts",
+      "category": "video",
+      "selectedBoards": [
+        "artificialAnalysisTextToVideo"
+      ]
+    },
+    {
+      "id": "search-outside-empty-zh-1200",
+      "language": "zh",
+      "width": 1200,
+      "height": 850,
+      "scenario": "desktopSearchOutside",
+      "searchQuery": ""
+    },
+    {
+      "id": "search-outside-populated-en-850",
+      "language": "en",
+      "width": 850,
+      "height": 850,
+      "scenario": "desktopSearchOutside",
+      "searchQuery": "Qwen"
     }
   ],
   "quotaScenarios": {

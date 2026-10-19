@@ -178,7 +178,8 @@ enum PanelScreenshot {
     private static func tableRegionVariety(_ rep: NSBitmapImageRep?) -> Int {
         // Include the interior of the right name column: source/country filters
         // can leave the entire left board empty. Its right edge may be blank.
-        regionVariety(rep, xs: [0.08, 0.2, 0.36, 0.52, 0.6, 0.7, 0.88], ys: [0.3, 0.42, 0.54, 0.66, 0.78, 0.9])
+        // Search can leave just one row, so sample the top of the body too.
+        regionVariety(rep, xs: [0.08, 0.2, 0.36, 0.52, 0.6, 0.7, 0.88], ys: [0.21, 0.225, 0.24, 0.26, 0.3, 0.42, 0.5, 0.54, 0.55, 0.66, 0.78, 0.9])
     }
 
     private static func regionVariety(

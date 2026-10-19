@@ -75,3 +75,9 @@ Node 内置测试覆盖实际页面控制器、双榜共享筛选与偏好、刷
 非界面规则复用 `fc/domain.mjs`，品牌与公司名称从共用目录读取。Swift 规则数据通过 `node Scripts/generate-leaderboard-policy.mjs` 生成，检查会拒绝过期文件。
 
 购买链接共用 `fc/purchase-links.json`，修改后运行 `node Scripts/generate-purchase-links.mjs` 同步 Swift 目录；小程序测试会检查两端同步及 HTTPS 地址格式。地址应从对应产品的官方订阅、定价或充值页面核实，不能用返回 200 的首页代替；需要登录或拒绝抓取的页面不能据此断言失效，也不能当成已完成登录后购买流程验证。2026-10-16 核对并修正了 Meta 旧 API 404 地址、MiniMax 编程套餐、Google AI 套餐、StepFun 定价页和 Ideogram API 定价页；StepFun 已下线的图片模型不再提供购买按钮。
+
+移动端英文刊头只显示主标题，不渲染副标题或为其保留宽度；简体和繁体中文保留副标题。
+
+英文标题的 AI 组合按字号上移 0.07em，补偿网络标识重心偏下带来的视觉差异；A 与 I 保持同高，BenchGauge 和中文标题不变。页面和 Canvas 导出共用该位置计算。2026-10-18 已通过 61 项标题/页面测试与整包构建，并使用官方开发者工具核对英文页面；原始截图在忽略目录 `work/mobile-title-alignment/`。
+
+英文 A 右倾 20°，I 向 A 的透明右上角收紧，避免把整块倾斜图片的留白算作字距；页面、关于页和 Canvas 导出共用布局。浅色和深色原生截图在 `work/english-initials-spacing/`。

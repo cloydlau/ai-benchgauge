@@ -2,17 +2,22 @@
 import CoreText
 import SwiftUI
 
-/// Center Chinese's single line and English's two rows within the title's painted height.
+/// Share subtitle artwork with optional help artwork for clients that need it.
 public struct FeatureSubtitle: View {
     public let language: AppLanguage
     public let height: CGFloat
-    public init(language: AppLanguage, height: CGFloat = 24) {
+    public let multiline: Bool
+    public let showsHelpSymbol: Bool
+    public init(language: AppLanguage, height: CGFloat = 24, multiline: Bool = false, showsHelpSymbol: Bool = true) {
         self.language = language
         self.height = height
+        self.multiline = multiline
+        self.showsHelpSymbol = showsHelpSymbol
     }
 
     public var body: some View {
-        let artwork = FeatureSubtitleArtwork.make(language: language, height: height)
+        let artwork = FeatureSubtitleArtwork.make(language: language, height: height, multiline: multiline,
+                                                 showsHelpSymbol: showsHelpSymbol)
         ZStack(alignment: .topLeading) {
             FeatureSubtitleInk(outline: Path(artwork.letters), size: artwork.size).fill(.foreground)
             FeatureSubtitleInk(outline: Path(artwork.symbols), size: artwork.size).fill(.foreground).opacity(0.55)
@@ -33,6 +38,14 @@ private struct FeatureSubtitleInk: Shape {
 }
 
 public enum BrandTitleMetrics {
+    public static func layoutWidth(language: AppLanguage, fontSize: CGFloat = 21) -> CGFloat {
+        if language != .english { return ChineseBrandLayout.make().size.width * fontSize / 21 }
+        let font = CTFontCreateWithName("SnellRoundhand-Bold" as CFString, fontSize, nil)
+        let line = CTLineCreateWithAttributedString(NSAttributedString(string: language.appName,
+            attributes: [NSAttributedString.Key(kCTFontAttributeName as String): font]))
+        return CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+    }
+
     public static func inkHeight(language: AppLanguage, fontSize: CGFloat = 21) -> CGFloat {
         if language != .english { return ChineseBrandLayout.make().path.boundingBoxOfPath.height * fontSize / 21 }
         let font = CTFontCreateWithName("SnellRoundhand-Bold" as CFString, fontSize, nil)
@@ -60,17 +73,18 @@ struct FeatureSubtitleArtwork {
             size: CGSize(width: size.width * scale, height: size.height))
     }
 
-    static func make(language: AppLanguage, height: CGFloat) -> Self {
-        make(rows: AppFeatureCopy.subtitleRows(language: language), height: height)
+    static func make(language: AppLanguage, height: CGFloat, multiline: Bool = false, showsHelpSymbol: Bool = true) -> Self {
+        make(rows: multiline ? AppFeatureCopy.subtitleRows(language: language) : [AppFeatureCopy.subtitle(language: language)],
+             height: height, showsHelpSymbol: showsHelpSymbol)
     }
 
-    static func make(rows: [String], height: CGFloat) -> Self {
+    static func make(rows: [String], height: CGFloat, showsHelpSymbol: Bool = true) -> Self {
         let descriptor = CTFontDescriptorCreateWithAttributes([
             kCTFontTraitsAttribute: [kCTFontWeightTrait: 0.23]
         ] as CFDictionary)
         let font = CTFontCreateCopyWithAttributes(CTFontCreateUIFontForLanguage(.system, 12, nil)!, 12, nil, descriptor)
         let lines = rows.enumerated().map { index, row in
-            let text = row + (index == rows.count - 1 ? " ?" : "")
+            let text = row + (showsHelpSymbol && index == rows.count - 1 ? " ?" : "")
             return (text, CTLineCreateWithAttributedString(NSAttributedString(string: text,
                 attributes: [NSAttributedString.Key(kCTFontAttributeName as String): font])))
         }
@@ -117,7 +131,7 @@ struct FeatureSubtitleArtwork {
                             tx: circle.midX - ink.midX * questionScale, ty: circle.midY - ink.midY * questionScale)
                         if let centered = path.copy(using: [question]) { symbols.addPath(centered, transform: transform) }
                     } else {
-                        (character == 38 ? symbols : letters).addPath(path, transform: transform)
+                        letters.addPath(path, transform: transform)
                     }
                 }
             }

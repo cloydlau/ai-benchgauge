@@ -6,9 +6,9 @@ export const categories = [
 ]
 export const desktopDownloadURL = 'https://github.com/cloydlau/ai-benchgauge/releases/latest'
 export const leaderboardSources = [
-  { id: 'epoch', title: 'Epoch AI', url: 'https://epoch.ai/eci' },
   { id: 'artificialAnalysis', title: 'Artificial Analysis', url: 'https://artificialanalysis.ai/' },
   { id: 'arena', title: 'Arena', url: 'https://arena.ai/leaderboard' },
+  { id: 'epoch', title: 'Epoch AI', url: 'https://epoch.ai/eci' },
 ]
 export const boards = {
   epochECI: { title: 'Epoch ECI', summaries: ['Estimates general capability from benchmark results, accounting for difficulty and discrimination.', '结合不同测试的难度与区分度，估计模型的综合能力', '結合不同測試的難度與區分度，估計模型的綜合能力'], url: 'https://epoch.ai/eci' },
@@ -30,16 +30,19 @@ export const categoryFor = id => categories.find(category => category.id === id)
 const tagline = ['Compare leaderboards to make informed choices; track quotas to know where you stand.',
   '多榜对照，选得明白；余量追踪，用得有数。',
   '多榜對照，選得明白；餘量追蹤，用得有數。']
+const rankingSummary = ['Task benchmarks show results; blind user votes show the experience; difficulty-calibrated tests show overall capability.',
+  '任务测评看成绩，用户盲测看体验，难度校准看实力。',
+  '任務測評看成績，使用者盲測看體驗，難度校準看實力。']
 
 export const copy = {
   tagline,
-  description: [`Blind user votes show the experience; task benchmarks show capability. ${tagline[0]}`,
-    `用户盲测看体验，任务测评看能力。${tagline[1]}`,
-    `使用者盲測看體驗，任務測評看能力。${tagline[2]}`],
-  name: ['AI BenchGauge', 'AI 天梯', 'AI 天梯'], subtitle: ['Dual boards & quota tracking', '双榜对照 & 余量追踪', '雙榜對照 & 餘量追蹤'],
+  rankingSummary,
+  description: rankingSummary.map((summary, index) => `${summary}${index === 0 ? ' ' : ''}${tagline[index]}`),
+  name: ['AI BenchGauge', 'AI 天梯', 'AI 天梯'], subtitle: tagline,
   capabilityIndex: ['Calibrated tests', '难度校准', '難度校準'],
   tasks: ['Task benchmarks', '任务测评', '任務測評'], votes: ['User votes', '用户盲测', '使用者盲測'],
   models: ['Models', '模型', '模型'], companies: ['Companies', '公司', '公司'], rank: ['Rank', '排名', '排名'],
+  showAll: ['Show all {count}', '展开全部 {count} 条', '展開全部 {count} 條'], showLess: ['Show less', '收起', '收起'],
   searchModels: ['Search models', '搜索模型', '搜尋模型'], clearSearch: ['Clear search', '清空搜索', '清空搜尋'],
   score: ['Score', '分数', '分數'], source: ['Source', '源码', '原始碼'], country: ['Country', '国家', '國家'],
   unknownCountryTitle: ['Why no country?', '为什么没有国家归属？', '為什麼沒有國家歸屬？'],
@@ -48,6 +51,9 @@ export const copy = {
     '国家归属依据模型开发者的总部所在地。部分模型属于社区项目或多方合作，也可能缺少足够可靠的信息来确认开发者及其总部，因此暂不归属到某个国家。我们不会根据模型名称、语言、基座模型或托管平台猜测归属。',
     '國家歸屬依據模型開發者的總部所在地。部分模型屬於社群專案或多方合作，也可能缺少足夠可靠的資訊來確認開發者及其總部，因此暫不歸屬到某個國家。我們不會根據模型名稱、語言、基礎模型或託管平台猜測歸屬。'],
   all: ['All', '全部', '全部'], open: ['Open', '开源', '開源'], closed: ['Closed', '闭源', '閉源'], unknown: ['Unknown', '未知', '未知'],
+  countryShare: ['Country share', '国家占比', '國家占比'], sourceShare: ['Source share', '源码占比', '原始碼占比'],
+  distributionBasis: ['All models on this board · counts, not scores', '按全榜模型数量统计，不按分数加权', '按全榜模型數量統計，不按分數加權'],
+  noModels: ['No model data yet', '暂无模型数据', '暫無模型資料'], other: ['Other', '其他', '其他'],
   updated: ['Updated', '更新', '更新'], fetched: ['Fetched', '抓取', '擷取'], refresh: ['Refresh', '刷新', '重新整理'],
   loading: ['Loading shared rankings…', '正在读取共享榜单…', '正在讀取共享榜單…'],
   empty: ['No matching entries', '暂无符合筛选的条目', '暫無符合篩選的項目'],

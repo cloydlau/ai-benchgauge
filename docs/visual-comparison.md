@@ -1,3 +1,725 @@
+## Inline quota freshness — 2026-10-19
+
+With board times now in their own table headers, the application header uses
+one muted text label, “Quotas updated …” / “余量更新于…”, without the separate
+UPDATED heading or a capsule background. Relative age and exact-date tooltips
+remain available; pending and unavailable states retain their status and
+unavailable data retains its warning color. No quota data leaves no time label.
+
+Ignored `work/quota-freshness-inline/` retains one fixture and native Mac
+before/after shown/refreshed/settled frames covering all languages/themes,
+recent/minute/day ages, pending/stale values and the empty quota state. Native
+Windows screenshots and a source-matched CI artifact remain unavailable;
+Windows visual verification and protected release approval are not claimed.
+
+## Per-board header timestamps — 2026-10-19
+
+Each desktop source header places its title at the leading edge and its own
+snapshot time at the trailing edge, with an explicit gap. The former global
+ranking freshness pill is removed; the quota freshness indicator stays in the
+application header. Both clients use the later of source publication and fetch
+time, matching the mini-program. Tooltips label publication and fetch dates
+separately, including missing source dates. Narrow headers shorten Artificial
+Analysis to AA and omit the explanation before truncating the source name.
+
+Ignored `work/desktop-board-header-time/` holds the same fixture and native Mac
+before/after shown/refreshed/settled frames for one/two/three boards, all three
+languages, both themes and the empty quota state. Native Windows screenshots
+and a source-matched CI artifact are unavailable on this Mac; Windows visual
+verification and protected release approval are not claimed.
+
+## Single-line quota row centering — 2026-10-19
+
+The desktop quota cards and Add model action now center as a group when they
+fit on one line. Wrapped rows retain leading alignment, and an empty quota row
+centers its setup/Add model actions. This applies to the quota tracker beneath
+the title, independently of leaderboard model-name cells.
+
+Ignored `work/quota-row-single-line-center/` retains one fixture and native Mac
+before/after shown/refreshed/settled captures: all languages/themes, one/two
+providers, wrapped providers, a wide single row and the empty setup state.
+Windows uses the same fitting rule; native Windows screenshots and a source-
+matched CI visual artifact remain unavailable. Windows visual verification and
+protected release approval are not claimed.
+
+## Unknown distribution markers — 2026-10-19
+
+Unknown country/source chart legends use a question mark instead of a dash.
+This is scoped to charts; known flag and lock icons retain their appearance.
+Ignored `work/distribution-unknown-question/` retains before/after native Mac
+shown/refreshed/settled evidence using the same fixture, all languages, both
+themes and one/three boards. The baseline is the unchanged prior task's final
+capture. Windows native screenshots and a source-matched CI artifact remain
+unavailable; Windows visual verification and protected release approval are
+not claimed.
+
+## Source chart and lock palette — 2026-10-19
+
+Open source uses green and closed source uses neutral gray, with separate
+light/dark values. Each client reuses the same palette for its chart segments
+and lock icons; the mini-program icon generator consumes that palette too.
+Apple and Windows now use the same hex colors as the mini-program.
+
+Ignored `work/distribution-source-colors/` retains identical-fixture native Mac
+before/after captures for all languages, both themes and one/three boards.
+Windows native capture and a source-matched CI visual artifact are unavailable;
+Windows visual verification and protected release approval are not claimed.
+
+## Country chart label width — 2026-10-19
+
+English country labels now have up to 144 points/pixels instead of 96. The
+progress track retains at least 24 and narrow cards let complete country names
+wrap rather than truncating them. Chinese labels retain their existing width.
+The mini-program reduces the country value column from 94 to 86 pixels.
+
+Ignored `work/distribution-country-width/` retains an identical long-country
+fixture for native Mac before/after shown/refreshed/settled captures in English,
+Simplified/Traditional Chinese, both themes and single/three-board layouts.
+Windows native captures and a source-matched CI artifact are unavailable on
+this Mac; Windows visual verification and protected release approval are not
+claimed.
+
+## Hide zero-count unknown chart items — 2026-10-18
+
+Country/source distribution charts omit Unknown when its model count is zero.
+Nonzero unknown counts remain visible and remain part of the denominator. Open
+and Closed entries keep their existing zero-count behavior. The shared Apple
+and JavaScript distributions and Windows fallback use the same rule.
+
+Ignored `work/distribution-hide-zero-unknown/` retains the same fixture and
+native Mac before/after shown/refreshed/settled captures, including known-only,
+mixed and empty data, three languages and both themes. Windows native capture
+and a source-matched cloud CI artifact are unavailable on this Mac; Windows
+visual verification and protected release approval are not claimed.
+
+## Left-align desktop model names — 2026-10-18 (corrected direction)
+
+Mac and Windows align each model/company logo and name group to the left of its
+available name area. This supersedes the earlier centering request, which the
+user clarified was a speech-recognition error. Single-line names are also left
+aligned. Empty placeholders remain centered. Bar widths, the external score-
+share label, vertical centering and native row virtualization stay unchanged.
+
+Ignored `work/desktop-model-name-left-corrected/` retains frozen source and the
+same native fixture before/after, with shown/refreshed/settled captures for
+one/two/three boards, model/company mode, long names, all supported languages
+and both themes. Native Windows screenshots and a source-matched CI artifact
+are unavailable on this Mac; Windows visual verification is not claimed.
+
+## Mac scroll cell layout — 2026-10-18
+
+Mac model cells now use the exact fixed TableColumn width directly instead of
+measuring it again through nested GeometryReaders. The background bar, centered
+name group and external score-share label retain their geometry. NSTableView
+continues to recycle visible rows; WPF already uses a recycling virtualizing
+stack panel and is unchanged in this pass.
+
+Ignored `work/desktop-scroll-pass2/` retains frozen source, identical 2,000-model
+fixtures, native Mac before/after shown/refreshed/settled captures and scroll
+measurements for one/three boards, narrow/wide layouts, all languages and both
+themes. Measurements cover 240 synchronous scroll/layout/display steps and are
+main-thread work durations, not display FPS. Native Windows captures and a
+source-matched cloud CI artifact are unavailable; Windows visual verification
+and protected release approval are not claimed.
+
+## Distribution chart flags and source locks — 2026-10-18
+
+Country rows now include the country's flag beside its existing localized name;
+source legends include open/closed lock icons instead of colored dots. Apple
+charts reuse ModelOpennessBadge, WPF legends reuse OpennessBadge, and the mini-
+program uses its bundled flag and theme-specific lock images. WPF packages the
+same flag PNGs with their license. Other/unknown categories use neutral symbols;
+no flag is assigned to an aggregate or missing metadata. Statistics are unchanged.
+
+Ignored `work/distribution-icons/` retains baseline/final source, one shared
+fixture and native Mac shown/refreshed/settled captures covering board counts,
+languages, themes, company mode and empty data, plus mini-program captures.
+Windows native screenshots and a source-matched CI artifact are unavailable on
+this Mac; Windows visual verification is not claimed.
+
+## Desktop search label — 2026-10-18
+
+Desktop search placeholders, tooltips and accessibility labels now say “Search
+models” / “搜索模型” / “搜尋模型”, matching the existing mobile labels. Search
+continues to cover all selected boards. Ignored `work/desktop-search-models-copy/`
+retains the shared fixture and native Mac before/after shown, expanded and
+settled frames in all languages and both themes. Windows native captures and
+a source-matched CI artifact are unavailable; Windows visual verification is
+not claimed.
+
+## Center desktop model names — 2026-10-18 (superseded)
+
+Mac and Windows horizontally center the model/company logo and name group in
+its available name area. This supersedes the previous left-alignment direction.
+The external score-share label retains its position; bar widths and row geometry
+remain unchanged. Empty placeholders stay centered.
+
+Ignored `work/desktop-model-name-center-final/` retains the fixture, frozen source
+and native Mac before/after shown, refreshed and settled captures for one/two/
+three boards, model/company mode, all languages, both themes and 850–1600-point
+viewports. Windows native screenshots and a source-matched cloud CI artifact
+remain unavailable on this Mac; Windows visual verification is not claimed.
+
+## Uniform source tint in desktop board headers — 2026-10-18
+
+Mac and Windows draw each board name and its following explanation in the same
+existing source/category tint. This also applies to abbreviated names when the
+column is narrow. Font sizes, weights, truncation,
+header background and table geometry are unchanged.
+
+Ignored `work/desktop-header-tint/` retains frozen source, the shared fixture
+and native Mac before/after shown, refreshed and settled captures across all
+nine source kinds, three languages, both themes and one/two/three-board layouts.
+Windows native screenshots and a source-matched cloud CI artifact are unavailable
+on this Mac; Windows visual verification is not claimed.
+
+## Re-anchor the Mac popover after board-count changes — 2026-10-18
+
+Changing the selected boards recomputes the native popover's anchor after its
+content size changes. The old code resized a saved window frame while preserving
+its right edge, even when AppKit had centered the popover under the status item;
+that could move the entire window past the anchor. The resize path now releases
+the stale frame pin, asks AppKit to reposition against the current status button,
+and settles the new frame. The existing window level, edge inset and animation
+policy remain in force. Window mode and Windows WPF are unchanged.
+
+The separate `Tests/fixtures/popover-board-anchor.json` fixture uses
+`popoverBoardResize` to open the production status popover,
+changes the selected boards, closes/reopens it and captures a settled frame.
+Ignored `work/popover-board-anchor/` retains baseline/fixed source, native Mac
+captures and screen-space window/button geometry for three-to-one, one-to-three
+and two-to-one transitions, all languages and both themes. Cached AppKit chrome
+captures do not reproduce the compositor's arrow/backdrop; screen-space anchor
+geometry is retained separately. Windows has no change; native Windows captures
+and a source-matched cloud CI artifact are unavailable on this Mac.
+
+## Desktop source icons match the mini-program — 2026-10-18
+
+Mac and Windows use the mini-program's Lucide lock-keyhole outlines and theme
+colors in a fixed 14-point square. Both states share the same lock body,
+keyhole, 24-point coordinate space and center, preventing state-dependent
+vertical offsets. Unknown source placeholders and accessible labels remain.
+The Apple mobile badge remains unchanged. Bundled Lucide notices accompany
+the desktop drawings.
+
+Ignored `work/desktop-openness-icons/` retains the fixture, frozen sources and
+native Mac before/after shown, refreshed and settled captures. Explicit open,
+closed and unknown rows cover one/two/three boards, company mode, all supported
+languages, both themes and 850–1600-point viewports. Windows native screenshots
+and a matching cloud CI artifact are unavailable on this Mac; Windows visual
+verification is not claimed.
+
+## Left-align all desktop model names — 2026-10-18
+
+Mac and Windows now align the model/company name group to the left, including
+single-line names. This supersedes the earlier single-line centering rule.
+The score-share badge keeps its existing external position and gap; bar widths,
+row heights and centered empty placeholders remain unchanged.
+
+Ignored `work/desktop-model-name-left-final/` retains the shared fixture, frozen
+before/after sources, native Mac captures and verification metadata. The fixture
+covers one/two/three boards, company mode, all supported languages, both themes
+and 850–1600-point widths. Native Windows screenshots and a source-matched cloud
+CI comparison artifact remain unavailable; Windows visual verification is not
+claimed.
+
+## Mac search collapse after outside clicks — 2026-10-18
+
+Mac now explicitly ends search editing after a click outside the search overlay
+or when its window resigns key status. AppKit does not consistently end editing
+when the clicked view cannot receive keyboard focus. Empty and whitespace-only
+queries collapse; populated searches remain expanded. Clicks inside the overlay
+retain normal editing, and detached views release their event monitor.
+
+The native `desktopSearchOutside` scenarios dispatch a real mouse click on the
+non-focusable title area, rather than relying on `makeFirstResponder(nil)`.
+Ignored `work/desktop-search-blur/` retains the reproduced baseline failure and
+native before/after captures. Windows is unchanged; native Windows captures and
+a source-matched cloud CI comparison artifact are unavailable on this host.
+
+## Search across selected desktop leaderboards — 2026-10-18
+
+Mac and Windows add a search icon immediately after the category control.
+Clicking it focuses a search input that animates left over both navigation
+controls without changing their measured width. Empty input collapses on blur;
+nonempty input stays visible. Clear buttons allow resetting the query. Filtering
+runs locally across every currently selected source, including company mode,
+while retaining country/source filters and the unsearched leading scores for
+bar ratios. Refreshes retain the query; WPF also restores typing focus and caret
+when its header is rebuilt. An empty match set has a localized empty-state label.
+
+Ignored `work/desktop-search/verification.json` records frozen sources, fixture,
+executables and 96 native Mac before/after frames. Eight cases cover one/two/three
+boards, a nondefault subset, company mode, China filters, no results and empty
+blur, in three languages, both themes and 850/1600-point viewports. The native
+fixture clicks the real AppKit button, checks keyboard focus, enters queries,
+asserts selected-board row counts, refreshes and blurs with/without text. Original
+focused panels in both themes plus collapsed, populated-blur and empty-blur
+frames were reviewed. Navigation is covered only while expanded; headers,
+footers, score ratios and existing name alignment remain intact. Synthetic
+refresh dates are current in search cases to avoid starting upstream fetches.
+Sparse search results also required sampling the first body rows in screenshot
+validation; single-result and no-result captures now pass in both themes.
+
+Swift native compilation, WPF cross-compilation and the shared Windows tests
+pass. Search tests cover case/width/diacritic folding, unordered words, whitespace
+and unmatched terms. The Windows fixture supports the same search scenarios,
+but Windows native screenshots and a CI comparison artifact are unavailable;
+Windows visual verification remains outstanding. No release was published.
+
+## Board names in desktop table headers — 2026-10-18
+
+Mac and Windows show the concise leaderboard name followed by its explanation
+in each model-name column, matching the mini-program's board names. Examples
+include `Artificial Analysis · 任务测评`, `Text Arena · 用户盲测` and
+`Epoch ECI · 难度校准`. All nine source kinds across general, coding, image and
+video have named headers. The primary name uses the normal header ink; the
+smaller explanation retains its source tint. In narrow columns, source identity
+takes priority: Artificial Analysis abbreviates to AA if necessary, and the
+explanation yields when it cannot fit. The tooltip retains the full name and
+source explanation. Native popup width calculations now account for both labels.
+
+Ignored `work/desktop-board-titles/verification.json` records source, executable,
+fixture and screenshot hashes for 108 native Mac before/after frames on macOS
+27.0.1 (26A434), backing scale 1.0. All eighteen original after panels and
+representative baseline panels were reviewed across nine scenarios, three
+languages, both themes, model/company modes, one/two/three visible boards and
+850/1200/1600-point widths. Wide columns show names and explanations; the narrow
+three-board case preserves recognizable source names without wrapping. Table
+body geometry remains pixel-identical; shown/refreshed/settled variations outside
+the changed header labels are confined to native scrollbar fading. Swift native
+compilation and Windows WPF cross-compilation pass. Windows native screenshots
+and a CI comparison artifact remain unavailable; Windows visual verification
+is outstanding.
+
+## Static desktop subtitle — 2026-10-18
+
+Mac and Windows display the two-row subtitle beside the title as static text.
+The question mark, help tooltip, hand cursor and click-to-open quota introduction
+are removed because the desktop already exposes quota tracking. The shared
+subtitle artwork offers an optional help symbol; existing callers retain their
+default behavior, while the Mac header explicitly disables it. This supersedes
+the earlier desktop caption's help interaction.
+
+Ignored `work/desktop-subtitle-static/verification.json` records source,
+executable, fixture and image hashes for 72 native Mac before/after frames on
+macOS 27.0.1 (26A434), backing scale 1.0. All twelve original after panels and
+representative baseline originals were reviewed across three languages, both
+themes, model/company modes, one/two/three boards and 850/1200/1600-point widths.
+The symbol is absent, caption placement is preserved, and all shown pixels
+below the header's first 40 points remain identical. Refreshed frames match;
+settled differences only show the native scrollbar. Source review confirms
+both desktop headers have no subtitle button or click handler. Swift compilation
+and Windows WPF cross-compilation pass. Windows native screenshots and a CI
+comparison artifact remain unavailable; Windows visual verification is outstanding.
+
+## Center single-line desktop model names — 2026-10-18
+
+Mac and Windows center the single-line model/company name group within its
+available name area. Desktop name labels already have a one-line limit with
+truncation, so the previous unconditional left alignment incorrectly affected
+these labels. This supersedes the earlier left-aligned desktop name layout.
+The external percentage remains absolutely positioned with its four-point gap;
+bar widths, row heights and empty-row alignment are unchanged.
+
+Ignored `work/single-line-name-center/verification.json` records exact source,
+executable, fixture and image hashes for 72 native Mac before/after frames on
+macOS 27.0.1 (26A434), backing scale 1.0. Original after panels and representative
+baselines were reviewed across single/two/three boards, model/company mode,
+three languages, both themes and 850/1200/1600-point widths. Extreme three-board
+850-point names retain their existing heavy truncation. Header/footer/rank
+geometry remains pixel-identical. Refreshed frames match shown frames; settled
+differences only show the native scrollbar. Swift compilation and Windows WPF
+cross-compilation pass. Windows native screenshots and a CI comparison artifact
+remain unavailable; Windows visual verification is outstanding.
+
+## Compact single-board header tabs — 2026-10-18
+
+Mac and Windows reduce horizontal whitespace in the model/company and category
+segmented controls when exactly one leaderboard is visible. Equal segment widths
+are measured from the widest label with eight points of space on either side;
+font sizes remain unchanged. The single-board header fits its controls beside
+the title when all content fits, retaining the existing two-row fallback when
+necessary. Multi-board control widths remain unchanged. Live visibility changes
+update both the native control widths and header layout.
+
+Ignored `work/single-board-tabs/verification.json` records source, executable,
+fixture and image hashes for 84 before/after native Mac frames on macOS 27.0.1
+(26A434), backing scale 1.0. Seven scenarios cover model/company mode, three
+languages, both themes, 850/1200/1600-point viewports and a live two-to-single
+transition. Original after panels and representative baseline panels were
+reviewed. Chinese single-board headers fit one row at 850 points; English retains
+readable compact controls in the two-row fallback at 850/1200 points. Static
+refreshed frames match, settled differences only show the native scrollbar, and
+multi-board shown frames remain pixel-identical. Swift compilation and Windows
+WPF cross-compilation pass. Windows native captures and a CI comparison artifact
+remain unavailable; Windows visual verification is outstanding.
+
+## Left-aligned desktop model names — 2026-10-18
+
+Mac and Windows align the model/company name group to the left of its colored
+background, including names that fit on one line. The external score percentage,
+four-point gap, vertical centering, bar geometry, row heights and empty-cell
+alignment remain unchanged. This supersedes the earlier centered-name layout.
+
+Ignored `work/model-name-left/verification.json` records 72 native before/after
+Mac frames and hashes for the exact sources, executable, fixture and captures.
+The baseline reuses the prior executable after verifying every Swift source hash
+matches the pre-edit source. Original after panels and the matching baseline
+were reviewed across three languages, both themes, 850/1600-point widths,
+two/three boards and model/company grouping. Row geometry is pixel-identical;
+refreshed frames match and settled differences only show the native scrollbar.
+Swift native compilation and Windows WPF cross-compilation pass. Windows native
+screenshots and a CI comparison artifact remain unavailable; Windows visual
+verification and release approval are outstanding.
+
+## Score percentage beside the colored bar — 2026-10-18
+
+Mac and Windows place each score percentage four points beyond the colored
+name background's right edge, centered vertically. The badge remains absolutely
+positioned. A fixed trailing gutter keeps near-full bars inside the model column
+and uses one scale across the rows. Names are centered within the available bar
+area and truncate before the badge; the existing tooltip retains the full name.
+Very narrow columns use tighter icon/text gaps and tail ellipses to improve
+truncation with the reduced text width. Rounded 100% and tiny/zero fills retain their suppressed badge behavior. Empty
+Mac cells retain their original natural height and alignment.
+
+Local native evidence is in ignored `work/score-share-outside/verification.json`:
+72 before/after AppKit/SwiftUI frames cover shown/refreshed/settled stages,
+English and Simplified/Traditional Chinese, light/dark, 850×720 / 1600×720
+content viewports, two/three simultaneous boards, model/company mode, long names, tied leaders and shorter
+score bars. The report records source, executable, fixture and capture hashes,
+OS and actual display scale. The original native images are reviewed for badge
+alignment, clear spacing, clipping and list density. Swift native builds and
+Windows WPF cross-compilation pass. Windows native captures and a CI comparison
+artifact remain unavailable; no Windows visual verification or release approval
+is implied.
+
+## Confirm desktop leaderboard visibility — 2026-10-18
+
+Mac and Windows stage the footer leaderboard checkboxes until Confirm. Several
+checkbox changes therefore produce one preference write and one refresh pass,
+instead of immediately changing the visible columns and active requests. Cancel,
+Escape and dismissal discard the draft. Reopening starts from the committed
+selection, and the final checked source cannot be unchecked. Confirming an
+unchanged selection does not save preferences or start refresh requests.
+
+Mac uses a transient native popover so checkboxes remain open during multi-select;
+Windows retains its native context menu and adds Confirm/Cancel actions. Both
+retain source descriptions, category-specific choices and existing refresh limits.
+The Mac `boardSelectionConfirm` fixture exercises pending edits across a state
+refresh, confirmation, cancellation and dismissal through the actual native controls.
+
+Ignored `work/board-selection-confirm/verification.json` records source manifests,
+executable/fixture/image hashes and 72 original native Mac frames: before/after,
+three interaction stages, three languages, light/dark, and 850×720 / 1600×720
+content viewports on macOS 27.0.1 (26A434), backing scale 1.0. Original panels and
+popovers were reviewed for layout, labels, contrast and clipping. Native assertions
+check that the table keeps all three source groups during draft edits and changes
+only after confirmation. Pending and committed popovers are pixel-identical for
+the same choices. The old menu itself was not captured; baseline panels show its
+immediate-apply behavior. The source report identifies the separate concurrent
+Epoch label changes; all confirmation implementation files match the captures.
+
+Seven focused Swift tests passed, including preference writes, request cancellation,
+minimum selection, cancellation and unchanged confirmation. Windows shared tests
+and WPF cross-compilation passed (zero warnings/errors). Windows native captures
+and a CI comparison artifact remain unavailable, so Windows visual verification
+is outstanding. No release approval is implied by these local checks.
+
+## Desktop caption beside the title — 2026-10-18
+
+Mac and Windows now place the subtitle immediately to the right of the brand,
+with its two sentences stacked, matching the mini-program placement confirmed
+by the user. The subtitle no longer occupies a separate row below the header.
+The quota-help interaction remains attached to the caption. Compact windows
+retain their separate navigation-control row; wide windows retain centered
+navigation controls and right-aligned update times.
+
+Mac reuses the existing two-row subtitle artwork with a small vertical inset
+inside the title's ink height. Windows centers two native caption labels on the
+title's painted ink and scales the pair together if needed, with a small gap
+between the rows.
+
+Local evidence is in ignored `work/desktop-caption-position/verification.json`:
+72 native Mac frames cover before/after, shown/refreshed/settled, English,
+simplified/traditional Chinese, light/dark, and 850×720 / 1600×720 content
+viewports on macOS 27.0.1 (26A434), actual backing scale 1.0. Original native
+images were reviewed; both caption lines remain complete beside the title and
+clear of the other header controls. The frozen native source snapshots differ
+only in `LeaderboardView.swift`; the report records source manifests,
+executable hashes, fixture hash, capture metadata and screenshot hashes.
+Six focused Swift tests passed. Windows cross-compilation passed without
+warnings or errors, but Windows native screenshots and a CI comparison artifact
+remain unavailable; Windows visual verification is outstanding.
+
+## Mini-program caption beside the title — 2026-10-18
+
+The caption belongs inside `brand-copy`, immediately to the right of the title,
+with its two sentences stacked. Moving it below the entire header was an
+incorrect interpretation of the earlier fitting request. The shared font scale
+now fits the combined title/caption widths into the space before the grouping
+control and WeChat capsule, accounting for both gaps and an absolute help glyph.
+No caption-only row remains below the header. The follow-up polish reduces the
+caption base size from 12 to 11 points (bounded further when capsule height is
+short), and leaves a scaled 1.5-point inset above and below relative to the
+wordmark. The absolute help glyph is anchored after the second sentence, not
+centered across the two-row block. The subsequent spacing fix removes the
+remaining 18-point help allowance from both caption width and font fitting.
+The grouping control has matching eight-point layout gaps on both sides.
+The caption stays at the right edge of its available area even on wide windows;
+the absolute help glyph adds no text width. It now uses the full caption font
+size again. For a Chinese full-width stop it moves 0.55em into the trailing
+blank portion; English keeps a small 0.08em separation. Responsive checks cover
+the restored-size icon staying clear of the grouping control.
+Its line-height-free wrapper and block icon align to the second text line,
+without an inline component baseline gap. A final small adjustment adds one
+scaled point between the caption rows while preserving their font sizes.
+iPhone/iPad layout is unchanged by this mini-program correction.
+
+All 127 mini-program tests and the production build pass. The responsive
+heading check covers three languages, widths 280–1024 and capsule heights
+28–36, checking the combined title/caption width and shared font scale.
+The canonical DevTools project still shows its existing startup failure
+(`app.json is not found in the project root directory`) after refresh, despite
+the valid `dist/app.json`; the original captures in ignored
+`work/weapp-subtitle-wrap/` show that error. No simulator or phone visual
+verification is claimed.
+
+## Mobile brand and caption fitting — 2026-10-18
+
+The mobile caption retains its two intentional rows, each constrained to a single
+line. iPhone/iPad measure the brand and both sentences before deriving a common
+scale for their font sizes; the model/company control and 44-point help target
+remain unchanged. The help glyph overlays the right edge rather than participating
+in the text stack. Chinese brand layout uses its actual measured width instead
+of an approximate trailing padding. Desktop subtitle rendering is unchanged.
+
+The mini-program measures the two sentences with a reusable offscreen 2D context
+and caches the widths. Older renderers use conservative fallback widths. The
+existing title fit beside the WeChat capsule/selector establishes its base size;
+caption fitting then applies the same extra scale to the brand and caption. The
+help glyph is an absolute overlay and both rows explicitly prohibit wrapping.
+
+Ignored `work/mobile-brand-fit/` contains source hashes, native result bundles and
+original screenshots. `testTaglineSubtitleFitsAndOpensHelp` passes on iPhone 18 Pro
+(iOS 27.0, 3×) and iPad 11-inch M5 (iOS 27.0, 2×), covering Simplified Chinese/light
+and English/dark. Original native review confirms complete captions, no collision
+between brand and selector, and a working help alert. Sizing unit checks also
+cover Traditional Chinese and narrow/wide content widths. Sixty focused
+mini-program tests and the production mini-program build pass. The final
+focused run against the current heading controller also passes both selected
+checks. An isolated source-matched native run passes all four heading/sizing
+unit checks, allowing native host pixel rounding when comparing glyph widths.
+
+The attempted complete `./test.sh --coverage` run is blocked by separate
+in-progress ECI changes: the About board-count expectation is still two and
+the new CSV parser rejects an old shared-source fixture (`Invalid ECI CSV`).
+Those edits are preserved; no complete green repository gate is claimed.
+
+Mini-program visual verification is blocked: the canonical imported project
+reports “app.json is not found in the project root directory”, although its
+configured `dist/app.json` exists and the build verification passes. Recompiling
+and opening the page did not recover it; automator calls time out. Captures show
+the launch error, so no application screenshot verification is claimed there.
+
+## Desktop quota authorization states — 2026-10-18
+
+OpenAI reauthorization now reads “需重新授权” / “Reauthorize” and explains
+that BenchGauge's saved authorization is separate from the current ChatGPT or
+Codex session. The existing sign-in action and internal reauthorization state
+are preserved. Revoked credentials still require the user to authorize again.
+
+xAI shared-token ownership deferral is a neutral “退出 CC Switch 后同步” /
+“Quit CC Switch to sync”
+state rather than a network error. A previous successful quota remains visible
+as stale. Deferral has a 60-second keep-alive retry interval; normal successful
+renewals retain their six-hour interval and real failures their one-hour backoff.
+Both desktop clients include CC Switch process ownership in the shared-login
+revision, so their existing watcher detects an exit even if the login file does
+not change and requests a quota refresh. No process is stopped and no real
+credential is copied, rotated or modified by the visual fixture.
+
+Ignored `work/quota-auth-status/verification.json` records before/after source
+and executable hashes, the shared fixture hash and native capture metadata.
+The fixture uses a synthetic refresh token and the real client's denied-refresh
+policy (zero network requests), producing the previous network error and new
+neutral state from the same event. All 36 original Mac frames cover shown,
+refreshed and settled states in English, Simplified/Traditional Chinese and both
+themes at 900×720 points, macOS 27.0.1 (26A434), actual 1× scale. Original native
+review confirms readable labels, preserved controls and no clipping. All 18
+before/after pairs differ only in the quota strip. Within each phase, shown and
+refreshed frames match; settled frames differ only as the native scrollbar fades.
+
+`./test.sh --coverage` passes, including ownership deferral/release, cached
+quota preservation, zero token writes/network calls while deferred and
+provider-specific reauthorization copy checks. The Swift gate reports all
+57 files at 100% lines/functions/regions; `git diff --check` passes.
+
+The follow-up wording change replaces the vague waiting label with the short
+instruction to quit CC Switch. `work/quota-deferred-copy/` isolates this copy
+change against the previous native fixture/source snapshot while unrelated ECI
+work continues. The focused authorization-copy test passes for Simplified and
+Traditional Chinese and English; no new full-repository gate is claimed for
+this follow-up. All 36 original Mac captures (three languages, both themes,
+shown/refreshed/settled) confirm a complete, unclipped instruction. All 18
+before/after differences stay within the xAI chip and its adjacent button's
+position; the quota strip remains stable across all three frames. The report
+records native OS/DPI, fixture, frozen-source and executable hashes. Windows
+native coverage remains unavailable.
+
+Windows uses the shared formatting, ownership revision and retry policy, but a
+native Windows capture environment and source-matched CI visual artifact are
+unavailable. No Windows visual verification or protected release approval is
+claimed.
+
+## Desktop list scrolling work — 2026-10-18
+
+Mac row logos now reuse bounded decoded-image caches: immutable bundled marks
+use their resource key, while provider PNGs use their contents so an updated
+image replaces the previous one. The table-chrome probe coalesces pending work
+and keeps weak references to the mounted table/scroll view instead of traversing
+all realized cells on each layout. It re-discovers a detached/replaced table and
+still configures the header when view inputs change. Name buttons retain their
+`inVisibleRect` tracking area as AppKit updates the clipping rectangle. Back to
+top only changes visibility when crossing the threshold. Animations stay enabled.
+
+Ignored `work/list-scroll-performance/` contains before/after source snapshots,
+executable hashes, the native `scrollPerformance` fixture and timing/review data.
+The 2,000-row fixture exercises paired boards, repeated public provider marks,
+long names, three languages and both themes at 600/900×720 points. The original
+comparison has 24 frames per phase (shown/refreshed/settled); all 24 pairs are
+pixel-identical outside the scrollbar strip. Native review confirms preserved
+layout, legible sticky headings and intact row colors/icons. The table realizes
+17–18 rows, reaches the final row, and returns to the first row after refresh.
+Timing includes 240 scroll/layout/display steps plus deferred main-actor work;
+these debug-build measurements are main-thread work, not display FPS. An initial
+sample confirms synchronous image loading in the previous cell body. English
+timings are repeated without sampling because the first run has tail-latency
+variation. Native environment is macOS 27.0.1 (26A434), actual 1× scale.
+
+Two additional unprofiled English trials alternate the before/after order.
+At 900 points the mean of per-run median work drops from 5.19 to 3.90 ms in
+light mode and 6.90 to 3.94 ms in dark mode (25% and 43%). At 600 points the
+corresponding improvements are 9% and 23%. Tail latency still varies: one narrow
+light trial has a higher p95 after the change, so these results do not claim
+every frame is faster or guarantee a display frame rate. All 48 original/repeat
+image pairs remain identical outside the scrollbar. The complete `./test.sh`
+gate passes, including three new cache reuse/replacement/fallback checks;
+`git diff --check` passes too.
+
+Windows implementation is unchanged. Native Windows screenshots/scroll timing
+and a source-matched CI visual artifact are unavailable; no cross-platform
+performance or visual verification, or protected release approval, is claimed.
+
+## Sticky desktop table header background — 2026-10-18
+
+Mac's custom table header now paints an explicit theme-aware background at
+96% opacity and opts out of AppKit vibrancy. It declares its remaining alpha
+correctly, while keeping header dimensions, labels and filter controls intact.
+Windows already paints an opaque header outside its scrolling rows; this change
+does not alter that implementation.
+
+Ignored `work/sticky-table-header/` retains 24 native Mac frames per phase,
+the frozen before/after sources, executable and fixture hashes, and review data.
+The new `stickyHeader` scenario captures the initial view and two scroll
+checkpoints (174.5 and 175.5 points) with 80 model rows. Coverage includes
+English at 600/900 points, Simplified/Traditional Chinese at 900 points, both
+themes and a 720-point viewport, on macOS 27.0.1 (26A434) at actual 1× scale.
+Visual review finds readable headings with no row text bleeding into them;
+the header pixels remain identical across all three checkpoints in each case.
+The baseline native capture did not reproduce full transparency, so the exact
+system/compositor condition behind the report remains unconfirmed. The new
+explicit background removes reliance on the system control background color.
+Existing name truncation at the 600-point viewport remains unchanged.
+
+Native Windows screenshots and a source-matched CI visual artifact remain
+unavailable; no cross-platform visual verification or release approval is claimed.
+The complete `./test.sh` gate passes, including 382 Swift tests and Windows
+shared tests; `git diff --check` also passes.
+
+## Introduction tagline subtitle — 2026-10-18
+
+The subtitle now uses the closing sentence of the introduction. All mobile
+languages split at the semicolon into two rows below the title/grouping row.
+Mac and Windows reserve one full-width line for the subtitle below the brand
+and freshness row; compact desktop panels put navigation below it, while wide
+panels retain navigation in the top row. This prevents the longer English copy
+from pushing the title or freshness out of the viewport. The help action and
+mobile 44-point target remain available.
+
+Ignored `work/subtitle-tagline/` stores the native fixture, before captures,
+final Mac captures, source hashes, simulator results and mini-program captures.
+The first Mac attempt kept the long caption beside the title and clipped the
+600-point header; `after/` is that rejected attempt, and `final/` is the corrected
+layout. Mac environment: macOS 27.0.1 (26A434), actual 1× scale. Windows Release
+cross-compilation passes with zero warnings or errors. Native Windows visual
+coverage and a source-matched CI artifact are unavailable; no protected release
+approval is claimed.
+
+The focused iPhone and iPad subtitle/help checks pass in Chinese/light and
+English/dark, with four original simulator captures retained (iOS/iPadOS 27.0,
+iPhone 18 Pro at 3×, iPad Pro 11-inch M5 at 2×). The mini-program's Chinese and
+English captures confirm two full rows; all 124 mini-program checks pass.
+An earlier broader `testReadableSubtitleAndSourceIcons` run stopped at its
+metadata-to-column-heading gap assertion (17.33 points versus a 16-point limit);
+that unrelated assertion is retained in `phone.xcresult`. It is not reported as
+a passing broader visual regression. The focused subtitle case checks complete
+localized text, viewport bounds, a separate grouping control, the 44-point touch
+target and the existing help action.
+
+Final Mac coverage contains 54 frames per phase: Simplified/Traditional Chinese
+and English, both themes, compact 600/900-point and wide 1200/1400-point panels,
+with shown/refreshed/settled checkpoints. `source-record.json`,
+`frame-review.json` and `verification.json` retain source/executable hashes and
+validation details. The complete `./test.sh` gate passes, including 382 Swift
+tests, all 124 mini-program checks and Windows shared tests.
+
+## Desktop score percentages inside name backgrounds — 2026-10-18
+
+Mac and Windows move the percentage from below the score into the top-right
+corner of the colored model/company background. SwiftUI uses a geometry overlay;
+WPF uses a Canvas that measures to zero. The badge follows the actual fill edge,
+keeps a four-point right inset and ignores pointer input. Names remain centered;
+column widths, row heights, score baselines and copy controls are unchanged.
+Leading/tied/rounded-100 values retain their existing hiding rules. Fills too
+narrow to accommodate the badge plus logo/spacing clearance omit the badge;
+zero-width fills show none.
+
+Ignored `work/desktop-score-share/` retains source snapshots/hashes, the fixture,
+`review.html`, `review.json` and 48 native Mac frames per phase. Cases cover three
+languages, both themes, 600/900/1100×720-point viewports, model/company rows,
+long names, ties, rounded-100 values, half-width and zero-width backgrounds,
+and shown/refreshed/settled checkpoints. Review confirms separated name/badge
+ink and no percentages below score cells. All sixteen refreshed/settled pairs
+differ only in the fading scrollbar strip. Native environment: macOS 27.0.1
+(26A434), actual 1× scale. Existing name truncation at 600 points remains.
+
+Mac builds pass; Windows Release cross-compilation passes with zero warnings or
+errors. Native Windows screenshots/actual DPI and a source-matched CI
+`native-visual-comparison` artifact remain unavailable. No protected release
+approval or installed-client replacement is claimed.
+
+## Centered desktop model names — 2026-10-18
+
+Mac and Windows now center each single-line model name together with its logo
+within the model column. Existing truncation, copy handling, score backgrounds
+and row spacing are retained.
+
+Ignored `work/desktop-name-center/` retains source hashes, the shared fixture,
+`review.html`, `review.json` and 36 original Mac frames per phase. Before/after
+captures cover English/Simplified/Traditional Chinese, light/dark, 600/900×720-point
+viewports and shown/refreshed/settled checkpoints on macOS 27.0.1 (26A434), actual
+1× scale. Review confirms centered short names and unchanged adjacent columns.
+All twelve refreshed/settled pairs differ only in the fading scrollbar strip.
+At 600 points, the pre-existing narrow name columns still show only initials;
+this change does not resolve that separate width limitation.
+
+Mac builds pass; Windows Release cross-compilation passes with zero warnings or
+errors. Native Windows screenshots/actual DPI and a source-matched CI
+`native-visual-comparison` artifact remain unavailable. No protected release
+approval or installed-client replacement is claimed.
+
 ## Centered Apple subtitle and circled help — 2026-10-17
 
 Mac and iOS now center the subtitle's visible ink on the title, including Chinese single-line captions and width-constrained English rows. The Mac layout uses the same normalized ink coordinates for both children. The shared vector help mark encloses its question mark in a circle and keeps the existing help action and mobile touch target.
@@ -1096,6 +1818,20 @@ with Simplified/Traditional Chinese and English, light/dark themes, and
 850/1100-point widths. Capture status and review are recorded in that folder.
 
 
+## Desktop leaderboard visibility (2026-10-18)
+
+The footer now has a localized, checkable leaderboard menu. Each category defaults to all its sources (three for General); at least one stays selected. Selection persists per category. Mac uses one to three source groups in the native table, hiding unused AppKit columns; WPF builds only the selected column groups. The former second-source picker is removed. Headers, filters, score precision, source links, timestamps and exported screenshots follow the selection.
+
+Both desktop request paths filter before fetching, including the Windows bridge's shared-cache read. Disabling a source cancels its requests and rejects late results. Per-source throttles retain other sources' refresh limits; cancelling an unfinished request allows that source to be fetched when re-enabled. Windows sends its current selection to the engine, guards old UI responses, and the engine ignores older selection request IDs.
+
+Ignored `work/desktop-board-selection/` retains the fixture, before/after source snapshots, build logs, original native Mac captures, hashes, `review.html`, `review.json` and frame comparisons. Each phase has 54 originals: English/Simplified/Traditional Chinese, 600/850/1100/1200/1300/1400×850-point viewports, both appearances, model/company rows, quota empty/error states and shown/refreshed/settled checkpoints. The fixture SHA-256 is `0620962e631bd3d4432d3ea41078aa1685db96ffc349128eadf94d36b2b22983`. macOS 27.0.1 (26A434) uses actual 1× backing scale; Original PNG pixel dimensions match the 1× content viewport; the PNGs have no DPI tag. Binary/source hashes are recorded in the review. Native assertions verify the selected column count and viewport fit or usable horizontal scrolling. At 600 points, overflow is scrollable; refreshed/settled frames pan to the right and assert a nonzero scroll offset. All 36 refreshed/settled content comparisons are identical outside the native scrollbar strips.
+
+Reviewed originals confirm three sources fill the table, AA+Epoch keeps the correct filters and two-decimal ECI scores, and single-source views fill the width without empty source columns. The three-to-one fixture changes selection between shown and refreshed frames. Footer controls stay visible at 850 points. Existing long-name truncation remains and is more frequent with three sources at a fixed viewport. Completely empty leaderboard/skeleton rendering is outside this native capture set.
+
+Windows WPF Release cross-compilation passes with zero warnings/errors, and the shared harness verifies defaults, persistence, minimum selection, category isolation and invalid preference recovery. Native Windows screenshots, actual Windows OS/DPI comparison and a source-matched cloud CI artifact are unavailable; Windows visual approval is not claimed. The shared CI fixture and both native capture runners include the new selection scenarios. No protected release approval is asserted.
+
+Final verification: `./test.sh --coverage` passes on the final source state. The existing 59-file Swift business scope remains 100% for lines (9212/9212), functions (1453/1453) and regions (4566/4566); script coverage checks and the Windows shared harness also pass. The final WPF Release cross-build has zero warnings/errors.
+
 
 ## ECI relative score presentation — 2026-10-18
 
@@ -1134,3 +1870,39 @@ are recorded with the comparison. Other uncommitted working-tree changes are
 kept separate from this commit. Windows native screenshots and a source-matched
 CI comparison artifact remain unavailable; no protected release approval or
 Windows visual verification is claimed.
+
+## Country and source distributions — 2026-10-18
+
+Each selected leaderboard now has an independent model-count summary below its
+ranking. Country uses descending horizontal bars (five named countries, the
+remaining known countries as Other, and Unknown separately). Source openness
+uses a 100% stacked bar with open, closed and unknown counts. Missing metadata
+stays in the denominator; scores do not weight the counts. Search, country and
+openness filters, and company aggregation do not change the full-board summary.
+Hong Kong, Macao and Taiwan follow the shared China normalization policy.
+
+Mac keeps the virtualized table and reserves its scrolling tail for a native
+SwiftUI chart host beside the AppKit document view. The fixed footer and sticky
+header retain their positions. WPF uses a final item in its virtualized list;
+the bridge supplies counts from raw models before company aggregation. iPhone,
+iPad and mini-program charts precede About, language and appearance controls.
+
+Local native before/after fixtures, originals and verification metadata are in
+ignored `work/board-distributions/`. Scenarios cover one/two/three boards,
+850–1600 point widths, all supported languages, light/dark themes, empty data,
+company mode and long names, with shown/refreshed/settled frames. iPhone/iPad
+use offline model fixtures; the mini-program is checked in the canonical
+DevTools project with cached leaderboard data. See that directory's report
+for completed checks and any remaining environment coverage.
+
+Windows cross-compilation and shared checks can run on this Mac. Native Windows
+screenshots, actual Windows OS/DPI comparison and a source-matched cloud CI
+artifact remain unavailable; no Windows visual approval or protected release
+approval is claimed.
+
+The six `distribution-*` cases in the shared `Tests/fixtures/visual-state.json`
+also exercise these tails in future native comparisons. Country bars follow the
+platform's restrained accent styling; the source palette and counting policy
+are shared. Mac retains its existing minimum placeholder-row count, while WPF
+retains its variable list length. Empty chart text remains readable even while
+the Mac ranking is showing a loading skeleton.

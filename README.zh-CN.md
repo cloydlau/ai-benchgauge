@@ -5,7 +5,7 @@
 [English](README.md) | **简体中文** | [繁體中文](README.zh-Hant.md)
 
 <!-- app-description:start (generated from apps/weapp/src/core/catalog.js) -->
-**用户盲测看体验，任务测评看能力。多榜对照，选得明白；余量追踪，用得有数。**
+**任务测评看成绩，用户盲测看体验，难度校准看实力。多榜对照，选得明白；余量追踪，用得有数。**
 <!-- app-description:end -->
 
 `macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `English / 简中 / 繁中` · [MIT 许可证](LICENSE)

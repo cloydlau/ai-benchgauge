@@ -3,7 +3,7 @@
 **English** | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-Hant.md)
 
 <!-- app-description:start (generated from apps/weapp/src/core/catalog.js) -->
-**Blind user votes show the experience; task benchmarks show capability. Compare leaderboards to make informed choices; track quotas to know where you stand.**
+**Task benchmarks show results; blind user votes show the experience; difficulty-calibrated tests show overall capability. Compare leaderboards to make informed choices; track quotas to know where you stand.**
 <!-- app-description:end -->
 
 `macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `3 languages` · [MIT License](LICENSE)

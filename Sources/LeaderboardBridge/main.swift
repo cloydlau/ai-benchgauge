@@ -8,6 +8,7 @@ struct Request: Decodable, Sendable {
     var command: String
     var category: String?
     var grouping: String?
+    var boards: [String]?
     var sources: [String: String]?
     var countries: [String: String]?
     var language: String?
@@ -52,6 +53,7 @@ struct Board: Encodable {
     var updatedAt: String?; var error: String?; var entries: [Entry]
     var fetchedAt: String? = nil
     var countryOptions: [CountryOption]? = nil
+    var distribution: LeaderboardDistribution? = nil
 }
 struct CountryOption: Encodable { var value: String; var label: String }
 struct Entry: Encodable {
@@ -85,12 +87,12 @@ actor Engine {
     private let recoveryStore: QuotaRecoveryStore?
     private var recovery: QuotaRecoveryTracker
     private var lastQuotaAttemptAtByID: [String: Date] = [:]
-    private let fetcher = LeaderboardFetcher()
+    private let fetcher: LeaderboardFetcher
     private let cache: LeaderboardCache
     private let official = OpenAIManagedQuotaSource()
     private let officialAccountStore = OfficialQuotaAccountStore()
     private var client: AccountQuotaClient?
-    private var lastBoardRefresh: [LeaderboardCategory: Date] = [:]
+    private var lastBoardRefresh: [LeaderboardKind: Date] = [:]
     private var lastQuotaRefresh: Date?
     private var lastCheckedModelConfiguration: CodexModelConfiguration?
     private var quotaUpdatedAt: Date?
@@ -101,7 +103,12 @@ actor Engine {
     private var xaiKeepAliveAccountID: String?
     private var nextXAIKeepAliveAt: Date?
     private var isXAIKeepAliveRefreshing = false
-    private var activeBoardRefreshes = Set<LeaderboardCategory>()
+    private var selectedBoards: [LeaderboardCategory: [LeaderboardKind]] = [:]
+    private var boardTasks: [LeaderboardKind: Task<Void, Never>] = [:]
+    private var boardTokens: [LeaderboardKind: UUID] = [:]
+    private var cachedBoardTasks: [LeaderboardKind: Task<Leaderboard?, Never>] = [:]
+    private var cachedBoardTokens: [LeaderboardKind: UUID] = [:]
+    private var selectionRequestIDs: [LeaderboardCategory: Int] = [:]
     private var refreshingQuotas = false
     private var qwenWebsite: QwenWebsiteQuota?
     private var qwenWebsiteConnected = false
@@ -110,7 +117,8 @@ actor Engine {
     private var qwenCapturedAt: Date?
     private let qwenCacheFile = PlatformPaths.applicationSupport.appending(path: "qwen-website-quota.json")
 
-    init(cacheFile: URL? = nil) throws {
+    init(cacheFile: URL? = nil, fetcher: LeaderboardFetcher = LeaderboardFetcher()) throws {
+        self.fetcher = fetcher
         allowsAccountAccess = cacheFile == nil
         recoveryStore = cacheFile == nil ? QuotaRecoveryStore() : nil
         recovery = recoveryStore?.load() ?? QuotaRecoveryTracker()
@@ -124,6 +132,25 @@ actor Engine {
     func handle(_ request: Request) async -> Response {
         let category = LeaderboardCategory(rawValue: request.category ?? "general") ?? .general
         let language = AppLanguage(rawValue: request.language ?? "en") ?? .english
+        // JSON-line requests can enter the actor out of order. An older
+        // response must never re-enable a source the user has just disabled.
+        let kinds: [LeaderboardKind]
+        if request.id >= selectionRequestIDs[category, default: Int.min] {
+            kinds = DesktopBoardSelection.kinds(for: category, saved: request.boards)
+            selectedBoards[category] = kinds
+            selectionRequestIDs[category] = request.id
+        } else {
+            kinds = selectedBoards[category] ?? category.boardKinds
+        }
+        for kind in category.boardKinds where !kinds.contains(kind) {
+            if let task = boardTasks.removeValue(forKey: kind) {
+                task.cancel()
+                lastBoardRefresh[kind] = nil
+            }
+            cachedBoardTasks.removeValue(forKey: kind)?.cancel()
+            cachedBoardTokens[kind] = nil
+            boardTokens[kind] = nil
+        }
         do {
             guard allowsAccountAccess || ["state", "cachedBoards", "refreshBoards"].contains(request.command) else {
                 return Response(id: request.id, error: "Account access disabled for offline fixtures")
@@ -183,7 +210,7 @@ actor Engine {
                         }
                     }
                     if case .note = failure { qwenWebsiteConnected = true }
-                    return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language, sources: request.sources, countries: request.countries),
+                    return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language, sources: request.sources, countries: request.countries, kinds: kinds),
                         qwenAuthenticated: { if case .note = failure { return true }; return nil }(), qwenQuotaCaptured: false)
                 }
                 qwenWebsiteFailure = nil; qwenWebsiteConnected = true
@@ -195,7 +222,7 @@ actor Engine {
                     try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: qwenCacheFile.path)
                     #endif
                 }
-                return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language, sources: request.sources, countries: request.countries),
+                return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language, sources: request.sources, countries: request.countries, kinds: kinds),
                     qwenAuthenticated: true, qwenQuotaCaptured: true)
             case "captureXAI":
                 guard let text = request.pageText, text.utf8.count <= 1_048_576 else { return Response(id: request.id, error: "No matching plan date") }
@@ -216,8 +243,8 @@ actor Engine {
                     await refreshXAIKeepAliveIfDue(authFileURL: authURL)
                 }
                 return Response(id: request.id)
-            case "cachedBoards": await readCachedBoards(category)
-            case "refreshBoards": await refreshBoards(category)
+            case "cachedBoards": await readCachedBoards(kinds)
+            case "refreshBoards": await refreshBoards(kinds)
             case "refreshQuotas", "refreshCurrentQuota":
                 try await refreshQuotas(onlyCurrent: request.command == "refreshCurrentQuota")
             case "refreshQuotaRecoveries":
@@ -231,7 +258,7 @@ actor Engine {
                 if !apiIDs.isEmpty {
                     try await refreshQuotas(onlyCurrent: false, requestedProviderIDs: apiIDs)
                 }
-                return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language, sources: request.sources, countries: request.countries),
+                return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language, sources: request.sources, countries: request.countries, kinds: kinds),
                     qwenQuotaRefreshNeeded: !websiteIDs.isEmpty)
             case "retryQuota":
                 guard let id = request.providerID, targets[id]?.kind == .zhipu else {
@@ -260,7 +287,7 @@ actor Engine {
                 case .connected:
                     lastQuotaRefresh = nil
                     try? await refreshQuotas(onlyCurrent: false)
-                    return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language, sources: request.sources, countries: request.countries), loginState: "saved")
+                    return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language, sources: request.sources, countries: request.countries, kinds: kinds), loginState: "saved")
                 }
             case "cancelXAI": await xaiLogin.cancel()
             case "connectOpenAI":
@@ -278,7 +305,7 @@ actor Engine {
                 if let id = request.providerID { await official.cancelLogin(for: id) }
             default: return Response(id: request.id, error: "Unknown command")
             }
-            return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language, sources: request.sources, countries: request.countries))
+            return Response(id: request.id, result: project(category: category, grouping: request.grouping, language: language, sources: request.sources, countries: request.countries, kinds: kinds))
         } catch let error as XAIDeviceLoginError {
             return Response(id: request.id, loginState: error.state)
         } catch {
@@ -286,28 +313,36 @@ actor Engine {
             return Response(id: request.id, error: language.text("Could not complete this request. Check the connection and try again.", "请求未完成，请检查连接后重试。"))
         }
     }
-    private func refreshBoards(_ category: LeaderboardCategory) async {
-        if activeBoardRefreshes.contains(category) { return }
-        if let previous = lastBoardRefresh[category], Date().timeIntervalSince(previous) < 1800 { return }
-        activeBoardRefreshes.insert(category)
-        defer { activeBoardRefreshes.remove(category) }
-        lastBoardRefresh[category] = Date()
-        let fetcher = self.fetcher
-        let results = await withTaskGroup(of: (LeaderboardKind, Leaderboard?).self) { group in
-            for kind in category.boardKinds { group.addTask { (kind, try? await fetcher.fetch(kind, onCachedBoard: { board in
-                await self.acceptSharedBoard(board)
-            })) } }
-            var results: [(LeaderboardKind, Leaderboard?)] = []
-            for await result in group { results.append(result) }
-            return results
-        }
-        for (kind, board) in results {
-            if let board {
-                if board.canReplace(snapshot.boards[kind]) { snapshot.boards[kind] = board }
-                errors.removeValue(forKey: kind)
+    private func refreshBoards(_ kinds: [LeaderboardKind]) async {
+        let now = Date()
+        for kind in kinds {
+            guard boardTasks[kind] == nil else { continue }
+            if let previous = lastBoardRefresh[kind], now.timeIntervalSince(previous) < 1800 { continue }
+            if let fetched = snapshot.boards[kind]?.fetchedAt, now.timeIntervalSince(fetched) < 1800 { continue }
+            lastBoardRefresh[kind] = now
+            let token = UUID()
+            boardTokens[kind] = token
+            let fetcher = self.fetcher
+            boardTasks[kind] = Task {
+                let board = try? await fetcher.fetch(kind, onCachedBoard: { board in
+                    await self.acceptRefreshingBoard(board, token: token)
+                })
+                self.finishBoard(kind, board: board, token: token)
             }
-            else { errors[kind] = "Refresh failed" }
         }
+        let tasks = kinds.compactMap { boardTasks[$0] }
+        for task in tasks { await task.value }
+    }
+    private func acceptRefreshingBoard(_ board: Leaderboard, token: UUID) {
+        guard boardTokens[board.kind] == token else { return }
+        acceptSharedBoard(board)
+    }
+    private func finishBoard(_ kind: LeaderboardKind, board: Leaderboard?, token: UUID) {
+        guard boardTokens[kind] == token else { return }
+        if let board { acceptSharedBoard(board); errors[kind] = nil }
+        else { errors[kind] = "Refresh failed" }
+        boardTokens[kind] = nil
+        boardTasks[kind] = nil
         cache.save(snapshot)
     }
     private func acceptSharedBoard(_ board: Leaderboard) {
@@ -316,11 +351,19 @@ actor Engine {
         errors[board.kind] = nil
         cache.save(snapshot)
     }
-    private func readCachedBoards(_ category: LeaderboardCategory) async {
+    private func readCachedBoards(_ kinds: [LeaderboardKind]) async {
         let fetcher = self.fetcher
-        await withTaskGroup(of: Leaderboard?.self) { group in
-            for kind in category.boardKinds { group.addTask { try? await fetcher.fetchCached(kind) } }
-            for await board in group { if let board { acceptSharedBoard(board) } }
+        for kind in kinds where cachedBoardTasks[kind] == nil {
+            cachedBoardTokens[kind] = UUID()
+            cachedBoardTasks[kind] = Task { try? await fetcher.fetchCached(kind) }
+        }
+        let tasks = kinds.compactMap { kind in cachedBoardTasks[kind].map { (kind, $0, cachedBoardTokens[kind]) } }
+        for (kind, task, token) in tasks {
+            let board = await task.value
+            guard !task.isCancelled, cachedBoardTokens[kind] == token else { continue }
+            cachedBoardTasks[kind] = nil
+            cachedBoardTokens[kind] = nil
+            if let board, selectedBoards.values.contains(where: { $0.contains(kind) }) { acceptSharedBoard(board) }
         }
     }
     private func refreshQuotas(onlyCurrent: Bool, requestedProviderID: String? = nil, requestedProviderIDs: Set<String>? = nil) async throws {
@@ -433,9 +476,9 @@ actor Engine {
         return XaiAuthFile.selectedAccount(snapshot)?.id
     }
 
-    private func project(category: LeaderboardCategory, grouping: String?, language: AppLanguage, sources: [String: String]? = nil, countries: [String: String]? = nil) -> State {
+    private func project(category: LeaderboardCategory, grouping: String?, language: AppLanguage, sources: [String: String]? = nil, countries: [String: String]? = nil, kinds: [LeaderboardKind]) -> State {
         let now = Date()
-        let boards = category.boardKinds.map { kind -> Board in
+        let boards = kinds.map { kind -> Board in
             let formatter = ISO8601DateFormatter()
             let board = snapshot.boards[kind]
             let sourceFilter = LeaderboardOpennessFilter(rawValue: sources?[kind.rawValue] ?? "all") ?? .all
@@ -467,7 +510,7 @@ actor Engine {
                 case .country(let country): return CountryOption(value: country.rawValue, label: country.localizedName(language: language))
                 case .unknown: return CountryOption(value: "unknown", label: language.text("Unknown", "未知"))
                 }
-            })
+            }, distribution: LeaderboardDistribution(entries: board?.entries ?? []))
         }
         // Mirror Mac: size against every cached category and grouping, even
         // when the currently selected board happens to have short titles.

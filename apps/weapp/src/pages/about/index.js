@@ -14,7 +14,7 @@ definePage(query => {
   if (preferences.fromShare) {
     try { wx.setStorageSync('benchgauge.preferences', preferences) } catch { /* Sharing does not require local storage. */ }
   }
-  onShareAppMessage(() => ({ title: `${labels.about}｜${labels.tagline}`,
+  onShareAppMessage(() => ({ title: `${labels.about}｜${labels.rankingSummary}`,
     path: sharePath(preferences, dark ? 'dark' : 'light', '/pages/about/index') }))
   const statusBar = wx.getWindowInfo().statusBarHeight || 24
   const brandTitle = createBrandMeasurer(wx)(labels.name, (wx.getWindowInfo().windowWidth || 375) / 750 * 48)
@@ -33,8 +33,8 @@ definePage(query => {
   }
   const notices = __THIRD_PARTY_NOTICES__.map(item => ({ ...item,
     title: text([`Third-party notice ${item.number}`, `第三方软件声明 ${item.number}`, `第三方軟體聲明 ${item.number}`], language) }))
-  const items = leaderboardSources.map((item, index) => ({ ...item,
-    domain: item.url.split('/')[2], mark: index === 0 ? 'AA' : 'A' }))
+  const items = leaderboardSources.map(item => ({ ...item,
+    domain: item.url.split('/')[2], mark: { artificialAnalysis: 'AA', arena: 'A', epoch: 'E' }[item.id] }))
   const back = () => {
     if (!preferences.fromShare && getCurrentPages().length > 1) wx.navigateBack()
     else wx.reLaunch({ url: sharePath(preferences, dark ? 'dark' : 'light') })

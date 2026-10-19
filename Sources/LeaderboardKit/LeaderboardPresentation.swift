@@ -85,6 +85,18 @@ public enum LeaderboardPresentation {
         }
     }
 
+    /// Concise board names used by the mini-program and desktop table headers.
+    public static func columnTitle(_ kind: LeaderboardKind, language: AppLanguage) -> String {
+        switch kind {
+        case .artificialAnalysisCodingAgent: language.text("Artificial Analysis Coding", "Artificial Analysis 编程")
+        case .artificialAnalysisTextToImage: language.text("Artificial Analysis Text to Image", "Artificial Analysis 文生图")
+        case .arenaTextToImage: language.text("Text to Image Arena", "Arena 文生图")
+        case .artificialAnalysisTextToVideo: language == .traditionalChinese ? "Artificial Analysis 文生影片" : language.text("Artificial Analysis Text to Video", "Artificial Analysis 文生视频")
+        case .arenaTextToVideo: language == .traditionalChinese ? "Arena 文生影片" : language.text("Text to Video Arena", "Arena 文生视频")
+        default: kind.sourceLinkTitle
+        }
+    }
+
     public static func explanation(_ kind: LeaderboardKind, language: AppLanguage) -> String {
         switch kind {
         case .artificialAnalysis: language.text("Task benchmarks", "任务测评")

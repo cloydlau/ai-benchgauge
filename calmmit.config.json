@@ -127,6 +127,7 @@
           "apps/weapp/ci-runtime/package.json",
           "apps/weapp/ci-runtime/package-lock.json",
           "fc/domain.mjs",
+          "fc/distributions.mjs",
           "fc/brand-catalog.json",
           "fc/leaderboard-policy.json",
           "fc/country-catalog.json",

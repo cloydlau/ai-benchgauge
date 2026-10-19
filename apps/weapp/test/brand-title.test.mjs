@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { brandGlyphs } from '../src/core/brand-glyphs.js'
-import { brandTitleLayout, createBrandMeasurer, drawBrandGlyphs, drawBrandLogo } from '../src/core/brand-title.js'
+import { brandTitleLayout, createBrandMeasurer, createSubtitleMeasurer, drawBrandGlyphs, drawBrandLogo } from '../src/core/brand-title.js'
 import { canvasHarness } from './helpers/canvas.mjs'
 
 test('titles use the native font outlines offline and keep the logo aligned with I', () => {
@@ -14,11 +14,16 @@ test('titles use the native font outlines offline and keep the logo aligned with
     const title = measure(name, 21), larger = measure(name, 42)
     assert.equal(larger.width, title.width * 2)
     assert.equal(larger.height, title.height * 2)
-    assert.equal(title.logoTop + title.logoHeight, title.glyphs[0].y + title.glyphs[0].height)
+    const bottomLift = title.glyphs[0].y + title.glyphs[0].height - title.logoTop - title.logoHeight
+    assert.ok(Math.abs(bottomLift - (name === 'AI BenchGauge' ? 0.6 : 0)) < 1e-9)
     assert.ok(title.glyphs[0].x > title.logoWidth)
     for (const glyph of title.glyphs) {
       assert.ok(glyph.y >= 0 && glyph.y + glyph.height <= title.height)
-      assert.equal(glyph.y + glyph.height / 2, title.height / 2)
+      const center = glyph.y + glyph.height / 2
+      if (glyph.key === 'en-I') {
+        assert.ok(center < title.glyphs[1].y + title.glyphs[1].height / 2)
+        assert.equal(larger.glyphs[0].y, glyph.y * 2)
+      } else assert.equal(center, title.height / 2)
     }
   }
 })
@@ -57,7 +62,7 @@ test('the English A leans right in both renderers without clipping, touching I o
   for (const size of [14, 21, 42]) {
     const title = brandTitleLayout(null, 'AI BenchGauge', size), h = canvasHarness(), image = {}
     const angle = Number(title.logoStyle.match(/skewX\(([-\d.]+)deg\)/)[1])
-    assert.ok(angle < 0 && angle >= -20)
+    assert.equal(angle, -28)
     drawBrandLogo(h.context, image, title, 10, 20)
     assert.deepEqual(h.commands.map(([method]) => method), ['save', 'transform', 'drawImage', 'restore'])
     const [, a, b, c, d, tx, ty] = h.commands[1]
@@ -65,7 +70,10 @@ test('the English A leans right in both renderers without clipping, touching I o
     const corners = [[0, 0], [title.logoWidth, 0], [0, title.logoHeight], [title.logoWidth, title.logoHeight]]
       .map(([x, y]) => [a * x + c * y + tx, b * x + d * y + ty])
     assert.ok(Math.min(...corners.map(([x]) => x)) >= 10 - 1e-9)
-    assert.ok(Math.max(...corners.map(([x]) => x)) < 10 + title.glyphs[0].x)
+    // The image's empty upper-right corner overlaps I's box. The actual A
+    // stays inside a conservative triangular hull, including its top node.
+    const rightInk = Math.max(title.logoWidth, title.logoWidth * 0.7 + title.logoHeight * title.logoShear)
+    assert.ok(rightInk < title.glyphs[0].x)
     assert.equal(Math.min(...corners.map(([, y]) => y)), 20 + title.logoTop)
     assert.equal(Math.max(...corners.map(([, y]) => y)), 20 + title.logoTop + title.logoHeight)
   }
@@ -73,4 +81,21 @@ test('the English A leans right in both renderers without clipping, touching I o
   assert.ok(!chinese.logoStyle.includes('transform:'))
   drawBrandLogo(h.context, image, chinese, 10, 20)
   assert.deepEqual(h.commands, [['drawImage', image, 10, 20 + chinese.logoTop, chinese.logoWidth, chinese.logoHeight]])
+})
+
+
+test('caption fitting measures actual text once per row and keeps a usable fallback', () => {
+  let calls = 0
+  const context = { measureText: row => { calls++; return { width: row.length * 8 } } }
+  const measure = createSubtitleMeasurer({ createOffscreenCanvas: () => ({ getContext: () => context }) })
+  assert.equal(context.font, '500 12px sans-serif')
+  assert.equal(measure(['longer', 'short']), 48)
+  assert.equal(measure(['longer', 'short']), 48)
+  assert.equal(calls, 2)
+  for (const platform of [{}, { createOffscreenCanvas: () => ({ getContext: () => null }) },
+    { createOffscreenCanvas: () => ({ getContext: () => ({ measureText: () => ({ width: NaN }) }) }) }]) {
+    const fallback = createSubtitleMeasurer(platform)
+    assert.equal(fallback(['双榜', 'AI']), 24)
+    assert.equal(fallback([]), 1)
+  }
 })

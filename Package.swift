@@ -15,6 +15,7 @@ var targets: [Target] = [
         .linkedLibrary("winsqlite3", .when(platforms: [.windows])),
     ]),
     .executableTarget(name: "benchgauge-engine", dependencies: ["LeaderboardCore"], path: "Sources/LeaderboardBridge"),
+    .testTarget(name: "LeaderboardBridgeTests", dependencies: ["benchgauge-engine", "LeaderboardCore"]),
     .testTarget(name: "LeaderboardCoreTests", dependencies: ["LeaderboardCore", "CSQLite", .target(name: "CPlatformSupport", condition: .when(platforms: [.windows]))]),
 ]
 #if os(macOS)

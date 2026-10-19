@@ -2,7 +2,7 @@
 
 Universal native SwiftUI app for iOS / iPadOS 17 or later. There is currently no public TestFlight invitation or App Store release.
 
-The mobile interface follows the mini-program: the shared calligraphic title, subtitle help and model/company selector form an adaptive header; a floating glass category bar stays at the bottom. iPhone and narrow iPad windows switch the two boards with the existing cube gesture. The source selector stays outside the rotating faces and scrolls away with their content. Wide iPad windows retain side-by-side boards. The first entrance reveal yields immediately to interaction and respects Reduce Motion.
+The mobile interface follows the mini-program: the shared calligraphic title, subtitle help and model/company selector form an adaptive header; a floating glass category bar stays at the bottom. English displays only the main title and does not reserve space for the subtitle. Simplified and Traditional Chinese retain the two subtitle sentences, each on one line. Brand and caption share a continuous fitting scale based on the available width; the help icon overlays the right edge without participating in text layout, and navigation controls and the help hit target keep their original size. Narrow windows switch boards with the existing cube gesture. The source selector stays outside the rotating faces and scrolls away with their content. Wider windows use a two- or three-column grid, with at least 360 points per board, based on the live available width rather than the device family. Narrow grid cards use compact source symbols so names remain readable. Folding, resizing and rotation settle interrupted cube animations while retaining the current source, query and filters. The first entrance reveal yields immediately to interaction and respects Reduce Motion.
 
 Country flags and model source symbols are tappable: a native popover spells out the localized country name or Open / Closed / Unknown status. Tap outside to dismiss it. Image exports retain the plain symbols.
 
@@ -63,6 +63,12 @@ Select the **BenchGauge** scheme and an iPhone or iPad simulator/device in Xcode
 Simulator checks cover portrait/landscape. Before distribution, also verify on a real iPhone and iPad in portrait and landscape, with large Dynamic Type, dark mode, offline relaunch, company details and screenshot copying. Confirm full-screen presentation on older systems and check system-controlled windowing on newer ones. A Mac compilation of the SwiftUI module is not a substitute for native mobile validation.
 
 ## Validation status
+
+### Resizable and folding windows (2026-10-18)
+
+The layout recomputes from `GeometryReader` on every size change. A universal iOS 27 SDK build can resize on the folding iPhone; this project no longer assumes an iPhone always uses the narrow layout. The shared category bar stays within the current safe area. The local Xcode 27.0 installation has no iPhone Duo simulator: ordinary iPhone/iPad rotation and adaptive-width tests do not validate fold poses, the reserved folding region, or iOS 27.1 edge-to-edge behavior. Complete those checks with Xcode 27.1 / iPhone Duo before claiming full device support ([Apple preparation guide](https://developer.apple.com/iphone-duo/prepare/)).
+
+Two layout policy tests and four native UI tests passed on iPhone 18 Pro Max and iPad Pro 11-inch (M5), iOS 27.0. Reviewed light/dark English/Chinese captures cover portrait → landscape → portrait, readable column widths and gaps, and retention of the source, search query and openness filter. The 12 captures and native result bundles remain in ignored `work/ios-resizable/`.
 
 ### Shared mobile model search (2026-10-17)
 
@@ -160,7 +166,7 @@ Native originals were reviewed on iPhone 18 Pro (402 × 874 points, 3×) and iPa
 
 ### Mobile spacing parity (2026-10-16)
 
-The mobile heading aligns the subtitle to the title's painted bottom edge while retaining its 44-point help target. Source tabs leave a 10-point gap before the card; metadata/column-heading spacing is tighter and source symbols use 14-point sizing. At the end of a ranking, reserved content space places the return-to-top control below the footer and above the bottom categories. Wide iPad overlays already sit inside the bottom safe area; the extended phone viewport includes that inset explicitly.
+The mobile heading places the introduction's closing tagline below the title/grouping row, split into two rows at the semicolon in every supported language, while retaining its 44-point help target. Desktop clients keep the tagline on one line. Source tabs leave a 10-point gap before the card; metadata/column-heading spacing is tighter and source symbols use 14-point sizing. At the end of a ranking, reserved content space places the return-to-top control below the footer and above the bottom categories. Wide iPad overlays already sit inside the bottom safe area; the extended phone viewport includes that inset explicitly.
 
 Verified with Xcode 27.0 on iOS 27.0 simulators: iPhone 18 Pro at 3× and iPad Pro 11-inch (M5) at 2×. Four iPhone regressions (header/icons, footer reachability, source switching and landscape comparison) and two iPad regressions pass, with the landscape case passing separately in `landscape-verified.xcresult`. Earlier landscape runs exposed stale test gestures over the category bar and an offscreen-rank-1 assertion incompatible with lazy rows; those checks now finish scrolling within the clear viewport and wait for the preserved visible rows. Nine iOS build-script checks also pass. Source hashes, native originals, logs and result bundles remain in ignored `work/ios-spacing-20261016/`; this covers simulator rendering and interaction, not a physical-device or release review.
 
@@ -205,3 +211,16 @@ The follow-up `testSearchPaddingChangesOnlyAfterHeaderPins` compares the same iP
 Pinned column headers redistribute the existing 12-point vertical inset from top 4/bottom 8 to top 6/bottom 6. The same measured pinned state controls the column labels and expanded search. Header height and ordinary 4/8 spacing remain unchanged; horizontal search padding still becomes zero only when pinned.
 
 The simulator build and existing horizontal search-padding UI regression pass on iPhone 18 Pro, iOS 27.0 (3×). Reviewed original search captures show normal and pinned spacing; logs, xcresult and originals remain under ignored `work/pinned-header-center/`. Two new centering tests compare header height and content centers in English/light and Chinese/dark, including expanded search. Their initial locator incorrectly expected an Other element; the native header is StaticText. The corrected type-independent locator has not completed its final rerun: it remained behind other native builds and was cancelled while queued. Those centering assertions, collapsed-header visual review, iPad and physical-device verification are not signed off by this local run.
+
+
+### Drag selection on mobile navigation — 2026-10-18
+
+The bottom category bar and compact source tabs accept horizontal drags directly on their controls. The segment under the finger previews the selection; releasing commits one category/source change. Crossing intermediate categories does not start their refreshes. The shared `MobileTabDrag` modifier clamps both ends, ignores vertical intent, clears cancelled previews and leaves ordinary button taps and accessibility selection intact. The board swipe recognizer is attached before the source-tabs overlay so a selector drag cannot also turn the cube.
+
+Verification artifacts and frozen source live in ignored `work/mobile-tab-drag/`. The native simulator checks cover category dragging in both directions, ordinary taps and vertical movement on iPhone 18 Pro and iPad Pro 11-inch (M5), in English/light and Simplified Chinese/dark; the compact source-tab checks run on iPhone. Wide iPad keeps its existing paired boards without a source selector. Physical-device gestures and narrow iPad multitasking remain outside this simulator coverage.
+
+The final run passed all seven native UI regressions (five on iPhone, two on iPad), including existing board swipes, diagonal scrolling and swipe-versus-copy behavior. Settled selection screenshots were reviewed in both themes; final result bundles are `phone-regression.xcresult` and `pad-final.xcresult`. The mini-program passed all 124 tests and its production build.
+
+### English mobile heading (2026-10-18)
+
+English omits the subtitle and its sizing constraint; its header height is 44 points rather than reserving the Chinese caption row. Simplified and Traditional Chinese retain the existing subtitle/help. Targeted native UI tests pass on iPhone 18 Pro (iOS 27.0, 3×) and iPad Pro 11-inch M5 (iPadOS 27.0, 2×). Reviewed English/dark and Chinese/light originals, source snapshot and result bundles remain in ignored `work/mobile-english-title/`. Mini-program page tests (57) and the production build pass; the official IDE refresh succeeds, but runtime automation times out, so mini-program simulator visual verification is not claimed.
