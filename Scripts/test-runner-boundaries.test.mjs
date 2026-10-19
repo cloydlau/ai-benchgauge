@@ -6,7 +6,7 @@ import { syncBuiltinESMExports } from 'node:module'
 import { EventEmitter } from 'node:events'
 import { dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
-import { runTests, testCommands, testInputSignature, testEnvironment } from './test.mjs'
+import { nativeTestAvailability, runTests, testCommands, testInputSignature, testEnvironment } from './test.mjs'
 import { runTestGate } from './test-repair.mjs'
 import { cacheLock } from './build-cache.mjs'
 
@@ -58,11 +58,15 @@ test('Xcode discovery reads the caller selection and safely retains it when disc
   assert.equal(testEnvironment(env, options).DEVELOPER_DIR, xcodeDeveloperDir)
   output = { status: 1 }
   assert.equal(testEnvironment(env, options), env)
+  assert.equal(nativeTestAvailability(env, { ...options, xcodeDeveloperDir: join(root, 'Missing Xcode') }).available, false)
+  output = { status: 1, stdout: '' }
+  assert.equal(nativeTestAvailability(env, { ...options, xcodeDeveloperDir: join(root, 'Missing Xcode') }).available, false)
 })
 
 test('real runner default command path streams output and isolates inherited private state', async t => {
   const root = fixture(t), calls = mockCommands(t)
-  const result = await runTests({ root, logger, env: { ...process.env, GIT_INDEX_FILE: 'fixture-private-index', BENCHGAUGE_TEST_PASS: 'fixture-parent-pass' } })
+  const result = await runTests({ root, logger, nativeAvailable: true,
+    env: { ...process.env, GIT_INDEX_FILE: 'fixture-private-index', BENCHGAUGE_TEST_PASS: 'fixture-parent-pass' } })
   assert.equal(result.status, 0)
   assert.equal(calls.filter(call => call[0] === 'swift').length, 1)
   assert.ok(result.signature)
@@ -75,6 +79,21 @@ test('real runner default command path streams output and isolates inherited pri
   assert.match(fs.readFileSync(result.logPath, 'utf8'), /fixture error stream/)
   const gated = await runTestGate({ root, env: { ...process.env, TEST_AUTO_REPAIR: '0' } })
   assert.equal(gated.status, 0, 'Default test gate must actually invoke the runner')
+})
+
+test('missing full Xcode warns, skips native coverage, and keeps other suites running', async t => {
+  const root = fixture(t), calls = mockCommands(t), messages = []
+  const result = await runTests({ root, coverage: true, nativeAvailable: false,
+    logger: { log: message => messages.push(message), error() {} } })
+  assert.equal(result.status, 0)
+  assert.ok(result.signature)
+  assert.equal(result.skipped[0].suite, 'swift')
+  assert.ok(messages.some(message => message.includes('已跳过 Swift/iOS 原生测试')))
+  assert.match(fs.readFileSync(result.logPath, 'utf8'), /已跳过 Swift\/iOS 原生测试/)
+  assert.equal(calls.some(call => call[0] === 'swift'), false)
+  assert.equal(calls.some(call => call[1].some(arg => String(arg).endsWith('swift-coverage.cjs'))), false)
+  assert.ok(calls.some(call => call[1][0] === '--test'))
+  assert.ok(calls.some(call => call[1][0] === '--expose-internals'))
 })
 
 test('coverage collector is mandatory after successful instrumented children', async t => {
@@ -125,7 +144,7 @@ test('runner waits for the shared native-build lease before executing native tes
   const root = fixture(t); mockCommands(t)
   const held = await cacheLock(root)
   const messages = []
-  const running = runTests({ root, logger: { log: message => messages.push(message), error() {} } })
+  const running = runTests({ root, nativeAvailable: true, logger: { log: message => messages.push(message), error() {} } })
   setTimeout(() => held.release(), 10)
   const result = await running
   assert.equal(result.status, 0)
@@ -150,7 +169,7 @@ test('relocated Swift workspaces recover under the cache lease before native tes
   })
   mockCommands(t)
   t.after(() => { for (const path of backups) fs.rmSync(path, { recursive: true, force: true }) })
-  const result = await runTests({ root, logger: { log: message => messages.push(message), error() {} } })
+  const result = await runTests({ root, nativeAvailable: true, logger: { log: message => messages.push(message), error() {} } })
   assert.equal(result.status, 0)
   assert.equal(backups.length, 2)
   assert.ok(messages.some(message => message.includes('仓库搬迁')))
@@ -202,7 +221,7 @@ test('test command discovery rejects an empty suite instead of passing without t
 
 for (const mode of ['native-clear-failure', 'native-report-failure']) test(`${mode} blocks a passing native coverage receipt`, async t => {
  const root = fixture(t), calls = mockCommands(t, { mode })
- const result = await runTests({ root, logger, coreOnly: true, coverage: true })
+ const result = await runTests({ root, logger, coreOnly: true, coverage: true, nativeAvailable: true })
  assert.equal(result.status, 2)
  assert.equal(result.signature, null)
  const commands = calls.filter(call => call[0] !== 'xcrun')
