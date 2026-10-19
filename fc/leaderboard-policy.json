@@ -177,6 +177,37 @@
     "intellect-1": {
       "openness": "open",
       "sourceURL": "https://huggingface.co/PrimeIntellect/INTELLECT-1"
+    },
+    "gemini 4 argon": {
+      "openness": "closed",
+      "sourceURL": "https://epoch.ai/models/gemini-4-argon",
+      "verifiedAt": "2026-10-18"
+    },
+    "qwen 3.6 max (preview)": {
+      "openness": "closed",
+      "sourceURL": "https://epoch.ai/models/qwen-3-6-max-preview",
+      "verifiedAt": "2026-10-18"
+    },
+    "mistral large 4": {
+      "openness": "closed",
+      "sourceURL": "https://epoch.ai/models/mistral-large-4",
+      "verifiedAt": "2026-10-18",
+      "note": "Current preview has no released weights; announced open-weight release is pending. Explicit upstream classifications take priority."
+    },
+    "qwen 3.5 plus (hosted 397b-a17b)": {
+      "openness": "closed",
+      "sourceURL": "https://epoch.ai/models/qwen-3-5-plus-hosted-397b-a17b",
+      "verifiedAt": "2026-10-18"
+    },
+    "qwen 3.5 flash (hosted 35b-a3b)": {
+      "openness": "closed",
+      "sourceURL": "https://epoch.ai/models/qwen-3-5-flash-hosted-35b-a3b",
+      "verifiedAt": "2026-10-18"
+    },
+    "qwen 3.6 flash": {
+      "openness": "closed",
+      "sourceURL": "https://epoch.ai/models/qwen-3-6-flash",
+      "verifiedAt": "2026-10-18"
     }
   }
 }

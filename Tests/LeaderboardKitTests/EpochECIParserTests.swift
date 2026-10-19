@@ -82,3 +82,18 @@ private func eciCSV(_ first: [String: String] = [:], count: Int = 22) -> String 
     let explicit = LeaderboardEntry(rank: 1, name: "Qwen2.5-Coder-14B", score: 10, modelID: "Qwen2.5-Coder-14B", openness: .closed)
     #expect(explicit.resolvedOpenness == .closed)
 }
+
+@Test func epochCachedOpennessRepairsExactReleasesAndPreservesExplicitUpdates() {
+    for id in ["Gemini 4 Argon", "Qwen 3.6 Max (Preview)", "Mistral Large 4",
+               "Qwen 3.5 Plus (hosted 397B-A17B)", "Qwen 3.5 Flash (hosted 35B-A3B)", "Qwen 3.6 Flash"] {
+        let cached = LeaderboardEntry(rank: 1, name: id, score: 150, modelID: id)
+        #expect(cached.openness == nil)
+        #expect(cached.resolvedOpenness == .closed)
+        #expect(LeaderboardOpennessFilter.closed.matches(cached))
+        #expect(!LeaderboardOpennessFilter.unknown.matches(cached))
+        let updated = LeaderboardEntry(rank: 1, name: id, score: 150, modelID: id, openness: .open)
+        #expect(updated.resolvedOpenness == .open)
+        let variant = LeaderboardEntry(rank: 1, name: id, score: 150, modelID: id + "-finetune")
+        #expect(variant.resolvedOpenness == nil)
+    }
+}

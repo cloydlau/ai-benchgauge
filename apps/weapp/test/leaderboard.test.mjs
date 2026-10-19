@@ -11,6 +11,25 @@ const kind = 'artificialAnalysis'
 const entry = (rank, name, score, organization, fields = {}) => ({ rank, name, score, organization, ...fields })
 const board = (entries, fields = {}) => ({ kind, fetchedAt: '2026-10-13T12:00:00Z', entries, ...fields })
 
+test('cached Epoch rows share verified source badges and filtering while keeping hosted and public releases distinct', () => {
+  const ids = ['Gemini 4 Argon', 'Qwen 3.6 Max (Preview)', 'Mistral Large 4',
+    'Qwen 3.5 Plus (hosted 397B-A17B)', 'Qwen 3.5 Flash (hosted 35B-A3B)', 'Qwen 3.6 Flash']
+  const input = board([
+    ...ids.map((id, index) => entry(index + 1, id, 160 - index, null, { modelID: id })),
+    entry(7, 'Qwen3.5-397B-A17B', 147, 'Alibaba', { modelID: 'Qwen3.5-397B-A17B', openness: 'open' }),
+    entry(8, 'Future variant', 145, null, { modelID: ids[0] + '-finetune' }),
+  ], { kind: 'epochECI' })
+  const original = structuredClone(input)
+  for (const snapshot of [input, normalizeBoard(input, 'epochECI')]) {
+    const rows = visibleRows(snapshot, { openness: 'closed' })
+    assert.deepEqual(rows.map(row => row.name), ids)
+    assert.ok(rows.every(row => row.openness === 'closed' && row.opennessIcon))
+    assert.deepEqual(visibleRows(snapshot, { openness: 'open' }).map(row => row.rank), [7])
+    assert.deepEqual(visibleRows(snapshot, { openness: 'unknown' }).map(row => row.rank), [8])
+  }
+  assert.deepEqual(input, original)
+})
+
 test('model search combines name tokens with existing filters, keeps ranks and the unsearched leader, and ignores company names', () => {
   const source = board([
     entry(1, 'Leader', 100, 'Alpha Labs', { openness: 'closed' }),
