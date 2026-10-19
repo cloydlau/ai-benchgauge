@@ -123,9 +123,9 @@ test('manual runs and partial/coverage runs cannot reuse a full-pass receipt', a
   assert.equal(count, 3)
 })
 
-test('editing source during a successful run invalidates the result and releases the lock', async (t) => {
+for (const exitStatus of [0, 1]) test(`editing source during a run ending ${exitStatus} revalidates the new inputs and releases the lock`, async (t) => {
   const root = fixture(t)
-  const result = await runTests({ root, logger, commands: [['check', []]], run: async () => { writeFileSync(join(root, 'Sources', 'example.swift'), 'new'); return 0 } })
+  const result = await runTests({ root, logger, commands: [['check', []]], run: async () => { writeFileSync(join(root, 'Sources', 'example.swift'), 'new'); return exitStatus } })
   assert.equal(result.status, 75); assert.equal(result.signature, null)
   const next = await runTests({ root, logger, commands: [['check', []]], run: async () => 0 })
   assert.equal(next.status, 0)

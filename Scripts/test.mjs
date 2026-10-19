@@ -248,7 +248,10 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
     }, { log: message => logger.log(message) })
     else await runChecks()
     const after = testInputSignature(root, env)
-    if (status === 0 && before !== after) {
+    // A failure belongs to the inputs that were tested too. If those inputs
+    // changed, revalidate the new version instead of freezing it or asking an
+    // AI to repair an obsolete failure (including stale coverage manifests).
+    if (before !== after) {
       status = 75
       const message = '[test] 测试期间代码发生变化，本次结果不能用于提交或构建，请重新验证'
       logger.error(message); appendFileSync(logPath, message + '\n')
@@ -279,7 +282,9 @@ async function main() {
   if (args.includes('--gate') && args.length !== 1) throw new Error('--gate 必须运行完整测试')
   const result = args.includes('--gate')
     ? await (await import('./test-repair.mjs')).runTestGate()
-    : await runTests({ coreOnly: args.includes('--core'), scriptsOnly: args.includes('--scripts'), coverage: args.includes('--coverage'), lockWaitMs: 120_000 })
+    // A complete coverage run can take about three minutes. Let a concurrent
+    // run finish before starting our own checks, within the outer CI deadline.
+    : await runTests({ coreOnly: args.includes('--core'), scriptsOnly: args.includes('--scripts'), coverage: args.includes('--coverage'), lockWaitMs: 300_000 })
   if (result.error) console.error(`[test] ${result.error}`)
   process.exitCode = result.status
 }
