@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { replacementFailure, resolvedOpenness } from './domain.mjs';
 import { parseBoard, sources } from './parser.mjs';
 import { codingKinds, withCodingOpenness } from './model-openness.mjs';
+import { isArena, isArenaDataset } from './arena-dataset.mjs';
 
 export const refreshInterval = 30 * 60 * 1000;
 export const grantLifetime = 90 * 1000;
@@ -13,10 +14,11 @@ export class RequestError extends Error {
 // All durable decisions live in OSS, not a process-local lock. AppendObject's
 // position precondition makes simultaneous FC instances compete atomically.
 export class SharedLeaderboards {
-  constructor(store, { clock = Date.now, token = () => randomBytes(32).toString('base64url'), brands = null, countries = null } = {}) {
-    this.store = store; this.clock = clock; this.token = token; this.brands = brands; this.countries = countries;
+  constructor(store, { clock = Date.now, token = () => randomBytes(32).toString('base64url'), brands = null, countries = null, arenaDataset = null, models = null } = {}) {
+    this.store = store; this.clock = clock; this.token = token; this.brands = brands; this.countries = countries; this.arenaDataset = arenaDataset; this.models = models;
   }
   async enrich(board, options) {
+    if (this.models) board = await this.models.enrich(board, options);
     if (this.brands) board = await this.brands.enrich(board, options);
     if (this.countries) board = await this.countries.enrich(board, options);
     return board;
@@ -36,11 +38,13 @@ export class SharedLeaderboards {
   }
   async read(kind) {
     this.checkKind(kind);
-    const board = await this.store.readBoard(kind);
+    let board = await this.store.readBoard(kind);
+    if (this.arenaDataset && isArena(kind) && !isArenaDataset(board)) board = null;
     return { board: await this.withModelOpenness(await this.enrich(board)) };
   }
   async refresh(kind) {
     this.checkKind(kind);
+    if (this.arenaDataset && isArena(kind)) return this.refreshArena(kind);
     const cached = await this.store.readBoard(kind);
     const board = await this.withModelOpenness(await this.enrich(cached, { acquire: true }));
     // Failure to coordinate must NOT give permission to contact the source.
@@ -63,6 +67,7 @@ export class SharedLeaderboards {
   }
   async contribute(kind, token, html) {
     this.checkKind(kind);
+    if (this.arenaDataset && isArena(kind)) throw new RequestError(403, 'Arena uses the official dataset; contributions disabled');
     if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) throw new RequestError(403, 'Invalid grant');
     const { position, state } = await this.store.readState(kind);
     const now = this.clock();
@@ -82,6 +87,31 @@ export class SharedLeaderboards {
     }
     board = await this.enrich(board, { acquire: true });
     await this.store.writeBoard(kind, board);
+    await this.models?.queue?.(board);
     return { board: await this.withModelOpenness(board) };
+  }
+
+  async refreshArena(kind) {
+    const cached = (await this.read(kind)).board;
+    // A separate coordination namespace lets migration replace a website cache
+    // without inheriting its client grant or mislabelling it as CC-licensed data.
+    const key = `arena-dataset/${kind}`;
+    try {
+      const { position, state } = await this.store.readState(key);
+      const now = this.clock();
+      if (state && now < state.nextAttemptAt) return { board: await this.enrich(cached, { acquire: true }), retryAt: state.nextAttemptAt };
+      const nextAttemptAt = now + refreshInterval;
+      if (!await this.store.appendState(key, position, { issuedAt: now, nextAttemptAt })) return { board: cached };
+      let board = await this.arenaDataset(kind, { now });
+      if (!isArenaDataset(board) || board.kind !== kind || replacementFailure(board, cached)) throw new Error('Invalid or older dataset');
+      // Complete acquisition is committed atomically; failures retain the old dataset.
+      board = await this.enrich(board, { acquire: true });
+      await this.store.writeBoard(kind, board);
+      await this.models?.queue?.(board);
+      return { board: await this.withModelOpenness(board), retryAt: nextAttemptAt };
+    } catch {
+      if (cached) return { board: cached };
+      throw new RequestError(503, 'Arena dataset temporarily unavailable');
+    }
   }
 }

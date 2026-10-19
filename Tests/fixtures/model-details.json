@@ -1,0 +1,127 @@
+{
+  "entry": {
+    "rank": 1,
+    "name": "Research Model (high) — 榜单原始名称",
+    "score": 98.5,
+    "modelMetadata": {
+      "id": "fixture/research-model",
+      "name": "Research Model",
+      "source": "models.dev",
+      "sourceURL": "https://models.dev/catalog.json?type=all",
+      "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "fetchedAt": "2026-10-19T00:00:00Z",
+      "license": "Apache-2.0",
+      "openWeights": true,
+      "releaseDate": "2026-10-01",
+      "lastUpdated": "2026-10-18",
+      "limit": {
+        "context": 200000,
+        "input": 180000,
+        "output": 20000
+      },
+      "attributes": {
+        "description": "Synthetic model details fixture. 模型资料测试。",
+        "family": "Research",
+        "type": "language",
+        "knowledge": "2026-06",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": false,
+        "structured_output": true,
+        "temperature": false,
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "links": [
+          {
+            "label": "Documentation",
+            "url": "https://example.com/docs"
+          }
+        ],
+        "weights": [
+          {
+            "label": "Weights",
+            "url": "https://example.com/weights",
+            "size": 42
+          }
+        ],
+        "benchmarks": [
+          {
+            "name": "Fixture evaluation",
+            "score": 77.5,
+            "metric": "accuracy",
+            "dataset": "synthetic",
+            "date": "2026-10-01",
+            "samples": 1000
+          }
+        ],
+        "future_field": {
+          "enabled": false,
+          "count": 0,
+          "note": "Preserved future field"
+        },
+        "unsafe_link": "javascript:alert(1)"
+      },
+      "offers": [
+        {
+          "provider": "host-a",
+          "providerName": "Host A",
+          "modelID": "research-v1",
+          "name": "Research Model",
+          "limit": {
+            "context": 100000,
+            "output": 10000
+          },
+          "currency": "USD",
+          "unit": "per-million-tokens",
+          "status": "active",
+          "cost": {
+            "input": 0,
+            "output": 2.5,
+            "cache_read": 0.1,
+            "tiers": [
+              {
+                "tier": {
+                  "type": "context",
+                  "size": 200000
+                },
+                "input": 3,
+                "output": 5
+              }
+            ]
+          },
+          "attributes": {
+            "reasoning_options": {
+              "effort": [
+                "low",
+                "high"
+              ],
+              "budget_tokens": 4096
+            },
+            "interleaved": false
+          }
+        },
+        {
+          "provider": "host-b",
+          "providerName": "Host B",
+          "modelID": "research-latest",
+          "name": "Research Model",
+          "limit": {
+            "context": 50000
+          },
+          "currency": "USD",
+          "unit": "per-million-tokens",
+          "attributes": {
+            "deprecated": false
+          }
+        }
+      ]
+    }
+  }
+}

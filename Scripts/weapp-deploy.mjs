@@ -27,6 +27,11 @@ export const sourcePaths = [
   'assets/brand/header-logo.png', 'assets/brand/header-logo-dark.png', 'assets/logos',
   'Sources/LeaderboardKit/SharedLeaderboardConfiguration.swift', 'config/app.json',
   'Sources/LeaderboardKit/Resources/Fonts/SlideFont-OFL.txt',
+  'Sources/LeaderboardKit/Resources/EpochAttribution.json',
+  'Sources/LeaderboardKit/Resources/ModelDetailLabels.json',
+  'fc/models-dev-license.txt',
+  'Tests/fixtures/model-details.json',
+  'fc/arena-attribution.json',
   'LICENSE', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml',
   'Scripts/weapp-deploy.mjs', 'Scripts/sync-privacy-guide.mjs', 'privacy-guide.json',
 ]

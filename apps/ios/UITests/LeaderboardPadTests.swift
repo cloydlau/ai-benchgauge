@@ -1419,8 +1419,13 @@ final class LeaderboardPhoneTests: XCTestCase {
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.1)).tap()
         XCTAssertFalse(fullName.exists)
         name.tap()
-        XCTAssertTrue(app.staticTexts["已复制 GPT Fixture — Very Long Model Name With Extended Reasoning And Multilingual Capabilities"].waitForExistence(timeout: 3))
+        let detailCopy = app.buttons["copy-model-name"]
+        XCTAssertTrue(detailCopy.waitForExistence(timeout: 5))
+        XCTAssertEqual(UIPasteboard.general.changeCount, before)
+        detailCopy.tap()
+        XCTAssertEqual(detailCopy.label, "已复制")
         XCTAssertGreaterThan(UIPasteboard.general.changeCount, before)
+        app.buttons["close-model-details"].tap()
         app.buttons["name-artificialAnalysis-4"].press(forDuration: 0.8)
         XCTAssertFalse(app.staticTexts["full-name-name-artificialAnalysis-4"].exists)
     }
@@ -1456,9 +1461,13 @@ final class LeaderboardPhoneTests: XCTestCase {
 
         let beforeTap = UIPasteboard.general.changeCount
         app.buttons["name-artificialAnalysis-1"].tap()
-        XCTAssertTrue(app.staticTexts["Copied GPT Fixture — Very Long Model Name With Extended Reasoning And Multilingual Capabilities"].waitForExistence(timeout: 3))
-        XCTAssertGreaterThan(UIPasteboard.general.changeCount, beforeTap,
-                             "An ordinary tap must still write the name to the clipboard")
+        let copy = app.buttons["copy-model-name"]
+        XCTAssertTrue(copy.waitForExistence(timeout: 5))
+        XCTAssertEqual(UIPasteboard.general.changeCount, beforeTap, "Opening details must not copy the name")
+        copy.tap()
+        XCTAssertEqual(copy.label, "Copied")
+        XCTAssertGreaterThan(UIPasteboard.general.changeCount, beforeTap, "The details copy icon must copy the original name")
+        app.buttons["close-model-details"].tap()
     }
     func testOfflineLicenseScreenshotAndLanguages() {
         app.launchArguments.append("--offline")
@@ -1853,7 +1862,10 @@ final class LeaderboardMobileParityTests: XCTestCase {
             XCTAssertTrue(app.segmentedControls["grouping"].exists)
             capture(chinese ? "parity-zh-light" : "parity-en-dark")
             first.tap()
-            XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", chinese ? "已复制 " : "Copied ")).firstMatch.waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons["copy-model-name"].waitForExistence(timeout: 5))
+            app.buttons["copy-model-name"].tap()
+            XCTAssertEqual(app.buttons["copy-model-name"].label, chinese ? "已复制" : "Copied")
+            app.buttons["close-model-details"].tap()
             app.buttons["category-coding"].tap()
             let kind = "artificialAnalysisCodingAgent"
             XCTAssertTrue(app.buttons["openness-filter-" + kind].waitForExistence(timeout: 5))
@@ -1949,6 +1961,10 @@ final class LeaderboardAboutParityTests: XCTestCase {
             XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "https://github.com/cloydlau/ai-benchgauge/releases/latest")).firstMatch.waitForExistence(timeout: 3))
             app.buttons["about-source-arena"].tap()
             XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "https://arena.ai/leaderboard")).firstMatch.waitForExistence(timeout: 3))
+            let modelSource = app.descendants(matching: .any).matching(identifier: "about-source-models-dev").firstMatch
+            reveal(modelSource, in: scroll)
+            XCTAssertTrue(modelSource.label.contains("models.dev"))
+            capture("about-" + theme + "-model-source")
             let infrastructure = app.buttons["about-cost-infrastructure"]
             reveal(infrastructure, in: scroll)
             XCTAssertEqual(infrastructure.value as? String, chinese ? "已收起" : "Collapsed")
@@ -1966,6 +1982,16 @@ final class LeaderboardAboutParityTests: XCTestCase {
             XCTAssertTrue(app.staticTexts["about-cost-total"].exists)
             app.buttons["about-contribute"].tap()
             XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "releases/latest")).firstMatch.waitForExistence(timeout: 3))
+            let modelLicense = app.buttons["models-dev-license"]
+            reveal(modelLicense, in: scroll)
+            modelLicense.tap()
+            let licenseText = app.staticTexts["models-dev-license-text"]
+            XCTAssertTrue(licenseText.waitForExistence(timeout: 3))
+            XCTAssertTrue(licenseText.label.contains("Copyright (c) 2025 models.dev"))
+            XCTAssertTrue(licenseText.label.contains("OUT OF OR IN CONNECTION WITH THE SOFTWARE"))
+            capture("about-" + theme + "-models-dev-license")
+            modelLicense.tap()
+            reveal(app.buttons["open-source-notices"], in: scroll)
             app.buttons["open-source-notices"].tap()
             reveal(app.staticTexts["about-license-text"], in: scroll)
             XCTAssertTrue(app.staticTexts["about-license-text"].label.contains("SIL OPEN FONT LICENSE"))
@@ -2084,5 +2110,43 @@ final class LeaderboardFoldTests: XCTestCase {
     @MainActor private func capture(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
+    }
+}
+
+final class ModelDetailsInteractionTests: XCTestCase {
+    @MainActor func testModelDetailsAndExplicitCopy() throws {
+        let app = XCUIApplication()
+        defer { app.terminate() }
+        app.launchArguments = ["--ui-testing", "--offline", "--reduce-motion"]
+        app.launchEnvironment["BENCHGAUGE_UI_MODEL_ENTRIES"] = #"[{"rank":1,"name":"Research Model (high) — Original Name","score":99,"organization":"OpenAI","modelMetadata":{"id":"fixture/model","name":"Research Model","source":"models.dev","sourceURL":"https://models.dev/catalog.json?type=all","revision":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","fetchedAt":"2026-10-19T00:00:00Z","limit":{"context":200000,"output":20000},"license":"Apache-2.0","attributes":{"knowledge":"2026-06","reasoning":true,"tool_call":false},"offers":[{"provider":"host-a","providerName":"Host A","modelID":"research","name":"Research Model","limit":{"context":100000},"currency":"USD","unit":"per-million-tokens","cost":{"input":0,"output":2.5}}]}},{"rank":2,"name":"Unmatched Model","score":98}]"#
+        for chinese in [false, true] {
+            if chinese { app.launchArguments += ["--preview-zh", "--dark"] }
+            app.launch()
+            let name = app.buttons["name-artificialAnalysis-1"]
+            XCTAssertTrue(name.waitForExistence(timeout: 10))
+            let before = UIPasteboard.general.changeCount
+            name.tap()
+            let copy = app.buttons["copy-model-name"], close = app.buttons["close-model-details"]
+            XCTAssertTrue(copy.waitForExistence(timeout: 5))
+            XCTAssertTrue(close.isHittable && copy.isHittable)
+            XCTAssertEqual(UIPasteboard.general.changeCount, before)
+            XCTAssertTrue(app.staticTexts["Apache-2.0"].exists)
+            for frame in 0..<3 {
+                Thread.sleep(forTimeInterval: 0.3)
+                let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+                shot.name = "model-details-\(UIDevice.current.userInterfaceIdiom == .phone ? "iphone" : "ipad")-\(chinese ? "zh-dark" : "en-light")-frame-\(frame)"
+                shot.lifetime = .keepAlways; add(shot)
+            }
+            copy.tap()
+            XCTAssertEqual(copy.label, chinese ? "已复制" : "Copied")
+            XCTAssertGreaterThan(UIPasteboard.general.changeCount, before)
+            close.tap()
+            let missing = app.buttons["name-artificialAnalysis-2"]
+            XCTAssertTrue(missing.waitForExistence(timeout: 5)); missing.tap()
+            XCTAssertTrue(app.buttons["copy-model-name"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.staticTexts[chinese ? "暂未匹配到模型资料。" : "No matching model information yet."].exists)
+            app.buttons["close-model-details"].tap()
+            app.terminate()
+        }
     }
 }

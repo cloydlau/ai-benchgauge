@@ -127,17 +127,24 @@ public enum LeaderboardPresentation {
     public static func sourceHelp(_ kind: LeaderboardKind, language: AppLanguage, board: Leaderboard?,
                                   includesFetchTime: Bool = true) -> String {
         var parts = [sourceSummary(kind, language: language), language.text("Scores are not directly comparable across lists", "各榜分数不直接互比")]
+        if kind.sourcePrefix == "Arena" {
+            parts.insert(language.text("Formerly LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena"), at: 1)
+        }
         if let date = board?.sourceUpdatedAt {
             let formatter = DateFormatter()
             formatter.locale = language.locale
             formatter.dateStyle = .medium
-            formatter.timeStyle = .short
-            let label = kind.sourcePrefix == "Arena" ? language.text("Votes through", "投票截至") : language.text("Updated", "更新于")
+            formatter.timeStyle = ArenaAttribution.applies(board) ? .none : .short
+            if ArenaAttribution.applies(board) { formatter.timeZone = TimeZone(secondsFromGMT: 0) }
+            let label = ArenaAttribution.applies(board) ? language.text("Published", "发布于")
+                : kind.sourcePrefix == "Arena" ? language.text("Votes through", "投票截至") : language.text("Updated", "更新于")
             parts.append("\(label) \(formatter.string(from: date))")
         }
         if let note = board?.sourceNote, !note.isEmpty { parts.append(note) }
-        if includesFetchTime { parts.append(sourceTimeHelp(board, language: language)) }
-        return parts.joined(separator: language.text(". ", "。"))
+        var help = parts.joined(separator: language.text(". ", "。"))
+        if kind == .epochECI { help += "\n\n" + EpochAttribution.fullText(language: language) }
+        if includesFetchTime { help += language.text(". ", "。") + sourceTimeHelp(board, language: language) }
+        return help
     }
 
     /// Keep source publication and our successful fetch distinct, including
@@ -148,8 +155,9 @@ public enum LeaderboardPresentation {
         formatter.locale = language.locale
         formatter.timeZone = timeZone
         formatter.dateFormat = "M/d HH:mm"
-        let updated = board?.sourceUpdatedAt.map { formatter.string(from: $0) } ?? "—"
         let fetched = board.map { formatter.string(from: $0.fetchedAt) } ?? "—"
+        if ArenaAttribution.applies(board) { formatter.dateFormat = "yyyy-MM-dd"; formatter.timeZone = TimeZone(secondsFromGMT: 0) }
+        let updated = board?.sourceUpdatedAt.map { formatter.string(from: $0) } ?? "—"
         return (language.text("Updated \(updated)", "更新 \(updated)"),
                 language.text("Fetched \(fetched)", "抓取 \(fetched)"))
     }
@@ -170,10 +178,14 @@ public enum LeaderboardPresentation {
         formatter.locale = language.locale
         formatter.dateStyle = .medium
         formatter.timeStyle = .medium
-        let updated = board?.sourceUpdatedAt.map { formatter.string(from: $0) }
-            ?? language.text("Not published by the source", "来源未提供")
         let fetched = board.map { formatter.string(from: $0.fetchedAt) }
             ?? language.text("Waiting for first fetch", "等待首次抓取")
+        if ArenaAttribution.applies(board) { formatter.timeStyle = .none; formatter.timeZone = TimeZone(secondsFromGMT: 0) }
+        let updated = board?.sourceUpdatedAt.map { formatter.string(from: $0) }
+            ?? language.text("Not published by the source", "来源未提供")
+        if ArenaAttribution.applies(board) {
+            return language.text("Dataset published: \(updated)\nFetched: \(fetched)", "数据集发布：\(updated)\n抓取时间：\(fetched)")
+        }
         return language.text("Source updated: \(updated)\nFetched: \(fetched)",
                              "源更新时间：\(updated)\n抓取时间：\(fetched)")
     }

@@ -1,12 +1,17 @@
 import catalog from './brand-catalog.json' with { type: 'json' }
 import policy from './leaderboard-policy.json' with { type: 'json' }
 import countries from './country-catalog.json' with { type: 'json' }
+import arenaNotice from './arena-attribution.json' with { type: 'json' }
 // Pure leaderboard rules shared by the FC service and WeChat client.
 // Platform adapters own network/storage and UI formatting; this module owns identity and selection.
 const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object, key)
+export const isArenaDatasetBoard = board => Boolean(board && ['arenaText', 'codeArenaWebDev', 'arenaTextToImage', 'arenaTextToVideo'].includes(board.kind)
+  && board.sourceNote?.includes(arenaNotice.sourceURL))
 export function replacementFailure(next, previous) {
   if (!previous) return null
   if (next.kind !== previous.kind) return 'kind'
+  if (isArenaDatasetBoard(next) && !isArenaDatasetBoard(previous)) return Date.parse(next.fetchedAt) >= Date.parse(previous.fetchedAt) ? null : 'snapshot'
+  if (isArenaDatasetBoard(previous) && !isArenaDatasetBoard(next)) return 'source'
   if (previous.sourceUpdatedAt && (!next.sourceUpdatedAt || Date.parse(next.sourceUpdatedAt) < Date.parse(previous.sourceUpdatedAt))) return 'source'
   if (Date.parse(next.fetchedAt) < Date.parse(previous.fetchedAt)) return 'snapshot'
   return null
@@ -65,7 +70,8 @@ export function normalizedCountryCode(value) {
 export function resolvedOpenness(entry) {
   if (['open', 'closed'].includes(entry.openness)) return entry.openness
   const id = String(entry.modelID ?? '').trim().toLowerCase()
-  return policy.verifiedModelOpenness?.[id]?.openness ?? null
+  return policy.verifiedModelOpenness?.[id]?.openness
+    ?? (entry.modelMetadata?.source === 'models.dev' && typeof entry.modelMetadata.openWeights === 'boolean' ? entry.modelMetadata.openWeights ? 'open' : 'closed' : null)
 }
 export function countryCode(entry) {
   return normalizedCountryCode(entry.developerCountry?.countryCode)

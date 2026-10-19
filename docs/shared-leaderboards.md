@@ -2,6 +2,14 @@
 
 FC 提供所有平台共用的 HTTPS 接口；OSS 为每张榜单保存一个 `latest.json`，新快照覆盖旧快照。不使用数据库，不保存排行榜历史，不设置快照过期时间。即使几个月无人成功更新，也返回最后一份完整快照。FC 实例回收、扩容和重启不会丢失共享数据。
 
+## Arena 官方数据集（2026-10-19）
+
+四张 Arena 榜单已改为服务端读取[官方 CC BY 4.0 数据集](https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset)。文本使用 `text_style_control`，其余使用 `webdev`、`text_to_image`、`text_to_video`，均只取 `latest/overall`。保留分数、排名、发布日期、修订 SHA 和署名说明；各端来源说明及图片导出保留许可信息。具体口径、实测日期与上线验证见[迁移记录](arena-dataset-migration.md)。
+
+Arena 的刷新请求由 FC 直接读取固定修订的 Parquet 文件并写入 OSS，不向客户端发放官网抓取资格，拒绝旧客户端的 HTML 贡献。各榜独立限频 30 分钟；失败保留已迁移的数据集快照，不回退官网。旧官网缓存仍保存在存储中直至替换，但不作为已许可的数据集快照对外返回。数据集刷新协调日志位于 `benchgauge/arena-dataset/{kind}/coordination.log`。
+
+数据集的发布时间只有日期粒度，各端按 UTC 日期展示，不把它称为投票截止时刻。每张榜的发布日期可能不同；上游未承诺固定更新频率。本服务按用户刷新检查更新，无访问时不会自行轮询。下面的客户端 HTML 贡献流程适用于其他来源。
+
 ## 客户端流程
 
 1. `POST /v1/boards/{kind}/refresh` 返回共享快照及可选的更新资格。
@@ -21,7 +29,7 @@ FC 提供所有平台共用的 HTTPS 接口；OSS 为每张榜单保存一个 `l
 
 编程榜缺少开放状态时，共享服务在读取时复用现存文本榜及 Arena 编程榜中同一模型的明确分类。只匹配完整模型 ID 或去除推理设置后的完整模型名称；代理名称不参与模型匹配，参数规模、日期和版本保持区分。已有明确分类优先，匹配不到或证据冲突时仍显示 `—`。不按厂商猜测，也不将开源代理工具等同于开源模型。
 
-状态随正常榜单贡献自动更新并保存到 OSS；编程榜的补齐只影响返回数据，不写回推断结果，也不改动分数、排名、更新时间或全局刷新限频，不额外请求原站。旧快照也可立即使用已保存的模型资料。中文列名为「源码」，英文为 `Source`；值为「开源 / 闭源」或 `Open / Closed`。
+状态随正常榜单刷新或贡献自动更新并保存到 OSS；编程榜的补齐只影响返回数据，不写回推断结果，也不改动分数、排名、更新时间或全局刷新限频，不额外请求原站。旧快照也可立即使用已保存的模型资料。中文列名为「源码」，英文为 `Source`；值为「开源 / 闭源」或 `Open / Closed`。
 
 ## 存储和并发
 
@@ -37,6 +45,10 @@ FC 提供所有平台共用的 HTTPS 接口；OSS 为每张榜单保存一个 `l
 必须使用未开启过版本控制的 Bucket，并保证生命周期规则不会删除 `benchgauge/` 下的任何对象。对象保持私有；用户通过 FC 读取，不能直接访问或写入 OSS。
 
 参考：[FC 实例生命周期](https://www.alibabacloud.com/help/en/functioncompute/overview-of-instance-isolation)、[OSS 追加位置校验](https://www.alibabacloud.com/help/en/oss/developer-reference/appendobject)、[覆盖同名对象](https://www.alibabacloud.com/help/en/oss/developer-reference/putobject)。
+
+## 自动模型资料
+
+共享服务已接入 models.dev 定时同步，校验后保存私有 OSS catalog；各榜新增模型在读取时自动匹配并返回上下文、开放权重、模型许可和分供应商报价。各端保留同一份补全及来源，榜单分数和时间保持原值。身份不确定或上游缺项时保持未知。来源口径、MIT 声明、触发器、失败保留及线上覆盖情况见 [models.dev 自动补全](models-dev-sync.md)。
 
 ## 自动品牌资料
 
@@ -78,6 +90,7 @@ OSS 新增 `benchgauge/brands/{key}.json`、`benchgauge/brand-assets/{sha256}.pn
 {
   "region": "cn-shenzhen",
   "functionName": "ai-benchgauge",
+  "arenaCollector": true,
   "bucket": "ai-benchgauge",
   "runtimeCredentialsFunction": "weaveo",
   "runtimeIdentityName": "limphase-runtime",
@@ -102,7 +115,9 @@ node Scripts/deploy-shared-leaderboards.mjs
 
 部署使用 `custom.debian10` 的 Node.js 20，512 MB / 0.25 vCPU、512 MB 临时磁盘，实例并发 8、请求超时 30 秒，按需启动。临时磁盘只供运行程序，不存放共享快照。函数通过深圳 OSS 内网地址访问存储。部署脚本先运行服务端测试，再打包生产依赖；不会覆盖无关函数。部署回执保存在被忽略的 `work/shared-leaderboards/deployment.json`。ZIP、应用和接口响应均不包含云密钥；运行凭证仅存放在 FC 的运行配置中。
 
-部署后先验证读取接口，再使用更新资格从原站填充各榜单。确认读写链路可用后，设置 `Sources/LeaderboardKit/SharedLeaderboardConfiguration.swift` 的 `bundledEndpoint`，再构建应用。iOS、macOS、Windows 引用同一个 Swift 配置。开发调试也可设置 `BENCHGAUGE_SHARED_ENDPOINT`；配置了共享服务后，服务失败不能回退到无资格的原站请求。
+`arenaCollector: true` 同时部署新加坡的专用 Arena 采集函数，解决深圳直连 Hugging Face 超时。它没有 OSS/云凭据，仅接受四个固定路径且必须携带专用随机令牌。令牌保存在被忽略的 `work/shared-leaderboards/arena-collector-token`（0600）及运行环境，重部署复用；丢失后重新生成并同时更新两端。部署后验证未认证访问为 403、四榜完整链路及原共享读取地址。
+
+部署后先验证读取接口；Arena 通过刷新接口读取官方数据集，其他来源使用更新资格从原站填充。确认读写链路可用后，设置 `Sources/LeaderboardKit/SharedLeaderboardConfiguration.swift` 的 `bundledEndpoint`，再构建应用。iOS、macOS、Windows 引用同一个 Swift 配置。开发调试也可设置 `BENCHGAUGE_SHARED_ENDPOINT`；配置了共享服务后，服务失败不能回退到无资格的原站请求。
 
 ### 当前部署状态
 
@@ -116,7 +131,7 @@ node Scripts/deploy-shared-leaderboards.mjs
 
 ## 客户端贡献的边界
 
-公开接口的贡献资格不等于原站来源证明。服务端校验来源类型、完整记录数量、字段和数值范围、原站时间不倒退、令牌有效期及一次性使用，并过滤任意外部图片地址；但无法仅凭客户端上传的 HTML，证明它确实来自原站的 HTTPS 响应。恶意客户端仍可能伪造符合结构的 HTML。若需要防范这种行为，后续必须加入可信贡献者认证、设备证明或独立来源验证，不能把格式校验描述为原站真实性校验。
+Arena 已停止客户端贡献，以下边界适用于仍使用贡献流程的来源。公开接口的贡献资格不等于原站来源证明。服务端校验来源类型、完整记录数量、字段和数值范围、原站时间不倒退、令牌有效期及一次性使用，并过滤任意外部图片地址；但无法仅凭客户端上传的 HTML，证明它确实来自原站的 HTTPS 响应。恶意客户端仍可能伪造符合结构的 HTML。若需要防范这种行为，后续必须加入可信贡献者认证、设备证明或独立来源验证，不能把格式校验描述为原站真实性校验。
 
 ## 验证
 

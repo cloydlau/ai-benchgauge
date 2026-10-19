@@ -80,14 +80,14 @@ private func withSharedStub<T>(contributionTimeout: TimeInterval = 30, handler: 
 
 @Test func failedOriginKeepsSharedSnapshotAndDoesNotAttemptAnotherOriginRequest() async throws {
     try await withSharedStub(handler: { request in
-        if request.url?.host == "arena.ai" { throw URLError(.cannotConnectToHost) }
+        if request.url?.host == "artificialanalysis.ai" { throw URLError(.cannotConnectToHost) }
         let grant: [String: Any] = ["token": String(repeating: "A", count: 43),
-            "expiresAt": (Date().timeIntervalSince1970 + 90) * 1000, "sourceURL": LeaderboardKind.arenaText.sourceURL.absoluteString]
-        return (200, try responseJSON(["board": sharedBoard(), "grant": grant]))
+            "expiresAt": (Date().timeIntervalSince1970 + 90) * 1000, "sourceURL": LeaderboardKind.artificialAnalysis.sourceURL.absoluteString]
+        return (200, try responseJSON(["board": sharedBoard(kind: "artificialAnalysis"), "grant": grant]))
     }) { fetcher, id in
-        let board = try await fetcher.fetch(.arenaText)
+        let board = try await fetcher.fetch(.artificialAnalysis)
         #expect(board.entries.first?.name == "GPT")
-        #expect(SharedHTTPStub.routes.recorded(id).filter { $0.url?.host == "arena.ai" }.count == 1)
+        #expect(SharedHTTPStub.routes.recorded(id).filter { $0.url?.host == "artificialanalysis.ai" }.count == 1)
     }
 }
 
@@ -107,8 +107,8 @@ private func withSharedStub<T>(contributionTimeout: TimeInterval = 30, handler: 
 
 @Test func successfulContributorUploadsSourceHTMLAndUsesAcceptedServerTimestamp() async throws {
     try await withSharedStub(handler: { request in
-        if request.url?.host == "arena.ai" {
-            let rows = (1...22).map { ["modelDisplayName": "Model \($0)", "rating": 2000 - $0] as [String: Any] }
+        if request.url?.host == "artificialanalysis.ai" {
+            let rows = (1...22).map { ["name": "Model \($0)", "intelligenceIndex": 2000 - $0] as [String: Any] }
             let payload = String(decoding: try JSONSerialization.data(withJSONObject: rows), as: UTF8.self)
             let escaped = String(decoding: try JSONSerialization.data(withJSONObject: [payload]), as: UTF8.self).dropFirst().dropLast()
             return (200, Data("<script>self.__next_f.push([1,\(escaped)])</script>".utf8))
@@ -117,13 +117,13 @@ private func withSharedStub<T>(contributionTimeout: TimeInterval = 30, handler: 
             #expect(request.httpMethod == "POST")
             #expect(request.value(forHTTPHeaderField: "Content-Type") == "text/html; charset=utf-8")
             #expect(request.value(forHTTPHeaderField: "X-BenchGauge-Grant") == String(repeating: "A", count: 43))
-            return (200, try responseJSON(["board": sharedBoard(date: "2026-10-11T00:00:00.000Z")]))
+            return (200, try responseJSON(["board": sharedBoard(date: "2026-10-11T00:00:00.000Z", kind: "artificialAnalysis")]))
         }
         let grant: [String: Any] = ["token": String(repeating: "A", count: 43),
-            "expiresAt": (Date().timeIntervalSince1970 + 90) * 1000, "sourceURL": LeaderboardKind.arenaText.sourceURL.absoluteString]
-        return (200, try responseJSON(["board": sharedBoard(), "grant": grant]))
+            "expiresAt": (Date().timeIntervalSince1970 + 90) * 1000, "sourceURL": LeaderboardKind.artificialAnalysis.sourceURL.absoluteString]
+        return (200, try responseJSON(["board": sharedBoard(kind: "artificialAnalysis"), "grant": grant]))
     }) { fetcher, id in
-        let board = try await fetcher.fetch(.arenaText)
+        let board = try await fetcher.fetch(.artificialAnalysis)
         #expect(board.fetchedAt.timeIntervalSince1970 == 1_791_676_800)
         #expect(SharedHTTPStub.routes.recorded(id).count == 3)
     }
@@ -143,16 +143,16 @@ private actor CachedBoardRecorder {
 @Test func cachedBoardIsPublishedBeforeSlowOriginAndTimeoutKeepsIt() async throws {
     let recorder = CachedBoardRecorder()
     try await withSharedStub(contributionTimeout: 0.5, handler: { request in
-        if request.url?.host == "arena.ai" {
+        if request.url?.host == "artificialanalysis.ai" {
             #expect(request.timeoutInterval == 20)
             return (0, Data())
         }
         let grant: [String: Any] = ["token": String(repeating: "A", count: 43),
-            "expiresAt": (Date().timeIntervalSince1970 + 90) * 1000, "sourceURL": LeaderboardKind.arenaText.sourceURL.absoluteString]
-        return (200, try responseJSON(["board": sharedBoard(), "grant": grant]))
+            "expiresAt": (Date().timeIntervalSince1970 + 90) * 1000, "sourceURL": LeaderboardKind.artificialAnalysis.sourceURL.absoluteString]
+        return (200, try responseJSON(["board": sharedBoard(kind: "artificialAnalysis"), "grant": grant]))
     }) { fetcher, id in
         let started = ContinuousClock.now
-        let board = try await fetcher.fetch(.arenaText, onCachedBoard: { cached in
+        let board = try await fetcher.fetch(.artificialAnalysis, onCachedBoard: { cached in
             // FC's snapshot reaches the view before any origin request starts.
             #expect(SharedHTTPStub.routes.recorded(id).count == 1)
             await recorder.record(cached)
@@ -161,7 +161,7 @@ private actor CachedBoardRecorder {
         #expect(board.fetchedAt.timeIntervalSince1970 == 1_788_220_800)
         #expect(await recorder.boards == [board])
         let requests = SharedHTTPStub.routes.recorded(id)
-        #expect(requests.filter { $0.url?.host == "arena.ai" }.count == 1)
+        #expect(requests.filter { $0.url?.host == "artificialanalysis.ai" }.count == 1)
         #expect(!requests.contains { $0.url?.path.hasSuffix("contribute") == true })
     }
 }
@@ -212,7 +212,7 @@ private actor CachedBoardRecorder {
         #expect(result.failures[.arenaText] == .sourceUnavailable)
     }
     try await withSharedStub(handler: { _ in (503, Data()) }) { original, _ in
-        await #expect(throws: URLError(.badServerResponse)) { try await LeaderboardFetcher(session: original.session, sharedEndpoint: nil).fetch(.arenaText) }
+        await #expect(throws: URLError(.badServerResponse)) { try await LeaderboardFetcher(session: original.session, sharedEndpoint: nil).fetch(.artificialAnalysis) }
     }
 }
 
@@ -270,23 +270,23 @@ private actor CachedBoardRecorder {
 @Test func contributionFailureUsesACommittedReadAndNeverPublishesAnInvalidAcceptance() async throws {
     for mode in ["committed-read", "expired", "invalid-acceptance"] {
         try await withSharedStub(handler: { request in
-            if request.url?.host == "arena.ai" {
+            if request.url?.host == "artificialanalysis.ai" {
                 if mode == "committed-read" { throw URLError(.cannotConnectToHost) }
                 if mode == "expired" { Thread.sleep(forTimeInterval: 1.1) }
-                let rows = (1...22).map { ["modelDisplayName": "Model \($0)", "rating": 2000 - $0] as [String: Any] }
+                let rows = (1...22).map { ["name": "Model \($0)", "intelligenceIndex": 2000 - $0] as [String: Any] }
                 let payload = String(decoding: try JSONSerialization.data(withJSONObject: rows), as: UTF8.self)
                 let escaped = String(decoding: try JSONSerialization.data(withJSONObject: [payload]), as: UTF8.self).dropFirst().dropLast()
                 return (200, Data("<script>self.__next_f.push([1,\(escaped)])</script>".utf8))
             }
-            if request.httpMethod == "GET" { return (200, try responseJSON(["board": sharedBoard()])) }
+            if request.httpMethod == "GET" { return (200, try responseJSON(["board": sharedBoard(kind: "artificialAnalysis")])) }
             if request.url?.path.hasSuffix("contribute") == true { return (200, Data("{}".utf8)) }
-            let grant: [String: Any] = ["token": String(repeating: "A", count: 43), "expiresAt": (Date().timeIntervalSince1970 + (mode == "expired" ? 1 : 90)) * 1000, "sourceURL": LeaderboardKind.arenaText.sourceURL.absoluteString]
+            let grant: [String: Any] = ["token": String(repeating: "A", count: 43), "expiresAt": (Date().timeIntervalSince1970 + (mode == "expired" ? 1 : 90)) * 1000, "sourceURL": LeaderboardKind.artificialAnalysis.sourceURL.absoluteString]
             return (200, try responseJSON(["grant": grant]))
         }) { fetcher, id in
             let service = LeaderboardService(fetcher: fetcher)
-            let result = await service.refresh([.arenaText], keeping: .init(), onBoard: { board in #expect(board.entries.first?.name == "GPT") })
+            let result = await service.refresh([.artificialAnalysis], keeping: .init(), onBoard: { board in #expect(board.entries.first?.name == "GPT") })
             #expect(result.failures.isEmpty)
-            #expect(result.snapshot.boards[.arenaText]?.entries.first?.name == "GPT")
+            #expect(result.snapshot.boards[.artificialAnalysis]?.entries.first?.name == "GPT")
             if mode == "expired" { #expect(!SharedHTTPStub.routes.recorded(id).contains { $0.url?.path.hasSuffix("contribute") == true }) }
         }
     }
@@ -316,5 +316,21 @@ private actor CachedBoardRecorder {
         let parsed = try await direct.fetch(.epochECI)
         #expect(parsed.entries.count == 22)
         #expect(parsed.entries[0].score == 170)
+    }
+}
+
+@Test func artificialAnalysisInvalidGrantCannotContactTheOrigin() async throws {
+    for mode in ["source", "token", "expired"] {
+        try await withSharedStub(handler: { request in
+            #expect(request.url?.host == "shared.example")
+            let grant: [String: Any] = ["token": mode == "token" ? "invalid" : String(repeating: "A", count: 43),
+                "expiresAt": (Date().timeIntervalSince1970 + (mode == "expired" ? -60 : 60)) * 1000,
+                "sourceURL": mode == "source" ? "https://attacker.invalid" : LeaderboardKind.artificialAnalysis.dataURL.absoluteString]
+            return (200, try responseJSON(["board": sharedBoard(kind: "artificialAnalysis"), "grant": grant]))
+        }) { fetcher, id in
+            let board = try await fetcher.fetch(.artificialAnalysis)
+            #expect(board.kind == .artificialAnalysis)
+            #expect(SharedHTTPStub.routes.recorded(id).count == 1)
+        }
     }
 }

@@ -180,6 +180,8 @@ public struct LeaderboardEntry: Codable, Equatable, Identifiable, Sendable {
     /// Provider mark stays separate when `brand` contains a model-family mark.
     public let organizationBrand: OrganizationBrand?
     public let developerCountry: OrganizationCountryMetadata?
+    public let modelMetadata: ModelMetadata?
+    public let voteCount: Int?
 
     public init(
         rank: Int,
@@ -191,7 +193,9 @@ public struct LeaderboardEntry: Codable, Equatable, Identifiable, Sendable {
         openness: ModelOpenness? = nil,
         brand: OrganizationBrand? = nil,
         organizationBrand: OrganizationBrand? = nil,
-        developerCountry: OrganizationCountryMetadata? = nil
+        developerCountry: OrganizationCountryMetadata? = nil,
+        modelMetadata: ModelMetadata? = nil,
+        voteCount: Int? = nil
     ) {
         self.rank = rank
         self.name = name
@@ -203,6 +207,8 @@ public struct LeaderboardEntry: Codable, Equatable, Identifiable, Sendable {
         self.brand = brand
         self.organizationBrand = organizationBrand
         self.developerCountry = developerCountry
+        self.modelMetadata = modelMetadata
+        self.voteCount = voteCount
     }
 }
 
@@ -214,10 +220,13 @@ public struct Leaderboard: Codable, Equatable, Sendable {
     public let fetchedAt: Date
     public let entries: [LeaderboardEntry]
     public let organizationLogoURLs: [String: URL]?
+    public let modelMetadataSource: ModelMetadataSource?
 
     public func canReplace(_ previous: Leaderboard?) -> Bool {
         guard let previous else { return true }
         guard kind == previous.kind, fetchedAt >= previous.fetchedAt else { return false }
+        if ArenaAttribution.applies(self) && !ArenaAttribution.applies(previous) { return true }
+        if ArenaAttribution.applies(previous) && !ArenaAttribution.applies(self) { return false }
         if let priorSourceDate = previous.sourceUpdatedAt {
             return sourceUpdatedAt.map { $0 >= priorSourceDate } ?? false
         }
@@ -231,7 +240,8 @@ public struct Leaderboard: Codable, Equatable, Sendable {
         sourceNote: String? = nil,
         fetchedAt: Date = Date(),
         entries: [LeaderboardEntry],
-        organizationLogoURLs: [String: URL]? = nil
+        organizationLogoURLs: [String: URL]? = nil,
+        modelMetadataSource: ModelMetadataSource? = nil
     ) {
         self.kind = kind
         self.title = title
@@ -240,6 +250,7 @@ public struct Leaderboard: Codable, Equatable, Sendable {
         self.fetchedAt = fetchedAt
         self.entries = entries
         self.organizationLogoURLs = organizationLogoURLs
+        self.modelMetadataSource = modelMetadataSource
     }
 }
 

@@ -17,7 +17,127 @@
             "country": "unitedStates",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "modelMetadata": {
+              "id": "fixture/research-model",
+              "name": "Research Model",
+              "source": "models.dev",
+              "sourceURL": "https://models.dev/catalog.json?type=all",
+              "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "fetchedAt": "2026-10-19T00:00:00Z",
+              "license": "Apache-2.0",
+              "openWeights": true,
+              "releaseDate": "2026-10-01",
+              "lastUpdated": "2026-10-18",
+              "limit": {
+                "context": 200000,
+                "input": 180000,
+                "output": 20000
+              },
+              "attributes": {
+                "description": "Synthetic model details fixture. 模型资料测试。",
+                "family": "Research",
+                "type": "language",
+                "knowledge": "2026-06",
+                "attachment": true,
+                "reasoning": true,
+                "tool_call": false,
+                "structured_output": true,
+                "temperature": false,
+                "modalities": {
+                  "input": [
+                    "text",
+                    "image"
+                  ],
+                  "output": [
+                    "text"
+                  ]
+                },
+                "links": [
+                  {
+                    "label": "Documentation",
+                    "url": "https://example.com/docs"
+                  }
+                ],
+                "weights": [
+                  {
+                    "label": "Weights",
+                    "url": "https://example.com/weights",
+                    "size": 42
+                  }
+                ],
+                "benchmarks": [
+                  {
+                    "name": "Fixture evaluation",
+                    "score": 77.5,
+                    "metric": "accuracy",
+                    "dataset": "synthetic",
+                    "date": "2026-10-01",
+                    "samples": 1000
+                  }
+                ],
+                "future_field": {
+                  "enabled": false,
+                  "count": 0,
+                  "note": "Preserved future field"
+                },
+                "unsafe_link": "javascript:alert(1)"
+              },
+              "offers": [
+                {
+                  "provider": "host-a",
+                  "providerName": "Host A",
+                  "modelID": "research-v1",
+                  "name": "Research Model",
+                  "limit": {
+                    "context": 100000,
+                    "output": 10000
+                  },
+                  "currency": "USD",
+                  "unit": "per-million-tokens",
+                  "status": "active",
+                  "cost": {
+                    "input": 0,
+                    "output": 2.5,
+                    "cache_read": 0.1,
+                    "tiers": [
+                      {
+                        "tier": {
+                          "type": "context",
+                          "size": 200000
+                        },
+                        "input": 3,
+                        "output": 5
+                      }
+                    ]
+                  },
+                  "attributes": {
+                    "reasoning_options": {
+                      "effort": [
+                        "low",
+                        "high"
+                      ],
+                      "budget_tokens": 4096
+                    },
+                    "interleaved": false
+                  }
+                },
+                {
+                  "provider": "host-b",
+                  "providerName": "Host B",
+                  "modelID": "research-latest",
+                  "name": "Research Model",
+                  "limit": {
+                    "context": 50000
+                  },
+                  "currency": "USD",
+                  "unit": "per-million-tokens",
+                  "attributes": {
+                    "deprecated": false
+                  }
+                }
+              ]
+            }
           },
           {
             "rank": 2,
@@ -459,7 +579,9 @@
             "help": null
           }
         ],
-        "fetchedAt": "2026-09-29T00:00:00Z"
+        "fetchedAt": "2026-09-29T00:00:00Z",
+        "sourceNote": "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset",
+        "sourceUpdatedAt": "2026-10-15T00:00:00Z"
       },
       {
         "kind": "epochECI",
@@ -2292,6 +2414,507 @@
       "height": 850,
       "scenario": "desktopSearchOutside",
       "searchQuery": "Qwen"
+    },
+    {
+      "id": "filter-en-none",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "popover",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "filter-en-country",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "popover",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ],
+      "countries": {
+        "artificialAnalysis": "china"
+      }
+    },
+    {
+      "id": "filter-en-source",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "popover",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ],
+      "sources": {
+        "artificialAnalysis": "open"
+      }
+    },
+    {
+      "id": "filter-en-both",
+      "language": "en",
+      "width": 1100,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "popover",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ],
+      "countries": {
+        "artificialAnalysis": "china"
+      },
+      "sources": {
+        "artificialAnalysis": "open"
+      }
+    },
+    {
+      "id": "filter-en-closed",
+      "language": "en",
+      "width": 1100,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "popover",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ],
+      "sources": {
+        "artificialAnalysis": "closed"
+      }
+    },
+    {
+      "id": "filter-en-unknown",
+      "language": "en",
+      "width": 1100,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "popover",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ],
+      "sources": {
+        "artificialAnalysis": "unknown"
+      }
+    },
+    {
+      "id": "filter-zh-Hans-none",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "popover",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "filter-zh-Hans-country",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "popover",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ],
+      "countries": {
+        "artificialAnalysis": "china"
+      }
+    },
+    {
+      "id": "filter-zh-Hans-source",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "popover",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ],
+      "sources": {
+        "artificialAnalysis": "open"
+      }
+    },
+    {
+      "id": "filter-zh-Hans-both",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "popover",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ],
+      "countries": {
+        "artificialAnalysis": "china"
+      },
+      "sources": {
+        "artificialAnalysis": "open"
+      }
+    },
+    {
+      "id": "filter-zh-Hans-closed",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "popover",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ],
+      "sources": {
+        "artificialAnalysis": "closed"
+      }
+    },
+    {
+      "id": "filter-zh-Hans-unknown",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "popover",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ],
+      "sources": {
+        "artificialAnalysis": "unknown"
+      }
+    },
+    {
+      "id": "filter-zh-Hant-none",
+      "language": "zh-Hant",
+      "width": 850,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "popover",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "filter-zh-Hant-country",
+      "language": "zh-Hant",
+      "width": 850,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "popover",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ],
+      "countries": {
+        "artificialAnalysis": "china"
+      }
+    },
+    {
+      "id": "filter-zh-Hant-source",
+      "language": "zh-Hant",
+      "width": 850,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "popover",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ],
+      "sources": {
+        "artificialAnalysis": "open"
+      }
+    },
+    {
+      "id": "filter-zh-Hant-both",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "popover",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ],
+      "countries": {
+        "artificialAnalysis": "china"
+      },
+      "sources": {
+        "artificialAnalysis": "open"
+      }
+    },
+    {
+      "id": "filter-zh-Hant-closed",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "popover",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ],
+      "sources": {
+        "artificialAnalysis": "closed"
+      }
+    },
+    {
+      "id": "filter-zh-Hant-unknown",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "popover",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ],
+      "sources": {
+        "artificialAnalysis": "unknown"
+      }
+    },
+    {
+      "id": "epoch-attribution-en-850",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "normal",
+      "selectedBoards": [
+        "epochECI"
+      ]
+    },
+    {
+      "id": "epoch-attribution-en-1100",
+      "language": "en",
+      "width": 1100,
+      "height": 720,
+      "scenario": "normal",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ]
+    },
+    {
+      "id": "epoch-attribution-zh-850",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "normal",
+      "selectedBoards": [
+        "epochECI"
+      ]
+    },
+    {
+      "id": "epoch-attribution-zh-1100",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "scenario": "normal",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ]
+    },
+    {
+      "id": "epoch-attribution-zh-Hant-850",
+      "language": "zh-Hant",
+      "width": 850,
+      "height": 720,
+      "scenario": "normal",
+      "selectedBoards": [
+        "epochECI"
+      ]
+    },
+    {
+      "id": "epoch-attribution-zh-Hant-1100",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "scenario": "normal",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ]
+    },
+    {
+      "id": "arena-dataset-en-850",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "normal",
+      "selectedBoards": [
+        "arenaText"
+      ]
+    },
+    {
+      "id": "arena-dataset-en-1100",
+      "language": "en",
+      "width": 1100,
+      "height": 720,
+      "scenario": "normal",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ]
+    },
+    {
+      "id": "arena-dataset-zh-850",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "normal",
+      "selectedBoards": [
+        "arenaText"
+      ]
+    },
+    {
+      "id": "arena-dataset-zh-1100",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "scenario": "normal",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ]
+    },
+    {
+      "id": "arena-dataset-zh-Hant-850",
+      "language": "zh-Hant",
+      "width": 850,
+      "height": 720,
+      "scenario": "normal",
+      "selectedBoards": [
+        "arenaText"
+      ]
+    },
+    {
+      "id": "arena-dataset-zh-Hant-1100",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "scenario": "normal",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ]
+    },
+    {
+      "id": "model-details-en",
+      "language": "en",
+      "width": 560,
+      "height": 640,
+      "scenario": "modelDetails",
+      "mode": "panel",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "model-details-missing-en",
+      "language": "en",
+      "width": 560,
+      "height": 640,
+      "scenario": "modelDetailsMissing",
+      "mode": "panel",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "model-details-long-en",
+      "language": "en",
+      "width": 560,
+      "height": 640,
+      "scenario": "modelDetailsLong",
+      "mode": "panel",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "model-details-zh-CN",
+      "language": "zh",
+      "width": 560,
+      "height": 640,
+      "scenario": "modelDetails",
+      "mode": "panel",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "model-details-missing-zh-CN",
+      "language": "zh",
+      "width": 560,
+      "height": 640,
+      "scenario": "modelDetailsMissing",
+      "mode": "panel",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "model-details-long-zh-CN",
+      "language": "zh",
+      "width": 560,
+      "height": 640,
+      "scenario": "modelDetailsLong",
+      "mode": "panel",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "model-details-zh-TW",
+      "language": "zh-Hant",
+      "width": 560,
+      "height": 640,
+      "scenario": "modelDetails",
+      "mode": "panel",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "model-details-missing-zh-TW",
+      "language": "zh-Hant",
+      "width": 560,
+      "height": 640,
+      "scenario": "modelDetailsMissing",
+      "mode": "panel",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "model-details-long-zh-TW",
+      "language": "zh-Hant",
+      "width": 560,
+      "height": 640,
+      "scenario": "modelDetailsLong",
+      "mode": "panel",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
     }
   ],
   "quotaScenarios": {
@@ -3758,6 +4381,1070 @@
           }
         ],
         "status": "pending"
+      }
+    ]
+  },
+  "modelDetails": {
+    "en": [
+      {
+        "id": "general",
+        "title": "Model information",
+        "summary": null,
+        "rows": [
+          {
+            "label": "Description",
+            "value": "Synthetic model details fixture. 模型资料测试。",
+            "url": null
+          },
+          {
+            "label": "Family",
+            "value": "Research",
+            "url": null
+          },
+          {
+            "label": "Model ID",
+            "value": "fixture/research-model",
+            "url": null
+          },
+          {
+            "label": "Knowledge cutoff",
+            "value": "2026-06",
+            "url": null
+          },
+          {
+            "label": "Model data updated",
+            "value": "2026-10-18",
+            "url": null
+          },
+          {
+            "label": "Model license",
+            "value": "Apache-2.0",
+            "url": null
+          },
+          {
+            "label": "Name",
+            "value": "Research Model",
+            "url": null
+          },
+          {
+            "label": "Public weights",
+            "value": "Yes",
+            "url": null
+          },
+          {
+            "label": "Released",
+            "value": "2026-10-01",
+            "url": null
+          },
+          {
+            "label": "Type",
+            "value": "language",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "limits",
+        "title": "Token limits",
+        "summary": null,
+        "rows": [
+          {
+            "label": "Context window",
+            "value": "200,000",
+            "url": null
+          },
+          {
+            "label": "Input",
+            "value": "180,000",
+            "url": null
+          },
+          {
+            "label": "Output",
+            "value": "20,000",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "capabilities",
+        "title": "Capabilities",
+        "summary": null,
+        "rows": [
+          {
+            "label": "Attachments",
+            "value": "Yes",
+            "url": null
+          },
+          {
+            "label": "Reasoning",
+            "value": "Yes",
+            "url": null
+          },
+          {
+            "label": "Structured output",
+            "value": "Yes",
+            "url": null
+          },
+          {
+            "label": "Temperature control",
+            "value": "No",
+            "url": null
+          },
+          {
+            "label": "Tool calls",
+            "value": "No",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "modalities",
+        "title": "Modalities",
+        "summary": null,
+        "rows": [
+          {
+            "label": "Input",
+            "value": "Text · Image",
+            "url": null
+          },
+          {
+            "label": "Output",
+            "value": "Text",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "links",
+        "title": "Links",
+        "summary": null,
+        "rows": [
+          {
+            "label": "1 · Label",
+            "value": "Documentation",
+            "url": null
+          },
+          {
+            "label": "1 · URL",
+            "value": "https://example.com/docs",
+            "url": "https://example.com/docs"
+          }
+        ]
+      },
+      {
+        "id": "weights",
+        "title": "Weights",
+        "summary": null,
+        "rows": [
+          {
+            "label": "1 · Label",
+            "value": "Weights",
+            "url": null
+          },
+          {
+            "label": "1 · Size",
+            "value": "42",
+            "url": null
+          },
+          {
+            "label": "1 · URL",
+            "value": "https://example.com/weights",
+            "url": "https://example.com/weights"
+          }
+        ]
+      },
+      {
+        "id": "benchmark-0",
+        "title": "Benchmark · Fixture evaluation",
+        "summary": null,
+        "rows": [
+          {
+            "label": "Dataset",
+            "value": "synthetic",
+            "url": null
+          },
+          {
+            "label": "Date",
+            "value": "2026-10-01",
+            "url": null
+          },
+          {
+            "label": "Metric",
+            "value": "accuracy",
+            "url": null
+          },
+          {
+            "label": "samples",
+            "value": "1,000",
+            "url": null
+          },
+          {
+            "label": "Score",
+            "value": "77.5",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "additional",
+        "title": "Additional information",
+        "summary": null,
+        "rows": [
+          {
+            "label": "future field · count",
+            "value": "0",
+            "url": null
+          },
+          {
+            "label": "future field · enabled",
+            "value": "No",
+            "url": null
+          },
+          {
+            "label": "future field · note",
+            "value": "Preserved future field",
+            "url": null
+          },
+          {
+            "label": "unsafe link",
+            "value": "javascript:alert(1)",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "provider-0",
+        "title": "Host A",
+        "summary": "Input $0 · Output $2.5 · USD / 1M tokens",
+        "rows": [
+          {
+            "label": "Endpoint model ID",
+            "value": "research-v1",
+            "url": null
+          },
+          {
+            "label": "Status",
+            "value": "Active",
+            "url": null
+          },
+          {
+            "label": "Token limits · Context window",
+            "value": "100,000",
+            "url": null
+          },
+          {
+            "label": "Token limits · Output",
+            "value": "10,000",
+            "url": null
+          },
+          {
+            "label": "Pricing · Cache read",
+            "value": "$0.1",
+            "url": null
+          },
+          {
+            "label": "Pricing · Input",
+            "value": "$0",
+            "url": null
+          },
+          {
+            "label": "Pricing · Output",
+            "value": "$2.5",
+            "url": null
+          },
+          {
+            "label": "Pricing · Pricing tiers · 1 · Input",
+            "value": "$3",
+            "url": null
+          },
+          {
+            "label": "Pricing · Pricing tiers · 1 · Output",
+            "value": "$5",
+            "url": null
+          },
+          {
+            "label": "Pricing · Pricing tiers · 1 · Threshold · Size",
+            "value": "200,000",
+            "url": null
+          },
+          {
+            "label": "Pricing · Pricing tiers · 1 · Threshold · Type",
+            "value": "Context window",
+            "url": null
+          },
+          {
+            "label": "Interleaved reasoning",
+            "value": "No",
+            "url": null
+          },
+          {
+            "label": "Reasoning options · Reasoning token budget",
+            "value": "4,096",
+            "url": null
+          },
+          {
+            "label": "Reasoning options · Reasoning effort",
+            "value": "low · high",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "provider-1",
+        "title": "Host B",
+        "summary": "Not provided",
+        "rows": [
+          {
+            "label": "Endpoint model ID",
+            "value": "research-latest",
+            "url": null
+          },
+          {
+            "label": "Token limits · Context window",
+            "value": "50,000",
+            "url": null
+          },
+          {
+            "label": "Pricing",
+            "value": "Not provided",
+            "url": null
+          },
+          {
+            "label": "Deprecated",
+            "value": "No",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "source",
+        "title": "Data source",
+        "summary": null,
+        "rows": [
+          {
+            "label": "Source",
+            "value": "models.dev · MIT",
+            "url": "https://models.dev"
+          },
+          {
+            "label": "Synced",
+            "value": "2026-10-19T00:00:00Z",
+            "url": null
+          },
+          {
+            "label": "",
+            "value": "Model terms follow the model license. Provider pricing may differ.",
+            "url": null
+          }
+        ]
+      }
+    ],
+    "zh": [
+      {
+        "id": "general",
+        "title": "模型资料",
+        "summary": null,
+        "rows": [
+          {
+            "label": "简介",
+            "value": "Synthetic model details fixture. 模型资料测试。",
+            "url": null
+          },
+          {
+            "label": "模型家族",
+            "value": "Research",
+            "url": null
+          },
+          {
+            "label": "模型 ID",
+            "value": "fixture/research-model",
+            "url": null
+          },
+          {
+            "label": "知识截止",
+            "value": "2026-06",
+            "url": null
+          },
+          {
+            "label": "资料更新日期",
+            "value": "2026-10-18",
+            "url": null
+          },
+          {
+            "label": "模型许可",
+            "value": "Apache-2.0",
+            "url": null
+          },
+          {
+            "label": "名称",
+            "value": "Research Model",
+            "url": null
+          },
+          {
+            "label": "权重公开",
+            "value": "是",
+            "url": null
+          },
+          {
+            "label": "发布日期",
+            "value": "2026-10-01",
+            "url": null
+          },
+          {
+            "label": "类型",
+            "value": "language",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "limits",
+        "title": "Token 上限",
+        "summary": null,
+        "rows": [
+          {
+            "label": "上下文窗口",
+            "value": "200,000",
+            "url": null
+          },
+          {
+            "label": "输入",
+            "value": "180,000",
+            "url": null
+          },
+          {
+            "label": "输出",
+            "value": "20,000",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "capabilities",
+        "title": "能力",
+        "summary": null,
+        "rows": [
+          {
+            "label": "附件",
+            "value": "是",
+            "url": null
+          },
+          {
+            "label": "推理",
+            "value": "是",
+            "url": null
+          },
+          {
+            "label": "结构化输出",
+            "value": "是",
+            "url": null
+          },
+          {
+            "label": "温度调节",
+            "value": "否",
+            "url": null
+          },
+          {
+            "label": "工具调用",
+            "value": "否",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "modalities",
+        "title": "输入输出模态",
+        "summary": null,
+        "rows": [
+          {
+            "label": "输入",
+            "value": "文本 · 图像",
+            "url": null
+          },
+          {
+            "label": "输出",
+            "value": "文本",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "links",
+        "title": "相关链接",
+        "summary": null,
+        "rows": [
+          {
+            "label": "1 · 名称",
+            "value": "Documentation",
+            "url": null
+          },
+          {
+            "label": "1 · 链接",
+            "value": "https://example.com/docs",
+            "url": "https://example.com/docs"
+          }
+        ]
+      },
+      {
+        "id": "weights",
+        "title": "模型权重",
+        "summary": null,
+        "rows": [
+          {
+            "label": "1 · 名称",
+            "value": "Weights",
+            "url": null
+          },
+          {
+            "label": "1 · 大小",
+            "value": "42",
+            "url": null
+          },
+          {
+            "label": "1 · 链接",
+            "value": "https://example.com/weights",
+            "url": "https://example.com/weights"
+          }
+        ]
+      },
+      {
+        "id": "benchmark-0",
+        "title": "基准测试 · Fixture evaluation",
+        "summary": null,
+        "rows": [
+          {
+            "label": "数据集",
+            "value": "synthetic",
+            "url": null
+          },
+          {
+            "label": "日期",
+            "value": "2026-10-01",
+            "url": null
+          },
+          {
+            "label": "指标",
+            "value": "accuracy",
+            "url": null
+          },
+          {
+            "label": "samples",
+            "value": "1,000",
+            "url": null
+          },
+          {
+            "label": "分数",
+            "value": "77.5",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "additional",
+        "title": "其他资料",
+        "summary": null,
+        "rows": [
+          {
+            "label": "future field · count",
+            "value": "0",
+            "url": null
+          },
+          {
+            "label": "future field · enabled",
+            "value": "否",
+            "url": null
+          },
+          {
+            "label": "future field · note",
+            "value": "Preserved future field",
+            "url": null
+          },
+          {
+            "label": "unsafe link",
+            "value": "javascript:alert(1)",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "provider-0",
+        "title": "Host A",
+        "summary": "输入 $0 · 输出 $2.5 · 美元 / 百万 tokens",
+        "rows": [
+          {
+            "label": "端点模型 ID",
+            "value": "research-v1",
+            "url": null
+          },
+          {
+            "label": "状态",
+            "value": "可用",
+            "url": null
+          },
+          {
+            "label": "Token 上限 · 上下文窗口",
+            "value": "100,000",
+            "url": null
+          },
+          {
+            "label": "Token 上限 · 输出",
+            "value": "10,000",
+            "url": null
+          },
+          {
+            "label": "定价 · 缓存读取",
+            "value": "$0.1",
+            "url": null
+          },
+          {
+            "label": "定价 · 输入",
+            "value": "$0",
+            "url": null
+          },
+          {
+            "label": "定价 · 输出",
+            "value": "$2.5",
+            "url": null
+          },
+          {
+            "label": "定价 · 分段定价 · 1 · 输入",
+            "value": "$3",
+            "url": null
+          },
+          {
+            "label": "定价 · 分段定价 · 1 · 输出",
+            "value": "$5",
+            "url": null
+          },
+          {
+            "label": "定价 · 分段定价 · 1 · 分段门槛 · 大小",
+            "value": "200,000",
+            "url": null
+          },
+          {
+            "label": "定价 · 分段定价 · 1 · 分段门槛 · 类型",
+            "value": "上下文窗口",
+            "url": null
+          },
+          {
+            "label": "交错推理",
+            "value": "否",
+            "url": null
+          },
+          {
+            "label": "推理设置 · 推理 token 预算",
+            "value": "4,096",
+            "url": null
+          },
+          {
+            "label": "推理设置 · 推理强度",
+            "value": "low · high",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "provider-1",
+        "title": "Host B",
+        "summary": "未提供",
+        "rows": [
+          {
+            "label": "端点模型 ID",
+            "value": "research-latest",
+            "url": null
+          },
+          {
+            "label": "Token 上限 · 上下文窗口",
+            "value": "50,000",
+            "url": null
+          },
+          {
+            "label": "定价",
+            "value": "未提供",
+            "url": null
+          },
+          {
+            "label": "已弃用",
+            "value": "否",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "source",
+        "title": "资料来源",
+        "summary": null,
+        "rows": [
+          {
+            "label": "来源",
+            "value": "models.dev · MIT",
+            "url": "https://models.dev"
+          },
+          {
+            "label": "同步时间",
+            "value": "2026-10-19T00:00:00Z",
+            "url": null
+          },
+          {
+            "label": "",
+            "value": "模型使用条件以其许可为准；各供应商定价可能不同。",
+            "url": null
+          }
+        ]
+      }
+    ],
+    "zh-Hant": [
+      {
+        "id": "general",
+        "title": "模型資料",
+        "summary": null,
+        "rows": [
+          {
+            "label": "簡介",
+            "value": "Synthetic model details fixture. 模型资料测试。",
+            "url": null
+          },
+          {
+            "label": "模型家族",
+            "value": "Research",
+            "url": null
+          },
+          {
+            "label": "模型 ID",
+            "value": "fixture/research-model",
+            "url": null
+          },
+          {
+            "label": "知識截止",
+            "value": "2026-06",
+            "url": null
+          },
+          {
+            "label": "資料更新日期",
+            "value": "2026-10-18",
+            "url": null
+          },
+          {
+            "label": "模型授權",
+            "value": "Apache-2.0",
+            "url": null
+          },
+          {
+            "label": "名稱",
+            "value": "Research Model",
+            "url": null
+          },
+          {
+            "label": "權重公開",
+            "value": "是",
+            "url": null
+          },
+          {
+            "label": "發布日期",
+            "value": "2026-10-01",
+            "url": null
+          },
+          {
+            "label": "類型",
+            "value": "language",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "limits",
+        "title": "Token 上限",
+        "summary": null,
+        "rows": [
+          {
+            "label": "上下文視窗",
+            "value": "200,000",
+            "url": null
+          },
+          {
+            "label": "輸入",
+            "value": "180,000",
+            "url": null
+          },
+          {
+            "label": "輸出",
+            "value": "20,000",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "capabilities",
+        "title": "能力",
+        "summary": null,
+        "rows": [
+          {
+            "label": "附件",
+            "value": "是",
+            "url": null
+          },
+          {
+            "label": "推理",
+            "value": "是",
+            "url": null
+          },
+          {
+            "label": "結構化輸出",
+            "value": "是",
+            "url": null
+          },
+          {
+            "label": "溫度調節",
+            "value": "否",
+            "url": null
+          },
+          {
+            "label": "工具呼叫",
+            "value": "否",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "modalities",
+        "title": "輸入輸出模態",
+        "summary": null,
+        "rows": [
+          {
+            "label": "輸入",
+            "value": "文字 · 圖像",
+            "url": null
+          },
+          {
+            "label": "輸出",
+            "value": "文字",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "links",
+        "title": "相關連結",
+        "summary": null,
+        "rows": [
+          {
+            "label": "1 · 名稱",
+            "value": "Documentation",
+            "url": null
+          },
+          {
+            "label": "1 · 連結",
+            "value": "https://example.com/docs",
+            "url": "https://example.com/docs"
+          }
+        ]
+      },
+      {
+        "id": "weights",
+        "title": "模型權重",
+        "summary": null,
+        "rows": [
+          {
+            "label": "1 · 名稱",
+            "value": "Weights",
+            "url": null
+          },
+          {
+            "label": "1 · 大小",
+            "value": "42",
+            "url": null
+          },
+          {
+            "label": "1 · 連結",
+            "value": "https://example.com/weights",
+            "url": "https://example.com/weights"
+          }
+        ]
+      },
+      {
+        "id": "benchmark-0",
+        "title": "基準測試 · Fixture evaluation",
+        "summary": null,
+        "rows": [
+          {
+            "label": "資料集",
+            "value": "synthetic",
+            "url": null
+          },
+          {
+            "label": "日期",
+            "value": "2026-10-01",
+            "url": null
+          },
+          {
+            "label": "指標",
+            "value": "accuracy",
+            "url": null
+          },
+          {
+            "label": "samples",
+            "value": "1,000",
+            "url": null
+          },
+          {
+            "label": "分數",
+            "value": "77.5",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "additional",
+        "title": "其他資料",
+        "summary": null,
+        "rows": [
+          {
+            "label": "future field · count",
+            "value": "0",
+            "url": null
+          },
+          {
+            "label": "future field · enabled",
+            "value": "否",
+            "url": null
+          },
+          {
+            "label": "future field · note",
+            "value": "Preserved future field",
+            "url": null
+          },
+          {
+            "label": "unsafe link",
+            "value": "javascript:alert(1)",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "provider-0",
+        "title": "Host A",
+        "summary": "輸入 $0 · 輸出 $2.5 · 美元 / 百萬 tokens",
+        "rows": [
+          {
+            "label": "端點模型 ID",
+            "value": "research-v1",
+            "url": null
+          },
+          {
+            "label": "狀態",
+            "value": "可用",
+            "url": null
+          },
+          {
+            "label": "Token 上限 · 上下文視窗",
+            "value": "100,000",
+            "url": null
+          },
+          {
+            "label": "Token 上限 · 輸出",
+            "value": "10,000",
+            "url": null
+          },
+          {
+            "label": "定價 · 快取讀取",
+            "value": "$0.1",
+            "url": null
+          },
+          {
+            "label": "定價 · 輸入",
+            "value": "$0",
+            "url": null
+          },
+          {
+            "label": "定價 · 輸出",
+            "value": "$2.5",
+            "url": null
+          },
+          {
+            "label": "定價 · 分段定價 · 1 · 輸入",
+            "value": "$3",
+            "url": null
+          },
+          {
+            "label": "定價 · 分段定價 · 1 · 輸出",
+            "value": "$5",
+            "url": null
+          },
+          {
+            "label": "定價 · 分段定價 · 1 · 分段門檻 · 大小",
+            "value": "200,000",
+            "url": null
+          },
+          {
+            "label": "定價 · 分段定價 · 1 · 分段門檻 · 類型",
+            "value": "上下文視窗",
+            "url": null
+          },
+          {
+            "label": "交錯推理",
+            "value": "否",
+            "url": null
+          },
+          {
+            "label": "推理設定 · 推理 token 預算",
+            "value": "4,096",
+            "url": null
+          },
+          {
+            "label": "推理設定 · 推理強度",
+            "value": "low · high",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "provider-1",
+        "title": "Host B",
+        "summary": "未提供",
+        "rows": [
+          {
+            "label": "端點模型 ID",
+            "value": "research-latest",
+            "url": null
+          },
+          {
+            "label": "Token 上限 · 上下文視窗",
+            "value": "50,000",
+            "url": null
+          },
+          {
+            "label": "定價",
+            "value": "未提供",
+            "url": null
+          },
+          {
+            "label": "已棄用",
+            "value": "否",
+            "url": null
+          }
+        ]
+      },
+      {
+        "id": "source",
+        "title": "資料來源",
+        "summary": null,
+        "rows": [
+          {
+            "label": "來源",
+            "value": "models.dev · MIT",
+            "url": "https://models.dev"
+          },
+          {
+            "label": "同步時間",
+            "value": "2026-10-19T00:00:00Z",
+            "url": null
+          },
+          {
+            "label": "",
+            "value": "模型使用條件以其授權為準；各供應商定價可能不同。",
+            "url": null
+          }
+        ]
       }
     ]
   }

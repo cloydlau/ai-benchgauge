@@ -17,6 +17,9 @@ public struct LeaderboardFetcher: Sendable {
 
     public func fetch(_ kind: LeaderboardKind, onCachedBoard: LeaderboardService.BoardUpdate? = nil) async throws -> Leaderboard {
         if let sharedEndpoint { return try await shared(kind, endpoint: sharedEndpoint, onCachedBoard: onCachedBoard) }
+        // Arena's licensed Parquet snapshots are acquired by the shared service.
+        // Never fall back to the website when shared storage is unconfigured.
+        if kind.sourcePrefix == "Arena" { throw URLError(.resourceUnavailable) }
         return try parse(kind, html: await html(kind.dataURL))
     }
 
@@ -40,6 +43,7 @@ public struct LeaderboardFetcher: Sendable {
         let path = endpoint.appendingPathComponent("v1/boards/\(kind.rawValue)")
         var request = URLRequest(url: path.appendingPathComponent("refresh"))
         request.httpMethod = "POST"
+        if kind.sourcePrefix == "Arena" { request.timeoutInterval = 30 }
         let response: SharedResponse
         do {
             response = try await sharedResponse(request)
@@ -82,6 +86,7 @@ public struct LeaderboardFetcher: Sendable {
     }
 
     private func contribute(_ kind: LeaderboardKind, path: URL, grant: Grant) async throws -> Leaderboard {
+        guard kind.sourcePrefix != "Arena" else { throw URLError(.badServerResponse) }
         guard grant.sourceURL == kind.dataURL,
               grant.token.utf8.count == 43,
               grant.expiresAt / 1000 > Date().timeIntervalSince1970 else { throw URLError(.badServerResponse) }
@@ -114,7 +119,7 @@ public struct LeaderboardFetcher: Sendable {
 
     private func sharedResponse(_ value: URLRequest) async throws -> SharedResponse {
         var request = value
-        request.timeoutInterval = 10
+        request.timeoutInterval = value.timeoutInterval == 30 ? 30 : 10
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         let (data, response) = try await session.data(for: request)
@@ -134,7 +139,7 @@ public struct LeaderboardFetcher: Sendable {
         return try decoder.decode(SharedResponse.self, from: data)
     }
 
-    private func parse(_ kind: LeaderboardKind, html: String) throws -> Leaderboard {
+    func parse(_ kind: LeaderboardKind, html: String) throws -> Leaderboard {
         switch kind {
         case .epochECI:
             return try EpochECIParser.parse(html)

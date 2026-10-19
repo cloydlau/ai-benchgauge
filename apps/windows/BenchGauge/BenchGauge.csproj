@@ -9,6 +9,8 @@
     <ImplicitUsings>disable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="../../../Sources/LeaderboardKit/Resources/EpochAttribution.json" LogicalName="EpochAttribution.json" />
+    <EmbeddedResource Include="../../../fc/arena-attribution.json" LogicalName="arena-attribution.json" />
     <Resource Include="../../../Sources/LeaderboardKit/Resources/Fonts/BenchGaugeCalligraphy.ttf" Link="Fonts/BenchGaugeCalligraphy.ttf" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
     <ProjectReference Include="../BenchGauge.Shared/BenchGauge.Shared.csproj" />
@@ -19,6 +21,7 @@
     <Content Include="../../../assets/brand/header-logo.png" Link="brand/header-logo.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../../assets/brand/header-logo-dark.png" Link="brand/header-logo-dark.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../Licenses/*" Link="Licenses/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../../fc/models-dev-license.txt" Link="Licenses/models.dev-MIT.txt" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../../LICENSE" Link="Licenses/AI-BenchGauge.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

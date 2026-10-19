@@ -1,0 +1,20 @@
+.model-page { min-height: 100vh; }
+.model-nav { display: flex; align-items: center; gap: 8rpx; background: var(--card); }
+.model-nav .tap { width: 88rpx; flex-shrink: 0; }
+.model-nav > text { font-weight: 600; }
+.model-main { max-width: 1000rpx; margin: 0 auto; padding: 32rpx 28rpx; }
+.model-heading { display: flex; align-items: flex-start; gap: 16rpx; margin-bottom: 28rpx; }
+.model-title { flex: 1; min-width: 0; font-size: 40rpx; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+.copy-name { width: 88rpx; flex-shrink: 0; color: var(--ink); }
+.detail-section { margin-bottom: 24rpx; padding: 28rpx; border-radius: 18rpx; background: var(--card); border: 1rpx solid var(--line); }
+.section-title { display: block; font-size: 28rpx; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+.provider-heading { display: flex; align-items: center; gap: 16rpx; width: 100%; text-align: left; }
+.provider-title { flex: 1; min-width: 0; }
+.provider-summary { display: block; margin-top: 8rpx; color: var(--muted); font-size: 22rpx; line-height: 1.5; overflow-wrap: anywhere; }
+.detail-row { margin-top: 22rpx; }
+.detail-label { display: block; color: var(--muted); font-size: 22rpx; margin-bottom: 6rpx; line-height: 1.5; overflow-wrap: anywhere; }
+.detail-value, .detail-link { display: block; font-size: 26rpx; line-height: 1.6; overflow-wrap: anywhere; white-space: pre-wrap; }
+.detail-link { color: var(--blue); text-align: left; }
+.detail-link van-icon { margin-left: 10rpx; }
+.missing { padding: 32rpx 0; color: var(--muted); line-height: 1.6; }
+.copy-glyph{position:relative;width:24px;height:24px;margin:auto}.copy-glyph>view{position:absolute;width:13px;height:16px;border:1.5px solid currentColor;border-radius:2px}.copy-glyph>view:first-child{left:3px;top:2px}.copy-glyph>view:last-child{left:8px;top:7px;background:var(--card)}

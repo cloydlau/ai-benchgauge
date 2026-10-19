@@ -28,6 +28,7 @@ $engineDirectory = Join-Path $root 'outputs/windows/app/engine'
 New-Item -ItemType Directory -Force $engineDirectory | Out-Null
 $engine = Join-Path $engineDirectory 'benchgauge-engine.exe'
 Copy-Item (Join-Path $binaryDirectory 'benchgauge-engine.exe') $engine -Force
+Copy-Item (Join-Path $root 'Sources/LeaderboardKit/Resources/ModelDetailLabels.json') $engineDirectory -Force
 # Copy only the engine's dependency closure, not the Swift compiler/toolchain.
 $swiftBin = Split-Path (Get-Command swift).Source -Parent
 $swiftRoot = (Get-Item $swiftBin).Parent.Parent.Parent.Parent.FullName

@@ -7,6 +7,7 @@ private final class PadAboutState: ObservableObject {
     // ObservableObject instead of @State, matching the rest of the pad UI.
     @Published var expandedGroups: Set<String> = []
     @Published var noticeExpanded = false
+    @Published var modelsDevNoticeExpanded = false
 }
 
 @MainActor
@@ -67,6 +68,19 @@ struct PadAboutView<Brand: View>: View {
                     sourceCard(source)
                 }
             }
+            VStack(alignment: .leading, spacing: 5) {
+                Link(EpochAttribution.credit, destination: URL(string: EpochAttribution.licenseURL)!)
+                Text(EpochAttribution.links).textSelection(.enabled)
+                Text(EpochAttribution.changes(language: language))
+            }.font(.system(size: 11)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true).padding(.horizontal, 4).padding(.top, 12)
+            Text(ArenaAttribution.fullText(language: language))
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                .padding(.horizontal, 4).padding(.top, 12)
+            Link(ModelsDevAttribution.credit(language: language), destination: ModelsDevAttribution.sourceURL)
+                .font(.system(size: 11)).padding(.horizontal, 4).padding(.top, 12)
+                .accessibilityIdentifier("about-source-models-dev")
             investment(copy.investment, months: content.schedule.months(at: Date()))
                 .padding(14).aboutCard(outline: outline).padding(.top, 14)
             notices(content.desktopDownloadURL).padding(.horizontal, 4).padding(.top, 17)
@@ -205,7 +219,24 @@ struct PadAboutView<Brand: View>: View {
                 HStack { noticeTitle; Spacer(); contribute(url) }
                 VStack(alignment: .leading, spacing: 0) { noticeTitle; contribute(url) }
             }
-            note(tr("Third-party software follows its original licenses. Tap to read the full copyright and license text.", "第三方软件分别遵循其原始许可证。点按查看完整版权与许可文本。"))
+            note(tr("Third-party software and data follow their original licenses. Tap to read the full copyright and license text.", "第三方软件及数据分别遵循其原始许可证。点按查看完整版权与许可文本。"))
+            Button {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) { about.modelsDevNoticeExpanded.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Text("models.dev").font(.system(size: 12))
+                    Text("MIT").font(.system(size: 10)).foregroundStyle(.secondary).padding(4)
+                        .background(inset, in: RoundedRectangle(cornerRadius: 3))
+                    Spacer(minLength: 0)
+                    Image(systemName: about.modelsDevNoticeExpanded ? "chevron.up" : "chevron.down").font(.system(size: 10)).foregroundStyle(.secondary)
+                }.foregroundStyle(.primary).frame(minHeight: 48).contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityIdentifier("models-dev-license")
+                .accessibilityValue(about.modelsDevNoticeExpanded ? tr("Expanded", "已展开") : tr("Collapsed", "已收起"))
+            if about.modelsDevNoticeExpanded {
+                Text(ModelsDevAttribution.licenseText).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+                    .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                    .padding(10).aboutCard(outline: outline).accessibilityIdentifier("models-dev-license-text")
+            }
             Button {
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) { about.noticeExpanded.toggle() }
             } label: {
@@ -225,7 +256,7 @@ struct PadAboutView<Brand: View>: View {
             }
         }
     }
-    private var noticeTitle: some View { Text(tr("Open-source notices", "开源声明")).font(.system(size: 14, weight: .semibold)) }
+    private var noticeTitle: some View { Text(tr("Third-party licenses", "第三方许可")).font(.system(size: 14, weight: .semibold)) }
     private func contribute(_ url: String) -> some View {
         Button { copyLink(url) } label: {
             HStack(spacing: 5) { Text(tr("Contribute code", "贡献代码")).underline(); Image(systemName: "link") }

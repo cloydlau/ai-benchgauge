@@ -33,6 +33,27 @@ function html(kind = 'arenaText', date = '2026-10-10T00:00:00Z', count = 22, mod
   return `<title>Artificial Analysis Intelligence Index v4.3.2</title><script>self.__next_f.push([1,${JSON.stringify(JSON.stringify({ entries: rows, voteCutoffISOString: date }))}])</script>`;
 }
 
+test('only a validated and committed source update schedules metadata work; reads, grants, replays and failed writes do not', async () => {
+  const store = new MemoryStore(), queued = [];
+  const models = { enrich: async board => board, queue: async board => {
+    assert.equal(await store.readBoard(board.kind), board); queued.push(board.kind);
+  } };
+  const service = new SharedLeaderboards(store, { models, clock: () => time });
+  await service.read('artificialAnalysis'); assert.deepEqual(queued, []);
+  const { grant } = await service.refresh('artificialAnalysis'); assert.deepEqual(queued, []);
+  await assert.rejects(service.contribute('artificialAnalysis', grant.token, '<html>Invalid</html>'), error => error.status === 422);
+  assert.deepEqual(queued, []);
+  await service.contribute('artificialAnalysis', grant.token, html('artificialAnalysis'));
+  assert.deepEqual(queued, ['artificialAnalysis']);
+  await service.refresh('artificialAnalysis'); await service.read('artificialAnalysis');
+  await assert.rejects(service.contribute('artificialAnalysis', grant.token, html('artificialAnalysis')), error => error.status === 403);
+  assert.deepEqual(queued, ['artificialAnalysis']);
+  const epochGrant = (await service.refresh('epochECI')).grant;
+  store.writeBoard = async () => { throw Error('Failed snapshot write'); };
+  await assert.rejects(service.contribute('epochECI', epochGrant.token, html('epochECI')), /Failed snapshot write/);
+  assert.deepEqual(queued, ['artificialAnalysis']);
+});
+
 test('one grant across 100 concurrent cold FC instances; denied requests do not extend cooldown', async () => {
   const store = new MemoryStore();
   let now = time;

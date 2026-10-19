@@ -35,14 +35,14 @@ public sealed class EngineClient : IDisposable
         finally { foreach (var entry in pending) if (pending.TryRemove(entry.Key, out var task)) task.TrySetException(new IOException("Data engine disconnected")); }
     }
     public async Task<EngineResponse> Request(string command, Preferences prefs, string? providerID = null, string? loginID = null, string? authorizationURL = null, string? pageText = null,
-        string? officialProvider = null, string? accountLabel = null, string? apiKey = null)
+        string? officialProvider = null, string? accountLabel = null, string? apiKey = null, string? modelID = null)
     {
         var id = Interlocked.Increment(ref nextId);
         var completion = new TaskCompletionSource<EngineResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
         pending[id] = completion;
         try
         {
-            var json = JsonSerializer.Serialize(new { id, command, prefs.Category, prefs.Grouping, prefs.Language, prefs.Sources, prefs.Countries, boards = prefs.VisibleBoardKinds(), prefs.QwenWebsiteConnected, providerID, loginID, authorizationURL, pageText, officialProvider, accountLabel, apiKey }, AppConfig.Json);
+            var json = JsonSerializer.Serialize(new { id, command, prefs.Category, prefs.Grouping, prefs.Language, prefs.Sources, prefs.Countries, boards = prefs.VisibleBoardKinds(), prefs.QwenWebsiteConnected, providerID, modelID, loginID, authorizationURL, pageText, officialProvider, accountLabel, apiKey }, AppConfig.Json);
             await writeLock.WaitAsync();
             try { await process.StandardInput.WriteLineAsync(json); await process.StandardInput.FlushAsync(); }
             finally { writeLock.Release(); }

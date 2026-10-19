@@ -13,6 +13,7 @@ struct Request: Decodable, Sendable {
     var countries: [String: String]?
     var language: String?
     var providerID: String?
+    var modelID: String?
     var loginID: String?
     var authorizationURL: String?
     var pageText: String?
@@ -36,6 +37,7 @@ struct Response: Encodable {
     var pollInterval: Double?
     var expiresIn: Double?
     var qwenQuotaRefreshNeeded: Bool?
+    var modelDetails: [ModelDetailSection]?
 }
 struct State: Encodable {
     var boards: [Board]
@@ -49,14 +51,19 @@ struct State: Encodable {
 }
 struct LayoutEntry: Encodable { var name: String; var planTitle: String?; var apiTitle: String? }
 struct Board: Encodable {
+    var modelMetadataSource: ModelMetadataSource? = nil
     var kind: String; var title: String; var url: String
     var updatedAt: String?; var error: String?; var entries: [Entry]
     var fetchedAt: String? = nil
+    var sourceNote: String? = nil
     var countryOptions: [CountryOption]? = nil
     var distribution: LeaderboardDistribution? = nil
 }
 struct CountryOption: Encodable { var value: String; var label: String }
 struct Entry: Encodable {
+    var modelMetadata: ModelMetadata? = nil
+    var detailID: String? = nil
+    var voteCount: Int? = nil
     var rank: Int; var name: String; var score: Double
     var organization: String?; var country: String?; var logo: String?
     var codingURL: String?; var apiURL: String?; var help: String?
@@ -152,11 +159,24 @@ actor Engine {
             boardTokens[kind] = nil
         }
         do {
-            guard allowsAccountAccess || ["state", "cachedBoards", "refreshBoards"].contains(request.command) else {
+            guard allowsAccountAccess || ["state", "cachedBoards", "refreshBoards", "modelDetails"].contains(request.command) else {
                 return Response(id: request.id, error: "Account access disabled for offline fixtures")
             }
             if let connected = request.qwenWebsiteConnected { qwenWebsiteConnected = connected }
             switch request.command {
+            case "modelDetails":
+                if let id = request.modelID {
+                    let model = snapshot.boards.values.lazy.flatMap(\.entries).compactMap(\.modelMetadata)
+                        .filter { $0.id == id }.max { $0.fetchedAt < $1.fetchedAt }
+                    let details = model.map { ModelDetails.sections(for: LeaderboardEntry(rank: 0, name: $0.name, score: 0, modelMetadata: $0), language: language) } ?? []
+                    return Response(id: request.id, modelDetails: details)
+                }
+                guard let text = request.pageText, text.utf8.count <= 1_048_576,
+                      let model = try? JSONDecoder().decode(ModelMetadata.self, from: Data(text.utf8)) else {
+                    return Response(id: request.id, modelDetails: [])
+                }
+                let entry = LeaderboardEntry(rank: 0, name: model.name, score: 0, modelMetadata: model)
+                return Response(id: request.id, modelDetails: ModelDetails.sections(for: entry, language: language))
             case "officialAccounts":
                 return Response(id: request.id, officialAccounts: try officialAccountStore.load().map {
                     OfficialAccountSummary(id: $0.id, providerID: $0.providerID, label: $0.label)
@@ -488,12 +508,13 @@ actor Engine {
             let models = (board?.entries ?? []).filter { sourceFilter.matches($0) && countryFilter.matches($0) }
             let standings = grouping == "company" ? CompanyLeaderboard.rank(models) : []
             let entries = grouping == "company" ? standings.map(\.entry) : models
-            return Board(kind: kind.rawValue, title: kind.sourcePrefix, url: kind.sourceURL.absoluteString,
+            return Board(modelMetadataSource: board?.modelMetadataSource, kind: kind.rawValue, title: kind.sourcePrefix, url: kind.sourceURL.absoluteString,
                          updatedAt: board?.sourceUpdatedAt.map { formatter.string(from: $0) },
                          error: errors[kind].map { _ in language.text("Refresh failed; showing saved data", "刷新失败，显示已保存的数据") },
                          entries: entries.map { entry in
                 let links = PurchaseLinkCatalog.links(forOrganization: entry.organization, modelName: entry.name)
-                return Entry(rank: entry.rank, name: entry.name, score: entry.score, organization: entry.organization,
+                return Entry(detailID: grouping == "company" ? nil : entry.modelMetadata?.id, voteCount: entry.voteCount,
+                             rank: entry.rank, name: entry.name, score: entry.score, organization: entry.organization,
                              country: OrganizationRegion.country(for: entry)?.rawValue,
                              logo: OrganizationLogoCatalog.resolvedKey(organization: entry.organization, modelName: entry.name),
                              codingURL: PurchaseLinkCatalog.preferredLink(from: links.codingPlan, language: language)?.url.absoluteString,
@@ -503,7 +524,7 @@ actor Engine {
                              brandColor: OrganizationLogoCatalog.rowBrandColorHex(for: entry),
                              logoPNG: OrganizationLogoCatalog.rowLogoPNGData(for: entry, isCompany: grouping == "company")?.base64EncodedString(),
                              initials: OrganizationLogoCatalog.initial(organization: entry.organization, modelName: entry.name))
-            }, fetchedAt: board.map { formatter.string(from: $0.fetchedAt) },
+            }, fetchedAt: board.map { formatter.string(from: $0.fetchedAt) }, sourceNote: board?.sourceNote,
                          countryOptions: LeaderboardPresentation.countryFilters(board).compactMap { filter in
                 switch filter {
                 case .all: return nil

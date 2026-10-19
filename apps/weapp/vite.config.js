@@ -22,6 +22,8 @@ notices.push({ name: 'Lucide Icons', licenseName: 'ISC', license: readFileSync(n
 notices.push({ name: 'flag-icons', license: readFileSync(new URL('assets/flags/LICENSE', import.meta.url), 'utf8') })
 notices.push({ name: 'Slide Xiaxing / BenchGauge Calligraphy', licenseName: 'SIL OFL 1.1',
   license: readFileSync(resolve(root, 'Sources/LeaderboardKit/Resources/Fonts/SlideFont-OFL.txt'), 'utf8') })
+notices.push({ name: 'models.dev', id: 'models-dev', licenseName: 'MIT',
+  license: readFileSync(resolve(root, 'fc/models-dev-license.txt'), 'utf8') })
 const coreRequire = createRequire(realpathSync(fileURLToPath(new URL('node_modules/@vue-mini/core/package.json', import.meta.url))))
 const reactivityPackage = coreRequire.resolve('@vue/reactivity/package.json')
 const sharedPackage = createRequire(reactivityPackage).resolve('@vue/shared/package.json')
@@ -33,7 +35,8 @@ for (const [name, manifest] of [['Vue Reactivity', reactivityPackage], ['Vue Sha
 // copyrights, permission terms and disclaimers remain byte-for-byte intact.
 const publishedNotices = notices.map((item, index) => {
   const number = String(index + 1).padStart(2, '0')
-  return { id: `third-party-${number}`, number, licenseName: item.licenseName || 'MIT', license: item.license }
+  return { id: item.id || `third-party-${number}`, number, name: item.id === 'models-dev' ? item.name : undefined,
+    licenseName: item.licenseName || 'MIT', license: item.license }
 })
 
 export default defineConfig({
