@@ -49,7 +49,7 @@ struct XAIRefreshOwnershipTests {
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let transport = OwnershipTransport()
         let client = AccountQuotaClient(transport: transport, authFileURL: url, xaiRefreshAllowed: { false })
-        #expect(try await client.keepAliveXAI() == .retry)
+        #expect(try await client.keepAliveXAI() == .deferred)
         let previous = AccountQuotaChip(id: target.id, shortName: "xAI", websiteURL: nil,
             kind: .xaiOAuth, isCurrent: true, status: .windows([
                 ParsedQuotaWindow(name: "weekly_limit", utilization: 25, resetsAt: nil)
@@ -68,13 +68,41 @@ struct XAIRefreshOwnershipTests {
         let permission = RefreshPermission(false)
         let transport = OwnershipTransport()
         let client = AccountQuotaClient(transport: transport, authFileURL: url, xaiRefreshAllowed: { permission.read() })
-        #expect(try await client.keepAliveXAI() == .retry)
+        #expect(try await client.keepAliveXAI() == .deferred)
         permission.set(true)
         #expect(try await client.keepAliveXAI() == .renewed)
+        #expect(XAIOAuthKeepAlivePolicy.retryInterval(after: .renewed) == 6 * 3600)
         let login = try #require(XaiAuthFile.parse(Data(contentsOf: url)).flatMap(XaiAuthFile.selectedAccount))
         #expect(login.refreshToken == "rotated")
         #expect(!login.requiresReauth)
         #expect(await transport.requests.count == 2)
+    }
+
+    @Test func deferralWithoutPreviousQuotaIsNeutralAndNeverAClaimedNetworkFailure() async throws {
+        let url = try fixture()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let transport = OwnershipTransport()
+        let client = AccountQuotaClient(transport: transport, authFileURL: url, xaiRefreshAllowed: { false })
+        let chip = try #require(await client.refresh(targets: [target], previous: []).first)
+        #expect(chip.status == .note(text: AccountQuotaMessage.xaiRefreshDeferred, help: AccountQuotaMessage.xaiRefreshDeferredHelp))
+        #expect(AccountQuotaFormatting.runs(for: chip, now: Date()).map(\.tone) == [.secondary])
+        #expect(!AccountQuotaFormatting.requiresXAISignIn(chip))
+        #expect(!AccountQuotaFormatting.help(for: chip, now: Date()).contains(AccountQuotaMessage.network))
+        #expect(await transport.requests.isEmpty)
+        #expect(try Data(contentsOf: url) == original)
+        #expect(XAIOAuthKeepAlivePolicy.retryInterval(after: .deferred) == 60)
+        #expect(XAIOAuthKeepAlivePolicy.retryInterval(after: .retry) == 3600)
+        #expect(XAIOAuthKeepAlivePolicy.retryInterval(after: .loginRequired) == 3600)
+    }
+
+    @Test func ownershipChangesWakeTheLoginWatcherWithoutEditingItsFile() throws {
+        let url = try fixture()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let ownedBySwitch = XAISharedLoginRevision(url: url, refreshAllowed: false)
+        let released = XAISharedLoginRevision(url: url, refreshAllowed: true)
+        #expect(ownedBySwitch != released)
+        #expect(released == XAISharedLoginRevision(url: url, refreshAllowed: true))
+        #expect(try Data(contentsOf: url) == original)
     }
 
     @Test func switchStartingDuringDiscoveryPreventsTokenExchange() async throws {
@@ -83,7 +111,7 @@ struct XAIRefreshOwnershipTests {
         let permission = RefreshPermission(true)
         let transport = OwnershipTransport(onDiscovery: { permission.set(false) })
         let client = AccountQuotaClient(transport: transport, authFileURL: url, xaiRefreshAllowed: { permission.read() })
-        #expect(try await client.keepAliveXAI() == .retry)
+        #expect(try await client.keepAliveXAI() == .deferred)
         #expect(await transport.requests.map(\.url) == [XaiEndpointValidator.discoveryURL])
         #expect(try Data(contentsOf: url) == original)
     }
@@ -130,7 +158,7 @@ struct XAIRefreshOwnershipTests {
         let running = CCSwitchProcess.isRunning()
         let transport = OwnershipTransport()
         let client = AccountQuotaClient(transport: transport, authFileURL: url)
-        #expect(try await client.keepAliveXAI() == (running ? .retry : .renewed))
+        #expect(try await client.keepAliveXAI() == (running ? .deferred : .renewed))
         #expect(await transport.requests.count == (running ? 0 : 2))
     }
 }

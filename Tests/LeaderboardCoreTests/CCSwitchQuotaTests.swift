@@ -490,7 +490,7 @@ struct AccountQuotaFormattingTests {
     func testMenuBarKeepsCurrentModelWhenQuotaIsUnavailable() {
         let statuses: [(AccountQuotaChip.Status, String)] = [
             (.pending, AccountQuotaMessage.querying),
-            (.message(AccountQuotaMessage.reauthRequired), AccountQuotaMessage.reauthRequired),
+            (.message(AccountQuotaMessage.reauthRequired), AccountQuotaMessage.openAIReauthorize),
             (.message(AccountQuotaMessage.queryFailed), AccountQuotaMessage.queryFailed),
             (.message(AccountQuotaMessage.network), AccountQuotaMessage.network),
             (.note(text: AccountQuotaMessage.notConfigured, help: "fixture"), AccountQuotaMessage.notConfigured),

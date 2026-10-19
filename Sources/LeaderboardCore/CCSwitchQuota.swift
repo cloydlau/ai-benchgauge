@@ -106,6 +106,8 @@ public enum AccountQuotaMessage {
     public static let glmConfigurationHelp = "点击打开 CC Switch，检查 GLM Key 与 Coding Plan 套餐账号；修改后重新打开本面板刷新余量。"
     public static let glmRetryHelp = "点击重新读取 GLM 配置并重试余量查询。"
     public static let reauthRequired = "登录失效"
+    public static let openAIReauthorize = "需重新授权"
+    public static let openAIReauthorizeHelp = "BenchGauge 保存的 OpenAI 授权已失效，点击重新授权；此授权与 ChatGPT／Codex 当前会话独立。"
     public static let notConfigured = "未配置"
     public static let notConfiguredHelp = "没有可用的 API Key 或供应商令牌，未发起查询"
     public static let notLoggedIn = "未登录"
@@ -113,6 +115,8 @@ public enum AccountQuotaMessage {
     /// Browser device authorization updates the shared CC Switch login.
     public static let xaiSignInHelp = "点击在浏览器中登录 Grok，授权成功后自动刷新余量"
     public static let xaiSubscriptionHelp = "点击在应用内连接 xAI 套餐；连接后自动查询日期，并核对额度账号"
+    public static let xaiRefreshDeferred = "退出 CC Switch 后同步"
+    public static let xaiRefreshDeferredHelp = "CC Switch 正在运行，暂缓续期；退出后自动重试。"
     public static let network = "网络错误"
     public static let officialSummary = "查询中"
     public static let officialHelp = "正在查询官方用量"
@@ -283,7 +287,9 @@ public enum AccountQuotaFormatting {
             switch current.status {
             case .pending: quota = AccountQuotaMessage.querying
             case let .note(text, _), let .message(text):
-                quota = text.isEmpty ? AccountQuotaMessage.queryFailed : text
+                quota = current.kind == .officialNote && text == AccountQuotaMessage.reauthRequired
+                    ? AccountQuotaMessage.openAIReauthorize
+                    : (text.isEmpty ? AccountQuotaMessage.queryFailed : text)
             default: quota = AccountQuotaMessage.queryFailed
             }
         }
@@ -758,7 +764,8 @@ public enum AccountQuotaFormatting {
         case let .note(text, _):
             return [QuotaTextRun(text: text, tone: .secondary)]
         case let .message(text):
-            return [QuotaTextRun(text: text, tone: .orange)]
+            return [QuotaTextRun(text: chip.kind == .officialNote && text == AccountQuotaMessage.reauthRequired
+                ? AccountQuotaMessage.openAIReauthorize : text, tone: .orange)]
         case let .windows(windows):
             let runs = windowRuns(windows, kind: chip.kind, now: now)
             if runs.isEmpty {
@@ -791,6 +798,9 @@ public enum AccountQuotaFormatting {
         }
         if chip.isCurrent {
             lines.append("当前供应商")
+        }
+        if chip.kind == .officialNote, chip.status == .message(AccountQuotaMessage.reauthRequired) {
+            lines.append(AccountQuotaMessage.openAIReauthorizeHelp)
         }
         if case let .note(_, help) = chip.status {
             lines.append(help)

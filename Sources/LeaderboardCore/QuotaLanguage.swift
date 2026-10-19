@@ -32,6 +32,10 @@ public extension AppLanguage {
         let exact: [String: String] = [
             "查询中": "Checking", "查询失败": "Check failed",
             "登录失效": "Login expired", "未配置": "Not configured",
+            AccountQuotaMessage.openAIReauthorize: "Reauthorize",
+            AccountQuotaMessage.openAIReauthorizeHelp: "The OpenAI authorization saved by BenchGauge is no longer valid. Click to authorize again; it is separate from your current ChatGPT/Codex session.",
+            AccountQuotaMessage.xaiRefreshDeferred: "Quit CC Switch to sync",
+            AccountQuotaMessage.xaiRefreshDeferredHelp: "CC Switch is running, so renewal is paused. It retries automatically after CC Switch exits.",
             "未登录": "Not signed in", "网络错误": "Network error",
             "无可用余额": "No balance", "未连接": "Connect",
             AccountQuotaMessage.glmNoCodingPlan: "Not subscribed",

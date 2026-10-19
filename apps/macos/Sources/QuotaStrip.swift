@@ -173,6 +173,9 @@ private struct QuotaChipView: View {
 
     private var helpText: String {
         if requiresOpenAISignIn {
+            if !isConnectingOpenAI {
+                return language.quotaText(AccountQuotaMessage.openAIReauthorizeHelp)
+            }
             return language.text(
                 "Click to authorize OpenAI in your browser. Your quota refreshes automatically when sign-in finishes.",
                 "点击在浏览器中授权 OpenAI；登录成功后，余量会自动刷新。"
