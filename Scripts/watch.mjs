@@ -23,7 +23,7 @@ import { ci } from './calmmit.mjs'
 import { startWeappUploadWatch } from './weapp-deploy.mjs'
 
 const { workflowStatus } = await ci.load('workflow-status')
-const reportStatus = (state, message) => console.log(`[watch] ${workflowStatus(state, message)}`)
+const reportStatus = (state, message) => console.log(`\n[watch] ${workflowStatus(state, message)}`)
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const appPath = join(root, 'outputs', 'AI-BenchGauge.app')
