@@ -9,6 +9,7 @@ import { nodeExecutable } from './node-executable.mjs'
 
 const { readUploadConfig, createUploadConfigMonitor } = await ci.load('deployment-credentials')
 const { createWatchSession } = await ci.load('deployment-watch')
+const { checkPrivacyGuide } = await ci.load('privacy-guide')
 const root = ci.root
 const receiptPath = join(root, 'apps/weapp/.last-publish')
 const log = message => console.log(`[weapp-upload] ${message}`)
@@ -26,7 +27,7 @@ export const sourcePaths = [
   'Sources/LeaderboardKit/SharedLeaderboardConfiguration.swift', 'config/app.json',
   'Sources/LeaderboardKit/Resources/Fonts/SlideFont-OFL.txt',
   'LICENSE', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml',
-  'Scripts/weapp-deploy.mjs',
+  'Scripts/weapp-deploy.mjs', 'Scripts/sync-privacy-guide.mjs', 'privacy-guide.json',
 ]
 
 export function inputSnapshot(repo = root, paths = sourcePaths) {
@@ -94,6 +95,7 @@ async function upload() {
     const signature = sourceSignature(files)
     stageInputs(root, stage, files)
     if (sourceSignature(inputSnapshot(stage)) !== signature) throw new Error('复制期间源码发生变化，等待下一轮上传')
+    checkPrivacyGuide({ root: stage, write: false })
     log('开始小程序测试与独立构建（不会改写开发中的 dist）')
     // npm runs the exact package scripts against the existing locked binaries;
     // pnpm's pre-run dependency sync cannot operate on this isolated symlink tree.
