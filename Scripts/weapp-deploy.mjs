@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { ci } from './calmmit.mjs'
 import { acquireCommitLock } from './commit-lock.mjs'
 import { nodeExecutable } from './node-executable.mjs'
+import { createAutoVersion } from '../apps/weapp/scripts/version.mjs'
 
 const { readUploadConfig, createUploadConfigMonitor } = await ci.load('deployment-credentials')
 const { createWatchSession } = await ci.load('deployment-watch')
@@ -97,12 +98,15 @@ async function upload() {
     if (sourceSignature(inputSnapshot(stage)) !== signature) throw new Error('复制期间源码发生变化，等待下一轮上传')
     checkPrivacyGuide({ root: stage, write: false })
     log('开始小程序测试与独立构建（不会改写开发中的 dist）')
+    // Freeze once before building so the displayed and uploaded versions match,
+    // including builds that finish after Shanghai midnight.
+    const version = process.env.MP_VERSION || createAutoVersion()
     // npm runs the exact package scripts against the existing locked binaries;
     // pnpm's pre-run dependency sync cannot operate on this isolated symlink tree.
     const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
     await run(npm, ['--prefix', join(stage, 'apps/weapp'), 'test'])
     await run(npm, ['--prefix', join(stage, 'apps/weapp'), 'run', 'build'], {
-      env: { ...process.env, BENCHGAUGE_INVESTMENT_ROOT: root },
+      env: { ...process.env, MP_VERSION: version, BENCHGAUGE_INVESTMENT_ROOT: root },
     })
     if (sourceSignature(inputSnapshot()) !== signature) throw new Error('构建期间源码发生变化，等待下一轮上传')
     const current = readUploadConfig(root)
@@ -114,7 +118,6 @@ async function upload() {
     }
     // Dependency installation may take minutes. Revalidate immediately before uploading.
     if (sourceSignature(inputSnapshot()) !== signature || readUploadConfig(root).signature !== config.signature) throw new Error('源码或上传配置已更新，等待下一轮上传')
-    const version = process.env.MP_VERSION || new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()).replaceAll('-', '')
     await run(binary, [join(root, 'apps/weapp/scripts/upload.mjs'), join(stage, 'apps/weapp'), config.appid, config.privateKeyPath, version])
     const receipt = { schemaVersion: 1, status: 'success', publishedAt: Date.now(), version, sourceSignature: signature }
     writeFileSync(`${receiptPath}.tmp`, `${JSON.stringify(receipt, null, 2)}\n`)
