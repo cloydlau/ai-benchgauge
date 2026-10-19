@@ -6,7 +6,7 @@ import { syncBuiltinESMExports } from 'node:module'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
-import { claimWorker, configuration, deploymentPaths, deploymentTick, mobileCheck, readJSON, writeJSON, bundleID, availableDevice } from './ios-deploy.mjs'
+import { availableConfiguration, claimWorker, configuration, deploymentPaths, deploymentTick, mobileCheck, readJSON, writeJSON, bundleID, availableDevice } from './ios-deploy.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 const preload = String.raw`
@@ -169,6 +169,8 @@ test('configuration and filesystem failures remain actionable', t => {
     writeJSON(f.paths.config, value)
     assert.throws(() => configuration(f.paths), /device|team|Xcode/)
   }
+  writeJSON(f.paths.config, {})
+  assert.throws(() => availableConfiguration(f.paths, { warn() {} }), /device/)
   writeJSON(f.paths.config, { enabled: false }); assert.equal(configuration(f.paths), null)
   fs.writeFileSync(f.paths.config, 'invalid'); assert.throws(() => readJSON(f.paths.config), SyntaxError)
   const originalMkdir = fs.mkdirSync
@@ -176,6 +178,18 @@ test('configuration and filesystem failures remain actionable', t => {
   syncBuiltinESMExports(); t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports() })
   assert.throws(() => claimWorker(f.paths.lock), /fixture denied/)
   assert.equal(availableDevice({ result: { devices: [{ identifier: 'phone' }] } }, 'phone'), undefined)
+})
+
+test('missing full Xcode is recorded as a warning and skips iOS CLI work', t => {
+  const f = fixture(t), warnings = []
+  writeJSON(f.paths.config, { device: 'phone', team: 'ABCDEFGHIJ', developerDir: '/definitely-missing-fixture' })
+  assert.equal(availableConfiguration(f.paths, { warn: message => warnings.push(message) }), null)
+  assert.match(warnings[0], /已跳过本机 iPhone 更新；其他端继续/)
+  assert.equal(readJSON(f.paths.status).phase, 'toolchain-unavailable')
+  const result = f.invoke('checked')
+  assert.equal(result.status, 0)
+  assert.match(result.stderr, /警告.*已跳过本机 iPhone 更新/)
+  assert.deepEqual(f.calls(), [])
 })
 
 

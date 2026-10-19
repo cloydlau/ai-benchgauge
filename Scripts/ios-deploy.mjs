@@ -33,8 +33,28 @@ export function configuration(paths) {
   if (!/^[a-zA-Z0-9-]+$/.test(config.device || '')) throw new Error('本机 iOS 配置需要明确的 device 标识')
   if (!/^[A-Z0-9]{10}$/.test(config.team || '')) throw new Error('本机 iOS 配置需要明确的 Apple Developer team 标识')
   const developerDir = config.developerDir || '/Applications/Xcode.app/Contents/Developer'
-  if (!existsSync(resolve(developerDir, 'usr/bin/xcodebuild'))) throw new Error('本机 iOS 配置没有指向完整 Xcode')
+  if (!existsSync(resolve(developerDir, 'usr/bin/xcodebuild'))) {
+    const error = new Error('本机 iOS 配置没有指向完整 Xcode')
+    error.code = 'XCODE_UNAVAILABLE'
+    throw error
+  }
   return { ...config, developerDir, launchAfterInstall: config.launchAfterInstall !== false }
+}
+
+export function availableConfiguration(paths, { warn = console.warn } = {}) {
+  try { return configuration(paths) }
+  catch (error) {
+    if (error.code !== 'XCODE_UNAVAILABLE') throw error
+    const config = readJSON(paths.config)
+    const message = '未安装或未选择完整 Xcode，已跳过本机 iPhone 更新；其他端继续'
+    const previous = readJSON(paths.status)
+    if (previous?.phase !== 'toolchain-unavailable' || previous?.device !== config?.device || previous?.message !== message) {
+      writeJSON(paths.status, { phase: 'toolchain-unavailable', device: config?.device, message,
+        error: error.message, updatedAt: new Date().toISOString() })
+    }
+    warn(`[ios-deploy] 警告：${message}`)
+    return null
+  }
 }
 export function claimWorker(lock, pid = process.pid, alive = workerAlive) {
   try { mkdirSync(lock) }
@@ -223,7 +243,7 @@ async function watch(paths) {
   }
   try {
     while (!controller.signal.aborted) {
-      const config = configuration(paths)
+      const config = availableConfiguration(paths)
       if (!config) break
       let outcome = 'pending'
       try { outcome = await deploymentTick({ paths, config, fingerprint: sourceFingerprint, execute: runCommand, record, signal: controller.signal }) }
@@ -245,8 +265,12 @@ async function main() {
     if (owner && workerAlive(owner.pid)) process.kill(owner.pid, 'SIGTERM')
     console.log('[ios-deploy] 已关闭本机 iPhone 自动更新'); return
   }
-  const config = configuration(paths)
-  if (!config) { console.log('[ios-deploy] 本机未启用 iPhone 自动更新，跳过'); return }
+  const config = availableConfiguration(paths)
+  if (!config) {
+    const raw = readJSON(paths.config)
+    if (!raw || raw.enabled === false) console.log('[ios-deploy] 本机未启用 iPhone 自动更新，跳过')
+    return
+  }
   if (command === 'prepare') { await prepareProject(paths, config); return }
   if (command === 'checked') {
     const { testInputSignature } = await import('./test.mjs')
