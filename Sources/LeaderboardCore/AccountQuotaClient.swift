@@ -32,6 +32,7 @@ public protocol AccountQuotaTransport: Sendable {
 public enum XAIOAuthKeepAliveOutcome: Equatable, Sendable {
     case renewed
     case retry
+    case deferred
     case loginRequired
 }
 
@@ -42,6 +43,15 @@ public enum XAIOAuthKeepAlivePolicy {
     /// A failed renewal gets a short backoff without making successful logins
     /// refresh hourly.
     public static let failureRetryInterval: TimeInterval = 60 * 60
+    public static let deferredRetryInterval: TimeInterval = 60
+
+    public static func retryInterval(after outcome: XAIOAuthKeepAliveOutcome) -> TimeInterval {
+        switch outcome {
+        case .renewed: successInterval
+        case .deferred: deferredRetryInterval
+        case .retry, .loginRequired: failureRetryInterval
+        }
+    }
 }
 
 public struct XAIOAuthKeepAliveSchedule: Codable, Equatable, Sendable {
@@ -354,6 +364,8 @@ public actor AccountQuotaClient {
             return .renewed
         case let .failure(reason):
             switch reason {
+            case .refreshDeferred:
+                return .deferred
             case .failed, .network:
                 return .retry
             case .reauth, .notLoggedIn, .notConfigured:
@@ -825,6 +837,8 @@ public actor AccountQuotaClient {
             status = .message(AccountQuotaMessage.reauthRequired)
         case .network:
             status = .message(AccountQuotaMessage.network)
+        case .refreshDeferred:
+            status = .note(text: AccountQuotaMessage.xaiRefreshDeferred, help: AccountQuotaMessage.xaiRefreshDeferredHelp)
         case .notConfigured:
             status = .note(
                 text: AccountQuotaMessage.notConfigured,
@@ -851,10 +865,13 @@ public actor AccountQuotaClient {
         _ chip: AccountQuotaChip,
         previous: [AccountQuotaChip]
     ) -> AccountQuotaChip {
-        guard case .message(let text) = chip.status, text == AccountQuotaMessage.network,
-              let prior = previous.first(where: { $0.id == chip.id }) else {
-            return chip
+        let retainsPrevious: Bool
+        switch chip.status {
+        case .message(AccountQuotaMessage.network): retainsPrevious = true
+        case .note(AccountQuotaMessage.xaiRefreshDeferred, _): retainsPrevious = true
+        default: retainsPrevious = false
         }
+        guard retainsPrevious, let prior = previous.first(where: { $0.id == chip.id }) else { return chip }
         switch prior.status {
         case .windows, .balances, .qwenPlan, .qwenWebsite:
             return AccountQuotaChip(
@@ -883,6 +900,7 @@ enum QuotaFailure: Sendable {
     case failed
     case reauth
     case network
+    case refreshDeferred
     case notConfigured
     case notLoggedIn
 }
@@ -1038,9 +1056,8 @@ actor XAIAccessTokens {
         authFileURL: URL,
         now: Date
     ) async throws -> XAITokenResult {
-        // A temporary deferral uses the existing transient-failure path: keep
-        // last-good quota data stale and retry, never prompt for a new login.
-        guard refreshAllowed() else { return .failure(.network) }
+        // Shared-token ownership is a temporary local state, not a network failure.
+        guard refreshAllowed() else { return .failure(.refreshDeferred) }
         if let inFlightRefresh {
             let result = try await inFlightRefresh.task.value
             if inFlightRefresh.account == account, inFlightRefresh.url == authFileURL { return result }
@@ -1076,8 +1093,8 @@ actor XAIAccessTokens {
 
         // Discovery suspends this actor. CC Switch may have started or changed
         // the file in the meantime; do not send the earlier token snapshot.
-        guard refreshAllowed(),
-              case let .account(current) = Self.readLogin(at: authFileURL), current == account else {
+        guard refreshAllowed() else { return .failure(.refreshDeferred) }
+        guard case let .account(current) = Self.readLogin(at: authFileURL), current == account else {
             return .failure(.network)
         }
         var request = URLRequest(url: endpoint, timeoutInterval: 15)

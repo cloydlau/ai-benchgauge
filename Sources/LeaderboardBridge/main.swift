@@ -422,11 +422,7 @@ actor Engine {
             outcome = .retry
         }
         if Task.isCancelled { return }
-        let next = Date().addingTimeInterval(
-            outcome == .renewed
-                ? XAIOAuthKeepAlivePolicy.successInterval
-                : XAIOAuthKeepAlivePolicy.failureRetryInterval
-        )
+        let next = Date().addingTimeInterval(XAIOAuthKeepAlivePolicy.retryInterval(after: outcome))
         nextXAIKeepAliveAt = next
         xaiKeepAliveScheduleStore.save(accountID: accountID, nextAt: next)
     }

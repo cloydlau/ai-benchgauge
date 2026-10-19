@@ -3,7 +3,7 @@ import CoreGraphics
 import Foundation
 import LeaderboardCore
 
-private struct CCSwitchQuotaLoad: Sendable {
+struct CCSwitchQuotaLoad: Sendable {
     var result: CCSwitchProviderLoadResult
     var isInstalled: Bool
     var currentProviderID: String?
@@ -13,7 +13,7 @@ private struct CCSwitchQuotaLoad: Sendable {
     var shouldAskClaudeKeychainConsent: Bool
 }
 
-private enum InactiveQuotaRefreshScope {
+enum InactiveQuotaRefreshScope {
     case all
     case xaiOAuthOnly
 }
@@ -115,16 +115,22 @@ final class AppState: ObservableObject {
     private let openAIConnection = OpenAIAccountConnection()
     private var quotaTargetsByID: [String: CCSwitchQuotaTarget] = [:]
     private var quotaClient: AccountQuotaClient!
-    private let quotaNotifier = QuotaNotifier()
+    private let quotaProviderLoad: (@Sendable () async -> CCSwitchQuotaLoad)?
+    private lazy var quotaNotifier = QuotaNotifier()
     private let xaiKeepAliveScheduleStore = XAIOAuthKeepAliveScheduleStore()
     private var updateTimer: Timer?
-    private var refreshTask: Task<Void, Never>?
+    private var boardRefreshTasks: [LeaderboardKind: Task<Void, Never>] = [:]
+    private var boardRefreshTokens: [LeaderboardKind: UUID] = [:]
     private var quotaTask: Task<Void, Never>?
+    private var xaiQuotaTask: Task<Void, Never>?
+    private var xaiQuotaRevision: XAISharedLoginRevision?
+    private var xaiQuotaTargetIDs: Set<String> = []
+    private var xaiQuotaGeneration = 0
     private var sharedXAILoginTimer: Timer?
     private var sharedXAILoginRevision: XAISharedLoginRevision?
     private var xaiKeepAliveTask: Task<Void, Never>?
     private var refreshPending = false
-    private var lastLeaderboardAttemptAtByCategory: [LeaderboardCategory: Date] = [:]
+    private var lastLeaderboardAttemptAtByKind: [LeaderboardKind: Date] = [:]
     private var lastQuotaAttemptAt: Date?
     private var lastQuotaAttemptAtByID: [String: Date] = [:]
     private var xaiKeepAliveAccountID: String?
@@ -142,17 +148,22 @@ final class AppState: ObservableObject {
     init(
         cache: LeaderboardCache,
         defaults: UserDefaults = .standard,
-        configuration: AppConfiguration = .load(from: Bundle.main.url(forResource: "app", withExtension: "json"))
+        fetcher: LeaderboardFetcher = LeaderboardFetcher(),
+        configuration: AppConfiguration = .load(from: Bundle.main.url(forResource: "app", withExtension: "json")),
+        quotaClient: AccountQuotaClient? = nil,
+        quotaProviderLoad: (@Sendable () async -> CCSwitchQuotaLoad)? = nil
     ) {
         self.cache = cache
         self.defaults = defaults
-        generalComparison = defaults.string(forKey: "generalComparison").flatMap(LeaderboardKind.init(rawValue:)) == .epochECI ? .epochECI : .arenaText
+        self.fetcher = fetcher
+        boardSelections = defaults.dictionary(forKey: "desktopBoardSelections") as? [String: [String]] ?? [:]
         self.configuration = configuration
+        self.quotaProviderLoad = quotaProviderLoad
         showsCodexTaskStatus = CodexTaskStatusPreference.load(from: defaults)
         claudeKeychainConsent = ClaudeKeychainConsentPreference.load(from: defaults)
         currentCodexModelConfiguration = CCSwitchProviderStore.currentCodexModelConfiguration()
         panelMode = PanelModePreference.load(from: defaults)
-        quotaClient = AccountQuotaClient(
+        self.quotaClient = quotaClient ?? AccountQuotaClient(
             qwenQuotaSource: QwenPreferredQuotaSource(website: qwenWebsiteSource),
             officialQuotaSource: openAIConnection.source
         )
@@ -165,6 +176,7 @@ final class AppState: ObservableObject {
             guard let self, !self.isQuitting else { return }
             self.refreshQuotas(minimumInterval: 0)
             await self.quotaTask?.value
+            await self.xaiQuotaTask?.value
         }
         xaiWebsiteSource.onUpdated = { [weak self] in self?.refreshQuotas(minimumInterval: 0) }
         qwenWebsiteSource.onUpdated = { [weak self] status in
@@ -345,11 +357,13 @@ final class AppState: ObservableObject {
         updateTimer = nil
         sharedXAILoginTimer?.invalidate()
         sharedXAILoginTimer = nil
-        refreshTask?.cancel()
-        refreshTask = nil
+        for task in boardRefreshTasks.values { task.cancel() }
+        boardRefreshTasks.removeAll()
+        boardRefreshTokens.removeAll()
         quotaTask?.cancel()
         quotaTask = nil
         quotaGeneration += 1
+        cancelXAIQuotaRefresh()
         xaiKeepAliveTask?.cancel()
         xaiKeepAliveTask = nil
         return true
@@ -436,9 +450,8 @@ final class AppState: ObservableObject {
         let revision = XAISharedLoginRevision(url: CCSwitchProviderStore.resolveInstall().xaiAuthURL)
         guard revision != sharedXAILoginRevision else { return }
         sharedXAILoginRevision = revision
-        guard let target = quotaTargetsByID.values.first(where: { $0.kind == .xaiOAuth }) else { return }
-        lastQuotaAttemptAtByID[target.id] = nil
-        refreshQuotas(minimumInterval: 0, requestedProviderID: target.id)
+        let targets = quotaTargetsByID.values.filter { $0.kind == .xaiOAuth }
+        refreshXAIQuotas(targets: targets, authFileURL: URL(fileURLWithPath: revision.path))
     }
 
     private func tick() {
@@ -553,7 +566,7 @@ final class AppState: ObservableObject {
     /// for OAuth keepalive while leaving other inactive providers untouched.
     /// Credential material stays inside the client request. Does not read a
     /// Codex install.
-    private func refreshQuotas(
+    func refreshQuotas(
         minimumInterval: TimeInterval,
         inactiveMinimumInterval: TimeInterval = 0,
         inactiveScope: InactiveQuotaRefreshScope = .all,
@@ -598,7 +611,9 @@ final class AppState: ObservableObject {
         quotaTask = Task { [weak self] in
             guard let self else { return }
             defer { if generation == self.quotaGeneration { self.quotaTask = nil } }
+            let quotaProviderLoad = self.quotaProviderLoad
             let loaded = await Task.detached(priority: .utility) {
+                if let quotaProviderLoad { return await quotaProviderLoad() }
                 let install = CCSwitchProviderStore.resolveInstall()
                 var result = CCSwitchProviderStore.loadQuotaProviders(databaseURL: install.databaseURL)
                 var ccSwitchTargets: [CCSwitchQuotaTarget] = []
@@ -705,29 +720,39 @@ final class AppState: ObservableObject {
                     }
                     return now.timeIntervalSince(lastAttempt) >= inactiveMinimumInterval
                 }
-                guard !targetsToRefresh.isEmpty else { return }
                 for target in targetsToRefresh {
                     self.lastQuotaAttemptAtByID[target.id] = now
                 }
+                // xAI must finish independently: another provider can be slow,
+                // and the next background pass may cancel this general task.
+                let xaiTargets = targets.filter { target in
+                    target.kind == .xaiOAuth && (targetsToRefresh.contains { $0.id == target.id }
+                        || self.quotaChips.contains { $0.id == target.id && $0.status == .pending })
+                }
+                self.refreshXAIQuotas(targets: xaiTargets, authFileURL: loaded.xaiAuthURL)
+                let otherTargets = targetsToRefresh.filter { $0.kind != .xaiOAuth }
+                guard !otherTargets.isEmpty else { return }
                 let client = self.quotaClient!
                 do {
                     let chips = try await client.refresh(
-                        targets: targetsToRefresh,
+                        targets: otherTargets,
                         previous: previous,
                         authFileURL: loaded.xaiAuthURL
                     )
                     guard !Task.isCancelled, !self.isQuitting, generation == self.quotaGeneration else { return }
                     let refreshedByID = Dictionary(uniqueKeysWithValues: chips.map { ($0.id, $0) })
                     let refreshedAt = Date()
-                    self.quotaChips = previous.map { refreshedByID[$0.id] ?? $0 }
+                    self.quotaChips = self.quotaChips.map { refreshedByID[$0.id] ?? $0 }
                     self.quotaUpdatedAt = QuotaFreshness.updatedAt(afterRefreshing: chips, previous: self.quotaUpdatedAt, now: refreshedAt)
-                    self.quotaNotifier.consider(chips: chips, now: refreshedAt, language: self.selectedLanguage)
+                    if self.configuration.previewCCSwitchState == nil {
+                        self.quotaNotifier.consider(chips: chips, now: refreshedAt, language: self.selectedLanguage)
+                    }
                 } catch is CancellationError {
                     return
                 } catch {
                     guard !Task.isCancelled, !self.isQuitting, generation == self.quotaGeneration else { return }
                     self.quotaChips = self.quotaChips.map { chip in
-                        guard chip.status == .pending else { return chip }
+                        guard chip.status == .pending, chip.kind != .xaiOAuth else { return chip }
                         return AccountQuotaChip(
                             id: chip.id,
                             shortName: chip.shortName,
@@ -739,6 +764,61 @@ final class AppState: ObservableObject {
                         )
                     }
                 }
+            }
+        }
+    }
+
+    private func cancelXAIQuotaRefresh() {
+        xaiQuotaTask?.cancel()
+        xaiQuotaTask = nil
+        xaiQuotaGeneration += 1
+        xaiQuotaRevision = nil
+        xaiQuotaTargetIDs = []
+    }
+
+    private func refreshXAIQuotas(targets: [CCSwitchQuotaTarget], authFileURL: URL) {
+        guard !isQuitting, !targets.isEmpty else { return }
+        let revision = XAISharedLoginRevision(url: authFileURL)
+        let ids = Set(targets.map(\.id))
+        if xaiQuotaTask != nil, revision == xaiQuotaRevision, ids == xaiQuotaTargetIDs { return }
+        cancelXAIQuotaRefresh()
+        xaiQuotaRevision = revision
+        xaiQuotaTargetIDs = ids
+        let generation = xaiQuotaGeneration
+        let previous = quotaChips
+        let client = quotaClient!
+        for id in ids { lastQuotaAttemptAtByID[id] = Date() }
+        quotaChips = quotaChips.map { chip in
+            guard ids.contains(chip.id), case .note(AccountQuotaMessage.xaiRefreshDeferred, _) = chip.status else { return chip }
+            return AccountQuotaChip(id: chip.id, shortName: chip.shortName, modelName: chip.modelName,
+                websiteURL: chip.websiteURL, kind: chip.kind, isCurrent: chip.isCurrent, status: .pending)
+        }
+        xaiQuotaTask = Task { [weak self] in
+            guard let self else { return }
+            defer { if generation == self.xaiQuotaGeneration { self.xaiQuotaTask = nil } }
+            let chips: [AccountQuotaChip]
+            do {
+                chips = try await client.refresh(targets: targets, previous: previous, authFileURL: authFileURL)
+            } catch {
+                guard !Task.isCancelled else { return }
+                chips = targets.map { target in
+                    AccountQuotaChip(id: target.id, shortName: target.shortName, modelName: target.modelName,
+                        websiteURL: target.websiteURL, kind: target.kind, isCurrent: target.isCurrent,
+                        status: .message(AccountQuotaMessage.queryFailed))
+                }
+            }
+            guard !Task.isCancelled, !self.isQuitting, generation == self.xaiQuotaGeneration else { return }
+            let refreshed = Dictionary(uniqueKeysWithValues: chips.map { ($0.id, $0) })
+            self.quotaChips = self.quotaChips.map { chip in
+                guard let result = refreshed[chip.id] else { return chip }
+                return AccountQuotaChip(id: chip.id, shortName: chip.shortName, modelName: chip.modelName,
+                    websiteURL: chip.websiteURL, kind: chip.kind, isCurrent: chip.isCurrent,
+                    status: result.status, isStale: result.isStale)
+            }
+            let now = Date()
+            self.quotaUpdatedAt = QuotaFreshness.updatedAt(afterRefreshing: chips, previous: self.quotaUpdatedAt, now: now)
+            if self.configuration.previewCCSwitchState == nil {
+                self.quotaNotifier.consider(chips: chips, now: now, language: self.selectedLanguage)
             }
         }
     }
@@ -781,13 +861,12 @@ final class AppState: ObservableObject {
             outcome = .retry
         }
         if Task.isCancelled { return }
-        let next = Date().addingTimeInterval(
-            outcome == .renewed
-                ? XAIOAuthKeepAlivePolicy.successInterval
-                : XAIOAuthKeepAlivePolicy.failureRetryInterval
-        )
+        let next = Date().addingTimeInterval(XAIOAuthKeepAlivePolicy.retryInterval(after: outcome))
         nextXAIKeepAliveAt = next
         xaiKeepAliveScheduleStore.save(accountID: accountID, nextAt: next)
+        if outcome == .renewed {
+            refreshXAIQuotas(targets: quotaTargetsByID.values.filter { $0.kind == .xaiOAuth }, authFileURL: authFileURL)
+        }
     }
 
     private static func selectedXAIAuthAccountID(at url: URL) -> String? {
@@ -797,6 +876,7 @@ final class AppState: ObservableObject {
     }
 
     private func showCCSwitchEmptyState(_ state: CCSwitchState) {
+        cancelXAIQuotaRefresh()
         ccSwitchEmptyState = state == .configured ? nil : state
         quotaUnavailable = false
         quotaTargetsByID = [:]
