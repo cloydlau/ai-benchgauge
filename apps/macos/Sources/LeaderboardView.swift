@@ -459,7 +459,10 @@ struct LeaderboardView: View {
         }
         guard let updatedAt = state.quotaUpdatedAt else { return tr("Quota pending", "余量 待更新") }
         let value = freshnessValue(updatedAt, now: now, format: format)
-        return tr("Quotas updated \(value)", "余量更新于\(value)")
+        switch format {
+        case .relative: return tr("Quotas updated \(value)", "余量\(value)更新")
+        case .stamp, .both: return tr("Quotas updated \(value)", "余量更新于\(value)")
+        }
     }
 
     // Three native source slots preserve macOS 14.0 support. AppKit hides

@@ -372,9 +372,10 @@ sealed partial class MainWindow
         if (state?.Quotas.Any() == true || state?.QuotaUnavailable == true)
         {
             var quotaTime = UpdateAge.Parse(state.QuotaUpdatedAt);
+            var quotaAge = UpdateAge.Format(quotaTime, DateTimeOffset.UtcNow, prefs.Language);
             var text = state.Quotas.Length == 0 ? Tr("Quota unavailable", "余量暂不可读", "餘量暫不可讀")
                 : quotaTime is null ? Tr("Quota pending", "余量待更新", "餘量待更新")
-                : Tr("Quotas updated ", "余量更新于", "餘量更新於") + UpdateAge.Format(quotaTime, DateTimeOffset.UtcNow, prefs.Language);
+                : Tr($"Quotas updated {quotaAge}", $"余量{quotaAge}更新", $"餘量{quotaAge}更新");
             freshness.Children.Add(Caption(text, state.QuotaUnavailable ? Tint("#B96B0F") : PanelMuted, 11));
         }
         freshness.Cursor = Cursors.Hand;
