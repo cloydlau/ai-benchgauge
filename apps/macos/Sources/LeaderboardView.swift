@@ -2277,6 +2277,7 @@ private struct CopyNameButton: NSViewRepresentable {
 
 private final class CopyNameButtonView: NSButton {
     weak var coordinator: CopyNameButton.Coordinator?
+    private var pointerTrackingArea: NSTrackingArea?
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
@@ -2302,13 +2303,17 @@ private final class CopyNameButtonView: NSButton {
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
-        trackingAreas.forEach(removeTrackingArea)
-        addTrackingArea(NSTrackingArea(
+        // AppKit tracks .inVisibleRect as the clip bounds change. Replacing
+        // this area on every scroll step only adds allocation/tracking work.
+        guard pointerTrackingArea == nil else { return }
+        let area = NSTrackingArea(
             rect: .zero,
             options: [.mouseEnteredAndExited, .cursorUpdate, .activeAlways, .inVisibleRect],
             owner: self,
             userInfo: nil
-        ))
+        )
+        pointerTrackingArea = area
+        addTrackingArea(area)
     }
 
     override func cursorUpdate(with event: NSEvent) {
@@ -2340,9 +2345,10 @@ private struct ModelLogoView: View {
 
     @ViewBuilder
     private var logoContent: some View {
-        if let pngData, let image = NSImage(data: pngData) {
+        if let pngData, let image = ModelLogoImageCache.shared.image(data: pngData) {
             Image(nsImage: image).resizable().scaledToFit()
-        } else if let bundled = bundledLogoURL, let image = NSImage(contentsOf: bundled) {
+        } else if let key = OrganizationLogoCatalog.bundledLogoKey(forOrganization: organization, modelName: name),
+                  let image = ModelLogoImageCache.shared.bundledImage(key: key) {
             Image(nsImage: image)
                 .resizable()
                 .scaledToFit()
@@ -2355,18 +2361,6 @@ private struct ModelLogoView: View {
                 placeholder
             }
         }
-    }
-
-    private var bundledLogoURL: URL? {
-        guard let key = OrganizationLogoCatalog.bundledLogoKey(forOrganization: organization, modelName: name),
-              let resourceURL = Bundle.main.resourceURL else { return nil }
-        for ext in ["png", "ico", "jpg"] {
-            let candidate = resourceURL.appending(path: "logos/" + key + "." + ext)
-            if FileManager.default.fileExists(atPath: candidate.path(percentEncoded: false)) {
-                return candidate
-            }
-        }
-        return nil
     }
 
     private var placeholder: some View {
