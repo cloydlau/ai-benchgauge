@@ -492,17 +492,21 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(help.frame.height, 44)
             let grouping = app.segmentedControls["grouping"]
             XCTAssertFalse(help.frame.intersects(grouping.frame))
-            XCTAssertGreaterThanOrEqual(help.frame.minY, grouping.frame.maxY)
+            XCTAssertEqual(help.frame.midY, grouping.frame.midY, accuracy: 1,
+                "The two-row subtitle must stay beside the title on the same header row")
             let brand = app.staticTexts["brand-title"]
             XCTAssertTrue(brand.exists)
             XCTAssertLessThanOrEqual(brand.frame.maxX, grouping.frame.minX,
                 "Fitting the subtitle must also keep the brand clear of the full-size controls")
-            XCTAssertGreaterThanOrEqual(help.frame.width, min(app.frame.width - 40, 1096),
-                "The absolute help icon must not reduce the caption's layout width")
-            Thread.sleep(forTimeInterval: 0.6)
-            let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-            attachment.name = "tagline-\(chinese ? "zh-light" : "en-dark")"
-            attachment.lifetime = .keepAlways; add(attachment)
+            XCTAssertGreaterThanOrEqual(help.frame.minX, brand.frame.maxX,
+                "The subtitle must follow the title without overlapping its artwork")
+            XCTAssertLessThanOrEqual(help.frame.maxX, grouping.frame.minX - 4)
+            for phase in ["shown", "refreshed", "settled"] {
+                Thread.sleep(forTimeInterval: 0.6)
+                let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+                attachment.name = "tagline-\(chinese ? "zh-light" : "en-dark")-\(phase)"
+                attachment.lifetime = .keepAlways; add(attachment)
+            }
             help.tap()
             XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
             app.terminate()

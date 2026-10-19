@@ -277,16 +277,16 @@ public struct LeaderboardPadView: View {
             let sizing = MobileBrandSizing(language: store.language, width: geometry.size.width,
                 controlsWidth: mobileGroupingWidth)
             mobileInlineHeader(sizing: sizing)
-        }.frame(height: store.language == .english ? 44 : 90)
+        }.frame(height: 44)
     }
     private func mobileInlineHeader(sizing: MobileBrandSizing) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 6) {
+        HStack(spacing: 0) {
+            HStack(spacing: sizing.titleCaptionSpacing) {
                 mobileBrandTitle(size: sizing.titleFontSize).fixedSize(horizontal: true, vertical: false)
-                Spacer(minLength: 0)
-                mobileGrouping
+                if sizing.showsSubtitle { featureHelp(sizing: sizing) }
             }
-            if store.language != .english { featureHelp(sizing: sizing) }
+            Spacer(minLength: MobileBrandSizing.controlsSpacing)
+            mobileGrouping
         }
     }
     private var mobileGroupingWidth: CGFloat { store.language == .english ? 160 : 104 }
@@ -323,18 +323,23 @@ public struct LeaderboardPadView: View {
     }
     private func featureHelp(sizing: MobileBrandSizing) -> some View {
         Button { presentation.showingQuotaTrackingHelp = true } label: {
-            VStack(alignment: .leading, spacing: 6 * sizing.scale) {
-                ForEach(AppFeatureCopy.subtitleRows(language: store.language), id: \.self) { row in
+            let rows = AppFeatureCopy.subtitleRows(language: store.language)
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
                     Text(row).font(.system(size: sizing.subtitleFontSize, weight: .medium))
                         .lineLimit(1).fixedSize(horizontal: true, vertical: true)
+                        .overlay(alignment: .trailing) {
+                            if index == rows.count - 1 {
+                                Image(systemName: "questionmark.circle")
+                                    .font(.system(size: sizing.subtitleFontSize)).opacity(0.55)
+                                    .offset(x: sizing.subtitleFontSize * 0.45)
+                                    .accessibilityHidden(true)
+                            }
+                        }
+                        .frame(height: sizing.subtitleHeight / 2, alignment: .leading)
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            .overlay(alignment: .trailing) {
-                Image(systemName: "questionmark.circle")
-                    .font(.system(size: sizing.subtitleFontSize)).opacity(0.55)
-                    .accessibilityHidden(true)
-            }
+            .frame(width: sizing.subtitleWidth, height: 44, alignment: .leading)
             .foregroundStyle(.secondary).contentShape(Rectangle())
         }.buttonStyle(.plain)
             .accessibilityIdentifier("quota-tracking-help")
