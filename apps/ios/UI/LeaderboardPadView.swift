@@ -1115,7 +1115,7 @@ private struct PadBoardCard: View {
         else { column }
     }
     @ViewBuilder private var countryHeaderLabel: some View {
-        filterHeader(Text(tr("Country", "国家")))
+        filterHeader(Text(tr("Country", "国家")), active: filter != .all)
     }
     private func countryColumn<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         ZStack {
@@ -1128,20 +1128,28 @@ private struct PadBoardCard: View {
             .font(.system(size: (compactColumns ? compactFilterHeaderSize : regularFilterHeaderSize) * 0.65, weight: .medium))
     }
     @ViewBuilder
-    private func filterHeader(_ title: Text) -> some View {
+    private func filterHeader(_ title: Text, active: Bool) -> some View {
         if isImage {
             title.font(filterHeaderFont)
         } else {
-            // Native Menu labels retain these balanced slots when composing their title.
             HStack(spacing: 1) {
-                filterChevron.opacity(0).accessibilityHidden(true)
+                if !active { filterChevron.opacity(0).accessibilityHidden(true) }
                 title
-                filterChevron
+                if active {
+                    Image(systemName: "line.3.horizontal.decrease")
+                        .font(.system(size: (compactColumns ? compactFilterHeaderSize : regularFilterHeaderSize) * 0.75, weight: .semibold))
+                        .accessibilityHidden(true)
+                } else {
+                    filterChevron
+                }
             }.font(filterHeaderFont)
+                .fontWeight(active ? .semibold : .regular)
+                .foregroundStyle(active ? primaryForeground : secondaryForeground)
+                .padding(.horizontal, 2).padding(.vertical, 3)
         }
     }
     private var opennessHeaderLabel: some View {
-        filterHeader(Text(ModelOpenness.columnTitle(language: language)))
+        filterHeader(Text(ModelOpenness.columnTitle(language: language)), active: opennessFilter != .all)
             .accessibilityIdentifier("openness-header-\(kind.rawValue)")
     }
     private func opennessColumn<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
@@ -1299,7 +1307,6 @@ private struct PadBoardCard: View {
                         } label: { opennessHeaderLabel }
                         .buttonStyle(.plain).accessibilityIdentifier("openness-filter-\(kind.rawValue)")
                         .accessibilityValue(opennessFilter.title(language: language))
-                        .foregroundStyle(opennessFilter == .all ? secondaryForeground : BrandTheme.accent(for: colorScheme))
                         .help(ModelOpenness.help(language: language))
                     }
                 }

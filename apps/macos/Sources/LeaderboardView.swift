@@ -1509,8 +1509,25 @@ private final class SourceTableHeaderView: NSTableHeaderView {
     }
 
     private func drawFilterHeader(title: String, active: Bool, in rect: NSRect) {
-        let font = NSFont.systemFont(ofSize: 9.5, weight: .medium)
-        let tint = active ? NSColor(BrandTheme.accent(for: effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .dark : .light)) : NSColor.labelColor
+        let font = NSFont.systemFont(ofSize: 9.5, weight: active ? .semibold : .medium)
+        let tint = NSColor.labelColor
+        if active {
+            let size = (title as NSString).size(withAttributes: [.font: font])
+            let width = ceil(size.width) + 16
+            let badge = NSRect(x: rect.midX - width / 2, y: rect.midY - 9, width: width, height: 18)
+            (title as NSString).draw(at: NSPoint(x: badge.minX + 3, y: rect.midY - size.height / 2),
+                withAttributes: [.font: font, .foregroundColor: tint])
+            let icon = NSBezierPath()
+            let x = badge.maxX - 10, y = rect.midY - 3.5
+            func point(_ dx: CGFloat, _ dy: CGFloat) -> NSPoint {
+                NSPoint(x: x + dx, y: isFlipped ? y + dy : rect.midY + 3.5 - dy)
+            }
+            icon.move(to: point(1, 1)); icon.line(to: point(7, 1))
+            icon.line(to: point(4.8, 3.8)); icon.line(to: point(4.8, 6))
+            icon.line(to: point(3.2, 7)); icon.line(to: point(3.2, 3.8)); icon.close()
+            icon.lineWidth = 0.9; icon.lineJoinStyle = .round; tint.setStroke(); icon.stroke()
+            return
+        }
         // Header cells ignore `alignment` once an attributed string is set, so
         // the centring has to live in the string's paragraph style.
         let paragraph = NSMutableParagraphStyle()
