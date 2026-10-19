@@ -105,6 +105,7 @@ static class VisualTests
             if (test.SelectedBoards is { } selected) preferences.BoardSelections[preferences.Category] = selected;
             if (test.Grouping is { } grouping) preferences.Grouping = grouping;
             if (test.Countries is { } countries) preferences.Countries = countries;
+            if (test.Sources is { } sources) preferences.Sources = sources;
             if (test.Grouping == "company") state = state with { Boards = state.Boards.Select(board => board with {
                 Entries = board.Entries.GroupBy(entry => entry.Organization).Select(group => {
                     var best = group.OrderByDescending(entry => entry.Score).First();

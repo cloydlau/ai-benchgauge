@@ -52,10 +52,10 @@
             <button wx:if="{{grouping === 'model'}}" id="model-filter-{{card.kind}}" class="model-filter-toggle" data-kind="{{card.kind}}" bindtap="openModelSearch" aria-label="{{labels.searchModels}}"><van-icon name="search" size="13px" /></button>
             </view>
             <button class="filter {{card.countryFiltered ? 'filtered' : ''}}" data-kind="{{card.kind}}" data-mode="country" bindtap="filterMenu">
-              <view class="filter-label">{{labels.country}}<view class="filter-arrow" aria-hidden="true"><van-icon name="arrow-down" size="7px" /></view></view>
+              <view class="filter-label">{{labels.country}}<view class="filter-arrow" aria-hidden="true"><van-icon name="{{card.countryFiltered ? 'filter-o' : 'arrow-down'}}" size="{{card.countryFiltered ? '8px' : '7px'}}" /></view></view>
             </button>
             <button wx:if="{{grouping !== 'company'}}" class="filter {{card.sourceFiltered ? 'filtered' : ''}}" data-kind="{{card.kind}}" data-mode="openness" bindtap="filterMenu">
-              <view class="filter-label">{{labels.source}}<view class="filter-arrow" aria-hidden="true"><van-icon name="arrow-down" size="7px" /></view></view>
+              <view class="filter-label">{{labels.source}}<view class="filter-arrow" aria-hidden="true"><van-icon name="{{card.sourceFiltered ? 'filter-o' : 'arrow-down'}}" size="{{card.sourceFiltered ? '8px' : '7px'}}" /></view></view>
             </button>
             <text class="score-cell">{{labels.score}}</text>
           </view>

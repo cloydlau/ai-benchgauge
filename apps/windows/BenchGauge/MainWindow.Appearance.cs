@@ -835,8 +835,21 @@ sealed partial class MainWindow
         "artificialAnalysisTextToVideo" => Tr("Matched settings", "统一设置", "統一設定"),
         "arenaTextToImage" or "arenaTextToVideo" => Tr("User prompts", "用户出题", "使用者出題"), _ => "",
     };
-    FrameworkElement FilterHeaderLabel(string title, Brush ink)
+    FrameworkElement FilterHeaderLabel(string title, bool active)
     {
+        var ink = PanelInk;
+        if (active)
+        {
+            var text = Caption(title, ink, 9.5); text.FontWeight = FontWeights.SemiBold;
+            var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            content.Children.Add(text);
+            content.Children.Add(new System.Windows.Shapes.Path {
+                Data = Geometry.Parse("M1,1 L7,1 L4.8,3.8 L4.8,6 L3.2,7 L3.2,3.8 Z"),
+                Stroke = ink, StrokeThickness = 0.9, StrokeLineJoin = PenLineJoin.Round,
+                Width = 8, Height = 8, Margin = new Thickness(2, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
+            return new Border { Child = content, Padding = new Thickness(2, 3, 2, 3),
+                BorderThickness = new Thickness(0.5) };
+        }
         // Only the caption contributes width; the caret sits beyond its right edge.
         var label = new Grid { VerticalAlignment = VerticalAlignment.Center };
         label.Children.Add(Caption(title, ink, 9.5));
@@ -849,9 +862,8 @@ sealed partial class MainWindow
     FrameworkElement OpennessPicker(Board board)
     {
         var selected = prefs.Sources.GetValueOrDefault(board.Kind, "all");
-        var ink = selected == "all" ? PanelInk : PanelAccent;
-        var button = QuietButton("", () => { }); button.Foreground = ink; button.Padding = new Thickness(1, 0, 1, 0);
-        button.Content = FilterHeaderLabel(Tr("Source", "源码", "源碼"), ink);
+        var button = QuietButton("", () => { }); button.Foreground = PanelInk; button.Padding = new Thickness(1, 0, 1, 0);
+        button.Content = FilterHeaderLabel(Tr("Source", "源码", "源碼"), selected != "all");
         var menu = new ContextMenu();
         foreach (var (value, title) in new[] { ("all", Tr("All sources", "全部源码", "全部源碼")),
             ("open", Tr("Open", "开源", "開源")), ("closed", Tr("Closed", "闭源", "閉源")), ("unknown", Tr("Unknown", "未知")) })
@@ -868,8 +880,9 @@ sealed partial class MainWindow
     }
     FrameworkElement CountryPicker(Board board)
     {
+        var active = !string.IsNullOrEmpty(prefs.Countries.GetValueOrDefault(board.Kind, ""));
         var button = QuietButton("", () => { }); button.Foreground = PanelInk; button.Padding = new Thickness(1, 0, 1, 0);
-        button.Content = FilterHeaderLabel(Tr("Country", "国家", "國家"), PanelInk);
+        button.Content = FilterHeaderLabel(Tr("Country", "国家", "國家"), active);
         var menu = new ContextMenu();
         var options = board.CountryOptions ?? new[] {
             new CountryOption("china", Tr("China", "中国", "中國")), new CountryOption("unitedStates", Tr("United States", "美国", "美國")),
