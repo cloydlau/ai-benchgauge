@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'weapp-vite/config'
 import { VantResolver } from 'weapp-vite/auto-import-components/resolvers'
 import { engineeringInvestment } from './scripts/engineering-investment.mjs'
+import { createAutoVersion } from './scripts/version.mjs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 // The native clients remain the authority for the shared-service address.
@@ -13,7 +14,7 @@ const endpoint = process.env.VITE_BENCHGAUGE_SHARED_ENDPOINT
   || swift.match(/bundledEndpoint: String\? = "([^"]+)"/)?.[1]
 const address = new URL(endpoint)
 if (address.protocol !== 'https:' || address.username || address.password || address.search || address.hash) throw new Error('A valid HTTPS shared endpoint is required')
-const version = JSON.parse(readFileSync(resolve(root, 'config/app.json'))).version
+const version = process.env.MP_VERSION || createAutoVersion()
 const notices = [
   ['Vue Mini', '@vue-mini/core'], ['Vant Weapp', '@vant/weapp'], ['Tailwind CSS', 'tailwindcss'], ['fflate', 'fflate'],
 ].map(([name, packageName]) => ({ name, license: readFileSync(new URL(`node_modules/${packageName}/LICENSE`, import.meta.url), 'utf8') }))

@@ -100,6 +100,7 @@ function isolatedUploader(t, mode = 'success') {
   for (const path of ['Scripts', 'bin', 'node_modules', 'apps/weapp/node_modules', 'apps/weapp/src', 'apps/weapp/scripts', 'apps/weapp/ci-runtime']) mkdirSync(join(root, path), { recursive: true })
   writeFileSync(join(root, 'package.json'), '{"type":"module"}')
   copyFileSync(new URL('./weapp-deploy.mjs', import.meta.url), join(root, 'Scripts/weapp-deploy.mjs'))
+  copyFileSync(new URL('../apps/weapp/scripts/version.mjs', import.meta.url), join(root, 'apps/weapp/scripts/version.mjs'))
   writeFileSync(join(root, 'apps/weapp/src/page.js'), 'initial')
   writeFileSync(join(root, 'privacy-guide.json'), '{"items":[]}')
   writeFileSync(join(root, 'Scripts/node-executable.mjs'), 'export const nodeExecutable=()=>process.execPath')
@@ -120,6 +121,7 @@ export const ci={root:${JSON.stringify(root)},load:async name=>name==='privacy-g
   const npm = `#!${process.execPath}
 import fs from 'node:fs';import path from 'node:path';const args=process.argv.slice(2),root=process.cwd(),mode=process.env.UPLOAD_MODE;
 fs.appendFileSync('events',JSON.stringify(args)+'\\n');
+if(args.includes('build'))fs.writeFileSync('build-version',process.env.MP_VERSION||'');
 if(mode==='build-failed'&&args.includes('build'))process.exit(2);
 if(args.includes('build')&&mode==='build-source')fs.writeFileSync('apps/weapp/src/page.js','changed');
 if(args.includes('ci')){const runtime=args[args.indexOf('--prefix')+1];fs.mkdirSync(path.join(runtime,'node_modules/node/bin'),{recursive:true});fs.mkdirSync(path.join(runtime,'node_modules/miniprogram-ci'),{recursive:true});for(const n of ['node','node.exe'])fs.symlinkSync(process.execPath,path.join(runtime,'node_modules/node/bin',n));fs.writeFileSync(path.join(runtime,'node_modules/miniprogram-ci/package.json'),'{}');if(mode==='late-source')fs.writeFileSync('apps/weapp/src/page.js','late change')}
@@ -159,8 +161,10 @@ test('successful uploader installs its isolated runtime when needed and writes a
     const receipt = readReceipt(join(f.root, 'apps/weapp/.last-publish'))
     assert.equal(receipt.sourceSignature, sourceSignature(inputSnapshot(f.root)))
     assert.equal(receipt.version, mode === 'default-version' ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year:'numeric',month:'2-digit',day:'2-digit' }).format(new Date()).replaceAll('-','') : 'fixture-v1')
+    assert.equal(readFileSync(join(f.root, 'build-version'), 'utf8'), receipt.version)
     const events = readFileSync(join(f.root, 'events'), 'utf8').trim().split('\n').map(JSON.parse)
     assert.equal(events.at(-1)[0], 'upload')
+    assert.equal(events.at(-1).at(-1), receipt.version)
     assert.deepEqual(events.at(-1).slice(2,4), ['fixture-appid', 'fixture-private-key'])
     assert.equal(existsSync(join(f.root, 'apps/weapp/.last-publish.tmp')), false)
     assert.equal(existsSync(join(f.root, `work/weapp-deploy/stage-${result.pid}`)), false)
