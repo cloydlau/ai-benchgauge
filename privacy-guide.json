@@ -1,30 +1,51 @@
 {
-  "comment": "BenchGauge（AI 天梯）微信小程序《用户隐私保护指引》填写底稿，仅适用于 apps/weapp，不代表桌面端或 iOS 端。手工核对源码并维护；目前未接入自动扫描，也不会自动同步微信公众平台。权限或数据处理方式变化后须重新核对并更新后台指引。",
+  "comment": "BenchGauge（AI 天梯）微信小程序《用户隐私保护指引》填写底稿，仅适用于 apps/weapp，不代表桌面端或 iOS 端。用途由人工维护；Scripts/sync-privacy-guide.mjs 委托 Calmmit 刷新 codeDetected/sourceFiles，小程序上传前也检查构建快照。扫描记录不代表必须声明、后台已同步或合规审核通过。权限或数据处理方式变化后须重新核对并更新后台指引。",
   "reviewedAt": "2026-10-19",
   "collectionSetting": "采集用户隐私",
   "collectionSettingReason": "当前小程序允许用户主动将生成的榜单对照图片保存到设备相册，涉及相册（仅写入）权限；不能仅因无需登录而选择未采集用户隐私。",
-  "contactInstructions": "在微信公众平台填写开发者实际接收用户隐私咨询、投诉及相关请求的有效邮箱或其他联系方式，不使用占位信息。",
+  "contactEmail": "ai-benchgauge@limphase.cn",
+  "contactInstructions": "在微信公众平台的隐私保护指引联系方式中填写 contactEmail，用于接收用户隐私咨询、投诉及相关请求。",
+  "changeNotifyMethod": "弹窗提示",
+  "changeNotifyInstructions": "对应后台再次告知并征得明示同意的方式。今后若变更信息使用目的或范围，须在变更生效前通过弹窗说明变更并取得用户明示同意；仅更新此底稿或后台指引不能替代实际告知与征得同意。",
   "items": [
     {
       "item": "相册（仅写入）权限",
       "leadIn": "开发者将在获取你的明示同意后，使用你的相册（仅写入）权限，用途是",
       "purpose": "用户主动点击保存时，将生成的 AI 榜单对照图片保存至设备相册，便于查看和分享；不读取用户相册中的照片或视频",
-      "apis": ["saveImageToPhotosAlbum"],
-      "sourceFiles": ["apps/weapp/src/services/screenshot.js", "apps/weapp/src/pages/leaderboard/index.js"],
+      "apis": [
+        "saveImageToPhotosAlbum"
+      ],
+      "sourceFiles": [
+        "apps/weapp/src/services/screenshot.js"
+      ],
       "codeDetected": true,
       "declaration": "在后台指引中声明相册（仅写入）权限，用途栏填写 purpose。"
     },
     {
       "item": "剪切板（仅写入）",
       "purpose": "用户主动点击复制时，将榜单标题、模型名称或相关链接写入剪贴板，便于粘贴和分享；不读取剪贴板已有内容",
-      "apis": ["setClipboardData"],
-      "sourceFiles": ["apps/weapp/src/pages/leaderboard/index.js", "apps/weapp/src/pages/about/index.js"],
+      "apis": [
+        "setClipboardData"
+      ],
+      "sourceFiles": [
+        "apps/weapp/src/pages/about/index.js",
+        "apps/weapp/src/pages/leaderboard/index.js"
+      ],
       "codeDetected": true,
       "declaration": "当前未使用 getClipboardData。若后台要求说明复制功能的用途，填写 purpose；若表单条目明确表述为读取剪切板，不将仅写入的功能虚报成读取，应核对后台当前接口对应要求。"
     }
   ],
   "notUsed": {
-    "items": ["位置信息", "手机号", "微信昵称和头像", "摄像头", "麦克风", "选中的照片或视频信息", "选中的文件", "读取剪切板"],
+    "items": [
+      "位置信息",
+      "手机号",
+      "微信昵称和头像",
+      "摄像头",
+      "麦克风",
+      "选中的照片或视频信息",
+      "选中的文件",
+      "读取剪切板"
+    ],
     "instructions": "上述能力当前未在小程序源码中使用，不照搬 Watrek 或其他客户端的声明；未来增加对应功能时重新核对。"
   },
   "localStorage": "语言、主题和榜单筛选偏好，以及公开榜单缓存保存在小程序本地。生成的榜单图片在本地处理；仅在用户点击保存后写入相册。",

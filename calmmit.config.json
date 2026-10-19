@@ -143,7 +143,9 @@
           "package.json",
           "pnpm-lock.yaml",
           "pnpm-workspace.yaml",
-          "Scripts/weapp-deploy.mjs"
+          "Scripts/weapp-deploy.mjs",
+          "Scripts/sync-privacy-guide.mjs",
+          "privacy-guide.json"
         ]
       },
       {

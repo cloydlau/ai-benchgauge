@@ -8,6 +8,7 @@ import { syncBuiltinESMExports } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { ci } from './calmmit.mjs'
 import { sourcePaths, inputSnapshot, sourceSignature, stageInputs, needsUpload, readReceipt } from './weapp-deploy.mjs'
 
 test('isolated upload can load the real shared domain and detects country catalog updates', async t => {
@@ -100,12 +101,13 @@ function isolatedUploader(t, mode = 'success') {
   writeFileSync(join(root, 'package.json'), '{"type":"module"}')
   copyFileSync(new URL('./weapp-deploy.mjs', import.meta.url), join(root, 'Scripts/weapp-deploy.mjs'))
   writeFileSync(join(root, 'apps/weapp/src/page.js'), 'initial')
+  writeFileSync(join(root, 'privacy-guide.json'), '{"items":[]}')
   writeFileSync(join(root, 'Scripts/node-executable.mjs'), 'export const nodeExecutable=()=>process.execPath')
   writeFileSync(join(root, 'Scripts/commit-lock.mjs'), `export const state={acquired:true,released:0};export function acquireCommitLock(){return{acquired:state.acquired && process.env.UPLOAD_MODE!=='busy',release(){state.released++}}}`)
   writeFileSync(join(root, 'Scripts/calmmit.mjs'), `
 export const state={ready:true,polls:0,scheduled:[],stops:0,session:null,configCalls:0};
 const config=()=>{const n=++state.configCalls,mode=process.env.UPLOAD_MODE;return{ready:state.ready&&mode!=='not-ready'&&!(mode==='config-unready'&&n===2),reason:'fixture credentials unavailable',signature:(mode==='config-rotation'&&n>=2||mode==='late-config'&&n>=3)?'rotated':'first',keyChangedAt:0,appid:'fixture-appid',privateKeyPath:'fixture-private-key'}};
-export const ci={root:${JSON.stringify(root)},load:async name=>name==='deployment-credentials'?{readUploadConfig:config,createUploadConfigMonitor:options=>({initial:options.readConfig(),poll(){state.polls++;if(state.pollError)throw Error('fixture monitor');options.readConfig()}})}:{createWatchSession:options=>{state.session=options;return{schedule:(...args)=>state.scheduled.push(args),stop(){state.stops++}}}}};
+export const ci={root:${JSON.stringify(root)},load:async name=>name==='privacy-guide'?import(${JSON.stringify(pathToFileURL(join(ci.library, 'src/privacy-guide.mjs')).href)}):name==='deployment-credentials'?{readUploadConfig:config,createUploadConfigMonitor:options=>({initial:options.readConfig(),poll(){state.polls++;if(state.pollError)throw Error('fixture monitor');options.readConfig()}})}:{createWatchSession:options=>{state.session=options;return{schedule:(...args)=>state.scheduled.push(args),stop(){state.stops++}}}}};
 `)
   const installRuntime = () => {
     mkdirSync(join(root, 'apps/weapp/ci-runtime/node_modules/node/bin'), { recursive: true })
@@ -163,6 +165,24 @@ test('successful uploader installs its isolated runtime when needed and writes a
     assert.equal(existsSync(join(f.root, 'apps/weapp/.last-publish.tmp')), false)
     assert.equal(existsSync(join(f.root, `work/weapp-deploy/stage-${result.pid}`)), false)
   }
+})
+
+test('privacy failures stop only the isolated upload before build/network and guide edits change its signature', t => {
+  const f = isolatedUploader(t)
+  writeFileSync(join(f.root, 'apps/weapp/src/page.js'), 'wx.getLocation({})')
+  const before = sourceSignature(inputSnapshot(f.root))
+  const run = () => spawnSync(process.execPath, [f.script, 'upload'], { cwd: f.root, env: f.env, encoding: 'utf8', timeout: 10_000 })
+  const failed = run()
+  assert.equal(failed.status, 1, failed.stdout + failed.stderr)
+  assert.match(failed.stderr, /隐私底稿缺少必要用途/)
+  assert.equal(existsSync(join(f.root, 'events')), false)
+  assert.equal(existsSync(join(f.root, 'apps/weapp/.last-publish')), false)
+  assert.deepEqual(JSON.parse(readFileSync(join(f.root, 'privacy-guide.json'))).items, [])
+  writeFileSync(join(f.root, 'privacy-guide.json'), JSON.stringify({ items: [{ item: '位置信息', apis: ['getLocation'], purpose: '定位用途' }] }))
+  assert.notEqual(sourceSignature(inputSnapshot(f.root)), before)
+  const success = run()
+  assert.equal(success.status, 0, success.stdout + success.stderr)
+  assert.equal(readReceipt(join(f.root, 'apps/weapp/.last-publish')).sourceSignature, sourceSignature(inputSnapshot(f.root)))
 })
 
 test('upload watcher owns its lifetime, only queues new publishable inputs and forwards one completion per child', async t => {
