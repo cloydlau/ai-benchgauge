@@ -143,10 +143,16 @@ if(args.includes('ci')){const runtime=args[args.indexOf('--prefix')+1];fs.mkdirS
 const fs=require('node:fs'),cp=require('node:child_process');
 if(process.env.UPLOAD_MODE==='copy-source'){const copy=fs.copyFileSync;fs.copyFileSync=(from,to,...args)=>{copy(from,to,...args);if(from.endsWith('page.js'))fs.writeFileSync(to,'changed during copy')}}
 if(process.env.UPLOAD_MODE==='spawn-error'){cp.spawn=()=>{const c=new(require('node:events').EventEmitter);queueMicrotask(()=>c.emit('error',Error('fixture spawn error')));return c}}
-if(process.env.UPLOAD_MODE==='windows')Object.defineProperty(process,'platform',{value:'win32'});
 require('node:module').syncBuiltinESMExports();
 `)
-  const env = { ...process.env, PATH: join(root, 'bin') + ':' + process.env.PATH, UPLOAD_MODE: mode, MP_VERSION: 'fixture-v1', NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --require=${hook}`.trim() }
+  let platformPreload = ''
+  if (mode === 'windows') {
+    // Load native dependencies for the real host before simulating Windows paths.
+    const platformHook = join(root, 'windows-platform.mjs')
+    writeFileSync(platformHook, `await import(${JSON.stringify(pathToFileURL(join(ci.library, 'src/privacy-guide.mjs')).href)});\nObject.defineProperty(process,'platform',{value:'win32'});\n`)
+    platformPreload = ` --import=${pathToFileURL(platformHook).href}`
+  }
+  const env = { ...process.env, PATH: join(root, 'bin') + ':' + process.env.PATH, UPLOAD_MODE: mode, MP_VERSION: 'fixture-v1', NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --require=${hook}${platformPreload}`.trim() }
   if (mode === 'default-version') delete env.MP_VERSION
   return { root, env, script: join(root, 'Scripts/weapp-deploy.mjs') }
 }
