@@ -21,7 +21,7 @@ export const sourcePaths = [
   'apps/weapp/vite.config.js', 'apps/weapp/postcss.config.js', 'apps/weapp/tsconfig.json',
   'apps/weapp/package.json', 'apps/weapp/project.config.json',
   'apps/weapp/ci-runtime/package.json', 'apps/weapp/ci-runtime/package-lock.json',
-  'fc/domain.mjs', 'fc/brand-catalog.json', 'fc/leaderboard-policy.json', 'fc/country-catalog.json',
+  'fc/domain.mjs', 'fc/distributions.mjs', 'fc/brand-catalog.json', 'fc/leaderboard-policy.json', 'fc/country-catalog.json',
   'fc/purchase-links.json', 'Scripts/generate-purchase-links.mjs',
   'Sources/LeaderboardKit/PurchaseLinkData.generated.swift',
   'assets/brand/header-logo.png', 'assets/brand/header-logo-dark.png', 'assets/logos',

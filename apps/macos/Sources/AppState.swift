@@ -24,9 +24,40 @@ final class AppState: ObservableObject {
     @Published private(set) var isRefreshing = false
     @Published private(set) var lastErrors: [LeaderboardKind: String] = [:]
     @Published private(set) var schedule = UpdateSchedule.initial()
-    @Published var generalComparison: LeaderboardKind = .arenaText {
-        didSet { defaults.set(generalComparison.rawValue, forKey: "generalComparison") }
+    @Published private(set) var boardSelections: [String: [String]] = [:]
+    var visibleBoardKinds: [LeaderboardKind] { boardKinds(for: selectedCategory) }
+
+    func boardKinds(for category: LeaderboardCategory) -> [LeaderboardKind] {
+        DesktopBoardSelection.kinds(for: category, saved: boardSelections[category.rawValue])
     }
+
+    func toggleBoard(_ kind: LeaderboardKind) {
+        let next = DesktopBoardSelection.toggling(
+            kind, in: selectedCategory, saved: boardSelections[selectedCategory.rawValue])
+        setVisibleBoards(next.compactMap(LeaderboardKind.init(rawValue:)))
+    }
+
+    func setVisibleBoards(_ kinds: [LeaderboardKind]) {
+        let next = selectedCategory.boardKinds.filter { kinds.contains($0) }
+        guard !next.isEmpty, next != visibleBoardKinds else { return }
+        boardSelections[selectedCategory.rawValue] = next.map(\.rawValue)
+        defaults.set(boardSelections, forKey: "desktopBoardSelections")
+        // Cancel only removed sources. Other requests and their refresh limits
+        // remain intact when another source is enabled.
+        let enabled = Set(visibleBoardKinds)
+        for kind in selectedCategory.boardKinds where !enabled.contains(kind) {
+            if let task = boardRefreshTasks.removeValue(forKey: kind) {
+                task.cancel()
+                // A cancelled attempt must not prevent a later re-enable.
+                lastLeaderboardAttemptAtByKind[kind] = nil
+            }
+            boardRefreshTokens[kind] = nil
+            lastErrors[kind] = nil
+        }
+        isRefreshing = !boardRefreshTasks.isEmpty
+        refreshNow()
+    }
+
     @Published private(set) var selectedCategory = LeaderboardCategory.general
     @Published private(set) var selectedGrouping = LeaderboardGrouping.model
     @Published private(set) var selectedLanguage = AppLanguage.load()
@@ -105,7 +136,7 @@ final class AppState: ObservableObject {
         return AccountQuotaFormatting.menuBarText(forChips: quotaChips)
     }
 
-    private let fetcher = LeaderboardFetcher()
+    private let fetcher: LeaderboardFetcher
     private let cache: LeaderboardCache
     private let defaults: UserDefaults
     private let configuration: AppConfiguration
@@ -246,7 +277,7 @@ final class AppState: ObservableObject {
                             language: AppLanguage, errors: [LeaderboardKind: String],
                             emptyState: CCSwitchState?, panelMode: PanelMode = .clickToClose, quotaUpdatedAt: Date? = nil, quotaUnavailable: Bool = false,
                             modelConfiguration: CodexModelConfiguration? = nil, targets: [CCSwitchQuotaTarget] = [], taskCounts: CodexTaskCounts? = nil,
-                            codexDesktopRunning: Bool = true, category: LeaderboardCategory = .general) {
+                            codexDesktopRunning: Bool = true, category: LeaderboardCategory = .general, boardKinds: [LeaderboardKind]? = nil) {
         self.snapshot = snapshot
         self.quotaUpdatedAt = quotaUpdatedAt
         self.quotaUnavailable = quotaUnavailable
@@ -257,6 +288,7 @@ final class AppState: ObservableObject {
         quotaTargetsByID = Dictionary(uniqueKeysWithValues: targets.map { ($0.id, $0) })
         selectedLanguage = language
         selectedCategory = category
+        if let boardKinds { boardSelections[category.rawValue] = boardKinds.map(\.rawValue) }
         selectedGrouping = .model
         self.panelMode = panelMode
         lastErrors = errors
@@ -919,61 +951,46 @@ final class AppState: ObservableObject {
         }
     }
 
-    private func refreshNow() {
-        guard !isQuitting, !isRefreshing else { return }
-        let category = selectedCategory
+    func refreshNow() {
+        guard !isQuitting else { return }
         let now = Date()
-        if let lastAttempt = lastLeaderboardAttemptAtByCategory[category],
-           now.timeIntervalSince(lastAttempt) < Self.minimumLeaderboardRefreshInterval {
-            return
+        let kinds = visibleBoardKinds.filter { kind in
+            guard boardRefreshTasks[kind] == nil else { return false }
+            if let attempt = lastLeaderboardAttemptAtByKind[kind],
+               now.timeIntervalSince(attempt) < Self.minimumLeaderboardRefreshInterval { return false }
+            if let fetched = snapshot.boards[kind]?.fetchedAt,
+               now.timeIntervalSince(fetched) < Self.minimumLeaderboardRefreshInterval { return false }
+            return true
         }
-        // A recent successful fetch in the cache also limits refreshes after
-        // an app restart. Missing boards still get their first fetch promptly.
-        if category.boardKinds.allSatisfy({ kind in
-            guard let fetchedAt = snapshot.boards[kind]?.fetchedAt else { return false }
-            return now.timeIntervalSince(fetchedAt) < Self.minimumLeaderboardRefreshInterval
-        }) {
-            return
-        }
-
+        guard !kinds.isEmpty else { return }
         isRefreshing = true
-        lastErrors = [:]
-        lastLeaderboardAttemptAtByCategory[category] = now
-
-        let kinds = category.boardKinds
-
-        refreshTask = Task {
-            await withTaskGroup(of: (LeaderboardKind, Leaderboard?, String?).self) { group in
-                for kind in kinds {
-                    let fetcher = fetcher
-                    group.addTask {
-                        do {
-                            return (kind, try await fetcher.fetch(kind, onCachedBoard: { [weak self] board in
-                                await self?.acceptSharedBoard(board)
-                            }), nil)
-                        } catch {
-                            return (kind, nil, error.localizedDescription)
-                        }
-                    }
+        for kind in kinds {
+            lastLeaderboardAttemptAtByKind[kind] = now
+            lastErrors[kind] = nil
+            let token = UUID()
+            boardRefreshTokens[kind] = token
+            boardRefreshTasks[kind] = Task { [self] in
+                let result: Result<Leaderboard, Error>
+                do {
+                    result = .success(try await fetcher.fetch(kind, onCachedBoard: { [weak self = self] board in
+                        await self?.acceptSharedBoard(board, token: token)
+                    }))
+                } catch { result = .failure(error) }
+                guard !Task.isCancelled, boardRefreshTokens[kind] == token else { return }
+                switch result {
+                case .success(let board):
+                    if board.canReplace(snapshot.boards[kind]) { snapshot.boards[kind] = board }
+                case .failure(let error): lastErrors[kind] = error.localizedDescription
                 }
-
-                for await (kind, board, errorMessage) in group {
-                    if Task.isCancelled { continue }
-                    if let board {
-                        if board.canReplace(snapshot.boards[kind]) { snapshot.boards[kind] = board }
-                    } else {
-                        lastErrors[kind] = errorMessage ?? "未知错误"
-                    }
-                }
+                boardRefreshTokens[kind] = nil
+                boardRefreshTasks[kind] = nil
+                if boardRefreshTasks.isEmpty { finishRefresh() }
             }
-
-            guard !Task.isCancelled else { return }
-            finishRefresh()
         }
     }
 
-    private func acceptSharedBoard(_ board: Leaderboard) {
-        guard !isQuitting, board != snapshot.boards[board.kind], board.canReplace(snapshot.boards[board.kind]) else { return }
+    private func acceptSharedBoard(_ board: Leaderboard, token: UUID) {
+        guard boardRefreshTokens[board.kind] == token, !isQuitting, board != snapshot.boards[board.kind], board.canReplace(snapshot.boards[board.kind]) else { return }
         snapshot.boards[board.kind] = board
         lastErrors[board.kind] = nil
         cache.save(snapshot)
@@ -982,14 +999,14 @@ final class AppState: ObservableObject {
     private func isFresh(_ category: LeaderboardCategory) -> Bool {
         if SharedLeaderboardConfiguration.endpoint != nil {
             let now = Date()
-            return category.boardKinds.allSatisfy { kind in
+            return boardKinds(for: category).allSatisfy { kind in
                 guard let date = snapshot.boards[kind]?.fetchedAt else { return false }
                 let age = now.timeIntervalSince(date)
                 return age >= 0 && age < LeaderboardFreshness.interval
             }
         }
         let startOfDay = Calendar.current.startOfDay(for: Date())
-        return category.boardKinds.allSatisfy { kind in
+        return boardKinds(for: category).allSatisfy { kind in
             (snapshot.boards[kind]?.fetchedAt ?? .distantPast) >= startOfDay
         }
     }
@@ -998,7 +1015,7 @@ final class AppState: ObservableObject {
         cache.save(snapshot)
         isRefreshing = false
 
-        if lastErrors.isEmpty {
+        if !visibleBoardKinds.contains(where: { lastErrors[$0] != nil }) {
             schedule = .afterSuccess()
         } else if Date() >= schedule.giveUpAt {
             schedule = schedule.givingUp()

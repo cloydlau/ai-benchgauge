@@ -13,50 +13,11 @@ private final class ScreenshotUIState: ObservableObject {
     @Published var showOfficialAccounts = false
 }
 
-private enum DesktopBrandInkTop: AlignmentID {
-    static func defaultValue(in dimensions: ViewDimensions) -> CGFloat { dimensions[.top] }
-}
-private enum DesktopBrandInkBottom: AlignmentID {
-    static func defaultValue(in dimensions: ViewDimensions) -> CGFloat { dimensions[.bottom] }
-}
-private extension VerticalAlignment {
-    static let desktopBrandInkTop = VerticalAlignment(DesktopBrandInkTop.self)
-    static let desktopBrandInkBottom = VerticalAlignment(DesktopBrandInkBottom.self)
-}
-
-private struct DesktopBrandHeadingLayout: Layout {
-    private func measurements(_ subviews: Subviews, width: CGFloat? = nil) -> ([ViewDimensions], [CGPoint], CGSize) {
-        var dimensions = subviews.map { $0.dimensions(in: .unspecified) }
-        if let width {
-            dimensions[1] = subviews[1].dimensions(in: ProposedViewSize(
-                width: max(1, width - dimensions[0].width - 6), height: nil))
-        }
-        let span = dimensions[0][.desktopBrandInkBottom] - dimensions[0][.desktopBrandInkTop]
-        let x = dimensions[0].width + 6
-        let subtitleCenter = span / 2
-        var origins = [CGPoint(x: 0, y: -dimensions[0][.desktopBrandInkTop]),
-                       CGPoint(x: x, y: subtitleCenter - dimensions[1].height / 2)]
-        let top = origins.map(\.y).min() ?? 0
-        for index in origins.indices { origins[index].y -= top }
-        let height = zip(dimensions, origins).map { $0.0.height + $0.1.y }.max() ?? 0
-        return (dimensions, origins, CGSize(width: x + dimensions[1].width, height: height))
-    }
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        measurements(subviews, width: proposal.width).2
-    }
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let (dimensions, origins, _) = measurements(subviews, width: bounds.width)
-        for index in subviews.indices {
-            subviews[index].place(at: CGPoint(x: bounds.minX + origins[index].x, y: bounds.minY + origins[index].y),
-                anchor: .topLeading, proposal: ProposedViewSize(width: dimensions[index].width, height: dimensions[index].height))
-        }
-    }
-}
-
 struct LeaderboardView: View {
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var state: AppState
     @StateObject private var screenshot = ScreenshotUIState()
+    @StateObject private var search = DesktopLeaderboardSearchState()
 
     private var language: AppLanguage { state.selectedLanguage }
     private func tr(_ english: String, _ chinese: String) -> String {
@@ -65,12 +26,7 @@ struct LeaderboardView: View {
 
     private static let minimumWidth: CGFloat = 850
     // macOS Table adds its own padding around fixed-width columns.
-    // Nine native columns: the two added columns also get AppKit cell insets.
     private static let rankColumnWidth: CGFloat = 36
-    private static let tableChromeBaseWidth: CGFloat = 308
-    // Reduce the panel by the same amount as its fixed columns, preserving
-    // the name space required by every category and company purchase links.
-    private static let preferredTableChromeWidth: CGFloat = 524
     private static let countryColumnWidth: CGFloat = 32
     private static let opennessColumnWidth: CGFloat = 32
     /// Row height SwiftUI settles on for these cells. The panel height has to
@@ -79,6 +35,7 @@ struct LeaderboardView: View {
     /// `.tableStyle(.bordered)` insets the clip view by 1pt top and bottom, so
     /// the rows need 2pt more than the table frame hands them.
     private static let tableBorderHeight: CGFloat = 2
+    static let distributionRowCount = 13
 
     let maximumWidth: CGFloat
     var viewportSize: CGSize? = nil
@@ -92,11 +49,12 @@ struct LeaderboardView: View {
     }
 
     private var nameColumnWidth: CGFloat {
-        (contentWidth - Self.tableChromeWidth) / 2
+        max(40, (contentWidth - Self.tableChromeWidth(boardCount: visibleKinds.count)) / CGFloat(visibleKinds.count))
     }
 
-    private static var tableChromeWidth: CGFloat {
-        tableChromeBaseWidth + (countryColumnWidth + opennessColumnWidth) * 2
+    private static func tableChromeWidth(boardCount: Int) -> CGFloat {
+        // Rank, four native cell insets per source, country/source icons, score.
+        52 + CGFloat(boardCount) * 192
     }
 
     static func preferredWidth(for state: AppState, maximumWidth: CGFloat) -> CGFloat {
@@ -134,20 +92,12 @@ struct LeaderboardView: View {
                     .max() ?? 0
             }
         }.max() ?? 0
-        let headerWidth = LeaderboardCategory.allCases.flatMap { category -> [CGFloat] in
-            let lenses = category.sourceLenses(language: state.selectedLanguage)
-            return [
-                SourceTableHeaderView.requiredNameColumnWidth(
-                    title: boardColumnTitle(category.leftColumnTitle, kind: category.leftKind, state: state),
-                    summary: lenses.aa
-                ),
-                SourceTableHeaderView.requiredNameColumnWidth(
-                    title: boardColumnTitle(category.rightColumnTitle, kind: category.rightKind, state: state),
-                    summary: lenses.arena
-                ),
-            ]
+        let headerWidth = LeaderboardCategory.allCases.flatMap(\.boardKinds).map { kind in
+            SourceTableHeaderView.requiredNameColumnWidth(
+                title: LeaderboardPresentation.columnTitle(kind, language: state.selectedLanguage),
+                summary: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(kind, language: state.selectedLanguage)))
         }.max() ?? 0
-        let desired = max(minimumWidth, ceil(max(columnWidth, headerWidth) * 2 + preferredTableChromeWidth))
+        let desired = max(minimumWidth, ceil(max(columnWidth, headerWidth) * CGFloat(state.visibleBoardKinds.count) + tableChromeWidth(boardCount: state.visibleBoardKinds.count) + 88))
         return min(desired, maximumWidth)
     }
 
@@ -168,7 +118,7 @@ struct LeaderboardView: View {
     }
 
     private static func visibleRowCount(for state: AppState) -> Int {
-        let kinds = state.selectedCategory.boardKinds
+        let kinds = state.visibleBoardKinds
         let raw = kinds.map { state.snapshot.boards[$0]?.entries ?? [] }
         if raw.allSatisfy(\.isEmpty) || kinds.allSatisfy({ state.countryFilters[$0] == nil && state.opennessFilters[$0] == nil }) {
             return 20
@@ -262,6 +212,7 @@ struct LeaderboardView: View {
                     if state.ccSwitchEmptyState != nil { quotaSetupPrompt }
                     AddModelButton(language: language) { screenshot.showOfficialAccounts = true }
                 }
+                .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.top, 10)
                 .background(QuotaStripAnchor())
             }
@@ -313,75 +264,70 @@ struct LeaderboardView: View {
         .accessibilityIdentifier("quota-setup-placeholder")
     }
 
-    @ViewBuilder
     private var titleRow: some View {
-        if contentWidth < (language == .english ? 1300 : 1100) {
-            VStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
+            if visibleKinds.count == 1 {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) {
+                        brandHeading.fixedSize()
+                        Spacer(minLength: 0)
+                        navigationPickers
+                        Spacer(minLength: 0)
+                        freshness.fixedSize()
+                    }
+                    stackedTitleRow
+                }
+            } else if contentWidth >= (language == .english ? 1300 : 1100) {
                 HStack(spacing: 12) {
-                    appTitle
-                    Spacer(minLength: 12)
-                    freshness
+                    brandHeading.frame(maxWidth: .infinity, alignment: .leading)
+                    navigationPickers
+                    freshness.frame(maxWidth: .infinity, alignment: .trailing)
                 }
-                HStack(spacing: 8) {
-                    groupingPicker
-                    categoryPicker
-                    comparisonPicker
-                }
-            }
-        } else {
-            // Equal side columns keep the tabs centered on wider panels.
-            HStack(alignment: .center, spacing: 12) {
-                appTitle.frame(maxWidth: .infinity, alignment: .leading)
-                HStack(spacing: 8) {
-                    groupingPicker
-                    categoryPicker
-                    comparisonPicker
-                }
-                freshness.frame(maxWidth: .infinity, alignment: .trailing)
+            } else {
+                stackedTitleRow
             }
         }
     }
 
-    private var appTitle: some View {
-        let title = language.appName
-        let english = language == .english
-        return DesktopBrandHeadingLayout {
-            Group {
-                if english {
-                    EnglishBrandTitle(fontSize: 21)
-                } else {
-                    ChineseBrandTitle()
-                }
+    private var navigationPickers: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 8) { groupingPicker; categoryPicker }
+                .opacity(search.isExpanded ? 0 : 1)
+                .allowsHitTesting(!search.isExpanded)
+                .accessibilityHidden(search.isExpanded)
+            Color.clear.frame(width: 26, height: 24)
+        }
+        .fixedSize()
+        .overlay { DesktopLeaderboardSearch(state: search, language: language) }
+    }
+
+    private var stackedTitleRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                brandHeading
+                Spacer(minLength: 12)
+                freshness
             }
-            .alignmentGuide(.desktopBrandInkTop) { dimensions in
-                english ? Self.textInkEdge(dimensions, text: title,
-                    font: NSFont(name: "SnellRoundhand-Bold", size: 21)!, top: true)
-                    : dimensions.height - dimensions[.bottom]
-            }
-            .alignmentGuide(.desktopBrandInkBottom) { dimensions in
-                english ? Self.textInkEdge(dimensions, text: title,
-                    font: NSFont(name: "SnellRoundhand-Bold", size: 21)!, top: false)
-                    : dimensions[.bottom]
-            }
-            .accessibilityIdentifier("brand-title")
-            Button { QuotaTrackingHelpAlert.make(language: language).runModal() } label: {
-                FeatureSubtitle(language: language, height: BrandTitleMetrics.inkHeight(language: language))
-                    .foregroundStyle(.secondary)
-            }.buttonStyle(.plain)
-                .help(AppFeatureCopy.quotaHelpLabel(language: language))
-                .accessibilityLabel(AppFeatureCopy.subtitle(language: language))
+            navigationPickers.frame(maxWidth: .infinity)
+        }
+    }
+
+    private var brandHeading: some View {
+        HStack(alignment: .center, spacing: 8) {
+            appTitle.fixedSize()
+            FeatureSubtitle(language: language,
+                height: max(12, BrandTitleMetrics.inkHeight(language: language) - 3),
+                multiline: true, showsHelpSymbol: false)
+                .foregroundStyle(.secondary)
                 .accessibilityIdentifier("brand-subtitle")
-            .alignmentGuide(.desktopBrandInkBottom) { dimensions in
-                dimensions.height
-            }
         }
     }
 
-    nonisolated private static func textInkEdge(_ dimensions: ViewDimensions, text: String, font: NSFont, top: Bool) -> CGFloat {
-        let attributed = NSAttributedString(string: text, attributes: [.font: font])
-        let ink = CTLineGetBoundsWithOptions(CTLineCreateWithAttributedString(attributed), .useGlyphPathBounds)
-        guard !ink.isNull, !ink.isEmpty else { return dimensions[top ? .top : .bottom] }
-        return dimensions[.firstTextBaseline] - (top ? ink.maxY : ink.minY)
+    @ViewBuilder private var appTitle: some View {
+        Group {
+            if language == .english { EnglishBrandTitle(fontSize: 21) }
+            else { ChineseBrandTitle() }
+        }.accessibilityIdentifier("brand-title")
     }
 
     private var freshness: some View {
@@ -393,58 +339,51 @@ struct LeaderboardView: View {
     private var groupingPicker: some View {
         GroupingSegmentedControl(
             language: language,
+            compact: visibleKinds.count == 1,
             selection: Binding(
                 get: { state.selectedGrouping },
                 set: { state.selectGrouping($0) }
             )
         )
-        .frame(width: GroupingSegmentedControl.width, height: GroupingSegmentedControl.height)
+        .fixedSize(horizontal: true, vertical: false)
+        .frame(height: GroupingSegmentedControl.height)
         .help(tr("Company scores use each company's strongest model.", "按公司查看时，以最强模型分数为准，弱型号不拉低"))
-    }
-
-    @ViewBuilder private var comparisonPicker: some View {
-        if selectedCategory == .general {
-            Picker(tr("Compare with", "对照来源"), selection: $state.generalComparison) {
-                Text("Arena").tag(LeaderboardKind.arenaText)
-                Text("Epoch ECI").tag(LeaderboardKind.epochECI)
-            }.labelsHidden().frame(width: 112)
-                .accessibilityIdentifier("general-comparison-source")
-                .help(tr("Choose the second general leaderboard", "选择综合榜的第二个对照来源"))
-        }
     }
 
     private var categoryPicker: some View {
         CategorySegmentedControl(
             language: language,
+            compact: visibleKinds.count == 1,
             selection: Binding(
                 get: { state.selectedCategory },
                 set: { state.selectCategory($0) }
             )
         )
-        .frame(width: CategorySegmentedControl.width, height: CategorySegmentedControl.height)
+        .fixedSize(horizontal: true, vertical: false)
+        .frame(height: CategorySegmentedControl.height)
         .help(tr("Switch leaderboard category", "切换榜单类别"))
     }
 
-    private var rightKind: LeaderboardKind { selectedCategory == .general ? state.generalComparison : selectedCategory.rightKind }
-    private var rightColumnTitle: String { LeaderboardPresentation.title(rightKind, language: language) }
+    private var visibleKinds: [LeaderboardKind] { state.visibleBoardKinds }
+    private func kind(at slot: Int) -> LeaderboardKind { visibleKinds.indices.contains(slot) ? visibleKinds[slot] : visibleKinds[0] }
+    private func shareColor(for kind: LeaderboardKind) -> Color {
+        kind == .epochECI ? .teal : (kind.sourceLinkTitle == LeaderboardKind.artificialAnalysis.sourceLinkTitle ? .blue : .purple)
+    }
+
 
     private var selectedCategory: LeaderboardCategory {
         state.selectedCategory
     }
 
-    /// One heading identifies both timestamps; each value sits in its own pill
-    /// so the ranking data and this Mac's quota data stay distinguishable.
+    /// Leaderboard times belong to their source columns; this row tracks only
+    /// the local quota snapshot.
     private func freshnessLine(now: Date) -> some View {
-        HStack(spacing: 8) {
-            Text(tr("UPDATED", "更新时间"))
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: true, vertical: false)
-            // Shrinking would break the equal-width guarantee, so both values
-            // keep their natural size.
-            freshnessPill(rankingClause(now: now, format: .relative), failed: rankingFailed)
+        Group {
             if let quota = quotaClause(now: now, format: .relative) {
-                freshnessPill(quota, failed: state.quotaUnavailable)
+                Text(quota)
+                    .foregroundStyle(state.quotaUnavailable ? Color.orange : Color.secondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
             }
         }
         .font(.system(size: 11))
@@ -453,27 +392,6 @@ struct LeaderboardView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(freshnessAccessibilityLabel(now: now))
         .help(freshnessHelp(now: now))
-    }
-
-    /// The copy stays relative because that is what reads at a glance, but
-    /// `刚刚` and `23 分钟前` differ by ~28pt, and in a right-aligned row that
-    /// width would shove the heading sideways every minute. A fixed-width pill
-    /// absorbs the difference as its own padding, so the heading never moves
-    /// and no hole opens in the header. The slot fits the longest template per
-    /// language (`榜单 59 分钟前` / `Rankings 59 min ago`) plus the padding.
-    private func freshnessPill(_ text: String, failed: Bool) -> some View {
-        Text(text)
-            .foregroundStyle(failed ? Color.orange : Color.secondary)
-            .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 2.5)
-            // Left-aligned so `榜单` / `Rankings` stay pinned too; the width
-            // difference then lands in the pill's trailing padding.
-            .frame(width: language == .english ? 124 : 92, alignment: .leading)
-            .background(
-                Capsule().fill(failed ? Color.orange.opacity(0.12) : Color.secondary.opacity(0.10))
-            )
     }
 
     /// How a timestamp is spelled. The panel shows `.relative` because age is
@@ -512,55 +430,20 @@ struct LeaderboardView: View {
         return formatter.string(from: date)
     }
 
-    private func rankingClause(now: Date, format: FreshnessFormat) -> String {
-        // Use the oldest visible board so a partially refreshed category does
-        // not appear newer than all of its data.
-        let fetchedAt = state.selectedCategory.boardKinds
-            .compactMap { state.snapshot.boards[$0]?.fetchedAt }
-            .min()
-        // Keep the space so the value column lines up with `榜单 23 分钟前`.
-        guard let fetchedAt else { return tr("Rankings pending", "榜单 待更新") }
-        let value = freshnessValue(fetchedAt, now: now, format: format)
-        return tr("Rankings \(value)", "榜单 \(value)")
-    }
-
-    private var rankingFailed: Bool {
-        !state.isRefreshing && !state.lastErrors.isEmpty
-    }
-
     private func freshnessSummary(now: Date) -> String {
-        var summary = tr("Last updated: ", "更新时间：")
-            + rankingClause(now: now, format: .both)
-        if let quota = quotaClause(now: now, format: .both) {
-            summary += tr("; ", "；") + quota
-        }
-        return summary
+        quotaClause(now: now, format: .both) ?? ""
     }
 
     private func freshnessAccessibilityLabel(now: Date) -> String {
-        var label = freshnessSummary(now: now)
-        if state.isRefreshing {
-            label = tr("Updating rankings. \(label)", "正在更新排名。\(label)")
-        } else if rankingFailed {
-            label = tr("Some rankings failed to update. \(label)", "部分排名更新失败。\(label)")
-        }
-        return label
+        freshnessSummary(now: now)
     }
 
     private func freshnessHelp(now: Date) -> String {
-        var parts: [String] = []
-        if state.isRefreshing {
-            parts.append(tr("Updating rankings", "正在更新排名"))
-        } else if !state.lastErrors.isEmpty {
-            parts.append(tr("Some rankings failed to update", "部分排名更新失败"))
-        }
-        parts.append(freshnessSummary(now: now))
-        if state.quotaUnavailable && state.quotaChips.isEmpty {
-            parts.append(tr("Quota unavailable; CC Switch database could not be read", "余量暂不可读，这次没读成本机 CC Switch 数据库"))
-        } else if state.quotaUnavailable {
+        var parts = [freshnessSummary(now: now)]
+        if state.quotaUnavailable {
             parts.append(tr("Quota refresh failed; showing previous values", "余量数据库这次没有读成，显示的是上次余量"))
-        } else if quotaClause(now: now, format: .relative) != nil {
-            parts.append(tr("Quota comes from this Mac's CC Switch data", "余量来自本机 CC Switch。没安装或读不懂配置时不显示，也不需要安装 Codex"))
+        } else if !state.quotaChips.isEmpty {
+            parts.append(tr("Quota comes from this Mac's CC Switch data", "余量来自本机 CC Switch"))
         }
         return parts.joined(separator: tr(". ", "。"))
     }
@@ -571,104 +454,60 @@ struct LeaderboardView: View {
         }
         guard let updatedAt = state.quotaUpdatedAt else { return tr("Quota pending", "余量 待更新") }
         let value = freshnessValue(updatedAt, now: now, format: format)
-        return tr("Quota \(value)", "余量 \(value)")
+        return tr("Quotas updated \(value)", "余量更新于\(value)")
     }
 
-    // Both name columns grow with the longest visible name. The country and
-    // score columns stay aligned across rows and both halves of the table.
+    // Three native source slots preserve macOS 14.0 support. AppKit hides
+    // unused columns completely, rather than leaving empty source placeholders.
+    @TableColumnBuilder<LeaderboardRow, Never>
+    private func boardColumns(_ slot: Int) -> some TableColumnContent<LeaderboardRow, Never> {
+        TableColumn(LeaderboardPresentation.columnTitle(kind(at: slot), language: language)) { row in
+            LeaderboardCell(model: row.cells[slot], language: language, shareColor: shareColor(for: kind(at: slot)),
+                columnWidth: nameColumnWidth, onCopyName: nameCopyAction)
+        }.width(nameColumnWidth)
+        TableColumn(tr("Country", "国家")) { row in
+            CountryCell(model: row.cells[slot], language: language)
+        }.width(Self.countryColumnWidth).alignment(.center)
+        TableColumn(ModelOpenness.columnTitle(language: language)) { row in
+            OpennessCell(model: row.cells[slot], language: language)
+        }.width(Self.opennessColumnWidth).alignment(.center)
+        TableColumn(tr("Score", "分数")) { row in
+            ScoreCell(model: row.cells[slot], scoreDigits: kind(at: slot) == .epochECI ? 2 : 1)
+        }.width(60).alignment(.center)
+    }
+
     private var table: some View {
-        let lenses = (aa: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(selectedCategory.leftKind, language: language)),
-                      arena: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(rightKind, language: language)))
-        return Table(rows) {
+        Table(rows) {
             TableColumn(tr("Rank", "排名")) { row in
-                Text(LeaderboardPresentation.rankLabel(row.rank))
-                    .monospacedDigit()
+                Text(row.isDistribution ? "" : LeaderboardPresentation.rankLabel(row.rank)).monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .center)
-            }
-            .width(Self.rankColumnWidth)
-            .alignment(.center)
-
-            TableColumn(Self.boardColumnTitle(
-                selectedCategory.leftColumnTitle,
-                kind: selectedCategory.leftKind,
-                state: state
-            )) { row in
-                LeaderboardCell(model: row.left, language: language, onCopyName: nameCopyAction)
-            }
-            .width(nameColumnWidth)
-
-            TableColumn(tr("Country", "国家")) { row in
-                CountryCell(model: row.left, language: language)
-            }
-            .width(Self.countryColumnWidth)
-            .alignment(.center)
-
-            TableColumn(ModelOpenness.columnTitle(language: language)) { row in
-                OpennessCell(model: row.left, language: language)
-            }
-            .width(Self.opennessColumnWidth)
-            .alignment(.center)
-
-            TableColumn(tr("Score", "分数")) { row in
-                ScoreCell(model: row.left, scoreDigits: 1, shareColor: .blue)
-            }
-            .width(60)
-            .alignment(.center)
-
-            TableColumn(Self.boardColumnTitle(
-                rightColumnTitle,
-                kind: rightKind,
-                state: state
-            )) { row in
-                LeaderboardCell(model: row.right, language: language, onCopyName: nameCopyAction)
-            }
-            .width(nameColumnWidth)
-
-            TableColumn(tr("Country", "国家")) { row in
-                CountryCell(model: row.right, language: language)
-            }
-            .width(Self.countryColumnWidth)
-            .alignment(.center)
-
-            TableColumn(ModelOpenness.columnTitle(language: language)) { row in
-                OpennessCell(model: row.right, language: language)
-            }
-            .width(Self.opennessColumnWidth)
-            .alignment(.center)
-
-            TableColumn(tr("Score", "分数")) { row in
-                ScoreCell(model: row.right, scoreDigits: rightKind == .epochECI ? 2 : 1, shareColor: .purple)
-            }
-            .width(60)
-            .alignment(.center)
+            }.width(Self.rankColumnWidth).alignment(.center)
+            boardColumns(0)
+            boardColumns(1)
+            boardColumns(2)
         }
         .tableStyle(.bordered(alternatesRowBackgrounds: true))
         .scrollIndicators(.automatic)
         .overlay(TableChrome(
-            left: lenses.aa,
-            right: lenses.arena,
-            leftHelp: selectedCategory.leftColumnTitle + tr(". ", "。")
-                + LeaderboardPresentation.sourceHelp(selectedCategory.leftKind, language: language,
-                    board: state.snapshot.boards[selectedCategory.leftKind], includesFetchTime: false),
-            rightHelp: rightColumnTitle + tr(". ", "。")
-                + LeaderboardPresentation.sourceHelp(rightKind, language: language,
-                    board: state.snapshot.boards[rightKind], includesFetchTime: false),
-            leftKind: selectedCategory.leftKind,
-            rightKind: rightKind,
-            language: language,
-            leftFilter: state.countryFilters[selectedCategory.leftKind] ?? .all,
-            rightFilter: state.countryFilters[rightKind] ?? .all,
-            leftCountryOptions: countryOptions(for: selectedCategory.leftKind),
-            rightCountryOptions: countryOptions(for: rightKind),
-            leftOpenness: state.opennessFilters[selectedCategory.leftKind] ?? .all,
-            rightOpenness: state.opennessFilters[rightKind] ?? .all,
-            onOpennessFilter: { kind, filter in state.selectOpennessFilter(filter, for: kind) },
-            onCountryFilter: { kind, filter in
-                state.selectCountryFilter(filter, for: kind)
-            },
-            showsSkeleton: needsSkeleton
-        ))
-        .id(contentWidth)
+            boards: visibleKinds.map { kind in
+                BoardHeaderConfiguration(kind: kind,
+                    summary: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(kind, language: language)),
+                    time: LeaderboardPresentation.displayTime(state.snapshot.boards[kind], language: language),
+                    help: LeaderboardPresentation.columnTitle(kind, language: language) + "\n" + LeaderboardPresentation.sourceHelp(kind, language: language, board: state.snapshot.boards[kind]),
+                    country: state.countryFilters[kind] ?? .all,
+                    countryOptions: countryOptions(for: kind), openness: state.opennessFilters[kind] ?? .all)
+            }, language: language,
+            onOpennessFilter: { state.selectOpennessFilter($1, for: $0) },
+            onCountryFilter: { state.selectCountryFilter($1, for: $0) },
+            showsSkeleton: needsSkeleton, distributionStartRow: rows.count - Self.distributionRowCount, distributionView: AnyView(distributionPanels)))
+        .overlay {
+            if !needsSkeleton, !search.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               visibleKinds.allSatisfy({ displayedEntries(kind: $0).allSatisfy { !LeaderboardPresentation.modelNameMatches($0.entry.name, query: search.query) } }) {
+                Text(tr("No matching results", "没有匹配结果"))
+                    .foregroundStyle(.secondary).frame(maxHeight: .infinity, alignment: .top).padding(.top, 52).allowsHitTesting(false)
+            }
+        }
+        .id("\(contentWidth)-\(visibleKinds.map(\.rawValue).joined(separator: ","))")
         .redacted(reason: needsSkeleton ? .placeholder : [])
         .disabled(needsSkeleton)
     }
@@ -910,9 +749,7 @@ struct LeaderboardView: View {
             Spacer(minLength: 8)
             HStack(spacing: 7) {
                 if showsSources {
-                    Text(selectedCategory.leftKind.sourceLinkTitle)
-                    Text("·")
-                    Text(rightKind.sourceLinkTitle)
+                    Text(visibleKinds.map(\.sourceLinkTitle).joined(separator: " · "))
                     Text("·")
                 }
                 Text("Cloyd Lau · MIT License")
@@ -945,10 +782,9 @@ struct LeaderboardView: View {
                     footerSources
                 } else {
                     Menu(tr("Sources", "数据来源")) {
-                        sourceLink(title: selectedCategory.leftKind.sourceLinkTitle,
-                                   url: selectedCategory.leftKind.sourceURL.absoluteString)
-                        sourceLink(title: rightKind.sourceLinkTitle,
-                                   url: rightKind.sourceURL.absoluteString)
+                        ForEach(visibleKinds, id: \.self) { kind in
+                            sourceLink(title: kind.sourceLinkTitle, url: kind.sourceURL.absoluteString)
+                        }
                     }
                     .menuStyle(.borderlessButton)
                     .fixedSize()
@@ -989,21 +825,22 @@ struct LeaderboardView: View {
     private var footerSources: some View {
         HStack(spacing: 7) {
             Text(tr("Sources", "数据来源"))
-            sourceLink(
-                title: selectedCategory.leftKind.sourceLinkTitle,
-                url: selectedCategory.leftKind.sourceURL.absoluteString
-            )
-            Text("·")
-            sourceLink(
-                title: rightKind.sourceLinkTitle,
-                url: rightKind.sourceURL.absoluteString
-            )
-        }
-        .fixedSize(horizontal: true, vertical: false)
+            ForEach(visibleKinds, id: \.self) { kind in
+                sourceLink(title: kind.sourceLinkTitle, url: kind.sourceURL.absoluteString)
+            }
+        }.fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var boardVisibilityMenu: some View {
+        BoardVisibilityPicker(language: language, category: selectedCategory,
+            selected: visibleKinds, onConfirm: { state.setVisibleBoards($0) })
+            .fixedSize()
     }
 
     private func footerControls(compact: Bool) -> some View {
         HStack(spacing: compact ? 4 : 7) {
+            boardVisibilityMenu
+            Text("·")
             Toggle(tr("Codex task counts", "Codex 任务统计"), isOn: Binding(
                 get: { state.showsCodexTaskStatus },
                 set: { state.setShowsCodexTaskStatus($0) }
@@ -1107,38 +944,46 @@ struct LeaderboardView: View {
     /// Empty boards skeleton from the raw model list, not the company
     /// aggregation. Grouping is a local view and must not look like a fetch.
     private var needsSkeleton: Bool {
-        let leftEmpty = state.snapshot.boards[selectedCategory.leftKind]?.entries.isEmpty ?? true
-        let rightEmpty = state.snapshot.boards[rightKind]?.entries.isEmpty ?? true
-        return leftEmpty && rightEmpty
+        visibleKinds.allSatisfy { state.snapshot.boards[$0]?.entries.isEmpty ?? true }
+    }
+
+    private var distributionPanels: some View {
+        HStack(alignment: .top, spacing: 12) {
+            ForEach(visibleKinds, id: \.self) { kind in
+                LeaderboardDistributionCharts(entries: state.snapshot.boards[kind]?.entries ?? [], language: language,
+                    boardTitle: LeaderboardPresentation.columnTitle(kind, language: language))
+            }
+        }.padding(12).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(BrandTheme.background(for: colorScheme)).environment(\.colorScheme, colorScheme).unredacted()
     }
 
     private var rows: [LeaderboardRow] {
+        let data = rankingRows
+        return data + (0..<Self.distributionRowCount).map { offset in
+            LeaderboardRow(rank: data.count + offset + 1, cells: Array(repeating: nil, count: 3), isDistribution: true)
+        }
+    }
+
+    private var rankingRows: [LeaderboardRow] {
         if needsSkeleton {
             return (0..<Self.visibleRowCount(for: state)).map { index in
-                LeaderboardRow(
-                    rank: index + 1,
-                    left: .placeholder(rank: index + 1),
-                    right: .placeholder(rank: index + 1)
-                )
+                LeaderboardRow(rank: index + 1, cells: Array(repeating: .placeholder(rank: index + 1), count: 3))
             }
         }
-
-        let left = displayedEntries(kind: selectedCategory.leftKind)
-        let right = displayedEntries(kind: rightKind)
-        let organizationLogos = self.organizationLogos
-
-        return (0..<max(Self.visibleRowCount(for: state), left.count, right.count)).map { index in
-            LeaderboardRow(
-                rank: index + 1,
-                left: cellModel(
-                    for: index < left.count ? left[index] : nil,
-                    organizationLogos: organizationLogos, leaderScore: left.first?.entry.score
-                ),
-                right: cellModel(
-                    for: index < right.count ? right[index] : nil,
-                    organizationLogos: organizationLogos, leaderScore: right.first?.entry.score
-                )
-            )
+        let unsearched = visibleKinds.map { displayedEntries(kind: $0) }
+        let entries = unsearched.map { $0.filter { LeaderboardPresentation.modelNameMatches($0.entry.name, query: search.query) } }
+        let logos = organizationLogos
+        let resultCount = entries.map(\.count).max() ?? 0
+        let count = search.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? max(Self.visibleRowCount(for: state), resultCount) : max(4, resultCount)
+        return (0..<count).map { index in
+            let cells = (0..<3).map { slot -> LeaderboardCellModel? in
+                guard entries.indices.contains(slot) else { return nil }
+                let list = entries[slot]
+                return cellModel(for: index < list.count ? list[index] : nil, organizationLogos: logos,
+                    leaderScore: unsearched[slot].first?.entry.score)
+            }
+            return LeaderboardRow(rank: index + 1, cells: cells)
         }
     }
 
@@ -1193,7 +1038,7 @@ struct LeaderboardView: View {
 
     private var organizationLogos: [String: URL] {
         var logos: [String: URL] = [:]
-        for kind in [selectedCategory.leftKind, rightKind] {
+        for kind in visibleKinds {
             for item in state.snapshot.boards[kind]?.organizationLogoURLs ?? [:] {
                 let key = OrganizationLogoCatalog.normalizedKey(item.key)
                 if !key.isEmpty {
@@ -1215,75 +1060,101 @@ struct LeaderboardView: View {
 }
 
 /// SwiftUI's TableColumn labels only support plain text. Install a native
-/// one-line header that uses the space within each board's name column for its
-/// full title and source explanation, without changing table column widths.
+/// one-line header with the source name leading and its own data time trailing.
+private struct BoardHeaderConfiguration {
+    let kind: LeaderboardKind
+    let summary: SourceLensDescription
+    let time: String
+    let help: String
+    let country: LeaderboardCountryFilter
+    let countryOptions: [LeaderboardCountryFilter]
+    let openness: LeaderboardOpennessFilter
+}
+
 private struct TableChrome: NSViewRepresentable {
-    let left: SourceLensDescription
-    let right: SourceLensDescription
-    let leftHelp: String
-    let rightHelp: String
-    let leftKind: LeaderboardKind
-    let rightKind: LeaderboardKind
+    let boards: [BoardHeaderConfiguration]
     let language: AppLanguage
-    let leftFilter: LeaderboardCountryFilter
-    let rightFilter: LeaderboardCountryFilter
-    let leftCountryOptions: [LeaderboardCountryFilter]
-    let rightCountryOptions: [LeaderboardCountryFilter]
-    let leftOpenness: LeaderboardOpennessFilter
-    let rightOpenness: LeaderboardOpennessFilter
     let onOpennessFilter: (LeaderboardKind, LeaderboardOpennessFilter) -> Void
     let onCountryFilter: (LeaderboardKind, LeaderboardCountryFilter) -> Void
     let showsSkeleton: Bool
+    let distributionStartRow: Int
+    let distributionView: AnyView
 
     func makeNSView(context: Context) -> ProbeView {
         let view = ProbeView()
-        view.configure(
-            left: left, right: right, leftHelp: leftHelp, rightHelp: rightHelp,
-            leftKind: leftKind, rightKind: rightKind,
-            language: language, leftFilter: leftFilter, rightFilter: rightFilter,
-            leftCountryOptions: leftCountryOptions, rightCountryOptions: rightCountryOptions,
-            leftOpenness: leftOpenness, rightOpenness: rightOpenness,
-            onOpennessFilter: onOpennessFilter, onCountryFilter: onCountryFilter, showsSkeleton: showsSkeleton
-        )
+        updateNSView(view, context: context)
         return view
     }
-
     func updateNSView(_ view: ProbeView, context: Context) {
-        view.configure(
-            left: left, right: right, leftHelp: leftHelp, rightHelp: rightHelp,
-            leftKind: leftKind, rightKind: rightKind,
-            language: language, leftFilter: leftFilter, rightFilter: rightFilter,
-            leftCountryOptions: leftCountryOptions, rightCountryOptions: rightCountryOptions,
-            leftOpenness: leftOpenness, rightOpenness: rightOpenness,
-            onOpennessFilter: onOpennessFilter, onCountryFilter: onCountryFilter, showsSkeleton: showsSkeleton
-        )
+        view.configure(boards: boards, language: language, onOpennessFilter: onOpennessFilter,
+            onCountryFilter: onCountryFilter, showsSkeleton: showsSkeleton, distributionStartRow: distributionStartRow, distributionView: distributionView)
     }
 
     final class ProbeView: NSView {
-        private var left = SourceLensDescription(emphasis: "")
-        private var right = SourceLensDescription(emphasis: "")
-        private var leftHelp = ""
-        private var rightHelp = ""
-        private var leftKind: LeaderboardKind?
-        private var rightKind: LeaderboardKind?
+        private var boards: [BoardHeaderConfiguration] = []
         private var language = AppLanguage.english
-        private var leftFilter = LeaderboardCountryFilter.all
-        private var rightFilter = LeaderboardCountryFilter.all
-        private var leftCountryOptions: [LeaderboardCountryFilter] = []
-        private var rightCountryOptions: [LeaderboardCountryFilter] = []
-        private var leftOpenness = LeaderboardOpennessFilter.all
-        private var rightOpenness = LeaderboardOpennessFilter.all
         private var onOpennessFilter: ((LeaderboardKind, LeaderboardOpennessFilter) -> Void)?
         private var onCountryFilter: ((LeaderboardKind, LeaderboardCountryFilter) -> Void)?
         private var showsSkeleton = false
         private weak var rankingScrollView: NSScrollView?
+        private weak var rankingTableView: NSTableView?
         private var backToTopButton: NSButton?
+        private var updateScheduled = false
+        private var needsConfiguration = true
+        private var distributionStartRow = 0
+        private var distributionView = AnyView(EmptyView())
+        private var distributionHost: NSHostingView<AnyView>?
+        private weak var distributionTable: NSTableView?
+
+        private func configureDistributions(in table: NSTableView) {
+            guard distributionStartRow >= 0, distributionStartRow < table.numberOfRows else { return }
+            if distributionTable !== table {
+                if let previous = distributionTable {
+                    NotificationCenter.default.removeObserver(self, name: NSView.frameDidChangeNotification, object: previous)
+                }
+                distributionTable = table
+                table.postsFrameChangedNotifications = true
+                NotificationCenter.default.addObserver(self, selector: #selector(distributionGeometryChanged),
+                    name: NSView.frameDidChangeNotification, object: table)
+            }
+            let host = distributionHost ?? NSHostingView(rootView: distributionView)
+            distributionHost = host
+            host.rootView = distributionView
+            host.identifier = NSUserInterfaceItemIdentifier("desktop-distributions")
+            host.sizingOptions = []
+            host.wantsLayer = true; host.layer?.zPosition = 10
+            guard let clip = table.enclosingScrollView?.contentView else { return }
+            // NSTableView recycles row subviews above its own children while scrolling.
+            // Keep the footer beside its document view so recycled cells cannot cover it.
+            if host.superview !== clip { clip.addSubview(host, positioned: .above, relativeTo: table) }
+            positionDistributions(in: table)
+        }
+
+        private func positionDistributions(in table: NSTableView) {
+            guard let host = distributionHost, let clip = host.superview,
+                  distributionStartRow < table.numberOfRows else { return }
+            let first = table.rect(ofRow: distributionStartRow), last = table.rect(ofRow: table.numberOfRows - 1)
+            let frame = table.convert(NSRect(x: 0, y: first.minY, width: table.bounds.width, height: last.maxY - first.minY), to: clip)
+            if host.frame != frame { host.frame = frame }
+        }
+
+        @objc private func distributionGeometryChanged() {
+            guard let table = distributionTable else { return }
+            positionDistributions(in: table)
+            // Variable-height rows can finalize their metrics after the document frame changes.
+            DispatchQueue.main.async { [weak self, weak table] in
+                guard let self, let table, self.distributionTable === table else { return }
+                self.positionDistributions(in: table)
+            }
+        }
 
         deinit { NotificationCenter.default.removeObserver(self) }
 
         @objc private func scrollPositionChanged() {
             guard let scroll = rankingScrollView else { return }
-            backToTopButton?.isHidden = scroll.contentView.bounds.minY < 32
+            if let table = rankingTableView { positionDistributions(in: table) }
+            let hidden = scroll.contentView.bounds.minY < 32
+            if backToTopButton?.isHidden != hidden { backToTopButton?.isHidden = hidden }
         }
 
         @objc private func backToTop() {
@@ -1325,40 +1196,17 @@ private struct TableChrome: NSViewRepresentable {
             scrollPositionChanged()
         }
 
-        func configure(
-            left: SourceLensDescription,
-            right: SourceLensDescription,
-            leftHelp: String,
-            rightHelp: String,
-            leftKind: LeaderboardKind,
-            rightKind: LeaderboardKind,
-            language: AppLanguage,
-            leftFilter: LeaderboardCountryFilter,
-            rightFilter: LeaderboardCountryFilter,
-            leftCountryOptions: [LeaderboardCountryFilter],
-            rightCountryOptions: [LeaderboardCountryFilter],
-            leftOpenness: LeaderboardOpennessFilter,
-            rightOpenness: LeaderboardOpennessFilter,
+        func configure(boards: [BoardHeaderConfiguration], language: AppLanguage,
             onOpennessFilter: @escaping (LeaderboardKind, LeaderboardOpennessFilter) -> Void,
-            onCountryFilter: @escaping (LeaderboardKind, LeaderboardCountryFilter) -> Void,
-            showsSkeleton: Bool
-        ) {
-            self.left = left
-            self.right = right
-            self.leftHelp = leftHelp
-            self.rightHelp = rightHelp
-            self.leftKind = leftKind
-            self.rightKind = rightKind
+            onCountryFilter: @escaping (LeaderboardKind, LeaderboardCountryFilter) -> Void, showsSkeleton: Bool, distributionStartRow: Int, distributionView: AnyView) {
+            self.boards = boards
             self.language = language
-            self.leftFilter = leftFilter
-            self.rightFilter = rightFilter
-            self.leftCountryOptions = leftCountryOptions
-            self.rightCountryOptions = rightCountryOptions
-            self.leftOpenness = leftOpenness
-            self.rightOpenness = rightOpenness
             self.onOpennessFilter = onOpennessFilter
             self.onCountryFilter = onCountryFilter
             self.showsSkeleton = showsSkeleton
+            self.distributionStartRow = distributionStartRow
+            self.distributionView = distributionView
+            needsConfiguration = true
             updateTable()
         }
 
@@ -1385,27 +1233,43 @@ private struct TableChrome: NSViewRepresentable {
         }
 
         private func updateTable() {
+            guard !updateScheduled else { return }
+            updateScheduled = true
             DispatchQueue.main.async { [weak self] in
-                guard let self, let root = self.window?.contentView else { return }
-                self.configureScrollViews(in: root)
+                guard let self else { return }
+                self.updateScheduled = false
+                guard let window = self.window, let root = window.contentView else { return }
+                // A scroll relayout must not walk every realized SwiftUI cell.
+                // Re-discover only when SwiftUI replaces or detaches the table.
+                if let table = self.rankingTableView, table.window === window,
+                   let scroll = table.enclosingScrollView, scroll === self.rankingScrollView {
+                    self.positionDistributions(in: table)
+                    if self.needsConfiguration || !(table.headerView is SourceTableHeaderView) {
+                        self.configureRankingScroll(scroll)
+                        self.configureHeader(in: table, scrollView: scroll)
+                        self.configureDistributions(in: table)
+                        self.needsConfiguration = false
+                    }
+                    return
+                }
+                guard let table = Self.findRankingTable(in: root),
+                      let scroll = table.enclosingScrollView else { return }
+                self.rankingTableView = table
+                scroll.hasHorizontalScroller = true
+                scroll.horizontalScrollElasticity = .none
+                self.configureRankingScroll(scroll)
+                self.configureHeader(in: table, scrollView: scroll)
+                self.configureDistributions(in: table)
+                self.needsConfiguration = false
             }
         }
 
-        private func configureScrollViews(in view: NSView) {
-            if let scrollView = view as? NSScrollView {
-                if scrollView.hasHorizontalScroller { scrollView.hasHorizontalScroller = false }
-                if scrollView.horizontalScrollElasticity != .none {
-                    scrollView.horizontalScrollElasticity = .none
-                }
-                if let tableView = Self.findTable(in: scrollView.documentView),
-                   tableView.tableColumns.count >= 9 {
-                    configureRankingScroll(scrollView)
-                    configureHeader(in: tableView, scrollView: scrollView)
-                }
-            }
+        private static func findRankingTable(in view: NSView) -> NSTableView? {
+            if let table = view as? NSTableView, table.tableColumns.count >= 9 { return table }
             for child in view.subviews {
-                configureScrollViews(in: child)
+                if let table = findRankingTable(in: child) { return table }
             }
+            return nil
         }
 
         private static func findTable(in view: NSView?) -> NSTableView? {
@@ -1429,37 +1293,30 @@ private struct TableChrome: NSViewRepresentable {
                 tableView.headerView = header
                 scrollView.tile()
             }
-            header.configure(
-                left: left, right: right, language: language,
-                leftKind: leftKind, rightKind: rightKind,
-                leftFilter: leftFilter, rightFilter: rightFilter,
-                leftCountryOptions: leftCountryOptions, rightCountryOptions: rightCountryOptions,
-                leftOpenness: leftOpenness, rightOpenness: rightOpenness,
-            onOpennessFilter: onOpennessFilter, onCountryFilter: onCountryFilter, showsSkeleton: showsSkeleton
-            )
-            tableView.tableColumns[1].headerToolTip = leftHelp
-            tableView.tableColumns[5].headerToolTip = rightHelp
-            let filterHelp = language.text("Filter by country", "按国家筛选")
-            tableView.tableColumns[2].headerToolTip = filterHelp
-            tableView.tableColumns[6].headerToolTip = filterHelp
-            for index in [3, 7] { tableView.tableColumns[index].headerToolTip = language.text("Filter by source. ", "按源码筛选。") + ModelOpenness.help(language: language) }
+            for (index, column) in tableView.tableColumns.enumerated() {
+                column.isHidden = index > 0 && (index - 1) / 4 >= boards.count
+                guard index > 0, !column.isHidden else { continue }
+                let board = boards[(index - 1) / 4]
+                switch (index - 1) % 4 {
+                case 0: column.headerToolTip = board.help
+                case 1: column.headerToolTip = language.text("Filter by country", "按国家筛选")
+                case 2: column.headerToolTip = language.text("Filter by source. ", "按源码筛选。") + ModelOpenness.help(language: language)
+                default: break
+                }
+            }
+            header.configure(boards: boards, language: language, onOpennessFilter: onOpennessFilter,
+                onCountryFilter: onCountryFilter, showsSkeleton: showsSkeleton)
         }
     }
 }
 
 private final class SourceTableHeaderView: NSTableHeaderView {
     static let height: CGFloat = 24
-    private var left = SourceLensDescription(emphasis: "")
-    private var right = SourceLensDescription(emphasis: "")
+    // Keep the pinned labels readable even when the system makes table chrome vibrant.
+    override var allowsVibrancy: Bool { false }
+    override var isOpaque: Bool { false }
+    private var boards: [BoardHeaderConfiguration] = []
     private var language = AppLanguage.english
-    private var leftKind: LeaderboardKind?
-    private var rightKind: LeaderboardKind?
-    private var leftFilter = LeaderboardCountryFilter.all
-    private var rightFilter = LeaderboardCountryFilter.all
-    private var leftCountryOptions: [LeaderboardCountryFilter] = []
-    private var rightCountryOptions: [LeaderboardCountryFilter] = []
-    private var leftOpenness = LeaderboardOpennessFilter.all
-    private var rightOpenness = LeaderboardOpennessFilter.all
     private var onOpennessFilter: ((LeaderboardKind, LeaderboardOpennessFilter) -> Void)?
     private var onCountryFilter: ((LeaderboardKind, LeaderboardCountryFilter) -> Void)?
     private var showsSkeleton = false
@@ -1472,38 +1329,20 @@ private final class SourceTableHeaderView: NSTableHeaderView {
     static let placeholderAlpha: CGFloat = 35.0 / 255.0
 
     static func requiredNameColumnWidth(title: String, summary: SourceLensDescription) -> CGFloat {
-        ceil((summary.emphasis as NSString).size(withAttributes: [
+        ceil((title as NSString).size(withAttributes: [
             .font: NSFont.systemFont(ofSize: 11, weight: .semibold)
-        ]).width + 10)
+        ]).width + ((" · " + summary.emphasis) as NSString).size(withAttributes: [
+            .font: NSFont.systemFont(ofSize: 10)
+        ]).width + ("12/31 23:59" as NSString).size(withAttributes: [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .regular)
+        ]).width + 18)
     }
 
-    func configure(
-        left: SourceLensDescription,
-        right: SourceLensDescription,
-        language: AppLanguage,
-        leftKind: LeaderboardKind?,
-        rightKind: LeaderboardKind?,
-        leftFilter: LeaderboardCountryFilter,
-        rightFilter: LeaderboardCountryFilter,
-        leftCountryOptions: [LeaderboardCountryFilter],
-        rightCountryOptions: [LeaderboardCountryFilter],
-        leftOpenness: LeaderboardOpennessFilter,
-        rightOpenness: LeaderboardOpennessFilter,
+    func configure(boards: [BoardHeaderConfiguration], language: AppLanguage,
         onOpennessFilter: ((LeaderboardKind, LeaderboardOpennessFilter) -> Void)?,
-        onCountryFilter: ((LeaderboardKind, LeaderboardCountryFilter) -> Void)?,
-        showsSkeleton: Bool
-    ) {
-        self.left = left
-        self.right = right
+        onCountryFilter: ((LeaderboardKind, LeaderboardCountryFilter) -> Void)?, showsSkeleton: Bool) {
+        self.boards = boards
         self.language = language
-        self.leftKind = leftKind
-        self.rightKind = rightKind
-        self.leftFilter = leftFilter
-        self.rightFilter = rightFilter
-        self.leftCountryOptions = leftCountryOptions
-        self.rightCountryOptions = rightCountryOptions
-        self.leftOpenness = leftOpenness
-        self.rightOpenness = rightOpenness
         self.onOpennessFilter = onOpennessFilter
         self.onCountryFilter = onCountryFilter
         self.showsSkeleton = showsSkeleton
@@ -1514,14 +1353,15 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         guard !showsSkeleton else { return }
         let point = convert(event.locationInWindow, from: nil)
         let column = column(at: point)
-        guard [2, 3, 6, 7].contains(column) else {
+        guard column > 0, boards.indices.contains((column - 1) / 4),
+              [1, 2].contains((column - 1) % 4) else {
             super.mouseDown(with: event)
             return
         }
-        if column == 3 || column == 7 {
-            guard let kind = column == 3 ? leftKind : rightKind else { return }
-            menuKind = kind
-            let selected = column == 3 ? leftOpenness : rightOpenness
+        let board = boards[(column - 1) / 4]
+        if (column - 1) % 4 == 2 {
+            menuKind = board.kind
+            let selected = board.openness
             let menu = NSMenu()
             for (index, choice) in LeaderboardOpennessFilter.allCases.enumerated() {
                 let item = NSMenuItem(title: choice.title(language: language), action: #selector(selectOpenness(_:)), keyEquivalent: "")
@@ -1532,11 +1372,9 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             NSMenu.popUpContextMenu(menu, with: event, for: self)
             return
         }
-        let kind = column == 2 ? leftKind : rightKind
-        guard let kind else { return }
-        let selected = column == 2 ? leftFilter : rightFilter
-        menuChoices = column == 2 ? leftCountryOptions : rightCountryOptions
-        menuKind = kind
+        let selected = board.country
+        menuChoices = board.countryOptions
+        menuKind = board.kind
         let menu = NSMenu()
         for (index, choice) in menuChoices.enumerated() {
             let item = NSMenuItem(
@@ -1566,54 +1404,37 @@ private final class SourceTableHeaderView: NSTableHeaderView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        guard let tableView, tableView.tableColumns.count >= 9 else {
+        guard let tableView, tableView.tableColumns.count >= 5 else {
             super.draw(dirtyRect)
             return
         }
-        NSColor.controlBackgroundColor.setFill()
-        bounds.fill()
+        let dark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        NSColor(calibratedWhite: dark ? 0.14 : 0.97, alpha: 0.96).setFill()
+        bounds.fill(using: .copy)
 
-        for index in tableView.tableColumns.indices {
-            let columnRect = headerRect(ofColumn: index)
-            if showsSkeleton {
-                switch index {
-                case 1, 5:
-                    drawSkeletonNameHeader(
-                        tableView.tableColumns[index].headerCell.stringValue,
-                        in: columnRect
-                    )
-                case 2, 6:
-                    drawSkeletonMark(in: columnRect, width: 28)
-                default:
-                    // Rank and score already come back as the light placeholder.
-                    tableView.tableColumns[index].headerCell.draw(withFrame: columnRect, in: self)
-                }
+        for index in tableView.tableColumns.indices where !tableView.tableColumns[index].isHidden {
+            let rect = headerRect(ofColumn: index)
+            guard index > 0, boards.indices.contains((index - 1) / 4) else {
+                tableView.tableColumns[index].headerCell.draw(withFrame: rect, in: self)
                 continue
             }
-            switch index {
-            case 1:
-                drawBoardHeader(
-                    tableView.tableColumns[index].headerCell.stringValue,
-                    summary: left,
-                    tint: .systemBlue,
-                    in: columnRect
-                )
-            case 5:
-                drawBoardHeader(
-                    tableView.tableColumns[index].headerCell.stringValue,
-                    summary: right,
-                    tint: .systemPurple,
-                    in: columnRect
-                )
-            case 3, 7:
-                drawFilterHeader(title: ModelOpenness.columnTitle(language: language), active: (index == 3 ? leftOpenness : rightOpenness) != .all, in: columnRect)
-            case 2, 6:
-                drawCountryHeader(
-                    selected: index == 2 ? leftFilter : rightFilter,
-                    in: columnRect
-                )
-            default:
-                tableView.tableColumns[index].headerCell.draw(withFrame: columnRect, in: self)
+            let board = boards[(index - 1) / 4]
+            let role = (index - 1) % 4
+            if showsSkeleton {
+                if role == 0 { drawSkeletonNameHeader(tableView.tableColumns[index].headerCell.stringValue, in: rect) }
+                else if role == 1 || role == 2 { drawSkeletonMark(in: rect, width: 28) }
+                else { tableView.tableColumns[index].headerCell.draw(withFrame: rect, in: self) }
+                continue
+            }
+            switch role {
+            case 0:
+                let tint: NSColor = board.kind == .epochECI ? .systemTeal
+                    : (board.kind.sourceLinkTitle == LeaderboardKind.artificialAnalysis.sourceLinkTitle ? .systemBlue : .systemPurple)
+                drawBoardHeader(tableView.tableColumns[index].headerCell.stringValue,
+                    summary: board.summary, time: board.time, tint: tint, in: rect)
+            case 1: drawCountryHeader(selected: board.country, in: rect)
+            case 2: drawFilterHeader(title: ModelOpenness.columnTitle(language: language), active: board.openness != .all, in: rect)
+            default: tableView.tableColumns[index].headerCell.draw(withFrame: rect, in: self)
             }
         }
 
@@ -1699,15 +1520,38 @@ private final class SourceTableHeaderView: NSTableHeaderView {
     private func drawBoardHeader(
         _ title: String,
         summary: SourceLensDescription,
+        time: String,
         tint: NSColor,
         in rect: NSRect
     ) {
-        let cell = NSTableHeaderCell(textCell: summary.emphasis)
-        cell.alignment = .left
-        cell.font = NSFont.systemFont(ofSize: 11, weight: .semibold)
-        cell.textColor = tint
-        cell.lineBreakMode = .byTruncatingTail
-        cell.draw(withFrame: rect, in: self)
+        let timeFont = NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .regular)
+        let timeAttributes: [NSAttributedString.Key: Any] = [.font: timeFont, .foregroundColor: NSColor.secondaryLabelColor]
+        let timeSize = (time as NSString).size(withAttributes: timeAttributes)
+        let timeWidth = ceil(timeSize.width)
+        let titleRect = NSTableHeaderCell(textCell: "").titleRect(forBounds: rect)
+        // Draw both runs directly: a header cell's default font and accessory
+        // inset would clip the clock and add a divider inside this column.
+        (time as NSString).draw(at: NSPoint(x: rect.maxX - timeWidth - 5,
+            y: titleRect.midY - timeSize.height / 2), withAttributes: timeAttributes)
+        let nameRect = NSRect(x: rect.minX, y: rect.minY, width: max(0, rect.width - timeWidth - 8), height: rect.height)
+        let titleFont = NSFont.systemFont(ofSize: 11, weight: .semibold)
+        let summaryFont = NSFont.systemFont(ofSize: 10)
+        let available = max(0, nameRect.width - 10)
+        let titleWidth = (title as NSString).size(withAttributes: [.font: titleFont]).width
+        // Preserve the source identity before the explanation in narrow columns.
+        let visibleTitle = titleWidth > available
+            ? title.replacingOccurrences(of: "Artificial Analysis", with: "AA") : title
+        let text = NSMutableAttributedString(string: visibleTitle, attributes: [
+            .font: titleFont, .foregroundColor: tint
+        ])
+        let explanation = NSAttributedString(string: " · " + summary.emphasis,
+            attributes: [.font: summaryFont, .foregroundColor: tint])
+        if text.size().width + explanation.size().width <= available { text.append(explanation) }
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineBreakMode = .byTruncatingTail
+        text.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: text.length))
+        text.draw(in: NSRect(x: nameRect.minX + 5, y: titleRect.midY - text.size().height / 2,
+            width: available, height: ceil(text.size().height)))
     }
 
 }
@@ -1735,8 +1579,8 @@ private struct SourceLensDescription {
 
 private struct LeaderboardRow: Identifiable {
     let rank: Int
-    let left: LeaderboardCellModel?
-    let right: LeaderboardCellModel?
+    let cells: [LeaderboardCellModel?]
+    var isDistribution = false
     var id: Int { rank }
 }
 
@@ -1781,13 +1625,61 @@ private struct LeaderboardCell: View {
 
     let model: LeaderboardCellModel?
     let language: AppLanguage
+    let shareColor: Color
+    let columnWidth: CGFloat
     /// Nil for skeleton placeholders, which must not be copied.
     let onCopyName: ((String) -> Bool)?
 
     private var entry: LeaderboardEntry? { model?.entry }
 
+    // Reserve the same gutter for every row so the colored bars keep one scale.
+    private static let shareGap: CGFloat = 4
+    private static let shareWidth = ceil(("99%" as NSString).size(withAttributes: [
+        .font: NSFont.monospacedDigitSystemFont(ofSize: 8, weight: .regular)
+    ]).width)
+
     var body: some View {
-        HStack(spacing: 10) {
+        if entry == nil {
+            nameContent()
+        } else {
+            // TableColumn has an exact width. Measuring it again in every
+            // recycled cell adds two GeometryReader layout passes per model.
+            let trackWidth = max(0, columnWidth - Self.shareWidth - Self.shareGap)
+            let filledWidth = trackWidth * LeaderboardPresentation.scoreFillRatio(
+                model?.entry.score ?? 0, leaderScore: model?.leaderScore)
+            let share = LeaderboardPresentation.scoreShareText(
+                model?.entry.score ?? 0, leaderScore: model?.leaderScore)
+            let showsShare = !share.isEmpty && filledWidth >= 38
+            ZStack(alignment: .leading) {
+                if let brandColor = model?.brandColor(isDark: colorScheme == .dark) {
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(brandColor.opacity(0.34))
+                        .frame(width: filledWidth, height: 24)
+                        .allowsHitTesting(false).accessibilityHidden(true)
+                }
+                // Keep the name clear of the badge, including shorter score bars.
+                nameContent(compact: (showsShare ? filledWidth : trackWidth) < 90)
+                    .frame(width: showsShare ? filledWidth : trackWidth,
+                           height: 24)
+                if showsShare {
+                    Text(share)
+                        .font(.system(size: 8)).monospacedDigit()
+                        .foregroundStyle(shareColor)
+                        .fixedSize()
+                        .frame(width: Self.shareWidth, alignment: .leading)
+                        .position(x: filledWidth + Self.shareGap + Self.shareWidth / 2,
+                                  y: 12)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+            }
+            .frame(width: columnWidth, height: 24, alignment: .leading)
+            .clipped()
+        }
+    }
+
+    private func nameContent(compact: Bool = false) -> some View {
+        HStack(spacing: compact ? 4 : 10) {
             if let entry {
                 ModelLogoView(
                     url: model?.logoURL,
@@ -1795,7 +1687,7 @@ private struct LeaderboardCell: View {
                     organization: entry.organization,
                     name: entry.name
                 )
-                modelName(entry)
+                modelName(entry, compact: compact)
                 if model?.isCompany == true {
                     InlinePurchaseLinks(organization: entry.organization, modelName: entry.name, language: language)
                 }
@@ -1803,18 +1695,18 @@ private struct LeaderboardCell: View {
                 Text("-")
             }
         }
-        .padding(.horizontal, 5)
+        .padding(.horizontal, compact ? 3 : 5)
         .padding(.vertical, 2)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: entry == nil ? .center : .leading)
         .clipped()
-        .background(cellBackground)
     }
 
     @ViewBuilder
-    private func modelName(_ entry: LeaderboardEntry) -> some View {
+    private func modelName(_ entry: LeaderboardEntry, compact: Bool) -> some View {
         if onCopyName != nil {
             CopyableModelName(
                 name: entry.name,
+                truncation: compact ? .tail : .middle,
                 help: copyHelpText,
                 accessibilityLabel: copyAccessibilityLabel(entry),
                 onCopy: { onCopyName?(entry.name) ?? false }
@@ -1822,16 +1714,16 @@ private struct LeaderboardCell: View {
         } else if let help = nameHelpText {
             Text(entry.name)
                 .lineLimit(1)
-                .truncationMode(.middle)
+                .truncationMode(compact ? .tail : .middle)
                 .help(help)
         } else {
             Text(entry.name)
                 .lineLimit(1)
-                .truncationMode(.middle)
+                .truncationMode(compact ? .tail : .middle)
         }
     }
 
-    /// Full name stays in the tooltip because the cell truncates the middle.
+    /// Full name stays in the tooltip when the visible name is truncated.
     private var copyHelpText: String {
         var lines: [String] = []
         if let name = entry?.name, !name.isEmpty {
@@ -1852,24 +1744,52 @@ private struct LeaderboardCell: View {
         model?.scoreHelp
     }
 
-    private var cellBackground: some View {
-        Group {
-            if let brandColor = model?.brandColor(isDark: colorScheme == .dark) {
-                LeaderboardScoreBackground(color: brandColor.opacity(0.34),
-                    score: model?.entry.score ?? 0, leaderScore: model?.leaderScore)
-            }
-        }
-    }
 }
 
 private struct OpennessCell: View {
     let model: LeaderboardCellModel?
     let language: AppLanguage
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        ModelOpennessBadge(model?.entry.resolvedOpenness, language: language, showsTitle: false, iconSize: 11)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .help(ModelOpenness.help(language: language))
+        Group {
+            if let openness = model?.entry.resolvedOpenness {
+                DesktopOpennessIcon(open: openness == .open)
+                    .stroke(iconTint(openness), style: StrokeStyle(lineWidth: 14 / 12, lineCap: .round, lineJoin: .round))
+                    .frame(width: 14, height: 14)
+                    .accessibilityLabel(openness.title(language: language))
+            } else {
+                ModelOpennessBadge(nil, language: language, showsTitle: false, iconSize: 11)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .help(ModelOpenness.help(language: language))
+    }
+
+    private func iconTint(_ openness: ModelOpenness) -> Color {
+        ModelOpennessBadge.tint(for: openness, dark: colorScheme == .dark)
+    }
+}
+
+/// Lucide lock-keyhole icons, matching the mini-program's 24-point viewBox.
+/// Both states share the same lock body and bounds; see Licenses/Lucide.txt.
+private struct DesktopOpennessIcon: Shape {
+    let open: Bool
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path(roundedRect: CGRect(x: 3, y: 10, width: 18, height: 12), cornerRadius: 2)
+        path.addEllipse(in: CGRect(x: 11, y: 15, width: 2, height: 2))
+        path.move(to: CGPoint(x: 7, y: 10))
+        path.addLine(to: CGPoint(x: 7, y: 7))
+        path.addCurve(to: CGPoint(x: 12, y: 2), control1: CGPoint(x: 7, y: 4.238576), control2: CGPoint(x: 9.238576, y: 2))
+        if open {
+            path.addCurve(to: CGPoint(x: 16.330127, y: 4.5), control1: CGPoint(x: 13.786328, y: 2), control2: CGPoint(x: 15.436963, y: 2.952995))
+        } else {
+            path.addCurve(to: CGPoint(x: 17, y: 7), control1: CGPoint(x: 14.761424, y: 2), control2: CGPoint(x: 17, y: 4.238576))
+            path.addLine(to: CGPoint(x: 17, y: 10))
+        }
+        return path.applying(CGAffineTransform(scaleX: rect.width / 24, y: rect.height / 24)
+            .concatenating(CGAffineTransform(translationX: rect.minX, y: rect.minY)))
     }
 }
 
@@ -1902,7 +1822,6 @@ private struct CountryCell: View {
 private struct ScoreCell: View {
     let model: LeaderboardCellModel?
     let scoreDigits: Int
-    let shareColor: Color
 
     var body: some View {
         Group {
@@ -1910,14 +1829,6 @@ private struct ScoreCell: View {
                 Text(entry.score.formatted(.number.precision(.fractionLength(scoreDigits))))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
-                    .overlay(alignment: .bottom) {
-                        let share = LeaderboardPresentation.scoreShareText(entry.score, leaderScore: model?.leaderScore)
-                        if !share.isEmpty {
-                            Text(share).font(.system(size: 8)).monospacedDigit()
-                                .foregroundStyle(shareColor).offset(y: 9)
-                                .allowsHitTesting(false)
-                        }
-                    }
             } else {
                 Text("-")
                     .foregroundStyle(.secondary)
@@ -1967,11 +1878,23 @@ private struct PurchaseLinkControl: View {
     }
 }
 
+@MainActor
+private enum DesktopSegmentMetrics {
+    static func width(labels: [String], regular: CGFloat, compact: Bool) -> CGFloat {
+        guard compact else { return regular }
+        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .semibold)
+        let labelWidth = labels.map { ($0 as NSString).size(withAttributes: [.font: font]).width }.max() ?? 0
+        // Equal segments fit the heaviest label plus eight points on each side.
+        return ceil(labelWidth + 16) * CGFloat(labels.count)
+    }
+}
+
 private struct CategorySegmentedControl: NSViewRepresentable {
     static let width: CGFloat = 360
     static let height: CGFloat = 24
 
     let language: AppLanguage
+    var compact = false
     @Binding var selection: LeaderboardCategory
 
     private func label(_ category: LeaderboardCategory) -> String {
@@ -1983,9 +1906,16 @@ private struct CategorySegmentedControl: NSViewRepresentable {
         }
     }
 
+    private var controlWidth: CGFloat {
+        DesktopSegmentMetrics.width(labels: LeaderboardCategory.allCases.map(label),
+                                    regular: Self.width, compact: compact)
+    }
+
     private func configureLabels(_ control: NSSegmentedControl) {
         for (index, category) in LeaderboardCategory.allCases.enumerated() {
             control.setLabel(label(category), forSegment: index)
+            let width = controlWidth / CGFloat(LeaderboardCategory.allCases.count)
+            if control.width(forSegment: index) != width { control.setWidth(width, forSegment: index) }
         }
         control.toolTip = language.text("Switch leaderboard category", "切换榜单类别")
         control.setAccessibilityLabel(language.text("Leaderboard category", "榜单类别"))
@@ -2003,10 +1933,6 @@ private struct CategorySegmentedControl: NSViewRepresentable {
         // and the whole control jitters. Equal widths stay put.
         control.segmentDistribution = .fillEqually
         control.segmentCount = LeaderboardCategory.allCases.count
-        let segmentWidth = Self.width / CGFloat(LeaderboardCategory.allCases.count)
-        for (index, _) in LeaderboardCategory.allCases.enumerated() {
-            control.setWidth(segmentWidth, forSegment: index)
-        }
         configureLabels(control)
         control.selectedSegment = selectedIndex
         control.target = context.coordinator
@@ -2033,7 +1959,7 @@ private struct CategorySegmentedControl: NSViewRepresentable {
         nsView: CategorySegmentedControlView,
         context: Context
     ) -> CGSize? {
-        CGSize(width: Self.width, height: Self.height)
+        CGSize(width: controlWidth, height: Self.height)
     }
 
     private var selectedIndex: Int {
@@ -2062,6 +1988,7 @@ private struct GroupingSegmentedControl: NSViewRepresentable {
     static let height: CGFloat = 24
 
     let language: AppLanguage
+    var compact = false
     @Binding var selection: LeaderboardGrouping
 
     private func label(_ grouping: LeaderboardGrouping) -> String {
@@ -2071,9 +1998,16 @@ private struct GroupingSegmentedControl: NSViewRepresentable {
         }
     }
 
+    private var controlWidth: CGFloat {
+        DesktopSegmentMetrics.width(labels: LeaderboardGrouping.allCases.map(label),
+                                    regular: Self.width, compact: compact)
+    }
+
     private func configureLabels(_ control: NSSegmentedControl) {
         for (index, grouping) in LeaderboardGrouping.allCases.enumerated() {
             control.setLabel(label(grouping), forSegment: index)
+            let width = controlWidth / CGFloat(LeaderboardGrouping.allCases.count)
+            if control.width(forSegment: index) != width { control.setWidth(width, forSegment: index) }
         }
         control.toolTip = language.text("Company scores use each company's strongest model.", "按公司查看时，以最强模型分数为准，弱型号不拉低")
         control.setAccessibilityLabel(language.text("Leaderboard grouping", "榜单分组"))
@@ -2091,10 +2025,6 @@ private struct GroupingSegmentedControl: NSViewRepresentable {
         // and the whole control jitters. Equal widths stay put.
         control.segmentDistribution = .fillEqually
         control.segmentCount = LeaderboardGrouping.allCases.count
-        let segmentWidth = Self.width / CGFloat(LeaderboardGrouping.allCases.count)
-        for (index, _) in LeaderboardGrouping.allCases.enumerated() {
-            control.setWidth(segmentWidth, forSegment: index)
-        }
         configureLabels(control)
         control.selectedSegment = selectedIndex
         control.target = context.coordinator
@@ -2121,7 +2051,7 @@ private struct GroupingSegmentedControl: NSViewRepresentable {
         nsView: CategorySegmentedControlView,
         context: Context
     ) -> CGSize? {
-        CGSize(width: Self.width, height: Self.height)
+        CGSize(width: controlWidth, height: Self.height)
     }
 
     private var selectedIndex: Int {
@@ -2177,6 +2107,7 @@ private struct CopyableModelName: View {
     @StateObject private var flash = NameCopyFlash()
 
     let name: String
+    var truncation: Text.TruncationMode = .middle
     let help: String
     let accessibilityLabel: String
     let onCopy: () -> Bool
@@ -2199,7 +2130,7 @@ private struct CopyableModelName: View {
     private var nameLabel: some View {
         let label = Text(name)
             .lineLimit(1)
-            .truncationMode(.middle)
+            .truncationMode(truncation)
         if flash.copied {
             label.foregroundStyle(copiedInk)
         } else {

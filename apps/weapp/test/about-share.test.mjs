@@ -58,7 +58,7 @@ test('about-page menu forwarding and cold-start back navigation retain the origi
   assert.equal(about.costGroups.value[0].collapsed, true)
   assert.equal(about.costGroups.value[1].collapsed, false)
   const forwarded = globalThis.aboutShare()
-  assert.equal(forwarded.title, `${text(copy.about, 'en')}｜${text(copy.tagline, 'en')}`)
+  assert.equal(forwarded.title, `${text(copy.about, 'en')}｜${text(copy.rankingSummary, 'en')}`)
   assert.equal(about.description, text(copy.description, 'en'))
   assert.ok(forwarded.path.startsWith('/pages/about/index?state='))
   const expected = pagePreferences(query)
@@ -80,6 +80,9 @@ test('about descriptions and share titles reuse common localized copy', () => {
     }
     const about = globalThis.aboutFactory({})
     assert.equal(about.description, text(copy.description, language))
-    assert.equal(globalThis.aboutShare().title, `${about.labels.about}｜${text(copy.tagline, language)}`)
+    const title = globalThis.aboutShare().title
+    assert.equal(title, `${about.labels.about}｜${text(copy.rankingSummary, language)}`)
+    assert.ok(!title.includes(text(copy.tagline, language)))
+    assert.ok(about.description.includes(text(copy.tagline, language)))
   }
 })

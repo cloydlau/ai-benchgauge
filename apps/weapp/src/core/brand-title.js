@@ -9,16 +9,24 @@ export function brandTitleLayout(_context, name, fontSize) {
   const english = name === 'AI BenchGauge', scale = fontSize / 21
   const keys = english ? ['en-I', 'en-name'] : ['zh-I', 'zh-tian', 'zh-ti']
   const logoHeight = brandGlyphs[keys[0]].height * scale, logoWidth = logoHeight * brandLogoAspect
-  const logoSlant = english ? 12 : 0, logoShear = Math.tan(logoSlant * Math.PI / 180)
+  const logoSlant = english ? 28 : 0, logoShear = Math.tan(logoSlant * Math.PI / 180)
   const height = Math.max(...keys.map(key => brandGlyphs[key].height * scale))
-  const logoTop = (height - logoHeight) / 2, gap = 2.5 * scale
-  // Keep the sheared image rectangle inside the title and clear of I.
+  // The network's weight sits below its box center. Lift AI together slightly
+  // against the script wordmark, whose outer bounds include long descenders.
+  const initialsLift = english ? fontSize * 0.07 : 0
+  // The rounded network nodes look lower than I's thin terminal at equal box
+  // bounds. Lift only A slightly for optical bottom alignment.
+  const logoTop = (height - logoHeight) / 2 - initialsLift - (english ? 0.6 * scale : 0)
+  const gap = (english ? 0.6 : 2.5) * scale
+  // Kern into the transparent upper-right corner of the triangular A rather
+  // than reserving the full sheared rectangle between the two initials.
   const logoInkWidth = logoWidth + logoHeight * logoShear
-  let x = logoInkWidth
+  let x = english ? Math.max(logoWidth + logoHeight * logoShear * 0.35,
+    logoWidth * 0.7 + logoHeight * logoShear) : logoInkWidth
   const glyphs = keys.map((key, index) => {
     const part = brandGlyphs[key], width = part.width * scale, glyphHeight = part.height * scale
     x += english && index === 1 ? fontSize * 0.34 : gap
-    const y = (height - glyphHeight) / 2
+    const y = (height - glyphHeight) / 2 - (english && index === 0 ? initialsLift : 0)
     const glyph = { key, text: part.text, x, y, width, height: glyphHeight,
       source: `/assets/brand-glyphs/${key}`,
       style: `left:${x}px;top:${y}px;width:${width}px;height:${glyphHeight}px;` }
@@ -33,6 +41,23 @@ export function brandTitleLayout(_context, name, fontSize) {
 
 export function createBrandMeasurer() {
   return (name, fontSize) => brandTitleLayout(null, name, fontSize)
+}
+
+export function createSubtitleMeasurer(platform) {
+  let context
+  try { context = platform.createOffscreenCanvas({ type: '2d', width: 1, height: 1 }).getContext('2d') } catch {}
+  if (context) context.font = '500 12px sans-serif'
+  const widths = new Map()
+  return rows => Math.max(1, ...rows.map(row => {
+    if (!widths.has(row)) {
+      const measured = context?.measureText(row).width
+      // Older renderers can lack an offscreen 2D context. Use conservative
+      // glyph widths when unavailable, never a zero-width caption.
+      const fallback = [...row].reduce((width, glyph) => width + (/[^\x00-\x7F]/.test(glyph) ? 12 : 7.2), 0)
+      widths.set(row, measured > 0 && Number.isFinite(measured) ? measured : fallback)
+    }
+    return widths.get(row)
+  }))
 }
 
 export function drawBrandLogo(context, image, title, x, y) {

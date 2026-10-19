@@ -6,6 +6,9 @@ import LeaderboardCore
 import SwiftUI
 
 @MainActor
+private final class SearchVisualWindow: NSWindow { override var canBecomeKey: Bool { true } }
+
+@MainActor
 enum NativeVisualCapture {
     enum CaptureError: Error { case blankFrame(String) }
     struct Entry: Decodable { let rank: Int; let name: String; let score: Double; let modelID: String?; let organization: String; let logo: String; let openness: ModelOpenness?; let brand: OrganizationBrand?; let organizationBrand: OrganizationBrand?; let developerCountry: OrganizationCountryMetadata? }
@@ -19,7 +22,7 @@ enum NativeVisualCapture {
         let balances: [Balance]?
     }
     struct State: Decodable { let boards: [Board]; let quotas: [Quota]; let quotaUpdatedAt: String? }
-    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String?; let codexModel: String?; let codexProvider: String?; let codexBaseURL: String?; let taskCounts: CodexTaskCounts?; let refreshedTaskCounts: CodexTaskCounts?; let codexDesktopRunning: Bool?; let refreshedCodexDesktopRunning: Bool?; let showsCodexTaskStatus: Bool?; let refreshedShowsCodexTaskStatus: Bool?; let officialAccountChecking: Bool?; let sources: [String: LeaderboardOpennessFilter]?; let countries: [String: String]?; let grouping: LeaderboardGrouping?; let category: LeaderboardCategory?; let comparisonKind: LeaderboardKind?; let rowCount: Int? }
+    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String?; let codexModel: String?; let codexProvider: String?; let codexBaseURL: String?; let taskCounts: CodexTaskCounts?; let refreshedTaskCounts: CodexTaskCounts?; let codexDesktopRunning: Bool?; let refreshedCodexDesktopRunning: Bool?; let showsCodexTaskStatus: Bool?; let refreshedShowsCodexTaskStatus: Bool?; let officialAccountChecking: Bool?; let sources: [String: LeaderboardOpennessFilter]?; let countries: [String: String]?; let grouping: LeaderboardGrouping?; let category: LeaderboardCategory?; let comparisonKind: LeaderboardKind?; let selectedBoards: [LeaderboardKind]?; let refreshedSelectedBoards: [LeaderboardKind]?; let rowCount: Int?; let searchQuery: String? }
     struct Fixture: Decodable { let state: State; let cases: [Case]; let quotaScenarios: [String: [Quota]]? }
 
     static func run() async throws {
@@ -45,11 +48,25 @@ enum NativeVisualCapture {
             return (kind, Leaderboard(kind: kind, title: board.title, sourceUpdatedAt: board.sourceTimeUnavailable == true ? nil : board.sourceUpdatedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, fetchedAt: board.fetchedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, entries: entries))
         })
         let kinds: [String: CCSwitchQuotaKind] = ["OpenAI": .officialNote, "Kimi": .kimi, "Qwen": .qwen, "DeepSeek": .deepseek, "GLM": .zhipu, "xAI": .xaiOAuth]
+        // Exercise the same ownership deferral as production, with no real login
+        // or network access. This fixture also runs against the pre-fix source.
+        var deferredStatus: AccountQuotaChip.Status = .pending
+        if (fixture.state.quotas + (fixture.quotaScenarios?.values.flatMap { $0 } ?? []))
+            .contains(where: { $0.status == "refreshDeferred" }) {
+            let authURL = output.appending(path: "synthetic-auth.json")
+            defer { try? FileManager.default.removeItem(at: authURL) }
+            try Data(#"{"default_account_id":"fixture","accounts":{"fixture":{"account_id":"fixture","refresh_token":"visual-fixture","requires_reauth":false}}}"#.utf8).write(to: authURL)
+            let client = AccountQuotaClient(authFileURL: authURL, xaiRefreshAllowed: { false })
+            let target = CCSwitchQuotaTarget(id: "fixture", shortName: "xAI", websiteURL: nil,
+                kind: .xaiOAuth, isCurrent: false, apiKey: nil, baseURL: nil)
+            deferredStatus = try await client.refresh(targets: [target], previous: []).first!.status
+        }
         func chip(_ quota: Quota) -> AccountQuotaChip {
             let status: AccountQuotaChip.Status
             switch quota.status {
             case "network": status = .message(AccountQuotaMessage.network)
             case "reauth": status = .message(AccountQuotaMessage.reauthRequired)
+            case "refreshDeferred": status = deferredStatus
             case "pending": status = .pending
             case "unconnected": status = .note(text: AccountQuotaMessage.connectOfficial, help: AccountQuotaMessage.connectOfficialHelp)
             case "qwenWebsite": status = .qwenWebsite(QwenWebsiteQuota(periodLabel: "1mo", remainingPercent: 42, resetsAt: nil))
@@ -94,11 +111,19 @@ enum NativeVisualCapture {
                 }
                 let fetchedBoards = boards.mapValues { board in
                     let entries = test.rowCount.map { count in
-                        (1...count).map { rank in LeaderboardEntry(rank: rank, name: "Fixture model \(rank)", score: Double(count - rank + 1),
-                            organization: "Fixture maker \(rank)", logoURL: root.appending(path: "assets/logos/openai.png")) }
+                        (1...count).map { rank in
+                            if test.scenario == "scrollPerformance", !board.entries.isEmpty {
+                                let original = board.entries[(rank - 1) % board.entries.count]
+                                return LeaderboardEntry(rank: rank, name: original.name + " \(rank)",
+                                    score: Double(count - rank + 1), organization: original.organization,
+                                    logoURL: original.logoURL, brand: original.brand)
+                            }
+                            return LeaderboardEntry(rank: rank, name: "Fixture model \(rank)", score: Double(count - rank + 1),
+                                organization: "Fixture maker \(rank)", logoURL: root.appending(path: "assets/logos/openai.png"))
+                        }
                     } ?? board.entries
                     return Leaderboard(kind: board.kind, title: board.title, sourceUpdatedAt: board.sourceUpdatedAt,
-                                fetchedAt: test.scenario == "sourceTimes" ? board.fetchedAt : quotaDate ?? fixedDate, entries: entries)
+                                fetchedAt: (test.scenario == "boardSelectionConfirm" || test.scenario.hasPrefix("desktopSearch") || test.scenario == "distributionCharts") ? Date() : test.scenario == "sourceTimes" ? board.fetchedAt : quotaDate ?? fixedDate, entries: entries)
                 }
                 let stale = test.scenario == "freshnessStale"
                 let shownChips = stale ? visibleChips.map { chip in
@@ -106,7 +131,6 @@ enum NativeVisualCapture {
                                      kind: chip.kind, isCurrent: chip.isCurrent, status: chip.status, isStale: true)
                 } : visibleChips
                 func apply(refreshed: Bool = false) {
-                    state.generalComparison = test.comparisonKind ?? .arenaText
                     state.setShowsCodexTaskStatus(refreshed
                         ? (test.refreshedShowsCodexTaskStatus ?? test.showsCodexTaskStatus ?? false)
                         : (test.showsCodexTaskStatus ?? false))
@@ -210,11 +234,14 @@ enum NativeVisualCapture {
                     .background(Color(nsColor: .windowBackgroundColor))
                     .environment(\.colorScheme, theme == "dark" ? .dark : .light))
                 let style: NSWindow.StyleMask = test.scenario == "window" ? [.titled, .closable, .miniaturizable, .resizable] : [.borderless]
-                let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: style, backing: .buffered, defer: false)
+                let window: NSWindow = test.scenario.hasPrefix("desktopSearch")
+                    ? SearchVisualWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: style, backing: .buffered, defer: false)
+                    : NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: style, backing: .buffered, defer: false)
                 window.isReleasedWhenClosed = false
                 window.appearance = NSAppearance(named: theme == "dark" ? .darkAqua : .aqua)
                 window.contentView = host
                 window.center(); window.orderFront(nil)
+                if test.scenario.hasPrefix("desktopSearch") { window.makeKeyAndOrderFront(nil) }
                 if isClaudeConsentAlert {
                     let alert = ClaudeKeychainConsentAlert.make(language: AppLanguage(rawValue: test.language)!)
                     alert.beginSheetModal(for: window) { _ in }
@@ -227,9 +254,202 @@ enum NativeVisualCapture {
                     window.close(); defaults.removePersistentDomain(forName: defaultsName)
                 }
                 for frame in 0..<3 {
-                    if frame == 1 { apply() }
+                    if frame == 1 { apply(refreshed: true) }
                     try await Task.sleep(for: .milliseconds(300))
                     host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                    if test.scenario == "distributionCharts", frame > 0 {
+                        func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+                        guard let table = descendants(host).compactMap({ $0 as? NSTableView }).first,
+                              let charts = descendants(host).first(where: { $0.identifier?.rawValue == "desktop-distributions" }) else {
+                            throw CaptureError.blankFrame("distribution footer missing")
+                        }
+                        table.scrollRowToVisible(table.numberOfRows - 1)
+                        try await Task.sleep(for: .milliseconds(300))
+                        host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                        guard !charts.visibleRect.isEmpty else { throw CaptureError.blankFrame("distribution footer not reachable") }
+                        // Realizing the final rows can update AppKit's estimated heights.
+                        // Give the queued SwiftUI/AppKit layout one turn to settle.
+                        for _ in 0..<5 {
+                            let actual = table.convert(charts.bounds, from: charts)
+                            let expected = table.rect(ofRow: table.numberOfRows - LeaderboardView.distributionRowCount)
+                            let end = table.rect(ofRow: table.numberOfRows - 1)
+                            if abs(actual.minY - expected.minY) < 1, abs(actual.maxY - end.maxY) < 1 { break }
+                            try await Task.sleep(for: .milliseconds(20))
+                            host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                        }
+                        let chartFrame = table.convert(charts.bounds, from: charts)
+                        let first = table.rect(ofRow: table.numberOfRows - LeaderboardView.distributionRowCount)
+                        let last = table.rect(ofRow: table.numberOfRows - 1)
+                        guard abs(chartFrame.minY - first.minY) < 1, abs(chartFrame.maxY - last.maxY) < 1 else {
+                            throw CaptureError.blankFrame("distribution footer does not cover its reserved rows: actual=\(chartFrame), first=\(first), last=\(last), host=\(charts.frame), parent=\(String(describing: charts.superview?.bounds))")
+                        }
+                    }
+                    if test.scenario.hasPrefix("desktopSearch") {
+                        func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+                        guard let search = descendants(host).compactMap({ $0 as? DesktopLeaderboardSearchView }).first(where: {
+                            $0.window === window && !$0.isHiddenOrHasHiddenAncestor && !$0.visibleRect.isEmpty
+                        }) else { throw CaptureError.blankFrame("search control missing") }
+                        if frame == 0 {
+                            guard !search.expanded, search.hitTest(search.convert(NSPoint(x: 1, y: 12), to: search.superview)) == nil else {
+                                throw CaptureError.blankFrame("collapsed search blocks navigation")
+                            }
+                        }
+                        if frame == 1 {
+                            search.button.performClick(nil)
+                            try await Task.sleep(for: .milliseconds(250))
+                            guard window.firstResponder === search.field.currentEditor() else {
+                                throw CaptureError.blankFrame("search did not acquire keyboard focus")
+                            }
+                            search.field.stringValue = test.searchQuery ?? ""
+                            search.field.currentEditor()?.string = test.searchQuery ?? ""
+                            search.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification, object: search.field))
+                        }
+                        if frame == 2 {
+                            apply(refreshed: true)
+                            if test.scenario == "desktopSearchOutside" {
+                                let point = host.convert(NSPoint(x: 20, y: 20), to: nil)
+                                let click = NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [],
+                                    timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                                    context: nil, eventNumber: 1, clickCount: 1, pressure: 1)!
+                                let release = NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [],
+                                    timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                                    context: nil, eventNumber: 2, clickCount: 1, pressure: 0)!
+                                NSApp.postEvent(release, atStart: true)
+                                NSApp.sendEvent(click)
+                            } else {
+                                window.makeFirstResponder(nil)
+                            }
+                        }
+                        try await Task.sleep(for: .milliseconds(300))
+                        host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                        if frame > 0 {
+                            let query = test.searchQuery ?? ""
+                            if test.scenario == "desktopSearchOutside", frame == 2,
+                               let png = PanelScreenshot.capture(view: host)?.png {
+                                try png.write(to: output.appending(path: "\(test.id)-\(theme)-outside.png"))
+                            }
+                            guard search.expanded == (frame == 1 || !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty), search.field.stringValue == query else {
+                                throw CaptureError.blankFrame("search query or blur state lost")
+                            }
+                            if !query.isEmpty {
+                                let kinds = state.visibleBoardKinds
+                                let expected = kinds.map { kind -> Int in
+                                    let entries = LeaderboardPresentation.rows(state.snapshot.boards[kind], grouping: state.selectedGrouping,
+                                        filter: state.countryFilters[kind] ?? .all, openness: state.opennessFilters[kind] ?? .all)
+                                    return entries.filter { LeaderboardPresentation.modelNameMatches($0.name, query: query) }.count
+                                }.max() ?? 0
+                                guard let table = descendants(host).compactMap({ $0 as? NSTableView }).first,
+                                      table.numberOfRows == max(4, expected) + LeaderboardView.distributionRowCount else {
+                                    throw CaptureError.blankFrame("search did not filter all selected boards")
+                                }
+                            }
+                        }
+                    }
+                    if test.scenario == "boardSelectionConfirm" {
+                        func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+                        func visibleButton() throws -> BoardVisibilityButton {
+                            guard let button = descendants(host).compactMap({ $0 as? BoardVisibilityButton }).first(where: {
+                                $0.window === window && !$0.isHiddenOrHasHiddenAncestor && !$0.visibleRect.isEmpty
+                            }) else { throw CaptureError.blankFrame("board visibility control missing") }
+                            return button
+                        }
+                        var button = try visibleButton()
+                        if frame == 0 { button.performClick(nil) }
+                        if frame == 1 {
+                            guard let picker = button.selectionPopover?.contentViewController?.view as? BoardVisibilitySelectionView else {
+                                throw CaptureError.blankFrame("board selection closed before confirmation")
+                            }
+                            picker.checkboxes[0].performClick(nil)
+                            picker.checkboxes[1].performClick(nil)
+                            guard defaults.dictionary(forKey: "desktopBoardSelections") == nil else {
+                                throw CaptureError.blankFrame("board draft persisted before confirmation")
+                            }
+                        }
+                        if frame == 2 {
+                            guard let picker = button.selectionPopover?.contentViewController?.view as? BoardVisibilitySelectionView else {
+                                throw CaptureError.blankFrame("board selection lost its draft")
+                            }
+                            picker.confirmButton.performClick(nil)
+                            try await Task.sleep(for: .milliseconds(300))
+                            host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                            // ViewThatFits may replace the footer after columns change.
+                            button = try visibleButton()
+                            button.performClick(nil)
+                        }
+                        try await Task.sleep(for: .milliseconds(200))
+                        let expected = frame < 2 ? LeaderboardCategory.general.boardKinds : [.epochECI]
+                        guard state.visibleBoardKinds == expected,
+                              let table = descendants(host).compactMap({ $0 as? NSTableView }).first,
+                              table.tableColumns.filter({ !$0.isHidden }).count == 1 + expected.count * 4,
+                              let picker = button.selectionPopover?.contentViewController?.view as? BoardVisibilitySelectionView else {
+                            throw CaptureError.blankFrame("board selection did not wait for confirmation or popover is blank")
+                        }
+                        var pickerPNG: Data?
+                        // Resolve dynamic AppKit colors while the popover's
+                        // appearance is current, including its transparent background.
+                        picker.effectiveAppearance.performAsCurrentDrawingAppearance {
+                            pickerPNG = PanelScreenshot.captureForm(view: picker, minimumVariety: 1)
+                        }
+                        guard let png = pickerPNG else { throw CaptureError.blankFrame("board picker capture is blank") }
+                        try png.write(to: output.appending(path: "\(test.id)-\(theme)-picker-frame-\(frame).png"))
+                        if frame == 2 {
+                            picker.checkboxes[0].performClick(nil)
+                            picker.cancelButton.performClick(nil)
+                            try await Task.sleep(for: .milliseconds(300))
+                            button = try visibleButton()
+                            button.performClick(nil)
+                            try await Task.sleep(for: .milliseconds(200))
+                            guard let reopened = button.selectionPopover?.contentViewController?.view as? BoardVisibilitySelectionView,
+                                  reopened.checkboxes.map(\.state) == [.off, .off, .on], state.visibleBoardKinds == [.epochECI] else {
+                                throw CaptureError.blankFrame("cancelled draft was applied")
+                            }
+                            reopened.checkboxes[0].performClick(nil)
+                            let dismissedPopover = button.selectionPopover
+                            dismissedPopover?.close()
+                            try await Task.sleep(for: .milliseconds(300))
+                            // AppKit owns the asynchronous close animation; the
+                            // application selection must remain committed throughout it.
+                            guard state.visibleBoardKinds == [.epochECI] else {
+                                throw CaptureError.blankFrame("closing the picker committed a draft")
+                            }
+                        }
+                        host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                    }
+                    if test.scenario == "boardSelection" {
+                        func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+                        guard let table = descendants(host).compactMap({ $0 as? NSTableView }).first else { throw CaptureError.blankFrame("selection table missing") }
+                        let visible = table.tableColumns.filter { !$0.isHidden }
+                        guard visible.count == 1 + state.visibleBoardKinds.count * 4 else { throw CaptureError.blankFrame("hidden source columns still visible") }
+                        let contentWidth = visible.reduce(CGFloat(0)) { $0 + $1.width } + CGFloat(visible.count - 1) * table.intercellSpacing.width
+                        guard let scroll = table.enclosingScrollView else { throw CaptureError.blankFrame("selection scroll view missing") }
+                        if contentWidth > scroll.contentSize.width + 4 {
+                            guard scroll.hasHorizontalScroller else { throw CaptureError.blankFrame("selected columns overflow the viewport") }
+                            if frame > 0 {
+                                scroll.contentView.scroll(to: NSPoint(x: max(0, contentWidth - scroll.contentSize.width), y: scroll.contentView.bounds.minY))
+                                scroll.reflectScrolledClipView(scroll.contentView)
+                                host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                                guard scroll.contentView.bounds.minX > 0 else { throw CaptureError.blankFrame("selected sources cannot be reached by horizontal scrolling") }
+                            }
+                        }
+                    }
+                    if test.scenario == "stickyHeader" || test.scenario == "scrollPerformance" {
+                        func descendants(_ view: NSView) -> [NSView] {
+                            [view] + view.subviews.flatMap(descendants)
+                        }
+                        guard let table = descendants(host).compactMap({ $0 as? NSTableView }).first,
+                              let scroll = table.enclosingScrollView, let header = table.headerView else {
+                            throw CaptureError.blankFrame("sticky header table missing")
+                        }
+                        let offset: CGFloat = frame == 0 ? 0 : 175.5
+                        scroll.contentView.scroll(to: NSPoint(x: 0, y: offset))
+                        scroll.reflectScrolledClipView(scroll.contentView)
+                        header.needsDisplay = true
+                        host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                        guard frame == 0 || scroll.contentView.bounds.minY > 0 else {
+                            throw CaptureError.blankFrame("sticky header did not scroll")
+                        }
+                        print("[sticky-header] \(test.id) \(theme) frame=\(frame) offset=\(scroll.contentView.bounds.minY) vibrant=\(header.allowsVibrancy)")
+                    }
                     if test.scenario == "taskStatusFooter", frame == 0 {
                         func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
                         let original = state.showsCodexTaskStatus
@@ -254,7 +474,7 @@ enum NativeVisualCapture {
                     guard let png else { throw CaptureError.blankFrame(test.id) }
                     try png.write(to: output.appending(path: "\(test.id)-\(theme)-frame-\(frame).png"))
                 }
-                if test.scenario == "virtualRanking" {
+                if test.scenario == "virtualRanking" || test.scenario == "scrollPerformance" {
                     func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
                     guard let table = descendants(host).compactMap({ $0 as? NSTableView }).first,
                           table.numberOfRows >= 1000 else { throw CaptureError.blankFrame("long ranking missing") }
@@ -279,13 +499,37 @@ enum NativeVisualCapture {
                     guard table.rowView(atRow: 0, makeIfNecessary: false) != nil else {
                         throw CaptureError.blankFrame("virtual table did not return to first row")
                     }
+                    if test.scenario == "scrollPerformance", let scroll = table.enclosingScrollView {
+                        var samples: [Double] = []
+                        for step in 0..<240 {
+                            let offset = CGFloat(step < 120 ? step : 239 - step) * 24
+                            let start = ProcessInfo.processInfo.systemUptime
+                            scroll.contentView.scroll(to: NSPoint(x: 0, y: offset))
+                            scroll.reflectScrolledClipView(scroll.contentView)
+                            host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                            // Include deferred chrome/cell updates, not just setting bounds.
+                            await Task.yield()
+                            host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                            samples.append((ProcessInfo.processInfo.systemUptime - start) * 1000)
+                        }
+                        let sorted = samples.sorted()
+                        let timing: [String: Double] = [
+                            "steps": Double(samples.count), "medianMS": sorted[sorted.count / 2],
+                            "p95MS": sorted[Int(Double(sorted.count - 1) * 0.95)],
+                            "maximumMS": sorted.last!, "totalMS": samples.reduce(0, +),
+                            "realizedRows": Double(realizedRows()), "totalRows": Double(table.numberOfRows),
+                        ]
+                        try JSONSerialization.data(withJSONObject: timing, options: [.prettyPrinted, .sortedKeys])
+                            .write(to: output.appending(path: "\(test.id)-\(theme)-scroll-timing.json"))
+                        print("[scroll-performance] \(test.id) \(theme) \(timing)")
+                    }
                 }
                 if test.scenario == "completeRanking" {
                     func descendants(_ view: NSView) -> [NSView] {
                         [view] + view.subviews.flatMap(descendants)
                     }
                     guard let table = descendants(host).compactMap({ $0 as? NSTableView }).first,
-                          table.numberOfRows == 31,
+                          table.numberOfRows == 31 + LeaderboardView.distributionRowCount,
                           let scroll = table.enclosingScrollView,
                           scroll.hasVerticalScroller,
                           let button = descendants(host).compactMap({ $0 as? NSButton }).first(where: {

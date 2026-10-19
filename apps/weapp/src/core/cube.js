@@ -24,12 +24,17 @@ export function cubeGesture(face, x, y, time, count = 2) {
   return { face, count, x, y, lastX: x, lastTime: time, velocity: 0, axis: '', position: face }
 }
 
+// Reserve the leftmost 32 logical pixels for WeChat's swipe-back/exit gesture.
+// Decide before tracking a turn: touchcancel can arrive after visible motion.
+export const isBackSwipe = (startX, dx) => startX <= 32 && dx > 0
+
 export function moveCubeGesture(gesture, x, y, time, width) {
   const dx = x - gesture.x, dy = y - gesture.y
   if (!gesture.axis) {
     // Allow a slanted horizontal start; wait while a short diagonal is unclear.
     // Once chosen, the axis stays locked until the finger lifts.
-    if (Math.abs(dx) >= 16 && Math.abs(dx) > Math.abs(dy) * 1.25) gesture.axis = 'horizontal'
+    if (isBackSwipe(gesture.x, dx)) gesture.axis = 'navigation'
+    else if (Math.abs(dx) >= 16 && Math.abs(dx) > Math.abs(dy) * 1.25) gesture.axis = 'horizontal'
     else if (Math.abs(dy) >= 8 && Math.abs(dy) >= Math.abs(dx)) gesture.axis = 'vertical'
   }
   const elapsed = time - gesture.lastTime
@@ -40,6 +45,7 @@ export function moveCubeGesture(gesture, x, y, time, width) {
 }
 
 export function cubeDestination(gesture, width, time) {
+  if (gesture.axis !== 'horizontal') return gesture.face
   // Commit after 25% of the screen in either direction, retaining natural
   // finger tracking. A flick can advance sooner; a pause drops old velocity.
   const velocity = time - gesture.lastTime < 100 ? gesture.velocity : 0

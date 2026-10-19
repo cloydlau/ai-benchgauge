@@ -206,30 +206,28 @@ sealed partial class MainWindow
     }
 
     // Center the caption block on the title's painted ink, in both languages.
-    sealed class HeaderCaptionStack(HeaderInkLabel title, HeaderInkLabel first, HeaderInkLabel second, bool singleLine) : Panel
+    sealed class HeaderCaptionStack(HeaderInkLabel title, params HeaderInkLabel[] captions) : Panel
     {
-        double scale = 1;
-        public void AddLabels() { Children.Add(first); if (!singleLine) Children.Add(second); }
+        const double RowGap = 2;
+        double Scale => Math.Min(1, Math.Max(1, title.VisibleInkHeight - 3) /
+            Math.Max(1, captions.Sum(caption => caption.Height) + RowGap * (captions.Length - 1)));
+        public void AddLabels() { foreach (var caption in captions) Children.Add(caption); }
         protected override Size MeasureOverride(Size available) {
-            foreach (var label in singleLine ? new[] { first } : new[] { first, second }) {
-                label.Height = label.VisibleInkHeight;
-                label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            foreach (var caption in captions) {
+                caption.Height = caption.VisibleInkHeight;
+                caption.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             }
-            if (singleLine) return new Size(first.DesiredSize.Width, 27);
-            scale = title.VisibleInkHeight * 0.8 / (first.Height + second.Height);
-            return new Size(Math.Max(first.DesiredSize.Width, second.DesiredSize.Width) * scale, 27);
+            return new Size(captions.Max(caption => caption.DesiredSize.Width) * Scale, 27);
         }
         protected override Size ArrangeOverride(Size size) {
-            if (singleLine) {
-                first.Arrange(new Rect(0, title.VisibleInkTop + (title.VisibleInkHeight - first.Height) / 2,
-                    first.DesiredSize.Width, first.Height));
-                return size;
+            var scale = Scale;
+            var height = (captions.Sum(caption => caption.Height) + RowGap * (captions.Length - 1)) * scale;
+            var y = title.VisibleInkTop + (title.VisibleInkHeight - height) / 2;
+            foreach (var caption in captions) {
+                caption.RenderTransform = new ScaleTransform(scale, scale);
+                caption.Arrange(new Rect(0, y, caption.DesiredSize.Width, caption.Height));
+                y += (caption.Height + RowGap) * scale;
             }
-            first.RenderTransform = second.RenderTransform = new ScaleTransform(scale, scale);
-            var block = first.Height * scale + second.Height * scale;
-            var top = title.VisibleInkTop + (title.VisibleInkHeight - block) / 2;
-            first.Arrange(new Rect(0, top, first.DesiredSize.Width, first.Height));
-            second.Arrange(new Rect(0, top + first.Height * scale, second.DesiredSize.Width, second.Height));
             return size;
         }
     }
@@ -316,6 +314,8 @@ sealed partial class MainWindow
 
     void RenderPanel(Func<Task>? manageAccounts = null)
     {
+        var restoreSearchFocus = leaderboardSearchField?.IsKeyboardFocusWithin == true;
+        var searchCaret = leaderboardSearchField?.CaretIndex ?? 0;
         rendering = true;
         try
         {
@@ -336,6 +336,11 @@ sealed partial class MainWindow
             Place(quotaArea, 1);
             Place(PairedBoards(), 2);
             footer = PanelFooter(); Place(footer, 3);
+            if (restoreSearchFocus) Dispatcher.BeginInvoke(() => {
+                if (leaderboardSearchExpanded && leaderboardSearchField is { } field) {
+                    field.Focus(); field.CaretIndex = Math.Min(searchCaret, field.Text.Length);
+                }
+            }, System.Windows.Threading.DispatcherPriority.Input);
         }
         finally { rendering = false; }
     }
@@ -350,46 +355,58 @@ sealed partial class MainWindow
             FontSize = 21, Height = 27, Foreground = PanelInk };
         var titleInk = (HeaderInkLabel)HeaderInk(headerTitle);
         brand.Children.Add(titleInk);
-        var subtitleSpec = Caption(Tr("Multiple leaderboards &", "多榜对照 & 余量追踪 ?", "多榜對照 & 餘量追蹤 ?"), PanelMuted, 12);
-        subtitleSpec.FontWeight = FontWeights.SemiBold;
-        var subtitleInk = new HeaderInkLabel(subtitleSpec) { AlignInkTop = true, DimsAmpersand = true };
-        var quotaSpec = Caption(Tr("Quota tracking ?", "余量追踪 ?", "餘量追蹤 ?"), PanelMuted, 12);
-        quotaSpec.FontWeight = FontWeights.SemiBold;
-        var quotaInk = new HeaderInkLabel(quotaSpec) { AlignInkTop = true };
-        var captions = new HeaderCaptionStack(titleInk, subtitleInk, quotaInk, prefs.Language != "en") {
-            Height = 27, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0)
+        HeaderInkLabel SubtitleRow(string text) {
+            var spec = Caption(text, PanelMuted, 11);
+            spec.FontWeight = FontWeights.SemiBold;
+            return new HeaderInkLabel(spec) { AlignInkTop = true, DimsAmpersand = true };
+        }
+        var captions = new HeaderCaptionStack(titleInk,
+            SubtitleRow(Tr("Compare leaderboards to make informed choices;", "多榜对照，选得明白；", "多榜對照，選得明白；")),
+            SubtitleRow(Tr("track quotas to know where you stand.", "余量追踪，用得有数。", "餘量追蹤，用得有數。"))) {
+            Height = 27, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0)
         };
-        captions.Cursor = Cursors.Hand;
-        captions.ToolTip = Tr("About quota tracking", "了解余量追踪", "瞭解餘量追蹤");
-        captions.MouseLeftButtonUp += (_, _) => MessageBox.Show(this,
-            Tr("Quota tracking is available in the PC edition of AI BenchGauge. Open the desktop app to view your models’ remaining quotas and usage progress.",
-                "余量追踪目前在 PC 端提供，可集中查看模型的剩余额度与使用进度。",
-                "餘量追蹤目前在 PC 端提供，可集中查看模型的剩餘額度與使用進度。"),
-            Tr("Quota tracking", "余量追踪", "餘量追蹤"), MessageBoxButton.OK, MessageBoxImage.Information);
-        captions.AddLabels(); brand.Children.Add(captions);
+        captions.AddLabels();
+        brand.Children.Add(captions);
         titleLine.Children.Add(brand);
         var freshness = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        freshness.Children.Add(Caption(Tr("UPDATED", "更新时间", "更新時間")));
-        freshness.Children.Add(FreshnessPill(Tr("Boards ", "榜单 ", "榜單 ") + BoardFreshness(), state?.Boards.Any(board => board.Error is not null) == true));
         if (state?.Quotas.Any() == true || state?.QuotaUnavailable == true)
-            freshness.Children.Add(FreshnessPill(Tr("Quotas ", "余量 ", "餘量 ") + UpdateAge.Format(UpdateAge.Parse(state.QuotaUpdatedAt), DateTimeOffset.UtcNow, prefs.Language), state.QuotaUnavailable));
+        {
+            var quotaTime = UpdateAge.Parse(state.QuotaUpdatedAt);
+            var text = state.Quotas.Length == 0 ? Tr("Quota unavailable", "余量暂不可读", "餘量暫不可讀")
+                : quotaTime is null ? Tr("Quota pending", "余量待更新", "餘量待更新")
+                : Tr("Quotas updated ", "余量更新于", "餘量更新於") + UpdateAge.Format(quotaTime, DateTimeOffset.UtcNow, prefs.Language);
+            freshness.Children.Add(Caption(text, state.QuotaUnavailable ? Tint("#B96B0F") : PanelMuted, 11));
+        }
         freshness.Cursor = Cursors.Hand;
-        freshness.ToolTip = Tr("Click to refresh boards and quotas", "点击刷新榜单与余量", "點擊重新整理榜單與餘量");
+        freshness.ToolTip = (UpdateAge.Parse(state?.QuotaUpdatedAt) is { } quotaStamp
+            ? Tr("Quotas updated: ", "余量更新于：", "餘量更新於：") + quotaStamp.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) + "\n" : "")
+            + Tr("Click to refresh boards and quotas", "点击刷新榜单与余量", "點擊重新整理榜單與餘量");
         freshness.MouseLeftButtonUp += async (_, _) => { if (panelRefreshing) return; panelRefreshing = true; try { await Task.WhenAll(Refresh("refreshBoards"), Refresh("refreshQuotas")); } finally { panelRefreshing = false; } };
         Grid.SetColumn(freshness, 1); titleLine.Children.Add(freshness);
-        var tabs = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
-        tabs.Children.Add(Segments([("model",Tr("Models","模型")),("company",Tr("Companies","公司"))], prefs.Grouping, 180,
-            async value => { prefs.Grouping = value; SaveFrame(); await Refresh("state"); if (engine is null) Render(); }));
+        var compactTabs = prefs.VisibleBoardKinds().Length == 1;
+        var switches = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+        switches.Children.Add(Segments([("model",Tr("Models","模型")),("company",Tr("Companies","公司"))], prefs.Grouping, 180,
+            async value => { prefs.Grouping = value; SaveFrame(); await Refresh("state"); if (engine is null) Render(); }, compact: compactTabs));
         var categories = Segments([("general",Tr("General","综合","綜合")),("coding",Tr("Coding","编程","編程")),("image",Tr("Image","图片","圖片")),("video",Tr("Video","视频","視頻"))], prefs.Category, 360,
-            async value => { prefs.Category = value; SaveFrame(); await Refresh("state"); await Refresh("refreshBoards"); if (engine is null) Render(); });
-        categories.Margin = new Thickness(8, 0, 0, 0); tabs.Children.Add(categories);
-        if (prefs.Category == "general")
+            async value => { prefs.Category = value; SaveFrame(); await Refresh("state"); await Refresh("refreshBoards"); if (engine is null) Render(); }, compact: compactTabs);
+        categories.Margin = new Thickness(8, 0, 0, 0); switches.Children.Add(categories);
+        var tabs = SearchNavigation(switches);
+        var natural = new Size(double.PositiveInfinity, double.PositiveInfinity);
+        brand.Measure(natural); tabs.Measure(natural); freshness.Measure(natural);
+        var singleRowFits = compactTabs && brand.DesiredSize.Width + tabs.DesiredSize.Width
+            + freshness.DesiredSize.Width + 24 <= renderedPanelWidth - 36;
+        if (singleRowFits)
         {
-            var sourcePicker = Select([("arenaText", "Arena"), ("epochECI", "Epoch ECI")], prefs.GeneralComparison,
-                value => { prefs.GeneralComparison = value; SaveFrame(); Render(); return Task.CompletedTask; });
-            sourcePicker.Margin = new Thickness(8, 0, 0, 0); tabs.Children.Add(sourcePicker);
+            var single = new Grid();
+            single.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            single.ColumnDefinitions.Add(new ColumnDefinition());
+            single.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            titleLine.Children.Remove(brand); titleLine.Children.Remove(freshness);
+            single.Children.Add(brand); tabs.Margin = new Thickness(12, 0, 12, 0);
+            Grid.SetColumn(tabs, 1); single.Children.Add(tabs);
+            Grid.SetColumn(freshness, 2); single.Children.Add(freshness); header.Children.Add(single);
         }
-        if (renderedPanelWidth >= (prefs.Language == "en" ? 1450 : 1250))
+        else if (renderedPanelWidth >= (prefs.Language == "en" ? 1450 : 1250))
         {
             // Equal side columns keep both segmented controls centered.
             var wide = new Grid(); wide.ColumnDefinitions.Add(new ColumnDefinition()); wide.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); wide.ColumnDefinitions.Add(new ColumnDefinition());
@@ -417,22 +434,23 @@ sealed partial class MainWindow
         System.Windows.Automation.AutomationProperties.SetName(button, Tr("Add model", "添加模型", "添加模型"));
         return button;
     }
-    string BoardFreshness()
+    DateTimeOffset? BoardDisplayDate(Board board) => new[] { UpdateAge.Parse(board.UpdatedAt), UpdateAge.Parse(board.FetchedAt) }.Max();
+    string BoardDisplayTime(Board board) => BoardDisplayDate(board)?.ToLocalTime().ToString("M/d HH:mm", CultureInfo.InvariantCulture) ?? "—";
+    string BoardTimeHelp(Board board) => Tr("Source updated: ", "源更新时间：", "來源更新時間：")
+        + (UpdateAge.Parse(board.UpdatedAt)?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) ?? Tr("Not published by the source", "来源未提供", "來源未提供"))
+        + "\n" + Tr("Fetched: ", "抓取时间：", "擷取時間：")
+        + (UpdateAge.Parse(board.FetchedAt)?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) ?? Tr("Waiting for first fetch", "等待首次抓取", "等待首次擷取"));
+    FrameworkElement Segments((string Value, string Title)[] items, string selected, double width, Func<string, Task> change, bool compact = false)
     {
-        // Match Mac: report the oldest visible fetch, not a source's
-        // publication date or the newest half of a partial refresh.
-        var date = state?.Boards.Select(board => UpdateAge.Parse(board.FetchedAt ?? board.UpdatedAt))
-            .Where(date => date.HasValue).DefaultIfEmpty(null).Min();
-        return UpdateAge.Format(date, DateTimeOffset.UtcNow, prefs.Language);
-    }
-    FrameworkElement FreshnessPill(string text, bool failed) => new Border
-    {
-        Background = failed ? Tint(panelDark ? "#4A3720" : "#FFF0DE") : PanelSurface, CornerRadius = new CornerRadius(10),
-        Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(8, 0, 0, 0), Width = prefs.Language == "en" ? 124 : 92,
-        Child = Caption(text, failed ? Tint("#B96B0F") : PanelMuted, 10),
-    };
-    FrameworkElement Segments((string Value, string Title)[] items, string selected, double width, Func<string, Task> change)
-    {
+        if (compact)
+        {
+            var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+            var labelWidth = items.Max(item => new FormattedText(item.Title,
+                CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
+                new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Medium, FontStretches.Normal),
+                13, Brushes.Black, dpi).WidthIncludingTrailingWhitespace);
+            width = Math.Ceiling(labelWidth + 16) * items.Length;
+        }
         var grid = new Grid();
         for (var i = 0; i < items.Length; i++)
         {
@@ -441,7 +459,7 @@ sealed partial class MainWindow
             button.Background = value == selected ? PanelSelection : Brushes.Transparent;
             button.BorderBrush = PanelLine; button.BorderThickness = new Thickness(value == selected ? 1 : 0);
             button.FontWeight = value == selected ? FontWeights.Medium : FontWeights.Normal;
-            button.Padding = new Thickness(4, 1, 4, 1); button.HorizontalAlignment = HorizontalAlignment.Stretch;
+            button.Padding = new Thickness(compact ? 3 : 4, 1, compact ? 3 : 4, 1); button.HorizontalAlignment = HorizontalAlignment.Stretch;
             button.VerticalAlignment = VerticalAlignment.Stretch; Grid.SetColumn(button, i); grid.Children.Add(button);
         }
         return new Border { Child = grid, Width = width, Height = 22, Background = PanelSurface, BorderBrush = PanelLine, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5) };
@@ -549,56 +567,69 @@ sealed partial class MainWindow
 
     FrameworkElement PairedBoards()
     {
-        var pair = state?.Boards.Where(board => prefs.Category != "general" || board.Kind == "artificialAnalysis"
-            || board.Kind == (prefs.GeneralComparison == "epochECI" ? "epochECI" : "arenaText")).Take(2).ToArray() ?? [];
+        var pair = VisibleBoards();
         var table = new Grid();
         table.RowDefinitions.Add(new RowDefinition { Height = new GridLength(24) });
         table.RowDefinitions.Add(new RowDefinition());
-        var headings = TableGrid(); headings.Background = Tint(panelDark ? "#29292B" : "#FCFCFC"); headings.Height = 24;
+        var headings = TableGrid(pair.Length); headings.Background = Tint(panelDark ? "#29292B" : "#FCFCFC"); headings.Height = 24;
         AddCell(headings, Caption(Tr("Rank", "排名", "排名"), PanelInk) is { } rank ? Center(rank) : throw new InvalidOperationException(), 0);
-        AddCell(headings, Caption(Tr("Score", "分数", "分數"), PanelInk) is { } leftScore ? Center(leftScore) : throw new InvalidOperationException(), 4);
-        AddCell(headings, Caption(Tr("Score", "分数", "分數"), PanelInk) is { } rightScore ? Center(rightScore) : throw new InvalidOperationException(), 8);
         for (var i = 0; i < pair.Length; i++)
         {
-            var board = pair[i]; var column = i == 0 ? 1 : 5;
+            var board = pair[i]; var column = 1 + i * 4;
+            AddCell(headings, Center(Caption(Tr("Score", "分数", "分數"), PanelInk)), column + 3);
             var summary = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 9,
                 FontFamily = new FontFamily("Segoe UI"),
-                Margin = new Thickness(5, 0, 4, 0), ToolTip = board.Error ?? board.Title + "\n" + Tr("Scores are not directly comparable across lists", "各榜分数不直接互比", "各榜分數不直接互比") };
+                Margin = new Thickness(5, 0, 4, 0), ToolTip = board.Error ?? BoardTitle(board) + "\n" + SourceLens(board) + "\n" + Tr("Scores are not directly comparable across lists", "各榜分数不直接互比", "各榜分數不直接互比") };
             CenterTextInk(summary);
             summary.FontSize = 11;
             summary.FontWeight = FontWeights.SemiBold;
-            summary.Inlines.Add(new TextRun(SourceLens(board)) { Foreground = i == 0 ? PanelBlue : PanelPurple });
-            summary.Cursor = Cursors.Hand; summary.MouseLeftButtonUp += (_, _) => Open(board.Url); AddCell(headings, summary, column);
+            void UpdateHeading()
+            {
+                double Measure(string text, double size, FontWeight weight) => new FormattedText(text,
+                    CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
+                    new Typeface(summary.FontFamily, FontStyles.Normal, weight, FontStretches.Normal),
+                    size, PanelInk, VisualTreeHelper.GetDpi(this).PixelsPerDip).WidthIncludingTrailingWhitespace;
+                var title = BoardTitle(board);
+                var available = summary.ActualWidth;
+                if (available > 0 && Measure(title, 11, FontWeights.SemiBold) > available)
+                    title = title.Replace("Artificial Analysis", "AA", StringComparison.Ordinal);
+                var lens = " · " + SourceLens(board);
+                summary.Inlines.Clear();
+                summary.Inlines.Add(new TextRun(title) { Foreground = BoardTint(board.Kind) });
+                if (Measure(title, 11, FontWeights.SemiBold) + Measure(lens, 10, FontWeights.Normal) <= available)
+                    summary.Inlines.Add(new TextRun(lens) { Foreground = BoardTint(board.Kind), FontSize = 10, FontWeight = FontWeights.Normal });
+            }
+            summary.SizeChanged += (_, _) => UpdateHeading();
+            UpdateHeading();
+            if (!string.IsNullOrEmpty(board.Url)) { summary.Cursor = Cursors.Hand; summary.MouseLeftButtonUp += (_, _) => Open(board.Url); }
+            var heading = new Grid();
+            heading.ColumnDefinitions.Add(new ColumnDefinition());
+            heading.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var time = Caption(BoardDisplayTime(board), PanelMuted, 9, numeric: true);
+            time.Margin = new Thickness(4, 0, 5, 0);
+            time.ToolTip = BoardTimeHelp(board);
+            heading.Children.Add(summary);
+            Grid.SetColumn(time, 1); heading.Children.Add(time);
+            AddCell(headings, heading, column);
             AddCell(headings, OpennessPicker(board), column + 2);
             AddCell(headings, CountryPicker(board), column + 1);
         }
         var outline = new Border { Child = headings, BorderBrush = PanelLine, BorderThickness = new Thickness(1, 1, 1, 1) }; Grid.SetRow(outline, 0); table.Children.Add(outline);
-        var entries = pair.Select(board => board.Entries.Where(entry => prefs.Countries.GetValueOrDefault(board.Kind, "") is { } filter && (filter.Length == 0 || (filter == "unknown" ? entry.Country is null : entry.Country == filter))).ToArray()).ToArray();
-        var count = entries.Length == 0 ? 20 : Math.Max(1, entries.Max(values => values.Length));
-        var rows = new VirtualLeaderboardList(count, index =>
+        var unsearched = pair.Select(board => board.Entries.Where(entry => prefs.Countries.GetValueOrDefault(board.Kind, "") is { } filter && (filter.Length == 0 || (filter == "unknown" ? entry.Country is null : entry.Country == filter))).ToArray()).ToArray();
+        var entries = unsearched.Select(board => board.Where(entry => LeaderboardSearch.Matches(entry.Name, leaderboardQuery)).ToArray()).ToArray();
+        var count = entries.Length == 0 ? 20 : Math.Max(string.IsNullOrWhiteSpace(leaderboardQuery) ? 1 : 4, entries.Max(values => values.Length));
+        var rows = new VirtualLeaderboardList(count + 1, index =>
         {
-            var row = TableGrid(); row.Height = 32; row.Background = index % 2 == 0 ? PanelBackground : Tint(panelDark ? "#29292B" : "#F3F3F5");
+            if (index == count) return DistributionPanels(pair);
+            var row = TableGrid(pair.Length); row.Height = 32; row.Background = index % 2 == 0 ? PanelBackground : Tint(panelDark ? "#29292B" : "#F3F3F5");
             AddCell(row, Rank(index + 1), 0);
             for (var side = 0; side < entries.Length; side++)
             {
-                var column = side == 0 ? 1 : 5;
+                var column = 1 + side * 4;
                 if (index >= entries[side].Length) continue;
-                var entry = entries[side][index];
-                var leaderScore = entries[side][0].Score;
-                AddCell(row, ModelCell(entry, leaderScore), column);
+                var entry = entries[side][index]; AddCell(row, ModelCell(entry, unsearched[side][0].Score, BoardTint(pair[side].Kind)), column);
                 var score = new Grid();
                 score.Children.Add(Center(Caption(entry.Score.ToString(pair[side].Kind == "epochECI" ? "0.00" : "0.0", CultureInfo.InvariantCulture), PanelMuted, 13, numeric: true)));
-                var share = ScoreShare.Format(entry.Score, leaderScore);
-                if (share.Length > 0)
-                {
-                    // Canvas children do not contribute to the cell's measured size.
-                    var overlay = new Canvas { Width = 0, Height = 0, HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
-                    var label = Caption(share, side == 0 ? PanelBlue : PanelPurple, 8, numeric: true);
-                    label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                    Canvas.SetLeft(label, -label.DesiredSize.Width / 2); Canvas.SetTop(label, 6);
-                    overlay.Children.Add(label); score.Children.Add(overlay);
-                }
                 AddCell(row, score, column + 3);
                 AddCell(row, OpennessBadge(entry.Openness), column + 2);
                 AddCell(row, Flag(entry.Country), column + 1);
@@ -616,24 +647,47 @@ sealed partial class MainWindow
         rows.AddHandler(ScrollViewer.ScrollChangedEvent, new ScrollChangedEventHandler((_, change) =>
             backToTop.Visibility = change.VerticalOffset >= 32 ? Visibility.Visible : Visibility.Collapsed));
         viewport.Children.Add(backToTop);
+        if (!string.IsNullOrWhiteSpace(leaderboardQuery) && entries.All(board => board.Length == 0))
+        {
+            var empty = Caption(Tr("No matching results", "没有匹配结果", "沒有符合的結果"), PanelMuted, 13);
+            empty.HorizontalAlignment = HorizontalAlignment.Center; empty.VerticalAlignment = VerticalAlignment.Top; empty.Margin = new Thickness(0, 40, 0, 0); empty.IsHitTestVisible = false;
+            viewport.Children.Add(empty);
+        }
         Grid.SetRow(viewport, 1); table.Children.Add(viewport);
+        // A resizable desktop window can be narrower than three readable source
+        // groups. Keep every selected source reachable with one shared horizontal
+        // viewport, so the native header and body move together.
+        if (pair.Length == 3 && renderedPanelWidth < 748)
+        {
+            table.Width = 748;
+            return new ScrollViewer { Content = table, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, VerticalContentAlignment = VerticalAlignment.Stretch };
+        }
         return table;
     }
+
+    Brush OpennessTint(string openness) => Tint(openness == "open"
+        ? (panelDark ? "#77D9A1" : "#188966")
+        : (panelDark ? "#B8BEC7" : "#6B7280"));
 
     FrameworkElement OpennessBadge(string? openness)
     {
         if (openness is not ("open" or "closed")) return Center(Caption("—", PanelMuted, 13));
         var open = openness == "open";
         var title = open ? Tr("Open", "开源", "開源") : Tr("Closed", "闭源", "閉源");
-        var hex = open ? (panelDark ? "#77D9A1" : "#16704A") : (panelDark ? "#B5C4E3" : "#52617D");
-        var ink = Tint(hex);
+        var ink = OpennessTint(openness);
+        // Same Lucide paths and fixed 24-point viewBox as the mini-program.
+        // Keeping the viewport fixed aligns both lock bodies. See Licenses/Lucide.txt.
         var drawing = new DrawingGroup();
-        drawing.Children.Add(new GeometryDrawing(ink, null, new RectangleGeometry(new Rect(2, 6, 8, 7), 1.25, 1.25)));
-        drawing.Children.Add(new GeometryDrawing(null, new Pen(ink, 1.4), Geometry.Parse(open
-            ? "M 5,6 L 5,3 C 5,0 11,0 11,3 L 11,4"
-            : "M 3,6 L 3,3 C 3,0 9,0 9,3 L 9,6")));
+        drawing.Children.Add(new GeometryDrawing(Brushes.Transparent, null, new RectangleGeometry(new Rect(0, 0, 24, 24))));
+        var pen = new Pen(ink, 2) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
+        drawing.Children.Add(new GeometryDrawing(null, pen, new RectangleGeometry(new Rect(3, 10, 18, 12), 2, 2)));
+        drawing.Children.Add(new GeometryDrawing(null, pen, new EllipseGeometry(new Point(12, 16), 1, 1)));
+        drawing.Children.Add(new GeometryDrawing(null, pen, Geometry.Parse(open
+            ? "M 7,10 V 7 A 5,5 0 0 1 16.33,4.5"
+            : "M 7,10 V 7 A 5,5 0 0 1 17,7 V 10")));
         var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        var icon = new Image { Source = new DrawingImage(drawing), Width = 10, Height = 10,
+        var icon = new Image { Source = new DrawingImage(drawing), Width = 14, Height = 14,
             Stretch = Stretch.Uniform };
         content.Children.Add(icon);
         var badge = new Border { Child = content, ToolTip = title,
@@ -644,11 +698,23 @@ sealed partial class MainWindow
     double CountryColumnWidth => prefs.Language == "en" ? 48 : 40;
     double SourceColumnWidth => prefs.Language == "en" ? 44 : 36;
 
-    Grid TableGrid()
+    Board[] VisibleBoards()
+    {
+        var saved = state?.Boards ?? [];
+        return prefs.VisibleBoardKinds().Select(kind => saved.FirstOrDefault(board => board.Kind == kind)
+            ?? new Board(kind, kind == "epochECI" ? "Epoch AI" : kind.StartsWith("artificialAnalysis") ? "Artificial Analysis" : "Arena", "", null, null, [])).ToArray();
+    }
+    Brush BoardTint(string kind) => kind == "epochECI" ? Tint(panelDark ? "#5BD6D0" : "#168D86")
+        : kind.StartsWith("artificialAnalysis") ? PanelBlue : PanelPurple;
+
+    Grid TableGrid(int boardCount)
     {
         var grid = new Grid(); var compact = renderedPanelWidth < 850;
-        foreach (var width in new[] { new GridLength(40), new GridLength(1, GridUnitType.Star), new GridLength(CountryColumnWidth), new GridLength(SourceColumnWidth), new GridLength(compact ? 56 : 78), new GridLength(1, GridUnitType.Star), new GridLength(CountryColumnWidth), new GridLength(SourceColumnWidth), new GridLength(compact ? 56 : 78) })
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
+        System.Windows.Automation.AutomationProperties.SetAutomationId(grid, "leaderboard-columns");
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
+        for (var i = 0; i < boardCount; i++)
+            foreach (var width in new[] { new GridLength(1, GridUnitType.Star), new GridLength(CountryColumnWidth), new GridLength(SourceColumnWidth), new GridLength(compact ? 56 : 78) })
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
         return grid;
     }
     static TextBlock Center(TextBlock text) { text.TextAlignment = TextAlignment.Center; text.HorizontalAlignment = HorizontalAlignment.Stretch; return text; }
@@ -679,9 +745,9 @@ sealed partial class MainWindow
         channels = channels.Select(channel => (int)Math.Round(shade < 0 ? channel * (1 + shade) : channel + (255 - channel) * shade, MidpointRounding.AwayFromZero)).ToArray();
         return new SolidColorBrush(Color.FromRgb((byte)channels[0], (byte)channels[1], (byte)channels[2])) { Opacity = 0.34 };
     }
-    FrameworkElement ModelCell(Entry entry, double leaderScore)
+    FrameworkElement ModelCell(Entry entry, double leaderScore, Brush shareColor)
     {
-        var row = new Grid { HorizontalAlignment = HorizontalAlignment.Stretch };
+        var row = new Grid { HorizontalAlignment = HorizontalAlignment.Left };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) }); row.ColumnDefinitions.Add(new ColumnDefinition());
         AddCell(row, new Border { Child = BrandLogo(entry), Width = 20, Height = 20, VerticalAlignment = VerticalAlignment.Center,
             Clip = new RectangleGeometry(new Rect(0, 0, 20, 20), 5, 5), Margin = new Thickness(0, 0, 4, 0) }, 0);
@@ -703,17 +769,50 @@ sealed partial class MainWindow
         background.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ratio, GridUnitType.Star) });
         background.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1 - ratio, GridUnitType.Star) });
         background.Children.Add(new Border { Background = color, CornerRadius = new CornerRadius(5) });
-        var content = new Grid();
+        var content = new Grid { ClipToBounds = true };
+        // Every row reserves the same gutter, preserving the shared bar scale.
+        var measure = Caption("99%", shareColor, 8, numeric: true);
+        measure.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var badgeWidth = Math.Ceiling(measure.DesiredSize.Width);
+        const double badgeGap = 4;
+        background.HorizontalAlignment = HorizontalAlignment.Left;
         content.Children.Add(background);
-        content.Children.Add(new Border { Child = row, Padding = new Thickness(4, 0, 3, 0) });
+        var nameContent = new Border { Child = row, Padding = new Thickness(4, 0, 3, 0),
+            HorizontalAlignment = HorizontalAlignment.Left, ClipToBounds = true };
+        content.Children.Add(nameContent);
+        var share = ScoreShare.Format(entry.Score, leaderScore);
+        var overlay = new Canvas { IsHitTestVisible = false, ClipToBounds = true };
+        var label = Caption(share, shareColor, 8, numeric: true);
+        label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var badgeHeight = label.DesiredSize.Height;
+        overlay.Children.Add(label);
+        content.Children.Add(overlay);
+        void PositionBadge()
+        {
+            var trackWidth = Math.Max(0, content.ActualWidth - badgeWidth - badgeGap);
+            var filledWidth = trackWidth * ratio;
+            var showsShare = share.Length > 0 && filledWidth >= 38;
+            background.Width = trackWidth;
+            nameContent.Width = showsShare ? filledWidth : trackWidth;
+            name.Margin = new Thickness(nameContent.Width < 90 ? 0 : 6, 0, 3, 0);
+            label.Visibility = showsShare ? Visibility.Visible : Visibility.Collapsed;
+            Canvas.SetLeft(label, filledWidth + badgeGap);
+            Canvas.SetTop(label, (content.ActualHeight - badgeHeight) / 2);
+        }
+        content.SizeChanged += (_, _) => PositionBadge();
         var cell = new Border { Child = content, Background = Brushes.Transparent, CornerRadius = new CornerRadius(5), Margin = new Thickness(12, 4, 8, 4), ToolTip = entry.Help ?? entry.Name, Cursor = Cursors.Hand };
         cell.MouseLeftButtonUp += (_, _) => { try { Clipboard.SetText(entry.Name); status.Text = Tr("Copied", "已复制", "已複製"); } catch (System.Runtime.InteropServices.COMException) { } };
         return cell;
     }
     string BoardTitle(Board board) => board.Kind switch
     {
-        "artificialAnalysis" => "Artificial Analysis Intelligence Index", "arenaText" => "Arena | Text",
-        "artificialAnalysisCoding" => "Artificial Analysis Coding Index", "arenaWebdev" => "Arena | Code",
+        "artificialAnalysis" => "Artificial Analysis", "arenaText" => "Text Arena", "epochECI" => "Epoch ECI",
+        "artificialAnalysisCodingAgent" => Tr("Artificial Analysis Coding", "Artificial Analysis 编程", "Artificial Analysis 編程"),
+        "codeArenaWebDev" => "Code Arena",
+        "artificialAnalysisTextToImage" => Tr("Artificial Analysis Text to Image", "Artificial Analysis 文生图", "Artificial Analysis 文生圖"),
+        "arenaTextToImage" => Tr("Text to Image Arena", "Arena 文生图", "Arena 文生圖"),
+        "artificialAnalysisTextToVideo" => Tr("Artificial Analysis Text to Video", "Artificial Analysis 文生视频", "Artificial Analysis 文生影片"),
+        "arenaTextToVideo" => Tr("Text to Video Arena", "Arena 文生视频", "Arena 文生影片"),
         _ => board.Title,
     };
     string SourceLens(Board board) => board.Kind switch
@@ -829,14 +928,7 @@ sealed partial class MainWindow
         left.Children.Add(Caption(" Cloyd Lau · ", PanelMuted, 10)); left.Children.Add(FooterButton("MIT License", () => ShowLicenses(false)));
         left.Children.Add(Caption(" · ", PanelMuted, 10)); left.Children.Add(FooterButton(Tr("Open-source notices", "开源声明", "開源聲明"), () => ShowLicenses(true))); row.Children.Add(left);
         var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        if (renderedPanelWidth >= 850)
-        {
-            right.Children.Add(Caption(Tr("Sources ", "数据来源 ", "資料來源 "), PanelMuted, 10));
-            var sources = state?.Boards.Where(board => prefs.Category != "general" || board.Kind == "artificialAnalysis"
-                || board.Kind == (prefs.GeneralComparison == "epochECI" ? "epochECI" : "arenaText")).Take(2).ToArray() ?? [];
-            for (var i = 0; i < sources.Length; i++) { var source = sources[i]; if (i > 0) right.Children.Add(Caption(" · ", size: 10)); right.Children.Add(FooterButton(source.Kind == "epochECI" ? "Epoch AI ↗" : source.Kind.StartsWith("artificialAnalysis") ? "Artificial Analysis ↗" : "Arena ↗", () => Open(source.Url))); }
-            right.Children.Add(Caption(" · "));
-        }
+        right.Children.Add(BoardVisibilityMenu()); right.Children.Add(Caption(" · ", size: 10));
         right.Children.Add(IconButton("camera", Tr("Copy", "截图", "截圖"), Capture)); right.Children.Add(Caption(" · ", size: 10));
         right.Children.Add(Select([("clickToClose",Tr("Keep open","保持打开","保持打開")),("alwaysOnTop",Tr("Always on top","保持置顶","保持置頂")),("closeOnBlur",Tr("Close on blur","失焦关闭","失焦關閉")),("window",Tr("Window","独立窗口","獨立視窗"))], prefs.PanelMode,
             value => { SaveFrame(); prefs.PanelMode = value; ApplyMode(); SaveFrame(); Reveal(); return Task.CompletedTask; }));
@@ -847,6 +939,72 @@ sealed partial class MainWindow
         status.Margin = new Thickness(4, 0, 4, 0); status.FontSize = 10; status.FontFamily = new FontFamily("Segoe UI"); Grid.SetColumn(status, 1); row.Children.Add(status);
         border.Child = row; dock.Children.Add(border); return dock;
     }
+    Button BoardVisibilityMenu()
+    {
+        var button = QuietButton(Tr("Leaderboards", "显示榜单", "顯示榜單"), () => { });
+        button.Content = Caption(Tr("Leaderboards", "显示榜单", "顯示榜單"), size: 10);
+        button.ToolTip = Tr("Choose leaderboards, then confirm. Keep at least one.", "选择榜单后点击确认，至少保留一个。", "選擇榜單後點擊確認，至少保留一個。");
+        System.Windows.Automation.AutomationProperties.SetAutomationId(button, "board-visibility-menu");
+        var menu = new ContextMenu();
+        void Populate()
+        {
+            menu.Items.Clear();
+            var category = prefs.Category;
+            var draft = prefs.VisibleBoardKinds().ToHashSet();
+            var checkboxes = new List<(string Kind, MenuItem Item)>();
+            void UpdateCheckboxes()
+            {
+                foreach (var (kind, item) in checkboxes)
+                {
+                    item.IsChecked = draft.Contains(kind);
+                    item.IsEnabled = draft.Count > 1 || !draft.Contains(kind);
+                }
+            }
+            foreach (var kind in prefs.AvailableBoardKinds())
+            {
+                var board = VisibleBoards().FirstOrDefault(value => value.Kind == kind)
+                    ?? state?.Boards.FirstOrDefault(value => value.Kind == kind)
+                    ?? new Board(kind, kind == "epochECI" ? "Epoch AI" : kind.StartsWith("artificialAnalysis") ? "Artificial Analysis" : "Arena", "", null, null, []);
+                var item = new MenuItem { Header = (kind == "epochECI" ? "Epoch AI" : kind.StartsWith("artificialAnalysis") ? "Artificial Analysis" : "Arena") + " · " + SourceLens(board), IsCheckable = true,
+                    IsChecked = draft.Contains(kind), IsEnabled = draft.Count > 1 || !draft.Contains(kind), StaysOpenOnClick = true };
+                System.Windows.Automation.AutomationProperties.SetAutomationId(item, "board-visibility-" + kind);
+                item.Click += (_, _) => {
+                    if (item.IsChecked) draft.Add(kind);
+                    else if (draft.Count > 1) draft.Remove(kind);
+                    UpdateCheckboxes();
+                };
+                checkboxes.Add((kind, item));
+                menu.Items.Add(item);
+            }
+            menu.Items.Add(new Separator());
+            menu.Items.Add(new MenuItem { Header = Tr("Keep at least one leaderboard", "至少保留一个榜单", "至少保留一個榜單"), IsEnabled = false });
+            var confirm = new MenuItem { Header = Tr("Confirm", "确认", "確認") };
+            System.Windows.Automation.AutomationProperties.SetAutomationId(confirm, "board-visibility-confirm");
+            confirm.Click += async (_, _) => {
+                menu.IsOpen = false;
+                if (prefs.Category != category || !prefs.SetVisibleBoards(draft)) return;
+                SaveFrame(); Render(); await Refresh("refreshBoards");
+            };
+            menu.Items.Add(confirm);
+            var cancel = new MenuItem { Header = Tr("Cancel", "取消", "取消") };
+            System.Windows.Automation.AutomationProperties.SetAutomationId(cancel, "board-visibility-cancel");
+            cancel.Click += (_, _) => menu.IsOpen = false;
+            menu.Items.Add(cancel);
+            menu.Items.Add(new Separator());
+            var sources = new MenuItem { Header = Tr("Data sources", "数据来源", "資料來源") };
+            foreach (var board in VisibleBoards().Where(board => !string.IsNullOrEmpty(board.Url)))
+            {
+                var link = new MenuItem { Header = board.Kind == "epochECI" ? "Epoch AI ↗" : board.Title + " ↗" };
+                link.Click += (_, _) => Open(board.Url); sources.Items.Add(link);
+            }
+            menu.Items.Add(sources);
+        }
+        menu.Opened += (_, _) => panelMenuOpen = true;
+        menu.Closed += (_, _) => panelMenuOpen = false;
+        button.Click += (_, _) => { Populate(); panelMenuOpen = true; menu.PlacementTarget = button; menu.Placement = PlacementMode.Bottom; menu.IsOpen = true; };
+        return button;
+    }
+
     static FrameworkElement PanelIcon(string kind, Brush ink, double width = 12, double height = 12, Thickness? margin = null) => new System.Windows.Shapes.Path
     {
         Data = Geometry.Parse(kind switch {

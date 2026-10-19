@@ -6,6 +6,34 @@ using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Security;
 
+// Model distributions retain unknowns and the China policy without score weighting.
+var distributionEntries = new[] {
+    new Entry(1, "A", 9999, "Maker", "US", null, null, null, null, "closed"),
+    new Entry(2, "B", 1, "Maker", "HK", null, null, null, null, "open"),
+    new Entry(3, "C", 0, "Maker", "TW", null, null, null, null, "open"),
+    new Entry(4, "D", 0, null, null, null, null, null, null) };
+var modelDistribution = LeaderboardDistribution.FromEntries(distributionEntries);
+if (modelDistribution.Total != 4 || modelDistribution.Countries.Single(slice => slice.Id == "CN").Count != 2 ||
+    !modelDistribution.Sources.Select(slice => slice.Count).SequenceEqual(new[] { 2, 1, 1 }) ||
+    LeaderboardDistribution.FromEntries([]).Sources.Any(slice => slice.Percent != "—"))
+    throw new Exception("Incorrect full-board distributions");
+var knownDistribution = LeaderboardDistribution.FromEntries(distributionEntries.Take(3).ToArray());
+if (knownDistribution.Countries.Any(slice => slice.Id == "unknown") ||
+    !knownDistribution.Sources.Select(slice => slice.Id).SequenceEqual(new[] { "open", "closed" }) ||
+    LeaderboardDistribution.FromEntries([]).Sources.Any(slice => slice.Id == "unknown"))
+    throw new Exception("Zero-count unknown chart items must be hidden");
+var summaryBoard = JsonSerializer.Deserialize<Board>("""{"kind":"arenaText","title":"Arena","url":"https://example.test","entries":[],"distribution":{"total":8,"countries":[{"id":"CN","count":8,"total":8}],"sources":[{"id":"unknown","count":8,"total":8}]}}""", AppConfig.Json)!;
+if (summaryBoard.Distribution is not { } summaryDistribution || summaryDistribution.Total != 8 || summaryDistribution.Countries[0].Percent != "100.0%")
+    throw new Exception("Engine distribution must survive empty filtered/company projections");
+
+// Search accepts unordered words, case/width/diacritic variants, and whitespace.
+foreach (var sample in new (string Name, string Query, bool Expected)[] {
+    ("DeepSeek V3.2 Speciale", "speciale DEEP", true),
+    ("Café ＧＰＴ", "cafe gpt", true), ("Claude Sonnet", "   ", true),
+    ("GPT-5", "GPT Claude", false), ("OpenAI", "openai", true) })
+    if (LeaderboardSearch.Matches(sample.Name, sample.Query) != sample.Expected)
+        throw new Exception("Incorrect selected-leaderboard search matching");
+
 foreach (var sample in new[] {
     (Score: 100d, Leader: 100d, Expected: 1d), (50, 100, 0.5), (99.6, 100, 0.996), (0, 100, 0),
     (120, 100, 1), (1, 0, 1), (-1, 100, 1), (double.NaN, 100, 1),
@@ -174,6 +202,39 @@ try
     downloadCases++;
 }
 finally { if (Directory.Exists(fixtureDirectory)) Directory.Delete(fixtureDirectory, true); }
+// The desktop source selection defaults to all three, survives persistence,
+// cannot become empty, and keeps separate choices for other categories.
+var visibility = new Preferences();
+if (!visibility.VisibleBoardKinds().SequenceEqual(new[] { "artificialAnalysis", "arenaText", "epochECI" }))
+    throw new Exception("Desktop must default to all three boards");
+visibility.ToggleBoard("arenaText"); visibility.ToggleBoard("artificialAnalysis"); visibility.ToggleBoard("epochECI");
+if (!visibility.VisibleBoardKinds().SequenceEqual(new[] { "epochECI" })) throw new Exception("Last board was deselected");
+visibility = JsonSerializer.Deserialize<Preferences>(JsonSerializer.Serialize(visibility, AppConfig.Json), AppConfig.Json)!;
+if (!visibility.VisibleBoardKinds().SequenceEqual(new[] { "epochECI" })) throw new Exception("Board selection did not persist");
+visibility.Category = "coding";
+if (visibility.VisibleBoardKinds().Length != 2) throw new Exception("Board selections leaked between categories");
+visibility.Category = "general"; visibility.ToggleBoard("artificialAnalysis");
+if (!visibility.VisibleBoardKinds().SequenceEqual(new[] { "artificialAnalysis", "epochECI" })) throw new Exception("Restored board order is wrong");
+foreach (var invalid in new[] { Array.Empty<string>(), new[] { "retired" }, new[] { "arenaTextToImage" } }) {
+    visibility.BoardSelections["general"] = invalid;
+    if (visibility.VisibleBoardKinds().Length != 3) throw new Exception("Invalid board preferences were not repaired");
+}
+
+Console.WriteLine("PASS: desktop board defaults, persistence, minimum selection, category isolation and invalid-preference recovery");
+var stagedPreferences = new Preferences();
+var draftBoards = stagedPreferences.VisibleBoardKinds().ToHashSet();
+draftBoards.Remove("artificialAnalysis"); draftBoards.Remove("arenaText");
+if (stagedPreferences.VisibleBoardKinds().Length != 3 || stagedPreferences.BoardSelections.Count != 0)
+    throw new Exception("Draft board selection changed preferences before confirmation");
+if (!stagedPreferences.SetVisibleBoards(draftBoards) || !stagedPreferences.VisibleBoardKinds().SequenceEqual(new[] { "epochECI" }))
+    throw new Exception("Confirmed board selection was not applied as a batch");
+if (stagedPreferences.SetVisibleBoards(draftBoards) || stagedPreferences.SetVisibleBoards([]) || stagedPreferences.SetVisibleBoards(["retired"]))
+    throw new Exception("Unchanged or invalid selections should not trigger a refresh");
+if (!stagedPreferences.SetVisibleBoards(["epochECI", "artificialAnalysis", "epochECI"]) ||
+    !stagedPreferences.VisibleBoardKinds().SequenceEqual(new[] { "artificialAnalysis", "epochECI" }))
+    throw new Exception("Batch board selection must retain catalog order and remove duplicates");
+Console.WriteLine("PASS: desktop board draft isolation and confirmed batch selection");
+
 Console.WriteLine($"PASS: 13 signature/configuration cases, {gateCases + 1} update presentation cases, {downloadCases} signed check/download/cache/integrity cases");
 
 sealed class FixtureHttpHandler(Func<HttpRequestMessage, byte[]> response) : HttpMessageHandler

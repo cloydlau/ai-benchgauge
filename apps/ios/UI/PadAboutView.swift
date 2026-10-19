@@ -26,6 +26,7 @@ struct PadAboutView<Brand: View>: View {
     private var inset: Color { BrandTheme.surface(for: colorScheme) }
     private var accent: Color { BrandTheme.accent(for: colorScheme) }
     private var columns: [GridItem] { Array(repeating: GridItem(.flexible(), spacing: 8), count: dynamicTypeSize.isAccessibilitySize ? 1 : 2) }
+    private var sourceColumns: [GridItem] { Array(repeating: GridItem(.flexible(), spacing: 6, alignment: .top), count: dynamicTypeSize.isAccessibilitySize ? 1 : 3) }
     private func tr(_ en: String, _ zh: String) -> String { language.text(en, zh) }
 
     var body: some View {
@@ -61,9 +62,9 @@ struct PadAboutView<Brand: View>: View {
             quota(content.desktopDownloadURL)
             Text(tr("Data sources", "数据来源")).font(.system(size: 14, weight: .semibold))
                 .padding(.leading, 4).padding(.top, 17).padding(.bottom, 11)
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
-                ForEach(Array(content.sources.enumerated()), id: \.element.id) { index, source in
-                    sourceCard(source, index: index)
+            LazyVGrid(columns: sourceColumns, alignment: .leading, spacing: 8) {
+                ForEach(content.sources) { source in
+                    sourceCard(source)
                 }
             }
             investment(copy.investment, months: content.schedule.months(at: Date()))
@@ -111,22 +112,25 @@ struct PadAboutView<Brand: View>: View {
         }.buttonStyle(.plain).accessibilityIdentifier("desktop-download")
             .accessibilityLabel(tr("Quota lookup · PC · Copy link", "余量查询 · PC 端 · 复制链接"))
     }
-    private func sourceCard(_ source: PadAboutContent.Source, index: Int) -> some View {
-        Button { copyLink(source.url) } label: {
+    private func sourceCard(_ source: PadAboutContent.Source) -> some View {
+        let mark = source.id == "artificialAnalysis" ? "AA" : source.id == "arena" ? "A" : "E"
+        let color: Color = source.id == "artificialAnalysis" ? .blue : source.id == "arena" ? .purple : .cyan
+        return Button { copyLink(source.url) } label: {
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Text(index == 0 ? "AA" : "A").font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(index == 0 ? Color.blue : Color.purple)
+                    Text(mark).font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(color)
                         .frame(width: 24, height: 24)
-                        .background((index == 0 ? Color.blue : Color.purple).opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
+                        .background(color.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
                     Spacer()
                     Image(systemName: "link").font(.system(size: 12)).foregroundStyle(.secondary)
                 }.padding(.bottom, 9)
                 Text(source.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .frame(minHeight: 36, alignment: .topLeading)
                 Text(source.domain).font(.system(size: 10)).foregroundStyle(.secondary).padding(.top, 4)
                     .fixedSize(horizontal: false, vertical: true)
-            }.frame(maxWidth: .infinity, alignment: .leading).padding(11)
+            }.frame(maxWidth: .infinity, alignment: .leading).padding(9)
                 .aboutCard(outline: outline).contentShape(RoundedRectangle(cornerRadius: 12))
         }.buttonStyle(.plain).accessibilityIdentifier("about-source-" + source.id)
             .accessibilityLabel(source.title + " · " + tr("Copy link", "复制链接"))

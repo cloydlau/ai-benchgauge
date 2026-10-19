@@ -1,11 +1,13 @@
 import { definePage, ref, computed, onLoad, onReady, onShow, onHide, onUnload, onShareAppMessage, onResize } from '@vue-mini/core'
 import { boards, categories, categoryFor, copy, text, languages, boardTitle, hasOwn, desktopDownloadURL } from '../../core/catalog.js'
-import { rankedEntries, rowView, countryCode, countryName, countryOptions, formatTime, latestTimestamp } from '../../core/leaderboard.js'
+import { rankedEntries, rowView, countryCode, countryName, countryFlag, countryFlagImage, countryOptions, formatTime, latestTimestamp } from '../../core/leaderboard.js'
+import { opennessIcon, opennessColor } from '../../core/openness-icon.js'
+import { leaderboardDistribution } from '../../../../../fc/distributions.mjs'
 import { createBoardStore } from '../../services/boards.js'
 import { rowGeometry, resolveRowWindow, createRowRenderer } from '../../core/row-window.js'
 import { exportScreenshot, removeScreenshot, saveScreenshotImage } from '../../services/screenshot.js'
-import { cubeIndex, cubeTarget, cubeRenderedFace, cubeFaceStyle, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll } from '../../core/cube.js'
-import { createBrandMeasurer } from '../../core/brand-title.js'
+import { cubeIndex, cubeTarget, cubeRenderedFace, cubeFaceStyle, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll, isBackSwipe } from '../../core/cube.js'
+import { createBrandMeasurer, createSubtitleMeasurer } from '../../core/brand-title.js'
 import { pagePreferences, sharePath, systemLanguage } from '../../core/share-state.js'
 import { purchaseLinks, preferredPurchaseLink } from '../../core/purchase-links.js'
 
@@ -16,6 +18,7 @@ definePage(query => {
   const languageMode = ref(initial.languageMode)
   const category = ref(initial.category)
   const grouping = ref(initial.grouping)
+  const expandedBoards = ref({})
   const modelSearchQuery = ref('')
   const modelSearchOpen = ref(false)
   const modelSearchFocused = ref(false)
@@ -26,8 +29,9 @@ definePage(query => {
   const face = ref(initial.face)
   const sourceTabsHeight = ref(42)
   const sourceTabsOffset = ref(0)
+  const cubeClipTop = ref(null)
   const sourceTabsExtent = computed(() => sourceTabsHeight.value + 8)
-  const cubeViewportStyle = computed(() => `--cube-top:${Math.max(0, sourceTabsExtent.value - sourceTabsOffset.value)}px;`)
+  const cubeViewportStyle = computed(() => `--cube-top:${cubeClipTop.value ?? Math.max(0, sourceTabsExtent.value - sourceTabsOffset.value)}px;--cube-layout-duration:${cubeDuration.value}ms;`)
   const sourceTabsStyle = computed(() => `transform:translateY(-${sourceTabsOffset.value}px);pointer-events:${sourceTabsOffset.value >= sourceTabsExtent.value ? 'none' : 'auto'};`)
   function updateSourceTabs(top) {
     sourceTabsOffset.value = Math.min(sourceTabsExtent.value, Math.max(0, top))
@@ -51,6 +55,7 @@ definePage(query => {
         // The native offset is authoritative once scrolling settles. Bridge
         // events queued before a reset can otherwise leave the tabs clipped.
         const request = scrollRequests.get(kind)
+        if (request?.preparing && !request.ready) return
         if (request) request.pending = false
         scrollPositions[kind] = Math.max(0, top)
         updateSourceTabs(scrollPositions[kind])
@@ -65,30 +70,104 @@ definePage(query => {
   const cubeDuration = ref(0)
   const cubeBusy = ref(false)
   const cubeDragging = ref(false)
+  const cubeWaiting = ref(false)
   const entranceProgress = ref(1)
   const entranceHintVisible = ref(false)
   const entranceStyle = computed(() => entranceProgress.value === 1 ? 'transition-duration:420ms;opacity:1;transform:none;'
     : 'transition-duration:0ms;opacity:0.65;transform:translateY(6px) scale(0.9925);')
   const cubeFaces = computed(() => current.value.kinds.map((_, index) => {
     const position = cubeRenderedFace(index, cubeOrigin.value, cubeDirection.value, current.value.kinds.length)
-    return { style: cubeFaceStyle(position, cubePosition.value, cubeDuration.value, cubeBusy.value),
-      shade: Math.abs(position - cubePosition.value) * 0.18 }
+    const displayed = cubeWaiting.value ? cubeOrigin.value : cubePosition.value
+    return { style: cubeFaceStyle(position, displayed, cubeDuration.value, cubeBusy.value),
+      shade: Math.abs(position - displayed) * 0.18 }
   }))
+  const sourceDragIndex = ref(null)
+  const categoryDragIndex = ref(null)
   const sourceSelection = computed(() => {
-    const position = face.value
+    const position = sourceDragIndex.value ?? face.value
     const from = dark.value ? [29, 55, 82] : [228, 240, 255]
     const to = dark.value ? [59, 42, 78] : [238, 229, 248]
     const color = position === 2 ? (dark.value ? [30, 65, 60] : [220, 244, 236]) : from.map((channel, index) => Math.round(channel + (to[index] - channel) * position))
     return `width:calc((100% - ${(current.value.kinds.length - 1) * 12}rpx) / ${current.value.kinds.length});transform:translateX(${position * 100}%) translateX(${position * 12}rpx);background-color:rgb(${color.join(',')});`
   })
+  let tabGesture
+  let tabSerial = 0
+  let tabSuppressTapUntil = 0
+  function cancelTabDrag() {
+    tabSerial++; tabGesture = null
+    sourceDragIndex.value = null; categoryDragIndex.value = null
+  }
+  function tabStart(event) {
+    cancelTabDrag()
+    const point = touchPoint(event), kind = event.currentTarget.dataset.tabs
+    if (!point || event.touches?.length !== 1 || backgroundLocked.value || modelSearchFocused.value) return
+    const started = { kind, x: point.clientX, y: point.clientY, lastX: point.clientX, axis: '', rect: null }
+    tabGesture = started
+    const serial = tabSerial
+    wx.createSelectorQuery().select(kind === 'category' ? '.category-tabs' : '.source-tabs').boundingClientRect().exec(results => {
+      if (serial !== tabSerial || tabGesture !== started) return
+      const rect = results[0]
+      if (rect?.width > 0) { started.rect = rect; previewTabDrag(started) }
+    })
+  }
+  function previewTabDrag(drag) {
+    if (drag.axis !== 'horizontal' || !drag.rect) return
+    const count = drag.kind === 'category' ? categories.length : current.value.kinds.length
+    const index = Math.max(0, Math.min(count - 1, Math.floor((drag.lastX - drag.rect.left) / drag.rect.width * count)))
+    if (drag.kind === 'category') categoryDragIndex.value = index
+    else sourceDragIndex.value = index
+  }
+  function tabMove(event) {
+    const point = touchPoint(event), drag = tabGesture
+    if (!drag || !point) return
+    if (event.touches?.length !== 1) { cancelTabDrag(); return }
+    const dx = point.clientX - drag.x, dy = point.clientY - drag.y
+    if (!drag.axis) {
+      if (isBackSwipe(drag.x, dx)) drag.axis = 'navigation'
+      else if (Math.abs(dx) >= 8 && Math.abs(dx) > Math.abs(dy) * 1.25) {
+        stopCube(true); entrancePlayed = true; drag.axis = 'horizontal'
+      }
+      else if (Math.abs(dy) >= 8) drag.axis = 'vertical'
+    }
+    drag.lastX = point.clientX
+    if (drag.axis === 'navigation') {
+      tabSuppressTapUntil = suppressTapUntil = Date.now() + 400
+      return
+    }
+    if (drag.axis === 'horizontal') {
+      tabSuppressTapUntil = suppressTapUntil = Date.now() + 400
+      lastCategoryTap = null
+      previewTabDrag(drag)
+    }
+  }
+  function tabEnd(event) {
+    if (event.touches?.length) { cancelTabDrag(); return }
+    const drag = tabGesture, point = touchPoint(event)
+    if (drag?.axis === 'horizontal' && point) { drag.lastX = point.clientX; previewTabDrag(drag) }
+    const destination = drag?.kind === 'category' ? categoryDragIndex.value : sourceDragIndex.value
+    cancelTabDrag()
+    if (drag?.axis !== 'horizontal' || destination == null || backgroundLocked.value) return
+    tabSuppressTapUntil = suppressTapUntil = Date.now() + 400
+    if (drag.kind === 'category') {
+      if (categories[destination].id !== category.value) changeCategory(categories[destination].id)
+    } else { entrancePlayed = true; turnCube(destination) }
+  }
   let gesture, cubeTimer, entranceTimer, entrancePlayed = false
+  let preparedScroll, queuedCubeFace, cubeTurnSerial = 0
   let pageReady = false, pageVisible = false
   let cubeWidth = 375
   let suppressTapUntil = 0
   let lastCategoryTap = null
-  function stopCube() {
+  function stopCube(keepTabDrag = false) {
+    if (!keepTabDrag) cancelTabDrag()
     lastCategoryTap = null
     cubeDragging.value = false
+    cubeWaiting.value = false; preparedScroll = null; queuedCubeFace = null; cubeTurnSerial++
+    cubeClipTop.value = null
+    for (const [kind, request] of scrollRequests) if (request.preparing && !request.ready) {
+      clearTimeout(request.timer)
+      scrollRequests.delete(kind)
+    }
     clearTimeout(cubeTimer); clearTimeout(entranceTimer)
     gesture = null; cubeDuration.value = 0; cubeBusy.value = false; cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1
     entranceProgress.value = 1; entranceHintVisible.value = false
@@ -96,24 +175,55 @@ definePage(query => {
   function alignFace(destination) {
     if (destination === face.value) return
     const from = current.value.kinds[face.value], to = current.value.kinds[destination]
-    const count = rankedCards.value[destination].entries.length
+    const count = visibleCards.value[destination].entries.length
     const target = matchingScroll({ scrollTop: scrollPositions[from] || 0,
       origin: origins[from] || 0, nextOrigin: origins[to] || 0, rowHeight: geometry.value.rowHeight, count })
     scrollPositions[to] = target
-    requestScroll(to, target)
+    const request = requestScroll(to, target, true)
     backTopBoards.value = { ...backTopBoards.value, [to]: target > 400 }
     syncWindow(to, true)
+    return request
   }
-  function turnCube(destination, position = cubeTarget(face.value, destination, current.value.kinds.length)) {
+  function prepareCubeFace(destination) {
+    preparedScroll = alignFace(destination)
+    cubeWaiting.value = !!preparedScroll && !preparedScroll.ready
+    const request = preparedScroll
+    whenScrollReady(request, () => {
+      if (!alive || preparedScroll !== request) return
+      if (request?.failed) {
+        face.value = cubeIndex(cubeOrigin.value, current.value.kinds.length)
+        stopCube(); updateSourceTabs(scrollPositions[current.value.kinds[face.value]] || 0); persist()
+        return
+      }
+      // A quick swipe can arrive before the hidden native scroll-view settles.
+      // Catch up smoothly instead of exposing its old rows mid-turn.
+      if (cubeWaiting.value && cubeDragging.value) cubeDuration.value = 120
+      cubeWaiting.value = false
+    })
+  }
+  function whenScrollReady(request, callback) {
+    if (!request || request.ready) callback()
+    else request.callbacks.push(callback)
+  }
+  function turnCube(destination, position) {
     destination = cubeIndex(destination, current.value.kinds.length)
+    if (gesture?.axis !== 'horizontal' && cubeBusy.value && preparedScroll) {
+      if (!cubeWaiting.value) { queuedCubeFace = destination; return }
+      // A second tab tap during preparation still starts from the visible face.
+      face.value = cubeIndex(cubeOrigin.value, current.value.kinds.length)
+      stopCube(); updateSourceTabs(scrollPositions[current.value.kinds[face.value]] || 0); persist()
+    }
+    position ??= cubeTarget(face.value, destination, current.value.kinds.length)
     blurModelSearch()
     cubeDragging.value = false
     entranceProgress.value = 1; entranceHintVisible.value = false
     clearTimeout(cubeTimer); clearTimeout(entranceTimer)
     if (!cubeBusy.value && destination === face.value && cubePosition.value === destination) { gesture = null; return }
     const direction = position === face.value ? cubeDirection.value : Math.sign(position - face.value)
+    cubeClipTop.value ??= Math.max(0, sourceTabsExtent.value - sourceTabsOffset.value)
+    if (cubeWaiting.value) cubePosition.value = cubeOrigin.value
     if (gesture?.axis !== 'horizontal') cubePosition.value = face.value
-    if (gesture?.axis !== 'horizontal' || direction !== cubeDirection.value) alignFace(destination)
+    if (gesture?.axis !== 'horizontal' || direction !== cubeDirection.value) prepareCubeFace(destination)
     cubeOrigin.value = face.value; cubeDirection.value = direction
     face.value = destination; gesture = null
     updateSourceTabs(scrollPositions[current.value.kinds[destination]] || 0)
@@ -121,16 +231,23 @@ definePage(query => {
     persist()
     // Mount both hinged faces before changing the target. Separate render
     // frames give a tab tap the same geometry as an interactive drag.
-    cubeTimer = setTimeout(() => {
-      if (!alive) return
-      cubeDuration.value = 320; cubePosition.value = position
+    const serial = ++cubeTurnSerial
+    whenScrollReady(preparedScroll, () => {
+      if (!alive || serial !== cubeTurnSerial) return
+      cubeWaiting.value = false
       cubeTimer = setTimeout(() => {
         if (!alive) return
-        cubeBusy.value = false; cubeDuration.value = 0
-        cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1
-        measureLists()
-      }, 340)
-    }, 24)
+        cubeDuration.value = 320; cubePosition.value = position; cubeClipTop.value = null
+        cubeTimer = setTimeout(() => {
+          if (!alive) return
+          cubeBusy.value = false; cubeDuration.value = 0
+          cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1
+          measureLists()
+          const next = queuedCubeFace; queuedCubeFace = null
+          if (next != null && next !== face.value) turnCube(next)
+        }, 340)
+      }, 24)
+    })
   }
   function touchPoint(event) { return event.touches?.[0] || event.changedTouches?.[0] }
   function cubeStart(event) {
@@ -147,11 +264,17 @@ definePage(query => {
     if (!gesture || !point) return
     if (event.touches?.length > 1) { stopCube(); return }
     moveCubeGesture(gesture, point.clientX, point.clientY, Date.now(), cubeWidth)
+    if (gesture.axis === 'navigation') {
+      suppressTapUntil = Date.now() + 400
+      return
+    }
     if (gesture.axis !== 'horizontal') return
     cubeDragging.value = true
+    cubeClipTop.value ??= Math.max(0, sourceTabsExtent.value - sourceTabsOffset.value)
     suppressTapUntil = Date.now() + 400
     const direction = gesture.position < gesture.face ? -1 : 1
-    if (!cubeBusy.value || direction !== cubeDirection.value) alignFace(cubeIndex(gesture.face + direction, current.value.kinds.length))
+    if (!cubeBusy.value || direction !== cubeDirection.value) prepareCubeFace(cubeIndex(gesture.face + direction, current.value.kinds.length))
+    else cubeDuration.value = 0
     cubeOrigin.value = gesture.face; cubeDirection.value = direction
     cubeBusy.value = true; cubePosition.value = gesture.position
   }
@@ -202,6 +325,7 @@ definePage(query => {
   const dark = computed(() => theme.value === 'dark' || (theme.value === 'system' && (sharedAppearance.value || systemTheme.value) === 'dark'))
   const headerWidth = ref(wx.getWindowInfo().windowWidth || 375)
   const measureBrand = createBrandMeasurer(wx)
+  const measureSubtitle = createSubtitleMeasurer(wx)
   const statusBar = ref(24)
   const navHeight = ref(68)
   const headerTop = ref(28)
@@ -211,7 +335,9 @@ definePage(query => {
   const snapshots = ref(Object.fromEntries(Object.keys(boards).map(kind => [kind, store.read(kind)])))
   const filters = ref(initial.filters)
   const refreshing = ref({})
+  const refreshTasks = new Map()
   const pullRefreshing = ref(false)
+  const pullRefreshKind = ref('')
   const scrollPositions = {}
   const scrollWindows = ref({})
   const geometry = ref(rowGeometry(wx.getWindowInfo()))
@@ -241,7 +367,7 @@ definePage(query => {
 
   const tr = key => text(copy[key], language.value)
   const labels = computed(() => Object.fromEntries(Object.keys(copy).map(key => [key, tr(key)])))
-  const subtitleParts = computed(() => labels.value.subtitle.split(' & '))
+  const subtitleParts = computed(() => labels.value.subtitle.replace(/([;；])\s*/, '$1\n').split('\n'))
   const groupingControl = computed(() => ({
     height: capsuleHeight.value,
     width: capsuleHeight.value * (language.value === 'en' ? 3.75 : 2.5) + 16,
@@ -251,27 +377,34 @@ definePage(query => {
     const sample = measureBrand(labels.value.name, 32)
     const height = capsuleHeight.value
     const english = language.value === 'en'
-    const width = Math.max(1, headerWidth.value - capsuleWidth.value - groupingControl.value.width - headerWidth.value / 750 * (24 + 14))
-    if (english) {
-      const title = measureBrand(labels.value.name, 32 * Math.min(height * 0.8 / sample.height, width / (sample.width + sample.height * 5.25)))
-      return { ...title, subtitleHeight: title.height * 1.25, subtitleFontSize: title.height * 0.5 }
-    }
-    // Shrink the one-line caption first, then the title if both cannot fit.
-    // Reserve 10.88 em for Chinese text, separators, help mark and their gaps.
-    const captionEm = 10.88, minimumFontSize = 6.5
-    const scale = Math.min(height / sample.height, Math.max(1, width - captionEm * minimumFontSize) / sample.width)
-    const title = measureBrand(labels.value.name, 32 * scale * 0.85)
-    const subtitleFontSize = Math.max(0, Math.min(12, (width - title.width) / captionEm))
-    return { ...title, subtitleHeight: title.height, subtitleFontSize }
+    const width = Math.max(1, headerWidth.value - capsuleWidth.value - groupingControl.value.width - headerWidth.value / 750 * 30 - 8)
+    const baseSize = 32 * height * (english ? 0.8 : 0.85) / sample.height
+    const subtitleBaseSize = Math.min(11, (height * (english ? 0.8 : 0.85) - 4) / 2)
+    const captionWidth = english ? 0 : measureSubtitle(subtitleParts.value) * subtitleBaseSize / 12
+    // English shows only the title; Chinese shares space with its caption.
+    // Only text contributes width. The floating help glyph uses the existing
+    // 8px gap, matching the gap on the other side of the grouping control.
+    const baseTitle = measureBrand(labels.value.name, baseSize)
+    const headingScale = Math.min(1, width / (baseTitle.width + captionWidth))
+    const title = measureBrand(labels.value.name, baseSize * headingScale)
+    return { ...title, showSubtitle: !english, headingScale, baseTitleFontSize: baseSize,
+      subtitleWidth: captionWidth * headingScale,
+      subtitleHeight: title.height - 3 * headingScale,
+      subtitleBaseFontSize: subtitleBaseSize, subtitleFontSize: subtitleBaseSize * headingScale,
+      // A full-width Chinese stop has spare space to its right; tuck the icon
+      // into that space rather than adding another gap after the glyph box.
+      subtitleHelpOffset: /。$/.test(subtitleParts.value[1]) ? -0.55 : 0.08 }
   })
   const categoryItems = computed(() => categories.map((item, index) => ({ id: item.id, label: text(item.labels, language.value),
     icon: ['apps-o', 'code', 'photo-o', 'video-o'][index] })))
-  const categoryIndex = computed(() => categories.findIndex(item => item.id === category.value))
+  const categoryIndex = computed(() => categoryDragIndex.value ?? categories.findIndex(item => item.id === category.value))
+  const sourceTabIndex = computed(() => sourceDragIndex.value ?? face.value)
   const current = computed(() => categoryFor(category.value))
   const tabs = computed(() => current.value.kinds.map(kind => kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
   const filterFor = kind => ({ country: 'all', openness: 'all', ...filters.value[kind] })
   const countriesFor = kind => countryOptions({ entries: Object.values(snapshots.value).flatMap(board => board?.entries || []) }, language.value, filterFor(kind).country)
   function setFilters(filter) {
+    expandedBoards.value = {}
     filters.value = Object.fromEntries(Object.keys(boards).map(source => [source, { ...filter }]))
     resetScroll(Object.keys(boards))
   }
@@ -280,13 +413,35 @@ definePage(query => {
   const rankedCards = computed(() => current.value.kinds.map(kind => ({ kind,
     leaderScore: rankedEntries(snapshots.value[kind], { ...filterFor(kind), grouping: grouping.value })[0]?.score,
     entries: rankedEntries(snapshots.value[kind], { ...filterFor(kind), grouping: grouping.value, query: modelSearchQuery.value }) })))
-  const cards = computed(() => rankedCards.value.map(({ kind, entries, leaderScore }, index) => {
+  const visibleCards = computed(() => rankedCards.value.map(card => ({ ...card, totalCount: card.entries.length,
+    entries: expandedBoards.value[card.kind] ? card.entries : card.entries.slice(0, 20) })))
+  function toggleRanking(event) {
+    const kind = event.currentTarget.dataset.kind
+    const card = rankedCards.value.find(card => card.kind === kind)
+    if (!card || card.entries.length <= 20 || cubeBusy.value || backgroundLocked.value) return
+    const expanded = !expandedBoards.value[kind]
+    expandedBoards.value = { ...expandedBoards.value, [kind]: expanded }
+    if (expanded) { syncWindow(kind, true); measureLists() }
+    else resetScroll([kind])
+  }
+  const distributions = computed(() => Object.fromEntries(current.value.kinds.map(kind => {
+    const distribution = leaderboardDistribution(snapshots.value[kind]?.entries || [])
+    return [kind, { ...distribution,
+      totalLabel: language.value === 'en' ? `${distribution.total} models` : `${distribution.total} ${language.value === 'zh-TW' ? '個' : '个'}模型`,
+      countries: distribution.countries.map(slice => ({ ...slice, width: `${slice.fraction * 100}%`,
+        flag: slice.id === 'unknown' ? '?' : slice.id === 'other' ? '🌐' : countryFlag(slice.id), flagImage: countryFlagImage(slice.id), name:
+        ['unknown', 'other'].includes(slice.id) ? tr(slice.id) : countryName(slice.id, language.value) })),
+      sources: distribution.sources.map(slice => ({ ...slice, width: `${slice.fraction * 100}%`, color: opennessColor(slice.id, dark.value), icon: opennessIcon(slice.id, dark.value), name: tr(slice.id) })),
+    }]
+  })))
+  const cards = computed(() => visibleCards.value.map(({ kind, entries, leaderScore, totalCount }, index) => {
     const board = snapshots.value[kind]
     const filter = filterFor(kind)
     const range = rangeFor(kind, entries.length)
     return { kind, title: boardTitle(kind, language.value), index, summary: text(boards[kind].summaries, language.value),
       updated: formatTime(board?.sourceUpdatedAt), fetched: formatTime(board?.fetchedAt), time: formatTime(latestTimestamp(board)),
-      count: entries.length,
+      count: totalCount, shownCount: entries.length, hasMore: totalCount > 20, expanded: !!expandedBoards.value[kind],
+      expansionLabel: expandedBoards.value[kind] ? tr('showLess') : tr('showAll').replace('{count}', totalCount), distribution: distributions.value[kind],
       // Keep the editing header pinned when a query reduces a long list to a
       // few rows; native scroll views otherwise clamp their offset to zero.
       height: Math.max(entries.length * geometry.value.rowHeight, (modelSearchVisible.value || grouping.value === 'model' && !!modelSearchQuery.value.trim())
@@ -316,7 +471,7 @@ definePage(query => {
       ...scrollWindows.value[kind], force })
   }
   function syncWindow(kind, force = false) {
-    const card = rankedCards.value.find(card => card.kind === kind)
+    const card = visibleCards.value.find(card => card.kind === kind)
     if (!card) return
     const pinned = Number.isFinite(headerOffsets[kind]) && (scrollPositions[kind] || 0) >= headerOffsets[kind]
     if (!!pinnedHeaders.value[kind] !== pinned) {
@@ -339,11 +494,12 @@ definePage(query => {
     }
     measureLists()
   }
-  function requestScroll(kind, top) {
+  function requestScroll(kind, top, preparing = false) {
     if (kind === current.value.kinds[face.value]) { cancelSourceTabsSync(); updateSourceTabs(top) }
     // A scroll-top binding inside the changing cards loop can replay an old
     // target on each virtual-window render. Command only explicit navigation.
-    const request = { top, pending: true }
+    clearTimeout(scrollRequests.get(kind)?.timer)
+    const request = { top, pending: true, preparing, ready: false, callbacks: [], started: Date.now() }
     scrollRequests.set(kind, request)
     const run = () => {
       if (!alive || scrollRequests.get(kind) !== request || !wx.createSelectorQuery) return
@@ -352,11 +508,43 @@ definePage(query => {
       query.exec(results => {
         if (!alive || scrollRequests.get(kind) !== request) return
         results[0]?.node?.scrollTo({ top, animated: false })
-        if (kind === current.value.kinds[face.value]) syncSourceTabsAfterScroll(kind)
+        if (preparing) settlePreparedScroll(kind, request)
+        else if (kind === current.value.kinds[face.value]) syncSourceTabsAfterScroll(kind)
       })
     }
     if (wx.nextTick) wx.nextTick(run)
     else run()
+    return request
+  }
+  function settlePreparedScroll(kind, request) {
+    if (!alive || scrollRequests.get(kind) !== request) return
+    const query = wx.createSelectorQuery()
+    query.select(`#board-scroll-${kind}`).fields({ size: true, scrollOffset: true })
+    query.exec(results => {
+      if (!alive || scrollRequests.get(kind) !== request) return
+      const native = results[0]
+      const maximum = Number.isFinite(native?.scrollHeight) && native.height > 0
+        ? Math.max(0, native.scrollHeight - native.height) : Infinity
+      const target = Math.min(request.top, maximum)
+      const misplaced = Number.isFinite(native?.scrollTop) && Math.abs(native.scrollTop - target) > 1
+      // Read two native frames at the destination: pinning a compact header
+      // can change its scroll range after the first scrollTo acknowledgement.
+      const stable = !misplaced && request.settledTop === native?.scrollTop && request.settledMaximum === maximum
+      if (native && (!stable || misplaced) && Date.now() - request.started < 600) {
+        request.settledTop = misplaced ? null : native.scrollTop
+        request.settledMaximum = maximum
+        request.timer = setTimeout(() => settlePreparedScroll(kind, request), 32)
+        return
+      }
+      const top = Number.isFinite(native?.scrollTop) ? Math.max(0, native.scrollTop) : request.top
+      request.failed = misplaced
+      request.pending = false; request.ready = true; request.top = top
+      scrollPositions[kind] = top
+      backTopBoards.value = { ...backTopBoards.value, [kind]: top > 400 }
+      syncWindow(kind, true)
+      if (kind === current.value.kinds[face.value]) updateSourceTabs(top)
+      for (const callback of request.callbacks.splice(0)) callback()
+    })
   }
   function measureLists() {
     const serial = ++measureSerial
@@ -435,8 +623,13 @@ definePage(query => {
   wx.onThemeChange?.(themeListener)
   updateTheme()
 
-  async function refreshKind(kind) {
-    if (refreshing.value[kind]) return
+  function refreshKind(kind) {
+    if (refreshTasks.has(kind)) return refreshTasks.get(kind)
+    const task = loadKind(kind).finally(() => refreshTasks.delete(kind))
+    refreshTasks.set(kind, task)
+    return task
+  }
+  async function loadKind(kind) {
     lastAttempt[kind] = Date.now()
     refreshing.value = { ...refreshing.value, [kind]: true }
     try {
@@ -455,10 +648,23 @@ definePage(query => {
     }
   }
   const refreshCategory = () => Promise.all(current.value.kinds.map(refreshKind))
-  async function pullRefresh() {
+  async function pullRefresh(event) {
     if (backgroundLocked.value || pullRefreshing.value) return
+    const kind = event?.currentTarget?.dataset?.kind || current.value.kinds[face.value]
+    if (!current.value.kinds.includes(kind)) return
+    pullRefreshKind.value = kind
     pullRefreshing.value = true
-    try { await refreshCategory() } finally { pullRefreshing.value = false }
+    const started = Date.now()
+    try { await refreshCategory() } finally {
+      // Even a cached response needs a painted loading frame before restoring
+      // the native header; otherwise a quick release leaves only its blank gap.
+      const remaining = 300 - (Date.now() - started)
+      if (alive && remaining > 0) await new Promise(resolve => setTimeout(resolve, remaining))
+      if (alive) pullRefreshing.value = false
+    }
+  }
+  function finishPullRefresh(event) {
+    if (!pullRefreshing.value && event.currentTarget.dataset.kind === pullRefreshKind.value) pullRefreshKind.value = ''
   }
   onLoad(async () => { await refreshCategory(); playEntrance() })
   onReady(() => { pageReady = true; measureSourceTabs(); playEntrance() })
@@ -476,10 +682,11 @@ definePage(query => {
   onUnload(() => { blurModelSearch(); clearTimeout(searchExpandTimer); stopCube(); cancelSourceTabsSync(); alive = false; measureSerial++; scrollRequests.clear(); rowRenderers.clear(); store.dispose(); wx.offThemeChange?.(themeListener)
     if (!capture.value.saving) removeScreenshot(wx, capture.value.path)
     if (capturing.value || capture.value.saving) wx.hideLoading() })
-  onShareAppMessage(() => ({ title: `${tabs.value[face.value]}｜${tr('tagline')}`,
+  onShareAppMessage(() => ({ title: `${tabs.value[face.value]}｜${tr('rankingSummary')}`,
     path: sharePath(preferencesSnapshot(), dark.value ? 'dark' : 'light') }))
 
   function selectCategory(event) {
+    if (Date.now() < tabSuppressTapUntil) return
     const id = event.currentTarget.dataset.id
     if (!categories.some(item => item.id === id)) return
     if (id === category.value) {
@@ -491,10 +698,13 @@ definePage(query => {
       }
       return
     }
-    blurModelSearch(); stopCube(); entrancePlayed = true
-    category.value = id; face.value = Math.min(face.value, current.value.kinds.length - 1); cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1; rowRenderers.clear(); resetScroll(); persist(); refreshCategory()
+    changeCategory(id)
   }
-  function selectGrouping(event) { blurModelSearch(); stopCube(); entrancePlayed = true; grouping.value = event.currentTarget.dataset.id; resetScroll(); persist() }
+  function changeCategory(id) {
+    blurModelSearch(); stopCube(); entrancePlayed = true
+    expandedBoards.value = {}; category.value = id; face.value = Math.min(face.value, current.value.kinds.length - 1); cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1; rowRenderers.clear(); resetScroll(); persist(); refreshCategory()
+  }
+  function selectGrouping(event) { blurModelSearch(); stopCube(); entrancePlayed = true; grouping.value = event.currentTarget.dataset.id; expandedBoards.value = {}; resetScroll(); persist() }
   function selectFace(event) {
     if (Date.now() < suppressTapUntil) return
     const destination = Number(event.currentTarget.dataset.index)
@@ -623,6 +833,7 @@ definePage(query => {
   function inputModelSearch(event) {
     const value = String(event.detail.value || '')
     if (value === modelSearchQuery.value) return
+    expandedBoards.value = {}
     modelSearchQuery.value = value
     for (const kind of current.value.kinds) {
       const top = pinnedHeaders.value[kind] ? headerOffsets[kind] || 0 : 0
@@ -815,11 +1026,11 @@ definePage(query => {
   return { labels, subtitleParts, brandTitle, groupingControl, categoryItems, categoryIndex, category, grouping, face, dark, cards, tabs, backToTop, skeletonRows,
     modelSearchQuery, modelSearchVisible, modelSearchFocused, openModelSearch, inputModelSearch, beginModelSearchClear, cancelModelSearchClear, clearModelSearch, closeModelSearch, blurModelSearch, deferModelSearchBlur, focusModelSearch,
     statusBar, navHeight, headerTop, capsuleWidth, sheet, backgroundLocked,
-    cubeFaces, sourceSelection, sourceTabsStyle, sourceTabsExtent, cubeViewportStyle,
+    cubeFaces, sourceSelection, sourceTabIndex, sourceTabsStyle, sourceTabsExtent, cubeViewportStyle,
     cubePosition, cubeDuration, cubeBusy, cubeDragging, entranceStyle, entranceHintVisible,
-    cubeStart, cubeMove, cubeEnd, cubeCancel, attributeHint,
-    selectCategory, selectGrouping, selectFace, changeFace, scroll, top, filterMenu,
+    cubeStart, cubeMove, cubeEnd, cubeCancel, tabStart, tabMove, tabEnd, cancelTabDrag, attributeHint,
+    selectCategory, selectGrouping, selectFace, changeFace, scroll, top, filterMenu, toggleRanking,
     clearFilters, preferences, sheetSelect, closeSheet, sourceHelp, countryHelp, copyBoardTitle, copyPurchaseLink, rowDetails, companyDetails, closeCompanyDetails, copyCompanyName, about,
-    quotaHelp, quotaHelpContent, showingFeatureHelp, closeFeatureHelp, copyDesktopLink, refreshTap, refreshCategory, pullRefresh, pullRefreshing,
+    quotaHelp, quotaHelpContent, showingFeatureHelp, closeFeatureHelp, copyDesktopLink, refreshTap, refreshCategory, pullRefresh, pullRefreshing, pullRefreshKind, finishPullRefresh,
     capturing, capture, screenshot, closeCapture, previewScreenshot, saveScreenshot }
 }, { canShareToOthers: true })

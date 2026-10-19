@@ -451,8 +451,8 @@ test('subtitle help offers dismissal and copies the desktop link only on its lin
 test('header title follows capsule height and fits alongside controls across mobile sizes and languages', () => {
   for (const language of ['zh-CN', 'zh-TW', 'en']) {
     const h = setup({ language })
-    const fonts = new Map()
-    for (const width of [280, 320, 375, 402, 430]) for (const height of [28, 32, 36]) {
+
+    for (const width of [280, 320, 375, 402, 430, 744, 1024]) for (const height of [28, 32, 36]) {
       wx.getWindowInfo = () => ({ statusBarHeight: 24, windowWidth: width })
       wx.getMenuButtonBoundingClientRect = () => ({ top: 28, bottom: 28 + height, height, left: width - 94 })
       globalThis.__benchHooks.resize()
@@ -460,19 +460,20 @@ test('header title follows capsule height and fits alongside controls across mob
       assert.equal(h.page.groupingControl.value.height, height)
       assert.ok(h.page.groupingControl.value.fontSize >= height * 0.34)
       assert.ok(title.height > 0 && title.height <= height * (language === 'en' ? 0.8 : 0.85) + 0.001)
-      assert.ok(title.subtitleHeight > 0 && title.subtitleHeight <= height + 0.001)
-      assert.ok(title.subtitleFontSize > 0)
-      const captionWidth = language === 'en' ? title.subtitleFontSize * 10.5 : title.subtitleFontSize * 10.88
-      const availableWidth = width - h.page.capsuleWidth.value - h.page.groupingControl.value.width - width / 750 * 38
-      assert.ok(title.width + captionWidth <= availableWidth + 0.001)
-      if (language !== 'en' && width >= 320) assert.ok(title.subtitleFontSize >= 6.5 - 0.001)
-      if (height === 32) fonts.set(width, title.subtitleFontSize)
-      assert.ok(title.width < width - 106 - 24 * width / 750)
-      if (language !== 'en' && width >= 430 && height <= 32) assert.ok(Math.abs(title.height - height * 0.85) < 0.001)
-    }
-    if (language !== 'en') {
-      assert.ok(fonts.get(280) < fonts.get(430))
-      assert.equal(fonts.get(430), 12)
+      assert.ok(Math.abs(title.height - title.subtitleHeight - 3 * title.headingScale) < 0.0001)
+      assert.ok(title.subtitleFontSize > 0 && title.subtitleFontSize <= 11)
+      assert.ok(title.subtitleHeight + 0.0001 >= title.subtitleFontSize * 2 + title.headingScale)
+      assert.ok(Math.abs(title.scale * 21 / title.baseTitleFontSize - title.subtitleFontSize / title.subtitleBaseFontSize) < 0.0001)
+      assert.equal(title.showSubtitle, language !== 'en')
+      const widestCaption = language === 'en' ? 0 : Math.max(...h.page.subtitleParts.value.map(row => [...row].reduce((sum, c) => sum + (/[^\x00-\x7F]/.test(c) ? 12 : 7.2), 0)))
+      assert.ok(Math.abs(widestCaption * title.subtitleFontSize / 12 - title.subtitleWidth) < 0.001)
+      const finalRowWidth = [...h.page.subtitleParts.value[1]].reduce((sum, c) => sum + (/[^\x00-\x7F]/.test(c) ? 12 : 7.2), 0) * title.subtitleFontSize / 12
+      const helpRight = finalRowWidth + (title.subtitleHelpOffset + 1) * title.subtitleFontSize
+      if (language !== 'en') assert.ok(helpRight <= title.subtitleWidth + 8 + 0.001)
+      assert.equal(h.page.subtitleParts.value.length, 2)
+      assert.equal(h.page.subtitleParts.value.join(language === 'en' ? ' ' : ''), h.page.labels.value.tagline)
+      const availableWidth = width - h.page.capsuleWidth.value - h.page.groupingControl.value.width - width / 750 * 30 - 8
+      assert.ok(title.width + title.subtitleWidth <= availableWidth + 0.001)
     }
     globalThis.__benchHooks.unload()
   }
@@ -500,6 +501,47 @@ test('automatic refresh failures quietly retain rows and time; only a manual pul
   globalThis.__benchHooks.unload()
 })
 
+test('pulling during an existing refresh waits for every in-flight board and only its originating face restores feedback', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  const h = setup(), loading = globalThis.__benchHooks.load()
+  t.after(() => globalThis.__benchHooks.unload())
+  const pull = h.page.pullRefresh(event({ kind: 'arenaText' }))
+  assert.equal(h.requests.length, 3, 'A manual pull joins the existing requests instead of starting another batch')
+  assert.equal(h.page.pullRefreshKind.value, 'arenaText')
+  h.page.finishPullRefresh(event({ kind: 'arenaText' }))
+  assert.equal(h.page.pullRefreshKind.value, 'arenaText', 'An early native restore cannot erase active loading feedback')
+  h.respond(0); h.respond(1)
+  t.mock.timers.tick(350)
+  await Promise.resolve()
+  assert.equal(h.page.pullRefreshing.value, true, 'Keep the indicator while the final source is still loading')
+  h.respondAll(); await loading; await pull
+  assert.equal(h.page.pullRefreshing.value, false)
+  assert.equal(h.page.pullRefreshKind.value, 'arenaText', 'Keep the feedback host through native restoration')
+  h.page.finishPullRefresh(event({ kind: 'artificialAnalysis' }))
+  assert.equal(h.page.pullRefreshKind.value, 'arenaText')
+  h.page.finishPullRefresh(event({ kind: 'arenaText' }))
+  assert.equal(h.page.pullRefreshKind.value, '')
+})
+
+test('an immediate pull response paints a brief loading state before restoration and failure keeps existing rows', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  const h = setup(), loading = globalThis.__benchHooks.load()
+  t.after(() => globalThis.__benchHooks.unload())
+  h.respondAll(); await loading
+  const before = h.page.cards.value.map(card => card.rows)
+  const pull = h.page.pullRefresh(event({ kind: 'artificialAnalysis' }))
+  for (const request of h.requests.slice(3)) { request.options.fail(); request.options.complete() }
+  await h.page.refreshCategory()
+  t.mock.timers.tick(299)
+  assert.equal(h.page.pullRefreshing.value, true)
+  t.mock.timers.tick(1); await pull
+  assert.equal(h.page.pullRefreshing.value, false)
+  assert.deepEqual(h.page.cards.value.map(card => card.rows), before)
+  assert.equal(h.modals.length, 0)
+  h.page.finishPullRefresh(event({ kind: 'artificialAnalysis' }))
+  assert.equal(h.page.pullRefreshKind.value, '')
+})
+
 test('page lifecycle paints independent sources, honors the new tabs/headings and does not duplicate requests', async () => {
   const h = setup(); const loading = globalThis.__benchHooks.load()
   assert.equal(h.page.headerTop.value, 28)
@@ -522,11 +564,13 @@ test('page lifecycle paints independent sources, honors the new tabs/headings an
   globalThis.__benchHooks.unload()
 })
 
-test('every category and source shares the current page title and common localized tagline', () => {
-  for (const language of ['en', 'zh-CN', 'zh-TW']) for (const category of categories) for (const face of [0, 1]) {
+test('every category and source shares the current page title and only the localized ranking summary', () => {
+  for (const language of ['en', 'zh-CN', 'zh-TW']) for (const category of categories) for (const face of category.kinds.keys()) {
     const h = setup({ language, category: category.id, face })
     const message = globalThis.__benchHooks.share()
-    assert.equal(message.title, `${text(face ? copy.votes : copy.tasks, language)}｜${text(copy.tagline, language)}`)
+    const title = text([copy.tasks, copy.votes, copy.capabilityIndex][face], language)
+    assert.equal(message.title, `${title}｜${text(copy.rankingSummary, language)}`)
+    assert.ok(!message.title.includes(text(copy.tagline, language)))
     const shared = pagePreferences(Object.fromEntries(new URL('https://shared.example' + message.path).searchParams))
     assert.equal(shared.category, category.id)
     assert.equal(shared.face, face)
@@ -550,7 +594,7 @@ test('menu sharing restores live choices and all filters over conflicting receiv
   sender.page.filterMenu(event({ kind: 'arenaTextToVideo', mode: 'openness' }))
   sender.page.sheetSelect({ detail: { value: 'open' } })
   const message = globalThis.__benchHooks.share()
-  assert.equal(message.title, `${text(copy.votes, 'zh-TW')}｜${text(copy.tagline, 'zh-TW')}`)
+  assert.equal(message.title, `${text(copy.votes, 'zh-TW')}｜${text(copy.rankingSummary, 'zh-TW')}`)
   const query = Object.fromEntries(new URL('https://shared.example' + message.path).searchParams)
   const expected = pagePreferences(query)
   globalThis.__benchHooks.unload()
@@ -706,9 +750,55 @@ test('all categories share filters in both directions, including before data arr
   globalThis.__benchHooks.unload()
 })
 
+function expandRankings(h) {
+  for (const card of h.page.cards.value) if (card.hasMore) h.page.toggleRanking(event({ kind: card.kind }))
+}
+
+test('rankings show twenty by default, expand independently and reset after search or filtering', async () => {
+  for (const count of [19, 20, 21]) {
+    const h = setup({}, count)
+    const loaded = globalThis.__benchHooks.load(); h.respondAll(); await loaded
+    const first = h.page.cards.value[0], second = h.page.cards.value[1]
+    assert.equal(first.shownCount, Math.min(20, count))
+    assert.equal(first.height, Math.min(20, count) * 48)
+    assert.equal(first.hasMore, count > 20)
+    assert.equal(first.expanded, false)
+    assert.equal(first.rows.at(-1).rank, Math.min(20, count))
+    h.page.toggleRanking(event({ kind: first.kind }))
+    assert.equal(h.page.cards.value[0].expanded, count > 20)
+    assert.equal(h.page.cards.value[0].shownCount, count)
+    assert.equal(h.page.cards.value[1].expanded, false)
+    assert.equal(h.page.cards.value[1].shownCount, Math.min(20, count))
+    if (count > 20) {
+      assert.match(first.expansionLabel, /21/)
+      assert.equal(h.page.cards.value[0].rows.at(-1).rank, 21)
+      h.page.toggleRanking(event({ kind: first.kind }))
+      assert.equal(h.page.cards.value[0].shownCount, 20)
+      assert.equal(h.page.cards.value[0].rows.at(-1).rank, 20)
+      h.page.toggleRanking(event({ kind: first.kind }))
+      h.page.inputModelSearch({ detail: { value: 'Model 21' } })
+      assert.equal(h.page.cards.value[0].hasMore, false)
+      assert.equal(h.page.cards.value[0].shownCount, 1)
+      assert.equal(h.page.cards.value[0].rows[0].rank, 21, 'Search includes collapsed models')
+      h.page.inputModelSearch({ detail: { value: '' } })
+      assert.equal(h.page.cards.value[0].shownCount, 20)
+      expandRankings(h)
+      h.page.filterMenu(event({ kind: second.kind, mode: 'openness' }))
+      h.page.sheetSelect({ detail: h.page.sheet.value.actions.find(action => action.value === 'open') })
+      assert.ok(h.page.cards.value.every(card => !card.expanded && !card.hasMore))
+      h.page.clearFilters(event({ kind: first.kind }))
+      expandRankings(h)
+      h.page.selectGrouping(event({ id: 'company' }))
+      assert.ok(h.page.cards.value.every(card => !card.expanded && card.shownCount === 20))
+    }
+    globalThis.__benchHooks.unload()
+  }
+})
+
 test('ten thousand rows only cross the bridge in bounded windows, including fast jumps and filter resets', async () => {
   const h = setup({}, 10000)
   const pending = globalThis.__benchHooks.load(); h.respondAll(); await pending
+  expandRankings(h)
   let card = h.page.cards.value[0]
   assert.equal(card.count, 10000)
   assert.ok(card.rows.length < 50)
@@ -779,6 +869,7 @@ test('measured header origin follows the scroll container and stale layout callb
     exec: callback => callbacks.push(callback),
   })
   const pending = globalThis.__benchHooks.load(); h.respondAll(); await pending
+  expandRankings(h)
   const rects = [{ top: 50, height: 480, scrollTop: 0 }, { top: 250 }, { top: 50, height: 0 }, null]
   callbacks.at(-1)(rects)
   const kind = h.page.cards.value[0].kind
@@ -799,6 +890,7 @@ test('scrolling ahead of a pending geometry query cannot move the virtual origin
     exec: callback => callbacks.push(callback),
   })
   const loaded = globalThis.__benchHooks.load(); h.respondAll(); await loaded
+  expandRankings(h)
   const kind = h.page.cards.value[0].kind
   const atTop = [{ top: 50, height: 480, scrollTop: 0 }, { top: 250 }, null, null]
   callbacks.at(-1)(atTop)
@@ -983,10 +1075,48 @@ test('screenshot failure and absent snapshots keep the page usable without a bla
   globalThis.__benchHooks.unload()
 })
 
+test('edge exit gestures never rotate, prepare another board or persist a selection on end, cancel or hide', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const touch = x => ({ touches: [{ clientX: x, clientY: 200 }] })
+  for (const category of ['general', 'coding']) {
+    const count = category === 'general' ? 3 : 2
+    for (let face = 0; face < count; face++) for (const ending of ['end', 'cancel', 'hide']) {
+      const h = setup({ category, face }, 1000)
+      const loading = globalThis.__benchHooks.load(); h.respondAll(); await loading
+      const kind = h.page.cards.value[face].kind
+      h.page.scroll({ ...event({ kind }), detail: { scrollTop: 2400 } })
+      const styles = h.page.cubeFaces.value, selection = h.page.sourceSelection.value
+      const scrolls = h.scrolls.length, writes = h.writes.length
+      h.page.cubeStart(touch(16))
+      for (const x of [17, 80, 300, -60]) {
+        h.page.cubeMove(touch(x))
+        assert.equal(h.page.cubeDragging.value, false)
+        assert.equal(h.page.cubeBusy.value, false)
+        assert.equal(h.page.cubePosition.value, face)
+        assert.deepEqual(h.page.cubeFaces.value, styles)
+        assert.equal(h.page.sourceSelection.value, selection)
+      }
+      if (ending === 'end') h.page.cubeEnd()
+      else if (ending === 'cancel') { h.page.cubeCancel(); h.page.cubeEnd() }
+      else { globalThis.__benchHooks.hide(); h.page.cubeEnd() }
+      h.page.selectFace(event({ index: (face + 1) % count }))
+      t.mock.timers.tick(1000)
+      assert.equal(h.page.face.value, face)
+      assert.equal(h.page.cubePosition.value, face)
+      assert.equal(h.page.cubeBusy.value, false)
+      assert.equal(h.page.cubeDuration.value, 0)
+      assert.equal(h.scrolls.length, scrolls)
+      assert.equal(h.writes.length, writes)
+      globalThis.__benchHooks.unload()
+    }
+  }
+})
+
 test('cube drag preserves virtual windows and scroll rank, cancels safely and never turns a vertical gesture', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const h = setup({}, 1000), loading = globalThis.__benchHooks.load()
   h.respondAll(); await loading
+  expandRankings(h)
   const touch = (x, y) => ({ touches: [{ clientX: x, clientY: y }] })
   h.page.cubeStart(touch(250, 200))
   h.page.cubeMove(touch(240, 260))
@@ -1017,6 +1147,151 @@ test('cube drag preserves virtual windows and scroll rank, cancels safely and ne
   assert.equal(h.page.cubeBusy.value, false); assert.equal(h.page.category.value, 'coding')
 })
 
+function delayedNativeScroll(states) {
+  const commands = []
+  wx.createSelectorQuery = () => {
+    const results = []
+    const query = {
+      select: selector => ({
+        node() { results.push({ node: { scrollTo: value => commands.push({ selector, ...value }) } }); return query },
+        fields() { results.push(states[selector.replace('#board-scroll-', '')] ? { ...states[selector.replace('#board-scroll-', '')] } : null); return query },
+        boundingClientRect() { results.push(null); return query },
+      }),
+      exec: callback => callback(results),
+    }
+    return query
+  }
+  return commands
+}
+function unequalBoards() {
+  return Object.fromEntries([['artificialAnalysis', 32], ['arenaText', 140], ['epochECI', 120]].map(([kind, count]) => [kind, {
+    kind, fetchedAt: '2026-10-18T00:00:00Z', entries: Array.from({ length: count }, (_, index) => ({ rank: index + 1, name: `Model ${index + 1}`, score: count - index })),
+  }]))
+}
+
+test('long-to-short turns wait for the clamped native offset to stay stable before exposing the incoming face', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  const h = setup({ face: 1 }, 0, {}, 'light', 'zh_CN', unequalBoards())
+  expandRankings(h)
+  t.after(() => globalThis.__benchHooks.unload())
+  const states = { artificialAnalysis: { scrollTop: 0, height: 721, scrollHeight: 1885 } }
+  const commands = delayedNativeScroll(states)
+  h.page.scroll({ ...event({ kind: 'arenaText' }), detail: { scrollTop: 9000 } })
+  h.page.selectFace(event({ index: 0 }))
+  assert.ok(commands.at(-1).top > 1164, 'The requested rank lies beyond the shorter native viewport')
+  h.page.scroll({ ...event({ kind: 'artificialAnalysis' }), detail: { scrollTop: 0 } })
+  t.mock.timers.tick(96)
+  assert.equal(h.page.cubeDuration.value, 0)
+  assert.match(h.page.cubeFaces.value[1].style, /transform:none/, 'Keep the outgoing board on screen while native scroll is pending')
+  assert.match(h.page.sourceTabsStyle.value, /translateY\(-50px\)/, 'A queued old native offset cannot reopen the tabs')
+  states.artificialAnalysis.scrollTop = 1164
+  t.mock.timers.tick(32)
+  assert.equal(h.page.cubeDuration.value, 0, 'One acknowledgement is not enough while the compact header is still settling')
+  t.mock.timers.tick(32); t.mock.timers.tick(24)
+  assert.equal(h.page.cubeDuration.value, 320)
+  assert.match(h.page.cubeFaces.value[0].style, /transform:none/)
+  assert.equal(states.artificialAnalysis.scrollTop, 1164)
+  t.mock.timers.tick(340)
+  assert.equal(h.page.face.value, 0)
+  assert.equal(h.page.cubeBusy.value, false)
+  assert.equal(h.page.backToTop.value, true)
+})
+
+test('releasing or cancelling a swipe before native preparation cannot reveal old rows or revive a stopped turn', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  const touch = x => ({ touches: [{ clientX: x, clientY: 200 }] })
+  for (const cancel of [false, true]) {
+    const h = setup({ face: 1 }, 0, {}, 'light', 'zh_CN', unequalBoards())
+    expandRankings(h)
+    const states = { artificialAnalysis: { scrollTop: 0, height: 721, scrollHeight: 1885 } }
+    delayedNativeScroll(states)
+    h.page.scroll({ ...event({ kind: 'arenaText' }), detail: { scrollTop: 9000 } })
+    h.page.cubeStart(touch(180)); h.page.cubeMove(touch(420))
+    assert.match(h.page.cubeFaces.value[1].style, /transform:none/)
+    if (cancel) h.page.cubeCancel()
+    else h.page.cubeEnd()
+    t.mock.timers.tick(24)
+    assert.match(h.page.cubeFaces.value[1].style, /transform:none/, 'Release must not flash the partially dragged target before it is ready')
+    states.artificialAnalysis.scrollTop = 1164
+    t.mock.timers.tick(32); t.mock.timers.tick(32); t.mock.timers.tick(24); t.mock.timers.tick(340)
+    assert.equal(h.page.face.value, cancel ? 1 : 0)
+    assert.equal(h.page.cubeBusy.value, false)
+    globalThis.__benchHooks.unload()
+  }
+  const h = setup({ face: 1 }, 0, {}, 'light', 'zh_CN', unequalBoards())
+  const states = { artificialAnalysis: { scrollTop: 0, height: 721, scrollHeight: 1885 } }
+  delayedNativeScroll(states)
+  h.page.scroll({ ...event({ kind: 'arenaText' }), detail: { scrollTop: 9000 } })
+  h.page.selectFace(event({ index: 0 }))
+  globalThis.__benchHooks.hide()
+  states.artificialAnalysis.scrollTop = 1164
+  t.mock.timers.tick(1000)
+  assert.equal(h.page.cubeBusy.value, false)
+  assert.equal(h.page.cubeDuration.value, 0)
+  globalThis.__benchHooks.unload()
+})
+
+test('a native scroll that never reaches its destination cancels the turn instead of revealing unsettled rows', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  const h = setup({ face: 1 }, 0, {}, 'light', 'zh_CN', unequalBoards())
+  t.after(() => globalThis.__benchHooks.unload())
+  delayedNativeScroll({ artificialAnalysis: { scrollTop: 0, height: 721, scrollHeight: 1885 } })
+  h.page.scroll({ ...event({ kind: 'arenaText' }), detail: { scrollTop: 9000 } })
+  h.page.selectFace(event({ index: 0 }))
+  t.mock.timers.tick(640)
+  assert.equal(h.page.face.value, 1)
+  assert.equal(h.page.cubeBusy.value, false)
+  assert.equal(h.page.cubePosition.value, 1)
+  assert.match(h.page.sourceTabsStyle.value, /translateY\(-50px\)/)
+  assert.equal(h.writes.filter(write => write.key === 'benchgauge.preferences').at(-1).value.face, 1)
+})
+
+test('rapid tab changes reuse the visible origin while waiting and finish an in-flight rotation before the next one', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  const h = setup({ face: 1 }, 0, {}, 'light', 'zh_CN', unequalBoards())
+  expandRankings(h)
+  t.after(() => globalThis.__benchHooks.unload())
+  const states = { artificialAnalysis: { scrollTop: 0, height: 721, scrollHeight: 1885 }, epochECI: { scrollTop: 0, height: 721, scrollHeight: 6500 } }
+  delayedNativeScroll(states)
+  h.page.scroll({ ...event({ kind: 'arenaText' }), detail: { scrollTop: 9000 } })
+  h.page.selectFace(event({ index: 0 }))
+  h.page.selectFace(event({ index: 1 }))
+  t.mock.timers.tick(80)
+  assert.equal(h.page.face.value, 1)
+  assert.equal(h.page.cubeBusy.value, false)
+  assert.match(h.page.cubeFaces.value[1].style, /transform:none/)
+  h.page.selectFace(event({ index: 0 }))
+  states.artificialAnalysis.scrollTop = 1164
+  t.mock.timers.tick(32); t.mock.timers.tick(32); t.mock.timers.tick(24)
+  h.page.selectFace(event({ index: 2 }))
+  assert.equal(h.page.face.value, 0, 'Do not snap to a different origin halfway through the current rotation')
+  t.mock.timers.tick(340)
+  assert.equal(h.page.face.value, 2, 'The most recent tab selection starts after the prior rotation finishes')
+  states.epochECI.scrollTop = 1200
+  t.mock.timers.tick(32); t.mock.timers.tick(32); t.mock.timers.tick(24); t.mock.timers.tick(340)
+  assert.equal(h.page.cubeBusy.value, false)
+  assert.equal(h.page.face.value, 2)
+})
+
+test('a board shorter than the viewport opens its tab space together with the rotation instead of jumping beforehand', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  const cache = unequalBoards()
+  cache.artificialAnalysis.entries = cache.artificialAnalysis.entries.slice(0, 3)
+  const h = setup({ face: 1 }, 0, {}, 'light', 'zh_CN', cache)
+  t.after(() => globalThis.__benchHooks.unload())
+  delayedNativeScroll({ artificialAnalysis: { scrollTop: 0, height: 721, scrollHeight: 650 } })
+  h.page.scroll({ ...event({ kind: 'arenaText' }), detail: { scrollTop: 9000 } })
+  h.page.selectFace(event({ index: 0 }))
+  t.mock.timers.tick(32)
+  assert.match(h.page.cubeViewportStyle.value, /--cube-top:0px;/, 'Keep the outgoing clip while the incoming scroll view is preparing')
+  t.mock.timers.tick(24)
+  assert.match(h.page.cubeViewportStyle.value, /--cube-top:50px;--cube-layout-duration:320ms;/)
+  t.mock.timers.tick(340)
+  assert.equal(h.page.face.value, 0)
+  assert.equal(h.page.cubeBusy.value, false)
+  assert.equal(h.page.backToTop.value, false)
+})
+
 test('cube wraps indefinitely in both directions, keeps rank and rebases its animation after each seam', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const touch = x => ({ touches: [{ clientX: x, clientY: 200 }] })
@@ -1024,6 +1299,7 @@ test('cube wraps indefinitely in both directions, keeps rank and rebases its ani
     const count = category === 'general' ? 3 : 2
     const h = setup({ category, face: direction > 0 ? count - 1 : 0 }, 1000)
     const loading = globalThis.__benchHooks.load(); h.respondAll(); await loading
+    expandRankings(h)
     const kind = h.page.cards.value[h.page.face.value].kind
     h.page.scroll({ currentTarget: { dataset: { kind } }, detail: { scrollTop: 2400 } })
     for (let turn = 0; turn < count * 2; turn++) {
@@ -1166,7 +1442,7 @@ test('source tabs retain the selected board during the reveal and an unfinished 
   assert.match(votedSelection, /translateX\(100%\)/)
   assert.equal(h.page.entranceHintVisible.value, false)
   t.mock.timers.tick(24); t.mock.timers.tick(340)
-  h.page.cubeStart({ touches: [{ clientX: 30, clientY: 200 }] })
+  h.page.cubeStart({ touches: [{ clientX: 60, clientY: 200 }] })
   h.page.cubeMove({ touches: [{ clientX: 280, clientY: 200 }] })
   assert.ok(h.page.cubePosition.value < 0.5)
   assert.equal(h.page.face.value, 1)
@@ -1364,6 +1640,124 @@ test('unassigned country help uses the current language and a generic explanatio
   assert.equal(h.modals[0].content,text(copy.unknownCountryExplanation,language));
  }
 });
+
+
+function tabTouch(kind, x, y = 740, ended = false) {
+  const point = { identifier: 1, clientX: x, clientY: y }
+  return { currentTarget: { dataset: { tabs: kind } }, touches: ended ? [] : [point], changedTouches: [point] }
+}
+function mockTabBounds() {
+  wx.createSelectorQuery = () => {
+    const q = { select: () => q, boundingClientRect: () => q, node: () => q, fields: () => q,
+      exec: callback => callback([{ left: 20, width: 320 }]) }
+    return q
+  }
+}
+test('edge exit gestures on either tab bar never preview or commit another selection', () => {
+  for (const kind of ['source', 'category']) for (const cancelled of [false, true]) {
+    const h = setup(); mockTabBounds()
+    const selection = h.page.sourceSelection.value
+    h.page.tabStart(tabTouch(kind, 16))
+    for (const x of [17, 170, 300, -60]) {
+      h.page.tabMove(tabTouch(kind, x))
+      assert.equal(h.page.categoryIndex.value, 0)
+      assert.equal(h.page.sourceTabIndex.value, 0)
+      assert.equal(h.page.sourceSelection.value, selection)
+      assert.equal(h.page.cubeBusy.value, false)
+    }
+    if (cancelled) h.page.cancelTabDrag()
+    h.page.tabEnd(tabTouch(kind, 300, 740, true))
+    h.page.selectFace(event({ index: 1 }))
+    h.page.selectCategory(event({ id: 'coding' }))
+    assert.equal(h.page.face.value, 0)
+    assert.equal(h.page.category.value, 'general')
+    assert.equal(h.requests.length, 0)
+    assert.equal(h.writes.length, 0)
+    globalThis.__benchHooks.unload()
+  }
+})
+
+test('bar drags preview under the finger and commit only the final category once', () => {
+  const h = setup(); mockTabBounds()
+  h.page.tabStart(tabTouch('category', 60))
+  h.page.tabMove(tabTouch('category', 170))
+  assert.equal(h.page.categoryIndex.value, 1)
+  assert.equal(h.page.category.value, 'general')
+  assert.equal(h.requests.length, 0)
+  h.page.tabMove(tabTouch('category', 600))
+  assert.equal(h.page.categoryIndex.value, 3)
+  h.page.tabEnd(tabTouch('category', 600, 740, true))
+  assert.equal(h.page.category.value, 'video')
+  assert.equal(h.requests.length, 2, 'Only the released category fetches its two sources')
+  h.page.selectCategory(event({ id: 'coding' }))
+  assert.equal(h.page.category.value, 'video', 'A synthesized tap cannot overwrite the drag result')
+  h.page.tabStart(tabTouch('category', 300))
+  h.page.tabMove(tabTouch('category', -100))
+  h.page.tabEnd(tabTouch('category', -100, 740, true))
+  assert.equal(h.page.category.value, 'general')
+  globalThis.__benchHooks.unload()
+})
+test('source bar drags do not rotate or copy while moving; release selects the pointed tab', () => {
+  const h = setup(); mockTabBounds()
+  h.page.tabStart(tabTouch('source', 60, 100))
+  h.page.tabMove(tabTouch('source', 300, 102))
+  assert.equal(h.page.sourceTabIndex.value, 2)
+  assert.equal(h.page.face.value, 0)
+  assert.equal(h.page.cubeDragging.value, false)
+  h.page.tabEnd(tabTouch('source', 300, 102, true))
+  assert.equal(h.page.face.value, 2)
+  h.page.selectFace(event({ index: 0 }))
+  assert.equal(h.page.face.value, 2)
+  assert.deepEqual(h.clipboard, [])
+  globalThis.__benchHooks.unload()
+})
+test('vertical, multitouch, cancelled and interrupted tab drags never change a selection', () => {
+  const h = setup(); mockTabBounds()
+  h.page.tabStart(tabTouch('category', 60))
+  h.page.tabMove(tabTouch('category', 70, 780))
+  h.page.tabMove(tabTouch('category', 300, 790))
+  h.page.tabEnd(tabTouch('category', 300, 790, true))
+  assert.equal(h.page.category.value, 'general')
+  for (const cancel of [() => h.page.cancelTabDrag(), () => globalThis.__benchHooks.hide(),
+    () => h.page.tabEnd(tabTouch('category', 300)),
+    () => h.page.tabMove({ ...tabTouch('category', 300), touches: [{ clientX: 300 }, { clientX: 310 }] })]) {
+    h.page.tabStart(tabTouch('category', 60)); h.page.tabMove(tabTouch('category', 300))
+    cancel(); h.page.tabEnd(tabTouch('category', 300, 740, true))
+    assert.equal(h.page.category.value, 'general')
+    assert.equal(h.page.categoryIndex.value, 0)
+  }
+  assert.equal(h.requests.length, 0)
+  globalThis.__benchHooks.unload()
+})
+test('a delayed bounds query cannot revive a released tab gesture', () => {
+  const h = setup(); let measured
+  const q = { select: () => q, boundingClientRect: () => q, exec: callback => { measured = callback } }
+  wx.createSelectorQuery = () => q
+  h.page.tabStart(tabTouch('category', 60)); h.page.tabMove(tabTouch('category', 300))
+  h.page.tabEnd(tabTouch('category', 300, 740, true))
+  measured([{ left: 20, width: 320 }])
+  assert.equal(h.page.categoryIndex.value, 0)
+  assert.equal(h.page.category.value, 'general')
+  globalThis.__benchHooks.unload()
+})
+
+test('adding touch handlers preserves ordinary taps and double-tap return to top', () => {
+  const h = setup(); mockTabBounds()
+  const touch = tabTouch('category', 60)
+  h.page.tabStart(touch); h.page.tabEnd(tabTouch('category', 60, 740, true))
+  h.page.selectCategory(event({ id: 'general' }))
+  const before = h.scrolls.length
+  h.page.tabStart(touch); h.page.tabEnd(tabTouch('category', 60, 740, true))
+  // Restore the ordinary native scroll query to observe the second tap.
+  wx.createSelectorQuery = () => {
+    const q = { select: () => q, node: () => q,
+      exec: cb => cb([{ node: { scrollTo: value => h.scrolls.push(value) } }]) }
+    return q
+  }
+  h.page.selectCategory(event({ id: 'general' }))
+  assert.equal(h.scrolls.length, before + 1)
+  globalThis.__benchHooks.unload()
+})
 
 test('Epoch is a third live source with original score precision, persistent sharing and safe category switches', async () => {
   const h = setup({ face: 2 });

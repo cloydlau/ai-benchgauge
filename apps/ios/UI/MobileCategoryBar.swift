@@ -9,6 +9,10 @@ struct MobileCategoryBar: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var selection
+    @State private var dragIndex: Int?
+    private var selectedCategory: LeaderboardCategory {
+        dragIndex.map { LeaderboardCategory.allCases[$0] } ?? category
+    }
 
     private func icon(_ category: LeaderboardCategory) -> String {
         switch category {
@@ -27,12 +31,12 @@ struct MobileCategoryBar: View {
                 } label: {
                     VStack(spacing: 4) {
                         Image(systemName: icon(item)).font(.system(size: 18))
-                        Text(LeaderboardPresentation.title(item, language: language)).font(.system(size: 11, weight: category == item ? .semibold : .regular))
+                        Text(LeaderboardPresentation.title(item, language: language)).font(.system(size: 11, weight: selectedCategory == item ? .semibold : .regular))
                     }
                     .frame(maxWidth: .infinity, minHeight: 50)
-                    .foregroundStyle(category == item ? BrandTheme.accent(for: colorScheme) : Color.secondary)
+                    .foregroundStyle(selectedCategory == item ? BrandTheme.accent(for: colorScheme) : Color.secondary)
                     .background {
-                        if category == item {
+                        if selectedCategory == item {
                             Capsule().fill(BrandTheme.selection(for: colorScheme)).matchedGeometryEffect(id: "selection", in: selection)
                                 .shadow(color: .black.opacity(0.06), radius: 3, y: 1)
                         }
@@ -44,13 +48,100 @@ struct MobileCategoryBar: View {
                     .accessibilityAddTraits(category == item ? .isSelected : [])
             }
         }
+        .modifier(MobileTabDrag(count: LeaderboardCategory.allCases.count, preview: $dragIndex,
+            begin: select) { index in
+                let item = LeaderboardCategory.allCases[index]
+                guard item != category else { return }
+                select()
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.24)) { category = item }
+            })
         .padding(4)
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay { Capsule().strokeBorder(.primary.opacity(0.08), lineWidth: 0.5) }
+        .modifier(MobileCategoryGlass())
         .shadow(color: .black.opacity(0.12), radius: 14, y: 5)
         .frame(maxWidth: 500)
         .padding(.horizontal, 20)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("category")
+    }
+}
+
+/// Keep the neutral tint separate from the system's refraction and touch response.
+private struct MobileCategoryGlass: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, macOS 26.0, *) {
+            content.glassEffect(.regular.tint(.gray.opacity(colorScheme == .dark ? 0.16 : 0.08)).interactive(), in: Capsule())
+        } else {
+            content.background {
+                Capsule()
+                    .fill(reduceTransparency ? AnyShapeStyle(BrandTheme.surface(for: colorScheme)) : AnyShapeStyle(.ultraThinMaterial))
+                    .overlay {
+                        Capsule().fill(.gray.opacity(colorScheme == .dark ? 0.12 : 0.06))
+                    }
+                    .overlay {
+                        Capsule().strokeBorder(LinearGradient(
+                            colors: [.white.opacity(colorScheme == .dark ? 0.32 : 0.8),
+                                     .white.opacity(0.04), .white.opacity(colorScheme == .dark ? 0.12 : 0.4)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 0.75)
+                    }
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+}
+
+/// A drag selects the segment underneath the finger. Preview locally and
+/// commit once on release, so crossing categories never starts extra fetches.
+@MainActor
+struct MobileTabDrag: ViewModifier {
+    let count: Int
+    @Binding var preview: Int?
+    var enabled = true
+    var begin: () -> Void = {}
+    let select: (Int) -> Void
+    @State private var width: CGFloat = 0
+    @State private var axis = LeaderboardCube.DragAxis.undecided
+    @GestureState private var touching = false
+
+    private func index(at x: CGFloat) -> Int? {
+        guard width > 0, count > 0 else { return nil }
+        return min(count - 1, max(0, Int(floor(x / width * CGFloat(count)))))
+    }
+    func body(content: Content) -> some View {
+        content
+            .background {
+                GeometryReader { geometry in
+                    Color.clear.onAppear { width = geometry.size.width }
+                        .onChange(of: geometry.size.width) { _, value in
+                            width = value; preview = nil; axis = .undecided
+                        }
+                }
+            }
+            .contentShape(Rectangle())
+            .highPriorityGesture(DragGesture(minimumDistance: 8)
+                .updating($touching) { _, state, _ in state = true }
+                .onChanged { value in
+                    guard enabled else { preview = nil; return }
+                    if axis == .undecided {
+                        let x = abs(value.translation.width), y = abs(value.translation.height)
+                        if x >= 8 && x > y * 1.25 { axis = .horizontal; begin() }
+                        else if y >= 8 { axis = .vertical }
+                    }
+                    guard axis == .horizontal else { return }
+                    preview = index(at: value.location.x)
+                }
+                .onEnded { value in
+                    let destination = axis == .horizontal && enabled ? index(at: value.location.x) : nil
+                    preview = nil; axis = .undecided
+                    if let destination { select(destination) }
+                })
+            .onChange(of: touching) { _, active in
+                // GestureState resets even when the system cancels a touch.
+                if !active { preview = nil; axis = .undecided }
+            }
+            .onDisappear { preview = nil; axis = .undecided }
     }
 }

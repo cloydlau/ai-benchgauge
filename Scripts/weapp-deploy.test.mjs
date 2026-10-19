@@ -11,7 +11,7 @@ import { join } from 'node:path'
 import { ci } from './calmmit.mjs'
 import { sourcePaths, inputSnapshot, sourceSignature, stageInputs, needsUpload, readReceipt } from './weapp-deploy.mjs'
 
-test('isolated upload can load the real shared domain and detects country catalog updates', async t => {
+test('isolated upload loads shared domain and chart statistics and detects their updates', async t => {
   const root = mkdtempSync(join(tmpdir(), 'benchgauge-domain-stage-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   for (const path of ['fc', 'node_modules', 'apps/weapp/node_modules']) mkdirSync(join(root, path), { recursive: true })
@@ -25,6 +25,15 @@ test('isolated upload can load the real shared domain and detects country catalo
   const domain = await import(pathToFileURL(join(stage, 'fc/domain.mjs')).href)
   assert.equal(domain.countryCode({ name: 'Qwen', organization: 'Alibaba' }), 'CN')
   assert.equal(domain.normalizedCountryCode('HK'), 'CN')
+  const { leaderboardDistribution } = await import(pathToFileURL(join(stage, 'fc/distributions.mjs')).href)
+  const distribution = leaderboardDistribution([{ name: 'Qwen', organization: 'Alibaba', openness: 'open' }])
+  assert.equal(distribution.total, 1)
+  assert.equal(distribution.countries[0].id, 'CN')
+  const statistics = join(root, 'fc/distributions.mjs')
+  const originalStatistics = readFileSync(statistics, 'utf8')
+  writeFileSync(statistics, originalStatistics + '\n')
+  assert.notEqual(sourceSignature(inputSnapshot(root)), signature)
+  writeFileSync(statistics, originalStatistics)
   const catalog = join(root, 'fc/country-catalog.json')
   writeFileSync(catalog, readFileSync(catalog, 'utf8') + '\n')
   assert.notEqual(sourceSignature(inputSnapshot(root)), signature)

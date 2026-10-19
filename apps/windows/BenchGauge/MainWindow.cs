@@ -24,7 +24,7 @@ sealed partial class MainWindow : Window
     readonly UpdateClient updater;
     readonly Grid content = new();
     readonly Grid quotaArea = new();
-    readonly WrapPanel quotaPanel = new() { Margin = new Thickness(18, 0, 18, 6) };
+    readonly QuotaWrapPanel quotaPanel = new() { Margin = new Thickness(18, 0, 18, 6) };
     readonly TextBlock privatePrompt = new() { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 12), TextWrapping = TextWrapping.Wrap };
     readonly TextBlock status = new() { FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(4) };
     readonly DispatcherTimer boardTimer = new() { Interval = TimeSpan.FromMinutes(30) };
@@ -68,7 +68,14 @@ sealed partial class MainWindow : Window
         {
             if (!closing && IsVisible && prefs.PanelMode == "closeOnBlur" && !IsActive && !modalOpen && !(panelMenuOpen || dropdowns.Any(box => box.IsDropDownOpen))) Hide();
         }, DispatcherPriority.Background);
-        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && !modalOpen) Hide(); };
+        PreviewKeyDown += (_, e) => {
+            if (e.Key != Key.Escape || modalOpen) return;
+            if (leaderboardSearchExpanded) {
+                // A nonempty query must keep its input visible even after focus moves.
+                if (leaderboardQuery.Length == 0) { Keyboard.ClearFocus(); leaderboardSearchExpanded = false; Render(); }
+                e.Handled = true;
+            } else Hide();
+        };
         boardTimer.Tick += async (_, _) => { await Refresh("refreshBoards"); await Refresh("refreshCurrentQuota"); };
         quotaClockTimer.Tick += async (_, _) =>
         {
@@ -155,7 +162,7 @@ sealed partial class MainWindow : Window
                 qwenWindow ??= new QwenWebsiteWindow(engine, prefs, SetState);
                 try { await qwenWindow.Refresh(); } catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException or System.ComponentModel.Win32Exception or Microsoft.Web.WebView2.Core.WebView2RuntimeNotFoundException) { }
             }
-            var view = (prefs.Category, prefs.Grouping, prefs.Language, JsonSerializer.Serialize(prefs.Sources), JsonSerializer.Serialize(prefs.Countries));
+            var view = (prefs.Category, prefs.Grouping, prefs.Language, JsonSerializer.Serialize(prefs.Sources), JsonSerializer.Serialize(prefs.Countries), string.Join(",", prefs.VisibleBoardKinds()));
             if (command == "refreshBoards")
             {
                 // Paint FC's last snapshot before waiting for a contributor's
@@ -163,12 +170,12 @@ sealed partial class MainWindow : Window
                 try
                 {
                     var cached = await engine.Request("cachedBoards", prefs);
-                    if (view == (prefs.Category, prefs.Grouping, prefs.Language, JsonSerializer.Serialize(prefs.Sources), JsonSerializer.Serialize(prefs.Countries)) && cached.Result is { } saved) SetState(saved);
+                    if (view == (prefs.Category, prefs.Grouping, prefs.Language, JsonSerializer.Serialize(prefs.Sources), JsonSerializer.Serialize(prefs.Countries), string.Join(",", prefs.VisibleBoardKinds())) && cached.Result is { } saved) SetState(saved);
                 }
                 catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException) { }
             }
             var response = await engine.Request(command, prefs);
-            if (view != (prefs.Category, prefs.Grouping, prefs.Language, JsonSerializer.Serialize(prefs.Sources), JsonSerializer.Serialize(prefs.Countries)))
+            if (view != (prefs.Category, prefs.Grouping, prefs.Language, JsonSerializer.Serialize(prefs.Sources), JsonSerializer.Serialize(prefs.Countries), string.Join(",", prefs.VisibleBoardKinds())))
             {
                 if (response.Result is { } previousView) ShowQuotaAlerts(previousView.Alerts);
                 return;

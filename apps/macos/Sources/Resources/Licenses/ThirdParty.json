@@ -25,5 +25,14 @@
     "englishDescription": "Calligraphy glyphs for the Chinese brand title. The subset is renamed BenchGauge Calligraphy.",
     "chineseDescription": "中文品牌标题的书法字形；字体子集更名为 BenchGauge Calligraphy。",
     "file": "SlideFont-OFL.txt"
+  },
+  {
+    "id": "lucide",
+    "name": "Lucide Icons",
+    "license": "ISC & MIT (Feather-derived icons)",
+    "source": "https://lucide.dev",
+    "englishDescription": "Open-source and closed-source lock icons, matching the mini-program.",
+    "chineseDescription": "与小程序一致的开源、闭源锁图标。",
+    "file": "Lucide.txt"
   }
 ]

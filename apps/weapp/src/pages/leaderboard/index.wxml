@@ -1,14 +1,14 @@
 <page-meta page-style="{{backgroundLocked ? 'overflow:hidden;' : ''}}" />
-<view class="shell leaderboard {{dark ? 'dark' : ''}} {{grouping === 'company' ? 'company-view' : ''}}" style="--country-column:{{labels.country === 'Country' ? 84 : 58}}rpx;--source-column:{{labels.source.length === 2 ? 58 : 76}}rpx;">
+<view class="shell leaderboard {{dark ? 'dark' : ''}} {{grouping === 'company' ? 'company-view' : ''}}" style="--country-column:{{labels.country === 'Country' ? 84 : 58}}rpx;--source-column:{{labels.source.length === 2 ? 58 : 76}}rpx;--distribution-name-width:{{labels.country === 'Country' ? 144 : 96}}px;">
   <view class="brand-head {{labels.name === 'AI BenchGauge' ? 'brand-en' : ''}}" style="min-height:{{navHeight}}px;padding-top:{{headerTop}}px;padding-right:{{capsuleWidth}}px;">
     <view class="brand-copy">
       <view class="brand-title brand-wordmark" style="{{brandTitle.style}}" aria-label="{{labels.name}}">
         <image wx:if="{{brandTitle.logoWidth > 0 && brandTitle.logoHeight > 0}}" class="brand-letter-logo" src="{{dark ? '/assets/header-logo-dark.png' : '/assets/header-logo.png'}}" mode="scaleToFill" style="{{brandTitle.logoStyle}}" aria-hidden="true" />
         <image wx:for="{{brandTitle.glyphs}}" wx:key="key" class="brand-glyph" src="{{item.source}}{{dark ? '-dark' : ''}}.svg" mode="scaleToFill" style="{{item.style}}" aria-hidden="true" />
       </view>
-      <button class="subtitle {{labels.name === 'AI BenchGauge' ? '' : 'subtitle-single-line'}}" style="height:{{brandTitle.subtitleHeight}}px;font-size:{{brandTitle.subtitleFontSize}}px;" bindtap="quotaHelp" aria-label="{{labels.subtitle}}">
-        <view class="subtitle-line"><text>{{subtitleParts[0]}}</text><text class="subtitle-symbol" aria-hidden="true">{{'&'}}</text></view>
-        <view class="subtitle-line"><text>{{subtitleParts[1]}}</text><view class="subtitle-help" aria-hidden="true"><van-icon name="question-o" size="{{brandTitle.subtitleFontSize * (labels.name === 'AI BenchGauge' ? 0.8 : 1)}}px" custom-style="opacity:0.55;" /></view></view>
+      <button wx:if="{{brandTitle.showSubtitle}}" class="subtitle" style="width:{{brandTitle.subtitleWidth}}px;height:{{brandTitle.subtitleHeight}}px;font-size:{{brandTitle.subtitleFontSize}}px;" bindtap="quotaHelp" aria-label="{{labels.subtitle}}">
+        <view class="subtitle-line"><text>{{subtitleParts[0]}}</text></view>
+        <view class="subtitle-line"><text>{{subtitleParts[1]}}</text><view class="subtitle-help" style="margin-left:{{brandTitle.subtitleHelpOffset}}em;" aria-hidden="true"><van-icon name="question-o" size="{{brandTitle.subtitleFontSize}}px" custom-style="display:block;line-height:1;opacity:0.55;" /></view></view>
       </button>
     </view>
     <view class="pill grouping" style="height:{{groupingControl.height}}px;width:{{groupingControl.width}}px;font-size:{{groupingControl.fontSize}}px;">
@@ -17,18 +17,23 @@
     </view>
   </view>
   <view class="board-stage">
-  <view class="source-tabs" role="tablist" style="{{sourceTabsStyle}}">
+  <view class="source-tabs" role="tablist" style="{{sourceTabsStyle}}" data-tabs="source" bindtouchstart="tabStart" catchtouchmove="tabMove" bindtouchend="tabEnd" bindtouchcancel="cancelTabDrag">
     <view class="source-selection" style="{{sourceSelection}}" aria-hidden="true" />
-    <button wx:for="{{tabs}}" wx:key="*this" class="source-tab source-{{index}} {{face === index ? 'active' : ''}}"
+    <button wx:for="{{tabs}}" wx:key="*this" class="source-tab source-{{index}} {{sourceTabIndex === index ? 'active' : ''}}"
       data-index="{{index}}" bindtap="selectFace" role="tab" aria-selected="{{face === index}}">{{item}}</button>
   </view>
   <view class="boards" style="{{entranceStyle}}{{cubeViewportStyle}}" bindtouchstart="cubeStart" bindtouchmove="cubeMove" bindtouchend="cubeEnd" bindtouchcancel="cubeCancel">
     <view wx:if="{{entranceHintVisible}}" class="cube-launch-hint"><text>↕ {{labels.cubeScroll}}</text><view class="cube-hint-divider" /><text>↔ {{labels.cubeSwitch}}</text></view>
     <view wx:for="{{cards}}" wx:for-item="card" wx:key="kind" class="board-face" style="{{cubeFaces[card.index].style}}" aria-hidden="{{face !== card.index}}">
+      <!-- The native indicator rests inside the clipped source-tab spacer.
+           Keep its loading feedback in the visible part of this cube face. -->
+      <view wx:if="{{pullRefreshKind === card.kind}}" class="pull-refresh-status {{pullRefreshing ? 'refreshing' : 'restoring'}}" role="status" aria-label="{{labels.loading}}">
+        <view class="pull-refresh-dot" /><view class="pull-refresh-dot" /><view class="pull-refresh-dot" />
+      </view>
       <scroll-view id="board-scroll-{{card.kind}}" class="board-scroll" scroll-y="{{!backgroundLocked && (!cubeDragging || face !== card.index)}}" enhanced show-scrollbar="{{false}}"
-        refresher-enabled="{{!backgroundLocked && (!cubeDragging || face !== card.index)}}" refresher-triggered="{{pullRefreshing}}" refresher-background="{{dark ? '#101216' : '#f4f5f7'}}"
+        refresher-enabled="{{!backgroundLocked && (!cubeDragging || face !== card.index)}}" refresher-triggered="{{pullRefreshing && pullRefreshKind === card.kind}}" refresher-default-style="{{dark ? 'white' : 'black'}}" refresher-background="{{dark ? '#101216' : '#f4f5f7'}}"
         data-kind="{{card.kind}}" scroll-anchoring="{{false}}"
-        bindscroll="scroll" bindrefresherrefresh="pullRefresh">
+        bindscroll="scroll" bindrefresherrefresh="pullRefresh" bindrefresherrestore="finishPullRefresh" bindrefresherabort="finishPullRefresh">
         <view class="source-tabs-spacer" style="height:{{sourceTabsExtent}}px;" aria-hidden="true" />
         <view class="board-card source-{{card.index}}">
           <view class="metadata">
@@ -106,6 +111,20 @@
           </view>
           </view>
         </view>
+        <button wx:if="{{card.hasMore}}" class="ranking-toggle" data-kind="{{card.kind}}" bindtap="toggleRanking" aria-label="{{card.expansionLabel}}">
+          <text>{{card.expansionLabel}}</text><van-icon name="{{card.expanded ? 'arrow-up' : 'arrow-down'}}" size="12px" />
+        </button>
+        <view class="distribution-charts" aria-label="{{labels.countryShare}} · {{labels.sourceShare}}">
+          <view class="distribution-heading"><text>{{labels.countryShare}}</text><text class="distribution-total">{{card.distribution.totalLabel}}</text></view>
+          <text wx:if="{{!card.distribution.total}}" class="distribution-note">{{labels.noModels}}</text>
+          <view wx:for="{{card.distribution.countries}}" wx:for-item="slice" wx:key="id" class="distribution-country" aria-label="{{slice.name}} {{slice.count}} {{slice.percent}}">
+            <view class="distribution-name"><image wx:if="{{slice.flagImage}}" class="distribution-flag" src="{{slice.flagImage}}" mode="aspectFit" aria-hidden="true" /><text wx:else class="distribution-symbol" aria-hidden="true">{{slice.flag}}</text><text class="distribution-label">{{slice.name}}</text></view><view class="distribution-track" aria-hidden="true"><view class="distribution-bar" style="width:{{slice.width}};" /></view><text class="distribution-value mono">{{slice.count}} · {{slice.percent}}</text>
+          </view>
+          <view class="distribution-heading distribution-source-heading">{{labels.sourceShare}}</view>
+          <view class="distribution-source-track" aria-hidden="true"><view wx:for="{{card.distribution.sources}}" wx:for-item="slice" wx:key="id" class="distribution-segment distribution-{{slice.id}}" style="width:{{slice.width}};background:{{slice.color}};" /></view>
+          <view wx:for="{{card.distribution.sources}}" wx:for-item="slice" wx:key="id" class="distribution-source-row"><image wx:if="{{slice.icon}}" class="distribution-lock" src="{{slice.icon}}" mode="aspectFit" aria-hidden="true" /><text wx:else class="distribution-symbol" aria-hidden="true">?</text><text>{{slice.name}}</text><text class="distribution-value mono">{{slice.count}} · {{slice.percent}}</text></view>
+          <text class="distribution-note">{{labels.distributionBasis}}</text>
+        </view>
         <view class="footer safe-bottom {{backToTop ? 'with-back-top' : ''}}">
           <button class="tap" bindtap="about">{{labels.about}}</button>
           <view class="footer-actions">
@@ -119,9 +138,9 @@
     </view>
   </view>
   </view>
-  <view class="category-tabs" role="tablist">
+  <view class="category-tabs" role="tablist" data-tabs="category" bindtouchstart="tabStart" catchtouchmove="tabMove" bindtouchend="tabEnd" bindtouchcancel="cancelTabDrag">
     <view class="category-glass-selection" style="transform:translateX({{categoryIndex * 100}}%);" aria-hidden="true" />
-    <button wx:for="{{categoryItems}}" wx:key="id" class="category-tab {{category === item.id ? 'active' : ''}}"
+    <button wx:for="{{categoryItems}}" wx:key="id" class="category-tab {{categoryIndex === index ? 'active' : ''}}"
       data-id="{{item.id}}" bindtap="selectCategory" role="tab" aria-selected="{{category === item.id}}">
       <view wx:if="{{item.icon === 'code'}}" class="category-code-icon" aria-hidden="true"><view class="category-code-slash" /></view>
       <van-icon wx:else name="{{item.icon}}" size="18px" /><text class="category-label">{{item.label}}</text>

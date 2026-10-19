@@ -1,6 +1,102 @@
 import XCTest
 import UIKit
 
+final class LeaderboardResizableLayoutTests: XCTestCase {
+    private var app: XCUIApplication!
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        app = XCUIApplication()
+    }
+    override func tearDownWithError() throws {
+        app.terminate()
+        XCUIDevice.shared.orientation = .portrait
+    }
+    func testReadableBoardsAcrossRotation() {
+        for chinese in [false, true] {
+            app.launchArguments = ["--ui-testing", "--offline", "--full-board", "--reduce-motion"]
+                + (chinese ? ["--preview-zh", "--dark"] : [])
+            app.launch()
+            XCTAssertTrue(app.otherElements["board-artificialAnalysis"].waitForExistence(timeout: 10))
+            for (index, orientation) in [UIDeviceOrientation.portrait, .landscapeLeft, .portrait].enumerated() {
+                XCUIDevice.shared.orientation = orientation
+                let landscape = orientation == .landscapeLeft
+                let rotated = expectation(for: NSPredicate { _, _ in
+                    let frame = self.app.frame
+                    return landscape ? frame.width > frame.height : frame.height > frame.width
+                }, evaluatedWith: nil)
+                wait(for: [rotated], timeout: 5)
+                Thread.sleep(forTimeInterval: 0.7)
+                let first = app.otherElements["board-artificialAnalysis"]
+                let second = app.otherElements["board-arenaText"]
+                XCTAssertTrue(first.exists)
+                if !app.otherElements["cube-viewport"].exists {
+                    XCTAssertTrue(second.exists)
+                    XCTAssertGreaterThanOrEqual(first.frame.width, 359)
+                    XCTAssertGreaterThanOrEqual(second.frame.width, 359)
+                    XCTAssertEqual(first.frame.minY, second.frame.minY, accuracy: 1)
+                    XCTAssertGreaterThanOrEqual(second.frame.minX - first.frame.maxX, 11)
+                    XCTAssertLessThanOrEqual(second.frame.maxX, app.frame.maxX)
+                }
+                XCTAssertTrue(app.otherElements["category"].isHittable)
+                let capture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+                capture.name = "resize-\(chinese ? "zh-dark" : "en-light")-\(index)-\(landscape ? "landscape" : "portrait")"
+                capture.lifetime = .keepAlways; add(capture)
+            }
+            app.terminate()
+        }
+    }
+    func testRotationKeepsSourceQueryAndFilter() {
+        app.launchArguments = ["--ui-testing", "--offline", "--reduce-motion"]
+        app.launch()
+        XCTAssertTrue(app.otherElements["board-artificialAnalysis"].waitForExistence(timeout: 10))
+        let narrow = app.otherElements["cube-viewport"].exists
+        if narrow { app.buttons["face-1"].tap() }
+        let kind = narrow ? "arenaText" : "artificialAnalysis"
+        let filter = app.buttons["openness-filter-" + kind]
+        XCTAssertTrue(filter.waitForExistence(timeout: 5))
+        filter.tap()
+        app.buttons["openness-option-" + kind + "-open"].tap()
+        app.buttons["model-filter-" + kind].tap()
+        let input = app.textFields["model-search-input-" + kind]
+        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        input.tap(); input.typeText("no-such-resize-model\n")
+        for orientation in [UIDeviceOrientation.landscapeLeft, .portrait] {
+            XCUIDevice.shared.orientation = orientation
+            Thread.sleep(forTimeInterval: 1)
+            XCTAssertEqual(filter.value as? String, "Open")
+            if !input.exists { app.buttons["model-filter-" + kind].tap() }
+            XCTAssertTrue(input.waitForExistence(timeout: 5))
+            XCTAssertEqual(input.value as? String, "no-such-resize-model")
+        }
+        if narrow { XCTAssertTrue(app.buttons["face-1"].isSelected) }
+    }
+    @MainActor func testDistributionChartsBeforeFooter() {
+        for dark in [false, true] {
+            app.launchArguments = ["--ui-testing", "--offline", "--full-board", "--reduce-motion"]
+                + (dark ? ["--dark", "--preview-companies"] : ["--preview-zh"])
+            app.launch()
+            XCTAssertTrue(app.segmentedControls["grouping"].waitForExistence(timeout: 10))
+            for _ in 0..<8 { app.swipeUp() }
+            let country = app.staticTexts.matching(NSPredicate(format: "label == %@", dark ? "Country share" : "国家占比")).firstMatch
+            let source = app.staticTexts.matching(NSPredicate(format: "label == %@", dark ? "Source share" : "源码占比")).firstMatch
+            let footer = app.buttons["language-menu"]
+            XCTAssertTrue(country.waitForExistence(timeout: 5))
+            XCTAssertTrue(source.exists)
+            XCTAssertTrue(country.isHittable)
+            XCTAssertTrue(source.isHittable)
+            XCTAssertTrue(footer.isHittable)
+            XCTAssertLessThan(source.frame.maxY, footer.frame.minY)
+            let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            shot.name = "distributions-\(UIDevice.current.userInterfaceIdiom == .phone ? "iphone" : "ipad")-\(dark ? "dark-company-en" : "light-model-zh")"
+            shot.lifetime = .keepAlways; add(shot)
+            app.terminate()
+        }
+    }
+
+
+}
+
 final class LeaderboardAppearanceTests: XCTestCase {
     func testAppearanceMenuOverridesInitialTheme() throws {
         continueAfterFailure = false
@@ -69,6 +165,19 @@ final class LeaderboardAppearanceTests: XCTestCase {
 }
 
 final class LeaderboardBottomSafeAreaTests: XCTestCase {
+    private func expandRanking(_ app: XCUIApplication) {
+        let button = app.buttons["toggle-ranking-artificialAnalysis"]
+        let scroll = UIDevice.current.userInterfaceIdiom == .phone
+            ? app.otherElements["cube-viewport"] : app.scrollViews.firstMatch
+        for _ in 0..<8 {
+            if button.isHittable { break }
+            scroll.swipeUp()
+        }
+        XCTAssertTrue(button.isHittable)
+        button.tap()
+        app.buttons["leaderboard-back-to-top"].firstMatch.tap()
+    }
+
     func testLongBoardCreatesOnlyNearbyRows() {
         continueAfterFailure = false
         XCUIDevice.shared.orientation = .portrait
@@ -84,6 +193,7 @@ final class LeaderboardBottomSafeAreaTests: XCTestCase {
             app.launch()
             let first = app.buttons["name-artificialAnalysis-1"]
             XCTAssertTrue(first.waitForExistence(timeout: 15))
+            expandRanking(app)
             let names = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "name-artificialAnalysis-"))
             let initial = names.count
             print("[lazy-ranking] company=\(company) initialRows=\(initial) firstFrameSeconds=\(Date().timeIntervalSince(started))")
@@ -121,6 +231,7 @@ final class LeaderboardBottomSafeAreaTests: XCTestCase {
             app.launch()
             let first = app.buttons["name-artificialAnalysis-1"]
             XCTAssertTrue(first.waitForExistence(timeout: 10))
+            expandRanking(app)
             let scroll = UIDevice.current.userInterfaceIdiom == .phone
                 ? app.otherElements["cube-viewport"] : app.scrollViews.firstMatch
             let tail = app.buttons["name-artificialAnalysis-40"]
@@ -355,22 +466,70 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
         let dark = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); dark.name = "mobile-dark-footer"; dark.lifetime = .keepAlways; add(dark)
     }
 
+    func testTaglineSubtitleFitsAndOpensHelp() {
+        for chinese in [true, false] {
+            app.launchArguments = ["--ui-testing", "--offline", "--reduce-motion"]
+                + (chinese ? ["--preview-zh"] : ["--dark"])
+            app.launch()
+            let help = app.buttons["quota-tracking-help"]
+            if !chinese {
+                XCTAssertTrue(app.staticTexts["brand-title"].waitForExistence(timeout: 10))
+                XCTAssertFalse(help.exists)
+                let brand = app.staticTexts["brand-title"]
+                let grouping = app.segmentedControls["grouping"]
+                XCTAssertLessThanOrEqual(brand.frame.maxX, grouping.frame.minX)
+                let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+                attachment.name = "english-title-only"
+                attachment.lifetime = .keepAlways; add(attachment)
+                app.terminate()
+                continue
+            }
+            XCTAssertTrue(help.waitForExistence(timeout: 10))
+            XCTAssertEqual(help.label, chinese ? "多榜对照，选得明白；余量追踪，用得有数。"
+                : "Compare leaderboards to make informed choices; track quotas to know where you stand.")
+            XCTAssertGreaterThanOrEqual(help.frame.minX, app.frame.minX)
+            XCTAssertLessThanOrEqual(help.frame.maxX, app.frame.maxX)
+            XCTAssertGreaterThanOrEqual(help.frame.height, 44)
+            let grouping = app.segmentedControls["grouping"]
+            XCTAssertFalse(help.frame.intersects(grouping.frame))
+            XCTAssertGreaterThanOrEqual(help.frame.minY, grouping.frame.maxY)
+            let brand = app.staticTexts["brand-title"]
+            XCTAssertTrue(brand.exists)
+            XCTAssertLessThanOrEqual(brand.frame.maxX, grouping.frame.minX,
+                "Fitting the subtitle must also keep the brand clear of the full-size controls")
+            XCTAssertGreaterThanOrEqual(help.frame.width, min(app.frame.width - 40, 1096),
+                "The absolute help icon must not reduce the caption's layout width")
+            Thread.sleep(forTimeInterval: 0.6)
+            let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            attachment.name = "tagline-\(chinese ? "zh-light" : "en-dark")"
+            attachment.lifetime = .keepAlways; add(attachment)
+            help.tap()
+            XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
+            app.terminate()
+        }
+    }
+
     func testReadableSubtitleAndSourceIcons() {
         for chinese in [true, false] {
             app.launchArguments = ["--ui-testing", "--full-board", "--reduce-motion"]
                 + (chinese ? ["--preview-zh"] : ["--dark"])
             app.launch()
             let help = app.buttons["quota-tracking-help"]
-            XCTAssertTrue(help.waitForExistence(timeout: 10))
-            let caption = chinese ? "双榜对照 & 余量追踪" : "Dual boards & quota tracking"
-            XCTAssertEqual(help.label, caption)
-            XCTAssertGreaterThan(help.frame.width, 0)
-            XCTAssertGreaterThanOrEqual(help.frame.minX, app.frame.minX)
-            XCTAssertLessThanOrEqual(help.frame.maxX, app.frame.maxX,
-                                     "The complete caption must fit inside the narrow viewport")
-            let grouping = app.segmentedControls["grouping"]
-            XCTAssertFalse(help.frame.intersects(grouping.frame))
-            XCTAssertTrue(help.isHittable)
+            let brand = app.staticTexts["brand-title"]
+            XCTAssertTrue(brand.waitForExistence(timeout: 10))
+            XCTAssertEqual(help.exists, chinese)
+            if chinese {
+                XCTAssertTrue(help.waitForExistence(timeout: 10))
+                let caption = chinese ? "多榜对照，选得明白；余量追踪，用得有数。" : "Compare leaderboards to make informed choices; track quotas to know where you stand."
+                XCTAssertEqual(help.label, caption)
+                XCTAssertGreaterThan(help.frame.width, 0)
+                XCTAssertGreaterThanOrEqual(help.frame.minX, app.frame.minX)
+                XCTAssertLessThanOrEqual(help.frame.maxX, app.frame.maxX,
+                                         "The complete caption must fit inside the narrow viewport")
+                let grouping = app.segmentedControls["grouping"]
+                XCTAssertFalse(help.frame.intersects(grouping.frame))
+                XCTAssertTrue(help.isHittable)
+            }
             let summary = app.buttons["source-help-artificialAnalysis"]
             let heading = app.staticTexts["source-heading-artificialAnalysis"]
             XCTAssertLessThanOrEqual(heading.frame.minY - summary.frame.maxY, 16,
@@ -378,7 +537,7 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
             if UIDevice.current.userInterfaceIdiom == .phone {
                 let tab = app.buttons["face-0"]
                 let card = app.otherElements["board-artificialAnalysis"]
-                let upperGap = tab.frame.minY - help.frame.maxY
+                let upperGap = tab.frame.minY - (chinese ? help.frame.maxY : brand.frame.maxY)
                 let lowerGap = card.frame.minY - tab.frame.maxY
                 XCTAssertGreaterThanOrEqual(lowerGap, 6)
                 XCTAssertLessThanOrEqual(lowerGap, upperGap + 1,
@@ -422,8 +581,20 @@ final class LeaderboardCategoryTabTests: XCTestCase {
             app.launchArguments = ["--ui-testing", "--offline"] + (chinese ? ["--preview-zh"] : ["--dark"])
             app.launch()
             let help = app.buttons["quota-tracking-help"].firstMatch
+            if !chinese {
+                XCTAssertTrue(app.staticTexts["brand-title"].waitForExistence(timeout: 10))
+                XCTAssertFalse(help.exists)
+                let brand = app.staticTexts["brand-title"]
+                let grouping = app.segmentedControls["grouping"]
+                XCTAssertLessThanOrEqual(brand.frame.maxX, grouping.frame.minX)
+                let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+                attachment.name = "english-title-only"
+                attachment.lifetime = .keepAlways; add(attachment)
+                app.terminate()
+                continue
+            }
             XCTAssertTrue(help.waitForExistence(timeout: 10))
-            XCTAssertEqual(help.label, chinese ? "双榜对照 & 余量追踪" : "Dual boards & quota tracking")
+            XCTAssertEqual(help.label, chinese ? "多榜对照，选得明白；余量追踪，用得有数。" : "Compare leaderboards to make informed choices; track quotas to know where you stand.")
             let heading = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
             heading.name = "quota-help-\(chinese ? "zh-system" : "en-dark")-heading"
             heading.lifetime = .keepAlways; add(heading)
@@ -1678,7 +1849,7 @@ final class LeaderboardMobileParityTests: XCTestCase {
             let category = app.otherElements["category"]
             XCTAssertEqual(category.buttons.count, 4)
             XCTAssertGreaterThan(category.frame.minY, app.windows.firstMatch.frame.height * 0.65)
-            XCTAssertTrue(app.buttons["quota-tracking-help"].exists)
+            XCTAssertEqual(app.buttons["quota-tracking-help"].exists, chinese)
             XCTAssertTrue(app.segmentedControls["grouping"].exists)
             capture(chinese ? "parity-zh-light" : "parity-en-dark")
             first.tap()
@@ -1816,5 +1987,102 @@ final class LeaderboardAboutParityTests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+}
+
+
+final class LeaderboardTabDragTests: XCTestCase {
+    func testDragBothBarsInLightMode() { verify(dark: false) }
+    func testDragBothBarsInDarkMode() { verify(dark: true) }
+
+    private func verify(dark: Bool) {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        defer { app.terminate() }
+        app.launchArguments = ["--ui-testing", "--offline"] + (dark ? ["--dark", "--preview-zh"] : [])
+        app.launch()
+        let general = app.buttons["category-general"], video = app.buttons["category-video"]
+        XCTAssertTrue(general.waitForExistence(timeout: 10))
+        func drag(_ from: XCUIElement, _ to: XCUIElement) {
+            from.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                .press(forDuration: 0.1, thenDragTo: to.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)))
+        }
+        func selected(_ element: XCUIElement) {
+            XCTAssertTrue(NSPredicate(format: "selected == true").evaluate(with: element)
+                || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "selected == true"), object: element)], timeout: 5) == .completed)
+        }
+        drag(general, video); selected(video)
+        Thread.sleep(forTimeInterval: 0.6) // Capture the settled selection, not its sliding animation.
+        let end = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        end.name = "tab-drag-\(dark ? "dark" : "light")-video"; end.lifetime = .keepAlways; add(end)
+        drag(video, general); selected(general)
+        app.buttons["category-coding"].tap(); selected(app.buttons["category-coding"])
+        general.tap(); selected(general)
+        // Vertical movement on the category bar must not select another item.
+        general.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1, thenDragTo: general.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: -1)))
+        selected(general)
+        let first = app.buttons["face-0"], second = app.buttons["face-1"]
+        if first.exists {
+            drag(first, second); selected(second)
+            Thread.sleep(forTimeInterval: 0.6)
+            let arena = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            arena.name = "tab-drag-\(dark ? "dark" : "light")-arena"; arena.lifetime = .keepAlways; add(arena)
+            drag(second, first); selected(first)
+            second.tap(); selected(second)
+            first.tap(); selected(first)
+            XCTAssertFalse(app.staticTexts[dark ? "已复制" : "Copied"].exists)
+        }
+    }
+}
+
+final class LeaderboardFoldTests: XCTestCase {
+    @MainActor func testTwentyRowBoundaryAndExpansion() throws {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        defer { app.terminate() }
+        for count in [19, 20, 21] {
+            let entries = (1...count).map { ["rank": $0, "name": "Fold fixture model \($0)",
+                "score": 100 - $0, "organization": "OpenAI"] as [String: Any] }
+            app.launchEnvironment["BENCHGAUGE_UI_MODEL_ENTRIES"] = String(data: try JSONSerialization.data(withJSONObject: entries), encoding: .utf8)
+            app.launchArguments = ["--ui-testing", "--offline", "--reduce-motion"]
+                + (count == 21 ? ["--preview-zh", "--dark"] : [])
+            app.launch()
+            XCTAssertTrue(app.buttons["name-artificialAnalysis-1"].waitForExistence(timeout: 15))
+            let scroll = UIDevice.current.userInterfaceIdiom == .phone
+                ? app.otherElements["cube-viewport"] : app.scrollViews.firstMatch
+            let button = app.buttons["toggle-ranking-artificialAnalysis"]
+            let last = app.buttons["name-artificialAnalysis-\(min(count, 20))"]
+            for _ in 0..<8 {
+                if count > 20 ? button.isHittable : last.isHittable { break }
+                scroll.swipeUp()
+            }
+            XCTAssertTrue(last.exists)
+            XCTAssertFalse(app.buttons["name-artificialAnalysis-21"].exists)
+            XCTAssertEqual(button.exists, count > 20)
+            if count > 20 {
+                XCTAssertTrue(button.isHittable)
+                XCTAssertEqual(button.value as? String, "已收起")
+                capture("fold-21-collapsed")
+                button.tap()
+                let tail = app.buttons["name-artificialAnalysis-21"]
+                for _ in 0..<3 { if tail.isHittable { break }; scroll.swipeUp() }
+                XCTAssertTrue(tail.isHittable)
+                XCTAssertEqual(button.value as? String, "已展开")
+                capture("fold-21-expanded")
+                for _ in 0..<3 { if button.isHittable { break }; scroll.swipeUp() }
+                button.tap()
+                XCTAssertFalse(tail.exists)
+                XCTAssertEqual(button.value as? String, "已收起")
+                capture("fold-21-recollapsed")
+            } else { capture("fold-\(count)-no-toggle") }
+            app.terminate()
+        }
+    }
+    @MainActor private func capture(_ name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
 }

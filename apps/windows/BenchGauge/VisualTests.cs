@@ -18,7 +18,7 @@ namespace BenchGauge;
 // reading accounts or using the privacy-redacted Copy command.
 static class VisualTests
 {
-    sealed record Case(string Id, string Language, int Width, int Height, string Scenario, string Mode, int? QuotaAgeSeconds, string? VersionText, int? RowCount);
+    sealed record Case(string Id, string Language, int Width, int Height, string Scenario, string Mode, int? QuotaAgeSeconds, string? VersionText, int? RowCount, string? Category, string[]? SelectedBoards, string[]? RefreshedSelectedBoards, string? SearchQuery, string? Grouping, Dictionary<string, string>? Countries);
     sealed record Fixture(DisplayState State, Case[] Cases, Dictionary<string, Quota[]>? QuotaScenarios);
     [StructLayout(LayoutKind.Sequential)] struct Rect { public int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Sequential)] struct Point { public int X, Y; }
@@ -100,7 +100,18 @@ static class VisualTests
             }
             if (test.Scenario == "freshnessStale") state = state with {
                 QuotaUnavailable = true, Quotas = state.Quotas.Select(quota => quota with { IsStale = true }).ToArray() };
-            var panel = new MainWindow(null, new Preferences { Language = test.Language, PanelMode = test.Scenario == "window" ? "window" : test.Mode })
+            state = state with { Boards = state.Boards.Select(board => board with { Distribution = LeaderboardDistribution.FromEntries(board.Entries) }).ToArray() };
+            var preferences = new Preferences { Language = test.Language, Category = test.Category ?? "general", PanelMode = test.Scenario == "window" ? "window" : test.Mode };
+            if (test.SelectedBoards is { } selected) preferences.BoardSelections[preferences.Category] = selected;
+            if (test.Grouping is { } grouping) preferences.Grouping = grouping;
+            if (test.Countries is { } countries) preferences.Countries = countries;
+            if (test.Grouping == "company") state = state with { Boards = state.Boards.Select(board => board with {
+                Entries = board.Entries.GroupBy(entry => entry.Organization).Select(group => {
+                    var best = group.OrderByDescending(entry => entry.Score).First();
+                    return best with { Name = best.Organization ?? best.Name };
+                }).OrderByDescending(entry => entry.Score).ToArray()
+            }).ToArray() };
+            var panel = new MainWindow(null, preferences)
                 { Width = test.Width, Height = test.Height };
             panel.SetVisualViewport(test.Width, test.Height);
             // The account dialog owns the panel; WPF requires that owner to
@@ -147,8 +158,58 @@ static class VisualTests
                     throw new InvalidOperationException("Visual case does not fit the real Windows desktop: " + test.Id);
                 for (var frame = 0; frame < 3; frame++)
                 {
-                    if (frame == 1) { panel.SetState(state); window.InvalidateVisual(); } // Catch layout changes after refresh.
+                    if (frame == 1) { if (test.RefreshedSelectedBoards is { } selectedBoards) preferences.BoardSelections[preferences.Category] = selectedBoards; panel.SetState(state); window.InvalidateVisual(); } // Catch layout changes after refresh.
                     Settle(window);
+                    if (test.Scenario == "distributionCharts" && frame > 0) {
+                        static System.Collections.Generic.IEnumerable<DependencyObject> Walk(DependencyObject view) {
+                            yield return view;
+                            for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(view); i++)
+                                foreach (var child in Walk(System.Windows.Media.VisualTreeHelper.GetChild(view, i))) yield return child;
+                        }
+                        var list = Walk(window).OfType<VirtualLeaderboardList>().First();
+                        list.ScrollIntoView(list.Items[list.Items.Count - 1]); Settle(window);
+                        if (!Walk(window).OfType<FrameworkElement>().Any(view => System.Windows.Automation.AutomationProperties.GetAutomationId(view) == "leaderboard-distributions" && view.IsVisible))
+                            throw new InvalidOperationException("Distribution footer missing");
+                    }
+                    if (test.Scenario.StartsWith("desktopSearch", StringComparison.Ordinal))
+                    {
+                        static System.Collections.Generic.IEnumerable<DependencyObject> Descendants(DependencyObject view) {
+                            yield return view;
+                            for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(view); i++)
+                                foreach (var child in Descendants(System.Windows.Media.VisualTreeHelper.GetChild(view, i))) yield return child;
+                        }
+                        FrameworkElement Find(string id) => Descendants(window).OfType<FrameworkElement>().First(view =>
+                            System.Windows.Automation.AutomationProperties.GetAutomationId(view) == id);
+                        if (frame == 1) {
+                            ((System.Windows.Controls.Button)Find("leaderboard-search-button")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                            Settle(window);
+                            ((System.Windows.Controls.TextBox)Find("leaderboard-search-input")).Text = test.SearchQuery ?? "";
+                        }
+                        if (frame == 2) {
+                            panel.SetState(state); Settle(window);
+                            System.Windows.Input.Keyboard.ClearFocus();
+                            window.Focus();
+                        }
+                        Settle(window);
+                        var input = (System.Windows.Controls.TextBox)Find("leaderboard-search-input");
+                        if (frame > 0 && (input.Text != (test.SearchQuery ?? "") || input.IsVisible != (frame == 1 || !string.IsNullOrEmpty(test.SearchQuery))))
+                            throw new InvalidOperationException("Search query or blur state lost: " + test.Id);
+                    }
+                    if (test.Scenario == "boardSelection")
+                    {
+                        var grids = Descendants(window).OfType<System.Windows.Controls.Grid>().Where(grid =>
+                            System.Windows.Automation.AutomationProperties.GetAutomationId(grid) == "leaderboard-columns").ToArray();
+                        var expected = 1 + preferences.VisibleBoardKinds().Length * 4;
+                        if (grids.Length == 0 || grids.Any(grid => grid.ColumnDefinitions.Count != expected))
+                            throw new InvalidOperationException("Hidden leaderboard columns remain in the native table");
+                        if (test.Width < 748 && preferences.VisibleBoardKinds().Length == 3 && frame > 0)
+                        {
+                            var horizontal = Descendants(window).OfType<System.Windows.Controls.ScrollViewer>().FirstOrDefault(scroll => scroll.ScrollableWidth > 0);
+                            if (horizontal is null) throw new InvalidOperationException("Selected sources have no horizontal viewport");
+                            horizontal.ScrollToRightEnd(); Settle(window);
+                            if (horizontal.HorizontalOffset <= 0) throw new InvalidOperationException("Selected sources cannot be reached by horizontal scrolling");
+                        }
+                    }
                     using var bitmap = new Drawing.Bitmap(rect.Right, rect.Bottom);
                     using (var graphics = Drawing.Graphics.FromImage(bitmap))
                         graphics.CopyFromScreen(point.X, point.Y, 0, 0, bitmap.Size);

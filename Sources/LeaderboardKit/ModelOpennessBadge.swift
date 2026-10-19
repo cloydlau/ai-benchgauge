@@ -23,14 +23,15 @@ public struct ModelOpennessBadge: View {
     }
 
     private var dark: Bool { (scheme ?? colorScheme) == .dark }
-    private var tint: Color {
+    public static func tint(for openness: ModelOpenness?, dark: Bool) -> Color {
         if openness == .open {
             return dark ? Color(red: 119 / 255, green: 217 / 255, blue: 161 / 255)
-                : Color(red: 22 / 255, green: 112 / 255, blue: 74 / 255)
+                : Color(red: 24 / 255, green: 137 / 255, blue: 102 / 255)
         }
-        return dark ? Color(red: 181 / 255, green: 196 / 255, blue: 227 / 255)
-            : Color(red: 82 / 255, green: 97 / 255, blue: 125 / 255)
+        return dark ? Color(red: 184 / 255, green: 190 / 255, blue: 199 / 255)
+            : Color(red: 107 / 255, green: 114 / 255, blue: 128 / 255)
     }
+    private var tint: Color { Self.tint(for: openness, dark: dark) }
 
     public var body: some View {
         if let openness {

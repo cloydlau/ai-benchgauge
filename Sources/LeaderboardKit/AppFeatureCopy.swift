@@ -3,12 +3,11 @@ import Foundation
 /// Feature labels and platform availability stay consistent across native views.
 public enum AppFeatureCopy {
     public static func subtitle(language: AppLanguage) -> String {
-        language.text("Multiple leaderboards & quota tracking", "多榜对照 & 余量追踪")
+        subtitleRows(language: language).joined(separator: language == .english ? " " : "")
     }
     public static func subtitleRows(language: AppLanguage) -> [String] {
-        guard language == .english else { return [subtitle(language: language)] }
-        let parts = subtitle(language: language).components(separatedBy: " & ")
-        return [parts[0] + " &", parts[1]]
+        [language.text("Compare leaderboards to make informed choices;", "多榜对照，选得明白；"),
+         language.text("track quotas to know where you stand.", "余量追踪，用得有数。")]
     }
     public static func quotaTitle(language: AppLanguage) -> String {
         language.text("Quota tracking", "余量追踪")

@@ -383,7 +383,7 @@ private func remainingQuotaColor(_ percent: Double, dark: Bool) -> Color {
     return Color(red: rgb.red, green: rgb.green, blue: rgb.blue)
 }
 
-/// Lays chips out left to right and starts a new line when the next chip does
+/// Centers a single row of chips and left-aligns wrapped rows. Starts a new line when the next chip does
 /// not fit. A missing or zero width is treated as one row so the first layout
 /// pass does not stack every chip.
 private struct QuotaFlowLayout: Layout {
@@ -398,10 +398,11 @@ private struct QuotaFlowLayout: Layout {
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let arranged = arrange(maxWidth: wrappingWidth(bounds.width), subviews: subviews)
+        let horizontalOffset = arranged.rows.count == 1 ? max(0, (bounds.width - arranged.width) / 2) : 0
         for row in arranged.rows {
             for item in row.items {
                 subviews[item.index].place(
-                    at: CGPoint(x: bounds.minX + item.x, y: bounds.minY + row.y),
+                    at: CGPoint(x: bounds.minX + horizontalOffset + item.x, y: bounds.minY + row.y),
                     proposal: ProposedViewSize(item.size)
                 )
             }
