@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { spawn } from 'node:child_process'
+import { Writable } from 'node:stream'
+import { ci } from './calmmit.mjs'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -934,4 +936,36 @@ touch outputs/AI-BenchGauge.app/Contents/MacOS/leaderboard-menu
  await waitUntil(f,()=>f.events().filter(event=>event==='build').length===2 && f.output().includes('本轮流程完成'))
  assert.ok(f.output().includes('运行期间有新变更'))
  assert.equal(f.events().filter(event=>event==='test').length,3)
+})
+
+// A child may finish with progress output instead of a trailing newline. The
+// persistent footer must receive the failure as its own status record even
+// when the parent launcher was loaded before its embedded-status parser fix.
+test('manual failure starts a separate status record after unterminated child output', async t => {
+  const fixture = watcherFixture(t, { setup(root) {
+    writeFileSync(join(root, 'Scripts/test-repair.mjs'), `export async function runTestGate() {
+      process.stdout.write('last child progress without newline')
+      return { status: 1, signature: 'failed', logPath: 'mock.log' }
+    }`)
+  } })
+  await waitUntil(fixture, () => fixture.output().includes('需人工介入'))
+  const records = fixture.output().split(/\r?\n/)
+  assert.ok(records.some(line => /^\[watch\] ⚠【需人工介入】 (?:启动)?测试失败/.test(line)), fixture.output())
+  assert.ok(records.some(line => line.startsWith('last child progress without newline') && !line.includes('需人工介入')), fixture.output())
+  assert.deepEqual(fixture.events(), [])
+  const { createDevStatus } = await ci.load('dev-status')
+  const { createDevFormatter } = await ci.load('dev-output')
+  const tty = new Writable({ write(_chunk, _encoding, done) { done() } })
+  tty.isTTY = true; tty.rows = 24; tty.columns = 179
+  const dashboard = createDevStatus({ stdout: tty, stderr: tty,
+    readRepoStatus: async () => ({ known: true, clean: true, staged: 0, unstaged: 0, untracked: 0, conflicts: 0, ahead: 0, behind: 0 }),
+    readActivities: async () => new Map() })
+  t.after(() => dashboard.close())
+  const project = { name: 'ai-benchgauge', root: fixture.root }
+  const stream = dashboard.forProject(project), format = createDevFormatter(project)
+  for (const line of records) stream.log(format(line))
+  for (let i = 0; i < 40; i++) stream.log(format('[desktop-notify] 系统已接受通知'))
+  await stream.flush()
+  assert.equal(dashboard.snapshot()[0].manual, true)
+  assert.match(dashboard.snapshot()[0].message, /需人工介入.*测试失败/)
 })
