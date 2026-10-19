@@ -313,6 +313,12 @@ enum LeaderboardBrandPolicy {
         "palm 2-m": "closed",
         "palm 2-s": "closed",
         "intellect-1": "open",
+        "gemini 4 argon": "closed",
+        "qwen 3.6 max (preview)": "closed",
+        "mistral large 4": "closed",
+        "qwen 3.5 plus (hosted 397b-a17b)": "closed",
+        "qwen 3.5 flash (hosted 35b-a3b)": "closed",
+        "qwen 3.6 flash": "closed",
     ]
     static var verifiedModelOpenness: [String: String] { verifiedModelOpennessStorage }
     private static let modelFamiliesStorage: [(family: String, key: String)] = [

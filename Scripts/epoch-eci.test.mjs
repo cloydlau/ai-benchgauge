@@ -137,5 +137,28 @@ test('ECI repairs never guess a neighboring variant, replace explicit openness, 
   assert.equal(board.entries[1].openness, undefined); assert.equal(brandKey(board.entries[1]), null);
   assert.equal(board.entries[2].openness, undefined); assert.equal(brandKey(board.entries[2]), null);
   assert.equal(brandKey(board.entries[3]), 'anotherdeveloper');
-  assert.equal(board.entries[4].openness, undefined);
+  assert.equal(board.entries[4].openness, 'closed');
+});
+
+test('ECI missing classifications resolve exact verified releases without capturing variants or overwriting upstream data', async () => {
+  const { SharedLeaderboards } = await import('../fc/service.mjs');
+  const ids = ['Gemini 4 Argon', 'Qwen 3.6 Max (Preview)', 'Mistral Large 4',
+    'Qwen 3.5 Plus (hosted 397B-A17B)', 'Qwen 3.5 Flash (hosted 35B-A3B)', 'Qwen 3.6 Flash'];
+  const entries = ids.flatMap((id, index) => [
+    { rank: index * 3 + 1, name: id, modelID: id, score: 170 - index },
+    { rank: index * 3 + 2, name: id + ' fine-tune', modelID: id + '-finetune', score: 160 - index },
+    { rank: index * 3 + 3, name: id, modelID: id, score: 150 - index, openness: 'open' },
+  ]);
+  const input = { kind: 'epochECI', fetchedAt: new Date(now).toISOString(), entries };
+  const original = structuredClone(input);
+  const service = new SharedLeaderboards({ async readBoard() { return input; } });
+  const { board } = await service.read('epochECI');
+  assert.deepEqual(input, original);
+  assert.equal(board.fetchedAt, input.fetchedAt);
+  for (let i = 0; i < ids.length; i++) {
+    assert.equal(board.entries[i * 3].openness, 'closed', ids[i]);
+    assert.equal(board.entries[i * 3 + 1].openness, undefined, ids[i]);
+    assert.equal(board.entries[i * 3 + 2].openness, 'open', ids[i]);
+  }
+  assert.deepEqual(board.entries.map(({ openness, ...row }) => row), input.entries.map(({ openness, ...row }) => row));
 });
