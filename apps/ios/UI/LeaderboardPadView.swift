@@ -60,8 +60,8 @@ private struct PadCubeSourceTabs: ViewModifier {
     @ObservedObject var scroll: LeaderboardCubeScrollState
     func body(content: Content) -> some View {
         content.offset(y: -scroll.sourceTabsOffset)
-            .allowsHitTesting(scroll.sourceTabsOffset < 48)
-            .accessibilityHidden(scroll.sourceTabsOffset >= 48)
+            .allowsHitTesting(scroll.sourceTabsOffset < LeaderboardCubeScrollState.contentTopInset)
+            .accessibilityHidden(scroll.sourceTabsOffset >= LeaderboardCubeScrollState.contentTopInset)
     }
 }
 @MainActor
@@ -653,7 +653,7 @@ public struct LeaderboardPadView: View {
         return ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
-                    Color.clear.frame(height: 38).id(PadComparisonScrollTarget.top)
+                    Color.clear.frame(height: LeaderboardCubeScrollState.contentTopInset - 10).id(PadComparisonScrollTarget.top)
                     boardCard(kind, compact: true, viewportHeight: size.height)
                         .background {
                             GeometryReader { geometry in

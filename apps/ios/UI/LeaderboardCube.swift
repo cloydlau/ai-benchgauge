@@ -64,6 +64,7 @@ final class LeaderboardCubeState: ObservableObject {
 
 @MainActor
 final class LeaderboardCubeScrollState: ObservableObject {
+    static let contentTopInset: CGFloat = 48
     @Published private(set) var sourceTabsOffset: CGFloat = 0
     @Published private(set) var canReturnToTop = false
     private(set) var rank: Int?
@@ -71,7 +72,7 @@ final class LeaderboardCubeScrollState: ObservableObject {
     private(set) var comparisonRowHeight: CGFloat = 44
 
     func update(frames: [Int: LeaderboardRankFrame], height: CGFloat) {
-        let offset = min(48, max(0, 48 - (frames[0]?.minY ?? 48)))
+        let offset = min(Self.contentTopInset, max(0, Self.contentTopInset - (frames[0]?.minY ?? Self.contentTopInset)))
         if sourceTabsOffset != offset { sourceTabsOffset = offset }
         let heading = frames[-1]
         columnHeaderHeight = heading.map { $0.maxY - $0.minY } ?? 0
@@ -156,7 +157,13 @@ struct CubeFace: AnimatableModifier {
     private var flat: Bool { reduceMotion || abs(distance) < 0.0001 || abs(distance) > 0.9999 }
     func body(content: Content) -> some View {
         content
-            .overlay(Color.black.opacity(reduceMotion ? 0 : abs(distance) * 0.18).allowsHitTesting(false))
+            .overlayPreferenceValue(LeaderboardRankFrames.self) { frames in
+                // Each face can have a different scroll position. Its tab spacer
+                // is empty space, so shade only from its own content's top edge.
+                Rectangle().fill(.black.opacity(reduceMotion ? 0 : abs(distance) * 0.18))
+                    .padding(.top, max(0, frames[0]?.minY ?? LeaderboardCubeScrollState.contentTopInset))
+                    .allowsHitTesting(false)
+            }
             .rotation3DEffect(.degrees(flat ? 0 : distance * 90), axis: (x: 0, y: 1, z: 0),
                               anchor: flat ? .center : (distance < 0 ? .trailing : .leading), perspective: flat ? 0 : 0.65)
             .offset(x: flat ? 0 : width * distance)

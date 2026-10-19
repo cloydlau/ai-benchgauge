@@ -1654,6 +1654,7 @@ final class LeaderboardPhoneTests: XCTestCase {
     }
     func testCubeProjectionKeepsTheHeaderClear() throws {
         var references: [Bool: Data] = [:]
+        var spacerReferences: [Bool: Data] = [:]
         for (position, dark) in [(0.0, false), (0.2, false), (0.5, false), (0.8, false), (0.0, true), (0.5, true)] {
             XCUIDevice.shared.orientation = .portrait
             app.launchEnvironment["BENCHGAUGE_UI_CUBE_POSITION"] = String(position)
@@ -1665,11 +1666,19 @@ final class LeaderboardPhoneTests: XCTestCase {
             let top = try cubeHeaderGuard(viewport: viewport.frame)
             if position == 0 { references[dark] = top }
             XCTAssertEqual(top, references[dark], "Projected faces must not paint into the gap above the viewport")
+            let spacer = try cubeTabSpacerGuard()
+            if position == 0 { spacerReferences[dark] = spacer }
+            XCTAssertEqual(spacer, spacerReferences[dark],
+                           "The empty space below the source tabs must not become a shaded cube surface")
             capture(name + "-top")
             viewport.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.7))
                 .press(forDuration: 0.05, thenDragTo: viewport.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.25)))
             XCTAssertEqual(try cubeHeaderGuard(viewport: viewport.frame), references[dark],
                            "Scrolled headers and cube edges must stay below the application heading")
+            if position == 0.5 {
+                XCTAssertEqual(try cubeTabSpacerGuard(incoming: true), spacerReferences[dark],
+                               "An incoming face still at the top must keep its own unshaded tab spacer")
+            }
             capture(name + "-scrolled")
             if position == 0.5 {
                 XCUIDevice.shared.orientation = .landscapeLeft
@@ -1693,6 +1702,22 @@ final class LeaderboardPhoneTests: XCTestCase {
         let scale = format.scale
         let rectangle = CGRect(x: viewport.minX * scale, y: (viewport.minY - 4) * scale,
                                width: viewport.width * scale, height: 3 * scale).integral
+        let crop = try XCTUnwrap(upright.cgImage?.cropping(to: rectangle))
+        return try XCTUnwrap(UIImage(cgImage: crop).pngData())
+    }
+    private func cubeTabSpacerGuard(incoming: Bool = false) throws -> Data {
+        let image = XCUIScreen.main.screenshot().image
+        let format = UIGraphicsImageRendererFormat(); format.scale = UIScreen.main.scale
+        let size = app.windows.firstMatch.frame.size
+        let upright = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
+        let viewport = app.otherElements["cube-viewport"].frame
+        let x = viewport.midX + (incoming ? viewport.width * 0.1 : 0)
+        let y = incoming ? viewport.minY + 32 : app.buttons["face-0"].frame.maxY + 2
+        let scale = format.scale
+        let rectangle = CGRect(x: (x - 4) * scale, y: y * scale,
+                               width: 8 * scale, height: 3 * scale).integral
         let crop = try XCTUnwrap(upright.cgImage?.cropping(to: rectangle))
         return try XCTUnwrap(UIImage(cgImage: crop).pngData())
     }
