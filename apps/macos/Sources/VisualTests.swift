@@ -11,8 +11,8 @@ private final class SearchVisualWindow: NSWindow { override var canBecomeKey: Bo
 @MainActor
 enum NativeVisualCapture {
     enum CaptureError: Error { case blankFrame(String) }
-    struct Entry: Decodable { let rank: Int; let name: String; let score: Double; let modelID: String?; let organization: String; let logo: String; let openness: ModelOpenness?; let brand: OrganizationBrand?; let organizationBrand: OrganizationBrand?; let developerCountry: OrganizationCountryMetadata? }
-    struct Board: Decodable { let kind: String; let title: String; let entries: [Entry]; let sourceUpdatedAt: String?; let sourceTimeUnavailable: Bool?; let fetchedAt: String? }
+    struct Entry: Decodable { let rank: Int; let name: String; let score: Double; let modelID: String?; let organization: String; let logo: String; let openness: ModelOpenness?; let brand: OrganizationBrand?; let organizationBrand: OrganizationBrand?; let developerCountry: OrganizationCountryMetadata?; let modelMetadata: ModelMetadata? }
+    struct Board: Decodable { let kind: String; let title: String; let entries: [Entry]; let sourceUpdatedAt: String?; let sourceTimeUnavailable: Bool?; let fetchedAt: String?; let sourceNote: String? }
     struct Quota: Decodable {
         struct Run: Decodable { let text: String }
         struct Balance: Decodable { let currency: String; let amount: Double }
@@ -43,9 +43,9 @@ enum NativeVisualCapture {
             let kind = LeaderboardKind(rawValue: board.kind)!
             let entries = board.entries.map { entry in
                 LeaderboardEntry(rank: entry.rank, name: entry.name, score: entry.score, modelID: entry.modelID, organization: entry.organization,
-                    logoURL: root.appending(path: "assets/logos/\(entry.logo).png"), openness: entry.openness, brand: entry.brand, organizationBrand: entry.organizationBrand, developerCountry: entry.developerCountry)
+                    logoURL: root.appending(path: "assets/logos/\(entry.logo).png"), openness: entry.openness, brand: entry.brand, organizationBrand: entry.organizationBrand, developerCountry: entry.developerCountry, modelMetadata: entry.modelMetadata)
             }
-            return (kind, Leaderboard(kind: kind, title: board.title, sourceUpdatedAt: board.sourceTimeUnavailable == true ? nil : board.sourceUpdatedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, fetchedAt: board.fetchedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, entries: entries))
+            return (kind, Leaderboard(kind: kind, title: board.title, sourceUpdatedAt: board.sourceTimeUnavailable == true ? nil : board.sourceUpdatedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, sourceNote: board.sourceNote, fetchedAt: board.fetchedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, entries: entries))
         })
         let kinds: [String: CCSwitchQuotaKind] = ["OpenAI": .officialNote, "Kimi": .kimi, "Qwen": .qwen, "DeepSeek": .deepseek, "GLM": .zhipu, "xAI": .xaiOAuth]
         // Exercise the same ownership deferral as production, with no real login
@@ -122,7 +122,7 @@ enum NativeVisualCapture {
                                 organization: "Fixture maker \(rank)", logoURL: root.appending(path: "assets/logos/openai.png"))
                         }
                     } ?? board.entries
-                    return Leaderboard(kind: board.kind, title: board.title, sourceUpdatedAt: board.sourceUpdatedAt,
+                    return Leaderboard(kind: board.kind, title: board.title, sourceUpdatedAt: board.sourceUpdatedAt, sourceNote: board.sourceNote,
                                 fetchedAt: (test.scenario == "boardSelectionConfirm" || test.scenario.hasPrefix("desktopSearch") || test.scenario == "distributionCharts") ? Date() : test.scenario == "sourceTimes" ? board.fetchedAt : quotaDate ?? fixedDate, entries: entries)
                 }
                 let stale = test.scenario == "freshnessStale"
@@ -264,7 +264,17 @@ enum NativeVisualCapture {
                 let size = NSSize(width: test.width, height: test.height)
                 let isClaudeConsentAlert = test.scenario == "claudeKeychainConsentAlert"
                 let isQuotaHelpAlert = test.scenario == "quotaTrackingHelp"
-                let view = test.scenario == "addModelDialog"
+                let detailEntry = boards[.artificialAnalysis]!.entries[0]
+                let selectedDetail = test.scenario == "modelDetailsMissing"
+                    ? LeaderboardEntry(rank: 0, name: "Unmatched model / 暂无模型资料", score: 0)
+                    : test.scenario == "modelDetailsLong"
+                    ? LeaderboardEntry(rank: 0, name: "Research Model — Extended Reasoning / Very Long Provider Variant 长名称测试模型（高推理预算版本）", score: 0, modelMetadata: detailEntry.modelMetadata)
+                    : detailEntry
+                let view = test.scenario == "thirdPartyNotices"
+                    ? AnyView(LicenseNoticesView(section: .thirdParty, language: AppLanguage(rawValue: test.language)!))
+                    : test.scenario.hasPrefix("modelDetails")
+                    ? AnyView(ModelDetailsView(entry: selectedDetail, language: AppLanguage(rawValue: test.language)!, copyName: { _ in true }, close: {}))
+                    : test.scenario == "addModelDialog"
                     ? AnyView(OfficialQuotaAccountsView(state: state, onClose: {}, usesVisualFixture: true,
                         visualVerificationPending: test.officialAccountChecking ?? false))
                     : AnyView(LeaderboardView(state: state, maximumWidth: CGFloat(test.width), viewportSize: size))
@@ -511,7 +521,7 @@ enum NativeVisualCapture {
                         }
                     }
                     let captureView = (isClaudeConsentAlert || isQuotaHelpAlert) ? window.attachedSheet?.contentView : host
-                    let png = (test.scenario == "addModelDialog" || test.scenario.hasPrefix("xaiSubscriptionDialog") || test.scenario.hasPrefix("xaiDeviceDialog") || isClaudeConsentAlert || isQuotaHelpAlert)
+                    let png = (test.scenario == "thirdPartyNotices" || test.scenario.hasPrefix("modelDetails") || test.scenario == "addModelDialog" || test.scenario.hasPrefix("xaiSubscriptionDialog") || test.scenario.hasPrefix("xaiDeviceDialog") || isClaudeConsentAlert || isQuotaHelpAlert)
                         ? captureView.flatMap { PanelScreenshot.captureForm(view: $0, minimumVariety: 1) }
                         : PanelScreenshot.capture(view: host)?.png
                     guard let png else { throw CaptureError.blankFrame(test.id) }

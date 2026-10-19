@@ -1,3 +1,5 @@
+import { epochAttribution } from '../../core/epoch-attribution.js'
+import { arenaAttribution, isArenaDatasetBoard } from '../../core/arena-attribution.js'
 import { definePage, ref, computed, onLoad, onReady, onShow, onHide, onUnload, onShareAppMessage, onResize } from '@vue-mini/core'
 import { boards, categories, categoryFor, copy, text, languages, boardTitle, hasOwn, desktopDownloadURL } from '../../core/catalog.js'
 import { rankedEntries, rowView, countryCode, countryName, countryFlag, countryFlagImage, countryOptions, formatTime, latestTimestamp } from '../../core/leaderboard.js'
@@ -439,7 +441,7 @@ definePage(query => {
     const filter = filterFor(kind)
     const range = rangeFor(kind, entries.length)
     return { kind, title: boardTitle(kind, language.value), index, summary: text(boards[kind].summaries, language.value),
-      updated: formatTime(board?.sourceUpdatedAt), fetched: formatTime(board?.fetchedAt), time: formatTime(latestTimestamp(board)),
+      updated: isArenaDatasetBoard(board) ? board.sourceUpdatedAt?.slice(0, 10) || '—' : formatTime(board?.sourceUpdatedAt), fetched: formatTime(board?.fetchedAt), time: formatTime(latestTimestamp(board)),
       count: totalCount, shownCount: entries.length, hasMore: totalCount > 20, expanded: !!expandedBoards.value[kind],
       expansionLabel: expandedBoards.value[kind] ? tr('showLess') : tr('showAll').replace('{count}', totalCount), distribution: distributions.value[kind],
       // Keep the editing header pinned when a query reduces a long list to a
@@ -884,8 +886,10 @@ definePage(query => {
   function sourceHelp(event) {
     const kind = event.currentTarget.dataset.kind
     const board = snapshots.value[kind]
+    const formerName = kind.startsWith('arena') || kind === 'codeArenaWebDev'
+      ? `${text(['Formerly LMSYS Chatbot Arena / LMArena', '原 LMSYS Chatbot Arena / LMArena', '原 LMSYS Chatbot Arena / LMArena'], language.value)}\n\n` : ''
     wx.showModal({ title: boardTitle(kind, language.value),
-      content: `${text(boards[kind].summaries, language.value)}\n\n${tr('updated')}: ${formatTime(latestTimestamp(board))}\n\n${boards[kind].url}`,
+      content: `${formerName}${text(boards[kind].summaries, language.value)}\n\n${tr('updated')}: ${formatTime(latestTimestamp(board))}\n\n${boards[kind].url}${kind === 'epochECI' ? `\n\n${epochAttribution(language.value).fullText}` : ''}${isArenaDatasetBoard(board) ? `\n\n${arenaAttribution(language.value).fullText}\n\n${text(['Dataset published', '数据集发布于', '資料集發佈於'], language.value)}: ${board.sourceUpdatedAt?.slice(0, 10) || ''}` : ''}`,
       showCancel: false })
   }
   function copyText(data) {
@@ -917,7 +921,9 @@ definePage(query => {
     const entry = rankedCards.value.find(card => card.kind === kind)?.entries.find(row => row.rank === Number(rank))
     if (!entry) return
     if (grouping.value === 'model') {
-      copyText(entry.name)
+      stopCube(); entrancePlayed = true
+      wx.navigateTo({ url: sharePath(preferencesSnapshot(), dark.value ? 'dark' : 'light', '/pages/model/index'),
+        success: result => result.eventChannel.emit('modelDetails', { entry }) })
       return
     }
     const row = rowView(entry, { company: grouping.value === 'company', dark: dark.value, kind })
@@ -956,13 +962,13 @@ definePage(query => {
     try {
       // Freeze the current filters/theme and export complete lists rather than
       // the rows currently mounted in the scroll window.
-      const model = { labels: { ...labels.value }, dark: dark.value, grouping: grouping.value,
+      const model = { language: language.value, labels: { ...labels.value }, dark: dark.value, grouping: grouping.value,
         groupingLabel: tr(grouping.value === 'company' ? 'companies' : 'models'),
         categoryLabel: text(current.value.labels, language.value),
         boards: current.value.kinds.map((kind, index) => {
           const board = snapshots.value[kind], filter = filterFor(kind)
           const country = filter.country === 'all' ? tr('all') : countryName(filter.country, language.value)
-          return { title: boardTitle(kind, language.value), tab: tabs.value[index],
+          return { kind, sourceNote: board?.sourceNote, title: boardTitle(kind, language.value), tab: tabs.value[index],
             summary: text(boards[kind].summaries, language.value), time: formatTime(latestTimestamp(board)),
             filterLabel: `${tr('country')}: ${country} · ${tr('source')}: ${tr(filter.openness)}`,
             empty: tr(board ? 'empty' : 'noBoard'),

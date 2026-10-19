@@ -1,17 +1,35 @@
 import { createServer } from 'node:http';
+import { timingSafeEqual } from 'node:crypto';
 import { OSSStore } from './oss-store.mjs';
 import { RequestError, SharedLeaderboards } from './service.mjs';
 import { BrandRegistry } from './brands.mjs';
 import { CountryRegistry } from './countries.mjs';
+import { loadConfiguredArenaDataset } from './arena-collector.mjs';
+import { ModelsDevRegistry, loadConfiguredModelsDev, modelsDevInterval } from './models-dev.mjs';
 
 const maxHTMLBytes = 24 * 1024 * 1024;
-export function handler(makeService) {
+export function handler(makeService, { syncToken = process.env.MODELS_DEV_SYNC_TOKEN } = {}) {
   return async (request, response) => {
     response.setHeader('Content-Type', 'application/json; charset=utf-8');
     response.setHeader('Cache-Control', 'no-store');
     response.setHeader('X-Content-Type-Options', 'nosniff');
     try {
       const path = new URL(request.url, 'http://localhost').pathname;
+      if (path === '/invoke') {
+        if (request.method !== 'POST') throw new RequestError(405, 'Method not allowed');
+        let size = 0; const chunks = [];
+        for await (const chunk of request) { size += chunk.length; if (size > 4096) throw new RequestError(413, 'Event too large'); chunks.push(chunk); }
+        let payload;
+        try { const event = JSON.parse(Buffer.concat(chunks).toString('utf8')); payload = event.payload ? JSON.parse(event.payload) : event; } catch { throw new RequestError(403, 'Invalid sync request'); }
+        const supplied = Buffer.from(String(payload?.token ?? ''));
+        if (!/^[A-Za-z0-9_-]{43}$/.test(syncToken ?? '') || !['models-dev-sync', 'models-dev-fill'].includes(payload?.type)
+          || supplied.length !== syncToken.length || !timingSafeEqual(supplied, Buffer.from(syncToken))) throw new RequestError(403, 'Invalid sync request');
+        const models = (await makeService(request)).models, pendingOnly = payload.type === 'models-dev-fill';
+        const snapshot = await models?.sync({ pendingOnly });
+        if (!models || models.syncFailed || !pendingOnly && (!snapshot || Date.now() - (models.checkedAt ?? Date.parse(snapshot.fetchedAt)) >= modelsDevInterval)) throw new RequestError(503, 'Metadata sync unavailable');
+        response.end(JSON.stringify({ source: 'models.dev', models: snapshot?.models.length ?? 0, revision: snapshot?.revision,
+          fetchedAt: snapshot?.fetchedAt, checkedAt: Number.isFinite(models.checkedAt) ? new Date(models.checkedAt).toISOString() : snapshot?.fetchedAt })); return;
+      }
       const match = /^\/v1\/boards\/([A-Za-z]+)(?:\/(refresh|contribute))?$/.exec(path);
       if (!match) throw new RequestError(404, 'Unknown route');
       const [, kind, action] = match;
@@ -53,12 +71,14 @@ export function storageConfiguration(headers, environment) {
     region: environment.OSS_REGION, secure: true, internal: true, timeout: 8000 };
 }
 
+const modelsCache = {};
 async function serviceFor(request) {
   const configuration = storageConfiguration(request.headers, process.env);
   const { default: OSS } = await import('ali-oss');
   const client = new OSS(configuration);
   const store = new OSSStore(client);
-  return new SharedLeaderboards(store, { brands: new BrandRegistry(store), countries: new CountryRegistry(store) });
+  return new SharedLeaderboards(store, { brands: new BrandRegistry(store), countries: new CountryRegistry(store), arenaDataset: loadConfiguredArenaDataset,
+    models: new ModelsDevRegistry(store, { load: loadConfiguredModelsDev, cache: modelsCache }) });
 }
 
 if (process.argv[1]?.endsWith('/server.mjs')) {

@@ -89,3 +89,7 @@
   .cost-total { padding: 18rpx; }
   .cost-total-value { font-size: 29rpx; }
 }
+
+.epoch-attribution { margin: 22rpx 8rpx 0; color: var(--muted); font-size: 20rpx; line-height: 1.65; overflow-wrap: anywhere; }
+.epoch-attribution text { display: block; margin-top: 6rpx; }
+.epoch-attribution button { display: flex; align-items: center; gap: 8rpx; color: var(--accent); font-size: inherit; text-align: left; }

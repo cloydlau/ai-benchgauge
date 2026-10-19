@@ -436,8 +436,10 @@ sealed partial class MainWindow
     }
     DateTimeOffset? BoardDisplayDate(Board board) => new[] { UpdateAge.Parse(board.UpdatedAt), UpdateAge.Parse(board.FetchedAt) }.Max();
     string BoardDisplayTime(Board board) => BoardDisplayDate(board)?.ToLocalTime().ToString("M/d HH:mm", CultureInfo.InvariantCulture) ?? "—";
-    string BoardTimeHelp(Board board) => Tr("Source updated: ", "源更新时间：", "來源更新時間：")
-        + (UpdateAge.Parse(board.UpdatedAt)?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) ?? Tr("Not published by the source", "来源未提供", "來源未提供"))
+    string BoardTimeHelp(Board board) => (ArenaAttribution.Applies(board) ? Tr("Dataset published: ", "数据集发布于：", "資料集發佈於：") : Tr("Source updated: ", "源更新时间：", "來源更新時間："))
+        + (ArenaAttribution.Applies(board) ? UpdateAge.Parse(board.UpdatedAt)?.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            : UpdateAge.Parse(board.UpdatedAt)?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)
+            ?? Tr("Not published by the source", "来源未提供", "來源未提供"))
         + "\n" + Tr("Fetched: ", "抓取时间：", "擷取時間：")
         + (UpdateAge.Parse(board.FetchedAt)?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) ?? Tr("Waiting for first fetch", "等待首次抓取", "等待首次擷取"));
     FrameworkElement Segments((string Value, string Title)[] items, string selected, double width, Func<string, Task> change, bool compact = false)
@@ -579,7 +581,11 @@ sealed partial class MainWindow
             AddCell(headings, Center(Caption(Tr("Score", "分数", "分數"), PanelInk)), column + 3);
             var summary = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 9,
                 FontFamily = new FontFamily("Segoe UI"),
-                Margin = new Thickness(5, 0, 4, 0), ToolTip = board.Error ?? BoardTitle(board) + "\n" + SourceLens(board) + "\n" + Tr("Scores are not directly comparable across lists", "各榜分数不直接互比", "各榜分數不直接互比") };
+                Margin = new Thickness(5, 0, 4, 0), ToolTip = board.Error ?? BoardTitle(board) + "\n"
+                    + (board.Kind.StartsWith("arena") || board.Kind == "codeArenaWebDev"
+                        ? Tr("Formerly LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena") + "\n" : "")
+                    + SourceLens(board) + "\n" + Tr("Scores are not directly comparable across lists", "各榜分数不直接互比", "各榜分數不直接互比")
+                    + (ArenaAttribution.Applies(board) ? "\n" + ArenaAttribution.FullText(prefs.Language) : "") };
             CenterTextInk(summary);
             summary.FontSize = 11;
             summary.FontWeight = FontWeights.SemiBold;
@@ -801,7 +807,10 @@ sealed partial class MainWindow
         }
         content.SizeChanged += (_, _) => PositionBadge();
         var cell = new Border { Child = content, Background = Brushes.Transparent, CornerRadius = new CornerRadius(5), Margin = new Thickness(12, 4, 8, 4), ToolTip = entry.Help ?? entry.Name, Cursor = Cursors.Hand };
-        cell.MouseLeftButtonUp += (_, _) => { try { Clipboard.SetText(entry.Name); status.Text = Tr("Copied", "已复制", "已複製"); } catch (System.Runtime.InteropServices.COMException) { } };
+        cell.MouseLeftButtonUp += (_, _) => {
+            if (prefs.Grouping != "company") { ShowModelDetails(entry); return; }
+            try { Clipboard.SetText(entry.Name); status.Text = Tr("Copied", "已复制", "已複製"); } catch (System.Runtime.InteropServices.COMException) { }
+        };
         return cell;
     }
     string BoardTitle(Board board) => board.Kind switch
@@ -916,7 +925,7 @@ sealed partial class MainWindow
 
     DockPanel PanelFooter()
     {
-        var dock = new DockPanel { LastChildFill = true, Height = 48, Background = PanelBackground };
+        var dock = new DockPanel { LastChildFill = true, MinHeight = 48, Background = PanelBackground };
         var border = new Border { BorderBrush = PanelLine, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(18, 10, 18, 10) };
         var row = new Grid(); row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); row.ColumnDefinitions.Add(new ColumnDefinition()); row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var left = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
@@ -937,7 +946,29 @@ sealed partial class MainWindow
         right.Children.Add(Caption(" · ", size: 10)); right.Children.Add(IconButton("power", Tr("Quit", "退出", "退出"), () => { Stop(); Application.Current.Shutdown(); }));
         Grid.SetColumn(right, 2); row.Children.Add(right);
         status.Margin = new Thickness(4, 0, 4, 0); status.FontSize = 10; status.FontFamily = new FontFamily("Segoe UI"); Grid.SetColumn(status, 1); row.Children.Add(status);
-        border.Child = row; dock.Children.Add(border); return dock;
+        var details = new StackPanel(); details.Children.Add(row);
+        if (VisibleBoards().Any(board => board.Kind == "epochECI")) details.Children.Add(EpochAttributionBlock());
+        if (VisibleBoards().Any(ArenaAttribution.Applies)) details.Children.Add(ArenaAttributionBlock());
+        border.Child = details; dock.Children.Add(border); return dock;
+    }
+    TextBlock EpochAttributionBlock()
+    {
+        var notice = new TextBlock { Text = EpochAttribution.FullText(prefs.Language),
+            FontSize = 10, Foreground = PanelMuted, TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 8, 0, 0), Cursor = Cursors.Hand,
+            ToolTip = EpochAttribution.LicenseURL };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(notice, "epoch-data-attribution");
+        notice.MouseLeftButtonUp += (_, _) => Open(EpochAttribution.LicenseURL);
+        return notice;
+    }
+    TextBlock ArenaAttributionBlock()
+    {
+        var notice = new TextBlock { Text = ArenaAttribution.FullText(prefs.Language), FontSize = 10,
+            Foreground = PanelMuted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0),
+            Cursor = Cursors.Hand, ToolTip = ArenaAttribution.LicenseURL };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(notice, "arena-data-attribution");
+        notice.MouseLeftButtonUp += (_, _) => Open(ArenaAttribution.LicenseURL);
+        return notice;
     }
     Button BoardVisibilityMenu()
     {
@@ -997,6 +1028,12 @@ sealed partial class MainWindow
                 var link = new MenuItem { Header = board.Kind == "epochECI" ? "Epoch AI ↗" : board.Title + " ↗" };
                 link.Click += (_, _) => Open(board.Url); sources.Items.Add(link);
             }
+            if (VisibleBoards().Any(board => board.Kind == "epochECI")) {
+                var license = new MenuItem { Header = "Epoch ECI · CC BY 4.0 ↗" };
+                license.Click += (_, _) => Open(EpochAttribution.LicenseURL); sources.Items.Add(license);
+            }
+            var modelInformation = new MenuItem { Header = Tr("Model information: models.dev", "模型资料：models.dev", "模型資料：models.dev") + " ↗" };
+            modelInformation.Click += (_, _) => Open("https://models.dev"); sources.Items.Add(modelInformation);
             menu.Items.Add(sources);
         }
         menu.Opened += (_, _) => panelMenuOpen = true;
@@ -1011,6 +1048,7 @@ sealed partial class MainWindow
             "help" => "M6,0.5 A5.5,5.5 0 1 1 5.99,0.5 M4.4,4 A1.6,1.6 0 1 1 6,5.6 L6,7 M6,8.8 L6,9",
             "chevron" => "M0,0 L3,3 L6,0",
             "camera" => "M2,4 L5,4 L6,2 L10,2 L11,4 L14,4 L14,13 L2,13 Z M11,8.5 A3,3 0 1 1 5,8.5 A3,3 0 1 1 11,8.5",
+            "copy" => "M5,5 L14,5 L14,15 L5,15 Z M11,5 L11,1 L1,1 L1,11 L5,11",
             "power" => "M8,1 L8,8 M4,3.5 A6,6 0 1 0 12,3.5",
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         }),

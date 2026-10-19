@@ -11,6 +11,7 @@ private final class ScreenshotUIState: ObservableObject {
     @Published var isCapturing = false
     @Published var licenseSection: LicenseSection?
     @Published var showOfficialAccounts = false
+    @Published var modelDetails: LeaderboardEntry?
 }
 
 struct LeaderboardView: View {
@@ -154,6 +155,10 @@ struct LeaderboardView: View {
         }
         .sheet(isPresented: $screenshot.showOfficialAccounts) {
             OfficialQuotaAccountsView(state: state, onClose: { screenshot.showOfficialAccounts = false })
+        }
+        .sheet(item: $screenshot.modelDetails) { entry in
+            ModelDetailsView(entry: entry, language: language, copyName: copyDisplayedName,
+                close: { screenshot.modelDetails = nil }).frame(width: 560, height: 620)
         }
         .overlay(alignment: .bottom) {
             if let note = screenshot.note, !state.isQuitting {
@@ -463,7 +468,7 @@ struct LeaderboardView: View {
     private func boardColumns(_ slot: Int) -> some TableColumnContent<LeaderboardRow, Never> {
         TableColumn(LeaderboardPresentation.columnTitle(kind(at: slot), language: language)) { row in
             LeaderboardCell(model: row.cells[slot], language: language, shareColor: shareColor(for: kind(at: slot)),
-                columnWidth: nameColumnWidth, onCopyName: nameCopyAction)
+                columnWidth: nameColumnWidth, onSelectName: nameAction)
         }.width(nameColumnWidth)
         TableColumn(tr("Country", "国家")) { row in
             CountryCell(model: row.cells[slot], language: language)
@@ -613,10 +618,13 @@ struct LeaderboardView: View {
     }
 
     /// Placeholder rows are not real names. A click there must not copy them.
-    private var nameCopyAction: ((String) -> Bool)? {
+    private var nameAction: ((LeaderboardEntry) -> Bool)? {
         guard !needsSkeleton else { return nil }
-        return { name in
-            copyDisplayedName(name)
+        return { entry in
+            guard !screenshot.isCapturing, !state.isQuitting else { return false }
+            if state.selectedGrouping == .company { return copyDisplayedName(entry.name) }
+            screenshot.modelDetails = entry
+            return false
         }
     }
 
@@ -711,11 +719,14 @@ struct LeaderboardView: View {
     }
 
     private var footer: some View {
-        ViewThatFits(in: .horizontal) {
-            footerRow(compact: false, showsSourceLinks: true)
-            footerRow(compact: false, showsSourceLinks: false)
-            footerRow(compact: true, showsSourceLinks: false)
-            footerRow(compact: true, showsSourceLinks: false, stacked: true)
+        VStack(alignment: .leading, spacing: 8) {
+            ViewThatFits(in: .horizontal) {
+                footerRow(compact: false, showsSourceLinks: true)
+                footerRow(compact: false, showsSourceLinks: false)
+                footerRow(compact: true, showsSourceLinks: false)
+                footerRow(compact: true, showsSourceLinks: false, stacked: true)
+            }
+            epochAttribution
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -726,12 +737,34 @@ struct LeaderboardView: View {
         .accessibilityIdentifier("leaderboard-footer")
     }
 
-    /// A shared image needs a readable project address in place of controls.
-    /// Keep the same single-row footer and canvas size as the live panel.
+    @ViewBuilder private var epochAttribution: some View {
+        if visibleKinds.contains(.epochECI) {
+            VStack(alignment: .leading, spacing: 3) {
+                Link(EpochAttribution.credit, destination: URL(string: EpochAttribution.licenseURL)!)
+                    .pointingHandCursor()
+                Text(EpochAttribution.links).textSelection(.enabled)
+                Text(EpochAttribution.changes(language: language))
+            }
+            .font(.system(size: 10)).lineLimit(nil)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("epoch-data-attribution")
+        }
+        if visibleKinds.contains(where: { ArenaAttribution.applies(state.snapshot.boards[$0]) }) {
+            Text(ArenaAttribution.fullText(language: language))
+                .font(.system(size: 10)).lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                .accessibilityIdentifier("arena-data-attribution")
+        }
+    }
+
+    /// Shared images retain data attribution while replacing panel controls.
     private var screenshotFooter: some View {
-        ViewThatFits(in: .horizontal) {
-            screenshotFooterRow(showsSources: true)
-            screenshotFooterRow(showsSources: false)
+        VStack(alignment: .leading, spacing: 8) {
+            ViewThatFits(in: .horizontal) {
+                screenshotFooterRow(showsSources: true)
+                screenshotFooterRow(showsSources: false)
+            }
+            epochAttribution
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -785,6 +818,7 @@ struct LeaderboardView: View {
                         ForEach(visibleKinds, id: \.self) { kind in
                             sourceLink(title: kind.sourceLinkTitle, url: kind.sourceURL.absoluteString)
                         }
+                        sourceLink(title: ModelsDevAttribution.credit(language: language), url: ModelsDevAttribution.sourceURL.absoluteString)
                     }
                     .menuStyle(.borderlessButton)
                     .fixedSize()
@@ -828,6 +862,7 @@ struct LeaderboardView: View {
             ForEach(visibleKinds, id: \.self) { kind in
                 sourceLink(title: kind.sourceLinkTitle, url: kind.sourceURL.absoluteString)
             }
+            sourceLink(title: ModelsDevAttribution.credit(language: language), url: ModelsDevAttribution.sourceURL.absoluteString)
         }.fixedSize(horizontal: true, vertical: false)
     }
 
@@ -1628,7 +1663,7 @@ private struct LeaderboardCell: View {
     let shareColor: Color
     let columnWidth: CGFloat
     /// Nil for skeleton placeholders, which must not be copied.
-    let onCopyName: ((String) -> Bool)?
+    let onSelectName: ((LeaderboardEntry) -> Bool)?
 
     private var entry: LeaderboardEntry? { model?.entry }
 
@@ -1703,13 +1738,13 @@ private struct LeaderboardCell: View {
 
     @ViewBuilder
     private func modelName(_ entry: LeaderboardEntry, compact: Bool) -> some View {
-        if onCopyName != nil {
+        if onSelectName != nil {
             CopyableModelName(
                 name: entry.name,
                 truncation: compact ? .tail : .middle,
                 help: copyHelpText,
                 accessibilityLabel: copyAccessibilityLabel(entry),
-                onCopy: { onCopyName?(entry.name) ?? false }
+                onCopy: { onSelectName?(entry) ?? false }
             )
         } else if let help = nameHelpText {
             Text(entry.name)
@@ -1729,7 +1764,7 @@ private struct LeaderboardCell: View {
         if let name = entry?.name, !name.isEmpty {
             lines.append(name)
         }
-        lines.append(language.text("Click to copy", "点击复制"))
+        lines.append(model?.isCompany == true ? language.text("Click to copy", "点击复制") : language.text("View model details", "查看模型详情"))
         if let scoreHelp = model?.scoreHelp {
             lines.append(scoreHelp)
         }
@@ -1737,7 +1772,7 @@ private struct LeaderboardCell: View {
     }
 
     private func copyAccessibilityLabel(_ entry: LeaderboardEntry) -> String {
-        entry.name + language.text(", click to copy", "，点击复制")
+        entry.name + (model?.isCompany == true ? language.text(", click to copy", "，点击复制") : language.text(", view model details", "，查看模型详情"))
     }
 
     private var nameHelpText: String? {

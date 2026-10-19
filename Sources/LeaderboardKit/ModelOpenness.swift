@@ -80,5 +80,6 @@ public extension LeaderboardEntry {
     var resolvedOpenness: ModelOpenness? {
         openness ?? LeaderboardBrandPolicy.verifiedModelOpenness[(modelID ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()]
             .flatMap(ModelOpenness.init(rawValue:))
+            ?? (modelMetadata?.source == "models.dev" ? modelMetadata?.openWeights.map { $0 ? .open : .closed } : nil)
     }
 }

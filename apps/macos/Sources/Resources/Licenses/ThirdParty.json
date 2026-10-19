@@ -1,5 +1,14 @@
 [
   {
+    "id": "models-dev",
+    "name": "models.dev",
+    "license": "MIT",
+    "source": "https://models.dev",
+    "englishDescription": "Model specifications, pricing and capabilities.",
+    "chineseDescription": "模型参数、定价与能力资料。",
+    "file": "ModelsDev-MIT.txt"
+  },
+  {
     "id": "sparkle",
     "name": "Sparkle 2.10.0",
     "license": "MIT & bundled notices",

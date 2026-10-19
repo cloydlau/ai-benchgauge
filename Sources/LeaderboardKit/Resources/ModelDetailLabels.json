@@ -1,0 +1,467 @@
+{
+  "details": [
+    "Model details",
+    "模型详情",
+    "模型詳情"
+  ],
+  "copy": [
+    "Copy model name",
+    "复制模型名称",
+    "複製模型名稱"
+  ],
+  "copied": [
+    "Copied",
+    "已复制",
+    "已複製"
+  ],
+  "close": [
+    "Close",
+    "关闭",
+    "關閉"
+  ],
+  "missing": [
+    "No matching model information yet.",
+    "暂未匹配到模型资料。",
+    "暫未匹配到模型資料。"
+  ],
+  "general": [
+    "Model information",
+    "模型资料",
+    "模型資料"
+  ],
+  "capabilities": [
+    "Capabilities",
+    "能力",
+    "能力"
+  ],
+  "modalities": [
+    "Modalities",
+    "输入输出模态",
+    "輸入輸出模態"
+  ],
+  "references": [
+    "Links & weights",
+    "链接与权重",
+    "連結與權重"
+  ],
+  "additional": [
+    "Additional information",
+    "其他资料",
+    "其他資料"
+  ],
+  "benchmark": [
+    "Benchmark",
+    "基准测试",
+    "基準測試"
+  ],
+  "provider": [
+    "Provider",
+    "供应商",
+    "供應商"
+  ],
+  "provenance": [
+    "Data source",
+    "资料来源",
+    "資料來源"
+  ],
+  "pricing": [
+    "USD / 1M tokens",
+    "美元 / 百万 tokens",
+    "美元 / 百萬 tokens"
+  ],
+  "yes": [
+    "Yes",
+    "支持",
+    "支援"
+  ],
+  "no": [
+    "No",
+    "不支持",
+    "不支援"
+  ],
+  "unknown": [
+    "Not provided",
+    "未提供",
+    "未提供"
+  ],
+  "true": [
+    "Yes",
+    "是",
+    "是"
+  ],
+  "false": [
+    "No",
+    "否",
+    "否"
+  ],
+  "id": [
+    "Model ID",
+    "模型 ID",
+    "模型 ID"
+  ],
+  "description": [
+    "Description",
+    "简介",
+    "簡介"
+  ],
+  "family": [
+    "Family",
+    "模型家族",
+    "模型家族"
+  ],
+  "type": [
+    "Type",
+    "类型",
+    "類型"
+  ],
+  "knowledge": [
+    "Knowledge cutoff",
+    "知识截止",
+    "知識截止"
+  ],
+  "releaseDate": [
+    "Released",
+    "发布日期",
+    "發布日期"
+  ],
+  "lastUpdated": [
+    "Model data updated",
+    "资料更新日期",
+    "資料更新日期"
+  ],
+  "license": [
+    "Model license",
+    "模型许可",
+    "模型授權"
+  ],
+  "openWeights": [
+    "Public weights",
+    "权重公开",
+    "權重公開"
+  ],
+  "context": [
+    "Context window",
+    "上下文窗口",
+    "上下文視窗"
+  ],
+  "input": [
+    "Input",
+    "输入",
+    "輸入"
+  ],
+  "output": [
+    "Output",
+    "输出",
+    "輸出"
+  ],
+  "limit": [
+    "Token limits",
+    "Token 上限",
+    "Token 上限"
+  ],
+  "cost": [
+    "Pricing",
+    "定价",
+    "定價"
+  ],
+  "attachment": [
+    "Attachments",
+    "附件",
+    "附件"
+  ],
+  "reasoning": [
+    "Reasoning",
+    "推理",
+    "推理"
+  ],
+  "tool_call": [
+    "Tool calls",
+    "工具调用",
+    "工具呼叫"
+  ],
+  "structured_output": [
+    "Structured output",
+    "结构化输出",
+    "結構化輸出"
+  ],
+  "temperature": [
+    "Temperature control",
+    "温度调节",
+    "溫度調節"
+  ],
+  "modalities.input": [
+    "Input modalities",
+    "输入模态",
+    "輸入模態"
+  ],
+  "modalities.output": [
+    "Output modalities",
+    "输出模态",
+    "輸出模態"
+  ],
+  "text": [
+    "Text",
+    "文本",
+    "文字"
+  ],
+  "image": [
+    "Image",
+    "图像",
+    "圖像"
+  ],
+  "audio": [
+    "Audio",
+    "音频",
+    "音訊"
+  ],
+  "video": [
+    "Video",
+    "视频",
+    "影片"
+  ],
+  "pdf": [
+    "PDF",
+    "PDF",
+    "PDF"
+  ],
+  "links": [
+    "Links",
+    "相关链接",
+    "相關連結"
+  ],
+  "weights": [
+    "Weights",
+    "模型权重",
+    "模型權重"
+  ],
+  "url": [
+    "URL",
+    "链接",
+    "連結"
+  ],
+  "label": [
+    "Label",
+    "名称",
+    "名稱"
+  ],
+  "format": [
+    "Format",
+    "格式",
+    "格式"
+  ],
+  "quantization": [
+    "Quantization",
+    "量化",
+    "量化"
+  ],
+  "size": [
+    "Size",
+    "大小",
+    "大小"
+  ],
+  "parameters": [
+    "Parameters",
+    "参数量",
+    "參數量"
+  ],
+  "modelID": [
+    "Endpoint model ID",
+    "端点模型 ID",
+    "端點模型 ID"
+  ],
+  "status": [
+    "Status",
+    "状态",
+    "狀態"
+  ],
+  "cache_read": [
+    "Cache read",
+    "缓存读取",
+    "快取讀取"
+  ],
+  "cache_write": [
+    "Cache write",
+    "缓存写入",
+    "快取寫入"
+  ],
+  "input_audio": [
+    "Audio input",
+    "音频输入",
+    "音訊輸入"
+  ],
+  "output_audio": [
+    "Audio output",
+    "音频输出",
+    "音訊輸出"
+  ],
+  "context_over_200k": [
+    "Context over 200K",
+    "上下文超过 200K",
+    "上下文超過 200K"
+  ],
+  "tiers": [
+    "Pricing tiers",
+    "分段定价",
+    "分段定價"
+  ],
+  "tier": [
+    "Threshold",
+    "分段门槛",
+    "分段門檻"
+  ],
+  "name": [
+    "Name",
+    "名称",
+    "名稱"
+  ],
+  "score": [
+    "Score",
+    "分数",
+    "分數"
+  ],
+  "metric": [
+    "Metric",
+    "指标",
+    "指標"
+  ],
+  "variant": [
+    "Variant",
+    "配置",
+    "設定"
+  ],
+  "dataset": [
+    "Dataset",
+    "数据集",
+    "資料集"
+  ],
+  "version": [
+    "Version",
+    "版本",
+    "版本"
+  ],
+  "harness": [
+    "Harness",
+    "评测工具",
+    "評測工具"
+  ],
+  "date": [
+    "Date",
+    "日期",
+    "日期"
+  ],
+  "source": [
+    "Source",
+    "来源",
+    "來源"
+  ],
+  "fetchedAt": [
+    "Synced",
+    "同步时间",
+    "同步時間"
+  ],
+  "sourceURL": [
+    "Source URL",
+    "来源链接",
+    "來源連結"
+  ],
+  "reasoning_options": [
+    "Reasoning options",
+    "推理设置",
+    "推理設定"
+  ],
+  "interleaved": [
+    "Interleaved reasoning",
+    "交错推理",
+    "交錯推理"
+  ],
+  "experimental": [
+    "Experimental",
+    "实验性",
+    "實驗性"
+  ],
+  "deprecated": [
+    "Deprecated",
+    "已弃用",
+    "已棄用"
+  ],
+  "preview": [
+    "Preview",
+    "预览",
+    "預覽"
+  ],
+  "active": [
+    "Active",
+    "可用",
+    "可用"
+  ],
+  "open_weights": [
+    "Public weights",
+    "权重公开",
+    "權重公開"
+  ],
+  "release_date": [
+    "Released",
+    "发布日期",
+    "發布日期"
+  ],
+  "last_updated": [
+    "Model data updated",
+    "资料更新日期",
+    "資料更新日期"
+  ],
+  "doc": [
+    "Documentation",
+    "文档",
+    "文件"
+  ],
+  "api": [
+    "API endpoint",
+    "API 地址",
+    "API 位址"
+  ],
+  "npm": [
+    "SDK package",
+    "SDK 包",
+    "SDK 套件"
+  ],
+  "min": [
+    "Minimum",
+    "最小值",
+    "最小值"
+  ],
+  "max": [
+    "Maximum",
+    "最大值",
+    "最大值"
+  ],
+  "values": [
+    "Values",
+    "可选值",
+    "可選值"
+  ],
+  "budget_tokens": [
+    "Reasoning token budget",
+    "推理 token 预算",
+    "推理 token 預算"
+  ],
+  "effort": [
+    "Reasoning effort",
+    "推理强度",
+    "推理強度"
+  ],
+  "toggle": [
+    "Toggle",
+    "开关",
+    "開關"
+  ],
+  "unit": [
+    "Unit",
+    "单位",
+    "單位"
+  ],
+  "licenseNote": [
+    "Model terms follow the model license. Provider pricing may differ.",
+    "模型使用条件以其许可为准；各供应商定价可能不同。",
+    "模型使用條件以其授權為準；各供應商定價可能不同。"
+  ]
+}

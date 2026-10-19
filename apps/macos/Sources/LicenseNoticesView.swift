@@ -1,5 +1,6 @@
 import SwiftUI
 import LeaderboardCore
+import LeaderboardKit
 
 enum LicenseSection: Int, Identifiable {
     case application, thirdParty
@@ -47,6 +48,7 @@ enum LicenseCatalog {
     }
 
     static func text(for document: LicenseDocument) -> String? {
+        if document.id == "models-dev" { return ModelsDevAttribution.licenseText }
         guard let url = resource(document.file) else { return nil }
         return try? String(contentsOf: url, encoding: .utf8)
     }

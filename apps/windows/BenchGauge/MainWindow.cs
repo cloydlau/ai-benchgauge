@@ -480,12 +480,15 @@ sealed partial class MainWindow : Window
     public BitmapSource RenderScreenshot()
     {
         var original = footer;
-        var text = new DockPanel { Height = 28, Margin = new Thickness(0, 10, 0, 0), LastChildFill = true };
+        var text = new DockPanel { MinHeight = 28, Margin = new Thickness(0, 10, 0, 0), LastChildFill = true };
         var attribution = new TextBlock { Text = "© cloydlau · MIT", FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
         DockPanel.SetDock(attribution, Dock.Right); text.Children.Add(attribution);
         text.Children.Add(new TextBlock { Text = "github.com/" + config.Repository, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
         quotaPanel.Visibility = Visibility.Collapsed; privatePrompt.Text = Tr("View your remaining AI quotas with AI BenchGauge · CC Switch", "使用 AI 天梯 · CC Switch 查看 AI 余量", "使用 AI 天梯 · CC Switch 查看 AI 餘量"); privatePrompt.Visibility = Visibility.Visible;
-        if (original is not null) content.Children.Remove(original); Place(text, 3);
+        var exportFooter = new StackPanel(); exportFooter.Children.Add(text);
+        if (VisibleBoards().Any(board => board.Kind == "epochECI")) exportFooter.Children.Add(EpochAttributionBlock());
+        if (VisibleBoards().Any(ArenaAttribution.Applies)) exportFooter.Children.Add(ArenaAttributionBlock());
+        if (original is not null) content.Children.Remove(original); Place(exportFooter, 3);
         try
         {
             UpdateLayout();
@@ -493,7 +496,7 @@ sealed partial class MainWindow : Window
             var bitmap = new RenderTargetBitmap((int)Math.Ceiling(root.ActualWidth * dpi.DpiScaleX), (int)Math.Ceiling(root.ActualHeight * dpi.DpiScaleY), dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
             bitmap.Render(root); bitmap.Freeze(); return bitmap;
         }
-        finally { content.Children.Remove(text); if (original is not null) Place(original, 3); quotaPanel.Visibility = Visibility.Visible; privatePrompt.Visibility = Visibility.Collapsed; UpdateLayout(); }
+        finally { content.Children.Remove(exportFooter); if (original is not null) Place(original, 3); quotaPanel.Visibility = Visibility.Visible; privatePrompt.Visibility = Visibility.Collapsed; UpdateLayout(); }
     }
     void Capture()
     {

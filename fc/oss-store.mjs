@@ -1,6 +1,11 @@
 export class OSSStore {
   constructor(client, prefix = 'benchgauge/') { this.client = client; this.prefix = prefix; }
   key(kind, suffix) { return `${this.prefix}${kind}/${suffix}`; }
+  async readModelsDev() {
+    try { return JSON.parse((await this.client.get(this.key('models-dev', 'latest.json'), { timeout: 3000 })).content.toString('utf8')); }
+    catch (error) { if (error.code === 'NoSuchKey') return null; throw error; }
+  }
+  async writeModelsDev(value) { await this.writeBoard('models-dev', value); }
   async readBoard(kind) {
     try {
       const result = await this.client.get(this.key(kind, 'latest.json'));

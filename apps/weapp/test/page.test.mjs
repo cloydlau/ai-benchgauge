@@ -818,8 +818,11 @@ test('ten thousand rows only cross the bridge in bounded windows, including fast
   h.page.scroll({ ...event({ kind: card.kind }), detail: { scrollTop: 0 } })
   assert.equal(h.page.cards.value[0].rows[0].rank, 1)
   assert.equal(h.page.backToTop.value, false, 'Returning to the native top hides the floating control')
+  let detail
+  wx.navigateTo = options => { assert.ok(options.url.startsWith('/pages/model/index')); options.success({ eventChannel: { emit: (name, data) => { assert.equal(name, 'modelDetails'); detail = data.entry } } }) }
   h.page.rowDetails(event({ kind: card.kind, rank: 10000 }))
-  assert.equal(h.clipboard.at(-1), 'Model 10000')
+  assert.equal(detail.name, 'Model 10000')
+  assert.deepEqual(h.clipboard, [])
   assert.equal(h.modals.length, 0)
   h.page.filterMenu(event({ kind: card.kind, mode: 'openness' }))
   h.page.sheetSelect({ detail: h.page.sheet.value.actions.find(action => action.value === 'open') })

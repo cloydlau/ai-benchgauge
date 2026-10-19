@@ -1,10 +1,162 @@
+## Neutral active country/source filter ink — 2026-10-20
+
+All four clients use their existing primary text color for active country/source
+headers: dark neutral ink in light mode and light neutral ink in dark mode.
+The task-benchmark title retains its blue theme. Semibold text, filter icons,
+transparent backgrounds, spacing and filtering behavior stay unchanged.
+
+Ignored `work/filter-header-neutral/` retains before/after native Mac captures,
+the common synthetic fixture, source hashes and actual verification results.
+The baseline reuses the previous change's final captures after confirming all
+four source hashes match. Each phase has 36 native frames across three languages
+and both themes; all 12 refreshed/settled pairs are stable outside the scrollbar.
+Settled differences are limited to the active filter text/icons, with the blue
+source title unchanged. Representative originals were reviewed.
+
+The mini-program production build and Windows Release cross-build pass (zero
+Windows warnings/errors). All 527 native package cases passed after compilation,
+but the native check exited 75 because concurrent workspace edits invalidated
+its final input signature; it is not a final commit/release receipt. Final checks
+are coordinated with the active installation flow. iOS and mini-program runtime
+visual review is not claimed for this color change.
+Windows native screenshots/actual DPI and the CI
+`native-visual-comparison` artifact remain unavailable on this Mac host; no
+Windows native visual verification or protected release approval is claimed.
+
+## Country/source filter headers without a background — 2026-10-20
+
+Mac, Windows, iPhone/iPad and the mini-program remove the active country/source
+header fill and outline. Existing text colors, font weights, icons, padding and
+column geometry stay unchanged; filtering and image exports are unchanged.
+
+Ignored `work/filter-header-no-background/` retains a frozen pre-change Mac
+executable, source snapshots, identical offline fixtures and 36 native frames
+per phase. The cases cover EN / 简中 / 繁中, both themes, country-only and both
+filters, at 850/1100 × 720 points on macOS 27.0.1 (26A434), native 1× scale.
+Representative originals were reviewed. All 12 refreshed/settled pairs match
+outside the scrollbar strip, and all refreshed/settled before/after differences
+outside that strip are restricted to the filter headers. Two initial frames also differ while
+brand images load; their settled rows match. `verification.json` records the
+fixture and source hashes and the actual checks.
+
+All 527 native package tests and 151 mini-program tests pass; the mini-program
+production build and Windows Release cross-build pass (zero Windows warnings
+and errors). Native Windows screenshots/actual DPI and a source-matched CI
+`native-visual-comparison` artifact are unavailable on this Mac host. iOS and
+mini-program runtime visual verification are not claimed for this change, nor
+is protected human release approval.
+
+## Model details and explicit name copy — 2026-10-19
+
+## models.dev source and MIT notices — 2026-10-20
+
+All clients list “Model information: models.dev” (模型资料：models.dev) with its source link. Complete MIT copyright, permission and disclaimer text is bundled for offline reading in their existing third-party notices. Existing notices remain available.
+
+Ignored `work/models-dev-notice/` contains the synthetic fixture, capture intent, native originals and verification reports. Mac has 36 before and 36 after captures using the same fixture hash, covering EN / 简中 / 繁中 in both themes at 850×720 (main panel) and 560×520 (notices). Actual environment is macOS 27.0.1 (26A434), 1× backing scale, local uncommitted sources. All six notice refreshed/settled pairs are pixel-identical; main-panel differences are confined to the rightmost scrollbar strip. Representative originals were reviewed. These captures precede a concurrent filter-header style change; the main-panel fixture uses inactive filters.
+
+Native iPhone and iPad About interaction tests passed in Chinese/light and English/dark, verifying the named source and expanded MIT copyright/disclaimer. Result bundles and exported attachments remain under that directory. The mini-program passed 151 tests and a production build; its built About module contains the complete license. Windows cross-compilation passed with zero warnings/errors and the packaged license was checked byte-for-byte. The Apple resource integrity test and isolated mini-program upload staging test passed.
+
+Windows native screenshots and a CI native visual artifact are unavailable on this Mac host. WeChat DevTools reports expired login, so simulator runtime verification is outstanding. The repository's full coverage check remains blocked by existing `Scripts/deploy-shared-leaderboards.mjs` coverage (189/223 lines, required 100%). A duplicate queued core run was cancelled because a concurrent filter-header task already owned the newer full regression. No protected native release approval was requested or bypassed.
+
+
+Model names open details; copying moves to a separate icon beside the original ranking name. Desktop uses scrollable dialogs, iPhone/iPad a large sheet, and the mini-program a dedicated page. Provider offers start collapsed. Empty metadata, long names, EN / 简中 / 繁中 and both desktop themes share fixture scenarios at a 560×640 content viewport.
+
+Ignored `work/model-details/` retains capture intent, pre-change executable and source hashes, the common fixture, native captures and verification reports. Desktop captures render the real detail component with deterministic data; capture alone does not verify click-to-open wiring. Windows native captures and the CI protected visual review are unavailable on this Mac host. Its WPF runner implements the same cases and localized sections, with Swift/JavaScript fixture parity checked separately. No native client release approval is claimed. The mini-program IDE reports an expired login; controller tests and a production build do not constitute simulator validation.
+
+Verification completed on 2026-10-20: 85 server tests, 151 mini-program tests, 526 core tests, the mini-program production build, both iOS SDK builds, Windows cross-build (zero warnings/errors), and Windows unit tests passed. iPhone/iPad native interaction tests passed in English/light and Chinese/dark, covering opening without copying, the explicit copy icon, closing, and missing metadata. Representative phone/tablet captures were reviewed. The shared Mac fixture produced 54 before and 54 after frames at native 1× scale; all 18 refreshed/settled file pairs are identical. The long-name, missing-data and Chinese/light plus Traditional/dark captures were reviewed. `verification.json` records fixture/source hashes and the host OS. The Windows engine was also exercised offline with nine real production boards: the three-board list response is 1,517,302 bytes and a selected model's detail response is 7,313 bytes, below its 4 MiB IPC limit. No client release was published.
+
+## iOS cube shade excludes the tab spacer — 2026-10-19
+
+The cube's darkening overlay now starts at each face's measured board origin.
+The empty space reserved for source tabs stays unshaded, removing the gray
+extension above the board's timestamp during turns. Each face uses its own
+scroll geometry, including when the outgoing board is scrolled while the
+incoming board remains at the top. Projection and scroll layout are unchanged.
+
+On an iOS 27.0 iPhone simulator at 3× scale, the expanded native pixel test
+detects the original bug at position 0.2. The final projection test and the
+mid-turn/button-switch test both pass. Captures cover positions 0/0.2/0.5/0.8
+in light mode and 0/0.5 in dark mode, at the top and after scrolling, plus
+landscape transitions. The test also compares the incoming face's empty spacer
+when the two faces have different scroll positions. Representative native
+before/after, scrolled, dark and landscape captures were reviewed.
+Ignored `work/ios-cube-top/` retains source snapshots, hashes, result bundles
+and original captures; `final-verification.json` identifies the final sources.
+Physical-device verification is not claimed.
+
+## iOS inline brand subtitle — 2026-10-19
+
+iPhone and iPad place the two Chinese subtitle rows beside the brand title,
+matching the mini-program's horizontal brand composition. Both texts share
+one width-dependent scale; title ink height, subtitle size and row spacing
+follow the mini-program's control-height proportions. The help glyph follows
+the final subtitle row, with a 44-point touch target and full-size grouping
+controls. The header no longer reserves a separate subtitle row.
+
+The sizing test passes across all three languages and seven widths. The native
+subtitle layout/help interaction test passes on iPhone and iPad simulators
+(iOS 27.0, 3× and 2×). Representative Chinese light and English dark captures
+were reviewed. Ignored `work/ios-title-inline/` retains the frozen source
+snapshot, hashes, test results and original captures, including Chinese
+shown/refreshed/settled phases.
+The installed pre-change phone capture is an older build, not a source-matched
+baseline. Mini-program alignment was checked against source; its live runtime
+was unavailable because the developer-tool login had expired. Physical-device
+and CI visual verification are not claimed.
+
+
+## Epoch ECI data attribution — 2026-10-19
+
+The Mac and Windows interfaces and shared images retain the Epoch AI author credit, dataset title, source URL, CC BY 4.0 link and processing/non-endorsement statement. iPhone/iPad source help, About and image exports and the mini-program source help, About and Canvas exports use the same bundled notice. Other sources are not labelled as Epoch-licensed.
+
+The common native fixture adds six attribution cases: EN / 简中 / 繁中 at 850×720 with Epoch only and 1100×720 with all three general boards, in both themes. The 850 px case uses the desktop's supported minimum width. Initial exploratory captures at 580 px showed pre-existing control/footer overflow below that minimum and are retained separately; they are not used to claim supported-width verification.
+
+Native Mac before/after evidence is in ignored `work/epoch-attribution/`, with the same offline fixture, shown/refreshed/settled frames and metadata recording the fixture hash, OS and actual backing scale. Capture consent/intent is recorded in `capture-intent.json`. The reviewed EN minimum-width/light, 繁中 minimum-width/dark and 简中 three-board/dark frames retain all notice lines; all 24 before/after refreshed-versus-settled pairs are pixel-identical. `verification.json` records the full evidence. Windows native screenshots and a CI `native-visual-comparison` artifact are unavailable on this Mac host; a cross-build is not a native visual review. No protected visual release approval has been granted.
+
+The mini-program DevTools connection reports `loginExpired: true`; runtime simulator validation is unavailable. Build and Canvas export tests cover the bundled notice and footer bounds. iOS build checks do not replace full phone/tablet visual review. Targeted deployment tests (11), mini-program tests (146), mini-program build, Windows cross-build (0 warnings/errors) and iOS Simulator/device builds passed. All full-suite test cases also passed, but the final run returned 75 because concurrent iOS edits changed its input signature; that run is not a valid current-workspace release receipt. See `work/epoch-attribution/verification.json` and `full-test-verified.log`.
+
+## Active country/source filter headers on every client — 2026-10-19
+
+Mac, Windows and iPhone/iPad now match the mini-program's visible filter state:
+an active country or source header uses blue text, a tinted rounded background,
+a border and a filter icon. Selecting all restores its ordinary dropdown label.
+The two attributes are independent; exports retain plain, noninteractive labels.
+Apple mobile uses its native filter symbol; desktop and mini-program use funnel
+outlines. Country normalization and filtering logic are unchanged.
+
+Ignored `work/filter-header-all-platforms/` retains the synthetic fixture,
+baseline sources/binary, native Mac originals, `review.html` and
+`verification.json`. Each phase has 108 frames: three languages, both themes,
+inactive/country/open/both/closed/unknown states, one/three sources, and
+shown/refreshed/settled checkpoints at 850/1100 × 720 points. Before and after
+use identical fixture hashes. Reviewed originals show readable labels and
+unobstructed adjacent columns. All 36 refreshed/settled pairs are identical
+outside the rightmost scrollbar strip. Actual environment: macOS 27.0.1
+(26A434), 1× backing scale, local uncommitted sources.
+The baseline also precedes a concurrent quota freshness copy update; its text
+differences are outside the filter change.
+
+Windows Release cross-compilation passes with zero warnings/errors; iOS
+simulator and device SDK builds pass. Native Windows screenshots/actual DPI,
+iPhone/iPad device visual review and a source-matched CI comparison artifact
+remain unavailable. These compilation checks do not replace native visual
+review or protected human release approval. The shared CI fixture includes
+the new filter states, and the WPF capture runner now reads source filters.
+
 ## Inline quota freshness — 2026-10-19
 
 With board times now in their own table headers, the application header uses
-one muted text label, “Quotas updated …” / “余量更新于…”, without the separate
+one muted text label, “Quotas updated …” / “余量…更新”, without the separate
 UPDATED heading or a capsule background. Relative age and exact-date tooltips
 remain available; pending and unavailable states retain their status and
 unavailable data retains its warning color. No quota data leaves no time label.
+
+Relative Chinese uses natural word order, such as “余量刚刚更新” /
+“餘量剛剛更新” and “余量 23 分钟前更新”; exact-time tooltips retain
+“余量更新于…”. Ignored `work/quota-wording/` retains identical-fixture native
+Mac before/after shown/refreshed/settled frames for the same ten cases and
+both themes. Native compilation/tests and the Windows WPF cross-build pass;
+Windows native screenshots and a source-matched CI artifact remain unavailable.
 
 Ignored `work/quota-freshness-inline/` retains one fixture and native Mac
 before/after shown/refreshed/settled frames covering all languages/themes,
@@ -1906,3 +2058,11 @@ platform's restrained accent styling; the source palette and counting policy
 are shared. Mac retains its existing minimum placeholder-row count, while WPF
 retains its variable list length. Empty chart text remains readable even while
 the Mac ranking is showing a loading skeleton.
+
+## Arena official dataset attribution — 2026-10-19
+
+Mac and Windows source descriptions, About where available, and shared-image exports retain Arena's author/dataset credit, official Hugging Face link, CC BY 4.0 link, processing description and non-endorsement statement. iPhone/iPad and mini-program help, About and exports carry the same notice. Arena dataset publication dates retain date precision; acquisition time stays separate. Legacy website snapshots are not labelled as licensed dataset records.
+
+The shared fixture adds six cases: Arena only at 850×720 and all general boards at 1100×720, English/Simplified/Traditional Chinese, both themes. The native Mac fixture reader now preserves sourceNote through reconstruction so these cases exercise the actual conditional notice. Ignored `work/arena-dataset/` retains capture intent, the fixture, original native captures, metadata, hashes, `review.html` and `verification.json`. Each phase contains 36 originals with shown/refreshed/settled checkpoints. macOS 27.0.1 (26A434) reports actual 1× backing scale. Reviewed English minimum-width/light, Chinese minimum-width/dark and Traditional Chinese three-board/dark originals show complete notice lines without clipping. All twelve final refreshed/settled pairs are pixel-identical.
+
+The retained before binary predates the earlier Epoch attribution and concurrent workspace edits; it is an older baseline, not a source-matched full-workspace before build. Windows native WPF screenshots, real Windows DPI review, a source-matched CI comparison artifact, mini-program live simulator review and separate phone/tablet native visual review are unavailable in this run. Build checks and Canvas export bounds tests do not replace those reviews. No protected visual release approval is implied. Backend acquisition and OSS migration are independently verified against all rows of the official four Parquet snapshots; see [migration record](arena-dataset-migration.md).

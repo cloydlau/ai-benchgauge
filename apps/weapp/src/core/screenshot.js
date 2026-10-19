@@ -1,3 +1,5 @@
+import { epochAttribution } from './epoch-attribution.js'
+import { arenaAttribution, isArenaDatasetBoard } from './arena-attribution.js'
 import { brandTitleLayout, brandLogoSource, drawBrandGlyphs, drawBrandLogo } from './brand-title.js'
 // Canvas presentation only: ranking, filtering, brands and dates come from the
 // same view model as the screen. Export every row, independently of its window.
@@ -34,7 +36,12 @@ export function planScreenshot(context, model) {
     const rowHeight = Math.max(46, ...pair.map(row => row ? row.lines.length * 18 + 14 : 0))
     rows.push({ pair, height: rowHeight, y: height }); height += rowHeight
   }
-  return { rows, boards, height: Math.max(height + bottom, top + 120) }
+  context.font = '11px sans-serif'
+  const notices = [boards.some(board => board.kind === 'epochECI') ? epochAttribution(model.language).fullText : '',
+    boards.some(isArenaDatasetBoard) ? arenaAttribution(model.language).fullText : ''].filter(Boolean)
+  const attributionLines = notices.flatMap(notice => wrapText(context, notice, screenshotWidth - margin * 2))
+  const footerHeight = bottom + (attributionLines.length ? attributionLines.length * 16 + 12 : 0)
+  return { rows, boards, attributionLines, footerHeight, height: Math.max(height + bottom, top + 120) + footerHeight - bottom }
 }
 
 function rounded(context, x, y, width, height, radius, color) {
@@ -76,7 +83,7 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
   text(context, `${model.groupingLabel} · ${model.categoryLabel}`, screenshotWidth - margin, 40, 15, colors.muted, { align: 'right' })
   image.boards.forEach((board, column) => {
     const x = margin + column * (columnWidth + gap), accent = column ? colors.purple : colors.blue
-    rounded(context, x, 80, columnWidth, image.height - 80 - bottom, 12, colors.card)
+    rounded(context, x, 80, columnWidth, image.height - 80 - image.footerHeight, 12, colors.card)
     text(context, board.tab, x + 16, 104, 16, accent, { bold: true })
     text(context, board.time, x + columnWidth - 16, 132, 12, colors.muted, { align: 'right' })
     context.font = '13px sans-serif'
@@ -125,5 +132,7 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
       }
     })
   })
-  text(context, model.labels.name, margin, image.height - 26, 12, colors.muted)
+  text(context, model.labels.name, margin, image.height - image.footerHeight + 28, 12, colors.muted)
+  image.attributionLines.forEach((line, index) =>
+    text(context, line, margin, image.height - image.footerHeight + bottom + 4 + index * 16, 11, colors.muted))
 }

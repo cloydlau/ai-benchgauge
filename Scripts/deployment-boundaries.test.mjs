@@ -47,7 +47,7 @@ test('deployment rejects invalid endpoints and incomplete runtime credentials', 
   await checkExistingBucket({ ...oss, getBucketLifecycle: async () => ({ rules: [{ prefix: 'unrelated/' }] }) }, 'bucket', 'cn-shenzhen', '123')
 })
 
-const runtimeFiles = ['package.json', 'package-lock.json', 'bootstrap', 'server.mjs', 'service.mjs', 'domain.mjs', 'parser.mjs', 'epoch-eci.mjs', 'model-openness.mjs', 'source-logos.mjs', 'oss-store.mjs', 'brands.mjs', 'brand-catalog.json', 'leaderboard-policy.json', 'countries.mjs', 'country-catalog.json']
+const runtimeFiles = ['package.json', 'package-lock.json', 'bootstrap', 'server.mjs', 'service.mjs', 'domain.mjs', 'parser.mjs', 'epoch-eci.mjs', 'arena-dataset.mjs', 'arena-collector.mjs', 'arena-attribution.json', 'models-dev.mjs', 'models-dev-license.txt', 'model-openness.mjs', 'source-logos.mjs', 'oss-store.mjs', 'brands.mjs', 'brand-catalog.json', 'leaderboard-policy.json', 'countries.mjs', 'country-catalog.json']
 function fixture(t, mode, config) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'benchgauge-cloud-boundary-')))
   t.after(() => rmSync(root, { recursive: true, force: true }))
@@ -56,6 +56,11 @@ function fixture(t, mode, config) {
   for (const name of runtimeFiles) writeFileSync(join(root, 'fc', name), name === 'package.json' ? '{}' : 'fixture ' + name)
   if (config) writeFileSync(join(root, '.benchgauge-cloud.local.json'), JSON.stringify(config))
   writeFileSync(join(root, 'credentials.env'), '# no credential in this line\nALIBABA_CLOUD_ACCESS_KEY_ID="file-id"\nALIBABA_CLOUD_ACCESS_KEY_SECRET=\'file-secret\'\n')
+  if (['invalid-sync-token', 'invalid-collector-token', 'existing-tokens'].includes(mode)) {
+    mkdirSync(join(root, 'work/shared-leaderboards'), { recursive: true })
+    writeFileSync(join(root, 'work/shared-leaderboards/models-dev-sync-token'), mode === 'invalid-sync-token' ? 'invalid' : 'T'.repeat(43))
+    writeFileSync(join(root, 'work/shared-leaderboards/arena-collector-token'), mode === 'invalid-collector-token' ? 'invalid' : 'C'.repeat(43))
+  }
   const preload = join(root, 'sandbox.cjs')
   writeFileSync(preload, `
 const cp = require('node:child_process'), fs = require('node:fs'), path = require('node:path');
@@ -88,24 +93,46 @@ require('node:module').syncBuiltinESMExports();
     };`,
     '@alicloud/fc20230330': `
 const mode = ${JSON.stringify(mode)}, fs = require('node:fs');
-for (const name of ['GetFunctionRequest','InputCodeLocation','CustomRuntimeConfig','UpdateFunctionRequest','UpdateFunctionInput','CreateFunctionRequest','CreateFunctionInput','CreateTriggerRequest','CreateTriggerInput']) {
+for (const name of ['GetFunctionRequest','InputCodeLocation','CustomRuntimeConfig','UpdateFunctionRequest','UpdateFunctionInput','CreateFunctionRequest','CreateFunctionInput','CreateTriggerRequest','CreateTriggerInput','UpdateTriggerRequest','UpdateTriggerInput']) {
   exports[name] = class {constructor(value) {Object.assign(this,value)}};
 }
 exports.default = class {
+  constructor(config) {this.collector = config.endpoint.includes('ap-southeast-1')}
   async getFunction(name) {
+    if (this.collector) {
+      if (mode === 'collector-lookup-failed') throw {code:'CollectorDenied'};
+      if (mode === 'collector-new') throw {code:'FunctionNotFound'};
+      return {body:{description:mode === 'collector-unrelated' ? 'other' : 'BenchGauge official Arena dataset collector (managed by ai-benchgauge)',runtime:mode === 'collector-runtime' ? 'nodejs20' : 'custom.debian10'}};
+    }
     if (name === 'runtime') return {body:{environmentVariables:{ALIBABA_CLOUD_ACCESS_KEY_ID:'runtime-id',ALIBABA_CLOUD_ACCESS_KEY_SECRET:'runtime-secret',ALIBABA_CLOUD_SECURITY_TOKEN:'runtime-token'}}};
     if (mode === 'lookup-failed') throw {code:'Denied'};
     if (mode === 'new' || mode === 'trigger-new') throw {code:'FunctionNotFound'};
     return {body:{description:mode === 'unrelated' ? 'someone else' : 'BenchGauge shared leaderboards (managed by ai-benchgauge)'}};
   }
-  async updateFunction(name, request) {fs.writeFileSync(${JSON.stringify(join(root, 'request.json'))},JSON.stringify({name,operation:'update',body:request.body}))}
-  async createFunction(request) {fs.writeFileSync(${JSON.stringify(join(root, 'request.json'))},JSON.stringify({operation:'create',body:request.body}))}
-  async getTrigger() {
+  async updateFunction(name, request) {fs.writeFileSync(${JSON.stringify(root)} + '/' + (this.collector ? 'collector' : 'request') + '.json',JSON.stringify({name,operation:'update',body:request.body}))}
+  async createFunction(request) {fs.writeFileSync(${JSON.stringify(root)} + '/' + (this.collector ? 'collector' : 'request') + '.json',JSON.stringify({operation:'create',body:request.body}))}
+  async getTrigger(name, triggerName) {
+    if (this.collector) {
+      if (mode === 'collector-new') throw {code:'TriggerNotFound'};
+      if (mode === 'collector-trigger-failed') throw {code:'CollectorTriggerDenied'};
+      if (mode === 'collector-url-empty') return {body:{}};
+      return {body:{httpTrigger:{urlInternet:mode === 'collector-url-http' ? 'http://collector.ap-southeast-1.fcapp.run' : mode === 'collector-url-host' ? 'https://evil.invalid' : 'https://collector.ap-southeast-1.fcapp.run/'}}};
+    }
+    if (triggerName === 'models-dev-sync' || triggerName === 'models-dev-fill') {
+      if (mode === 'timer-failed') throw {code:'TimerDenied'};
+      if (mode === 'timer-wrong' || mode === 'fill-wrong' && triggerName === 'models-dev-fill') return {body:{triggerType:'http'}};
+      if (mode === 'new' || mode === 'trigger-new') throw {code:'TriggerNotFound'};
+      return {body:{triggerType:'timer'}};
+    }
     if (mode === 'trigger-new') throw {code:'TriggerNotFound'};
     if (mode === 'trigger-failed') throw {code:'DeniedTrigger'};
     return {body:mode === 'trigger-empty' ? {} : {httpTrigger:{urlInternet:mode === 'trigger-http' ? 'http://example.invalid/' : 'https://example.invalid/'}}};
   }
-  async createTrigger() {return {body:{httpTrigger:{urlInternet:'https://example.invalid/'}}}}
+  async updateTrigger(name, triggerName, request) {fs.writeFileSync(${JSON.stringify(root)} + '/' + triggerName + '.json',JSON.stringify({name,triggerName,operation:'update',body:request.body}))}
+  async createTrigger(name, request) {
+    if (request.body.triggerType === 'timer') fs.writeFileSync(${JSON.stringify(root)} + '/' + request.body.triggerName + '.json',JSON.stringify({name,triggerName:request.body.triggerName,operation:'create',body:request.body}));
+    return {body:{httpTrigger:{urlInternet:this.collector ? 'https://collector.ap-southeast-1.fcapp.run/' : 'https://example.invalid/'}}};
+  }
 };`,
   }
   for (const [name, source] of Object.entries(packages)) {
@@ -134,6 +161,22 @@ test('deployment CLI validates, packages and creates or updates only the verifie
     assert.equal(request.operation, ['new', 'trigger-new'].includes(mode) ? 'create' : 'update')
     assert.equal(request.body.environmentVariables.STORAGE_CREDENTIAL_SOURCE, mode === 'runtime' ? 'environment' : 'role')
     assert.equal(request.body.role, mode === 'runtime' ? '' : role.roleArn)
+    const timer = JSON.parse(readFileSync(join(sandbox.root, 'models-dev-sync.json'), 'utf8'))
+    assert.equal(timer.name, 'ai-benchgauge')
+    assert.equal(timer.triggerName, 'models-dev-sync')
+    assert.equal(timer.operation, ['new', 'trigger-new'].includes(mode) ? 'create' : 'update')
+    const timerConfig = JSON.parse(timer.body.triggerConfig)
+    assert.equal(timerConfig.enable, true)
+    assert.equal(timerConfig.cronExpression, '0 0 0 * * *')
+    assert.deepEqual(JSON.parse(timerConfig.payload), { type: 'models-dev-sync', token: request.body.environmentVariables.MODELS_DEV_SYNC_TOKEN })
+    const fill = JSON.parse(readFileSync(join(sandbox.root, 'models-dev-fill.json'), 'utf8'))
+    assert.equal(fill.operation, timer.operation)
+    assert.equal(fill.triggerName, 'models-dev-fill')
+    const fillConfig = JSON.parse(fill.body.triggerConfig)
+    assert.equal(fillConfig.enable, true)
+    assert.equal(fillConfig.cronExpression, '0 * * * * *')
+    assert.deepEqual(JSON.parse(fillConfig.payload), { type: 'models-dev-fill', token: request.body.environmentVariables.MODELS_DEV_SYNC_TOKEN })
+    assert.match(request.body.environmentVariables.MODELS_DEV_SYNC_TOKEN, /^[A-Za-z0-9_-]{43}$/)
     assert.ok(!JSON.stringify(receipt).includes('secret'))
     assert.equal(Buffer.from(request.body.code.zipFile, 'base64').toString(), 'isolated archive')
   }
@@ -163,11 +206,42 @@ test('deployment CLI rejects failed checks, source changes and cloud errors with
     ['upload-changed', role, [], /before cloud upload/], ['lookup-failed', role, [], /Denied/],
     ['unrelated', role, [], /unrelated function/], ['trigger-failed', role, [], /DeniedTrigger/],
     ['trigger-empty', role, [], /HTTPS URL/], ['trigger-http', role, [], /HTTPS URL/],
+    ['invalid-sync-token', role, [], /Invalid metadata sync token/],
+    ['timer-failed', role, [], /TimerDenied/], ['timer-wrong', role, [], /Unrelated metadata trigger/],
+    ['fill-wrong', role, [], /Unrelated metadata trigger/],
   ]
   for (const [mode, config, args, message] of cases) {
     const sandbox = fixture(t, mode, config), result = sandbox.run(args)
     assert.equal(result.status, 1, `${mode}: ${result.stderr}`)
     assert.match(result.stderr, message, mode)
     assert.equal(existsSync(join(sandbox.root, 'work/shared-leaderboards/deployment.json')), false)
+  }
+})
+
+test('collector deployment keeps credentials local and configures only a verified fixed collector', t => {
+  for (const mode of ['update', 'collector-new', 'existing-tokens']) {
+    const sandbox = fixture(t, mode, { ...role, arenaCollector: true }), result = sandbox.run()
+    assert.equal(result.status, 0, result.stderr)
+    const collector = JSON.parse(readFileSync(join(sandbox.root, 'collector.json'), 'utf8'))
+    assert.equal(collector.operation, mode === 'collector-new' ? 'create' : 'update')
+    assert.equal(collector.body.runtime, 'custom.debian10')
+    assert.deepEqual(Object.keys(collector.body.environmentVariables), ['ARENA_COLLECTOR_TOKEN'])
+    assert.match(collector.body.environmentVariables.ARENA_COLLECTOR_TOKEN, /^[A-Za-z0-9_-]{43}$/)
+    const main = JSON.parse(readFileSync(join(sandbox.root, 'request.json'), 'utf8'))
+    assert.equal(main.body.environmentVariables.ARENA_COLLECTOR_ENDPOINT, 'https://collector.ap-southeast-1.fcapp.run')
+    assert.equal(main.body.environmentVariables.ARENA_COLLECTOR_TOKEN, collector.body.environmentVariables.ARENA_COLLECTOR_TOKEN)
+    assert.ok(!JSON.stringify(collector).includes('file-secret'))
+  }
+  for (const [mode, message] of [
+    ['invalid-collector-token', /Invalid local collector token/], ['collector-lookup-failed', /CollectorDenied/],
+    ['collector-unrelated', /unrelated collector/], ['collector-runtime', /unrelated collector/],
+    ['collector-trigger-failed', /CollectorTriggerDenied/], ['collector-url-empty', /Invalid collector endpoint/],
+    ['collector-url-http', /Invalid collector endpoint/], ['collector-url-host', /Invalid collector endpoint/],
+  ]) {
+    const sandbox = fixture(t, mode, { ...role, arenaCollector: true }), result = sandbox.run()
+    assert.equal(result.status, 1, `${mode}: ${result.stderr}`)
+    assert.match(result.stderr, message)
+    assert.equal(existsSync(join(sandbox.root, 'work/shared-leaderboards/deployment.json')), false)
+    assert.equal(existsSync(join(sandbox.root, 'request.json')), false)
   }
 })

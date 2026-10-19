@@ -8,7 +8,7 @@ struct PhoneLeaderboardName: View {
     let name: String
     let language: AppLanguage
     let identifier: String
-    let copyName: (String) -> Void
+    let openDetails: () -> Void
     @State private var textSize = CGSize.zero
     private struct FullName: Identifiable {
         let name: String
@@ -34,8 +34,8 @@ struct PhoneLeaderboardName: View {
 
     var body: some View {
         Button {
-            // Presenting the bubble must not also copy on finger release.
-            if fullName == nil { copyName(name) }
+            // Presenting the full-name bubble must not also open a sheet.
+            if fullName == nil { openDetails() }
         } label: {
             Text(name).font(.subheadline).lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -48,7 +48,7 @@ struct PhoneLeaderboardName: View {
                 }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(name + language.text(", click to copy", "，点击复制"))
+        .accessibilityLabel(name + language.text(", view model details", "，查看模型详情"))
         .accessibilityIdentifier(identifier)
         .accessibilityHint(isTruncated ? language.text("Long press to view the full name", "长按查看完整名称") : "")
         .accessibilityActions {

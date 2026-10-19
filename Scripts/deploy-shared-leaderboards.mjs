@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -72,7 +72,7 @@ function credentials(file) {
   if (!accessKeyId || !accessKeySecret) throw new Error('Missing Alibaba Cloud RAM credentials in the local environment');
   return { accessKeyId, accessKeySecret };
 }
-const runtimeFiles = ['package.json', 'package-lock.json', 'bootstrap', 'server.mjs', 'service.mjs', 'domain.mjs', 'parser.mjs', 'epoch-eci.mjs', 'model-openness.mjs', 'source-logos.mjs', 'oss-store.mjs', 'brands.mjs', 'brand-catalog.json', 'leaderboard-policy.json', 'countries.mjs', 'country-catalog.json'];
+const runtimeFiles = ['package.json', 'package-lock.json', 'bootstrap', 'server.mjs', 'service.mjs', 'domain.mjs', 'parser.mjs', 'epoch-eci.mjs', 'arena-dataset.mjs', 'arena-collector.mjs', 'arena-attribution.json', 'models-dev.mjs', 'models-dev-license.txt', 'model-openness.mjs', 'source-logos.mjs', 'oss-store.mjs', 'brands.mjs', 'brand-catalog.json', 'leaderboard-policy.json', 'countries.mjs', 'country-catalog.json'];
 function runtimeSignature() {
   const hash = createHash('sha256');
   for (const name of runtimeFiles) hash.update(name).update(readFileSync(join(root, 'fc', name)));
@@ -92,7 +92,7 @@ async function main() {
   const args = process.argv.slice(2);
   if (args.length > 1 || args.some(arg => !['--plan', '--package'].includes(arg))) throw new Error('Usage: deploy-shared-leaderboards.mjs [--plan | --package]');
   if (args.includes('--package')) {
-    run(process.execPath, ['--test', 'Scripts/epoch-eci.test.mjs', 'Scripts/shared-leaderboards.test.mjs', 'Scripts/brand-discovery.test.mjs', 'Scripts/country-discovery.test.mjs']);
+    run(process.execPath, ['--test', 'Scripts/epoch-eci.test.mjs', 'Scripts/arena-dataset.test.mjs', 'Scripts/models-dev.test.mjs', 'Scripts/shared-leaderboards.test.mjs', 'Scripts/brand-discovery.test.mjs', 'Scripts/country-discovery.test.mjs']);
     console.log(packageCode()); return;
   }
   const file = join(root, '.benchgauge-cloud.local.json');
@@ -108,7 +108,7 @@ async function main() {
   // placed in the ZIP or the app. Existing runtime credentials are transferred
   // in memory between FC configurations, never written into local artifacts.
   const signature = runtimeSignature();
-  run(process.execPath, ['--test', 'Scripts/epoch-eci.test.mjs', 'Scripts/shared-leaderboards.test.mjs', 'Scripts/brand-discovery.test.mjs', 'Scripts/country-discovery.test.mjs']);
+  run(process.execPath, ['--test', 'Scripts/epoch-eci.test.mjs', 'Scripts/arena-dataset.test.mjs', 'Scripts/models-dev.test.mjs', 'Scripts/shared-leaderboards.test.mjs', 'Scripts/brand-discovery.test.mjs', 'Scripts/country-discovery.test.mjs']);
   if (runtimeSignature() !== signature) throw new Error('Runtime changed during validation');
   const archive = packageCode();
   if (runtimeSignature() !== signature) throw new Error('Runtime changed during packaging');
@@ -119,7 +119,7 @@ async function main() {
   const OSS = require('ali-oss');
   const auth = credentials(config.credentialsFile);
   const proxy = config.proxy ? { httpProxy: config.proxy, httpsProxy: config.proxy } : {};
-  const common = { ...auth, ...proxy, connectTimeout: 8000, readTimeout: 30000 };
+  const common = { ...auth, ...proxy, connectTimeout: 30000, readTimeout: 60000 };
   console.log('[shared] Checking cloud identity');
   const identity = await new STS.default(new Config({ ...common, endpoint: `sts.${config.region}.aliyuncs.com` })).getCallerIdentity();
   const account = identity.body.accountId;
@@ -139,11 +139,51 @@ async function main() {
   await checkExistingBucket(oss, bucket, config.region, account);
   const description = managedDescription;
   if (runtimeSignature() !== signature) throw new Error('Runtime changed before cloud upload');
+  const collectorEnvironment = {};
+  const syncTokenFile = join(root, 'work/shared-leaderboards/models-dev-sync-token');
+  if (!existsSync(syncTokenFile)) writeFileSync(syncTokenFile, randomBytes(32).toString('base64url'), { mode: 0o600 });
+  const syncToken = readFileSync(syncTokenFile, 'utf8');
+  if (!/^[A-Za-z0-9_-]{43}$/.test(syncToken)) throw new Error('Invalid metadata sync token');
+  if (config.arenaCollector === true) {
+    // A dedicated, narrowly authenticated public-data collector avoids sending
+    // OSS/cloud credentials abroad or broadening the runtime user's RAM policy.
+    const tokenFile = join(root, 'work/shared-leaderboards/arena-collector-token');
+    if (!existsSync(tokenFile)) writeFileSync(tokenFile, randomBytes(32).toString('base64url'), { mode: 0o600 });
+    const token = readFileSync(tokenFile, 'utf8');
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new Error('Invalid local collector token');
+    const collectorName = `${config.functionName}-arena-dataset`;
+    const collectorDescription = 'BenchGauge official Arena dataset collector (managed by ai-benchgauge)';
+    const collector = new FC.default(new Config({ ...common, endpoint: `${account}.ap-southeast-1.fc.aliyuncs.com` }));
+    const input = { description: collectorDescription,
+      code: new FC.InputCodeLocation({ zipFile: readFileSync(archive).toString('base64') }),
+      runtime: 'custom.debian10', handler: 'index.handler', memorySize: 512, cpu: 0.25,
+      diskSize: 512, timeout: 25, instanceConcurrency: 8, internetAccess: true,
+      customRuntimeConfig: new FC.CustomRuntimeConfig({ command: ['/var/fc/lang/nodejs20/bin/node', '/code/arena-collector.mjs'], port: 9000 }),
+      environmentVariables: { ARENA_COLLECTOR_TOKEN: token } };
+    let prior;
+    try { prior = (await collector.getFunction(collectorName, new FC.GetFunctionRequest())).body; }
+    catch (error) { if (error.code !== 'FunctionNotFound') throw error; }
+    if (prior) {
+      if (prior.description !== collectorDescription || prior.runtime !== 'custom.debian10') throw new Error('Refusing unrelated collector');
+      await collector.updateFunction(collectorName, new FC.UpdateFunctionRequest({ body: new FC.UpdateFunctionInput(input) }));
+    } else await collector.createFunction(new FC.CreateFunctionRequest({ body: new FC.CreateFunctionInput({ ...input, functionName: collectorName }) }));
+    let trigger;
+    try { trigger = (await collector.getTrigger(collectorName, 'http')).body; }
+    catch (error) {
+      if (error.code !== 'TriggerNotFound') throw error;
+      trigger = (await collector.createTrigger(collectorName, new FC.CreateTriggerRequest({ body: new FC.CreateTriggerInput({
+        triggerName: 'http', triggerType: 'http', triggerConfig: JSON.stringify({ authType: 'anonymous', methods: ['GET'], disableURLInternet: false }) }) }))).body;
+    }
+    const endpoint = trigger.httpTrigger?.urlInternet?.replace(/\/$/, '');
+    if (!endpoint || new URL(endpoint).protocol !== 'https:' || !new URL(endpoint).hostname.endsWith('.ap-southeast-1.fcapp.run')) throw new Error('Invalid collector endpoint');
+    Object.assign(collectorEnvironment, { ARENA_COLLECTOR_ENDPOINT: endpoint, ARENA_COLLECTOR_TOKEN: token });
+    console.log('[shared] Singapore Arena dataset collector updated');
+  }
   const body = { description, code: new FC.InputCodeLocation({ zipFile: readFileSync(archive).toString('base64') }),
     runtime: 'custom.debian10', handler: 'index.handler', memorySize: 512, cpu: 0.25,
     diskSize: 512, timeout: 30, instanceConcurrency: 8, internetAccess: true, role: config.roleArn ?? '',
     customRuntimeConfig: new FC.CustomRuntimeConfig({ command: ['/code/bootstrap'], port: 9000 }),
-    environmentVariables: { OSS_BUCKET: bucket, OSS_REGION: `oss-${config.region}`, ...runtime.environmentVariables } };
+    environmentVariables: { OSS_BUCKET: bucket, OSS_REGION: `oss-${config.region}`, ...runtime.environmentVariables, ...collectorEnvironment, MODELS_DEV_SYNC_TOKEN: syncToken } };
   let existing;
   try { existing = (await client.getFunction(config.functionName, new FC.GetFunctionRequest())).body; }
   catch (error) { if (error.code !== 'FunctionNotFound') throw error; }
@@ -160,12 +200,25 @@ async function main() {
   }
   const endpoint = trigger.httpTrigger?.urlInternet?.replace(/\/$/, '');
   if (!endpoint?.startsWith('https://')) throw new Error('HTTP trigger did not return an HTTPS URL');
+  for (const [triggerName, cronExpression] of [['models-dev-sync', '0 0 0 * * *'], ['models-dev-fill', '0 * * * * *']]) {
+    const triggerConfig = JSON.stringify({ enable: true, cronExpression,
+      payload: JSON.stringify({ type: triggerName, token: syncToken }) });
+    let timer;
+    try { timer = (await client.getTrigger(config.functionName, triggerName)).body; }
+    catch (error) { if (error.code !== 'TriggerNotFound') throw error; }
+    if (timer) {
+      if (timer.triggerType !== 'timer') throw new Error('Unrelated metadata trigger');
+      await client.updateTrigger(config.functionName, triggerName, new FC.UpdateTriggerRequest({ body: new FC.UpdateTriggerInput({ triggerConfig }) }));
+    } else await client.createTrigger(config.functionName, new FC.CreateTriggerRequest({ body: new FC.CreateTriggerInput({
+      triggerName, triggerType: 'timer', triggerConfig }) }));
+  }
+  console.log('[shared] Models.dev daily checks and minute gap worker configured');
   // Save only non-secret deployment details. The caller must smoke-test the
   // read endpoint before enabling the embedded shared client endpoint.
   const receipt = { region: config.region, functionName: config.functionName, bucket, endpoint, deployedAt: new Date().toISOString() };
   writeFileSync(join(root, 'work/shared-leaderboards/deployment.json'), JSON.stringify(receipt, null, 2) + '\n');
   console.log(JSON.stringify(receipt));
-  console.log('Verify GET /v1/boards/arenaText, seed through a grant, then set SharedLeaderboardConfiguration.bundledEndpoint to enable clients.');
+  console.log('Verify GET /v1/boards/{kind}; refresh Arena through the official dataset loader and seed other sources through a grant before enabling clients.');
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch(error => { console.error(`[shared] ${error.code ?? error.message ?? 'Deployment failed'}`); process.exitCode = 1; });

@@ -16,6 +16,7 @@ private final class PadPresentationState: ObservableObject {
     @Published var showingQuotaTrackingHelp = false
     @Published var pairScrolled = false
     @Published var showingAbout = false
+    @Published var selectedModel: LeaderboardEntry?
     @Published var showingCapture = false
     @Published var generatingCapture = false
     @Published var generatedCapturePages = 0
@@ -236,6 +237,15 @@ public struct LeaderboardPadView: View {
         // Keep the floating categories at the screen bottom, underneath the keyboard.
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .sheet(isPresented: $presentation.showingAbout) { aboutSheet }
+        .sheet(item: $presentation.selectedModel) { entry in
+            ModelDetailsView(entry: entry, language: store.language,
+                copyName: { name in copyName(name); return true }, close: { presentation.selectedModel = nil })
+                #if os(iOS)
+                .presentationDetents([.large]).presentationDragIndicator(.visible)
+                #else
+                .frame(width: 560, height: 620)
+                #endif
+        }
         #if os(iOS)
         .sheet(isPresented: $presentation.showingCapture, onDismiss: clearCapturedPages) { screenshotPreview }
         #endif
@@ -769,12 +779,12 @@ public struct LeaderboardPadView: View {
             refresh: { Task { await store.refresh(force: true) } },
             selectCountry: { store.setCountryFilter($0, for: kind); resetComparison() },
             clearFilters: { store.modelSearchQuery = ""; store.setCountryFilter(.all, for: kind); store.setOpennessFilter(.all, for: kind); resetComparison() },
-            selectOpenness: { store.setOpennessFilter($0, for: kind); resetComparison() }, copyName: { name in
+            selectOpenness: { store.setOpennessFilter($0, for: kind); resetComparison() }, openModel: { entry in
                 cancelCubeEntrance()
                 // A simultaneous cube drag can also release a name button.
-                // Only a tap on a settled, stationary board may copy a name.
+                // Only a tap on a settled, stationary board may open details.
                 guard !compact || (!cube.dragging && !cube.turning) else { return }
-                copyName(name)
+                presentation.selectedModel = entry
             })
     }
 
@@ -807,6 +817,16 @@ public struct LeaderboardPadView: View {
                     category: store.category, language: store.language)).font(.caption).foregroundStyle(secondary)
             }
             boardPair(wide: width >= 760, isImage: true, exportScheme: scheme, pageRows: pageRows)
+            if store.category.boardKinds.contains(.epochECI) {
+                Text(EpochAttribution.fullText(language: store.language))
+                    .font(.system(size: 11)).foregroundStyle(secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if store.category.boardKinds.contains(where: { ArenaAttribution.applies(store.snapshot.boards[$0]) }) {
+                Text(ArenaAttribution.fullText(language: store.language))
+                    .font(.system(size: 11)).foregroundStyle(secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             HStack(alignment: .bottom) {
                 screenshotDownloadCredit
                 Spacer(minLength: 16)
@@ -1042,7 +1062,7 @@ private struct PadBoardCard: View {
     let selectCountry: (LeaderboardCountryFilter) -> Void
     let clearFilters: () -> Void
     let selectOpenness: (LeaderboardOpennessFilter) -> Void
-    let copyName: (String) -> Void
+    let openModel: (LeaderboardEntry) -> Void
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -1567,7 +1587,7 @@ private struct PadBoardCard: View {
             #if os(iOS)
             if compactColumns {
                 PhoneLeaderboardName(name: entry.name, language: language,
-                    identifier: "name-\(kind.rawValue)-\(entry.id)", copyName: copyName)
+                    identifier: "name-\(kind.rawValue)-\(entry.id)", openDetails: { openModel(entry) })
             } else { copyableEntryName(entry) }
             #else
             copyableEntryName(entry)
@@ -1575,10 +1595,10 @@ private struct PadBoardCard: View {
         }
     }
     private func copyableEntryName(_ entry: LeaderboardEntry) -> some View {
-        Button { copyName(entry.name) } label: {
+        Button { openModel(entry) } label: {
             Text(entry.name).fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
-        }.buttonStyle(.plain).accessibilityLabel(entry.name + tr(", click to copy", "，点击复制"))
+        }.buttonStyle(.plain).accessibilityLabel(entry.name + tr(", view model details", "，查看模型详情"))
             .accessibilityIdentifier("name-\(kind.rawValue)-\(entry.id)")
     }
     private func brandColor(_ entry: LeaderboardEntry) -> Color {

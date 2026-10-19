@@ -2,13 +2,38 @@ import { boards, hasOwn } from '../core/catalog.js'
 import { normalizeBoard, canReplace } from '../core/leaderboard.js'
 
 const CACHE_KEY = 'benchgauge.boards.v1'
+function snapshotFile(platform) {
+  if (!platform.env?.USER_DATA_PATH || !platform.getFileSystemManager) return null
+  return { fs: platform.getFileSystemManager(), path: `${platform.env.USER_DATA_PATH}/benchgauge-boards-v1.json` }
+}
+function loadSnapshots(platform) {
+  try {
+    const file = snapshotFile(platform)
+    if (file) return JSON.parse(file.fs.readFileSync(file.path, 'utf8'))
+  } catch { /* A missing or incomplete file can still fall back to the old cache. */ }
+  return platform.getStorageSync(CACHE_KEY)
+}
+function saveSnapshots(platform, snapshots) {
+  try {
+    const file = snapshotFile(platform)
+    if (file) {
+      // Provider offers and embedded icons can exceed a single storage key's
+      // capacity. Rename only after the complete replacement file is written.
+      file.fs.writeFileSync(file.path + '.tmp', JSON.stringify(snapshots), 'utf8')
+      file.fs.renameSync(file.path + '.tmp', file.path)
+      try { platform.removeStorageSync?.(CACHE_KEY) } catch { /* Migration already saved. */ }
+      return
+    }
+  } catch { /* Preserve the previous file and try the legacy cache. */ }
+  platform.setStorageSync(CACHE_KEY, snapshots)
+}
 export function createBoardStore({ platform, endpoint }) {
   const snapshots = {}
   const pending = new Map()
   const tasks = new Set()
   let disposed = false
   try {
-    const saved = platform.getStorageSync(CACHE_KEY)
+    const saved = loadSnapshots(platform)
     for (const kind of Object.keys(boards)) {
       if (saved?.[kind]) {
         try { snapshots[kind] = normalizeBoard(saved[kind], kind) } catch { /* One corrupt board must not erase the others. */ }
@@ -33,7 +58,7 @@ export function createBoardStore({ platform, endpoint }) {
             const next = normalizeBoard(result.data.board, kind)
             if (canReplace(next, snapshots[kind])) {
               snapshots[kind] = next
-              try { platform.setStorageSync(CACHE_KEY, snapshots) } catch { /* Still show a valid network result. */ }
+              try { saveSnapshots(platform, snapshots) } catch { /* Still show a valid network result. */ }
             }
             resolve(snapshots[kind])
           } catch (error) { reject(error) }
