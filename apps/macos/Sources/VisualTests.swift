@@ -145,7 +145,7 @@ enum NativeVisualCapture {
                                 baseURL: (fixture.quotaScenarios?[test.scenario] ?? fixture.state.quotas).first { $0.id == value.id }?.baseURL)
                         }, taskCounts: refreshed ? (test.refreshedTaskCounts ?? test.taskCounts) : test.taskCounts,
                         codexDesktopRunning: refreshed ? (test.refreshedCodexDesktopRunning ?? test.codexDesktopRunning ?? true) : (test.codexDesktopRunning ?? true),
-                        category: test.category ?? .general)
+                        category: test.category ?? .general, boardKinds: refreshed ? (test.refreshedSelectedBoards ?? test.selectedBoards ?? (test.category ?? .general).boardKinds) : (test.selectedBoards ?? test.comparisonKind.map { [.artificialAnalysis, $0] } ?? (test.category ?? .general).boardKinds))
                     for (raw, filter) in test.sources ?? [:] {
                         if let kind = LeaderboardKind(rawValue: raw) { state.selectOpennessFilter(filter, for: kind) }
                     }
@@ -157,6 +157,49 @@ enum NativeVisualCapture {
                     if let grouping = test.grouping { state.selectGrouping(grouping) }
                 }
                 apply()
+                if test.scenario == "popoverBoardResize" {
+                    let controller = StatusBarController(state: state)
+                    defer {
+                        controller.finishVisualStatusCapture()
+                        defaults.removePersistentDomain(forName: defaultsName)
+                    }
+                    var geometry: [[String: Any]] = []
+                    for frame in 0..<4 {
+                        if frame == 1 { apply(refreshed: true) }
+                        if frame == 2 {
+                            _ = controller.visualPopoverWindow(show: false)
+                            try await Task.sleep(for: .milliseconds(100))
+                        }
+                        _ = controller.visualPopoverWindow(show: true)
+                        try await Task.sleep(for: .milliseconds(frame == 3 ? 800 : 300))
+                        guard let window = controller.visualPopoverWindow(show: true),
+                              let chrome = window.contentView?.superview,
+                              let anchor = controller.visualPopoverAnchor,
+                              let png = PanelScreenshot.captureForm(view: chrome, minimumVariety: 1) else {
+                            throw CaptureError.blankFrame("popover resize chrome missing")
+                        }
+                        try png.write(to: output.appending(path: "\(test.id)-\(theme)-frame-\(frame).png"))
+                        geometry.append(["frame": frame, "window": NSStringFromRect(window.frame),
+                            "anchor": NSStringFromRect(anchor), "chromeBounds": NSStringFromRect(chrome.bounds),
+                            "anchorX": anchor.midX - window.frame.minX,
+                            "boardCount": state.visibleBoardKinds.count])
+                    }
+                    let resizedAnchor = geometry[1]["anchorX"] as! CGFloat
+                    let reopenedAnchor = geometry[2]["anchorX"] as! CGFloat
+                    let settledAnchor = geometry[3]["anchorX"] as! CGFloat
+                    guard abs(resizedAnchor - reopenedAnchor) <= 1,
+                          abs(reopenedAnchor - settledAnchor) <= 1 else {
+                        throw CaptureError.blankFrame("resized popover anchor differs from reopened/settled anchor")
+                    }
+                    try JSONSerialization.data(withJSONObject: geometry, options: [.prettyPrinted, .sortedKeys])
+                        .write(to: output.appending(path: "\(test.id)-\(theme)-geometry.json"))
+                    metadata.append(["id": test.id, "theme": theme, "width": "native-popover", "height": "native-popover",
+                        "fixtureHash": fixtureHash, "timezone": TimeZone.current.identifier,
+                        "sourceCommit": ProcessInfo.processInfo.environment["GITHUB_SHA"] ?? "local-uncommitted",
+                        "backingScale": String(describing: NSScreen.main?.backingScaleFactor ?? 1),
+                        "capture": "native-popover-chrome", "os": ProcessInfo.processInfo.operatingSystemVersionString])
+                    continue
+                }
                 if test.scenario.hasPrefix("menuBar") {
                     let controller = StatusBarController(state: state)
                     defer {
