@@ -90,3 +90,37 @@ test('a source change during the build discards deployment attribution',async t=
  const receipt=JSON.parse(fs.readFileSync(join(root,'work/.last-app-deploy'),'utf8'))
  assert.equal(receipt.author,'')
 })
+
+test('watcher reload validates the script and preserves its invocation and environment', async t=>{
+ const {watch}=await fixture(t)
+ t.mock.method(console,'log',()=>{})
+ let result={status:0},stops=0,calls=[]
+ t.mock.method(cp,'spawnSync',()=>result);syncBuiltinESMExports()
+ const stop=()=>stops++,execve=(...args)=>calls.push(args)
+ assert.equal(watch.reloadWatcher(stop,{execve,resources:()=>['ProcessWrap']}),null)
+ assert.equal(stops,0)
+ for(const failure of [{error:Error('missing runtime')},{status:1}]){
+  result=failure;assert.equal(watch.reloadWatcher(stop,{execve}),false)
+ }
+ result={status:0}
+ assert.equal(watch.reloadWatcher(stop,{execve,platform:'win32'}),false)
+ assert.equal(watch.reloadWatcher(stop,{execve:null}),false)
+ assert.equal(stops,0)
+ assert.equal(watch.reloadWatcher(stop,{execve}),true)
+ assert.equal(stops,1)
+ assert.equal(calls[0][0],process.execPath)
+ assert.deepEqual(calls[0][1],[process.execPath,...process.execArgv,...process.argv.slice(1)])
+ assert.equal(calls[0][2],process.env)
+})
+
+test('only a complete successful test receipt can wake a blocked workflow',async t=>{
+ const {root,watch}=await fixture(t)
+ assert.equal(watch.successfulTestReceipt(),null)
+ fs.mkdirSync(join(root,'work/test-results'),{recursive:true})
+ const path=join(root,'work/test-results/latest.json')
+ for(const value of ['invalid',JSON.stringify({status:1}),JSON.stringify({status:0,scope:'core'}),JSON.stringify({status:0,scope:'all'})]){
+  fs.writeFileSync(path,value);assert.equal(watch.successfulTestReceipt(),null)
+ }
+ fs.writeFileSync(path,JSON.stringify({status:0,scope:'all',signature:'fresh-pass'}))
+ assert.match(watch.successfulTestReceipt(),/:fresh-pass$/)
+})

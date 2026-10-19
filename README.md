@@ -159,11 +159,11 @@ The local workflow runs the Swift, Node.js and Windows update test suites before
 MODEL_NAME=actual-model ./dev.sh
 ```
 
-`./dev.sh` runs tests on startup, then reopens the latest app, building first if the executable is missing or older than the source. The debounce and throttle intervals below apply to subsequent changes. A test failure stops subsequent actions; the watcher stays active and retries after a new save.
+`./dev.sh` runs tests on startup, then reopens the latest app, building first if the executable is missing or older than the source. The debounce and throttle intervals below apply to subsequent changes. A test failure stops subsequent actions; the watcher stays active and revalidates after a new save or an external full test pass. Edits during a failing check are not discarded.
 
-`./dev.sh` watches `Sources/`, `apps/`, `assets/`, `config/`, `Tests/`, `Scripts/`, and the root build/development scripts. It also checks for uncommitted changes and unpushed commits. After changes have stopped for one minute, and at least one minute has passed since the previous run, it runs tests, commits and pushes, then rebuilds and restarts when watched files changed. Existing unpushed commits also require passing tests. Child commit/build processes reuse a pass only while all test inputs remain identical.
+`./dev.sh` watches `Sources/`, `apps/`, `assets/`, `config/`, `Tests/`, `Scripts/`, and the root build/development scripts. It also checks for uncommitted changes and unpushed commits. After changes have stopped for one minute, and at least one minute has passed since the previous run, it runs tests, rebuilds and restarts Mac when watched files changed, then checks the phone, commits and pushes. Phone, commit and push failures do not block a validated Mac update. Existing unpushed commits also require passing tests. Child commit/build processes reuse a pass only while all test inputs remain identical.
 
-`WATCH_DEBOUNCE_MS` and `WATCH_THROTTLE_MS` change those intervals. `WATCH_AUTOCOMMIT=0` disables automatic commits; `COMMIT_PUSH=0` or `WATCH_AUTOPUSH=0` disables automatic pushes. A failed build, commit, or push is not retried repeatedly for the same source or Git state. Save again or restart `./dev.sh` to schedule another attempt.
+`WATCH_DEBOUNCE_MS` and `WATCH_THROTTLE_MS` change those intervals. `WATCH_AUTOCOMMIT=0` disables automatic commits; `COMMIT_PUSH=0` or `WATCH_AUTOPUSH=0` disables automatic pushes. A failed build, commit, or push is not retried repeatedly for the same source or Git state. Source-check, build and launch failures recover after a new save or an external full test pass. Commit and push failures still require relevant new changes to avoid repeated writes. Mac launch failures leave the watcher running.
 
 ```bash
 ./test.sh                         # Complete offline tests
@@ -175,7 +175,7 @@ DESKTOP_NOTIFY=0 node Scripts/ci-checks.mjs  # Syntax, tests, release app build
 
 Standalone `Scripts/commit.sh` and `./make-app.sh` also require passing tests. On a gate failure, Codex may attempt one source repair, followed by the complete real test suite; an AI report cannot bypass tests. Incomplete reports, unresolved decisions, changed test/config files, and repeated failures stop the workflow. `TEST_AUTO_REPAIR=0` disables repair; `TEST_REPAIR_CODEX` selects the CLI and `TEST_REPAIR_TIMEOUT_MS` changes the default 10-minute limit. Offline sandboxes and known environment failures skip AI repair. Logs and repair state remain in ignored `work/test-results/`; a restart does not reset the repair budget for identical code. Manual `./test.sh` only runs tests.
 
-See [Testing](docs/testing.md) for test scope and optional saved-page fixtures. Restart an already running `./dev.sh` once after updating workflow scripts.
+See [Testing](docs/testing.md) for test scope and optional saved-page fixtures. Updates to the watcher and its resident dependencies reload automatically when idle, preserving the launcher, terminal and original settings. Invalid updates retain the existing watcher and report an error. If Node coverage collection finds an empty worker report after all assertions passed, the complete gate retries once without attempting an AI source repair.
 
 ```bash
 MODEL_NAME=actual-model Scripts/commit.sh                 # Stage changes and create purpose-based commits

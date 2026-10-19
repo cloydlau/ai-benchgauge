@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 轮询 Sources/、Tests/、Scripts/ 和构建配置，以及 git 未提交改动。
 // 变更停止 WATCH_DEBOUNCE_MS（默认 60 秒），且距上次运行至少 WATCH_THROTTLE_MS（默认 60 秒）后，
-// 先运行完整测试，再按目的提交并推送，最后部署（重建并重启应用）。
+// 先运行完整测试，再独立更新 Mac；随后检查手机、按目的提交并推送。
 // 部署与小程序 FC watcher 同一套语义：回执记录上次部署提交，只对已提交的应用
 // 变更补部署；APP_AUTODEPLOY=0 关闭部署，其余监听照常。
 // 测试失败阻断后续动作；同一签名不空转。WATCH_AUTOCOMMIT=0 关闭自动提交。
@@ -9,9 +9,11 @@
 // git 不读 macOS 系统代理；未设置 https_proxy 时，推送改用 scutil 读到的代理。
 
 import { spawn, spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { takeCoverage } from 'node:v8'
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { avatarForModel, detectModelName } from './commit-identity.mjs'
 import { acquireCommitLock } from './commit-lock.mjs'
 import { materializeAvatar, notifyDesktop } from './desktop-notify.mjs'
@@ -26,6 +28,49 @@ const reportStatus = (state, message) => console.log(`[watch] ${workflowStatus(s
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const appPath = join(root, 'outputs', 'AI-BenchGauge.app')
 const watchLockPath = join(root, '.git', 'benchgauge-watch.lock')
+
+// These modules stay loaded in the long-running process; test/build workers
+// already load their own dependencies afresh. Replace this process when its
+// implementation changes, preserving the launcher's pipes, PID and settings.
+export function watcherRuntimeSignature() {
+  const hash = createHash('sha256')
+  for (const name of ['watch.mjs', 'calmmit.mjs', 'commit-identity.mjs', 'commit-lock.mjs',
+    'desktop-notify.mjs', 'git-network.mjs', 'node-executable.mjs', 'weapp-deploy.mjs']) {
+    hash.update(readFileSync(join(root, 'Scripts', name)))
+  }
+  return hash.digest('hex')
+}
+const loadedRuntime = watcherRuntimeSignature()
+
+export function reloadWatcher(stop, { execve = process.execve, platform = process.platform,
+  resources = process.getActiveResourcesInfo } = {}) {
+  // The mini-program may have an independent upload worker while Mac is idle.
+  // Wait for all children to close before replacing their pipe-owning process.
+  if (resources().includes('ProcessWrap')) return null
+  const node = nodeExecutable()
+  // Import-only preflight validates dependencies too; the main() guard prevents
+  // a second watcher or any build/upload from starting in this short worker.
+  const checked = spawnSync(node, ['--input-type=module', '-e',
+    `await import(${JSON.stringify(pathToFileURL(join(root, 'Scripts', 'watch.mjs')).href)})`], { encoding: 'utf8' })
+  if (checked.error || checked.status !== 0 || platform === 'win32' || typeof execve !== 'function') {
+    reportStatus('manual', '监听脚本暂不能重新加载，保留当前监听；请检查脚本语法和 Node 版本')
+    return false
+  }
+  reportStatus('running', '监听逻辑已更新，空闲时重新加载，保留原启动配置')
+  stop()
+  takeCoverage()
+  execve(node, [node, ...process.execArgv, ...process.argv.slice(1)], process.env)
+  return true
+}
+
+export function successfulTestReceipt() {
+  try {
+    const path = join(root, 'work', 'test-results', 'latest.json')
+    const result = JSON.parse(readFileSync(path, 'utf8'))
+    return result.status === 0 && result.scope === 'all' && typeof result.signature === 'string'
+      ? `${statSync(path).mtimeMs}:${result.signature}` : null
+  } catch { return null }
+}
 
 export function nextWaitMs({ now, lastChangeAt, lastRunAt = null, debounceMs, throttleMs }) {
   const sinceChange = Number(lastChangeAt)
@@ -442,6 +487,10 @@ async function main() {
   }
 
   process.on('exit', () => watchLock.release())
+  mkdirSync(join(root, 'work'), { recursive: true })
+  writeFileSync(join(root, 'work', 'watch-runtime.json'), JSON.stringify({
+    pid: process.pid, runtime: loadedRuntime, loadedAt: new Date().toISOString(),
+  }) + '\n')
   // 小程序独立验证自己的源码；不启动第二个提交监听，也不重启桌面应用。
   const stopWeapp = await startWeappUploadWatch()
   const commitEnabled = autocommitEnabled()
@@ -461,6 +510,8 @@ async function main() {
   let lastSignature = ''
   let lastGitSignature = gitStatusSignature()
   let lastRebuiltSignature = null
+  let lastTestReceipt = successfulTestReceipt()
+  let rejectedRuntime = null
   const startupHead = currentHead()
   let deployedHead = readDeployedCommit()
   let lastHead = startupHead
@@ -526,10 +577,10 @@ async function main() {
         busy = false
         lastSignature = signature(snapshot())
         lastGitSignature = gitStatusSignature()
-        if (tested.status === 75) {
+        if (tested.status === 75 || lastSignature !== builtSignature || lastGitSignature !== gitSignature) {
           schedule('测试期间有新变更，重新验证', Date.now())
         } else {
-          failedTestSignature = `${lastSignature}\n${lastGitSignature}`
+          failedTestSignature = testSignature
           reportStatus('manual', `测试失败，已停止提交、推送和重建；等待下次保存；日志：${tested.logPath}`)
           await notify(false, '测试失败', `后续任务已停止。日志：${tested.logPath}`)
         }
@@ -542,13 +593,32 @@ async function main() {
         schedule('检查期间有新变更，重新验证', Date.now())
         return
       }
-      if (!await updatePhone(tested.signature, tested.testContext)) {
-        busy = false
-        failedTestSignature = `${signature(snapshot())}\n${gitStatusSignature()}`
-        reportStatus('manual', 'iPhone 构建检查失败，等待下次保存；日志：work/ios-deploy/deploy.log')
-        return
+      // Local Mac delivery does not depend on phone signing, Git identity,
+      // review or the network used to push. Every path still requires tests.
+      const undeployedCommit = undeployedAppCommit()
+      attemptedRebuild = deployEnabled
+        && builtSignature !== failedSignature
+        && (builtSignature !== lastRebuiltSignature || Boolean(undeployedCommit))
+      if (!deployEnabled) {
+        console.log('[watch] 自动部署已关闭，跳过重建重启')
+      } else if (builtSignature === failedSignature) {
+        console.log('[watch] 这一版已经构建失败，等待下次保存或完整复测通过')
+        rebuiltOk = false
+      } else if (attemptedRebuild) {
+        rebuiltOk = await rebuild(tested.signature)
+        if (rebuiltOk) {
+          lastRebuiltSignature = builtSignature
+          deployedHead = readDeployedCommit()
+        }
+        failedSignature = rebuiltOk ? null : builtSignature
+      } else {
+        console.log('[watch] 源码未变，跳过重建')
       }
-      if (commitEnabled && gitSignature && gitSignature !== failedCommitSignature) {
+      const phoneOk = await updatePhone(tested.signature, tested.testContext)
+      if (!phoneOk) {
+        reportStatus('manual', 'iPhone 构建检查失败，Mac 更新独立处理；提交与推送暂停；日志：work/ios-deploy/deploy.log')
+      }
+      if (phoneOk && commitEnabled && gitSignature && gitSignature !== failedCommitSignature) {
         console.log('[watch] 开始原子提交…')
         const commitEnv = { COMMIT_REQUIRE_LOCK: '1', BENCHGAUGE_TEST_PASS: tested.signature }
         if (pushEnabled) commitEnv.COMMIT_PUSH = '0'
@@ -575,7 +645,7 @@ async function main() {
         console.log('[watch] 这一版提交已失败，等待下次保存')
       }
 
-      if (pushEnabled) {
+      if (phoneOk && pushEnabled) {
         const ahead = unpushedState()
         if (ahead.state === 'no-upstream') {
           if (!warnedNoUpstream) {
@@ -608,24 +678,11 @@ async function main() {
         }
       }
 
-      const undeployedCommit = undeployedAppCommit()
-      attemptedRebuild = deployEnabled
-        && builtSignature !== failedSignature
-        && (builtSignature !== lastRebuiltSignature || Boolean(undeployedCommit))
-      if (!deployEnabled) {
-        console.log('[watch] 自动部署已关闭，跳过重建重启')
-      } else if (builtSignature === failedSignature) {
-        console.log('[watch] 这一版已经构建失败，等待下次保存')
-        rebuiltOk = false
-      } else if (attemptedRebuild) {
-        rebuiltOk = await rebuild(tested.signature)
-        if (rebuiltOk) {
-          lastRebuiltSignature = builtSignature
-          deployedHead = readDeployedCommit()
-        }
-        failedSignature = rebuiltOk ? null : builtSignature
-      } else {
-        console.log('[watch] 源码未变，跳过重建')
+      if (!phoneOk) {
+        busy = false
+        lastSignature = builtSignature
+        lastGitSignature = gitSignature
+        return
       }
     } catch (error) {
       console.error(`[watch] ${error.message}`)
@@ -647,9 +704,11 @@ async function main() {
     const aheadMoved = latestAhead?.state === 'ahead'
       && latestAhead.signature
       && latestAhead.signature !== failedPushSignature
-    if (commitStatus === 75 || sourceMoved || gitMoved || aheadMoved) {
+    const appCommitMoved = Boolean(undeployedAppCommit()) && rebuiltOk
+    if (commitStatus === 75 || sourceMoved || gitMoved || aheadMoved || appCommitMoved) {
       if (aheadMoved) lastAheadSignature = latestAhead.signature
-      schedule(commitStatus === 75 ? '提交锁被占用，稍后重试' : '运行期间有新变更', Date.now(), {
+      schedule(commitStatus === 75 ? '提交锁被占用，稍后重试'
+        : appCommitMoved ? '检测到已提交的应用变更' : '运行期间有新变更', Date.now(), {
         retryPush: sourceMoved || gitMoved,
       })
     } else if (failedCommitSignature || failedPushSignature || !rebuiltOk) {
@@ -696,10 +755,11 @@ async function main() {
   const testedInitialSignature = signature(testedInitial)
   const needsInitialBuild = sourceNewerThanApp(testedInitial, currentAppMtime())
     || Boolean(undeployedAppCommit())
+  const initialGit = lastGitSignature
   lastSignature = testedInitialSignature
   lastGitSignature = gitStatusSignature()
-  let started = initialTest.status === 0
-  if (started) started = await updatePhone(initialTest.signature, initialTest.testContext)
+  const initialMoved = testedInitialSignature !== initialSignature || lastGitSignature !== initialGit
+  let started = initialTest.status === 0 && !initialMoved
   if (started && deployEnabled) {
     started = needsInitialBuild ? await rebuild(initialTest.signature) : await restartApp()
     if (started) {
@@ -708,16 +768,19 @@ async function main() {
   } else if (started) {
     console.log('[watch] 自动部署已关闭，跳过构建与重启')
   }
+  const phoneOk = initialTest.status === 0 && !initialMoved
+    ? await updatePhone(initialTest.signature, initialTest.testContext) : true
   busy = false
   if (!started) {
     if (initialTest.status === 0) {
-      reportStatus('manual', '启动失败，修复错误后重新运行 ./dev.sh')
-      process.exitCode = 1
-      return
+      if (!initialMoved) {
+        failedSignature = testedInitialSignature
+        lastRebuiltSignature = null
+      }
     }
-    if (initialTest.status !== 75) {
+    if (initialTest.status !== 0 && initialTest.status !== 75 && !initialMoved) {
       console.error('[watch] 测试失败，已停止提交、推送和启动；保存修改后重新验证')
-      failedTestSignature = `${testedInitialSignature}\n${lastGitSignature}`
+      failedTestSignature = `${initialSignature}\n${initialGit}`
       await notify(false, '测试失败', `后续任务已停止。日志：${initialTest.logPath}`)
     }
   }
@@ -735,10 +798,14 @@ async function main() {
     ? `[watch] 监听 Sources/、Tests/、Scripts/ 和构建配置；测试通过后自动原子提交${pushEnabled ? '、推送' : ''}；Ctrl-C 停止。`
     : '[watch] 监听 Sources/、Tests/、Scripts/ 和构建配置；测试通过后重建重启；Ctrl-C 停止。不自动提交。')
   // 最后输出真实工作流状态；关闭部署不能阻断启动时的提交或推送。
-  if (!started && initialTest.status === 75) {
+  if (initialMoved || (!started && initialTest.status === 75)) {
     schedule('测试锁被占用或检查期间有新改动，稍后重新验证', Date.now())
-  } else if (!started) {
+  } else if (!started && initialTest.status !== 0) {
     reportStatus('manual', `启动测试失败，提交、推送和部署已暂停；等待测试相关文件变更；日志：${initialTest.logPath}`)
+  } else if (!started || !phoneOk) {
+    reportStatus('manual', !started
+      ? 'Mac 构建或启动失败，监听继续；保存修复或完整复测通过后自动重试'
+      : 'iPhone 构建检查失败，Mac 已独立更新；提交与推送暂停；日志：work/ios-deploy/deploy.log')
   } else if (dirty) {
     const reason = '启动时检测到未提交改动'
     schedule(ahead ? `${reason}，且有未推送提交` : reason, Date.now())
@@ -755,6 +822,23 @@ async function main() {
     } catch (error) {
       console.warn(`[watch] 扫描源码失败：${error.message}`)
       return
+    }
+    if (!busy) {
+      const runtime = watcherRuntimeSignature()
+      if (runtime !== loadedRuntime && runtime !== rejectedRuntime) {
+        const reloaded = reloadWatcher(() => { stopWeapp(); clearTimer(); clearInterval(poll); watchLock.release() })
+        if (reloaded) return
+        if (reloaded === false) rejectedRuntime = runtime
+      }
+    }
+    const testReceipt = successfulTestReceipt()
+    if (testReceipt && testReceipt !== lastTestReceipt) {
+      lastTestReceipt = testReceipt
+      if (!busy && (failedTestSignature || failedSignature)) {
+        failedTestSignature = null
+        failedSignature = null
+        schedule('检测到新的完整测试通过结果，重新验证并恢复部署', Date.now())
+      }
     }
     const nextGit = gitStatusSignature()
     const nextAhead = pushEnabled ? unpushedState() : null

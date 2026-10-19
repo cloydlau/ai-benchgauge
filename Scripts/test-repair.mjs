@@ -68,6 +68,17 @@ export async function runTestGate({ root = testRoot, env = process.env, test = (
   mkdirSync(directory, { recursive: true })
   const statePath = join(directory, 'repair-attempt.json')
   const signature = testInputSignature(root, env)
+  // A child build may reuse its parent's verified full coverage run. Explicit
+  // manual --coverage still calls runTests directly and always executes it.
+  // Both the caller's receipt and the persisted full-run evidence must match
+  // every source, dependency, runtime and environment input.
+  let cached
+  try { cached = JSON.parse(readFileSync(join(directory, 'latest.json'), 'utf8')) } catch { /* No reusable pass. */ }
+  if (env.BENCHGAUGE_TEST_PASS === signature && cached?.status === 0 && cached.scope === 'all'
+    && cached.coverage === true && cached.signature === signature) {
+    console.log('[test] 当前源码及环境已有完整覆盖率通过记录，沿用本次流程的结果')
+    return { ...cached, reused: true, attemptedAi: false }
+  }
   const repair = async (first) => {
     if (env.TEST_AUTO_REPAIR === '0' || env.CODEX_SANDBOX_NETWORK_DISABLED === '1') {
       return { completed: false, attempted: false, summary: '自动修复已关闭或当前环境禁网，保留日志并停止' }
@@ -88,7 +99,25 @@ export async function runTestGate({ root = testRoot, env = process.env, test = (
       return report
     } finally { lock.release() }
   }
-  const result = await repairTests({ runTests: test, repairWithAi: repair,
+  const checkedTest = async () => {
+    const first = await test()
+    const output = first.status !== 0 && first.logPath && existsSync(first.logPath)
+      ? readFileSync(first.logPath, 'utf8') : ''
+    // Node may exit nonzero after all assertions pass because its coverage
+    // collector finds an empty worker profile. Retry the complete gate once;
+    // this is infrastructure failure, never an excuse to edit product code.
+    if (/Warning: Could not report code coverage\. Error \[ERR_OPERATION_FAILED\]: Operation failed: coverage file is empty:/.test(output)
+      && /(?:^|\n)ℹ fail 0(?:\r?\n|$)/.test(output)) {
+      console.warn('[test] 覆盖率采集异常，完整重试一次；不进行源码自动修复')
+      const retried = await test()
+      return { ...retried, coverageCollectionRetried: true }
+    }
+    return first
+  }
+  const guardedRepair = first => first.coverageCollectionRetried
+    ? { completed: false, attempted: false, summary: '覆盖率采集重试仍未通过，保留日志并停止' }
+    : repair(first)
+  const result = await repairTests({ runTests: checkedTest, repairWithAi: guardedRepair,
     protectedSignature: () => testInputSignature(root, env, { includeSources: false }) })
   if (result.status !== 0 && result.attemptedAi) writeFileSync(statePath, JSON.stringify({ signature: testInputSignature(root, env) }) + '\n')
   if (result.error) console.error(`[test] ${result.error}`)

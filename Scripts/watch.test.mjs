@@ -306,8 +306,8 @@ test('startup builds and launches when the executable is missing', async (t) => 
 
 test('startup reports a restart failure instead of claiming the application is running', async (t) => {
   const fixture = watcherFixture(t, { restartFails: true })
-  const code = await fixture.exited
-  assert.equal(code, 1)
+  await waitUntil(fixture, () => fixture.output().includes('Mac 构建或启动失败，监听继续'))
+  assert.equal(fixture.child.exitCode, null)
   assert.match(fixture.output(), /重启失败/)
   assert.doesNotMatch(fixture.output(), /应用已启动，等待源码变更/)
 })
@@ -334,14 +334,14 @@ export async function runTestGate() {
     },
   })
   await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
-  assert.deepEqual(fixture.events(), ['test-v1', 'phone-check', 'restart'])
+  assert.deepEqual(fixture.events(), ['test-v1', 'restart', 'phone-check'])
   writeFileSync(join(fixture.root, 'Scripts/ios-deploy.mjs'), `import {appendFileSync} from 'node:fs'
 if(process.argv[2]!=='checked'||process.env.BENCHGAUGE_TEST_PASS!=='updated-pass')process.exit(2)
 appendFileSync('events','phone-check-v2\\n')`)
   writeFileSync(join(fixture.root, 'Scripts/gate-version.mjs'), "export const version = 'v2'\n")
   writeFileSync(fixture.source, '// latest source\n')
   await waitUntil(fixture, () => fixture.events().length >= 7)
-  assert.deepEqual(fixture.events(), ['test-v1', 'phone-check', 'restart', 'test-v2', 'phone-check-v2', 'build', 'restart'])
+  assert.deepEqual(fixture.events(), ['test-v1', 'restart', 'phone-check', 'test-v2', 'build', 'restart', 'phone-check-v2'])
 })
 
 test('a crashed test worker cannot authorize deployment with a passing message', async t => {
@@ -371,7 +371,7 @@ if(process.env.BENCHGAUGE_TEST_PASS!=='mock-pass')process.exit(2)
 appendFileSync('events','phone-check\\n')`)
   } })
   await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
-  assert.deepEqual(fixture.events(), ['test', 'phone-check', 'restart'])
+  assert.deepEqual(fixture.events(), ['test', 'restart', 'phone-check'])
 })
 
 test('a missing test runtime stops startup before deployment', async t => {
@@ -416,6 +416,105 @@ test('failed tests stop startup and saving a test file recovers without restarti
   writeFileSync(fixture.testFile, 'pass')
   await waitUntil(fixture, () => fixture.events().length === 4)
   assert.deepEqual(fixture.events(), ['test', 'test', 'build', 'restart'])
+})
+
+for (const failingRun of [1, 2]) test(`edits during failing test ${failingRun} are not swallowed as a failed version`, async t => {
+  const f = watcherFixture(t, { binary: 'missing',
+    env: { WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' },
+    setup(root) {
+      writeFileSync(join(root, 'Scripts/test-repair.mjs'), `import{appendFileSync,readFileSync,writeFileSync}from'node:fs'
+export async function runTestGate(){
+  appendFileSync('events','test\\n')
+  const count=readFileSync('events','utf8').split('\\n').filter(v=>v==='test').length
+  if(count===${failingRun}) {writeFileSync('Sources/example.swift','// fixed while the old test failed');return {status:1,logPath:'old-failure.log'}}
+  return {status:0,signature:'mock-pass'}
+}`)
+    } })
+  if (failingRun === 2) {
+    await waitUntil(f, () => f.output().includes('等待源码变更'))
+    writeFileSync(f.source, '// start second check')
+  }
+  await waitUntil(f, () => f.events().filter(v => v === 'test').length === failingRun + 1 && f.events().at(-1) === 'restart')
+  assert.equal(f.child.exitCode, null)
+  assert.doesNotMatch(f.output(), /这一版测试已失败|测试失败，已停止/)
+})
+
+test('an external full test pass wakes a blocked watcher without another source edit', async t => {
+  const f = watcherFixture(t, { binary: 'missing',
+    env: { WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' },
+    setup(root) {
+      writeFileSync(join(root, 'Scripts/test-repair.mjs'), `import{appendFileSync,existsSync}from'node:fs'
+export async function runTestGate(){appendFileSync('events','test\\n');return {status:existsSync('gate-fixed')?0:1,signature:'mock-pass',logPath:'mock.log'}}`)
+    } })
+  await waitUntil(f, () => f.output().includes('等待测试相关文件变更'))
+  mkdirSync(join(f.root, 'work/test-results'), { recursive: true })
+  const receipt = join(f.root, 'work/test-results/latest.json')
+  for (const result of [{status:1,scope:'all',signature:'bad'}, {status:0,scope:'scripts',signature:'partial'}]) {
+    writeFileSync(receipt, JSON.stringify(result))
+    await new Promise(resolve => setTimeout(resolve, 250))
+    assert.equal(f.events().length, 1)
+  }
+  writeFileSync(join(f.root, 'gate-fixed'), '')
+  writeFileSync(receipt, JSON.stringify({status:0,scope:'all',signature:'external-pass'}))
+  await waitUntil(f, () => f.events().at(-1) === 'restart')
+  assert.deepEqual(f.events(), ['test', 'test', 'build', 'restart'])
+  assert.match(f.output(), /新的完整测试通过结果/)
+})
+
+test('an external full pass retries a failed startup launch while retaining the watcher', async t => {
+  const f = watcherFixture(t, { env: { WATCH_DEBOUNCE_MS:'0', WATCH_THROTTLE_MS:'0', WATCH_POLL_MS:'200' }, setup(root) {
+    writeFileSync(join(root,'Scripts/restart.sh'), '#!/bin/sh\necho restart >> events\ntest -f restart-ready\n', {mode:0o755})
+  } })
+  await waitUntil(f, () => f.output().includes('Mac 构建或启动失败，监听继续'))
+  writeFileSync(join(f.root,'restart-ready'),'')
+  mkdirSync(join(f.root,'work/test-results'),{recursive:true})
+  writeFileSync(join(f.root,'work/test-results/latest.json'),JSON.stringify({status:0,scope:'all',signature:'new-pass'}))
+  await waitUntil(f, () => f.events().filter(v=>v==='restart').length===2)
+  assert.equal(f.child.exitCode,null)
+})
+
+test('the running watcher loads corrected resident dependencies without a new terminal command', async t => {
+  const f = watcherFixture(t, { env: { WATCH_DEBOUNCE_MS:'1000', WATCH_THROTTLE_MS:'0', WATCH_POLL_MS:'200' } })
+  await waitUntil(f, () => f.output().includes('等待源码变更'))
+  const path = join(f.root,'Scripts/desktop-notify.mjs')
+  const source = readFileSync(path,'utf8')
+  writeFileSync(path,source+'\ninvalid syntax !\n')
+  await waitUntil(f, () => f.output().includes('监听脚本暂不能重新加载'))
+  assert.equal(f.child.exitCode,null)
+  writeFileSync(path,source+"\nimport {writeFileSync} from 'node:fs'; writeFileSync('runtime-version','v2')\n")
+  await waitUntil(f, () => existsSync(join(f.root,'runtime-version')) && f.events().filter(v=>v==='restart').length===2)
+  assert.equal(readFileSync(join(f.root,'runtime-version'),'utf8'),'v2')
+  assert.equal(Number(readFileSync(join(f.root,'.git/benchgauge-watch.lock'),'utf8').split('\n')[0]), f.child.pid)
+  assert.match(f.output(),/监听逻辑已更新/)
+})
+
+test('saves observed while the gate is busy stay queued until the newest version is checked',async t=>{
+  const f=watcherFixture(t,{env:{WATCH_DEBOUNCE_MS:'0',WATCH_THROTTLE_MS:'0',WATCH_POLL_MS:'200'},setup(root){
+    writeFileSync(join(root,'Scripts/test-repair.mjs'),`import{appendFileSync,readFileSync,existsSync}from'node:fs'
+export async function runTestGate(){appendFileSync('events','test\\n');
+if(readFileSync('events','utf8').split('\\n').filter(v=>v==='test').length===2){
+appendFileSync('events','gate-waiting\\n');while(!existsSync('gate-release'))await new Promise(r=>setTimeout(r,20))}
+return{status:0,signature:'mock-pass'}}`)
+  }})
+  await waitUntil(f,()=>f.output().includes('等待源码变更'))
+  writeFileSync(f.source,'// starts a check')
+  await waitUntil(f,()=>f.events().includes('gate-waiting'))
+  writeFileSync(f.source,'// newer edit while busy')
+  await waitUntil(f,()=>f.output().includes('当前正在提交、推送或构建，结束后再调度'))
+  writeFileSync(join(f.root,'gate-release'),'')
+  await waitUntil(f,()=>f.events().filter(v=>v==='restart').length===2)
+  assert.equal(f.events().filter(v=>v==='test').length,3)
+})
+
+test('a clean externally committed app change is deployed without a source timestamp change',async t=>{
+  const f=watcherFixture(t,{gitWork:true,env:{WATCH_DEBOUNCE_MS:'0',WATCH_THROTTLE_MS:'0',WATCH_POLL_MS:'200'},setup(root){
+    writeFileSync(join(root,'commit.done'),'');writeFileSync(join(root,'push.done'),'')
+  }})
+  await waitUntil(f,()=>f.output().includes('等待源码变更'))
+  writeFileSync(join(f.root,'head'),'external-head')
+  await waitUntil(f,()=>f.events().filter(v=>v==='restart').length===2)
+  assert.match(f.output(),/检测到已提交的应用变更/)
+  assert.deepEqual(f.events(),['test','restart','test','build','restart'])
 })
 
 test('a test failure after startup blocks rebuilding and does not loop on the same input', async (t) => {
@@ -476,8 +575,8 @@ test('failed tests prevent commits and pushes; recovery runs tests before every 
   await new Promise((resolve) => setTimeout(resolve, 500))
   assert.deepEqual(fixture.events(), ['test'])
   writeFileSync(fixture.testFile, 'pass')
-  await waitUntil(fixture, () => fixture.events().includes('restart'))
-  assert.deepEqual(fixture.events(), ['test', 'test', 'commit', 'push', 'build', 'restart'])
+  await waitUntil(fixture, () => fixture.events().includes('push'))
+  assert.deepEqual(fixture.events(), ['test', 'test', 'build', 'restart', 'commit', 'push'])
 })
 
 test('startup commits and pushes existing changes even when deployment is disabled', async (t) => {
@@ -520,17 +619,28 @@ test('phone updates are checked at startup and after edits even with Mac deploym
   await waitUntil(fixture, () => fixture.events().length === 4)
   assert.deepEqual(fixture.events(), ['test', 'phone-check', 'test', 'phone-check'])
 })
-test('a phone build check failure blocks later actions and a new edit can recover', async (t) => {
+test('a phone build failure leaves Mac delivery independent and a new edit recovers the phone', async (t) => {
   const fixture = watcherFixture(t, { phone: true, phoneFails: true, env: { WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' } })
   await waitUntil(fixture, () => fixture.output().includes('等待源码变更'))
   writeFileSync(fixture.testFile, 'phone-fail')
   await waitUntil(fixture, () => fixture.output().includes('iPhone 构建检查失败'))
-  assert.deepEqual(fixture.events(), ['test', 'phone-check', 'restart', 'test', 'phone-check'])
+  assert.deepEqual(fixture.events(), ['test', 'restart', 'phone-check', 'test', 'build', 'restart', 'phone-check'])
   await new Promise(resolve => setTimeout(resolve, 200))
-  assert.equal(fixture.events().length, 5)
+  assert.equal(fixture.events().length, 7)
   writeFileSync(fixture.testFile, 'pass')
-  await waitUntil(fixture, () => fixture.events().length === 9)
-  assert.deepEqual(fixture.events().slice(-4), ['test', 'phone-check', 'build', 'restart'])
+  await waitUntil(fixture, () => fixture.events().length === 11)
+  assert.deepEqual(fixture.events().slice(-4), ['test', 'build', 'restart', 'phone-check'])
+})
+
+test('startup phone failure does not stop the Mac watcher or authorize Git actions', async t => {
+  const f=watcherFixture(t,{phone:true,phoneFails:true,gitWork:true,
+    env:{WATCH_DEBOUNCE_MS:'0',WATCH_THROTTLE_MS:'0',WATCH_POLL_MS:'200'},
+    setup(root){writeFileSync(join(root,'Tests/example.swift'),'phone-fail')},
+  })
+  await waitUntil(f,()=>f.output().includes('Mac 已独立更新'))
+  await new Promise(resolve=>setTimeout(resolve,250))
+  assert.deepEqual(f.events(),['test','restart','phone-check'])
+  assert.equal(f.child.exitCode,null)
 })
 
 test('invalid watch durations fail before any test, commit or restart', async t => {
