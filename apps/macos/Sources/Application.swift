@@ -242,7 +242,18 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
         return statusItem.button
     }
 
+    func visualPopoverWindow(show: Bool) -> NSWindow? {
+        if show { showPopover() } else { closePopover() }
+        return hosting.view.window
+    }
+
+    var visualPopoverAnchor: NSRect? {
+        guard let button = statusItem.button, let window = button.window else { return nil }
+        return window.convertToScreen(button.convert(button.bounds, to: nil))
+    }
+
     func finishVisualStatusCapture() {
+        popover.close()
         NSStatusBar.system.removeStatusItem(statusItem)
         if let appActivationObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(appActivationObserver)
@@ -497,25 +508,23 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
         let oldHeight = popover.contentSize.height
         guard abs(width - oldWidth) > 0.5 || abs(height - oldHeight) > 0.5 else { return }
 
-        let window = popover.isShown ? hosting.view.window : nil
-        if let window {
-            let delta = width - oldWidth
-            let heightDelta = height - oldHeight
-            var frame = window.frame
-            frame.origin.x -= delta // Keep the right edge near the menu item.
-            frame.origin.y -= heightDelta // Keep the top edge under the menu bar.
-            frame.size.width += delta
-            frame.size.height += heightDelta
-            settledPopoverFrame = frameInsetFromScreenEdges(frame, screen: window.screen)
+        let wasShown = popover.isShown
+        if wasShown {
+            // A frame based on the old width displaces the arrow from its
+            // status item. Let AppKit recompute both using the new content size.
+            framePinGeneration += 1
+            removeFramePin()
+            settledPopoverFrame = nil
             framePinAttempts = 0
-            installFramePin(on: window)
         }
 
         hosting.preferredContentSize = size
         popover.contentSize = size
 
-        if let window {
-            applySettledFrame(to: window)
+        if wasShown, let button = statusItem.button {
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            settlePopoverWindow()
+            if let window = hosting.view.window { installFramePin(on: window) }
             removeFramePinAfterSettling()
         }
     }
