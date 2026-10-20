@@ -4,7 +4,7 @@ FC 提供所有平台共用的 HTTPS 接口；OSS 为每张榜单保存一个 `l
 
 ## Arena 官方数据集（2026-10-19）
 
-四张 Arena 榜单已改为服务端读取[官方 CC BY 4.0 数据集](https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset)。文本使用 `text_style_control`，其余使用 `webdev`、`text_to_image`、`text_to_video`，均只取 `latest/overall`。保留分数、排名、发布日期、修订 SHA 和署名说明；各端来源说明及图片导出保留许可信息。具体口径、实测日期与上线验证见[迁移记录](arena-dataset-migration.md)。
+四张 Arena 榜单已改为服务端读取[官方 CC BY 4.0 数据集](https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset)。文本使用 `text_style_control`，其余使用 `webdev`、`text_to_image`、`text_to_video`，均只取 `latest/overall`。保留分数、排名、发布日期、修订 SHA 和署名说明；Mac 与 Windows 在表头来源名后显示许可名称，iPhone/iPad 与小程序的来源说明及图片导出保留完整许可信息。具体口径、实测日期与上线验证见[迁移记录](arena-dataset-migration.md)。
 
 Arena 的刷新请求由 FC 直接读取固定修订的 Parquet 文件并写入 OSS，不向客户端发放官网抓取资格，拒绝旧客户端的 HTML 贡献。各榜独立限频 30 分钟；失败保留已迁移的数据集快照，不回退官网。旧官网缓存仍保存在存储中直至替换，但不作为已许可的数据集快照对外返回。数据集刷新协调日志位于 `benchgauge/arena-dataset/{kind}/coordination.log`。
 

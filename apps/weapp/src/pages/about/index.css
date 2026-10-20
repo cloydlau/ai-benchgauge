@@ -29,13 +29,15 @@
 .pc-stand { width: 14rpx; height: 7rpx; border-bottom: 1.5px solid currentColor; }
 .quota-title { flex: 1; min-width: 0; font-size: 26rpx; font-weight: 600; }
 .quota-action { display: flex; align-items: center; gap: 12rpx; flex-shrink: 0; color: var(--accent); font-size: 22rpx; }
-.quota-card:active, .source-link:active { opacity: .72; }
+.quota-card:active, .source-link:active, .source-license:active { opacity: .72; }
 
 .about-section { margin-top: 34rpx; }
 .section-title { display: block; margin-bottom: 22rpx; color: var(--ink); font-weight: 600; font-size: 27rpx; line-height: 1.4; }
 .sources-section > .section-title { margin-left: 8rpx; }
-.source-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12rpx; }
-.source-link { min-width: 0; padding: 18rpx; border: 1rpx solid var(--about-outline); border-radius: 22rpx; background: var(--card); box-shadow: var(--about-shadow); text-align: left; }
+.source-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12rpx; align-items: start; }
+.source-card { min-width: 0; border: 1rpx solid var(--about-outline); border-radius: 22rpx; background: var(--card); box-shadow: var(--about-shadow); }
+.source-link { display: block; width: 100%; min-width: 0; padding: 18rpx; text-align: left; }
+.source-license { display: flex; align-items: center; gap: 6rpx; width: 100%; min-height: 32px; margin-top: -8rpx; padding: 0 18rpx 14rpx; color: var(--accent); font-size: 20rpx; line-height: 1.3; text-align: left; }
 .source-topline { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18rpx; color: var(--muted); }
 .source-monogram { display: flex; justify-content: center; align-items: center; width: 48rpx; height: 48rpx; border-radius: 14rpx; color: var(--blue); background: rgba(22, 117, 220, .09); font-size: 21rpx; font-weight: 600; }
 .source-arena .source-monogram { color: var(--purple); background: rgba(150, 87, 200, .09); }
@@ -90,6 +92,3 @@
   .cost-total-value { font-size: 29rpx; }
 }
 
-.epoch-attribution { margin: 22rpx 8rpx 0; color: var(--muted); font-size: 20rpx; line-height: 1.65; overflow-wrap: anywhere; }
-.epoch-attribution text { display: block; margin-top: 6rpx; }
-.epoch-attribution button { display: flex; align-items: center; gap: 8rpx; color: var(--accent); font-size: inherit; text-align: left; }

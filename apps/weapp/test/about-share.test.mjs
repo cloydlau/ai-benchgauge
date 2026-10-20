@@ -39,6 +39,11 @@ test('about-page menu forwarding and cold-start back navigation retain the origi
     reLaunch: ({ url }) => launches.push(url),
   }
   const about = globalThis.aboutFactory(query)
+  assert.deepEqual(about.items.map(item => [item.id, item.license || null]), [
+    ['artificialAnalysis', null],
+    ['arena', 'https://creativecommons.org/licenses/by/4.0/'],
+    ['epoch', 'https://creativecommons.org/licenses/by/4.0/'],
+  ])
   assert.equal(globalThis.aboutConfig.canShareToOthers, true)
   assert.equal(about.dark, true)
   assert.equal(about.labels.about, 'About')

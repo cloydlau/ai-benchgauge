@@ -68,19 +68,6 @@ struct PadAboutView<Brand: View>: View {
                     sourceCard(source)
                 }
             }
-            VStack(alignment: .leading, spacing: 5) {
-                Link(EpochAttribution.credit, destination: URL(string: EpochAttribution.licenseURL)!)
-                Text(EpochAttribution.links).textSelection(.enabled)
-                Text(EpochAttribution.changes(language: language))
-            }.font(.system(size: 11)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true).padding(.horizontal, 4).padding(.top, 12)
-            Text(ArenaAttribution.fullText(language: language))
-                .font(.system(size: 11)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
-                .padding(.horizontal, 4).padding(.top, 12)
-            Link(ModelsDevAttribution.credit(language: language), destination: ModelsDevAttribution.sourceURL)
-                .font(.system(size: 11)).padding(.horizontal, 4).padding(.top, 12)
-                .accessibilityIdentifier("about-source-models-dev")
             investment(copy.investment, months: content.schedule.months(at: Date()))
                 .padding(14).aboutCard(outline: outline).padding(.top, 14)
             notices(content.desktopDownloadURL).padding(.horizontal, 4).padding(.top, 17)
@@ -129,25 +116,38 @@ struct PadAboutView<Brand: View>: View {
     private func sourceCard(_ source: PadAboutContent.Source) -> some View {
         let mark = source.id == "artificialAnalysis" ? "AA" : source.id == "arena" ? "A" : "E"
         let color: Color = source.id == "artificialAnalysis" ? .blue : source.id == "arena" ? .purple : .cyan
-        return Button { copyLink(source.url) } label: {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Text(mark).font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(color)
-                        .frame(width: 24, height: 24)
-                        .background(color.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
-                    Spacer()
-                    Image(systemName: "link").font(.system(size: 12)).foregroundStyle(.secondary)
-                }.padding(.bottom, 9)
-                Text(source.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(.primary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(minHeight: 36, alignment: .topLeading)
-                Text(source.domain).font(.system(size: 10)).foregroundStyle(.secondary).padding(.top, 4)
-                    .fixedSize(horizontal: false, vertical: true)
-            }.frame(maxWidth: .infinity, alignment: .leading).padding(9)
-                .aboutCard(outline: outline).contentShape(RoundedRectangle(cornerRadius: 12))
-        }.buttonStyle(.plain).accessibilityIdentifier("about-source-" + source.id)
-            .accessibilityLabel(source.title + " · " + tr("Copy link", "复制链接"))
+        let licenseURL = source.id == "arena" ? ArenaAttribution.licenseURL : source.id == "epoch" ? EpochAttribution.licenseURL : nil
+        return VStack(alignment: .leading, spacing: 6) {
+            Button { copyLink(source.url) } label: {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        Text(mark).font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(color)
+                            .frame(width: 24, height: 24)
+                            .background(color.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
+                        Spacer()
+                        Image(systemName: "link").font(.system(size: 12)).foregroundStyle(.secondary)
+                    }.padding(.bottom, 9)
+                    Text(source.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(minHeight: 36, alignment: .topLeading)
+                    Text(source.domain).font(.system(size: 10)).foregroundStyle(.secondary).padding(.top, 4)
+                        .fixedSize(horizontal: false, vertical: true)
+                }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityIdentifier("about-source-" + source.id)
+                .accessibilityLabel(source.title + " · " + tr("Copy link", "复制链接"))
+            if let licenseURL {
+                Button { copyLink(licenseURL) } label: {
+                    HStack(spacing: 4) {
+                        Text("CC BY 4.0")
+                        Image(systemName: "link")
+                    }.font(.system(size: 11, weight: .medium)).foregroundStyle(accent)
+                        .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+                        .contentShape(Rectangle())
+                }.buttonStyle(.plain).accessibilityIdentifier("about-license-" + source.id)
+                    .accessibilityLabel(source.title + " · CC BY 4.0 · " + tr("Copy link", "复制链接"))
+            }
+        }.padding(9).frame(maxWidth: .infinity, alignment: .leading).aboutCard(outline: outline)
     }
     private func investment(_ investment: PadAboutContent.Investment, months: Int) -> some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -224,7 +224,7 @@ struct PadAboutView<Brand: View>: View {
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) { about.modelsDevNoticeExpanded.toggle() }
             } label: {
                 HStack(spacing: 6) {
-                    Text("models.dev").font(.system(size: 12))
+                    Text(tr("Third-party notice 01", "第三方软件声明 01")).font(.system(size: 12))
                     Text("MIT").font(.system(size: 10)).foregroundStyle(.secondary).padding(4)
                         .background(inset, in: RoundedRectangle(cornerRadius: 3))
                     Spacer(minLength: 0)
@@ -241,7 +241,7 @@ struct PadAboutView<Brand: View>: View {
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) { about.noticeExpanded.toggle() }
             } label: {
                 HStack(spacing: 6) {
-                    Text(tr("Third-party notice 01", "第三方软件声明 01")).font(.system(size: 12))
+                    Text(tr("Third-party notice 02", "第三方软件声明 02")).font(.system(size: 12))
                     Text("SIL OFL 1.1").font(.system(size: 10)).foregroundStyle(.secondary).padding(4)
                         .background(inset, in: RoundedRectangle(cornerRadius: 3))
                     Spacer(minLength: 0)

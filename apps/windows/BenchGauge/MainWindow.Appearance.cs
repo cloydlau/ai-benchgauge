@@ -600,10 +600,17 @@ sealed partial class MainWindow
                 var available = summary.ActualWidth;
                 if (available > 0 && Measure(title, 11, FontWeights.SemiBold) > available)
                     title = title.Replace("Artificial Analysis", "AA", StringComparison.Ordinal);
+                var license = board.Kind == "epochECI" || ArenaAttribution.Applies(board) ? " · CC BY 4.0" : "";
                 var lens = " · " + SourceLens(board);
+                var titleWidth = Measure(title, 11, FontWeights.SemiBold);
+                var licenseWidth = license.Length == 0 ? 0 : Measure(license, 11, FontWeights.SemiBold);
+                var showsLicense = license.Length > 0 && titleWidth + licenseWidth <= available;
                 summary.Inlines.Clear();
                 summary.Inlines.Add(new TextRun(title) { Foreground = BoardTint(board.Kind) });
-                if (Measure(title, 11, FontWeights.SemiBold) + Measure(lens, 10, FontWeights.Normal) <= available)
+                if (showsLicense)
+                    summary.Inlines.Add(new TextRun(license) { Foreground = BoardTint(board.Kind) });
+                if ((license.Length == 0 || showsLicense)
+                    && titleWidth + (showsLicense ? licenseWidth : 0) + Measure(lens, 10, FontWeights.Normal) <= available)
                     summary.Inlines.Add(new TextRun(lens) { Foreground = BoardTint(board.Kind), FontSize = 10, FontWeight = FontWeights.Normal });
             }
             summary.SizeChanged += (_, _) => UpdateHeading();
@@ -939,7 +946,7 @@ sealed partial class MainWindow
 
     DockPanel PanelFooter()
     {
-        var dock = new DockPanel { LastChildFill = true, MinHeight = 48, Background = PanelBackground };
+        var dock = new DockPanel { LastChildFill = true, Height = 48, Background = PanelBackground };
         var border = new Border { BorderBrush = PanelLine, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(18, 10, 18, 10) };
         var row = new Grid(); row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); row.ColumnDefinitions.Add(new ColumnDefinition()); row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var left = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
@@ -960,29 +967,7 @@ sealed partial class MainWindow
         right.Children.Add(Caption(" · ", size: 10)); right.Children.Add(IconButton("power", Tr("Quit", "退出", "退出"), () => { Stop(); Application.Current.Shutdown(); }));
         Grid.SetColumn(right, 2); row.Children.Add(right);
         status.Margin = new Thickness(4, 0, 4, 0); status.FontSize = 10; status.FontFamily = new FontFamily("Segoe UI"); Grid.SetColumn(status, 1); row.Children.Add(status);
-        var details = new StackPanel(); details.Children.Add(row);
-        if (VisibleBoards().Any(board => board.Kind == "epochECI")) details.Children.Add(EpochAttributionBlock());
-        if (VisibleBoards().Any(ArenaAttribution.Applies)) details.Children.Add(ArenaAttributionBlock());
-        border.Child = details; dock.Children.Add(border); return dock;
-    }
-    TextBlock EpochAttributionBlock()
-    {
-        var notice = new TextBlock { Text = EpochAttribution.FullText(prefs.Language),
-            FontSize = 10, Foreground = PanelMuted, TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 8, 0, 0), Cursor = Cursors.Hand,
-            ToolTip = EpochAttribution.LicenseURL };
-        System.Windows.Automation.AutomationProperties.SetAutomationId(notice, "epoch-data-attribution");
-        notice.MouseLeftButtonUp += (_, _) => Open(EpochAttribution.LicenseURL);
-        return notice;
-    }
-    TextBlock ArenaAttributionBlock()
-    {
-        var notice = new TextBlock { Text = ArenaAttribution.FullText(prefs.Language), FontSize = 10,
-            Foreground = PanelMuted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0),
-            Cursor = Cursors.Hand, ToolTip = ArenaAttribution.LicenseURL };
-        System.Windows.Automation.AutomationProperties.SetAutomationId(notice, "arena-data-attribution");
-        notice.MouseLeftButtonUp += (_, _) => Open(ArenaAttribution.LicenseURL);
-        return notice;
+        border.Child = row; dock.Children.Add(border); return dock;
     }
     Button BoardVisibilityMenu()
     {

@@ -24,24 +24,14 @@
     <view class="about-section sources-section">
       <text class="section-title">{{sourcesTitle}}</text>
       <view class="source-grid">
-        <button wx:for="{{items}}" wx:key="id" class="source-link source-{{item.id}}" data-url="{{item.url}}" bindtap="copyLink" aria-label="{{item.title}} · {{labels.copyLink}}">
-          <view class="source-topline"><text class="source-monogram" aria-hidden="true">{{item.mark}}</text><van-icon name="link-o" size="14px" /></view>
-          <text class="source-name">{{item.title}}</text>
-          <text class="source-domain">{{item.domain}}</text>
-        </button>
-      </view>
-      <view class="epoch-attribution">
-        <button data-url="{{epoch.licenseURL}}" bindtap="copyLink" aria-label="{{epoch.credit}} · {{labels.copyLink}}">{{epoch.credit}}<van-icon name="link-o" size="12px" /></button>
-        <text selectable>{{epoch.links}}</text>
-        <text selectable>{{epoch.changes}}</text>
-      </view>
-      <view class="epoch-attribution">
-        <button data-url="{{arena.licenseURL}}" bindtap="copyLink" aria-label="{{arena.credit}} · {{labels.copyLink}}">{{arena.credit}}<van-icon name="link-o" size="12px" /></button>
-        <text selectable>{{arena.links}}</text>
-        <text selectable>{{arena.changes}}</text>
-      </view>
-      <view class="epoch-attribution">
-        <button data-url="https://models.dev" bindtap="copyLink" aria-label="{{modelInformation}} · {{labels.copyLink}}">{{modelInformation}}<van-icon name="link-o" size="12px" /></button>
+        <view wx:for="{{items}}" wx:key="id" class="source-card source-{{item.id}}">
+          <button class="source-link" data-url="{{item.url}}" bindtap="copyLink" aria-label="{{item.title}} · {{labels.copyLink}}">
+            <view class="source-topline"><text class="source-monogram" aria-hidden="true">{{item.mark}}</text><van-icon name="link-o" size="14px" /></view>
+            <text class="source-name">{{item.title}}</text>
+            <text class="source-domain">{{item.domain}}</text>
+          </button>
+          <button wx:if="{{item.license}}" class="source-license" data-url="{{item.license}}" bindtap="copyLink" aria-label="{{item.title}} · CC BY 4.0 · {{labels.copyLink}}">CC BY 4.0<van-icon name="link-o" size="12px" /></button>
+        </view>
       </view>
     </view>
     <view class="about-card investment-card">

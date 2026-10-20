@@ -1990,10 +1990,9 @@ final class LeaderboardAboutParityTests: XCTestCase {
             XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "https://github.com/cloydlau/ai-benchgauge/releases/latest")).firstMatch.waitForExistence(timeout: 3))
             app.buttons["about-source-arena"].tap()
             XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "https://arena.ai/leaderboard")).firstMatch.waitForExistence(timeout: 3))
-            let modelSource = app.descendants(matching: .any).matching(identifier: "about-source-models-dev").firstMatch
-            reveal(modelSource, in: scroll)
-            XCTAssertTrue(modelSource.label.contains("models.dev"))
-            capture("about-" + theme + "-model-source")
+            XCTAssertTrue(app.buttons["about-license-arena"].label.contains("CC BY 4.0"))
+            XCTAssertTrue(app.buttons["about-license-epoch"].label.contains("CC BY 4.0"))
+            XCTAssertFalse(app.buttons["about-license-artificialAnalysis"].exists)
             let infrastructure = app.buttons["about-cost-infrastructure"]
             reveal(infrastructure, in: scroll)
             XCTAssertEqual(infrastructure.value as? String, chinese ? "已收起" : "Collapsed")
@@ -2013,6 +2012,8 @@ final class LeaderboardAboutParityTests: XCTestCase {
             XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "releases/latest")).firstMatch.waitForExistence(timeout: 3))
             let modelLicense = app.buttons["models-dev-license"]
             reveal(modelLicense, in: scroll)
+            XCTAssertTrue(modelLicense.label.contains(chinese ? "第三方软件声明" : "Third-party notice"))
+            XCTAssertFalse(modelLicense.label.contains("models.dev"))
             modelLicense.tap()
             let licenseText = app.staticTexts["models-dev-license-text"]
             XCTAssertTrue(licenseText.waitForExistence(timeout: 3))
