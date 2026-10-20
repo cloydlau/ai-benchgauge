@@ -92,3 +92,6 @@
   .cost-total-value { font-size: 29rpx; }
 }
 
+
+.license-notice { box-sizing: border-box; max-height: 60vh; }
+.license-notice-text { display: block; padding: 8px 24px 24px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.75; text-align: left; }

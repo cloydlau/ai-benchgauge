@@ -8,6 +8,7 @@ private final class PadAboutState: ObservableObject {
     @Published var expandedGroups: Set<String> = []
     @Published var noticeExpanded = false
     @Published var modelsDevNoticeExpanded = false
+    @Published var licenseSourceID: String?
 }
 
 @MainActor
@@ -55,6 +56,12 @@ struct PadAboutView<Brand: View>: View {
         }
         .tint(accent)
         .accessibilityIdentifier("about-page")
+        .accessibilityHidden(about.licenseSourceID != nil)
+        .overlay {
+            if let sourceID = about.licenseSourceID {
+                licenseDialog(sourceID)
+            }
+        }
     }
 
     private func main(_ content: PadAboutContent, copy: PadAboutContent.Copy) -> some View {
@@ -136,16 +143,13 @@ struct PadAboutView<Brand: View>: View {
                 }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityIdentifier("about-source-" + source.id)
                 .accessibilityLabel(source.title + " · " + tr("Copy link", "复制链接"))
-            if let licenseURL {
-                Button { copyLink(licenseURL) } label: {
-                    HStack(spacing: 4) {
-                        Text("CC BY 4.0")
-                        Image(systemName: "link")
-                    }.font(.system(size: 11, weight: .medium)).foregroundStyle(accent)
+            if licenseURL != nil {
+                Button { about.licenseSourceID = source.id } label: {
+                    Text("CC BY 4.0").font(.system(size: 11, weight: .medium)).foregroundStyle(accent)
                         .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
                         .contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityIdentifier("about-license-" + source.id)
-                    .accessibilityLabel(source.title + " · CC BY 4.0 · " + tr("Copy link", "复制链接"))
+                    .accessibilityLabel(source.title + " · CC BY 4.0 · " + tr("View license", "查看协议"))
             }
         }.padding(9).frame(maxWidth: .infinity, alignment: .leading).aboutCard(outline: outline)
     }
@@ -266,6 +270,33 @@ struct PadAboutView<Brand: View>: View {
     private func note(_ text: String) -> some View {
         Text(text).font(.system(size: 11)).lineSpacing(4).foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
+    }
+    private func licenseDialog(_ sourceID: String) -> some View {
+        let notice = sourceID == "arena" ? ArenaAttribution.fullText(language: language) : EpochAttribution.fullText(language: language)
+        return ZStack {
+            Color.black.opacity(dark ? 0.48 : 0.32).ignoresSafeArea()
+                .onTapGesture { about.licenseSourceID = nil }
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 12) {
+                Text("CC BY 4.0").font(.system(size: 16, weight: .semibold))
+                ScrollView {
+                    Text(notice).font(.system(size: 13)).lineSpacing(4).foregroundStyle(.secondary)
+                        .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("about-license-notice")
+                }.frame(maxHeight: dynamicTypeSize.isAccessibilitySize ? 360 : 220)
+                Button(tr("Got it", "知道了")) { about.licenseSourceID = nil }
+                    .font(.system(size: 15, weight: .semibold)).foregroundStyle(accent)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(accent.opacity(dark ? 0.16 : 0.08), in: RoundedRectangle(cornerRadius: 10))
+                    .accessibilityIdentifier("about-license-dismiss")
+            }
+            .padding(16).frame(maxWidth: 440)
+            .background(Color.padCard, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(outline, lineWidth: 0.5))
+            .shadow(color: .black.opacity(0.12), radius: 18, y: 6)
+            .padding(.horizontal, 28)
+        }
     }
 }
 

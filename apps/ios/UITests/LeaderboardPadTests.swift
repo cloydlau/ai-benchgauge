@@ -1992,7 +1992,15 @@ final class LeaderboardAboutParityTests: XCTestCase {
             XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "https://arena.ai/leaderboard")).firstMatch.waitForExistence(timeout: 3))
             XCTAssertTrue(app.buttons["about-license-arena"].label.contains("CC BY 4.0"))
             XCTAssertTrue(app.buttons["about-license-epoch"].label.contains("CC BY 4.0"))
+            XCTAssertFalse(app.buttons["about-license-arena"].label.contains(chinese ? "复制链接" : "Copy link"))
+            XCTAssertFalse(app.buttons["about-license-epoch"].label.contains(chinese ? "复制链接" : "Copy link"))
             XCTAssertFalse(app.buttons["about-license-artificialAnalysis"].exists)
+            app.buttons["about-license-epoch"].tap()
+            let licenseNotice = app.staticTexts["about-license-notice"]
+            XCTAssertTrue(licenseNotice.waitForExistence(timeout: 3))
+            XCTAssertTrue(licenseNotice.label.contains("Epoch AI") || licenseNotice.label.contains("creativecommons.org"))
+            app.buttons["about-license-dismiss"].tap()
+            XCTAssertTrue(app.buttons["about-license-epoch"].waitForExistence(timeout: 3))
             let infrastructure = app.buttons["about-cost-infrastructure"]
             reveal(infrastructure, in: scroll)
             XCTAssertEqual(infrastructure.value as? String, chinese ? "已收起" : "Collapsed")
