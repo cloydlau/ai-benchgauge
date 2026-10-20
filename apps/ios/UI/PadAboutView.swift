@@ -82,13 +82,14 @@ struct PadAboutView<Brand: View>: View {
             quota(content.desktopDownloadURL)
             Text(tr("Data sources", "数据来源")).font(.system(size: 14, weight: .semibold))
                 .padding(.leading, 4).padding(.top, 17).padding(.bottom, 11)
-            Grid(alignment: .leading, horizontalSpacing: 6, verticalSpacing: 8) {
+            VStack(alignment: .leading, spacing: 8) {
                 ForEach(sourceRows(content.sources)) { row in
-                    GridRow(alignment: .top) {
+                    // fixedSize keeps the row at the tallest card instead of stretching through the scroll view.
+                    HStack(alignment: .top, spacing: 6) {
                         ForEach(row.items) { source in
                             sourceCard(source)
                         }
-                    }
+                    }.fixedSize(horizontal: false, vertical: true)
                 }
             }
             investment(copy.investment, months: content.schedule.months(at: Date()))
@@ -140,6 +141,8 @@ struct PadAboutView<Brand: View>: View {
         let mark = source.id == "artificialAnalysis" ? "AA" : source.id == "arena" ? "A" : "E"
         let color: Color = source.id == "artificialAnalysis" ? .blue : source.id == "arena" ? .purple : .cyan
         let showsLicense = source.id == "arena" || source.id == "epoch"
+        // Wide accessibility cards fit the title on one line; the three-column row reserves two.
+        let titleLines = dynamicTypeSize.isAccessibilitySize ? 1 : 2
         return VStack(alignment: .leading, spacing: 6) {
             Button { copyLink(source.url) } label: {
                 VStack(alignment: .leading, spacing: 0) {
@@ -150,29 +153,39 @@ struct PadAboutView<Brand: View>: View {
                             .background(color.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
                         Spacer()
                         Image(systemName: "link").font(.system(size: 12)).foregroundStyle(.secondary)
-                    }.padding(.bottom, 9)
-                    Text(source.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, minHeight: 36, alignment: .topLeading)
-                    Text(source.domain).font(.system(size: 10)).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, minHeight: 28, alignment: .topLeading)
+                    }.frame(height: 24).padding(.bottom, 9)
+                    slottedText(source.title, size: 13, weight: .semibold, lines: titleLines, color: .primary, scale: 0.8)
+                    slottedText(source.domain, size: 10, weight: .regular, lines: 1, color: .secondary, scale: 0.7)
                         .padding(.top, 4)
-                }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).contentShape(Rectangle())
+                }.frame(maxWidth: .infinity, alignment: .topLeading).contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityIdentifier("about-source-" + source.id)
                 .accessibilityLabel(source.title + " · " + tr("Copy link", "复制链接"))
-            // Keep an empty license slot so Artificial Analysis matches the other cards.
+            // Same-height slot. Not a button, so Artificial Analysis stays out of the license identifier.
             if showsLicense {
                 Button { about.licenseSourceID = source.id } label: {
                     Text("CC BY 4.0").font(.system(size: 11, weight: .medium)).foregroundStyle(accent)
-                        .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .contentShape(Rectangle())
-                }.buttonStyle(.plain).accessibilityIdentifier("about-license-" + source.id)
+                }.buttonStyle(.plain).frame(maxWidth: .infinity, minHeight: 28, maxHeight: 28, alignment: .leading)
+                    .accessibilityIdentifier("about-license-" + source.id)
                     .accessibilityLabel(source.title + " · CC BY 4.0 · " + tr("View license", "查看协议"))
             } else {
-                Color.clear.frame(maxWidth: .infinity, minHeight: 28).accessibilityHidden(true)
+                Color.clear.frame(maxWidth: .infinity, minHeight: 28, maxHeight: 28).accessibilityHidden(true)
             }
-        }.padding(9).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).aboutCard(outline: outline)
+        }.padding(9).frame(maxWidth: .infinity, alignment: .topLeading).aboutCard(outline: outline)
+    }
+    /// Reserves an exact line count so short labels do not shrink the card.
+    private func slottedText(_ text: String, size: CGFloat, weight: Font.Weight, lines: Int, color: Color, scale: CGFloat) -> some View {
+        ZStack(alignment: .topLeading) {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(0..<lines, id: \.self) { _ in
+                    Text(" ").font(.system(size: size, weight: weight)).lineLimit(1)
+                }
+            }.hidden().accessibilityHidden(true)
+            Text(text).font(.system(size: size, weight: weight)).foregroundStyle(color)
+                .lineLimit(lines).minimumScaleFactor(scale)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+        }.frame(maxWidth: .infinity, alignment: .topLeading)
     }
     private func investment(_ investment: PadAboutContent.Investment, months: Int) -> some View {
         VStack(alignment: .leading, spacing: 0) {
