@@ -331,8 +331,12 @@ public struct LeaderboardPadView: View {
                         .overlay(alignment: .trailing) {
                             if index == rows.count - 1 {
                                 Image(systemName: "questionmark.circle")
-                                    .font(.system(size: sizing.subtitleFontSize)).opacity(0.55)
-                                    .offset(x: sizing.subtitleFontSize * 0.45)
+                                    .resizable().scaledToFit()
+                                    // Keep the mini-program's 1em icon size. SwiftUI compresses trailing
+                                    // punctuation, so anchor after the actual text instead of its spare em.
+                                    .frame(width: sizing.subtitleFontSize, height: sizing.subtitleFontSize)
+                                    .opacity(0.55)
+                                    .offset(x: sizing.subtitleFontSize)
                                     .accessibilityHidden(true)
                             }
                         }
