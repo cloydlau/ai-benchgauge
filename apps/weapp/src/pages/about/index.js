@@ -35,10 +35,17 @@ definePage(query => {
   }
   const notices = __THIRD_PARTY_NOTICES__.map(item => ({ ...item,
     title: item.name || text([`Third-party notice ${item.number}`, `第三方软件声明 ${item.number}`, `第三方軟體聲明 ${item.number}`], language) }))
-  const licenses = { arena: arenaAttribution(language).licenseURL, epoch: epochAttribution(language).licenseURL }
+  const attributions = { arena: arenaAttribution(language), epoch: epochAttribution(language) }
   const items = leaderboardSources.map(item => ({ ...item,
     domain: item.url.split('/')[2], mark: { artificialAnalysis: 'AA', arena: 'A', epoch: 'E' }[item.id],
-    license: licenses[item.id] }))
+    license: Boolean(attributions[item.id]) }))
+  const licenseNotice = ref({ open: false, text: '' })
+  const openLicense = event => {
+    const notice = attributions[event.currentTarget.dataset.id]
+    if (!notice) return
+    licenseNotice.value = { open: true, text: notice.fullText }
+  }
+  const closeLicense = () => { licenseNotice.value = { ...licenseNotice.value, open: false } }
   const back = () => {
     if (!preferences.fromShare && getCurrentPages().length > 1) wx.navigateBack()
     else wx.reLaunch({ url: sharePath(preferences, dark ? 'dark' : 'light') })
@@ -51,6 +58,8 @@ definePage(query => {
   }
   return { labels, brandTitle, dark, statusBar, items, version: __APP_VERSION__,
     back, copyLink, notices, notice, toggleNotice, desktopDownloadURL, investment, costGroups, toggleCostGroup,
+    licenseNotice, openLicense, closeLicense,
+    viewLicenseLabel: text(['View license', '查看协议', '查看協議'], language),
     description: labels.description,
     descriptionLines: labels.description.match(/[^。.]+[。.]?/g).map(line => line.trim()),
     desktopTitle: text(['Quota lookup', '余量查询', '餘量查詢'], language),

@@ -30,7 +30,7 @@
             <text class="source-name">{{item.title}}</text>
             <text class="source-domain">{{item.domain}}</text>
           </button>
-          <button wx:if="{{item.license}}" class="source-license" data-url="{{item.license}}" bindtap="copyLink" aria-label="{{item.title}} · CC BY 4.0 · {{labels.copyLink}}">CC BY 4.0<van-icon name="link-o" size="12px" /></button>
+          <button wx:if="{{item.license}}" class="source-license" data-id="{{item.id}}" bindtap="openLicense" aria-label="{{item.title}} · CC BY 4.0 · {{viewLicenseLabel}}">CC BY 4.0</button>
         </view>
       </view>
     </view>
@@ -80,4 +80,14 @@
       </view>
     </view>
   </view>
+  <van-dialog show="{{licenseNotice.open}}" title="CC BY 4.0" use-slot
+    confirm-button-text="{{labels.gotIt}}"
+    confirm-button-color="{{dark ? '#d1dce8' : '#414d5c'}}"
+    close-on-click-overlay="{{true}}"
+    custom-style="background:var(--card);color:var(--ink);--dialog-has-title-message-text-color:var(--muted);--button-default-background-color:var(--card);"
+    bindconfirm="closeLicense" bindclose="closeLicense">
+    <scroll-view scroll-y class="license-notice">
+      <text class="license-notice-text" selectable>{{licenseNotice.text}}</text>
+    </scroll-view>
+  </van-dialog>
 </view>

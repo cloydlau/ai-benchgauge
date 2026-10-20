@@ -3,6 +3,8 @@ import test from 'node:test'
 import { registerHooks } from 'node:module'
 import { pagePreferences, sharePath } from '../src/core/share-state.js'
 import { copy, text } from '../src/core/catalog.js'
+import { arenaAttribution } from '../src/core/arena-attribution.js'
+import { epochAttribution } from '../src/core/epoch-attribution.js'
 
 const registration = registerHooks({
   resolve(specifier, context, next) {
@@ -39,11 +41,28 @@ test('about-page menu forwarding and cold-start back navigation retain the origi
     reLaunch: ({ url }) => launches.push(url),
   }
   const about = globalThis.aboutFactory(query)
-  assert.deepEqual(about.items.map(item => [item.id, item.license || null]), [
-    ['artificialAnalysis', null],
-    ['arena', 'https://creativecommons.org/licenses/by/4.0/'],
-    ['epoch', 'https://creativecommons.org/licenses/by/4.0/'],
+  assert.deepEqual(about.items.map(item => [item.id, item.license]), [
+    ['artificialAnalysis', false],
+    ['arena', true],
+    ['epoch', true],
   ])
+  assert.equal(about.licenseNotice.value.open, false)
+  about.openLicense({ currentTarget: { dataset: { id: 'unknown' } } })
+  assert.equal(about.licenseNotice.value.open, false)
+  assert.equal(about.licenseNotice.value.text, '')
+  about.openLicense({ currentTarget: { dataset: { id: 'epoch' } } })
+  assert.equal(about.licenseNotice.value.open, true)
+  assert.equal(about.licenseNotice.value.text, epochAttribution('en').fullText)
+  const opened = { ...about.licenseNotice.value }
+  about.openLicense({ currentTarget: { dataset: { id: 'unknown' } } })
+  assert.deepEqual(about.licenseNotice.value, opened)
+  about.closeLicense()
+  assert.equal(about.licenseNotice.value.open, false)
+  assert.equal(about.licenseNotice.value.text, epochAttribution('en').fullText)
+  about.openLicense({ currentTarget: { dataset: { id: 'arena' } } })
+  assert.equal(about.licenseNotice.value.text, arenaAttribution('en').fullText)
+  about.closeLicense()
+  assert.equal(about.licenseNotice.value.open, false)
   assert.equal(globalThis.aboutConfig.canShareToOthers, true)
   assert.equal(about.dark, true)
   assert.equal(about.labels.about, 'About')
