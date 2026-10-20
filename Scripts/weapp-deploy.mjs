@@ -28,6 +28,7 @@ export const sourcePaths = [
   'Sources/LeaderboardKit/SharedLeaderboardConfiguration.swift', 'config/app.json',
   'Sources/LeaderboardKit/Resources/Fonts/SlideFont-OFL.txt',
   'Sources/LeaderboardKit/Resources/EpochAttribution.json',
+  'Sources/LeaderboardKit/Resources/CC-BY-4.0.json',
   'Sources/LeaderboardKit/Resources/ModelDetailLabels.json',
   'fc/models-dev-license.txt',
   'Tests/fixtures/model-details.json',
