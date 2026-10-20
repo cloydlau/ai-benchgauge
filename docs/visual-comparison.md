@@ -1,3 +1,17 @@
+## Copy icon beside the model title — 2026-10-20
+
+The shared Apple detail view, Windows dialog and mini-program now size the model
+name to its content and place its copy button immediately after it with a gap.
+The name can still wrap within the available width; the button keeps its touch
+target. Copy feedback and detail content are unchanged.
+
+Ignored `work/copy-title-inline/` retains the common offline synthetic fixture,
+source snapshots, native Mac captures and actual verification results. Native
+Windows screenshots/actual DPI and the CI comparison artifact are unavailable
+on this Mac host. WeChat DevTools reports an expired login, so its simulator
+visual review is unavailable. Compilation is recorded separately from visual
+verification; no protected release approval is claimed.
+
 ## Neutral active country/source filter ink — 2026-10-20
 
 All four clients use their existing primary text color for active country/source

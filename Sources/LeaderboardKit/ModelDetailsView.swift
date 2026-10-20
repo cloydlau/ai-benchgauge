@@ -32,14 +32,14 @@ public struct ModelDetailsView: View {
                     Button(action: close) { Image(systemName: "xmark").frame(width: 44, height: 44).contentShape(Rectangle()) }
                         .buttonStyle(.plain).accessibilityLabel(tr("close")).accessibilityIdentifier("close-model-details")
                 }
-                HStack(alignment: .center, spacing: 10) {
+                HStack(alignment: .center, spacing: 4) {
                     Text(entry.name).font(.title2.weight(.semibold)).textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading).fixedSize(horizontal: false, vertical: true)
+                        .fixedSize(horizontal: false, vertical: true)
                     Button(action: copyModelName) {
                         Image(systemName: state.copied ? "checkmark" : "doc.on.doc").frame(width: 44, height: 44).contentShape(Rectangle())
-                    }.buttonStyle(.plain).accessibilityLabel(state.copied ? tr("copied") : tr("copy"))
+                    }.buttonStyle(.plain).fixedSize().accessibilityLabel(state.copied ? tr("copied") : tr("copy"))
                         .accessibilityIdentifier("copy-model-name")
-                }
+                }.frame(maxWidth: .infinity, alignment: .leading)
             }.padding(20)
             Divider()
             ScrollView {
