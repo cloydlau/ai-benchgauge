@@ -34,16 +34,17 @@
 .about-section { margin-top: 34rpx; }
 .section-title { display: block; margin-bottom: 22rpx; color: var(--ink); font-weight: 600; font-size: 27rpx; line-height: 1.4; }
 .sources-section > .section-title { margin-left: 8rpx; }
-.source-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12rpx; align-items: start; }
-.source-card { min-width: 0; border: 1rpx solid var(--about-outline); border-radius: 22rpx; background: var(--card); box-shadow: var(--about-shadow); }
-.source-link { display: block; width: 100%; min-width: 0; padding: 18rpx; text-align: left; }
-.source-license { display: flex; align-items: center; gap: 6rpx; width: 100%; min-height: 32px; margin-top: -8rpx; padding: 0 18rpx 14rpx; color: var(--accent); font-size: 20rpx; line-height: 1.3; text-align: left; }
+.source-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12rpx; align-items: stretch; }
+.source-card { display: flex; flex-direction: column; min-width: 0; height: 100%; border: 1rpx solid var(--about-outline); border-radius: 22rpx; background: var(--card); box-shadow: var(--about-shadow); }
+.source-link { display: flex; flex: 1 1 auto; flex-direction: column; width: 100%; min-width: 0; padding: 18rpx 18rpx 8rpx; text-align: left; }
+.source-license { display: flex; align-items: center; gap: 6rpx; width: 100%; min-height: 32px; margin-top: auto; padding: 0 18rpx 14rpx; color: var(--accent); font-size: 20rpx; line-height: 1.3; text-align: left; }
+.source-license.is-reserved { visibility: hidden; }
 .source-topline { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18rpx; color: var(--muted); }
 .source-monogram { display: flex; justify-content: center; align-items: center; width: 48rpx; height: 48rpx; border-radius: 14rpx; color: var(--blue); background: rgba(22, 117, 220, .09); font-size: 21rpx; font-weight: 600; }
 .source-arena .source-monogram { color: var(--purple); background: rgba(150, 87, 200, .09); }
 .source-epoch .source-monogram { color: #0399aa; background: rgba(3, 153, 170, .09); }
 .source-name { display: block; min-height: 2.8em; color: var(--ink); font-size: 24rpx; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
-.source-domain { display: block; margin-top: 7rpx; color: var(--muted); font-size: 19rpx; line-height: 1.4; overflow-wrap: anywhere; }
+.source-domain { display: block; min-height: 2.8em; margin-top: 7rpx; color: var(--muted); font-size: 19rpx; line-height: 1.4; overflow-wrap: anywhere; }
 
 .about-card { margin-top: 28rpx; padding: 28rpx; border: 1rpx solid var(--about-outline); border-radius: 24rpx; background: var(--card); box-shadow: var(--about-shadow); }
 .investment-heading { display: block; color: var(--muted); font-size: 22rpx; line-height: 1.5; }
