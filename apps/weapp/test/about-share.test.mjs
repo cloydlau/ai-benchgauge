@@ -5,6 +5,7 @@ import { pagePreferences, sharePath } from '../src/core/share-state.js'
 import { copy, text } from '../src/core/catalog.js'
 import { arenaAttribution } from '../src/core/arena-attribution.js'
 import { epochAttribution } from '../src/core/epoch-attribution.js'
+import { ccByLicense } from '../src/core/cc-by-4.0.js'
 
 const registration = registerHooks({
   resolve(specifier, context, next) {
@@ -52,15 +53,18 @@ test('about-page menu forwarding and cold-start back navigation retain the origi
   assert.equal(about.licenseNotice.value.text, '')
   about.openLicense({ currentTarget: { dataset: { id: 'epoch' } } })
   assert.equal(about.licenseNotice.value.open, true)
-  assert.equal(about.licenseNotice.value.text, epochAttribution('en').fullText)
+  assert.equal(about.licenseNotice.value.text, ccByLicense('en').text)
+  assert.notEqual(about.licenseNotice.value.text, epochAttribution('en').fullText)
   const opened = { ...about.licenseNotice.value }
   about.openLicense({ currentTarget: { dataset: { id: 'unknown' } } })
   assert.deepEqual(about.licenseNotice.value, opened)
   about.closeLicense()
   assert.equal(about.licenseNotice.value.open, false)
-  assert.equal(about.licenseNotice.value.text, epochAttribution('en').fullText)
+  assert.equal(about.licenseNotice.value.text, ccByLicense('en').text)
   about.openLicense({ currentTarget: { dataset: { id: 'arena' } } })
-  assert.equal(about.licenseNotice.value.text, arenaAttribution('en').fullText)
+  assert.equal(about.licenseNotice.value.text, ccByLicense('en').text)
+  assert.equal(about.licenseNotice.value.text, opened.text)
+  assert.notEqual(about.licenseNotice.value.text, arenaAttribution('en').fullText)
   about.closeLicense()
   assert.equal(about.licenseNotice.value.open, false)
   assert.equal(globalThis.aboutConfig.canShareToOthers, true)

@@ -1998,7 +1998,8 @@ final class LeaderboardAboutParityTests: XCTestCase {
             app.buttons["about-license-epoch"].tap()
             let licenseNotice = app.staticTexts["about-license-notice"]
             XCTAssertTrue(licenseNotice.waitForExistence(timeout: 3))
-            XCTAssertTrue(licenseNotice.label.contains("Epoch AI") || licenseNotice.label.contains("creativecommons.org"))
+            XCTAssertTrue(licenseNotice.label.contains(chinese ? "第一条" : "Section 1"))
+            XCTAssertFalse(licenseNotice.label.contains(chinese ? "无 Epoch AI 背书" : "no Epoch AI endorsement"))
             app.buttons["about-license-dismiss"].tap()
             XCTAssertTrue(app.buttons["about-license-epoch"].waitForExistence(timeout: 3))
             let infrastructure = app.buttons["about-cost-infrastructure"]
