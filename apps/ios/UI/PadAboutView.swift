@@ -164,39 +164,62 @@ struct PadAboutView<Brand: View>: View {
                     slottedText(source.domain, size: 10, weight: .regular, lines: 1, height: domainHeight, color: .secondary, scale: 0.65)
                         .padding(.top, 4)
                 }
-                .frame(maxWidth: .infinity, minHeight: copyHeight, maxHeight: copyHeight, alignment: .topLeading)
+                .frame(maxWidth: .infinity, height: copyHeight, alignment: .topLeading)
                 .contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityIdentifier("about-source-" + source.id)
+            }.buttonStyle(.plain)
+                .frame(maxWidth: .infinity, height: copyHeight, alignment: .topLeading)
+                .accessibilityIdentifier("about-source-" + source.id)
                 .accessibilityLabel(source.title + " · " + tr("Copy link", "复制链接"))
             // Fixed slot, not a button, so Artificial Analysis stays out of the license identifier.
-            Color.clear.frame(maxWidth: .infinity, minHeight: 28, maxHeight: 28)
+            // frame(height:) sets the ideal size; min/max alone is ignored by HStack.fixedSize.
+            Color.clear.frame(maxWidth: .infinity, height: 28)
                 .accessibilityHidden(true)
                 .overlay(alignment: .leading) {
                     if showsLicense {
                         Button { about.licenseSourceID = source.id } label: {
                             Text("CC BY 4.0").font(.system(size: 11, weight: .medium)).foregroundStyle(accent)
                                 .lineLimit(1).minimumScaleFactor(0.8)
-                                .frame(maxWidth: .infinity, minHeight: 28, maxHeight: 28, alignment: .leading)
+                                .frame(maxWidth: .infinity, height: 28, alignment: .leading)
                                 .contentShape(Rectangle())
                         }.buttonStyle(.plain)
+                            .frame(maxWidth: .infinity, height: 28, alignment: .leading)
                             .accessibilityIdentifier("about-license-" + source.id)
                             .accessibilityLabel(source.title + " · CC BY 4.0 · " + tr("View license", "查看协议"))
                     }
                 }
         }.padding(9)
-            .frame(maxWidth: .infinity, minHeight: cardHeight, maxHeight: cardHeight, alignment: .topLeading)
+            .frame(maxWidth: .infinity, height: cardHeight, alignment: .topLeading)
             .clipped()
             .aboutCard(outline: outline)
     }
-    /// UIFont line height, not a whitespace Text. SwiftUI collapses the placeholder and one card grows.
+    /// Scaled UIFont line height, not a whitespace Text. SwiftUI collapses the placeholder and one card grows.
     private func sourceSlotHeight(size: CGFloat, weight: UIFont.Weight, lines: Int) -> CGFloat {
-        ceil(UIFont.systemFont(ofSize: size, weight: weight).lineHeight) * CGFloat(max(lines, 1))
+        let traits = UITraitCollection(preferredContentSizeCategory: contentSizeCategory(dynamicTypeSize))
+        let font = UIFont.systemFont(ofSize: size, weight: weight)
+        let scaled = UIFontMetrics.default.scaledFont(for: font, compatibleWith: traits)
+        return ceil(scaled.lineHeight) * CGFloat(max(lines, 1))
+    }
+    private func contentSizeCategory(_ size: DynamicTypeSize) -> UIContentSizeCategory {
+        switch size {
+        case .xSmall: return .extraSmall
+        case .small: return .small
+        case .medium: return .medium
+        case .large: return .large
+        case .xLarge: return .extraLarge
+        case .xxLarge: return .extraExtraLarge
+        case .xxxLarge: return .extraExtraExtraLarge
+        case .accessibility1: return .accessibilityMedium
+        case .accessibility2: return .accessibilityLarge
+        case .accessibility3: return .accessibilityExtraLarge
+        case .accessibility4: return .accessibilityExtraExtraLarge
+        case .accessibility5: return .accessibilityExtraExtraExtraLarge
+        }
     }
     private func slottedText(_ text: String, size: CGFloat, weight: Font.Weight, lines: Int, height: CGFloat, color: Color, scale: CGFloat) -> some View {
         Text(text).font(.system(size: size, weight: weight)).foregroundStyle(color)
             .lineLimit(lines).minimumScaleFactor(scale).truncationMode(.tail)
             .multilineTextAlignment(.leading)
-            .frame(maxWidth: .infinity, minHeight: height, maxHeight: height, alignment: .topLeading)
+            .frame(maxWidth: .infinity, height: height, alignment: .topLeading)
             .clipped()
     }
     private func investment(_ investment: PadAboutContent.Investment, months: Int) -> some View {
