@@ -1,5 +1,9 @@
 import SwiftUI
+#if os(iOS)
 import UIKit
+#else
+import AppKit
+#endif
 import LeaderboardKit
 
 private struct SourceRow: Identifiable {
@@ -164,34 +168,35 @@ struct PadAboutView<Brand: View>: View {
                     slottedText(source.domain, size: 10, weight: .regular, lines: 1, height: domainHeight, color: .secondary, scale: 0.65)
                         .padding(.top, 4)
                 }
-                .frame(maxWidth: .infinity, height: copyHeight, alignment: .topLeading)
+                .frame(maxWidth: .infinity, alignment: .topLeading).frame(height: copyHeight, alignment: .topLeading)
                 .contentShape(Rectangle())
             }.buttonStyle(.plain)
-                .frame(maxWidth: .infinity, height: copyHeight, alignment: .topLeading)
+                .frame(maxWidth: .infinity, alignment: .topLeading).frame(height: copyHeight, alignment: .topLeading)
                 .accessibilityIdentifier("about-source-" + source.id)
                 .accessibilityLabel(source.title + " · " + tr("Copy link", "复制链接"))
             // Fixed slot, not a button, so Artificial Analysis stays out of the license identifier.
             // frame(height:) sets the ideal size; min/max alone is ignored by HStack.fixedSize.
-            Color.clear.frame(maxWidth: .infinity, height: 28)
+            Color.clear.frame(maxWidth: .infinity).frame(height: 28)
                 .accessibilityHidden(true)
                 .overlay(alignment: .leading) {
                     if showsLicense {
                         Button { about.licenseSourceID = source.id } label: {
                             Text("CC BY 4.0").font(.system(size: 11, weight: .medium)).foregroundStyle(accent)
                                 .lineLimit(1).minimumScaleFactor(0.8)
-                                .frame(maxWidth: .infinity, height: 28, alignment: .leading)
+                                .frame(maxWidth: .infinity, alignment: .leading).frame(height: 28, alignment: .leading)
                                 .contentShape(Rectangle())
                         }.buttonStyle(.plain)
-                            .frame(maxWidth: .infinity, height: 28, alignment: .leading)
+                            .frame(maxWidth: .infinity, alignment: .leading).frame(height: 28, alignment: .leading)
                             .accessibilityIdentifier("about-license-" + source.id)
                             .accessibilityLabel(source.title + " · CC BY 4.0 · " + tr("View license", "查看协议"))
                     }
                 }
         }.padding(9)
-            .frame(maxWidth: .infinity, height: cardHeight, alignment: .topLeading)
+            .frame(maxWidth: .infinity, alignment: .topLeading).frame(height: cardHeight, alignment: .topLeading)
             .clipped()
             .aboutCard(outline: outline)
     }
+    #if os(iOS)
     /// Scaled UIFont line height, not a whitespace Text. SwiftUI collapses the placeholder and one card grows.
     private func sourceSlotHeight(size: CGFloat, weight: UIFont.Weight, lines: Int) -> CGFloat {
         let traits = UITraitCollection(preferredContentSizeCategory: contentSizeCategory(dynamicTypeSize))
@@ -213,13 +218,20 @@ struct PadAboutView<Brand: View>: View {
         case .accessibility3: return .accessibilityExtraLarge
         case .accessibility4: return .accessibilityExtraExtraLarge
         case .accessibility5: return .accessibilityExtraExtraExtraLarge
+        @unknown default: return .large
         }
     }
+    #else
+    private func sourceSlotHeight(size: CGFloat, weight: NSFont.Weight, lines: Int) -> CGFloat {
+        let font = NSFont.systemFont(ofSize: size, weight: weight)
+        return ceil(font.ascender - font.descender + font.leading) * CGFloat(max(lines, 1))
+    }
+    #endif
     private func slottedText(_ text: String, size: CGFloat, weight: Font.Weight, lines: Int, height: CGFloat, color: Color, scale: CGFloat) -> some View {
         Text(text).font(.system(size: size, weight: weight)).foregroundStyle(color)
             .lineLimit(lines).minimumScaleFactor(scale).truncationMode(.tail)
             .multilineTextAlignment(.leading)
-            .frame(maxWidth: .infinity, height: height, alignment: .topLeading)
+            .frame(maxWidth: .infinity, alignment: .topLeading).frame(height: height, alignment: .topLeading)
             .clipped()
     }
     private func investment(_ investment: PadAboutContent.Investment, months: Int) -> some View {
