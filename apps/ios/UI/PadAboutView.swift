@@ -272,19 +272,22 @@ struct PadAboutView<Brand: View>: View {
             .fixedSize(horizontal: false, vertical: true)
     }
     private func licenseDialog(_ sourceID: String) -> some View {
-        let notice = sourceID == "arena" ? ArenaAttribution.fullText(language: language) : EpochAttribution.fullText(language: language)
+        // Arena and Epoch share one official deed. Attribution notices stay on source help and exports.
+        let notice = CCBYLicense.text(language: language)
         return ZStack {
             Color.black.opacity(dark ? 0.48 : 0.32).ignoresSafeArea()
                 .onTapGesture { about.licenseSourceID = nil }
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 12) {
                 Text("CC BY 4.0").font(.system(size: 16, weight: .semibold))
+                    .accessibilityIdentifier("about-license-dialog-" + sourceID)
                 ScrollView {
-                    Text(notice).font(.system(size: 13)).lineSpacing(4).foregroundStyle(.secondary)
-                        .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .accessibilityIdentifier("about-license-notice")
-                }.frame(maxHeight: dynamicTypeSize.isAccessibilitySize ? 360 : 220)
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(Array(notice.components(separatedBy: "\n\n").enumerated()), id: \.offset) { _, paragraph in
+                            licenseParagraph(paragraph)
+                        }
+                    }
+                }.frame(maxHeight: dynamicTypeSize.isAccessibilitySize ? 360 : 440)
                 Button(tr("Got it", "知道了")) { about.licenseSourceID = nil }
                     .font(.system(size: 15, weight: .semibold)).foregroundStyle(accent)
                     .frame(maxWidth: .infinity, minHeight: 44)
@@ -296,6 +299,19 @@ struct PadAboutView<Brand: View>: View {
             .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(outline, lineWidth: 0.5))
             .shadow(color: .black.opacity(0.12), radius: 18, y: 6)
             .padding(.horizontal, 28)
+        }
+    }
+
+    @ViewBuilder
+    private func licenseParagraph(_ paragraph: String) -> some View {
+        let body = Text(paragraph).font(.system(size: 13)).lineSpacing(4).foregroundStyle(.secondary)
+            .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        // Keep the section heading separately identifiable; the full deed is too long for one accessibility label.
+        if paragraph.contains("Section 1") || paragraph.contains("第一条") || paragraph.contains("第1條") {
+            body.accessibilityIdentifier("about-license-notice")
+        } else {
+            body
         }
     }
 }

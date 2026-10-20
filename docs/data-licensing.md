@@ -6,7 +6,7 @@
 
 [Epoch 官方 ECI 页面](https://epoch.ai/eci)的 Citations 段落允许在署名后使用、分发与再现数据，链接至 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)。署名作者为 Epoch AI，作品为 Epoch Capabilities Index。
 
-Mac 与 Windows 不在页脚或图片导出中展示完整许可声明，只在表头来源名后显示 `CC BY 4.0`。iPhone/iPad 与小程序的来源说明和图片导出仍使用同一份离线声明，关于页点按许可名称后以弹窗展示同一份声明 `Sources/LeaderboardKit/Resources/EpochAttribution.json`：作者、作品、原始链接、许可链接，以及筛选、公司聚合、显示四舍五入和元数据补充/规范化说明。ECI 原始模型分数保留；公司视图属于本应用的派生展示。声明独立应用且无 Epoch AI 背书。数据许可与本软件 MIT 许可分开。
+Mac 与 Windows 不在页脚或图片导出中展示完整许可声明，只在表头来源名后显示 `CC BY 4.0`。iPhone/iPad 与小程序的来源说明和图片导出仍使用同一份离线声明 `Sources/LeaderboardKit/Resources/EpochAttribution.json`：作者、作品、原始链接、许可链接，以及筛选、公司聚合、显示四舍五入和元数据补充/规范化说明。关于页点按许可名称后以弹窗展示 `Sources/LeaderboardKit/Resources/CC-BY-4.0.json` 中的 CC BY 4.0 官方正文，而不是署名说明。ECI 原始模型分数保留；公司视图属于本应用的派生展示。声明独立应用且无 Epoch AI 背书。数据许可与本软件 MIT 许可分开。
 
 ## Artificial Analysis：申请书面许可
 
@@ -44,7 +44,7 @@ Thank you,
 
 需要修正此前仅根据网站使用条款得出的概括：[Arena 官方公告](https://arena.ai/blog/arena-leaderboard-dataset)明确发布了[官方 Hugging Face 榜单数据集](https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset)，其数据集声明为 CC BY 4.0。包含 `text`、`text_style_control`、`webdev`、`text_to_image`、`text_to_video` 等子集，并有 `latest` 和 `full` split。
 
-因此本应用将 Arena 四榜的数据获取迁移到该数据集，保留作者、数据集 URL、许可证链接、修改说明和数据集发布时间/修订记录；按 CC BY 4.0 可以用于商业场景。使用开放数据集与继续抓取官网是两种路径，不能把前者的许可自动套到当前官网抓取、官网图片、商标或其他未包含的内容上。2026-10-19 已实现四张 Arena 榜单向该数据集迁移，并在各端来源说明和分享图片中补齐作者、数据集链接、许可链接及处理/无背书说明。当前 Mac 与 Windows 仅在已许可数据集适用时于表头来源名后显示 `CC BY 4.0`，不再在页脚或导出中保留完整声明；iPhone/iPad 与小程序的来源说明和导出仍保留完整声明，关于页以弹窗展示同一份声明。线上验证状态见[迁移记录](arena-dataset-migration.md)。该迁移不授予官网图片或商标的额外权限。
+因此本应用将 Arena 四榜的数据获取迁移到该数据集，保留作者、数据集 URL、许可证链接、修改说明和数据集发布时间/修订记录；按 CC BY 4.0 可以用于商业场景。使用开放数据集与继续抓取官网是两种路径，不能把前者的许可自动套到当前官网抓取、官网图片、商标或其他未包含的内容上。2026-10-19 已实现四张 Arena 榜单向该数据集迁移，并在各端来源说明和分享图片中补齐作者、数据集链接、许可链接及处理/无背书说明。当前 Mac 与 Windows 仅在已许可数据集适用时于表头来源名后显示 `CC BY 4.0`，不再在页脚或导出中保留完整声明；iPhone/iPad 与小程序的来源说明和导出仍保留完整声明，关于页以弹窗展示 `Sources/LeaderboardKit/Resources/CC-BY-4.0.json` 中的 CC BY 4.0 官方正文。线上验证状态见[迁移记录](arena-dataset-migration.md)。该迁移不授予官网图片或商标的额外权限。
 
 已逐项核对类别、style control、分数口径和发布时间；文本采用 `text_style_control/latest/overall`，WebDev、文生图、文生视频采用对应子集的 `latest/overall`。不混用类别补齐一张榜，不承诺日更；实测各榜发布日期不同。若数据集能满足需求，通常不需要另买一份该数据集的数据使用许可；若需要更实时的数据、未公开字段、官网资源或继续原抓取方式，向官方申请额外书面许可。
 
