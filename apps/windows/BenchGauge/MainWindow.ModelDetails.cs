@@ -37,7 +37,9 @@ sealed partial class MainWindow
             FontFamily = FontFamily, FontSize = 13 };
         AutomationProperties.SetAutomationId(dialog, "model-details");
         var layout = new DockPanel(); dialog.Content = layout;
-        var header = new DockPanel { Margin = new Thickness(20) };
+        var header = new Grid { Margin = new Thickness(20), HorizontalAlignment = HorizontalAlignment.Left };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         DockPanel.SetDock(header, Dock.Top); layout.Children.Add(header);
         var copy = new Button { Content = PanelIcon("copy", PanelInk, 18, 18), Width = 36, Height = 36,
             Background = Brushes.Transparent, BorderThickness = new Thickness(0), Margin = new Thickness(10, 0, 0, 0),
@@ -49,7 +51,7 @@ sealed partial class MainWindow
                 copy.ToolTip = Tr("Copied", "已复制", "已複製"); AutomationProperties.SetName(copy, (string)copy.ToolTip); }
             catch (System.Runtime.InteropServices.COMException) { copy.ToolTip = Tr("Copy failed", "复制失败", "複製失敗"); }
         };
-        DockPanel.SetDock(copy, Dock.Right); header.Children.Add(copy);
+        Grid.SetColumn(copy, 1); header.Children.Add(copy);
         header.Children.Add(new TextBlock { Text = entry.Name, FontSize = 21, FontWeight = FontWeights.SemiBold, Foreground = PanelInk,
             TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center });
         var content = new StackPanel { Margin = new Thickness(20, 0, 20, 20) };
