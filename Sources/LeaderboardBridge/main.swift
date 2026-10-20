@@ -247,7 +247,7 @@ actor Engine {
             case "captureXAI":
                 guard let text = request.pageText, text.utf8.count <= 1_048_576 else { return Response(id: request.id, error: "No matching plan date") }
                 if client == nil { client = AccountQuotaClient(officialQuotaSource: official) }
-                let authURL = CCSwitchProviderStore.resolveInstall().xaiAuthURL
+                let authURL = XaiAuthFile.defaultURL
                 guard try await client!.captureXAIWebsiteSubscription(Data(text.utf8), authFileURL: authURL) else {
                     return Response(id: request.id, error: "No matching plan date")
                 }
@@ -257,7 +257,7 @@ actor Engine {
                 chips = chips.map { byID[$0.id] ?? $0 }
                 quotaUpdatedAt = QuotaFreshness.updatedAt(afterRefreshing: refreshed, previous: quotaUpdatedAt, now: Date())
             case "keepAliveXAI":
-                let authURL = CCSwitchProviderStore.resolveInstall().xaiAuthURL
+                let authURL = XaiAuthFile.defaultURL
                 if Self.selectedXAIAuthAccountID(at: authURL) != nil {
                     if client == nil { client = AccountQuotaClient(officialQuotaSource: official) }
                     await refreshXAIKeepAliveIfDue(authFileURL: authURL)
@@ -287,7 +287,7 @@ actor Engine {
                 try await refreshQuotas(onlyCurrent: false, requestedProviderID: id)
             case "watchXAILogin":
                 guard allowsAccountAccess else { throw XAIDeviceLoginError.cancelled }
-                let url = CCSwitchProviderStore.resolveInstall().xaiAuthURL
+                let url = XaiAuthFile.defaultURL
                 let revision = XAISharedLoginRevision(url: url)
                 guard sharedXAILoginRevision != revision else { return Response(id: request.id) }
                 sharedXAILoginRevision = revision
@@ -296,7 +296,7 @@ actor Engine {
                 }
             case "connectXAI":
                 guard allowsAccountAccess else { throw XAIDeviceLoginError.cancelled }
-                let attempt = try await xaiLogin.start(authFileURL: CCSwitchProviderStore.resolveInstall().xaiAuthURL)
+                let attempt = try await xaiLogin.startForBenchGauge()
                 return Response(id: request.id, authorizationURL: attempt.authorizationURL.absoluteString,
                     loginID: attempt.id, userCode: attempt.userCode, loginState: "waiting",
                     pollInterval: attempt.interval, expiresIn: max(0, attempt.expiresAt.timeIntervalSinceNow))
@@ -435,7 +435,7 @@ actor Engine {
             }
             if client == nil { client = AccountQuotaClient(officialQuotaSource: official) }
             if list.contains(where: { $0.kind == .xaiOAuth }) {
-                await refreshXAIKeepAliveIfDue(authFileURL: install.xaiAuthURL)
+                await refreshXAIKeepAliveIfDue(authFileURL: XAILoginStore.authURL(sharedAuthURL: install.xaiAuthURL))
             } else {
                 xaiKeepAliveAccountID = nil
                 nextXAIKeepAliveAt = nil
@@ -456,7 +456,7 @@ actor Engine {
             }
             guard let client, !refreshing.isEmpty else { return }
             for target in refreshing { lastQuotaAttemptAtByID[target.id] = now }
-            let refreshed = try await client.refresh(targets: refreshing, previous: chips, authFileURL: install.xaiAuthURL)
+            let refreshed = try await client.refresh(targets: refreshing, previous: chips, authFileURL: XAILoginStore.authURL(sharedAuthURL: install.xaiAuthURL))
             let result = Dictionary(uniqueKeysWithValues: refreshed.map { ($0.id, $0) })
             chips = chips.map { result[$0.id] ?? $0 }
             quotaUpdatedAt = QuotaFreshness.updatedAt(afterRefreshing: refreshed, previous: quotaUpdatedAt, now: Date())

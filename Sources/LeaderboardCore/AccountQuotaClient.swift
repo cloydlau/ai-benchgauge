@@ -162,7 +162,7 @@ final class QuotaRedirectRejector: NSObject, URLSessionTaskDelegate, @unchecked 
 
 extension XaiAuthFile {
     public static var defaultURL: URL {
-        CCSwitchProviderStore.defaultXAIAuthURL
+        XAILoginStore.authURL()
     }
 
     /// Rewrites `refresh_token` only when the file still contains `oldToken`.
@@ -350,7 +350,8 @@ public actor AccountQuotaClient {
         return targets.compactMap { byID[$0.id] }
     }
 
-    /// Rotates the selected xAI login only while CC Switch is stopped. The
+    /// Renews the app-owned login even while CC Switch runs. Legacy shared
+    /// credentials remain protected against competing rotation. The
     /// scheduler uses the returned outcome to distinguish a renewed login from
     /// a transient failure that should be retried.
     public func keepAliveXAI(authFileURL: URL? = nil) async throws -> XAIOAuthKeepAliveOutcome {
@@ -920,12 +921,22 @@ actor XAIAccessTokens {
     }
 
     private let rotateRefreshToken: @Sendable (URL, String, String, String) -> Bool
-    private let refreshAllowed: @Sendable () -> Bool
+    private let refreshAllowed: (@Sendable () -> Bool)?
+    private let managedAuthDirectory: URL
+    private let ccSwitchRunning: @Sendable () -> Bool
     init(rotateRefreshToken: @escaping @Sendable (URL, String, String, String) -> Bool = { url, account, old, new in
         XaiAuthFile.commitRefreshTokenReplacement(at: url, accountID: account, oldToken: old, newToken: new)
-    }, refreshAllowed: @escaping @Sendable () -> Bool = { !CCSwitchProcess.isRunning() }) {
+    }, refreshAllowed: (@Sendable () -> Bool)? = nil, managedAuthDirectory: URL = XAILoginStore.directory,
+       ccSwitchRunning: @escaping @Sendable () -> Bool = { CCSwitchProcess.isRunning() }) {
         self.rotateRefreshToken = rotateRefreshToken
         self.refreshAllowed = refreshAllowed
+        self.managedAuthDirectory = managedAuthDirectory
+        self.ccSwitchRunning = ccSwitchRunning
+    }
+
+    private func canRefresh(_ url: URL) -> Bool {
+        if let refreshAllowed { return refreshAllowed() }
+        return XAILoginStore.isAppManaged(url, directory: managedAuthDirectory) || !ccSwitchRunning()
     }
 
     private var cached: CachedToken?
@@ -1057,7 +1068,7 @@ actor XAIAccessTokens {
         now: Date
     ) async throws -> XAITokenResult {
         // Shared-token ownership is a temporary local state, not a network failure.
-        guard refreshAllowed() else { return .failure(.refreshDeferred) }
+        guard canRefresh(authFileURL) else { return .failure(.refreshDeferred) }
         if let inFlightRefresh {
             let result = try await inFlightRefresh.task.value
             if inFlightRefresh.account == account, inFlightRefresh.url == authFileURL { return result }
@@ -1093,7 +1104,7 @@ actor XAIAccessTokens {
 
         // Discovery suspends this actor. CC Switch may have started or changed
         // the file in the meantime; do not send the earlier token snapshot.
-        guard refreshAllowed() else { return .failure(.refreshDeferred) }
+        guard canRefresh(authFileURL) else { return .failure(.refreshDeferred) }
         guard case let .account(current) = Self.readLogin(at: authFileURL), current == account else {
             return .failure(.network)
         }
