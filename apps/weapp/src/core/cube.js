@@ -12,12 +12,15 @@ export function cubeRenderedFace(index, origin, direction, count) {
 
 // Match the native App's edge-hinged, 90-degree faces. At rest the active
 // scroll-view has no transform, so its native hit testing stays ordinary.
-export function cubeFaceStyle(index, position, duration = 0, active = false) {
+export function cubeFaceStyle(index, position, duration = 0, active = false, origin = 0, direction = 1) {
   const distance = index - position
   const flat = Math.abs(distance) < 0.0001
-  const hidden = Math.abs(distance) > 0.9999
-  const visibleDuringTurn = active && Math.abs(distance) <= 1.0001
-  return `transform:${flat ? 'none' : `translateX(${distance * 100}%) rotateY(${hidden && !visibleDuringTurn ? 0 : distance * 90}deg)`};transform-origin:${distance > 0 ? 'left' : 'right'} center;transition-duration:${duration}ms;opacity:${hidden && !visibleDuringTurn ? 0 : 1};z-index:${Math.abs(distance) <= 0.5 ? 2 : 1};pointer-events:${flat ? 'auto' : 'none'};`
+  // CSS receives the destination before it interpolates. Keep the same two
+  // hosts and hinges at both endpoints, including when the incoming face is flat.
+  const visibleDuringTurn = active && (index === origin || index === origin + direction)
+  const hidden = Math.abs(distance) > 0.9999 || (active && !visibleDuringTurn)
+  const hinge = active ? (index === origin ? -direction : direction) : distance
+  return `transform:${flat ? 'none' : `translateX(${distance * 100}%) rotateY(${hidden && !visibleDuringTurn ? 0 : distance * 90}deg)`};transform-origin:${hinge > 0 ? 'left' : 'right'} center;transition-duration:${duration}ms;opacity:${hidden && !visibleDuringTurn ? 0 : 1};z-index:${Math.abs(distance) <= 0.5 ? 2 : 1};pointer-events:${flat ? 'auto' : 'none'};`
 }
 
 export function cubeGesture(face, x, y, time, count = 2) {
