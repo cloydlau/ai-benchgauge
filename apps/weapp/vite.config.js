@@ -35,7 +35,7 @@ for (const [name, manifest] of [['Vue Reactivity', reactivityPackage], ['Vue Sha
 // copyrights, permission terms and disclaimers remain byte-for-byte intact.
 const publishedNotices = notices.map((item, index) => {
   const number = String(index + 1).padStart(2, '0')
-  return { id: item.id || `third-party-${number}`, number, name: item.id === 'models-dev' ? item.name : undefined,
+  return { id: item.id || `third-party-${number}`, number,
     licenseName: item.licenseName || 'MIT', license: item.license }
 })
 

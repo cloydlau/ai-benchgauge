@@ -96,6 +96,7 @@ struct LeaderboardView: View {
         let headerWidth = LeaderboardCategory.allCases.flatMap(\.boardKinds).map { kind in
             SourceTableHeaderView.requiredNameColumnWidth(
                 title: LeaderboardPresentation.columnTitle(kind, language: state.selectedLanguage),
+                licenseName: headerLicenseName(kind: kind, board: state.snapshot.boards[kind]),
                 summary: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(kind, language: state.selectedLanguage)))
         }.max() ?? 0
         let desired = max(minimumWidth, ceil(max(columnWidth, headerWidth) * CGFloat(state.visibleBoardKinds.count) + tableChromeWidth(boardCount: state.visibleBoardKinds.count) + 88))
@@ -499,6 +500,7 @@ struct LeaderboardView: View {
         .overlay(TableChrome(
             boards: visibleKinds.map { kind in
                 BoardHeaderConfiguration(kind: kind,
+                    licenseName: headerLicenseName(kind: kind, board: state.snapshot.boards[kind]),
                     summary: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(kind, language: language)),
                     time: LeaderboardPresentation.displayTime(state.snapshot.boards[kind], language: language),
                     help: LeaderboardPresentation.columnTitle(kind, language: language) + "\n" + LeaderboardPresentation.sourceHelp(kind, language: language, board: state.snapshot.boards[kind]),
@@ -722,14 +724,11 @@ struct LeaderboardView: View {
     }
 
     private var footer: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ViewThatFits(in: .horizontal) {
-                footerRow(compact: false, showsSourceLinks: true)
-                footerRow(compact: false, showsSourceLinks: false)
-                footerRow(compact: true, showsSourceLinks: false)
-                footerRow(compact: true, showsSourceLinks: false, stacked: true)
-            }
-            epochAttribution
+        ViewThatFits(in: .horizontal) {
+            footerRow(compact: false, showsSourceLinks: true)
+            footerRow(compact: false, showsSourceLinks: false)
+            footerRow(compact: true, showsSourceLinks: false)
+            footerRow(compact: true, showsSourceLinks: false, stacked: true)
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -740,34 +739,12 @@ struct LeaderboardView: View {
         .accessibilityIdentifier("leaderboard-footer")
     }
 
-    @ViewBuilder private var epochAttribution: some View {
-        if visibleKinds.contains(.epochECI) {
-            VStack(alignment: .leading, spacing: 3) {
-                Link(EpochAttribution.credit, destination: URL(string: EpochAttribution.licenseURL)!)
-                    .pointingHandCursor()
-                Text(EpochAttribution.links).textSelection(.enabled)
-                Text(EpochAttribution.changes(language: language))
-            }
-            .font(.system(size: 10)).lineLimit(nil)
-            .fixedSize(horizontal: false, vertical: true)
-            .accessibilityIdentifier("epoch-data-attribution")
-        }
-        if visibleKinds.contains(where: { ArenaAttribution.applies(state.snapshot.boards[$0]) }) {
-            Text(ArenaAttribution.fullText(language: language))
-                .font(.system(size: 10)).lineLimit(nil)
-                .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
-                .accessibilityIdentifier("arena-data-attribution")
-        }
-    }
-
-    /// Shared images retain data attribution while replacing panel controls.
+    /// A shared image needs a readable project address in place of controls.
+    /// Keep the same single-row footer and canvas size as the live panel.
     private var screenshotFooter: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ViewThatFits(in: .horizontal) {
-                screenshotFooterRow(showsSources: true)
-                screenshotFooterRow(showsSources: false)
-            }
-            epochAttribution
+        ViewThatFits(in: .horizontal) {
+            screenshotFooterRow(showsSources: true)
+            screenshotFooterRow(showsSources: false)
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -1099,8 +1076,13 @@ struct LeaderboardView: View {
 
 /// SwiftUI's TableColumn labels only support plain text. Install a native
 /// one-line header with the source name leading and its own data time trailing.
+private func headerLicenseName(kind: LeaderboardKind, board: Leaderboard?) -> String? {
+    kind == .epochECI || ArenaAttribution.applies(board) ? "CC BY 4.0" : nil
+}
+
 private struct BoardHeaderConfiguration {
     let kind: LeaderboardKind
+    let licenseName: String?
     let summary: SourceLensDescription
     let time: String
     let help: String
@@ -1366,9 +1348,11 @@ private final class SourceTableHeaderView: NSTableHeaderView {
     /// loading bar is near-black in light mode and near-white in dark mode.
     static let placeholderAlpha: CGFloat = 35.0 / 255.0
 
-    static func requiredNameColumnWidth(title: String, summary: SourceLensDescription) -> CGFloat {
-        ceil((title as NSString).size(withAttributes: [
-            .font: NSFont.systemFont(ofSize: 11, weight: .semibold)
+    static func requiredNameColumnWidth(title: String, licenseName: String?, summary: SourceLensDescription) -> CGFloat {
+        let titleFont = NSFont.systemFont(ofSize: 11, weight: .semibold)
+        let titled = licenseName.map { title + " · " + $0 } ?? title
+        return ceil((titled as NSString).size(withAttributes: [
+            .font: titleFont
         ]).width + ((" · " + summary.emphasis) as NSString).size(withAttributes: [
             .font: NSFont.systemFont(ofSize: 10)
         ]).width + ("12/31 23:59" as NSString).size(withAttributes: [
@@ -1469,7 +1453,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
                 let tint: NSColor = board.kind == .epochECI ? .systemTeal
                     : (board.kind.sourceLinkTitle == LeaderboardKind.artificialAnalysis.sourceLinkTitle ? .systemBlue : .systemPurple)
                 drawBoardHeader(tableView.tableColumns[index].headerCell.stringValue,
-                    summary: board.summary, time: board.time, tint: tint, in: rect)
+                    licenseName: board.licenseName, summary: board.summary, time: board.time, tint: tint, in: rect)
             case 1: drawCountryHeader(selected: board.country, in: rect)
             case 2: drawFilterHeader(title: ModelOpenness.columnTitle(language: language), active: board.openness != .all, in: rect)
             default: tableView.tableColumns[index].headerCell.draw(withFrame: rect, in: self)
@@ -1574,6 +1558,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
 
     private func drawBoardHeader(
         _ title: String,
+        licenseName: String?,
         summary: SourceLensDescription,
         time: String,
         tint: NSColor,
@@ -1593,15 +1578,26 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         let summaryFont = NSFont.systemFont(ofSize: 10)
         let available = max(0, nameRect.width - 10)
         let titleWidth = (title as NSString).size(withAttributes: [.font: titleFont]).width
-        // Preserve the source identity before the explanation in narrow columns.
+        // Preserve the source identity before the license name and explanation.
         let visibleTitle = titleWidth > available
             ? title.replacingOccurrences(of: "Artificial Analysis", with: "AA") : title
         let text = NSMutableAttributedString(string: visibleTitle, attributes: [
             .font: titleFont, .foregroundColor: tint
         ])
+        let license = licenseName.map { " · " + $0 }
+        let licenseWidth = license.map { ($0 as NSString).size(withAttributes: [.font: titleFont]).width } ?? 0
+        let showsLicense = license != nil && text.size().width + licenseWidth <= available
+        if showsLicense, let license {
+            text.append(NSAttributedString(string: license, attributes: [
+                .font: titleFont, .foregroundColor: tint
+            ]))
+        }
         let explanation = NSAttributedString(string: " · " + summary.emphasis,
             attributes: [.font: summaryFont, .foregroundColor: tint])
-        if text.size().width + explanation.size().width <= available { text.append(explanation) }
+        // Drop the explanation before the license name. Hide both extras when the license does not fit.
+        if (license == nil || showsLicense), text.size().width + explanation.size().width <= available {
+            text.append(explanation)
+        }
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineBreakMode = .byTruncatingTail
         text.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: text.length))
