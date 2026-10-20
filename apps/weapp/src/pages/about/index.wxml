@@ -31,6 +31,7 @@
             <text class="source-domain">{{item.domain}}</text>
           </button>
           <button wx:if="{{item.license}}" class="source-license" data-id="{{item.id}}" bindtap="openLicense" aria-label="{{item.title}} · CC BY 4.0 · {{viewLicenseLabel}}">CC BY 4.0</button>
+          <view wx:else class="source-license is-reserved" aria-hidden="true">CC BY 4.0</view>
         </view>
       </view>
     </view>

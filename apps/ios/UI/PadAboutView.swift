@@ -1,6 +1,11 @@
 import SwiftUI
 import LeaderboardKit
 
+private struct SourceRow: Identifiable {
+    let id: String
+    let items: [PadAboutContent.Source]
+}
+
 @MainActor
 private final class PadAboutState: ObservableObject {
     // Command Line Tools do not ship SwiftUIMacros, so this stays an
@@ -28,7 +33,14 @@ struct PadAboutView<Brand: View>: View {
     private var inset: Color { BrandTheme.surface(for: colorScheme) }
     private var accent: Color { BrandTheme.accent(for: colorScheme) }
     private var columns: [GridItem] { Array(repeating: GridItem(.flexible(), spacing: 8), count: dynamicTypeSize.isAccessibilitySize ? 1 : 2) }
-    private var sourceColumns: [GridItem] { Array(repeating: GridItem(.flexible(), spacing: 6, alignment: .top), count: dynamicTypeSize.isAccessibilitySize ? 1 : 3) }
+    private var sourceColumnCount: Int { dynamicTypeSize.isAccessibilitySize ? 1 : 3 }
+    private func sourceRows(_ sources: [PadAboutContent.Source]) -> [SourceRow] {
+        let count = sourceColumnCount
+        return stride(from: 0, to: sources.count, by: count).map { start in
+            let items = Array(sources[start..<min(start + count, sources.count)])
+            return SourceRow(id: items.map(\.id).joined(separator: "-"), items: items)
+        }
+    }
     private func tr(_ en: String, _ zh: String) -> String { language.text(en, zh) }
 
     var body: some View {
@@ -70,9 +82,13 @@ struct PadAboutView<Brand: View>: View {
             quota(content.desktopDownloadURL)
             Text(tr("Data sources", "数据来源")).font(.system(size: 14, weight: .semibold))
                 .padding(.leading, 4).padding(.top, 17).padding(.bottom, 11)
-            LazyVGrid(columns: sourceColumns, alignment: .leading, spacing: 8) {
-                ForEach(content.sources) { source in
-                    sourceCard(source)
+            Grid(alignment: .leading, horizontalSpacing: 6, verticalSpacing: 8) {
+                ForEach(sourceRows(content.sources)) { row in
+                    GridRow(alignment: .top) {
+                        ForEach(row.items) { source in
+                            sourceCard(source)
+                        }
+                    }
                 }
             }
             investment(copy.investment, months: content.schedule.months(at: Date()))
@@ -123,7 +139,7 @@ struct PadAboutView<Brand: View>: View {
     private func sourceCard(_ source: PadAboutContent.Source) -> some View {
         let mark = source.id == "artificialAnalysis" ? "AA" : source.id == "arena" ? "A" : "E"
         let color: Color = source.id == "artificialAnalysis" ? .blue : source.id == "arena" ? .purple : .cyan
-        let licenseURL = source.id == "arena" ? ArenaAttribution.licenseURL : source.id == "epoch" ? EpochAttribution.licenseURL : nil
+        let showsLicense = source.id == "arena" || source.id == "epoch"
         return VStack(alignment: .leading, spacing: 6) {
             Button { copyLink(source.url) } label: {
                 VStack(alignment: .leading, spacing: 0) {
@@ -137,21 +153,26 @@ struct PadAboutView<Brand: View>: View {
                     }.padding(.bottom, 9)
                     Text(source.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(.primary)
                         .fixedSize(horizontal: false, vertical: true)
-                        .frame(minHeight: 36, alignment: .topLeading)
-                    Text(source.domain).font(.system(size: 10)).foregroundStyle(.secondary).padding(.top, 4)
+                        .frame(maxWidth: .infinity, minHeight: 36, alignment: .topLeading)
+                    Text(source.domain).font(.system(size: 10)).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                        .frame(maxWidth: .infinity, minHeight: 28, alignment: .topLeading)
+                        .padding(.top, 4)
+                }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityIdentifier("about-source-" + source.id)
                 .accessibilityLabel(source.title + " · " + tr("Copy link", "复制链接"))
-            if licenseURL != nil {
+            // Keep an empty license slot so Artificial Analysis matches the other cards.
+            if showsLicense {
                 Button { about.licenseSourceID = source.id } label: {
                     Text("CC BY 4.0").font(.system(size: 11, weight: .medium)).foregroundStyle(accent)
                         .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
                         .contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityIdentifier("about-license-" + source.id)
                     .accessibilityLabel(source.title + " · CC BY 4.0 · " + tr("View license", "查看协议"))
+            } else {
+                Color.clear.frame(maxWidth: .infinity, minHeight: 28).accessibilityHidden(true)
             }
-        }.padding(9).frame(maxWidth: .infinity, alignment: .leading).aboutCard(outline: outline)
+        }.padding(9).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).aboutCard(outline: outline)
     }
     private func investment(_ investment: PadAboutContent.Investment, months: Int) -> some View {
         VStack(alignment: .leading, spacing: 0) {
