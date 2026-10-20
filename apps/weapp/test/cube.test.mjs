@@ -134,10 +134,18 @@ test('cyclic two- and three-source cubes keep both hosts on adjacent hinges acro
       const incoming = cubeRenderedFace(next, face, direction, count)
       assert.equal(outgoing - position, -direction * 0.5)
       assert.equal(incoming - position, direction * 0.5)
-      assert.match(cubeFaceStyle(incoming, position, 0, true), /opacity:1/)
-      assert.match(cubeFaceStyle(incoming, target, 320, true), /transform:none/)
-      for (let other = 0; other < count; other++) if (other !== face && other !== next) {
-        assert.match(cubeFaceStyle(cubeRenderedFace(other, face, direction, count), position, 0, true), /opacity:0/)
+      for (const progress of [0, 0.25, 0.5, 0.75, 1]) {
+        const point = face + direction * progress
+        const leaving = cubeFaceStyle(outgoing, point, 420, true, face, direction)
+        const entering = cubeFaceStyle(incoming, point, 420, true, face, direction)
+        assert.match(leaving, new RegExp(`transform-origin:${direction > 0 ? 'right' : 'left'} center`))
+        assert.match(entering, new RegExp(`transform-origin:${direction > 0 ? 'left' : 'right'} center`))
+        assert.match(leaving, /opacity:1/)
+        assert.match(entering, /opacity:1/)
+        if (progress === 1) assert.match(entering, /transform:none/)
+        for (let other = 0; other < count; other++) if (other !== face && other !== next) {
+          assert.match(cubeFaceStyle(cubeRenderedFace(other, face, direction, count), point, 420, true, face, direction), /opacity:0/)
+        }
       }
       face = next
     }

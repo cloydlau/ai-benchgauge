@@ -76,11 +76,11 @@ definePage(query => {
   const entranceProgress = ref(1)
   const entranceHintVisible = ref(false)
   const entranceStyle = computed(() => entranceProgress.value === 1 ? 'transition-duration:420ms;opacity:1;transform:none;'
-    : 'transition-duration:0ms;opacity:0.65;transform:translateY(6px) scale(0.9925);')
+    : 'transition-duration:0ms;opacity:0.65;transform:translateY(12px) scale(0.985);')
   const cubeFaces = computed(() => current.value.kinds.map((_, index) => {
     const position = cubeRenderedFace(index, cubeOrigin.value, cubeDirection.value, current.value.kinds.length)
     const displayed = cubeWaiting.value ? cubeOrigin.value : cubePosition.value
-    return { style: cubeFaceStyle(position, displayed, cubeDuration.value, cubeBusy.value),
+    return { style: cubeFaceStyle(position, displayed, cubeDuration.value, cubeBusy.value, cubeOrigin.value, cubeDirection.value),
       shade: Math.abs(position - displayed) * 0.18 }
   }))
   const sourceDragIndex = ref(null)
@@ -217,6 +217,8 @@ definePage(query => {
     }
     position ??= cubeTarget(face.value, destination, current.value.kinds.length)
     blurModelSearch()
+    // Keep the post-swipe tap guard through the 420ms settle, even after a pause.
+    if (gesture?.axis === 'horizontal') suppressTapUntil = Date.now() + 500
     cubeDragging.value = false
     entranceProgress.value = 1; entranceHintVisible.value = false
     clearTimeout(cubeTimer); clearTimeout(entranceTimer)
@@ -239,7 +241,7 @@ definePage(query => {
       cubeWaiting.value = false
       cubeTimer = setTimeout(() => {
         if (!alive) return
-        cubeDuration.value = 320; cubePosition.value = position; cubeClipTop.value = null
+        cubeDuration.value = 420; cubePosition.value = position; cubeClipTop.value = null
         cubeTimer = setTimeout(() => {
           if (!alive) return
           cubeBusy.value = false; cubeDuration.value = 0
@@ -247,7 +249,7 @@ definePage(query => {
           measureLists()
           const next = queuedCubeFace; queuedCubeFace = null
           if (next != null && next !== face.value) turnCube(next)
-        }, 340)
+        }, 440)
       }, 24)
     })
   }
@@ -300,12 +302,12 @@ definePage(query => {
       cubeOrigin.value = face.value; cubeDirection.value = face.value ? -1 : 1
       alignFace(face.value === 0 ? 1 : face.value - 1)
       cubeBusy.value = true; cubeDuration.value = 0
-      cubePosition.value = face.value + (face.value ? -0.09 : 0.09)
+      cubePosition.value = face.value + (face.value ? -0.18 : 0.18)
       entranceProgress.value = 0; entranceHintVisible.value = true
       entranceTimer = setTimeout(() => {
         if (!alive) return
         entranceProgress.value = 1
-        cubeDuration.value = 420; cubePosition.value = face.value + (face.value ? -0.14 : 0.14)
+        cubeDuration.value = 420; cubePosition.value = face.value + (face.value ? -0.28 : 0.28)
         entranceTimer = setTimeout(() => {
           if (!alive) return
           // An introduction returns to the saved face without persisting a turn.
