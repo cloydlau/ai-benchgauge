@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import LeaderboardKit
 
 private struct SourceRow: Identifiable {
@@ -141,9 +142,13 @@ struct PadAboutView<Brand: View>: View {
         let mark = source.id == "artificialAnalysis" ? "AA" : source.id == "arena" ? "A" : "E"
         let color: Color = source.id == "artificialAnalysis" ? .blue : source.id == "arena" ? .purple : .cyan
         let showsLicense = source.id == "arena" || source.id == "epoch"
-        // Wide accessibility cards fit on one line; the three-column row reserves two for the long name and domain.
+        // Wide accessibility cards fit on one line. The three-column row always reserves two,
+        // because a whitespace placeholder collapses and lets Artificial Analysis grow the card.
         let titleLines = dynamicTypeSize.isAccessibilitySize ? 1 : 2
-        let domainLines = dynamicTypeSize.isAccessibilitySize ? 1 : 2
+        let titleHeight = sourceSlotHeight(size: 13, weight: .semibold, lines: titleLines)
+        let domainHeight = sourceSlotHeight(size: 10, weight: .regular, lines: 1)
+        let copyHeight = 24 + 9 + titleHeight + 4 + domainHeight
+        let cardHeight = 9 + copyHeight + 6 + 28 + 9
         return VStack(alignment: .leading, spacing: 6) {
             Button { copyLink(source.url) } label: {
                 VStack(alignment: .leading, spacing: 0) {
@@ -152,48 +157,47 @@ struct PadAboutView<Brand: View>: View {
                             .foregroundStyle(color)
                             .frame(width: 24, height: 24)
                             .background(color.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
-                        Spacer()
+                        Spacer(minLength: 4)
                         Image(systemName: "link").font(.system(size: 12)).foregroundStyle(.secondary)
                     }.frame(height: 24).padding(.bottom, 9)
-                    slottedText(source.title, size: 13, weight: .semibold, lines: titleLines, color: .primary, scale: 0.8)
-                    slottedText(source.domain, size: 10, weight: .regular, lines: domainLines, color: .secondary, scale: 0.7)
+                    slottedText(source.title, size: 13, weight: .semibold, lines: titleLines, height: titleHeight, color: .primary, scale: 0.8)
+                    slottedText(source.domain, size: 10, weight: .regular, lines: 1, height: domainHeight, color: .secondary, scale: 0.65)
                         .padding(.top, 4)
-                }.frame(maxWidth: .infinity, alignment: .topLeading).contentShape(Rectangle())
+                }
+                .frame(maxWidth: .infinity, minHeight: copyHeight, maxHeight: copyHeight, alignment: .topLeading)
+                .contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityIdentifier("about-source-" + source.id)
                 .accessibilityLabel(source.title + " · " + tr("Copy link", "复制链接"))
-            // Same-height slot. Not a button, so Artificial Analysis stays out of the license identifier.
-            if showsLicense {
-                Button { about.licenseSourceID = source.id } label: {
-                    Text("CC BY 4.0").font(.system(size: 11, weight: .medium)).foregroundStyle(accent)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
-                }.buttonStyle(.plain).frame(maxWidth: .infinity, minHeight: 28, maxHeight: 28, alignment: .leading)
-                    .accessibilityIdentifier("about-license-" + source.id)
-                    .accessibilityLabel(source.title + " · CC BY 4.0 · " + tr("View license", "查看协议"))
-            } else {
-                Color.clear.frame(maxWidth: .infinity, minHeight: 28, maxHeight: 28).accessibilityHidden(true)
-            }
+            // Fixed slot, not a button, so Artificial Analysis stays out of the license identifier.
+            Color.clear.frame(maxWidth: .infinity, minHeight: 28, maxHeight: 28)
+                .accessibilityHidden(true)
+                .overlay(alignment: .leading) {
+                    if showsLicense {
+                        Button { about.licenseSourceID = source.id } label: {
+                            Text("CC BY 4.0").font(.system(size: 11, weight: .medium)).foregroundStyle(accent)
+                                .lineLimit(1).minimumScaleFactor(0.8)
+                                .frame(maxWidth: .infinity, minHeight: 28, maxHeight: 28, alignment: .leading)
+                                .contentShape(Rectangle())
+                        }.buttonStyle(.plain)
+                            .accessibilityIdentifier("about-license-" + source.id)
+                            .accessibilityLabel(source.title + " · CC BY 4.0 · " + tr("View license", "查看协议"))
+                    }
+                }
         }.padding(9)
-            // maxHeight stretches the card chrome to the row. fixedSize on the row keeps that height finite.
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: cardHeight, maxHeight: cardHeight, alignment: .topLeading)
+            .clipped()
             .aboutCard(outline: outline)
     }
-    /// Reserves an exact line count so short labels do not shrink the card.
-    /// The placeholder owns the height; wrapping text is overlaid and cannot grow one card.
-    private func slottedText(_ text: String, size: CGFloat, weight: Font.Weight, lines: Int, color: Color, scale: CGFloat) -> some View {
-        let placeholder = Array(repeating: " ", count: max(lines, 1)).joined(separator: "\n")
-        return Text(placeholder)
-            .font(.system(size: size, weight: weight))
-            .lineLimit(lines)
-            .hidden()
-            .accessibilityHidden(true)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .overlay(alignment: .topLeading) {
-                Text(text).font(.system(size: size, weight: weight)).foregroundStyle(color)
-                    .lineLimit(lines).minimumScaleFactor(scale)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            }
+    /// UIFont line height, not a whitespace Text. SwiftUI collapses the placeholder and one card grows.
+    private func sourceSlotHeight(size: CGFloat, weight: UIFont.Weight, lines: Int) -> CGFloat {
+        ceil(UIFont.systemFont(ofSize: size, weight: weight).lineHeight) * CGFloat(max(lines, 1))
+    }
+    private func slottedText(_ text: String, size: CGFloat, weight: Font.Weight, lines: Int, height: CGFloat, color: Color, scale: CGFloat) -> some View {
+        Text(text).font(.system(size: size, weight: weight)).foregroundStyle(color)
+            .lineLimit(lines).minimumScaleFactor(scale).truncationMode(.tail)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, minHeight: height, maxHeight: height, alignment: .topLeading)
+            .clipped()
     }
     private func investment(_ investment: PadAboutContent.Investment, months: Int) -> some View {
         VStack(alignment: .leading, spacing: 0) {
