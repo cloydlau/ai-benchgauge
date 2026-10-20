@@ -141,8 +141,9 @@ struct PadAboutView<Brand: View>: View {
         let mark = source.id == "artificialAnalysis" ? "AA" : source.id == "arena" ? "A" : "E"
         let color: Color = source.id == "artificialAnalysis" ? .blue : source.id == "arena" ? .purple : .cyan
         let showsLicense = source.id == "arena" || source.id == "epoch"
-        // Wide accessibility cards fit the title on one line; the three-column row reserves two.
+        // Wide accessibility cards fit on one line; the three-column row reserves two for the long name and domain.
         let titleLines = dynamicTypeSize.isAccessibilitySize ? 1 : 2
+        let domainLines = dynamicTypeSize.isAccessibilitySize ? 1 : 2
         return VStack(alignment: .leading, spacing: 6) {
             Button { copyLink(source.url) } label: {
                 VStack(alignment: .leading, spacing: 0) {
@@ -155,7 +156,7 @@ struct PadAboutView<Brand: View>: View {
                         Image(systemName: "link").font(.system(size: 12)).foregroundStyle(.secondary)
                     }.frame(height: 24).padding(.bottom, 9)
                     slottedText(source.title, size: 13, weight: .semibold, lines: titleLines, color: .primary, scale: 0.8)
-                    slottedText(source.domain, size: 10, weight: .regular, lines: 1, color: .secondary, scale: 0.7)
+                    slottedText(source.domain, size: 10, weight: .regular, lines: domainLines, color: .secondary, scale: 0.7)
                         .padding(.top, 4)
                 }.frame(maxWidth: .infinity, alignment: .topLeading).contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityIdentifier("about-source-" + source.id)
@@ -172,20 +173,27 @@ struct PadAboutView<Brand: View>: View {
             } else {
                 Color.clear.frame(maxWidth: .infinity, minHeight: 28, maxHeight: 28).accessibilityHidden(true)
             }
-        }.padding(9).frame(maxWidth: .infinity, alignment: .topLeading).aboutCard(outline: outline)
+        }.padding(9)
+            // maxHeight stretches the card chrome to the row. fixedSize on the row keeps that height finite.
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .aboutCard(outline: outline)
     }
     /// Reserves an exact line count so short labels do not shrink the card.
+    /// The placeholder owns the height; wrapping text is overlaid and cannot grow one card.
     private func slottedText(_ text: String, size: CGFloat, weight: Font.Weight, lines: Int, color: Color, scale: CGFloat) -> some View {
-        ZStack(alignment: .topLeading) {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(0..<lines, id: \.self) { _ in
-                    Text(" ").font(.system(size: size, weight: weight)).lineLimit(1)
-                }
-            }.hidden().accessibilityHidden(true)
-            Text(text).font(.system(size: size, weight: weight)).foregroundStyle(color)
-                .lineLimit(lines).minimumScaleFactor(scale)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-        }.frame(maxWidth: .infinity, alignment: .topLeading)
+        let placeholder = Array(repeating: " ", count: max(lines, 1)).joined(separator: "\n")
+        return Text(placeholder)
+            .font(.system(size: size, weight: weight))
+            .lineLimit(lines)
+            .hidden()
+            .accessibilityHidden(true)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .overlay(alignment: .topLeading) {
+                Text(text).font(.system(size: size, weight: weight)).foregroundStyle(color)
+                    .lineLimit(lines).minimumScaleFactor(scale)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
     }
     private func investment(_ investment: PadAboutContent.Investment, months: Int) -> some View {
         VStack(alignment: .leading, spacing: 0) {

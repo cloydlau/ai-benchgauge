@@ -27,11 +27,12 @@
         <view wx:for="{{items}}" wx:key="id" class="source-card source-{{item.id}}">
           <button class="source-link" data-url="{{item.url}}" bindtap="copyLink" aria-label="{{item.title}} · {{labels.copyLink}}">
             <view class="source-topline"><text class="source-monogram" aria-hidden="true">{{item.mark}}</text><van-icon name="link-o" size="14px" /></view>
-            <text class="source-name">{{item.title}}</text>
-            <text class="source-domain">{{item.domain}}</text>
+            <view class="source-name-slot"><text class="source-name">{{item.title}}</text></view>
+            <view class="source-domain-slot"><text class="source-domain">{{item.domain}}</text></view>
           </button>
-          <button wx:if="{{item.license}}" class="source-license" data-id="{{item.id}}" bindtap="openLicense" aria-label="{{item.title}} · CC BY 4.0 · {{viewLicenseLabel}}">CC BY 4.0</button>
-          <view wx:else class="source-license is-reserved" aria-hidden="true">CC BY 4.0</view>
+          <view class="source-license-slot">
+            <button wx:if="{{item.license}}" class="source-license" data-id="{{item.id}}" bindtap="openLicense" aria-label="{{item.title}} · CC BY 4.0 · {{viewLicenseLabel}}">CC BY 4.0</button>
+          </view>
         </view>
       </view>
     </view>
