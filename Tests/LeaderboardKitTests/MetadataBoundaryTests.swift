@@ -29,6 +29,13 @@ struct MetadataBoundaryTests {
         try Data("Executable".utf8).write(to: executable)
         #expect(try BundledResource.url("notice", extension: "txt", main: empty, module: module, executable: executable) == executable)
         #expect(try BundledResource.url("notice", extension: "txt", main: main, module: module, executable: executable).resolvingSymlinksInPath().path == mainFile.resolvingSymlinksInPath().path)
+        var fallbackLoads = 0
+        func fallbackBundle() -> Bundle { fallbackLoads += 1; return module }
+        let primary = try BundledResource.url("notice", extension: "txt", main: main, module: fallbackBundle())
+        #expect(primary.resolvingSymlinksInPath().path == mainFile.resolvingSymlinksInPath().path)
+        #expect(fallbackLoads == 0)
+        _ = try BundledResource.url("notice", extension: "txt", main: empty, module: fallbackBundle())
+        #expect(fallbackLoads == 1)
         #expect(throws: CocoaError.self) { try BundledResource.url("absent", extension: "txt", main: main, module: module) }
         #expect(try ModelsDevAttribution.readLicense(at: mainFile) == "Main")
         #expect(throws: (any Error).self) { try EpochAttribution.load(from: executable) }
