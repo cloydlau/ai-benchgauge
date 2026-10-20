@@ -1288,10 +1288,13 @@ private struct PadBoardCard: View {
                 else {
                     countryColumn {
                         Menu {
-                            ForEach(countryOptions, id: \.self) { option in
-                                Button { selectCountry(option) } label: {
-                                    if option == filter { Label(option.title(language: language), systemImage: "checkmark") }
-                                    else { Text(option.title(language: language)) }
+                            Section(tr("Country", "国家")) {
+                                ForEach(countryOptions, id: \.self) { option in
+                                    Button { selectCountry(option) } label: {
+                                        let title = option == .all ? tr("All", "全部") : option.title(language: language)
+                                        if option == filter { Label(title, systemImage: "checkmark") }
+                                        else { Text(title) }
+                                    }
                                 }
                             }
                         } label: { countryHeaderLabel }
@@ -1303,11 +1306,14 @@ private struct PadBoardCard: View {
                     if isImage { opennessHeaderLabel }
                     else {
                         Menu {
-                            ForEach(LeaderboardOpennessFilter.allCases, id: \.self) { option in
-                                Button { selectOpenness(option) } label: {
-                                    if option == opennessFilter { Label(option.title(language: language), systemImage: "checkmark") }
-                                    else { Text(option.title(language: language)) }
-                                }.accessibilityIdentifier("openness-option-\(kind.rawValue)-\(option.rawValue)")
+                            Section(ModelOpenness.columnTitle(language: language)) {
+                                ForEach(LeaderboardOpennessFilter.allCases, id: \.self) { option in
+                                    Button { selectOpenness(option) } label: {
+                                        let title = option == .all ? tr("All", "全部") : option.title(language: language)
+                                        if option == opennessFilter { Label(title, systemImage: "checkmark") }
+                                        else { Text(title) }
+                                    }.accessibilityIdentifier("openness-option-\(kind.rawValue)-\(option.rawValue)")
+                                }
                             }
                         } label: { opennessHeaderLabel }
                         .buttonStyle(.plain).accessibilityIdentifier("openness-filter-\(kind.rawValue)")
