@@ -110,7 +110,7 @@ private struct QuotaChipView: View {
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .disabled(isConnectingOpenAI || (chip.kind == .zhipu && chip.status == .pending))
+            .disabled(isConnectingOpenAI || ([.zhipu, .xaiOAuth].contains(chip.kind) && chip.status == .pending))
         } else {
             chipBody
         }
@@ -157,6 +157,12 @@ private struct QuotaChipView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             } else {
+                if chip.status == .pending {
+                    ProgressView()
+                        .controlSize(.mini)
+                        .frame(width: 12, height: 12)
+                        .accessibilityHidden(true)
+                }
                 QuotaRunsText(runs: runs, dimmed: isDimmed)
             }
         }

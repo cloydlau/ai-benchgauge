@@ -200,14 +200,11 @@ final class AppState: ObservableObject {
         )
         xaiWebsiteSource.onData = { [weak self] data in
             guard let self, let client = self.quotaClient, !self.isQuitting else { return false }
-            let authURL = CCSwitchProviderStore.resolveInstall().xaiAuthURL
+            let authURL = XaiAuthFile.defaultURL
             return (try? await client.captureXAIWebsiteSubscription(data, authFileURL: authURL)) == true
         }
         xaiConnection.onConnected = { [weak self] in
-            guard let self, !self.isQuitting else { return }
-            self.refreshQuotas(minimumInterval: 0)
-            await self.quotaTask?.value
-            await self.xaiQuotaTask?.value
+            self?.refreshXAIQuotasAfterAuthorization()
         }
         xaiWebsiteSource.onUpdated = { [weak self] in self?.refreshQuotas(minimumInterval: 0) }
         qwenWebsiteSource.onUpdated = { [weak self] status in
@@ -465,7 +462,7 @@ final class AppState: ObservableObject {
         RunLoop.main.add(timer, forMode: .common)
         updateTimer = timer
         sharedXAILoginTimer?.invalidate()
-        sharedXAILoginRevision = XAISharedLoginRevision(url: CCSwitchProviderStore.resolveInstall().xaiAuthURL)
+        sharedXAILoginRevision = XAISharedLoginRevision(url: XaiAuthFile.defaultURL)
         let sharedTimer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self, !self.isQuitting else { return }
@@ -479,7 +476,7 @@ final class AppState: ObservableObject {
 
     private func refreshSharedXAILoginIfChanged() {
         guard !isQuitting else { return }
-        let revision = XAISharedLoginRevision(url: CCSwitchProviderStore.resolveInstall().xaiAuthURL)
+        let revision = XAISharedLoginRevision(url: XaiAuthFile.defaultURL)
         guard revision != sharedXAILoginRevision else { return }
         sharedXAILoginRevision = revision
         let targets = quotaTargetsByID.values.filter { $0.kind == .xaiOAuth }
@@ -678,7 +675,7 @@ final class AppState: ObservableObject {
                     result: result,
                     isInstalled: isInstalled,
                     currentProviderID: currentID,
-                    xaiAuthURL: install.xaiAuthURL,
+                    xaiAuthURL: XAILoginStore.authURL(sharedAuthURL: install.xaiAuthURL),
                     officialTargets: officialTargets,
                     ccSwitchTargets: ccSwitchTargets,
                     shouldAskClaudeKeychainConsent: shouldAsk
@@ -808,6 +805,14 @@ final class AppState: ObservableObject {
         xaiQuotaTargetIDs = []
     }
 
+    /// Publish the loading state immediately; authorization must not wait for
+    /// quota requests, including unrelated providers already being refreshed.
+    func refreshXAIQuotasAfterAuthorization(authFileURL: URL = XaiAuthFile.defaultURL) {
+        guard !isQuitting else { return }
+        let targets = quotaTargetsByID.values.filter { $0.kind == .xaiOAuth }
+        refreshXAIQuotas(targets: targets, authFileURL: authFileURL)
+    }
+
     private func refreshXAIQuotas(targets: [CCSwitchQuotaTarget], authFileURL: URL) {
         guard !isQuitting, !targets.isEmpty else { return }
         let revision = XAISharedLoginRevision(url: authFileURL)
@@ -821,7 +826,11 @@ final class AppState: ObservableObject {
         let client = quotaClient!
         for id in ids { lastQuotaAttemptAtByID[id] = Date() }
         quotaChips = quotaChips.map { chip in
-            guard ids.contains(chip.id), case .note(AccountQuotaMessage.xaiRefreshDeferred, _) = chip.status else { return chip }
+            guard ids.contains(chip.id) else { return chip }
+            let deferred: Bool
+            if case .note(AccountQuotaMessage.xaiRefreshDeferred, _) = chip.status { deferred = true }
+            else { deferred = false }
+            guard AccountQuotaFormatting.requiresXAISignIn(chip) || deferred else { return chip }
             return AccountQuotaChip(id: chip.id, shortName: chip.shortName, modelName: chip.modelName,
                 websiteURL: chip.websiteURL, kind: chip.kind, isCurrent: chip.isCurrent, status: .pending)
         }
@@ -855,15 +864,14 @@ final class AppState: ObservableObject {
         }
     }
 
-    /// Requests renewal while CC Switch is stopped; otherwise defers without
-    /// rotating the token cached by its running proxy.
+    /// Renews BenchGauge’s separate session without interrupting CC Switch.
     /// Runs while the panel is hidden or Codex/user activity is idle. This task
     /// is separate from quotaTask so ordinary quota refresh cancellation cannot
     /// postpone renewal or interrupt saving a rotated token.
     private func startXAIKeepAliveIfNeeded() {
         guard !isQuitting, configuration.previewCCSwitchState == nil,
               xaiKeepAliveTask == nil else { return }
-        let authURL = CCSwitchProviderStore.resolveInstall().xaiAuthURL
+        let authURL = XaiAuthFile.defaultURL
         guard Self.selectedXAIAuthAccountID(at: authURL) != nil else { return }
         xaiKeepAliveTask = Task { [weak self] in
             guard let self else { return }

@@ -28,6 +28,10 @@ public enum XAIDeviceLoginPoll: Equatable, Sendable {
 }
 
 public actor XAIDeviceLogin {
+    private struct AccountBinding {
+        let sharedAuthURL: URL
+        let accountID: String?
+    }
     private struct Pending {
         let attempt: XAIDeviceLoginAttempt
         let deviceCode: String
@@ -36,6 +40,8 @@ public actor XAIDeviceLogin {
         let authURL: URL
         let original: XaiAuthFile.Account?
         let originalDefaultID: String?
+        let binding: AccountBinding?
+        let expectedAccountID: String?
         var interval: TimeInterval
         var nextPoll: Date
         var polling = false
@@ -68,12 +74,24 @@ public actor XAIDeviceLogin {
 
     func currentDate() -> Date { now() }
 
+    public func startForBenchGauge(sharedAuthURL: URL = CCSwitchProviderStore.defaultXAIAuthURL,
+                                  directory: URL = XAILoginStore.directory) async throws -> XAIDeviceLoginAttempt {
+        let accountID = XAILoginStore.selectedAccountID(sharedAuthURL: sharedAuthURL)
+        return try await start(authFileURL: XAILoginStore.authURL(accountID: accountID, directory: directory),
+                               binding: AccountBinding(sharedAuthURL: sharedAuthURL, accountID: accountID))
+    }
+
     public func start(authFileURL: URL = XaiAuthFile.defaultURL) async throws -> XAIDeviceLoginAttempt {
+        try await start(authFileURL: authFileURL, binding: nil)
+    }
+
+    private func start(authFileURL: URL, binding: AccountBinding?) async throws -> XAIDeviceLoginAttempt {
         try Task.checkCancellation()
         cancel()
         let generation = self.generation
         let initial = try Self.snapshot(at: authFileURL)
         let original = initial.flatMap(XaiAuthFile.selectedAccount)
+        let expectedAccountID = binding?.accountID ?? original?.id
         let discovery = try await json(request: URLRequest(url: XaiEndpointValidator.discoveryURL, timeoutInterval: 15))
         guard let issuer = discovery["issuer"] as? String, XaiEndpointValidator.isTrustedIssuer(issuer),
               let device = Self.endpoint(discovery["device_authorization_endpoint"]),
@@ -98,6 +116,7 @@ public actor XAIDeviceLogin {
             expiresAt: now().addingTimeInterval(expires), interval: interval)
         pending = Pending(attempt: attempt, deviceCode: code, tokenEndpoint: token, userEndpoint: user,
             authURL: authFileURL, original: original, originalDefaultID: initial?.defaultAccountID,
+            binding: binding, expectedAccountID: expectedAccountID,
             interval: interval, nextPoll: now().addingTimeInterval(interval))
         return attempt
     }
@@ -152,8 +171,12 @@ public actor XAIDeviceLogin {
         let user = try await json(request: userRequest)
         try ensureActive(id)
         guard let accountID = Self.nonempty(user["sub"]) else { cancel(); throw XAIDeviceLoginError.invalidResponse }
-        if let original = entry.original, original.id != accountID {
+        if let expected = entry.expectedAccountID, expected != accountID {
             cancel(); throw XAIDeviceLoginError.accountMismatch
+        }
+        if let binding = entry.binding,
+           XAILoginStore.selectedAccountID(sharedAuthURL: binding.sharedAuthURL) != binding.accountID {
+            cancel(); throw XAIDeviceLoginError.accountChanged
         }
         try Self.saveLogin(accountID: accountID, refreshToken: refresh,
             login: Self.nonempty(user["email"]) ?? Self.nonempty(user["name"]), entry: entry, now: now(), operations: fileOperations)
@@ -308,9 +331,9 @@ public enum XAIDeviceLoginText {
         case "denied": language.text("Authorization was declined. Try again when you are ready.", "授权已被拒绝，可以重新发起登录。")
         case "network": language.text("The auth service could not be reached. Check your connection and try again.", "暂时无法连接授权服务，请检查网络后重试。")
         case "accountMismatch": language.text("This is a different xAI account. Try again with the account used in CC Switch.", "登录的 xAI 账号与 CC Switch 中的账号不同，请使用原账号重试。")
-        case "accountChanged": language.text("The shared login changed during authorization. Try again.", "授权期间共用登录发生了变化，请重新登录。")
-        case "storage": language.text("Could not save the shared login. Check the CC Switch directory permissions and try again.", "共用登录未能保存，请检查 CC Switch 目录权限后重试。")
-        case "saved": language.text("Signed in. BenchGauge refreshes automatically. Restart a running CC Switch to load the shared login.", "登录成功，BenchGauge 会自动刷新余量。如 CC Switch 正在运行，请重启它以载入共用登录。")
+        case "accountChanged": language.text("The selected login changed during authorization. Try again.", "授权期间所选账号发生了变化，请重新登录。")
+        case "storage": language.text("Could not save the login. Check the BenchGauge data directory permissions and try again.", "登录未能保存，请检查 AI 天梯数据目录权限后重试。")
+        case "saved": language.text("Signed in. Quota refreshes automatically, even while CC Switch is running.", "登录成功，余量会自动刷新，CC Switch 可保持运行。")
         default: language.text("Authorization did not finish. Try again.", "授权未完成，请重试。")
         }
     }

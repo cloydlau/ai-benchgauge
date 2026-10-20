@@ -34,9 +34,9 @@ sealed class XAIAccountConnectionWindow : Window
         var stack = new StackPanel { Margin = new Thickness(24) };
         stack.Children.Add(new TextBlock { Text = Title, FontSize = 17, FontWeight = FontWeights.Bold });
         stack.Children.Add(new TextBlock { Margin = new Thickness(0, 18, 0, 18), FontSize = 13, TextWrapping = TextWrapping.Wrap,
-            Text = Tr("Sign in with the same xAI account as CC Switch. Both apps share this login; your refresh token stays on this computer.",
-                "请使用与 CC Switch 相同的 xAI 账号登录。两边共用此登录，刷新令牌只保存在本机。",
-                "請使用與 CC Switch 相同的 xAI 帳號登入。兩邊共用此登入，刷新令牌只保存在本機。") });
+            Text = Tr("Sign in once with your CC Switch xAI account. BenchGauge refreshes independently; CC Switch can stay open.",
+                "使用与 CC Switch 相同的 xAI 账号授权一次，AI 天梯即可独立更新余量，无需退出 CC Switch。",
+                "使用與 CC Switch 相同的 xAI 帳號授權一次，AI 天梯即可獨立更新餘量，無需退出 CC Switch。") });
         stack.Children.Add(code);
         status.Margin = new Thickness(0, 18, 0, 18); stack.Children.Add(status);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal };
@@ -83,8 +83,12 @@ sealed class XAIAccountConnectionWindow : Window
                 var result = await engine.Request("pollXAI", prefs, loginID: id);
                 cancel.ThrowIfCancellationRequested();
                 if (result.LoginState == "waiting") { interval = result.PollInterval ?? interval; continue; }
-                ShowState(result.LoginState ?? "failed");
-                if (result.LoginState == "saved" && result.Result is { } next) update?.Invoke(next);
+                if (result.LoginState == "saved")
+                {
+                    Hide();
+                    if (result.Result is { } next) update?.Invoke(next);
+                }
+                else ShowState(result.LoginState ?? "failed");
                 return;
             }
         }
@@ -122,9 +126,9 @@ sealed class XAIAccountConnectionWindow : Window
             "denied" => Tr("Authorization was declined. Try again when you are ready.", "授权已被拒绝，可以重新发起登录。", "授權已被拒絕，可以重新發起登入。"),
             "network" => Tr("The auth service could not be reached. Check your connection and try again.", "暂时无法连接授权服务，请检查网络后重试。", "暫時無法連接授權服務，請檢查網絡後重試。"),
             "accountMismatch" => Tr("This is a different xAI account. Try again with the account used in CC Switch.", "登录的 xAI 账号与 CC Switch 中的账号不同，请使用原账号重试。", "登入的 xAI 帳號與 CC Switch 中的帳號不同，請使用原帳號重試。"),
-            "accountChanged" => Tr("The shared login changed during authorization. Try again.", "授权期间共用登录发生了变化，请重新登录。", "授權期間共用登入發生了變化，請重新登入。"),
-            "storage" => Tr("Could not save the shared login. Check the CC Switch directory permissions and try again.", "共用登录未能保存，请检查 CC Switch 目录权限后重试。", "共用登入未能保存，請檢查 CC Switch 目錄權限後重試。"),
-            "saved" => Tr("Signed in. BenchGauge refreshes automatically. Restart a running CC Switch to load the shared login.", "登录成功，BenchGauge 会自动刷新余量。如 CC Switch 正在运行，请重启它以载入共用登录。", "登入成功，BenchGauge 會自動刷新餘量。如 CC Switch 正在運行，請重啟它以載入共用登入。"),
+            "accountChanged" => Tr("The selected login changed during authorization. Try again.", "授权期间所选账号发生了变化，请重新登录。", "授權期間所選帳號發生了變化，請重新登入。"),
+            "storage" => Tr("Could not save the login. Check the BenchGauge data directory permissions and try again.", "登录未能保存，请检查 AI 天梯数据目录权限后重试。", "登入未能保存，請檢查 AI 天梯資料目錄權限後重試。"),
+            "saved" => Tr("Signed in. Quota refreshes automatically, even while CC Switch is running.", "登录成功，余量会自动刷新，CC Switch 可保持运行。", "登入成功，餘量會自動刷新，CC Switch 可保持運行。"),
             _ => Tr("Authorization did not finish. Try again.", "授权未完成，请重试。", "授權未完成，請重試。")
         };
     }
