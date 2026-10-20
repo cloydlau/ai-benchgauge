@@ -35,10 +35,10 @@ Ag</text>
             <view class="source-domain-slot" style="box-sizing:border-box;width:100%;height:28rpx;min-height:28rpx;max-height:28rpx;margin-top:6rpx;overflow:hidden;">
               <text class="source-domain" style="display:block;box-sizing:border-box;width:100%;height:28rpx;overflow:hidden;line-height:28rpx;font-size:16rpx;white-space:nowrap;text-overflow:ellipsis;">{{item.domain}}</text>
             </view>
-            <button class="source-link" style="position:absolute;z-index:1;top:0;left:0;display:block;box-sizing:border-box;width:100%;height:164rpx;min-height:0;max-height:164rpx;margin:0;padding:0;border:0;line-height:1;background:transparent;" data-url="{{item.url}}" bindtap="copyLink" aria-label="{{item.title}} · {{labels.copyLink}}"><view style="width:100%;height:164rpx;"></view></button>
+            <view class="source-link" hover-class="source-link-active" style="position:absolute;z-index:1;top:0;left:0;display:block;box-sizing:border-box;width:100%;height:164rpx;min-height:164rpx;max-height:164rpx;margin:0;padding:0;background:transparent;" data-url="{{item.url}}" bindtap="copyLink" aria-role="button" aria-label="{{item.title}} · {{labels.copyLink}}"><view style="width:100%;height:164rpx;"></view></view>
           </view>
           <view class="source-license-slot" style="position:relative;z-index:2;flex:none;box-sizing:border-box;width:100%;height:44rpx;min-height:44rpx;max-height:44rpx;margin-top:8rpx;overflow:hidden;">
-            <button wx:if="{{item.license}}" class="source-license" style="display:flex;align-items:center;box-sizing:border-box;width:100%;height:44rpx;min-height:0;max-height:44rpx;margin:0;padding:0;border:0;line-height:44rpx;background:transparent;text-align:left;" data-id="{{item.id}}" bindtap="openLicense" aria-label="{{item.title}} · CC BY 4.0 · {{viewLicenseLabel}}">CC BY 4.0</button>
+            <view wx:if="{{item.license}}" class="source-license" hover-class="source-license-active" hover-stop-propagation="{{true}}" style="display:flex;align-items:center;box-sizing:border-box;width:100%;height:44rpx;min-height:44rpx;max-height:44rpx;margin:0;padding:0;line-height:44rpx;background:transparent;text-align:left;" data-id="{{item.id}}" catchtap="openLicense" aria-role="button" aria-label="{{item.title}} · CC BY 4.0 · {{viewLicenseLabel}}">CC BY 4.0</view>
           </view>
         </view>
       </view>
