@@ -34,17 +34,22 @@
 .about-section { margin-top: 34rpx; }
 .section-title { display: block; margin-bottom: 22rpx; color: var(--ink); font-weight: 600; font-size: 27rpx; line-height: 1.4; }
 .sources-section > .section-title { margin-left: 8rpx; }
-.source-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12rpx; align-items: stretch; }
-.source-card { display: flex; flex-direction: column; min-width: 0; height: 100%; border: 1rpx solid var(--about-outline); border-radius: 22rpx; background: var(--card); box-shadow: var(--about-shadow); }
-.source-link { display: flex; flex: 1 1 auto; flex-direction: column; width: 100%; min-width: 0; padding: 18rpx 18rpx 8rpx; text-align: left; }
-.source-license { display: flex; align-items: center; gap: 6rpx; width: 100%; min-height: 32px; margin-top: auto; padding: 0 18rpx 14rpx; color: var(--accent); font-size: 20rpx; line-height: 1.3; text-align: left; }
-.source-license.is-reserved { visibility: hidden; }
-.source-topline { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18rpx; color: var(--muted); }
-.source-monogram { display: flex; justify-content: center; align-items: center; width: 48rpx; height: 48rpx; border-radius: 14rpx; color: var(--blue); background: rgba(22, 117, 220, .09); font-size: 21rpx; font-weight: 600; }
+.source-grid { display: flex; align-items: stretch; gap: 12rpx; }
+.source-card { display: flex; flex: 1 1 0; flex-direction: column; width: 0; min-width: 0; box-sizing: border-box; overflow: hidden; border: 1rpx solid var(--about-outline); border-radius: 22rpx; background: var(--card); box-shadow: var(--about-shadow); }
+.source-link { display: flex; flex: 1 1 auto; flex-direction: column; box-sizing: border-box; width: 100%; min-width: 0; height: auto; margin: 0; padding: 18rpx 18rpx 0; border: 0; line-height: 1.4; text-align: left; background: transparent; }
+.source-link::after, .source-license::after { border: 0; }
+.source-license-slot { position: relative; flex: 0 0 60rpx; height: 60rpx; margin-top: auto; overflow: hidden; }
+.source-license { position: absolute; top: 0; right: 18rpx; left: 18rpx; display: flex; align-items: center; box-sizing: border-box; width: auto; height: 44rpx; min-height: 44rpx; max-height: 44rpx; margin: 0; padding: 0; border: 0; color: var(--accent); background: transparent; font-size: 20rpx; line-height: 44rpx; text-align: left; }
+.source-topline { display: flex; justify-content: space-between; align-items: center; height: 48rpx; margin-bottom: 18rpx; color: var(--muted); }
+.source-monogram { display: flex; justify-content: center; align-items: center; flex-shrink: 0; width: 48rpx; height: 48rpx; border-radius: 14rpx; color: var(--blue); background: rgba(22, 117, 220, .09); font-size: 21rpx; font-weight: 600; }
 .source-arena .source-monogram { color: var(--purple); background: rgba(150, 87, 200, .09); }
 .source-epoch .source-monogram { color: #0399aa; background: rgba(3, 153, 170, .09); }
-.source-name { display: block; min-height: 2.8em; color: var(--ink); font-size: 24rpx; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
-.source-domain { display: block; min-height: 2.8em; margin-top: 7rpx; color: var(--muted); font-size: 19rpx; line-height: 1.4; overflow-wrap: anywhere; }
+.source-name-slot, .source-domain-slot { overflow: hidden; }
+.source-name-slot { height: 68rpx; }
+.source-domain-slot { height: 54rpx; margin-top: 7rpx; }
+.source-name, .source-domain { display: block; overflow: hidden; overflow-wrap: anywhere; }
+.source-name { color: var(--ink); font-size: 24rpx; font-weight: 600; line-height: 34rpx; }
+.source-domain { color: var(--muted); font-size: 19rpx; line-height: 27rpx; }
 
 .about-card { margin-top: 28rpx; padding: 28rpx; border: 1rpx solid var(--about-outline); border-radius: 24rpx; background: var(--card); box-shadow: var(--about-shadow); }
 .investment-heading { display: block; color: var(--muted); font-size: 22rpx; line-height: 1.5; }
@@ -87,7 +92,6 @@
 
 @media (max-width: 340px) {
   .about-card { padding: 24rpx; }
-  .source-link { padding: 18rpx; }
   .quota-card { gap: 14rpx; }
   .cost-total { padding: 18rpx; }
   .cost-total-value { font-size: 29rpx; }
