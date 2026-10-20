@@ -24,22 +24,18 @@
     <view class="about-section sources-section">
       <text class="section-title">{{sourcesTitle}}</text>
       <view class="source-grid">
-        <view wx:for="{{items}}" wx:key="id" class="source-card source-{{item.id}}" style="display:flex;flex:1 1 0;flex-direction:column;box-sizing:border-box;width:0;min-width:0;height:244rpx;min-height:244rpx;max-height:244rpx;overflow:hidden;padding:18rpx 16rpx 10rpx;">
-          <view class="source-body" style="position:relative;flex:none;box-sizing:border-box;width:100%;height:164rpx;min-height:164rpx;max-height:164rpx;overflow:hidden;">
-            <view class="source-topline" style="display:flex;justify-content:space-between;align-items:center;box-sizing:border-box;width:100%;height:48rpx;min-height:48rpx;max-height:48rpx;margin:0 0 14rpx;overflow:hidden;"><text class="source-monogram" aria-hidden="true">{{item.mark}}</text><van-icon name="link-o" size="14px" /></view>
-            <view class="source-name-slot" style="position:relative;box-sizing:border-box;width:100%;height:68rpx;min-height:68rpx;max-height:68rpx;overflow:hidden;">
-              <text class="source-name-spacer" aria-hidden="true" style="display:block;width:100%;height:68rpx;overflow:hidden;line-height:34rpx;font-size:24rpx;font-weight:600;visibility:hidden;">Ag
-Ag</text>
-              <text class="source-name" style="position:absolute;top:0;right:0;left:0;display:block;box-sizing:border-box;width:100%;height:68rpx;overflow:hidden;line-height:34rpx;font-size:24rpx;font-weight:600;">{{item.title}}</text>
-            </view>
-            <view class="source-domain-slot" style="box-sizing:border-box;width:100%;height:28rpx;min-height:28rpx;max-height:28rpx;margin-top:6rpx;overflow:hidden;">
-              <text class="source-domain" style="display:block;box-sizing:border-box;width:100%;height:28rpx;overflow:hidden;line-height:28rpx;font-size:16rpx;white-space:nowrap;text-overflow:ellipsis;">{{item.domain}}</text>
-            </view>
-            <view class="source-link" hover-class="source-link-active" style="position:absolute;z-index:1;top:0;left:0;display:block;box-sizing:border-box;width:100%;height:164rpx;min-height:164rpx;max-height:164rpx;margin:0;padding:0;background:transparent;" data-url="{{item.url}}" bindtap="copyLink" aria-role="button" aria-label="{{item.title}} · {{labels.copyLink}}"><view style="width:100%;height:164rpx;"></view></view>
+        <view wx:for="{{items}}" wx:key="id" class="source-card source-{{item.id}}" hover-class="source-card-active" data-url="{{item.url}}" bindtap="copyLink" aria-role="button" aria-label="{{item.title}} · {{labels.copyLink}}">
+          <view class="source-topline">
+            <view class="source-monogram" aria-hidden="true">{{item.mark}}</view>
+            <van-icon name="link-o" size="14px" />
           </view>
-          <view class="source-license-slot" style="position:relative;z-index:2;flex:none;box-sizing:border-box;width:100%;height:44rpx;min-height:44rpx;max-height:44rpx;margin-top:8rpx;overflow:hidden;">
-            <view wx:if="{{item.license}}" class="source-license" hover-class="source-license-active" hover-stop-propagation="{{true}}" style="display:flex;align-items:center;box-sizing:border-box;width:100%;height:44rpx;min-height:44rpx;max-height:44rpx;margin:0;padding:0;line-height:44rpx;background:transparent;text-align:left;" data-id="{{item.id}}" catchtap="openLicense" aria-role="button" aria-label="{{item.title}} · CC BY 4.0 · {{viewLicenseLabel}}">CC BY 4.0</view>
+          <view class="source-name" aria-hidden="true">
+            <view class="source-name-line">{{item.titleLines[0]}}</view>
+            <view class="source-name-line {{item.titleLines[1] ? '' : 'is-spacer'}}">{{item.titleLines[1] || 'Ag'}}</view>
           </view>
+          <view class="source-domain">{{item.domain}}</view>
+          <view wx:if="{{item.license}}" class="source-license" hover-class="source-license-active" hover-stop-propagation="{{true}}" data-id="{{item.id}}" catchtap="openLicense" aria-role="button" aria-label="{{item.title}} · CC BY 4.0 · {{viewLicenseLabel}}">CC BY 4.0</view>
+          <view wx:else class="source-license is-placeholder" aria-hidden="true">CC BY 4.0</view>
         </view>
       </view>
     </view>
