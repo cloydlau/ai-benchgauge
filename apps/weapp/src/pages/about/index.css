@@ -34,22 +34,22 @@
 .about-section { margin-top: 34rpx; }
 .section-title { display: block; margin-bottom: 22rpx; color: var(--ink); font-weight: 600; font-size: 27rpx; line-height: 1.4; }
 .sources-section > .section-title { margin-left: 8rpx; }
-/* Equal skeleton, not a fixed card height. WeChat treats view height as min-height,
-   so a wrapped title or a missing license node grows one card. */
-.source-grid { display: flex; align-items: stretch; gap: 12rpx; }
-.source-card { display: flex; flex: 1 1 0; flex-direction: column; align-items: stretch; width: 0; min-width: 0; box-sizing: border-box; padding: 18rpx 16rpx 10rpx; border: 1rpx solid var(--about-outline); border-radius: 22rpx; background: var(--card); box-shadow: var(--about-shadow); }
-.source-card-active { background: rgba(32, 38, 47, .05); }
-.about-page.dark .source-card-active { background: rgba(255, 255, 255, .06); }
-.source-topline { display: flex; justify-content: space-between; align-items: center; flex: none; margin-bottom: 14rpx; color: var(--muted); }
-.source-monogram { display: flex; justify-content: center; align-items: center; flex-shrink: 0; width: 48rpx; height: 48rpx; border-radius: 14rpx; color: var(--blue); background: rgba(22, 117, 220, .09); font-size: 21rpx; font-weight: 600; line-height: 48rpx; }
+/* One source per row, one shared height. WeChat treats view height as min-height
+   and ignores max-height, so a wrapped title used to grow only the long card. */
+.source-list { display: flex; flex-direction: column; gap: 12rpx; }
+.source-row { display: flex; align-items: center; box-sizing: border-box; height: 112rpx; overflow: hidden; padding-left: 18rpx; border: 1rpx solid var(--about-outline); border-radius: 22rpx; background: var(--card); box-shadow: var(--about-shadow); }
+.source-main { display: flex; align-items: center; flex: 1; height: 100%; min-width: 0; gap: 16rpx; }
+.source-main-active { opacity: .72; }
+.source-monogram { display: flex; justify-content: center; align-items: center; flex: none; width: 48rpx; height: 48rpx; border-radius: 14rpx; color: var(--blue); background: rgba(22, 117, 220, .09); font-size: 21rpx; font-weight: 600; line-height: 48rpx; }
 .source-arena .source-monogram { color: var(--purple); background: rgba(150, 87, 200, .09); }
 .source-epoch .source-monogram { color: #0399aa; background: rgba(3, 153, 170, .09); }
-.source-name { flex: none; min-width: 0; }
-.source-name-line { display: block; overflow: hidden; color: var(--ink); font-size: 24rpx; font-weight: 600; line-height: 34rpx; white-space: nowrap; text-overflow: ellipsis; }
-.source-name-line.is-spacer { color: transparent; }
-.source-domain { display: block; flex: none; width: 100%; min-width: 0; margin-top: 6rpx; overflow: hidden; color: var(--muted); font-size: 16rpx; line-height: 28rpx; white-space: nowrap; text-overflow: ellipsis; }
-.source-license { display: block; flex: none; width: 100%; margin-top: auto; padding-top: 8rpx; color: var(--accent); font-size: 20rpx; line-height: 44rpx; text-align: left; }
-.source-license.is-placeholder { color: transparent; }
+.source-copy { flex: 1; min-width: 0; overflow: hidden; }
+.source-name, .source-domain { display: block; width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.source-name { height: 36rpx; color: var(--ink); font-size: 26rpx; font-weight: 600; line-height: 36rpx; }
+.source-domain { height: 30rpx; margin-top: 2rpx; color: var(--muted); font-size: 20rpx; line-height: 30rpx; }
+.source-license { display: flex; align-items: center; flex: none; height: 100%; margin-left: 8rpx; padding: 0 4rpx 0 12rpx; color: var(--accent); font-size: 22rpx; line-height: 32rpx; white-space: nowrap; }
+.source-license text { text-decoration: underline; text-underline-offset: 4rpx; }
+.source-link-mark { display: flex; align-items: center; justify-content: center; flex: none; width: 64rpx; height: 100%; color: var(--muted); }
 
 .about-card { margin-top: 28rpx; padding: 28rpx; border: 1rpx solid var(--about-outline); border-radius: 24rpx; background: var(--card); box-shadow: var(--about-shadow); }
 .investment-heading { display: block; color: var(--muted); font-size: 22rpx; line-height: 1.5; }

@@ -1,11 +1,5 @@
 import SwiftUI
-import UIKit
 import LeaderboardKit
-
-private struct SourceRow: Identifiable {
-    let id: String
-    let items: [PadAboutContent.Source]
-}
 
 @MainActor
 private final class PadAboutState: ObservableObject {
@@ -34,14 +28,6 @@ struct PadAboutView<Brand: View>: View {
     private var inset: Color { BrandTheme.surface(for: colorScheme) }
     private var accent: Color { BrandTheme.accent(for: colorScheme) }
     private var columns: [GridItem] { Array(repeating: GridItem(.flexible(), spacing: 8), count: dynamicTypeSize.isAccessibilitySize ? 1 : 2) }
-    private var sourceColumnCount: Int { dynamicTypeSize.isAccessibilitySize ? 1 : 3 }
-    private func sourceRows(_ sources: [PadAboutContent.Source]) -> [SourceRow] {
-        let count = sourceColumnCount
-        return stride(from: 0, to: sources.count, by: count).map { start in
-            let items = Array(sources[start..<min(start + count, sources.count)])
-            return SourceRow(id: items.map(\.id).joined(separator: "-"), items: items)
-        }
-    }
     private func tr(_ en: String, _ zh: String) -> String { language.text(en, zh) }
 
     var body: some View {
@@ -84,13 +70,8 @@ struct PadAboutView<Brand: View>: View {
             Text(tr("Data sources", "数据来源")).font(.system(size: 14, weight: .semibold))
                 .padding(.leading, 4).padding(.top, 17).padding(.bottom, 11)
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(sourceRows(content.sources)) { row in
-                    // fixedSize keeps the row at the tallest card instead of stretching through the scroll view.
-                    HStack(alignment: .top, spacing: 6) {
-                        ForEach(row.items) { source in
-                            sourceCard(source)
-                        }
-                    }.fixedSize(horizontal: false, vertical: true)
+                ForEach(content.sources) { source in
+                    sourceCard(source)
                 }
             }
             investment(copy.investment, months: content.schedule.months(at: Date()))
@@ -142,86 +123,48 @@ struct PadAboutView<Brand: View>: View {
         let mark = source.id == "artificialAnalysis" ? "AA" : source.id == "arena" ? "A" : "E"
         let color: Color = source.id == "artificialAnalysis" ? .blue : source.id == "arena" ? .purple : .cyan
         let showsLicense = source.id == "arena" || source.id == "epoch"
-        // Wide accessibility cards fit on one line. The three-column row always reserves two,
-        // because a whitespace placeholder collapses and lets Artificial Analysis grow the card.
-        let titleLines = dynamicTypeSize.isAccessibilitySize ? 1 : 2
-        let titleHeight = sourceSlotHeight(size: 13, weight: .semibold, lines: titleLines)
-        let domainHeight = sourceSlotHeight(size: 10, weight: .regular, lines: 1)
-        let copyHeight = 24 + 9 + titleHeight + 4 + domainHeight
-        let cardHeight = 9 + copyHeight + 6 + 28 + 9
-        return VStack(alignment: .leading, spacing: 6) {
+        let titleLines = dynamicTypeSize.isAccessibilitySize ? 2 : 1
+        return HStack(spacing: 8) {
             Button { copyLink(source.url) } label: {
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        Text(mark).font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(color)
-                            .frame(width: 24, height: 24)
-                            .background(color.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
-                        Spacer(minLength: 4)
-                        Image(systemName: "link").font(.system(size: 12)).foregroundStyle(.secondary)
-                    }.frame(height: 24).padding(.bottom, 9)
-                    slottedText(source.title, size: 13, weight: .semibold, lines: titleLines, height: titleHeight, color: .primary, scale: 0.8)
-                    slottedText(source.domain, size: 10, weight: .regular, lines: 1, height: domainHeight, color: .secondary, scale: 0.65)
-                        .padding(.top, 4)
-                }
-                .frame(maxWidth: .infinity, height: copyHeight, alignment: .topLeading)
-                .contentShape(Rectangle())
+                HStack(spacing: 10) {
+                    Text(mark).font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(color)
+                        .frame(width: 28, height: 28)
+                        .background(color.opacity(0.09), in: RoundedRectangle(cornerRadius: 8))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(source.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(.primary)
+                            .lineLimit(titleLines).minimumScaleFactor(0.85).truncationMode(.tail)
+                        Text(source.domain).font(.system(size: 11)).foregroundStyle(.secondary)
+                            .lineLimit(1).minimumScaleFactor(0.8).truncationMode(.tail)
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }.contentShape(Rectangle())
             }.buttonStyle(.plain)
-                .frame(maxWidth: .infinity, height: copyHeight, alignment: .topLeading)
                 .accessibilityIdentifier("about-source-" + source.id)
                 .accessibilityLabel(source.title + " · " + tr("Copy link", "复制链接"))
-            // Fixed slot, not a button, so Artificial Analysis stays out of the license identifier.
-            // frame(height:) sets the ideal size; min/max alone is ignored by HStack.fixedSize.
-            Color.clear.frame(maxWidth: .infinity, height: 28)
+            if showsLicense {
+                Button { about.licenseSourceID = source.id } label: {
+                    Text("CC BY 4.0").font(.system(size: 12, weight: .medium)).foregroundStyle(accent)
+                        .lineLimit(1).minimumScaleFactor(0.8)
+                        .padding(.horizontal, 2)
+                        .frame(minHeight: 32)
+                        .contentShape(Rectangle())
+                }.buttonStyle(.plain)
+                    .accessibilityIdentifier("about-license-" + source.id)
+                    .accessibilityLabel(source.title + " · CC BY 4.0 · " + tr("View license", "查看协议"))
+            }
+            Button { copyLink(source.url) } label: {
+                Image(systemName: "link").font(.system(size: 12)).foregroundStyle(.secondary)
+                    .frame(width: 28, height: 32)
+                    .contentShape(Rectangle())
+            }.buttonStyle(.plain)
                 .accessibilityHidden(true)
-                .overlay(alignment: .leading) {
-                    if showsLicense {
-                        Button { about.licenseSourceID = source.id } label: {
-                            Text("CC BY 4.0").font(.system(size: 11, weight: .medium)).foregroundStyle(accent)
-                                .lineLimit(1).minimumScaleFactor(0.8)
-                                .frame(maxWidth: .infinity, height: 28, alignment: .leading)
-                                .contentShape(Rectangle())
-                        }.buttonStyle(.plain)
-                            .frame(maxWidth: .infinity, height: 28, alignment: .leading)
-                            .accessibilityIdentifier("about-license-" + source.id)
-                            .accessibilityLabel(source.title + " · CC BY 4.0 · " + tr("View license", "查看协议"))
-                    }
-                }
-        }.padding(9)
-            .frame(maxWidth: .infinity, height: cardHeight, alignment: .topLeading)
-            .clipped()
-            .aboutCard(outline: outline)
-    }
-    /// Scaled UIFont line height, not a whitespace Text. SwiftUI collapses the placeholder and one card grows.
-    private func sourceSlotHeight(size: CGFloat, weight: UIFont.Weight, lines: Int) -> CGFloat {
-        let traits = UITraitCollection(preferredContentSizeCategory: contentSizeCategory(dynamicTypeSize))
-        let font = UIFont.systemFont(ofSize: size, weight: weight)
-        let scaled = UIFontMetrics.default.scaledFont(for: font, compatibleWith: traits)
-        return ceil(scaled.lineHeight) * CGFloat(max(lines, 1))
-    }
-    private func contentSizeCategory(_ size: DynamicTypeSize) -> UIContentSizeCategory {
-        switch size {
-        case .xSmall: return .extraSmall
-        case .small: return .small
-        case .medium: return .medium
-        case .large: return .large
-        case .xLarge: return .extraLarge
-        case .xxLarge: return .extraExtraLarge
-        case .xxxLarge: return .extraExtraExtraLarge
-        case .accessibility1: return .accessibilityMedium
-        case .accessibility2: return .accessibilityLarge
-        case .accessibility3: return .accessibilityExtraLarge
-        case .accessibility4: return .accessibilityExtraExtraLarge
-        case .accessibility5: return .accessibilityExtraExtraExtraLarge
         }
+        .padding(.leading, 12).padding(.trailing, 8)
+        .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+        .frame(height: dynamicTypeSize.isAccessibilitySize ? nil : 56)
+        .aboutCard(outline: outline)
     }
-    private func slottedText(_ text: String, size: CGFloat, weight: Font.Weight, lines: Int, height: CGFloat, color: Color, scale: CGFloat) -> some View {
-        Text(text).font(.system(size: size, weight: weight)).foregroundStyle(color)
-            .lineLimit(lines).minimumScaleFactor(scale).truncationMode(.tail)
-            .multilineTextAlignment(.leading)
-            .frame(maxWidth: .infinity, height: height, alignment: .topLeading)
-            .clipped()
-    }
+
     private func investment(_ investment: PadAboutContent.Investment, months: Int) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(investment.title).font(.system(size: 15, weight: .semibold)).padding(.bottom, 11)
