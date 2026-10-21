@@ -38,15 +38,9 @@ definePage(query => {
     title: item.name || text([`Third-party notice ${item.number}`, `第三方软件声明 ${item.number}`, `第三方軟體聲明 ${item.number}`], language) }))
   const attributions = { arena: arenaAttribution(language), epoch: epochAttribution(language) }
   const licenseText = ccByLicense(language).text
-  const sourceTitleLines = title => {
-    const words = String(title).split(' ')
-    return words.length > 1 && title.length > 12
-      ? [words.slice(0, -1).join(' '), words[words.length - 1]]
-      : [title, '']
-  }
   const items = leaderboardSources.map(item => ({ ...item,
     domain: item.url.split('/')[2], mark: { artificialAnalysis: 'AA', arena: 'A', epoch: 'E' }[item.id],
-    license: Boolean(attributions[item.id]), titleLines: sourceTitleLines(item.title) }))
+    license: Boolean(attributions[item.id]) }))
   const licenseNotice = ref({ open: false, text: '' })
   const openLicense = event => {
     if (!attributions[event.currentTarget.dataset.id]) return

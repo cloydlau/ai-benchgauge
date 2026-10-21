@@ -23,19 +23,17 @@
     </button>
     <view class="about-section sources-section">
       <text class="section-title">{{sourcesTitle}}</text>
-      <view class="source-grid">
-        <view wx:for="{{items}}" wx:key="id" class="source-card source-{{item.id}}" hover-class="source-card-active" data-url="{{item.url}}" bindtap="copyLink" aria-role="button" aria-label="{{item.title}} · {{labels.copyLink}}">
-          <view class="source-topline">
+      <view class="source-list">
+        <view wx:for="{{items}}" wx:key="id" class="source-row source-{{item.id}}">
+          <view class="source-main" hover-class="source-main-active" data-url="{{item.url}}" bindtap="copyLink" aria-role="button" aria-label="{{item.title}} · {{labels.copyLink}}">
             <view class="source-monogram" aria-hidden="true">{{item.mark}}</view>
-            <van-icon name="link-o" size="14px" />
+            <view class="source-copy">
+              <view class="source-name">{{item.title}}</view>
+              <view class="source-domain">{{item.domain}}</view>
+            </view>
           </view>
-          <view class="source-name" aria-hidden="true">
-            <view class="source-name-line">{{item.titleLines[0]}}</view>
-            <view class="source-name-line {{item.titleLines[1] ? '' : 'is-spacer'}}">{{item.titleLines[1] || 'Ag'}}</view>
-          </view>
-          <view class="source-domain">{{item.domain}}</view>
-          <view wx:if="{{item.license}}" class="source-license" hover-class="source-license-active" hover-stop-propagation="{{true}}" data-id="{{item.id}}" catchtap="openLicense" aria-role="button" aria-label="{{item.title}} · CC BY 4.0 · {{viewLicenseLabel}}">CC BY 4.0</view>
-          <view wx:else class="source-license is-placeholder" aria-hidden="true">CC BY 4.0</view>
+          <view wx:if="{{item.license}}" class="source-license" hover-class="source-license-active" data-id="{{item.id}}" bindtap="openLicense" aria-role="button" aria-label="{{item.title}} · CC BY 4.0 · {{viewLicenseLabel}}"><text>CC BY 4.0</text></view>
+          <view class="source-link-mark" hover-class="source-main-active" data-url="{{item.url}}" bindtap="copyLink" aria-hidden="true"><van-icon name="link-o" size="16px" /></view>
         </view>
       </view>
     </view>
