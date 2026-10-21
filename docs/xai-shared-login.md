@@ -1,109 +1,81 @@
-# xAI shared login
+# xAI desktop authorization
 
-BenchGauge and CC Switch share one login store, not independent copied accounts.
-`CCSwitchProviderStore.resolveInstall().xaiAuthURL` resolves the actual CC Switch
-configuration directory, including `app_config_dir_override` overrides.
+BenchGauge now owns an independent xAI device-authorization session. CC Switch
+can remain open while quota refreshes and scheduled keep-alive run. The old
+requirement to quit/restart CC Switch is removed from the desktop login flow.
+Existing users authorize once in BenchGauge by clicking the xAI sign-in card.
+The browser still requires the user's consent; no credentials are silently copied.
 
-## Authorization
+## Account selection and storage
 
-Click an xAI quota card showing an expired or missing login. BenchGauge discovers
-xAI's device, token and userinfo endpoints from the official OpenID document,
-validates HTTPS and `auth.x.ai`, requests a device code, and opens the supplied
-`accounts.x.ai/oauth2/device` URL with the matching `user_code`. The opaque device
-code stays in the shared Swift actor; the native app only receives a browser URL,
-user-visible code, expiry and random attempt ID. Redirects are rejected by the
-existing quota HTTP transport.
+CC Switch's selected account ID is read from its actual configuration directory,
+including `app_config_dir_override`. It identifies which BenchGauge session to
+use, but its refresh token is never copied, renewed or written by the production
+desktop flow. A fresh device grant creates BenchGauge's own refresh token.
 
-Polling respects the server interval. `authorization_pending` keeps waiting;
-`slow_down` adds five seconds to subsequent polls. Denial, local/server expiry and
-cancelled attempts do not save a login. Close cancels authorization; retry creates
-a new link. Userinfo validates the account belonging to the issued access token.
-Reauthorizing an existing selected account must return the same account ID.
+App-owned sessions live below `PlatformPaths.applicationSupport/xai/`, in a
+separate SHA-256-named JSON file for each CC Switch account ID. Rotating a shared
+CC Switch token for the same account does not change this path. Switching accounts
+selects a different session; an account without an app session shows sign-in.
+Switching back reuses its previous app session. Without a selected shared account,
+the explicitly authorized standalone session uses `unselected.json`.
 
-The store retains CC Switch's version, account map, record keys, unrelated metadata
-and other accounts. Successful authorization updates the selected account's
-refresh token, login label, authentication time and `requires_reauth`, then saves
-with an atomic replacement and 0600 permissions on Unix. Windows uses the profile
-folder ACL. Access tokens and device codes are never persisted. Before replacement
-it checks the selected account/token/default and the current file bytes again;
-a login changed in the other app while the browser was open is not overwritten.
-This is optimistic conflict detection, not a cross-process lock honored by CC Switch.
+The device flow binds its path and expected account ID to one selection snapshot.
+Userinfo must match that account. A selection changed during browser authorization
+causes `accountChanged` without saving. The selected local account, token, default
+and file bytes are checked again before atomic replacement. Refresh tokens stay
+in the local file (0600 on Unix; profile ACL on Windows); device codes and access
+tokens remain in memory and are never returned to native surfaces or logged.
 
-The protocol uses the same public Grok CLI client ID and scopes that CC Switch
-already uses. Contract checked on 2026-10-10 against:
+## Refresh and synchronization
 
-- xAI discovery: `https://auth.x.ai/.well-known/openid-configuration`
-- CC Switch `src-tauri/src/proxy/providers/xai_oauth_auth.rs`, upstream revision
-  `ef24a0191242dda380a4ccd2dc264c8a309c6378` (4.0.6).
+Mac and Windows resolve the app-owned session for every quota/keep-alive request.
+The existing two-second metadata watcher detects session saves, removal and account
+selection changes. CC Switch's running state cannot block app-owned renewal.
+The shared Swift token actor serializes overlapping exchanges, caches access tokens
+only against the matching account/refresh token, and completes rotated-token saves
+even when the initiating quota view is cancelled. Quota refresh and its existing
+loading/error states remain separate from the background keep-alive schedule.
 
-## Reusing the login in both directions
+Explicit legacy shared-file callers retain the conservative process guard: they
+cannot rotate a token while CC Switch is running. Production desktops no longer
+select that file for authorization or requests. The protocol remains the public
+Grok CLI device grant already implemented by CC Switch; discovery pins HTTPS,
+issuer and trusted endpoints, and browser authorization pins `accounts.x.ai`.
 
-CC Switch → BenchGauge: the native apps check noncredential file metadata every
-two seconds, including atomic replacement and logout. They refresh xAI when the
-store changes. The quota client's cached access token is tied to the exact
-selected account and refresh token; a replacement for the same account also
-invalidates that cache.
-
-BenchGauge → CC Switch: the newly authorized refresh token is written directly to
-that same store. A stopped CC Switch reads it on its next launch. CC Switch 4.0.6
-loads this store only while creating `XaiOAuthManager`; it has no public hot-reload
-endpoint. An already running instance must restart to use the replacement. The
-Mac completion window has a **Restart CC Switch** button that requests a normal
-quit, waits up to ten seconds, and relaunches the installed bundle. It does not
-force-kill a refusing process, and authorization never restarts the proxy without
-the user selecting this button. Windows displays the restart instruction.
-
-This implements shared authorization with reload on CC Switch launch, not live
-cross-process token coordination. CC Switch still holds its own in-memory access
-and refresh tokens. Its later credential mutations do not reload external changes,
-so concurrent token rotation is not guaranteed safe by that client. Fully live
-bidirectional renewal needs CC Switch to reload before reads/mutations and cooperate
-on serialization; BenchGauge cannot add that behavior to an unmodified CC Switch.
-No claim of an end-to-end live CC Switch proxy recovery is made from fixture tests.
-
-## Refresh ownership
-
-BenchGauge does not exchange a shared refresh token while CC Switch is running.
-This guard covers scheduled keep-alive, quota reads and subscription identity
-verification in the shared token actor. Keep-alive returns `retry`; quota reads
-may use an unexpired access token only if its account and refresh token still
-match the shared file. Otherwise they retain last-good quota data as stale through
-the transient-failure path. Deferral never marks the shared login as requiring
-reauthentication. Process-enumeration errors on Windows/Linux also defer renewal.
-
-When CC Switch is stopped, the existing direct refresh and atomic write-back
-remain available. The process and selected login are checked again after OpenID
-discovery and immediately before sending the token request. These checks reduce
-the startup race; they cannot serialize a launch after the final check. The
-unmodified CC Switch does not honor a cross-process refresh lock.
-
-The CC Switch source inspected on 2026-10-17 still caches credentials in
-`XaiOAuthManager`. Its public proxy `/models` handler serves a local catalog;
-`/health` and `/status` also do not renew OAuth. The xAI refresh occurs in the
-authenticated model-forwarding path. BenchGauge therefore does not use these
-probes as evidence of renewal or send paid model requests for keep-alive. An
-always-running, idle CC Switch session can still expire: complete idle renewal
-requires a supported CC Switch refresh/reload interface or a separate OAuth
-session. This change prevents BenchGauge's competing rotation; it cannot repair
-an already invalidated token.
+This addresses BenchGauge's own quota updates. It does not claim to renew CC
+Switch's independent login or alter its proxy. Upstream still caches tokens inside
+`XaiOAuthManager`, without a supported public quota-only refresh/reload interface.
+Its implementation was checked again on 2026-10-20:
+[CC Switch xAI manager](https://github.com/farion1231/cc-switch/blob/main/src-tauri/src/proxy/providers/xai_oauth_auth.rs).
 
 ## Validation
 
-The offline tests exercise successful shared-file round trips, reauth, metadata
-preservation, account mismatch, changes during authorization, cancellation during
-in-flight token/userinfo requests, polling/backoff, expiry, denial, network retry,
-trusted hosts, corrupt stores, missing token/identity and secure storage. A quota
-regression test replaces the same account's CC Switch refresh token and verifies
-the next request uses a new access token.
-Ownership tests cover deferral without network/file mutation, stale quota
-retention, cached-access expiry, resumption after exit, startup or login changes
-during discovery, and the default native process check. Existing offline token
-tests inject refresh permission so results do not depend on installed apps.
+Offline tests use synthetic accounts and transports: independent authorization and
+rotation leave the shared store byte-for-byte unchanged, active CC Switch does not
+block app renewal, concurrent renewals share one exchange, different accounts map
+to different paths, rotating a shared token keeps the path stable, mismatched browser
+accounts and selection changes do not save. The existing legacy ownership,
+cancellation, polling, expiry, storage, trusted-host and quota-boundary tests remain.
 
-`Tests/fixtures/xai-device-login.json` covers seven dialog states in English,
-Simplified Chinese and Traditional Chinese, light/dark and three checkpoints.
-Original Mac before/after captures and the local review stay in ignored
-`work/xai-device-login/`; baseline captures show the earlier quota panel because
-that revision had no device login dialog. The Mac-only restart button is an
-intentional platform difference. Windows native screenshots and a source-matched
-CI artifact remain required for complete desktop visual review.
+The Mac and Windows dialogs share the revised independent-authorization explanation
+and success/error copy. Mac's restart button was removed. The existing common
+`Tests/fixtures/xai-device-login.json` covers seven states, three languages, both
+themes and three capture checkpoints. A supplemental common fixture covers accountChanged and storage as well.
+Native before/after Mac captures (162 frames per phase, all 54 refreshed/settled
+pairs stable) and validation results are retained in ignored `work/xai-independent-login/`. Windows native
+screenshots and a source-matched CI visual artifact require a Windows environment;
+a local cross-build alone is not native visual verification. Real authorization
+requires browser consent and is not claimed by offline fixture tests.
+
+The final stable-source full gate passed 379 script cases, 152 mini-program cases
+and 539 native package cases, including the new independent-session cases. Swift
+coverage passed 100% across all 70 measured source files. Earlier runs returned
+75 when concurrent workspace edits invalidated their input signatures; the final
+coverage gate returned 0 with signature
+`5a89f1bd70c77e50553eab062a0917dfc77847e40b70d92cddc949bd054be4fa`.
+The existing workflow rebuilt and restarted the local Mac app at
+2026-10-20 22:59:01 Asia/Shanghai. The new executable contains the independent
+login explanation; CC Switch remained running. This confirms local delivery,
+not a completed real-account authorization, Windows native visual review or a
+published release.

@@ -786,7 +786,7 @@ final class LeaderboardCategoryTabTests: XCTestCase {
         app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "United States")).firstMatch.tap()
         XCTAssertFalse(app.descendants(matching: .any)["openness-" + kind + "-2"].exists)
         app.buttons["country-" + kind].tap()
-        app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "All countries")).firstMatch.tap()
+        app.buttons["All"].firstMatch.tap()
         app.segmentedControls["grouping"].buttons.element(boundBy: 1).tap()
         XCTAssertEqual(app.descendants(matching: .any)["openness-" + kind + "-1"].label, "—")
         app.segmentedControls["grouping"].buttons.element(boundBy: 0).tap()
@@ -2185,6 +2185,50 @@ final class ModelDetailsInteractionTests: XCTestCase {
             XCTAssertTrue(app.buttons["copy-model-name"].waitForExistence(timeout: 5))
             XCTAssertTrue(app.staticTexts[chinese ? "暂未匹配到模型资料。" : "No matching model information yet."].exists)
             app.buttons["close-model-details"].tap()
+            app.terminate()
+        }
+    }
+}
+
+final class LeaderboardFilterMenuTests: XCTestCase {
+    @MainActor func testTitlesAllAndUnknownOrder() {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        defer { app.terminate() }
+        for chinese in [true, false] {
+            app.launchArguments = ["--ui-testing", "--offline", "--full-board", "--reduce-motion"]
+                + (chinese ? ["--preview-zh"] : ["--dark"])
+            app.launch()
+            let kind = "artificialAnalysis"
+            let country = app.buttons["country-" + kind]
+            let source = app.buttons["openness-filter-" + kind]
+            XCTAssertTrue(country.waitForExistence(timeout: 10))
+            let all = chinese ? "全部" : "All"
+            let unknown = chinese ? "未知" : "Unknown"
+            let family = UIDevice.current.userInterfaceIdiom == .phone ? "phone" : "pad"
+            let variant = chinese ? "zh-light" : "en-dark"
+            for (menu, title, name) in [(country, chinese ? "国家" : "Country", "country"),
+                                        (source, chinese ? "源码" : "Source", "source")] {
+                menu.tap()
+                XCTAssertTrue(app.staticTexts[title].firstMatch.waitForExistence(timeout: 5))
+                let reset = app.buttons[all].firstMatch
+                XCTAssertTrue(reset.exists)
+                let fallback = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", unknown)).firstMatch
+                XCTAssertTrue(fallback.exists)
+                XCTAssertGreaterThan(fallback.frame.minY, reset.frame.maxY)
+                let shot = XCTAttachment(screenshot: app.screenshot())
+                shot.name = "\(family)-\(variant)-\(name)"
+                shot.lifetime = .keepAlways
+                add(shot)
+                fallback.tap()
+                XCTAssertTrue((menu.value as? String)?.contains(unknown) == true)
+                menu.tap()
+                app.buttons[all].firstMatch.tap()
+                XCTAssertEqual(menu.value as? String, chinese
+                    ? (name == "country" ? "全部国家" : "全部源码")
+                    : (name == "country" ? "All countries" : "All sources"))
+            }
             app.terminate()
         }
     }

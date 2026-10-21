@@ -1805,7 +1805,7 @@ private struct OpennessCell: View {
     var body: some View {
         Group {
             if let openness = model?.entry.resolvedOpenness {
-                DesktopOpennessIcon(open: openness == .open)
+                ModelOpennessIcon(open: openness == .open)
                     .stroke(iconTint(openness), style: StrokeStyle(lineWidth: 14 / 12, lineCap: .round, lineJoin: .round))
                     .frame(width: 14, height: 14)
                     .accessibilityLabel(openness.title(language: language))
@@ -1819,28 +1819,6 @@ private struct OpennessCell: View {
 
     private func iconTint(_ openness: ModelOpenness) -> Color {
         ModelOpennessBadge.tint(for: openness, dark: colorScheme == .dark)
-    }
-}
-
-/// Lucide lock-keyhole icons, matching the mini-program's 24-point viewBox.
-/// Both states share the same lock body and bounds; see Licenses/Lucide.txt.
-private struct DesktopOpennessIcon: Shape {
-    let open: Bool
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path(roundedRect: CGRect(x: 3, y: 10, width: 18, height: 12), cornerRadius: 2)
-        path.addEllipse(in: CGRect(x: 11, y: 15, width: 2, height: 2))
-        path.move(to: CGPoint(x: 7, y: 10))
-        path.addLine(to: CGPoint(x: 7, y: 7))
-        path.addCurve(to: CGPoint(x: 12, y: 2), control1: CGPoint(x: 7, y: 4.238576), control2: CGPoint(x: 9.238576, y: 2))
-        if open {
-            path.addCurve(to: CGPoint(x: 16.330127, y: 4.5), control1: CGPoint(x: 13.786328, y: 2), control2: CGPoint(x: 15.436963, y: 2.952995))
-        } else {
-            path.addCurve(to: CGPoint(x: 17, y: 7), control1: CGPoint(x: 14.761424, y: 2), control2: CGPoint(x: 17, y: 4.238576))
-            path.addLine(to: CGPoint(x: 17, y: 10))
-        }
-        return path.applying(CGAffineTransform(scaleX: rect.width / 24, y: rect.height / 24)
-            .concatenating(CGAffineTransform(translationX: rect.minX, y: rect.minY)))
     }
 }
 

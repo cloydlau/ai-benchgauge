@@ -115,7 +115,9 @@ public final class LeaderboardPadStore: ObservableObject {
             countryOptionsCache = result
         }
         if let selected = filters.values.first, !result.contains(selected) { result.append(selected) }
-        return result
+        // Merge all sources and restore missing selections before placing the
+        // fallback last; an early board may contain unknowns before later countries.
+        return result.filter { $0 != .unknown } + (result.contains(.unknown) ? [.unknown] : [])
     }
     public func setCountry(_ country: OrganizationCountry?, for kind: LeaderboardKind) {
         setCountryFilter(country.map(LeaderboardCountryFilter.country) ?? .all, for: kind)
