@@ -40,6 +40,52 @@ struct XAIDeviceLoginTests {
     }
     private func cleanup(_ url: URL) { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
+    @Test func appAuthorizationUsesANewSessionAndLeavesCCSwitchUntouched() async throws {
+        let shared = try authURL(); defer { cleanup(shared) }
+        try Data(initial.utf8).write(to: shared)
+        let directory = shared.deletingLastPathComponent().appending(path: "app-owned")
+        let owned = XAILoginStore.authURL(sharedAuthURL: shared, directory: directory)
+        let clock = DeviceLoginClock()
+        let login = XAIDeviceLogin(transport: DeviceLoginTransport([discovery, device, tokens, user]), now: { clock.now() })
+        let attempt = try await login.startForBenchGauge(sharedAuthURL: shared, directory: directory)
+        clock.advance(5)
+        #expect(try await login.poll(id: attempt.id) == .connected)
+        #expect(try Data(contentsOf: shared) == Data(initial.utf8))
+        let account = try #require(XaiAuthFile.parse(Data(contentsOf: owned)).flatMap(XaiAuthFile.selectedAccount))
+        #expect(account.id == "account-a" && account.refreshToken == "fake-new-refresh-private")
+        #expect(!account.requiresReauth)
+    }
+
+    @Test func appAuthorizationRejectsAnotherAccountWithoutWritingEitherStore() async throws {
+        let shared = try authURL(); defer { cleanup(shared) }
+        try Data(initial.utf8).write(to: shared)
+        let directory = shared.deletingLastPathComponent().appending(path: "app-owned")
+        let owned = XAILoginStore.authURL(sharedAuthURL: shared, directory: directory)
+        let clock = DeviceLoginClock()
+        let login = XAIDeviceLogin(transport: DeviceLoginTransport([discovery, device, tokens, #"{"sub":"account-b"}"#]), now: { clock.now() })
+        let attempt = try await login.startForBenchGauge(sharedAuthURL: shared, directory: directory)
+        clock.advance(5)
+        await #expect(throws: XAIDeviceLoginError.accountMismatch) { try await login.poll(id: attempt.id) }
+        #expect(!FileManager.default.fileExists(atPath: owned.path))
+        #expect(try Data(contentsOf: shared) == Data(initial.utf8))
+    }
+
+    @Test func switchingCCAccountDuringAppAuthorizationDoesNotSaveTheOldAccount() async throws {
+        let shared = try authURL(); defer { cleanup(shared) }
+        try Data(initial.utf8).write(to: shared)
+        let directory = shared.deletingLastPathComponent().appending(path: "app-owned")
+        let owned = XAILoginStore.authURL(sharedAuthURL: shared, directory: directory)
+        let clock = DeviceLoginClock()
+        let login = XAIDeviceLogin(transport: DeviceLoginTransport([discovery, device, tokens, user]), now: { clock.now() })
+        let attempt = try await login.startForBenchGauge(sharedAuthURL: shared, directory: directory)
+        let switched = Data(initial.replacingOccurrences(of: "\"default_account_id\":\"account-a\"", with: "\"default_account_id\":\"account-b\"").utf8)
+        try switched.write(to: shared)
+        clock.advance(5)
+        await #expect(throws: XAIDeviceLoginError.accountChanged) { try await login.poll(id: attempt.id) }
+        #expect(!FileManager.default.fileExists(atPath: owned.path))
+        #expect(try Data(contentsOf: shared) == switched)
+    }
+
     @Test func browserURLIsPinnedAndContainsTheCorrectCode() {
         #expect(XAIDeviceLogin.authorizationURL("https://accounts.x.ai/oauth2/device", complete: nil, userCode: "Q2QH-TEST")?.absoluteString == "https://accounts.x.ai/oauth2/device?user_code=Q2QH-TEST")
         for bad in ["http://accounts.x.ai/oauth2/device", "https://evil.example/oauth2/device", "https://accounts.x.ai@evil.example/oauth2/device", "https://accounts.x.ai:8443/oauth2/device", "https://accounts.x.ai/oauth2/other", "https://accounts.x.ai/oauth2/device#fragment"] {

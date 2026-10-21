@@ -10,7 +10,7 @@ public struct XAISharedLoginRevision: Equatable, Sendable {
     public let size: UInt64?
     public let refreshAllowed: Bool
     public init(url: URL) {
-        self.init(url: url, refreshAllowed: !CCSwitchProcess.isRunning())
+        self.init(url: url, refreshAllowed: XAILoginStore.isAppManaged(url) || !CCSwitchProcess.isRunning())
     }
     public init(url: URL, refreshAllowed: Bool) {
         self.refreshAllowed = refreshAllowed

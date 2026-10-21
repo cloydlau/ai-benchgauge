@@ -24,6 +24,34 @@ private actor FetchGate {
     }
 }
 
+@MainActor @Test func mergedCountryChoicesKeepUnknownAfterLaterBoardsAndRestoredSelection() throws {
+    let name = "country-menu-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    let directory = FileManager.default.temporaryDirectory.appending(path: name)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let cache = LeaderboardCache(fileURL: directory.appending(path: "cache.json"))
+    cache.save(LeaderboardSnapshot(boards: [
+        .artificialAnalysis: Leaderboard(kind: .artificialAnalysis, title: "First", entries: [
+            LeaderboardEntry(rank: 1, name: "Unassigned", score: 99),
+            LeaderboardEntry(rank: 2, name: "DeepSeek", score: 98, organization: "DeepSeek")]),
+        .arenaText: Leaderboard(kind: .arenaText, title: "Later", entries: [
+            LeaderboardEntry(rank: 1, name: "GPT", score: 99, organization: "OpenAI")])
+    ]))
+    let store = LeaderboardPadStore(defaults: defaults, cache: cache)
+    let expected: [LeaderboardCountryFilter] = [.all, .country(.china), .country(.unitedStates), .unknown]
+    #expect(store.availableCountryFilters == expected)
+    #expect(store.availableCountryFilters == expected) // Cached union keeps the same order.
+    store.setCountry(.france, for: .arenaText)
+    #expect(store.availableCountryFilters == Array(expected.dropLast()) + [.country(.france), .unknown])
+    let restored = LeaderboardPadStore(defaults: defaults, cache: cache)
+    #expect(restored.availableCountryFilters == store.availableCountryFilters)
+    restored.setCountry(nil, for: .arenaText)
+    #expect(restored.availableCountryFilters == expected)
+    restored.setCountryFilter(.unknown, for: .arenaText)
+    #expect(restored.availableCountryFilters == expected)
+}
+
 @MainActor @Test func concurrentCategoryRefreshesMergeWithoutOverwriting() async throws {
     let name = "ipad-test-\(UUID().uuidString)"
     let defaults = try #require(UserDefaults(suiteName: name))
