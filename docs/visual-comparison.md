@@ -2080,3 +2080,86 @@ Mac and Windows no longer show Arena's full notice in the footer or shared-image
 The shared fixture adds six cases: Arena only at 850×720 and all general boards at 1100×720, English/Simplified/Traditional Chinese, both themes. The native Mac fixture reader now preserves sourceNote through reconstruction so these cases exercise the actual conditional notice. Ignored `work/arena-dataset/` retains capture intent, the fixture, original native captures, metadata, hashes, `review.html` and `verification.json`. Each phase contains 36 originals with shown/refreshed/settled checkpoints. macOS 27.0.1 (26A434) reports actual 1× backing scale. Reviewed English minimum-width/light, Chinese minimum-width/dark and Traditional Chinese three-board/dark originals show complete notice lines without clipping. All twelve final refreshed/settled pairs are pixel-identical.
 
 The retained before binary predates the earlier Epoch attribution and concurrent workspace edits; it is an older baseline, not a source-matched full-workspace before build. Windows native WPF screenshots, real Windows DPI review, a source-matched CI comparison artifact, mini-program live simulator review and separate phone/tablet native visual review are unavailable in this run. Build checks and Canvas export bounds tests do not replace those reviews. No protected visual release approval is implied. Backend acquisition and OSS migration are independently verified against all rows of the official four Parquet snapshots; see [migration record](arena-dataset-migration.md).
+
+## Desktop search responsiveness — 2026-10-22
+
+Mac search expansion now updates only the navigation subtree and focuses the
+native field synchronously. Draft text is separate from the applied query on
+both desktops: filtering runs after 250 ms without a new edit, clears apply
+immediately, and IME composition cancels pending filtering until commit.
+Prepared matchers reuse query tokens for a filtering pass; Mac also reuses its
+row projection for the table, distribution offset and empty-state check.
+Existing search geometry, languages, themes and score baselines are unchanged.
+
+Windows shared regression tests and the WPF Release cross-build pass (zero
+warnings/errors). The native Windows search scenarios now assert synchronous
+focus and that rapid draft edits do not immediately replace the ranking list.
+The production Mac search controls pass isolated type checking. An isolated
+state stress probe coalesced 10,000 draft edits into one publication and passed
+clearing, stale-query cancellation, IME and duplicate-query checks. The native
+test suite includes those state regressions but has not run end-to-end here.
+Full Xcode is absent on this host; full Mac builds/native screenshots and
+native Windows before/after captures with actual DPI are unavailable. There
+is no source-matched CI visual artifact or release approval for this change;
+compile/state checks are not end-to-end interaction-latency verification.
+
+## Single leaderboard timestamp — 2026-10-22
+
+Each header, export, accessibility label and time explanation now selects one
+timestamp: source publication/data update whenever present, otherwise snapshot
+fetch time. Source time wins even when older than the fetch. Source dates use
+the board accent; fetch-only fallbacks use secondary grey. Arena dataset dates
+retain UTC day precision. On narrow Mac three-board views the source name sits
+above the single selected timestamp, retaining source identity without adding
+another date.
+
+Mini-program tests (154), build verification, Windows shared tests and WPF
+Release cross-compilation pass (zero WPF warnings/errors). The Swift shared
+module and complete Mac application compile using Command Line Tools; existing
+brand-title concurrency and missing SDK search-path warnings remain. Swift/iOS
+native test suites are still gated out by the runner without full Xcode; Swift
+syntax checks are not a substitute for those tests.
+
+Three new shared `sourceTimes` scenarios cover fetch-only AA, Arena publication
+older than acquisition, and Epoch data update in all supported languages and
+both themes. Ignored `work/single-time-20261022/` contains the filtered fixture,
+source diff/status, capture script, native originals and OS/scale metadata.
+The after capture has 18 frames at 850×720 / 1100×720 logical points on macOS
+27.0.1 (26A434), actual 2× backing scale. Shown/refreshed/settled frames are
+identical within each case/theme. Reviewed English light/dark and Chinese
+headers retain exactly one readable time and source identity.
+
+There is no source-matched pre-change baseline, native Windows capture with
+actual DPI, iOS device/simulator review, connected WeChat DevTools runtime
+review, or source-matched CI comparison artifact for this change. Metadata
+explicitly records `local-uncommitted`; the local after captures are not a
+complete cross-platform visual review or protected release approval.
+
+## Two timestamp captions — 2026-10-22
+
+This follow-up supersedes the timestamp wording above. All source timestamps,
+including the former data-update label, now read `[time] Published` (发布/發佈).
+Only when source time is absent does the snapshot fallback read `[time] Updated`
+(更新). Headers, explanations, accessibility labels and exports retain exactly
+one selected timestamp. Source priority, accent/secondary styling and Arena's
+UTC date precision are unchanged; dates are never selected by comparing recency.
+
+Mini-program tests (154) and production build, Windows shared regressions and
+WPF Release cross-build pass (zero WPF warnings/errors). The complete native Mac
+application builds with the existing brand-title/SDK-path warnings. Full Xcode
+is absent, so Swift/iOS native test suites have not run.
+
+Ignored `work/time-labels-20261022/` preserves the previous native captures as
+`before/`, with pre-edit source hashes, and 18 new native frames as `after/`.
+Both phases use an identical filtered shared fixture: three languages, both
+themes, 850×720 / 1100×720 logical points. The new captures report macOS 27.0.1
+(26A434), actual 2× backing scale and `local-uncommitted` source metadata.
+Shown/refreshed/settled frames are identical in all six cases. Reviewed English
+light/dark, Simplified Chinese light and Traditional Chinese dark originals
+show readable suffix captions without duplicate timestamps, including the
+narrow three-board header. The baseline is a local dirty-workspace capture,
+not a clean source-matched CI baseline.
+
+Native Windows screenshots/actual DPI, iOS device/simulator review, connected
+WeChat DevTools runtime review and a source-matched CI visual artifact remain
+unavailable. No cross-platform visual or protected release approval is claimed.
