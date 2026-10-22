@@ -298,15 +298,9 @@ struct LeaderboardView: View {
     }
 
     private var navigationPickers: some View {
-        HStack(spacing: 8) {
+        DesktopLeaderboardSearchNavigation(state: search, language: language) {
             HStack(spacing: 8) { groupingPicker; categoryPicker }
-                .opacity(search.isExpanded ? 0 : 1)
-                .allowsHitTesting(!search.isExpanded)
-                .accessibilityHidden(search.isExpanded)
-            Color.clear.frame(width: 26, height: 24)
         }
-        .fixedSize()
-        .overlay { DesktopLeaderboardSearch(state: search, language: language) }
     }
 
     private var stackedTitleRow: some View {
@@ -488,7 +482,8 @@ struct LeaderboardView: View {
     }
 
     private var table: some View {
-        Table(rows) {
+        let renderedRows = rows
+        return Table(renderedRows) {
             TableColumn(tr("Rank", "排名")) { row in
                 Text(row.isDistribution ? "" : LeaderboardPresentation.rankLabel(row.rank)).monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -989,7 +984,8 @@ struct LeaderboardView: View {
             }
         }
         let unsearched = visibleKinds.map { displayedEntries(kind: $0) }
-        let entries = unsearched.map { $0.filter { LeaderboardPresentation.modelNameMatches($0.entry.name, query: search.query) } }
+        let matches = LeaderboardPresentation.modelNameMatcher(search.query)
+        let entries = unsearched.map { $0.filter { matches($0.entry.name) } }
         let logos = organizationLogos
         let resultCount = entries.map(\.count).max() ?? 0
         let count = search.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty

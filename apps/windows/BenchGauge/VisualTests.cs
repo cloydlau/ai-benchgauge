@@ -188,8 +188,18 @@ static class VisualTests
                             System.Windows.Automation.AutomationProperties.GetAutomationId(view) == id);
                         if (frame == 1) {
                             ((System.Windows.Controls.Button)Find("leaderboard-search-button")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                            var field = (System.Windows.Controls.TextBox)Find("leaderboard-search-input");
+                            if (!field.IsVisible || !field.IsKeyboardFocusWithin)
+                                throw new InvalidOperationException("Search must open and focus synchronously: " + test.Id);
                             Settle(window);
-                            ((System.Windows.Controls.TextBox)Find("leaderboard-search-input")).Text = test.SearchQuery ?? "";
+                            var beforeTyping = Descendants(window).OfType<VirtualLeaderboardList>().First();
+                            var query = test.SearchQuery ?? "";
+                            if (query.Length > 0) {
+                                foreach (var prefix in new[] { query[..1], query }) field.Text = prefix;
+                                if (!Descendants(window).Contains(beforeTyping))
+                                    throw new InvalidOperationException("Draft typing synchronously rebuilt the table: " + test.Id);
+                            }
+                            else field.Text = "";
                         }
                         if (frame == 2) {
                             panel.SetState(state); Settle(window);

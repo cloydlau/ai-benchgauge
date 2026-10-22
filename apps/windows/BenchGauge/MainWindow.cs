@@ -61,6 +61,7 @@ sealed partial class MainWindow : Window
         Closed += (_, _) => Microsoft.Win32.SystemEvents.UserPreferenceChanged -= SystemAppearanceChanged;
         Content = new Border { Padding = new Thickness(0), Child = content };
         quotaArea.Children.Add(quotaPanel); quotaArea.Children.Add(privatePrompt);
+        ConfigureLeaderboardSearch();
         ApplyMode(); Render();
         SizeChanged += (_, _) => Dispatcher.BeginInvoke(() => { if (!closing && !rendering && Content is FrameworkElement client && Math.Abs(client.ActualWidth - renderedPanelWidth) > 1) Render(); }, DispatcherPriority.Loaded);
         Closing += (_, e) => { if (!closing) { e.Cancel = true; if (!preparedUpdate.IsPresenting) { Hide(); SaveFrame(); } } };
@@ -72,7 +73,7 @@ sealed partial class MainWindow : Window
             if (e.Key != Key.Escape || modalOpen) return;
             if (leaderboardSearchExpanded) {
                 // A nonempty query must keep its input visible even after focus moves.
-                if (leaderboardQuery.Length == 0) { Keyboard.ClearFocus(); leaderboardSearchExpanded = false; Render(); }
+                if (string.IsNullOrWhiteSpace(leaderboardSearch.Input)) collapseLeaderboardSearch?.Invoke();
                 e.Handled = true;
             } else Hide();
         };
