@@ -1210,9 +1210,13 @@ private struct PadBoardCard: View {
         modelSearchQuery = ""
     }
     private var timeLabels: some View {
-        Text(LeaderboardPresentation.displayTime(board, language: language))
-            .font(.caption2).monospacedDigit().foregroundStyle(secondaryForeground)
-            .lineLimit(1).fixedSize().accessibilityIdentifier("source-times-\(kind.rawValue)")
+        let times = LeaderboardPresentation.sourceTimes(board, language: language)
+        let accent = kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue)
+        return (Text(times.updated).font(.caption2.weight(.medium)).foregroundColor(accent).monospacedDigit()
+            + Text("\n" + times.fetched).font(.system(size: max(9, timeFontSize - 1))).foregroundColor(secondaryForeground).monospacedDigit())
+        .multilineTextAlignment(.trailing).lineLimit(2).fixedSize()
+        .accessibilityLabel("\(times.updated), \(times.fetched)")
+        .accessibilityIdentifier("source-times-\(kind.rawValue)")
     }
     private var sourceDescription: some View {
         Text(LeaderboardPresentation.sourceSummary(kind, language: language))

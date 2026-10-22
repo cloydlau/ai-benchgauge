@@ -30,9 +30,11 @@ test('Apple/Windows generated policy cannot drift from the server/mini-program c
   assert.throws(()=>execFileSync(process.execPath,[script.pathname,'--root',dir,'--check'],{stdio:'pipe'}),/Command failed/)
  }finally{rmSync(dir,{recursive:true,force:true})}
 })
-test('shared date vectors select the latest actual timestamp, with no invented publication date',()=>{
+test('shared date vectors prefer source time regardless of recency and fall back only when unavailable',()=>{
  for(const row of JSON.parse(readFileSync(new URL('../Tests/fixtures/mobile-times.json',import.meta.url))))assert.equal(latestTimestamp(row),row.expected)
  assert.equal(latestTimestamp(null),null);assert.equal(latestTimestamp({sourceUpdatedAt:'invalid'}),null)
+ assert.equal(latestTimestamp({sourceUpdatedAt:'invalid',fetchedAt:'2026-10-14T08:00:00Z'}),'2026-10-14T08:00:00Z')
+ assert.equal(latestTimestamp({sourceUpdatedAt:'2026-10-14T06:00:00Z',fetchedAt:'invalid'}),'2026-10-14T06:00:00Z')
 })
 test('verified Trinity identities share an Arcee AI company without capturing variants or another owner',()=>{
  const rules=createBrandRules(catalog)

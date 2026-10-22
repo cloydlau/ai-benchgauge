@@ -38,9 +38,12 @@
         <view class="board-card source-{{card.index}}">
           <view class="metadata">
             <button class="summary" data-kind="{{card.kind}}" bindtap="sourceHelp">{{card.summary}}</button>
-            <button class="times mono" data-kind="{{card.kind}}" bindtap="refreshTap" aria-label="{{card.loading ? labels.loading : labels.refresh}}" aria-busy="{{card.loading}}">
+            <button class="times" data-kind="{{card.kind}}" bindtap="refreshTap" aria-label="{{card.timeAccessibility}} · {{card.loading ? labels.loading : labels.refresh}}" aria-busy="{{card.loading}}">
               <view wx:if="{{card.loading}}" class="time-loading" aria-hidden="true" />
-              <text class="time-value">{{card.time}}</text>
+              <view class="time-copy">
+                <view class="time-row time-source"><text class="time-label">{{card.updatedLabel}}</text><text class="time-value mono">{{card.updated}}</text></view>
+                <view class="time-row time-fetched"><text class="time-label">{{card.fetchedLabel}}</text><text class="time-value mono">{{card.fetched}}</text></view>
+              </view>
             </button>
           </view>
           <view id="head-anchor-{{card.kind}}" class="table-head-anchor" aria-hidden="true" />

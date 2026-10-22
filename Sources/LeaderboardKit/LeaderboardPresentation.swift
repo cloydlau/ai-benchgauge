@@ -158,19 +158,11 @@ public enum LeaderboardPresentation {
         let fetched = board.map { formatter.string(from: $0.fetchedAt) } ?? "—"
         if ArenaAttribution.applies(board) { formatter.dateFormat = "yyyy-MM-dd"; formatter.timeZone = TimeZone(secondsFromGMT: 0) }
         let updated = board?.sourceUpdatedAt.map { formatter.string(from: $0) } ?? "—"
-        return (language.text("Updated \(updated)", "更新 \(updated)"),
+        let sourceLabel = ArenaAttribution.applies(board)
+            ? language.text("Published", "数据发布")
+            : language.text("Data updated", "数据更新")
+        return ("\(sourceLabel) \(updated)",
                 language.text("Fetched \(fetched)", "抓取 \(fetched)"))
-    }
-
-    public static func displayTime(_ board: Leaderboard?, language: AppLanguage,
-                                   timeZone: TimeZone = .current) -> String {
-        guard let board else { return "—" }
-        let date = max(board.sourceUpdatedAt ?? board.fetchedAt, board.fetchedAt)
-        let formatter = DateFormatter()
-        formatter.locale = language.locale
-        formatter.timeZone = timeZone
-        formatter.dateFormat = "M/d HH:mm"
-        return formatter.string(from: date)
     }
 
     public static func sourceTimeHelp(_ board: Leaderboard?, language: AppLanguage) -> String {
@@ -186,13 +178,15 @@ public enum LeaderboardPresentation {
         if ArenaAttribution.applies(board) {
             return language.text("Dataset published: \(updated)\nFetched: \(fetched)", "数据集发布：\(updated)\n抓取时间：\(fetched)")
         }
-        return language.text("Source updated: \(updated)\nFetched: \(fetched)",
-                             "源更新时间：\(updated)\n抓取时间：\(fetched)")
+        return language.text("Data updated: \(updated)\nFetched: \(fetched)",
+                             "数据更新时间：\(updated)\n抓取时间：\(fetched)")
     }
 
     public static func rankingUpdated(_ snapshot: LeaderboardSnapshot, category: LeaderboardCategory,
                                       language: AppLanguage, now: Date = Date()) -> String {
-        guard let date = category.boardKinds.compactMap({ snapshot.boards[$0]?.fetchedAt }).min() else {
+        guard let date = category.boardKinds.compactMap({ kind in
+            snapshot.boards[kind].map { $0.sourceUpdatedAt ?? $0.fetchedAt }
+        }).min() else {
             return language.text("Rankings pending", "榜单 待更新")
         }
         return language.text("Rankings \(updateAge(date, language: language, now: now))", "榜单 \(updateAge(date, language: language, now: now))")

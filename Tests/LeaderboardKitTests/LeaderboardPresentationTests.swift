@@ -12,7 +12,6 @@ import LeaderboardKit
     #expect(LeaderboardPresentation.rows(board, grouping: .model, filter: .all, modelQuery: "alpha").map(\.rank) == [4])
     #expect(LeaderboardPresentation.rows(board, grouping: .company, filter: .all, modelQuery: "no match").count == 2)
 }
-
 @Test func scoreSharesUseRoundedRatiosAndHideUnusableOrLeadingScores() {
     for (score, leader, expected): (Double, Double?, String) in [
         (56, 57.6, "97%"), (97.5, 100, "98%"), (0, 100, "0%"),
@@ -55,17 +54,17 @@ import LeaderboardKit
     let fetched = Date(timeIntervalSince1970: 1_700_000_000)
     let unknown = Leaderboard(kind: .artificialAnalysis, title: "AA", fetchedAt: fetched, entries: [])
     let labels = LeaderboardPresentation.sourceTimes(unknown, language: .chinese, timeZone: utc)
-    #expect(labels.updated == "更新 —")
+    #expect(labels.updated == "数据更新 —")
     #expect(labels.fetched == "抓取 11/14 22:13")
     #expect(LeaderboardPresentation.sourceTimeHelp(unknown, language: .chinese).contains("来源未提供"))
     let coding = Leaderboard(kind: .artificialAnalysisCodingAgent, title: "AA Coding",
         sourceUpdatedAt: fetched.addingTimeInterval(-3600), fetchedAt: fetched, entries: [])
     let known = LeaderboardPresentation.sourceTimes(coding, language: .english, timeZone: utc)
-    #expect(known.updated == "Updated 11/14 21:13")
+    #expect(known.updated == "Data updated 11/14 21:13")
     #expect(known.fetched == "Fetched 11/14 22:13")
     #expect(!LeaderboardPresentation.sourceTimeHelp(coding, language: .english).contains("Not published"))
     let pending = LeaderboardPresentation.sourceTimes(nil, language: .chinese, timeZone: utc)
-    #expect(pending.updated == "更新 —")
+    #expect(pending.updated == "数据更新 —")
     #expect(pending.fetched == "抓取 —")
     #expect(LeaderboardPresentation.sourceTimeHelp(nil, language: .english).contains("Waiting for first fetch"))
 }
@@ -112,6 +111,19 @@ import LeaderboardKit
     #expect(LeaderboardPresentation.updateAge(now.addingTimeInterval(-86_400), language: .english, now: now) == "1 day ago")
 }
 
+@Test func rankingAgePrefersSourceTimeEvenWhenTheFetchIsNewer() {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    for (sourceAge, fetchAge, expected) in [(7200.0, 0.0, "榜单 2 小时前"),
+                                           (3600.0, 7200.0, "榜单 1 小时前")] {
+        let board = Leaderboard(kind: .artificialAnalysis, title: "AA",
+            sourceUpdatedAt: now.addingTimeInterval(-sourceAge),
+            fetchedAt: now.addingTimeInterval(-fetchAge), entries: [])
+        let snapshot = LeaderboardSnapshot(boards: [.artificialAnalysis: board])
+        #expect(LeaderboardPresentation.rankingUpdated(snapshot, category: .general,
+            language: .chinese, now: now) == expected)
+    }
+}
+
 @Test func completeModelAndCompanyListsKeepTailAndFilters() {
     let entries = (1...45).map { rank in
         LeaderboardEntry(rank: rank, name: "Model \(rank)", score: Double(100 - rank),
@@ -124,19 +136,4 @@ import LeaderboardKit
     let filtered = LeaderboardPresentation.rows(board, grouping: .company, filter: .unknown, openness: .open)
     #expect(filtered.count == 22)
     #expect(filtered.last?.organization == "Maker 44")
-}
-
-@Test func mobileTimeUsesSharedLatestDateVectors() throws {
-    let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "fixtures/mobile-times.json")
-    let vectors = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as! [[String: String]]
-    let parser = ISO8601DateFormatter()
-    let utc = TimeZone(secondsFromGMT: 0)!
-    let formatter = DateFormatter(); formatter.locale = AppLanguage.english.locale; formatter.timeZone = utc; formatter.dateFormat = "M/d HH:mm"
-    for row in vectors {
-        let board = Leaderboard(kind: .artificialAnalysis, title: "Fixture",
-            sourceUpdatedAt: row["sourceUpdatedAt"].flatMap(parser.date(from:)),
-            fetchedAt: parser.date(from: row["fetchedAt"]!)!, entries: [])
-        #expect(LeaderboardPresentation.displayTime(board, language: .english, timeZone: utc) == formatter.string(from: parser.date(from: row["expected"]!)!))
-    }
-    #expect(LeaderboardPresentation.displayTime(nil, language: .chinese) == "—")
 }

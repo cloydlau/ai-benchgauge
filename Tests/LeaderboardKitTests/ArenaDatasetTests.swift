@@ -23,6 +23,7 @@ import LeaderboardKit
         #expect(ArenaAttribution.applies(board))
         #expect(!ArenaAttribution.applies(old))
         let source = LeaderboardPresentation.sourceTimes(board, language: language, timeZone: TimeZone(secondsFromGMT: -28800)!)
+        #expect(source.updated.hasPrefix(language.text("Published ", "数据发布 ")))
         #expect(source.updated.hasSuffix("2026-10-15"))
         #expect(!source.updated.contains(":"))
     }

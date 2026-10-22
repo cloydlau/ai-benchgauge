@@ -435,9 +435,17 @@ sealed partial class MainWindow
         System.Windows.Automation.AutomationProperties.SetName(button, Tr("Add model", "添加模型", "添加模型"));
         return button;
     }
-    DateTimeOffset? BoardDisplayDate(Board board) => new[] { UpdateAge.Parse(board.UpdatedAt), UpdateAge.Parse(board.FetchedAt) }.Max();
-    string BoardDisplayTime(Board board) => BoardDisplayDate(board)?.ToLocalTime().ToString("M/d HH:mm", CultureInfo.InvariantCulture) ?? "—";
-    string BoardTimeHelp(Board board) => (ArenaAttribution.Applies(board) ? Tr("Dataset published: ", "数据集发布于：", "資料集發佈於：") : Tr("Source updated: ", "源更新时间：", "來源更新時間："))
+    (string Updated, string Fetched) BoardTimes(Board board)
+    {
+        var dataset = ArenaAttribution.Applies(board);
+        var updated = dataset
+            ? UpdateAge.Parse(board.UpdatedAt)?.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            : UpdateAge.Parse(board.UpdatedAt)?.ToLocalTime().ToString("M/d HH:mm", CultureInfo.InvariantCulture);
+        var fetched = UpdateAge.Parse(board.FetchedAt)?.ToLocalTime().ToString("M/d HH:mm", CultureInfo.InvariantCulture);
+        return ((dataset ? Tr("Published", "数据发布", "資料發佈") : Tr("Data updated", "数据更新", "資料更新")) + " " + (updated ?? "—"),
+            Tr("Fetched", "抓取", "擷取") + " " + (fetched ?? "—"));
+    }
+    string BoardTimeHelp(Board board) => (ArenaAttribution.Applies(board) ? Tr("Dataset published: ", "数据集发布于：", "資料集發佈於：") : Tr("Data updated: ", "数据更新时间：", "資料更新時間："))
         + (ArenaAttribution.Applies(board) ? UpdateAge.Parse(board.UpdatedAt)?.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
             : UpdateAge.Parse(board.UpdatedAt)?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)
             ?? Tr("Not published by the source", "来源未提供", "來源未提供"))
@@ -572,9 +580,9 @@ sealed partial class MainWindow
     {
         var pair = VisibleBoards();
         var table = new Grid();
-        table.RowDefinitions.Add(new RowDefinition { Height = new GridLength(24) });
+        table.RowDefinitions.Add(new RowDefinition { Height = new GridLength(34) });
         table.RowDefinitions.Add(new RowDefinition());
-        var headings = TableGrid(pair.Length); headings.Background = Tint(panelDark ? "#29292B" : "#FCFCFC"); headings.Height = 24;
+        var headings = TableGrid(pair.Length); headings.Background = Tint(panelDark ? "#29292B" : "#FCFCFC"); headings.Height = 34;
         AddCell(headings, Caption(Tr("Rank", "排名", "排名"), PanelInk) is { } rank ? Center(rank) : throw new InvalidOperationException(), 0);
         for (var i = 0; i < pair.Length; i++)
         {
@@ -619,8 +627,12 @@ sealed partial class MainWindow
             var heading = new Grid();
             heading.ColumnDefinitions.Add(new ColumnDefinition());
             heading.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var time = Caption(BoardDisplayTime(board), PanelMuted, 9, numeric: true);
-            time.Margin = new Thickness(4, 0, 5, 0);
+            var times = BoardTimes(board);
+            var time = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 5, 0) };
+            var sourceTime = Caption(times.Updated, BoardTint(board.Kind), 8.5, numeric: true);
+            sourceTime.FontWeight = FontWeights.SemiBold;
+            time.Children.Add(sourceTime);
+            time.Children.Add(Caption(times.Fetched, PanelMuted, 8, numeric: true));
             time.ToolTip = BoardTimeHelp(board);
             heading.Children.Add(summary);
             Grid.SetColumn(time, 1); heading.Children.Add(time);
