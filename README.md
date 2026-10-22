@@ -9,15 +9,15 @@
 `macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `3 languages` · [MIT License](LICENSE)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/leaderboard-model-dark.png">
-  <img src="docs/screenshots/leaderboard-model-light.png" alt="AI BenchGauge model view with paired rankings and provider quotas in light mode" width="850">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/leaderboard-model-dark.png">
+  <img src="assets/screenshots/leaderboard-model-light.png" alt="AI BenchGauge model view with paired rankings and provider quotas in light mode" width="850">
 </picture>
 
 *Real model view: two complete, scrollable leaderboards side by side, with the CC Switch quota strip above them.*
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/leaderboard-company-dark.png">
-  <img src="docs/screenshots/leaderboard-company-light.png" alt="AI BenchGauge company view ranked by each organization's strongest model in light mode" width="850">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/leaderboard-company-dark.png">
+  <img src="assets/screenshots/leaderboard-company-light.png" alt="AI BenchGauge company view ranked by each organization's strongest model in light mode" width="850">
 </picture>
 
 *Real company view: each organization is ranked by its strongest listed model.*

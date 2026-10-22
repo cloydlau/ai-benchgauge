@@ -11,15 +11,15 @@
 `macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `English / 简中 / 繁中` · [MIT 许可证](LICENSE)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/leaderboard-model-dark.png">
-  <img src="docs/screenshots/leaderboard-model-light.png" alt="AI BenchGauge 浅色模式模型视图，展示双榜与供应商余量" width="850">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/leaderboard-model-dark.png">
+  <img src="assets/screenshots/leaderboard-model-light.png" alt="AI BenchGauge 浅色模式模型视图，展示双榜与供应商余量" width="850">
 </picture>
 
 *真实模型视图：并排查看两份可滚动的完整榜单，上方显示 CC Switch 余量条。*
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/leaderboard-company-dark.png">
-  <img src="docs/screenshots/leaderboard-company-light.png" alt="AI BenchGauge 浅色模式公司榜，按各公司最强模型排名" width="850">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/leaderboard-company-dark.png">
+  <img src="assets/screenshots/leaderboard-company-light.png" alt="AI BenchGauge 浅色模式公司榜，按各公司最强模型排名" width="850">
 </picture>
 
 *真实公司视图：每家公司按其上榜的最强模型排名。*
