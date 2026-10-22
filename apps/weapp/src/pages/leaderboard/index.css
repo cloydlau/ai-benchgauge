@@ -103,7 +103,15 @@
 /* Rank text starts at 4rpx margin + 2rpx padding + (44rpx - 2 × 19rpx) / 2. */
 .metadata { display: flex; align-items: center; gap: 16rpx; padding: 24rpx 6rpx 12rpx 9rpx; }
 .summary { flex: 1; min-width: 0; padding: 0; color: var(--muted); text-align: left; font-size: 22rpx; line-height: 1.5; }
-.times { position: relative; min-width: 11ch; color: var(--muted); display: flex; justify-content: flex-end; white-space: nowrap; gap: 1ch; flex-shrink: 0; text-align: right; align-items: flex-end; font-size: 19rpx; line-height: 1.5; }
+.times { position: relative; color: var(--muted); display: flex; justify-content: flex-end; white-space: nowrap; gap: 8rpx; flex-shrink: 0; text-align: right; align-items: center; font-size: 18rpx; line-height: 1.25; }
+.time-copy { display: flex; flex-direction: column; align-items: flex-end; gap: 4rpx; }
+.time-row { display: flex; align-items: baseline; justify-content: flex-end; gap: 7rpx; }
+.time-label { padding: 1rpx 6rpx; border-radius: 6rpx; font-size: 16rpx; font-weight: 600; letter-spacing: .02em; }
+.time-source { color: var(--blue); }.source-1 .time-source { color: var(--purple); }.source-2 .time-source { color: #168d86; }
+.time-source .time-label { background: var(--chip); }
+.time-source .time-value { font-weight: 600; }
+.time-fetched { color: var(--muted); opacity: .82; }
+.time-fetched .time-label { border: 1rpx solid var(--line); }
 .time-loading { align-self: center; flex-shrink: 0; width: 1em; height: 1em; box-sizing: border-box; border: 2rpx solid currentColor; border-right-color: transparent; border-radius: 50%; animation: time-spin .8s linear infinite; pointer-events: none; }
 @keyframes time-spin { to { transform: rotate(360deg); } }
 .table-grid { display: grid; grid-template-columns: 44rpx minmax(0,1fr) var(--country-column) var(--source-column) 75rpx; gap: 6rpx; align-items: center; }

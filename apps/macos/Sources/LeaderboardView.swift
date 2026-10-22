@@ -94,10 +94,12 @@ struct LeaderboardView: View {
             }
         }.max() ?? 0
         let headerWidth = LeaderboardCategory.allCases.flatMap(\.boardKinds).map { kind in
-            SourceTableHeaderView.requiredNameColumnWidth(
+            let times = LeaderboardPresentation.sourceTimes(state.snapshot.boards[kind], language: state.selectedLanguage)
+            return SourceTableHeaderView.requiredNameColumnWidth(
                 title: LeaderboardPresentation.columnTitle(kind, language: state.selectedLanguage),
                 licenseName: headerLicenseName(kind: kind, board: state.snapshot.boards[kind]),
-                summary: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(kind, language: state.selectedLanguage)))
+                summary: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(kind, language: state.selectedLanguage)),
+                updated: times.updated, fetched: times.fetched)
         }.max() ?? 0
         let desired = max(minimumWidth, ceil(max(columnWidth, headerWidth) * CGFloat(state.visibleBoardKinds.count) + tableChromeWidth(boardCount: state.visibleBoardKinds.count) + 88))
         return min(desired, maximumWidth)
@@ -499,10 +501,11 @@ struct LeaderboardView: View {
         .scrollIndicators(.automatic)
         .overlay(TableChrome(
             boards: visibleKinds.map { kind in
-                BoardHeaderConfiguration(kind: kind,
+                let times = LeaderboardPresentation.sourceTimes(state.snapshot.boards[kind], language: language)
+                return BoardHeaderConfiguration(kind: kind,
                     licenseName: headerLicenseName(kind: kind, board: state.snapshot.boards[kind]),
                     summary: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(kind, language: language)),
-                    time: LeaderboardPresentation.displayTime(state.snapshot.boards[kind], language: language),
+                    updated: times.updated, fetched: times.fetched,
                     help: LeaderboardPresentation.columnTitle(kind, language: language) + "\n" + LeaderboardPresentation.sourceHelp(kind, language: language, board: state.snapshot.boards[kind]),
                     country: state.countryFilters[kind] ?? .all,
                     countryOptions: countryOptions(for: kind), openness: state.opennessFilters[kind] ?? .all)
@@ -1084,7 +1087,8 @@ private struct BoardHeaderConfiguration {
     let kind: LeaderboardKind
     let licenseName: String?
     let summary: SourceLensDescription
-    let time: String
+    let updated: String
+    let fetched: String
     let help: String
     let country: LeaderboardCountryFilter
     let countryOptions: [LeaderboardCountryFilter]
@@ -1331,7 +1335,7 @@ private struct TableChrome: NSViewRepresentable {
 }
 
 private final class SourceTableHeaderView: NSTableHeaderView {
-    static let height: CGFloat = 24
+    static let height: CGFloat = 34
     // Keep the pinned labels readable even when the system makes table chrome vibrant.
     override var allowsVibrancy: Bool { false }
     override var isOpaque: Bool { false }
@@ -1348,16 +1352,18 @@ private final class SourceTableHeaderView: NSTableHeaderView {
     /// loading bar is near-black in light mode and near-white in dark mode.
     static let placeholderAlpha: CGFloat = 35.0 / 255.0
 
-    static func requiredNameColumnWidth(title: String, licenseName: String?, summary: SourceLensDescription) -> CGFloat {
+    static func requiredNameColumnWidth(title: String, licenseName: String?, summary: SourceLensDescription,
+                                        updated: String, fetched: String) -> CGFloat {
         let titleFont = NSFont.systemFont(ofSize: 11, weight: .semibold)
         let titled = licenseName.map { title + " · " + $0 } ?? title
+        let timeFont = NSFont.monospacedDigitSystemFont(ofSize: 8, weight: .regular)
+        let timeWidth = max((updated as NSString).size(withAttributes: [.font: timeFont]).width,
+            (fetched as NSString).size(withAttributes: [.font: timeFont]).width)
         return ceil((titled as NSString).size(withAttributes: [
             .font: titleFont
         ]).width + ((" · " + summary.emphasis) as NSString).size(withAttributes: [
             .font: NSFont.systemFont(ofSize: 10)
-        ]).width + ("12/31 23:59" as NSString).size(withAttributes: [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .regular)
-        ]).width + 18)
+        ]).width + timeWidth + 18)
     }
 
     func configure(boards: [BoardHeaderConfiguration], language: AppLanguage,
@@ -1453,7 +1459,8 @@ private final class SourceTableHeaderView: NSTableHeaderView {
                 let tint: NSColor = board.kind == .epochECI ? .systemTeal
                     : (board.kind.sourceLinkTitle == LeaderboardKind.artificialAnalysis.sourceLinkTitle ? .systemBlue : .systemPurple)
                 drawBoardHeader(tableView.tableColumns[index].headerCell.stringValue,
-                    licenseName: board.licenseName, summary: board.summary, time: board.time, tint: tint, in: rect)
+                    licenseName: board.licenseName, summary: board.summary,
+                    updated: board.updated, fetched: board.fetched, tint: tint, in: rect)
             case 1: drawCountryHeader(selected: board.country, in: rect)
             case 2: drawFilterHeader(title: ModelOpenness.columnTitle(language: language), active: board.openness != .all, in: rect)
             default: tableView.tableColumns[index].headerCell.draw(withFrame: rect, in: self)
@@ -1560,19 +1567,25 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         _ title: String,
         licenseName: String?,
         summary: SourceLensDescription,
-        time: String,
+        updated: String,
+        fetched: String,
         tint: NSColor,
         in rect: NSRect
     ) {
-        let timeFont = NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .regular)
-        let timeAttributes: [NSAttributedString.Key: Any] = [.font: timeFont, .foregroundColor: NSColor.secondaryLabelColor]
-        let timeSize = (time as NSString).size(withAttributes: timeAttributes)
-        let timeWidth = ceil(timeSize.width)
+        let sourceFont = NSFont.monospacedDigitSystemFont(ofSize: 8, weight: .semibold)
+        let fetchedFont = NSFont.monospacedDigitSystemFont(ofSize: 8, weight: .regular)
+        let sourceAttributes: [NSAttributedString.Key: Any] = [.font: sourceFont, .foregroundColor: tint]
+        let fetchedAttributes: [NSAttributedString.Key: Any] = [.font: fetchedFont, .foregroundColor: NSColor.secondaryLabelColor]
+        let sourceSize = (updated as NSString).size(withAttributes: sourceAttributes)
+        let fetchedSize = (fetched as NSString).size(withAttributes: fetchedAttributes)
+        let timeWidth = ceil(max(sourceSize.width, fetchedSize.width))
         let titleRect = NSTableHeaderCell(textCell: "").titleRect(forBounds: rect)
-        // Draw both runs directly: a header cell's default font and accessory
-        // inset would clip the clock and add a divider inside this column.
-        (time as NSString).draw(at: NSPoint(x: rect.maxX - timeWidth - 5,
-            y: titleRect.midY - timeSize.height / 2), withAttributes: timeAttributes)
+        // Keep source publication visually primary while the successful fetch
+        // remains a quieter, independently labelled provenance timestamp.
+        (updated as NSString).draw(at: NSPoint(x: rect.maxX - sourceSize.width - 5,
+            y: titleRect.midY - sourceSize.height - 1), withAttributes: sourceAttributes)
+        (fetched as NSString).draw(at: NSPoint(x: rect.maxX - fetchedSize.width - 5,
+            y: titleRect.midY + 1), withAttributes: fetchedAttributes)
         let nameRect = NSRect(x: rect.minX, y: rect.minY, width: max(0, rect.width - timeWidth - 8), height: rect.height)
         let titleFont = NSFont.systemFont(ofSize: 11, weight: .semibold)
         let summaryFont = NSFont.systemFont(ofSize: 10)

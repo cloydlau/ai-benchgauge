@@ -18,8 +18,9 @@ export function replacementFailure(next, previous) {
 }
 export const canReplace = (next, previous) => replacementFailure(next, previous) === null
 export function latestTimestamp(board) {
-  const dates = [board?.sourceUpdatedAt, board?.fetchedAt].filter(value => value && Number.isFinite(Date.parse(value)))
-  return dates.reduce((latest, value) => !latest || Date.parse(value) > Date.parse(latest) ? value : latest, null)
+  // Source time takes priority regardless of which timestamp is later.
+  return [board?.sourceUpdatedAt, board?.fetchedAt]
+    .find(value => value && Number.isFinite(Date.parse(value))) ?? null
 }
 export function createBrandRules(catalog) {
   const normalizedBrandKey = value => { const key = String(value ?? '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''); return hasOwn(catalog.aliases, key) ? catalog.aliases[key] : key }

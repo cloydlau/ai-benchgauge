@@ -484,12 +484,12 @@ test('automatic refresh failures quietly retain rows and time; only a manual pul
   const first = globalThis.__benchHooks.load()
   assert.equal(h.page.pullRefreshing.value, false)
   h.respondAll(); await first
-  const before = h.page.cards.value.map(card => ({ rows: card.rows, time: card.time }))
+  const before = h.page.cards.value.map(card => ({ rows: card.rows, updated: card.updated, fetched: card.fetched }))
   const retry = h.page.refreshCategory()
   assert.equal(h.page.pullRefreshing.value, false)
   for (const request of h.requests.slice(2)) { request.options.fail(); request.options.complete() }
   await retry
-  assert.deepEqual(h.page.cards.value.map(card => ({ rows: card.rows, time: card.time })), before)
+  assert.deepEqual(h.page.cards.value.map(card => ({ rows: card.rows, updated: card.updated, fetched: card.fetched })), before)
   assert.equal(h.modals.length, 0)
   assert.ok(h.page.cards.value.every(card => !card.failed))
   const pull = h.page.pullRefresh()
@@ -497,7 +497,7 @@ test('automatic refresh failures quietly retain rows and time; only a manual pul
   for (const request of h.requests.slice(4)) { request.options.fail(); request.options.complete() }
   await pull
   assert.equal(h.page.pullRefreshing.value, false)
-  assert.deepEqual(h.page.cards.value.map(card => ({ rows: card.rows, time: card.time })), before)
+  assert.deepEqual(h.page.cards.value.map(card => ({ rows: card.rows, updated: card.updated, fetched: card.fetched })), before)
   globalThis.__benchHooks.unload()
 })
 
@@ -554,6 +554,9 @@ test('page lifecycle paints independent sources, honors the new tabs/headings an
   h.respond(0); h.respond(2); await loading
   assert.deepEqual(h.page.cards.value.map(card => [card.title, card.rows.length]), [['Artificial Analysis', 2], ['Text Arena', 2], ['Epoch ECI', 2]])
   assert.equal(h.page.cards.value[0].updated, '—')
+  assert.equal(h.page.cards.value[0].updatedLabel, '数据更新')
+  assert.notEqual(h.page.cards.value[0].fetched, '—')
+  assert.equal(h.page.cards.value[0].fetchedLabel, '抓取')
   h.page.selectFace(event({ index: 1 })); assert.equal(h.page.face.value, 1)
   h.page.selectCategory(event({ id: 'video' })); assert.equal(h.requests.length, 5)
   h.respondAll(); await new Promise(resolve => setImmediate(resolve))
