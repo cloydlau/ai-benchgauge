@@ -100,6 +100,8 @@ test('CI 脚本拒绝没有审核记录的截图提交，补上记录或删除�
   }
   const config = JSON.parse(readFileSync(join(original, '../calmmit.config.json'), 'utf8'))
   config.library = resolve(original, '..', config.library)
+  // The live repository may pause media review; this fixture still exercises the enabled gate.
+  config.steps.media = true
   writeFileSync(join(root, 'calmmit.config.json'), JSON.stringify(config))
   const gate = (...args) => spawnSync(process.execPath, [join(root, 'Scripts', 'media-gate-ci.mjs'), ...args], { cwd: root, encoding: 'utf8' })
   const git = (args) => {
@@ -122,6 +124,15 @@ test('CI 脚本拒绝没有审核记录的截图提交，补上记录或删除�
   assert.equal(blocked.status, 1)
   assert.match(blocked.stderr, /没有匹配的审核记录/)
   assert.match(blocked.stderr, /docs\/screenshots\/menu\.png（截图目录）/)
+
+  config.steps.media = false
+  writeFileSync(join(root, 'calmmit.config.json'), JSON.stringify(config))
+  const paused = gate()
+  assert.equal(paused.status, 0, paused.stderr)
+  assert.match(paused.stdout, /steps.media=false.*暂停媒体审核/)
+  config.steps.media = true
+  writeFileSync(join(root, 'calmmit.config.json'), JSON.stringify(config))
+  assert.equal(gate().status, 1, 'restoring the switch rechecks unreviewed media')
 
   git(['commit', '-q', '--amend', '-m', `docs(menu): add preview\n\n${MEDIA_REVIEW_TRAILER}: ${HUMAN.name} <${HUMAN.email}>`])
   const allowed = gate()
