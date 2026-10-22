@@ -438,17 +438,21 @@ definePage(query => {
       sources: distribution.sources.map(slice => ({ ...slice, width: `${slice.fraction * 100}%`, color: opennessColor(slice.id, dark.value), icon: opennessIcon(slice.id, dark.value), name: tr(slice.id) })),
     }]
   })))
+  function boardTime(board) {
+    // A source date wins even when a later snapshot has been fetched.
+    const isSourceTime = Number.isFinite(Date.parse(board?.sourceUpdatedAt))
+    const value = isSourceTime ? board.sourceUpdatedAt : board?.fetchedAt
+    const dataset = isSourceTime && isArenaDatasetBoard(board)
+    return { time: dataset ? new Date(value).toISOString().slice(0, 10) : formatTime(value),
+      timeLabel: tr(isSourceTime ? 'published' : 'updated'), isSourceTime }
+  }
   const cards = computed(() => visibleCards.value.map(({ kind, entries, leaderScore, totalCount }, index) => {
     const board = snapshots.value[kind]
     const filter = filterFor(kind)
     const range = rangeFor(kind, entries.length)
-    const dataset = isArenaDatasetBoard(board)
-    const updated = dataset ? board.sourceUpdatedAt?.slice(0, 10) || '—' : formatTime(board?.sourceUpdatedAt)
-    const fetched = formatTime(board?.fetchedAt)
-    const updatedLabel = tr(dataset ? 'published' : 'dataUpdated')
+    const time = boardTime(board)
     return { kind, title: boardTitle(kind, language.value), index, summary: text(boards[kind].summaries, language.value),
-      updated, fetched, updatedLabel, fetchedLabel: tr('fetched'),
-      timeAccessibility: `${updatedLabel} ${updated}${language.value === 'en' ? ', ' : '，'}${tr('fetched')} ${fetched}`,
+      ...time, timeAccessibility: `${time.time} ${time.timeLabel}`,
       count: totalCount, shownCount: entries.length, hasMore: totalCount > 20, expanded: !!expandedBoards.value[kind],
       expansionLabel: expandedBoards.value[kind] ? tr('showLess') : tr('showAll').replace('{count}', totalCount), distribution: distributions.value[kind],
       // Keep the editing header pinned when a query reduces a long list to a
@@ -896,8 +900,8 @@ definePage(query => {
     const formerName = kind.startsWith('arena') || kind === 'codeArenaWebDev'
       ? `${text(['Formerly LMSYS Chatbot Arena / LMArena', '原 LMSYS Chatbot Arena / LMArena', '原 LMSYS Chatbot Arena / LMArena'], language.value)}\n\n` : ''
     const dataset = isArenaDatasetBoard(board)
-    const updated = dataset ? board?.sourceUpdatedAt?.slice(0, 10) || '—' : formatTime(board?.sourceUpdatedAt)
-    const times = `${tr(dataset ? 'published' : 'dataUpdated')}: ${updated}\n${tr('fetched')}: ${formatTime(board?.fetchedAt)}`
+    const time = boardTime(board)
+    const times = `${time.time} ${time.timeLabel}`
     wx.showModal({ title: boardTitle(kind, language.value),
       content: `${formerName}${text(boards[kind].summaries, language.value)}\n\n${times}\n\n${boards[kind].url}${kind === 'epochECI' ? `\n\n${epochAttribution(language.value).fullText}` : ''}${dataset ? `\n\n${arenaAttribution(language.value).fullText}` : ''}`,
       showCancel: false })
@@ -978,11 +982,10 @@ definePage(query => {
         boards: current.value.kinds.map((kind, index) => {
           const board = snapshots.value[kind], filter = filterFor(kind)
           const country = filter.country === 'all' ? tr('all') : countryName(filter.country, language.value)
-          const dataset = isArenaDatasetBoard(board)
+          const time = boardTime(board)
           return { kind, sourceNote: board?.sourceNote, title: boardTitle(kind, language.value), tab: tabs.value[index],
             summary: text(boards[kind].summaries, language.value),
-            updated: `${tr(dataset ? 'published' : 'dataUpdated')} ${dataset ? board?.sourceUpdatedAt?.slice(0, 10) || '—' : formatTime(board?.sourceUpdatedAt)}`,
-            fetched: `${tr('fetched')} ${formatTime(board?.fetchedAt)}`,
+            time: `${time.time} ${time.timeLabel}`, isSourceTime: time.isSourceTime,
             filterLabel: `${tr('country')}: ${country} · ${tr('source')}: ${tr(filter.openness)}`,
             empty: tr(board ? 'empty' : 'noBoard'),
             rows: rankedCards.value[index].entries.map(entry =>

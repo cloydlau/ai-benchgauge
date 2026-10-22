@@ -52,24 +52,36 @@ import LeaderboardKit
     }
 }
 
-@Test func sourceAndFetchTimesRemainDistinctWhenPublicationIsMissing() {
+@Test func sourceTimeAlwaysWinsAndFetchTimeIsOnlyAFallback() {
     let utc = TimeZone(secondsFromGMT: 0)!
     let fetched = Date(timeIntervalSince1970: 1_700_000_000)
     let unknown = Leaderboard(kind: .artificialAnalysis, title: "AA", fetchedAt: fetched, entries: [])
-    let labels = LeaderboardPresentation.sourceTimes(unknown, language: .chinese, timeZone: utc)
-    #expect(labels.updated == "数据更新 —")
-    #expect(labels.fetched == "抓取 11/14 22:13")
-    #expect(LeaderboardPresentation.sourceTimeHelp(unknown, language: .chinese).contains("来源未提供"))
-    let coding = Leaderboard(kind: .artificialAnalysisCodingAgent, title: "AA Coding",
-        sourceUpdatedAt: fetched.addingTimeInterval(-3600), fetchedAt: fetched, entries: [])
-    let known = LeaderboardPresentation.sourceTimes(coding, language: .english, timeZone: utc)
-    #expect(known.updated == "Data updated 11/14 21:13")
-    #expect(known.fetched == "Fetched 11/14 22:13")
-    #expect(!LeaderboardPresentation.sourceTimeHelp(coding, language: .english).contains("Not published"))
-    let pending = LeaderboardPresentation.sourceTimes(nil, language: .chinese, timeZone: utc)
-    #expect(pending.updated == "数据更新 —")
-    #expect(pending.fetched == "抓取 —")
-    #expect(LeaderboardPresentation.sourceTimeHelp(nil, language: .english).contains("Waiting for first fetch"))
+    let labels = LeaderboardPresentation.sourceTime(unknown, language: .chinese, timeZone: utc)
+    #expect(labels.text == "11/14 22:13 更新")
+    #expect(!labels.isSourceTime)
+    #expect(!LeaderboardPresentation.sourceTimeHelp(unknown, language: .chinese).contains("数据更新"))
+    for offset in [-3600.0, 0, 3600] {
+        let coding = Leaderboard(kind: .artificialAnalysisCodingAgent, title: "AA Coding",
+            sourceUpdatedAt: fetched.addingTimeInterval(offset), fetchedAt: fetched, entries: [])
+        let known = LeaderboardPresentation.sourceTime(coding, language: .english, timeZone: utc)
+        #expect(known.text == "11/14 \(offset < 0 ? "21" : offset == 0 ? "22" : "23"):13 Published")
+        #expect(known.isSourceTime)
+        #expect(!LeaderboardPresentation.sourceTimeHelp(coding, language: .english).contains("Fetched"))
+    }
+    let pending = LeaderboardPresentation.sourceTime(nil, language: .chinese, timeZone: utc)
+    #expect(pending.text == "— 更新")
+    #expect(!pending.isSourceTime)
+    #expect(LeaderboardPresentation.sourceTimeHelp(nil, language: .english) == "— Updated")
+    for language in AppLanguage.allCases {
+        let published = Leaderboard(kind: .artificialAnalysis, title: "AA", sourceUpdatedAt: fetched,
+            fetchedAt: fetched.addingTimeInterval(3600), entries: [])
+        #expect(LeaderboardPresentation.sourceTime(published, language: language, timeZone: utc).text
+            == "11/14 22:13 \(language.text("Published", "发布"))")
+        #expect(LeaderboardPresentation.sourceTime(unknown, language: language, timeZone: utc).text
+            == "11/14 22:13 \(language.text("Updated", "更新"))")
+        #expect(LeaderboardPresentation.sourceTimeHelp(published, language: language).hasSuffix(language.text("Published", "发布")))
+        #expect(LeaderboardPresentation.sourceTimeHelp(unknown, language: language).hasSuffix(language.text("Updated", "更新")))
+    }
 }
 
 @Test func countryFilteringRetainsEveryMatchingCompany() {

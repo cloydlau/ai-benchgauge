@@ -435,22 +435,23 @@ sealed partial class MainWindow
         System.Windows.Automation.AutomationProperties.SetName(button, Tr("Add model", "添加模型", "添加模型"));
         return button;
     }
-    (string Updated, string Fetched) BoardTimes(Board board)
+    (string Text, bool IsSourceTime) BoardTime(Board board)
     {
-        var dataset = ArenaAttribution.Applies(board);
-        var updated = dataset
-            ? UpdateAge.Parse(board.UpdatedAt)?.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
-            : UpdateAge.Parse(board.UpdatedAt)?.ToLocalTime().ToString("M/d HH:mm", CultureInfo.InvariantCulture);
-        var fetched = UpdateAge.Parse(board.FetchedAt)?.ToLocalTime().ToString("M/d HH:mm", CultureInfo.InvariantCulture);
-        return ((dataset ? Tr("Published", "数据发布", "資料發佈") : Tr("Data updated", "数据更新", "資料更新")) + " " + (updated ?? "—"),
-            Tr("Fetched", "抓取", "擷取") + " " + (fetched ?? "—"));
+        var time = BoardTimestamp.For(board);
+        var dataset = time.IsSourceTime && ArenaAttribution.Applies(board);
+        var value = dataset
+            ? time.Value?.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            : time.Value?.ToLocalTime().ToString("M/d HH:mm", CultureInfo.InvariantCulture);
+        return (time.Caption(value ?? "—", prefs.Language), time.IsSourceTime);
     }
-    string BoardTimeHelp(Board board) => (ArenaAttribution.Applies(board) ? Tr("Dataset published: ", "数据集发布于：", "資料集發佈於：") : Tr("Data updated: ", "数据更新时间：", "資料更新時間："))
-        + (ArenaAttribution.Applies(board) ? UpdateAge.Parse(board.UpdatedAt)?.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
-            : UpdateAge.Parse(board.UpdatedAt)?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)
-            ?? Tr("Not published by the source", "来源未提供", "來源未提供"))
-        + "\n" + Tr("Fetched: ", "抓取时间：", "擷取時間：")
-        + (UpdateAge.Parse(board.FetchedAt)?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) ?? Tr("Waiting for first fetch", "等待首次抓取", "等待首次擷取"));
+    string BoardTimeHelp(Board board)
+    {
+        var time = BoardTimestamp.For(board);
+        var value = time.IsSourceTime && ArenaAttribution.Applies(board)
+            ? time.Value?.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            : time.Value?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+        return time.Caption(value ?? "—", prefs.Language);
+    }
     FrameworkElement Segments((string Value, string Title)[] items, string selected, double width, Func<string, Task> change, bool compact = false)
     {
         if (compact)
@@ -627,12 +628,11 @@ sealed partial class MainWindow
             var heading = new Grid();
             heading.ColumnDefinitions.Add(new ColumnDefinition());
             heading.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var times = BoardTimes(board);
+            var selectedTime = BoardTime(board);
             var time = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 5, 0) };
-            var sourceTime = Caption(times.Updated, BoardTint(board.Kind), 8.5, numeric: true);
-            sourceTime.FontWeight = FontWeights.SemiBold;
+            var sourceTime = Caption(selectedTime.Text, selectedTime.IsSourceTime ? BoardTint(board.Kind) : PanelMuted, 8.5, numeric: true);
+            sourceTime.FontWeight = selectedTime.IsSourceTime ? FontWeights.SemiBold : FontWeights.Normal;
             time.Children.Add(sourceTime);
-            time.Children.Add(Caption(times.Fetched, PanelMuted, 8, numeric: true));
             time.ToolTip = BoardTimeHelp(board);
             heading.Children.Add(summary);
             Grid.SetColumn(time, 1); heading.Children.Add(time);

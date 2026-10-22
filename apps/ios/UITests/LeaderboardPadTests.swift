@@ -418,8 +418,9 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
                 XCTAssertEqual(badge.label, chinese ? "闭源" : "Closed")
                 let times: XCUIElement? = app.staticTexts["source-times-\(kind)"]
                 XCTAssertNotNil(times)
-                XCTAssertTrue(times?.label.contains(chinese ? "数据更新" : "Data updated") ?? false)
-                XCTAssertTrue(times?.label.contains(chinese ? "抓取" : "Fetched") ?? false)
+                XCTAssertEqual(times?.label.hasSuffix(chinese ? "发布" : "Published"), !missing)
+                XCTAssertEqual(times?.label.hasSuffix(chinese ? "更新" : "Updated"), missing)
+                XCTAssertFalse(times?.label.contains(chinese ? "抓取" : "Fetched") ?? true)
                 XCTAssertFalse(times?.label.contains("—") ?? true)
                 if let times {
                     let top = min(summary.frame.minY, times.frame.minY)

@@ -122,8 +122,12 @@ enum NativeVisualCapture {
                                 organization: "Fixture maker \(rank)", logoURL: root.appending(path: "assets/logos/openai.png"))
                         }
                     } ?? board.entries
-                    return Leaderboard(kind: board.kind, title: board.title, sourceUpdatedAt: board.sourceUpdatedAt, sourceNote: board.sourceNote,
-                                fetchedAt: (test.scenario == "boardSelectionConfirm" || test.scenario.hasPrefix("desktopSearch") || test.scenario == "distributionCharts") ? Date() : test.scenario == "sourceTimes" ? board.fetchedAt : quotaDate ?? fixedDate, entries: entries)
+                    let singleTime = test.scenario == "sourceTimes"
+                    let sourceDate = singleTime && board.kind == .artificialAnalysis ? nil : board.sourceUpdatedAt
+                    let fetchDate = singleTime ? fixedDate.addingTimeInterval(23 * 86400)
+                        : (test.scenario == "boardSelectionConfirm" || test.scenario.hasPrefix("desktopSearch") || test.scenario == "distributionCharts") ? Date() : quotaDate ?? fixedDate
+                    return Leaderboard(kind: board.kind, title: board.title, sourceUpdatedAt: sourceDate, sourceNote: board.sourceNote,
+                                fetchedAt: fetchDate, entries: entries)
                 }
                 let stale = test.scenario == "freshnessStale"
                 let shownChips = stale ? visibleChips.map { chip in

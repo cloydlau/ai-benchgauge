@@ -962,6 +962,33 @@
   },
   "cases": [
     {
+      "id": "single-time-en-850",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceTimes",
+      "mode": "clickToClose",
+      "selectedBoards": ["artificialAnalysis", "arenaText", "epochECI"]
+    },
+    {
+      "id": "single-time-zh-1100",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "scenario": "sourceTimes",
+      "mode": "clickToClose",
+      "selectedBoards": ["artificialAnalysis", "arenaText", "epochECI"]
+    },
+    {
+      "id": "single-time-zh-Hant-1100",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "scenario": "sourceTimes",
+      "mode": "clickToClose",
+      "selectedBoards": ["artificialAnalysis", "arenaText", "epochECI"]
+    },
+    {
       "id": "model-en-900",
       "language": "en",
       "width": 900,

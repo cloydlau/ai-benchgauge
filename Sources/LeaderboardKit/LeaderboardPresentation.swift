@@ -139,16 +139,6 @@ public enum LeaderboardPresentation {
         if kind.sourcePrefix == "Arena" {
             parts.insert(language.text("Formerly LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena"), at: 1)
         }
-        if let date = board?.sourceUpdatedAt {
-            let formatter = DateFormatter()
-            formatter.locale = language.locale
-            formatter.dateStyle = .medium
-            formatter.timeStyle = ArenaAttribution.applies(board) ? .none : .short
-            if ArenaAttribution.applies(board) { formatter.timeZone = TimeZone(secondsFromGMT: 0) }
-            let label = ArenaAttribution.applies(board) ? language.text("Published", "发布于")
-                : kind.sourcePrefix == "Arena" ? language.text("Votes through", "投票截至") : language.text("Updated", "更新于")
-            parts.append("\(label) \(formatter.string(from: date))")
-        }
         if let note = board?.sourceNote, !note.isEmpty { parts.append(note) }
         var help = parts.joined(separator: language.text(". ", "。"))
         if kind == .epochECI { help += "\n\n" + EpochAttribution.fullText(language: language) }
@@ -156,22 +146,20 @@ public enum LeaderboardPresentation {
         return help
     }
 
-    /// Keep source publication and our successful fetch distinct, including
-    /// boards whose source publishes no timestamp. Never substitute one for the other.
-    public static func sourceTimes(_ board: Leaderboard?, language: AppLanguage,
-                                   timeZone: TimeZone = .current) -> (updated: String, fetched: String) {
+    /// Show exactly one time: source publication/update whenever available,
+    /// otherwise our successful fetch. Do not choose the later timestamp.
+    public static func sourceTime(_ board: Leaderboard?, language: AppLanguage,
+                                  timeZone: TimeZone = .current) -> (text: String, isSourceTime: Bool) {
         let formatter = DateFormatter()
         formatter.locale = language.locale
         formatter.timeZone = timeZone
         formatter.dateFormat = "M/d HH:mm"
-        let fetched = board.map { formatter.string(from: $0.fetchedAt) } ?? "—"
+        guard let updated = board?.sourceUpdatedAt else {
+            let fetched = board.map { formatter.string(from: $0.fetchedAt) } ?? "—"
+            return ("\(fetched) \(language.text("Updated", "更新"))", false)
+        }
         if ArenaAttribution.applies(board) { formatter.dateFormat = "yyyy-MM-dd"; formatter.timeZone = TimeZone(secondsFromGMT: 0) }
-        let updated = board?.sourceUpdatedAt.map { formatter.string(from: $0) } ?? "—"
-        let sourceLabel = ArenaAttribution.applies(board)
-            ? language.text("Published", "数据发布")
-            : language.text("Data updated", "数据更新")
-        return ("\(sourceLabel) \(updated)",
-                language.text("Fetched \(fetched)", "抓取 \(fetched)"))
+        return ("\(formatter.string(from: updated)) \(language.text("Published", "发布"))", true)
     }
 
     public static func sourceTimeHelp(_ board: Leaderboard?, language: AppLanguage) -> String {
@@ -179,16 +167,13 @@ public enum LeaderboardPresentation {
         formatter.locale = language.locale
         formatter.dateStyle = .medium
         formatter.timeStyle = .medium
-        let fetched = board.map { formatter.string(from: $0.fetchedAt) }
-            ?? language.text("Waiting for first fetch", "等待首次抓取")
-        if ArenaAttribution.applies(board) { formatter.timeStyle = .none; formatter.timeZone = TimeZone(secondsFromGMT: 0) }
-        let updated = board?.sourceUpdatedAt.map { formatter.string(from: $0) }
-            ?? language.text("Not published by the source", "来源未提供")
-        if ArenaAttribution.applies(board) {
-            return language.text("Dataset published: \(updated)\nFetched: \(fetched)", "数据集发布：\(updated)\n抓取时间：\(fetched)")
+        guard let updated = board?.sourceUpdatedAt else {
+            let fetched = board.map { formatter.string(from: $0.fetchedAt) } ?? "—"
+            return "\(fetched) \(language.text("Updated", "更新"))"
         }
-        return language.text("Data updated: \(updated)\nFetched: \(fetched)",
-                             "数据更新时间：\(updated)\n抓取时间：\(fetched)")
+        if ArenaAttribution.applies(board) { formatter.timeStyle = .none; formatter.timeZone = TimeZone(secondsFromGMT: 0) }
+        let value = formatter.string(from: updated)
+        return "\(value) \(language.text("Published", "发布"))"
     }
 
     public static func rankingUpdated(_ snapshot: LeaderboardSnapshot, category: LeaderboardCategory,
