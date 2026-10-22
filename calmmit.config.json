@@ -20,7 +20,7 @@
     "dependencies": false,
     "audit": false,
     "secrets": true,
-    "media": true,
+    "media": false,
     "alint": false,
     "worktrees": true,
     "iosDeploy": true
