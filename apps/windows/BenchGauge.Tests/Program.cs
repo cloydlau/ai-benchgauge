@@ -6,6 +6,32 @@ using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Security;
 
+// Source data time always wins; snapshot time is only a fallback, never a maximum.
+var timestampFetch = DateTimeOffset.Parse("2026-10-22T12:00:00Z");
+foreach (var (language, published, updated) in new[] {
+    ("en", "Published", "Updated"), ("zh", "发布", "更新"), ("zh-Hant", "發佈", "更新") })
+{
+    if (new BoardTimestamp(timestampFetch, true).Caption("10/22 12:00", language) != $"10/22 12:00 {published}" ||
+        new BoardTimestamp(timestampFetch, false).Caption("10/22 12:00", language) != $"10/22 12:00 {updated}" ||
+        new BoardTimestamp(null, false).Caption("—", language) != $"— {updated}")
+        throw new Exception("Timestamp captions must use only publication/update suffixes");
+}
+foreach (var hours in new[] { -24, 0, 24 })
+{
+    var source = timestampFetch.AddHours(hours);
+    var board = new Board("arenaText", "Fixture", "https://example.test", source.ToString("O"), null, [], timestampFetch.ToString("O"));
+    var selected = BoardTimestamp.For(board);
+    if (selected.Value != source || !selected.IsSourceTime)
+        throw new Exception("Source timestamp must win regardless of fetch order");
+}
+foreach (var source in new string?[] { null, "", "invalid" })
+{
+    var board = new Board("arenaText", "Fixture", "https://example.test", source, null, [], timestampFetch.ToString("O"));
+    if (BoardTimestamp.For(board) != new BoardTimestamp(timestampFetch, false) ||
+        BoardTimestamp.For(board with { FetchedAt = null }) != new BoardTimestamp(null, false))
+        throw new Exception("Missing source time must fall back only to fetch time");
+}
+
 // Model distributions retain unknowns and the China policy without score weighting.
 var distributionEntries = new[] {
     new Entry(1, "A", 9999, "Maker", "US", null, null, null, null, "closed"),

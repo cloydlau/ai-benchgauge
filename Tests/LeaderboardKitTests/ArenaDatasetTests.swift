@@ -22,10 +22,11 @@ import LeaderboardKit
         #expect(notice.contains(ArenaAttribution.licenseURL))
         #expect(ArenaAttribution.applies(board))
         #expect(!ArenaAttribution.applies(old))
-        let source = LeaderboardPresentation.sourceTimes(board, language: language, timeZone: TimeZone(secondsFromGMT: -28800)!)
-        #expect(source.updated.hasPrefix(language.text("Published ", "数据发布 ")))
-        #expect(source.updated.hasSuffix("2026-10-15"))
-        #expect(!source.updated.contains(":"))
+        let source = LeaderboardPresentation.sourceTime(board, language: language, timeZone: TimeZone(secondsFromGMT: -28800)!)
+        #expect(source.isSourceTime)
+        #expect(source.text == "2026-10-15 \(language.text("Published", "发布"))")
+        #expect(!source.text.contains(":"))
+        #expect(!source.text.contains(language.text("Fetched", "抓取")))
     }
 }
 

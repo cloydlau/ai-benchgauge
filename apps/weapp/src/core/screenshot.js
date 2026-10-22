@@ -85,8 +85,8 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
     const x = margin + column * (columnWidth + gap), accent = column ? colors.purple : colors.blue
     rounded(context, x, 80, columnWidth, image.height - 80 - image.footerHeight, 12, colors.card)
     text(context, board.tab, x + 16, 104, 16, accent, { bold: true })
-    text(context, board.updated, x + columnWidth - 16, 125, 11, accent, { bold: true, align: 'right', numeric: true })
-    text(context, board.fetched, x + columnWidth - 16, 141, 10, colors.muted, { align: 'right', numeric: true })
+    text(context, board.time, x + columnWidth - 16, 132, 11, board.isSourceTime ? accent : colors.muted,
+      { bold: board.isSourceTime, align: 'right', numeric: true })
     context.font = '13px sans-serif'
     wrapText(context, board.summary, columnWidth - 220).forEach((line, index) => text(context, line, x + 16, 132 + index * 17, 13, colors.muted))
     text(context, board.filterLabel, x + 16, 179, 12, colors.muted)

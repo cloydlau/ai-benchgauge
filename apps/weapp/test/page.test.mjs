@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import { canvasHarness } from './helpers/canvas.mjs'
 import { pagePreferences } from '../src/core/share-state.js'
 import { boards, categories, copy, text, desktopDownloadURL } from '../src/core/catalog.js'
+import { formatTime } from '../src/core/leaderboard.js'
 
 // Exercise the real page controller with deterministic lifecycle/network hooks.
 // This does not substitute for WeChat's Vue bridge or native visual verification.
@@ -60,7 +61,7 @@ function setup(preferences = {}, count = 0, query = {}, systemTheme = 'light', s
     },
   }
   const page = globalThis.__benchPageFactory(query)
-  const respond = index => {
+  const respond = (index, metadata = {}) => {
     const request = requests[index]; request.responded = true; const kind = request.options.url.split('/').at(-1)
     request.options.success({ statusCode: 200, data: { board: { kind, fetchedAt: '2026-10-13T12:00:00Z', entries: count ? Array.from({ length: count }, (_, i) => ({
       rank: i + 1, name: `Model ${i + 1}`, score: count - i, organization: `Maker ${i + 1}`,
@@ -68,12 +69,41 @@ function setup(preferences = {}, count = 0, query = {}, systemTheme = 'light', s
     })) : [
       { rank: 1, name: 'Closed model', score: 99, organization: 'OpenAI', openness: 'closed', developerCountry: { key: 'openai', countryCode: 'US' } },
       { rank: 2, name: 'Open model', score: 98, organization: 'DeepSeek', openness: 'open', developerCountry: { key: 'deepseek', countryCode: 'CN' } },
-    ] } } }); request.options.complete()
+    ], ...metadata } } }); request.options.complete()
   }
   const respondAll = () => requests.forEach((request, index) => { if (!request.responded) { request.responded = true; respond(index) } })
   return { page, requests, writes, modals, clipboard, scrolls, respond, respondAll, theme: theme => themeListener?.({ theme }) }
 }
 const event = dataset => ({ currentTarget: { dataset } })
+
+test('headers and help select only source time, falling back to fetch time when absent', async () => {
+  const fetchedAt = '2026-10-22T12:00:00Z'
+  for (const language of ['en', 'zh-CN', 'zh-TW']) {
+    for (const sourceUpdatedAt of [undefined, '2026-10-21T12:00:00Z', fetchedAt, '2026-10-23T12:00:00Z']) {
+      const h = setup({ language }), loading = globalThis.__benchHooks.load()
+      assert.ok(h.page.cards.value.every(card => !card.isSourceTime && card.time === '—'))
+      for (let index = 0; index < h.requests.length; index++) h.respond(index, { sourceUpdatedAt, fetchedAt,
+        sourceNote: 'https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset' })
+      await loading
+      for (const card of h.page.cards.value) {
+        const isSource = !!sourceUpdatedAt
+        const label = isSource ? 'published' : 'updated'
+        const opposite = isSource ? 'updated' : 'published'
+        assert.equal(card.timeLabel, text(copy[label], language))
+        assert.equal(card.isSourceTime, !!isSource)
+        assert.equal(card.time, isSource && card.kind === 'arenaText' ? sourceUpdatedAt.slice(0, 10) : formatTime(isSource ? sourceUpdatedAt : fetchedAt))
+        assert.equal(card.timeAccessibility, `${card.time} ${card.timeLabel}`)
+        assert.doesNotMatch(card.timeAccessibility, /Fetched|抓取|擷取|Data updated|数据更新|資料更新|数据发布|資料發佈/)
+        assert.equal('fetched' in card || 'updated' in card, false, 'Do not bridge a second timestamp')
+        h.page.sourceHelp(event({ kind: card.kind }))
+        const content = h.modals.at(-1).content
+        assert.ok(content.includes(`${card.time} ${card.timeLabel}`))
+        assert.ok(!content.includes(`${card.time} ${text(copy[opposite], language)}`))
+      }
+      globalThis.__benchHooks.unload()
+    }
+  }
+})
 
 test('leaving the page while search bounds are pending cannot expand or focus it later', async () => {
   const h = setup()
@@ -484,12 +514,13 @@ test('automatic refresh failures quietly retain rows and time; only a manual pul
   const first = globalThis.__benchHooks.load()
   assert.equal(h.page.pullRefreshing.value, false)
   h.respondAll(); await first
-  const before = h.page.cards.value.map(card => ({ rows: card.rows, updated: card.updated, fetched: card.fetched }))
+  const metadata = card => ({ rows: card.rows, time: card.time, timeLabel: card.timeLabel, isSourceTime: card.isSourceTime })
+  const before = h.page.cards.value.map(metadata)
   const retry = h.page.refreshCategory()
   assert.equal(h.page.pullRefreshing.value, false)
   for (const request of h.requests.slice(2)) { request.options.fail(); request.options.complete() }
   await retry
-  assert.deepEqual(h.page.cards.value.map(card => ({ rows: card.rows, updated: card.updated, fetched: card.fetched })), before)
+  assert.deepEqual(h.page.cards.value.map(metadata), before)
   assert.equal(h.modals.length, 0)
   assert.ok(h.page.cards.value.every(card => !card.failed))
   const pull = h.page.pullRefresh()
@@ -497,7 +528,7 @@ test('automatic refresh failures quietly retain rows and time; only a manual pul
   for (const request of h.requests.slice(4)) { request.options.fail(); request.options.complete() }
   await pull
   assert.equal(h.page.pullRefreshing.value, false)
-  assert.deepEqual(h.page.cards.value.map(card => ({ rows: card.rows, updated: card.updated, fetched: card.fetched })), before)
+  assert.deepEqual(h.page.cards.value.map(metadata), before)
   globalThis.__benchHooks.unload()
 })
 
@@ -553,10 +584,9 @@ test('page lifecycle paints independent sources, honors the new tabs/headings an
   h.respond(1); await Promise.resolve(); await Promise.resolve()
   h.respond(0); h.respond(2); await loading
   assert.deepEqual(h.page.cards.value.map(card => [card.title, card.rows.length]), [['Artificial Analysis', 2], ['Text Arena', 2], ['Epoch ECI', 2]])
-  assert.equal(h.page.cards.value[0].updated, '—')
-  assert.equal(h.page.cards.value[0].updatedLabel, '数据更新')
-  assert.notEqual(h.page.cards.value[0].fetched, '—')
-  assert.equal(h.page.cards.value[0].fetchedLabel, '抓取')
+  assert.notEqual(h.page.cards.value[0].time, '—')
+  assert.equal(h.page.cards.value[0].timeLabel, '更新')
+  assert.equal(h.page.cards.value[0].isSourceTime, false)
   h.page.selectFace(event({ index: 1 })); assert.equal(h.page.face.value, 1)
   h.page.selectCategory(event({ id: 'video' })); assert.equal(h.requests.length, 5)
   h.respondAll(); await new Promise(resolve => setImmediate(resolve))

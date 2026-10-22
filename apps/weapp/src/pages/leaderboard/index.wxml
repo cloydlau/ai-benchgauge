@@ -41,8 +41,7 @@
             <button class="times" data-kind="{{card.kind}}" bindtap="refreshTap" aria-label="{{card.timeAccessibility}} · {{card.loading ? labels.loading : labels.refresh}}" aria-busy="{{card.loading}}">
               <view wx:if="{{card.loading}}" class="time-loading" aria-hidden="true" />
               <view class="time-copy">
-                <view class="time-row time-source"><text class="time-label">{{card.updatedLabel}}</text><text class="time-value mono">{{card.updated}}</text></view>
-                <view class="time-row time-fetched"><text class="time-label">{{card.fetchedLabel}}</text><text class="time-value mono">{{card.fetched}}</text></view>
+                <view class="time-row {{card.isSourceTime ? 'time-source' : 'time-fetched'}}"><text class="time-value mono">{{card.time}}</text><text class="time-label">{{card.timeLabel}}</text></view>
               </view>
             </button>
           </view>
