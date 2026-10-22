@@ -25,16 +25,25 @@ public enum LeaderboardPresentation {
                             filter: LeaderboardCountryFilter, openness: LeaderboardOpennessFilter = .all,
                             modelQuery: String = "") -> [LeaderboardEntry] {
         let entries = filteredEntries(board, country: filter, openness: openness)
+        let matches = modelNameMatcher(modelQuery)
         return grouping == .company ? CompanyLeaderboard.rank(entries).map(\.entry)
-            : entries.filter { modelNameMatches($0.name, query: modelQuery) }
+            : entries.filter { matches($0.name) }
     }
 
     public static func modelNameMatches(_ name: String, query: String) -> Bool {
-        guard !query.allSatisfy(\.isWhitespace) else { return true }
+        modelNameMatcher(query)(name)
+    }
+
+    /// Prepare the query once per filtering pass, rather than once per row.
+    public static func modelNameMatcher(_ query: String) -> (String) -> Bool {
+        guard !query.allSatisfy(\.isWhitespace) else { return { _ in true } }
         let locale = Locale(identifier: "en_US_POSIX")
         let fold: (String) -> String = { $0.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: locale) }
-        let value = fold(name)
-        return fold(query).split(whereSeparator: \.isWhitespace).allSatisfy { value.contains($0) }
+        let words = fold(query).split(whereSeparator: \.isWhitespace).map(String.init)
+        return { name in
+            let value = fold(name)
+            return words.allSatisfy { value.contains($0) }
+        }
     }
 
     public static func companies(_ board: Leaderboard?, filter: LeaderboardCountryFilter,

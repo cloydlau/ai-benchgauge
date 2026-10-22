@@ -642,7 +642,8 @@ sealed partial class MainWindow
         }
         var outline = new Border { Child = headings, BorderBrush = PanelLine, BorderThickness = new Thickness(1, 1, 1, 1) }; Grid.SetRow(outline, 0); table.Children.Add(outline);
         var unsearched = pair.Select(board => board.Entries.Where(entry => prefs.Countries.GetValueOrDefault(board.Kind, "") is { } filter && (filter.Length == 0 || (filter == "unknown" ? entry.Country is null : entry.Country == filter))).ToArray()).ToArray();
-        var entries = unsearched.Select(board => board.Where(entry => LeaderboardSearch.Matches(entry.Name, leaderboardQuery)).ToArray()).ToArray();
+        var matches = LeaderboardSearch.Compile(leaderboardQuery);
+        var entries = unsearched.Select(board => board.Where(entry => matches(entry.Name)).ToArray()).ToArray();
         var count = entries.Length == 0 ? 20 : Math.Max(string.IsNullOrWhiteSpace(leaderboardQuery) ? 1 : 4, entries.Max(values => values.Length));
         var rows = new VirtualLeaderboardList(count + 1, index =>
         {

@@ -1,23 +1,43 @@
 import AppKit
 import SwiftUI
-import LeaderboardCore
+import LeaderboardKit
 
 @MainActor
-final class DesktopLeaderboardSearchState: ObservableObject {
-    @Published var query = ""
+private final class DesktopLeaderboardSearchExpansion: ObservableObject {
     @Published var isExpanded = false
 }
 
+/// Expansion invalidates only this small navigation subtree, never the table.
+struct DesktopLeaderboardSearchNavigation<Navigation: View>: View {
+    let state: DesktopLeaderboardSearchState
+    let language: AppLanguage
+    @ViewBuilder var navigation: () -> Navigation
+    @StateObject private var expansion = DesktopLeaderboardSearchExpansion()
+
+    var body: some View {
+        HStack(spacing: 8) {
+            navigation()
+                .opacity(expansion.isExpanded ? 0 : 1)
+                .allowsHitTesting(!expansion.isExpanded)
+                .accessibilityHidden(expansion.isExpanded)
+            Color.clear.frame(width: 26, height: 24)
+        }
+        .fixedSize()
+        .overlay { DesktopLeaderboardSearch(state: state, expansion: expansion, language: language) }
+    }
+}
+
 /// The overlay keeps the navigation's width stable and expands from its right edge.
-struct DesktopLeaderboardSearch: NSViewRepresentable {
-    @ObservedObject var state: DesktopLeaderboardSearchState
+private struct DesktopLeaderboardSearch: NSViewRepresentable {
+    let state: DesktopLeaderboardSearchState
+    @ObservedObject var expansion: DesktopLeaderboardSearchExpansion
     let language: AppLanguage
 
     func makeNSView(context: Context) -> DesktopLeaderboardSearchView { DesktopLeaderboardSearchView() }
     func updateNSView(_ view: DesktopLeaderboardSearchView, context: Context) {
-        view.onQuery = { state.query = $0 }
-        view.onExpansion = { state.isExpanded = $0 }
-        view.configure(query: state.query, expanded: state.isExpanded,
+        view.onQuery = { state.edit($0, composing: $1) }
+        view.onExpansion = { expansion.isExpanded = $0 }
+        view.configure(query: state.input, expanded: expansion.isExpanded,
             label: language.text("Search models", "搜索模型"))
     }
 }
@@ -25,7 +45,7 @@ struct DesktopLeaderboardSearch: NSViewRepresentable {
 final class DesktopLeaderboardSearchView: NSView, NSSearchFieldDelegate {
     let button = NSButton()
     let field = NSSearchField()
-    var onQuery: ((String) -> Void)?
+    var onQuery: ((String, Bool) -> Void)?
     var onExpansion: ((Bool) -> Void)?
     private(set) var expanded = false
     private var animating = false
@@ -93,8 +113,10 @@ final class DesktopLeaderboardSearchView: NSView, NSSearchFieldDelegate {
         return super.hitTest(point)
     }
 
-    @objc private func openSearch() { onExpansion?(true); setExpanded(true) }
-    @objc private func searchChanged() { onQuery?(field.stringValue) }
+    @objc private func openSearch() { setExpanded(true); onExpansion?(true) }
+    @objc private func searchChanged() {
+        onQuery?(field.stringValue, (field.currentEditor() as? NSTextView)?.hasMarkedText() == true)
+    }
     func controlTextDidChange(_ notification: Notification) { searchChanged() }
     func controlTextDidEndEditing(_ notification: Notification) {
         collapseIfEmpty()
@@ -137,11 +159,7 @@ final class DesktopLeaderboardSearchView: NSView, NSSearchFieldDelegate {
             }
         }
         if value {
-            DispatchQueue.main.async { [weak self] in
-                guard let self, self.expanded, !self.isHiddenOrHasHiddenAncestor,
-                      !self.visibleRect.isEmpty else { return }
-                self.window?.makeFirstResponder(self.field)
-            }
+            window?.makeFirstResponder(field)
         }
     }
 }

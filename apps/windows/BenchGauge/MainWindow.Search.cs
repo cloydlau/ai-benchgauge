@@ -11,9 +11,30 @@ using BenchGauge.Shared;
 namespace BenchGauge;
 sealed partial class MainWindow
 {
-    string leaderboardQuery = "";
+    readonly DebouncedSearchQuery leaderboardSearch = new();
+    readonly DispatcherTimer leaderboardSearchTimer = new(DispatcherPriority.Background) {
+        Interval = TimeSpan.FromMilliseconds(DebouncedSearchQuery.DelayMilliseconds) };
+    string leaderboardQuery => leaderboardSearch.Query;
     bool leaderboardSearchExpanded;
     TextBox? leaderboardSearchField;
+    Action? collapseLeaderboardSearch;
+
+    void ConfigureLeaderboardSearch()
+    {
+        leaderboardSearchTimer.Tick += (_, _) => {
+            leaderboardSearchTimer.Stop();
+            if (leaderboardSearch.ApplyIfReady(Environment.TickCount64)) RefreshSearchResults();
+            else if (leaderboardSearch.Pending) leaderboardSearchTimer.Start();
+        };
+        Closed += (_, _) => leaderboardSearchTimer.Stop();
+    }
+
+    void QueueLeaderboardSearch(string value, bool composing)
+    {
+        leaderboardSearchTimer.Stop();
+        if (leaderboardSearch.Edit(value, Environment.TickCount64, composing)) RefreshSearchResults();
+        else if (leaderboardSearch.Pending) leaderboardSearchTimer.Start();
+    }
 
     FrameworkElement SearchNavigation(FrameworkElement switches)
     {
@@ -29,7 +50,7 @@ sealed partial class MainWindow
         System.Windows.Automation.AutomationProperties.SetAutomationId(open, "leaderboard-search-button");
         System.Windows.Automation.AutomationProperties.SetName(open, (string)open.ToolTip);
         Grid.SetColumn(open, 1); host.Children.Add(open);
-        var field = new TextBox { Text = leaderboardQuery, FontSize = 12, FontFamily = FontFamily,
+        var field = new TextBox { Text = leaderboardSearch.Input, FontSize = 12, FontFamily = FontFamily,
             Foreground = PanelInk, Background = Brushes.Transparent, BorderThickness = new Thickness(0),
             VerticalContentAlignment = VerticalAlignment.Center, Padding = new Thickness(5, 0, 5, 0) };
         leaderboardSearchField = field;
@@ -43,7 +64,8 @@ sealed partial class MainWindow
         Grid.SetColumn(field, 1); input.Children.Add(field);
         var placeholder = Caption((string)open.ToolTip, PanelMuted, 12);
         placeholder.Margin = new Thickness(5, 0, 0, 0); placeholder.IsHitTestVisible = false; Grid.SetColumn(placeholder, 1); input.Children.Add(placeholder);
-        var clear = QuietButton("×", () => { field.Clear(); field.Focus(); }); clear.Focusable = false;
+        var composing = false;
+        var clear = QuietButton("×", () => { composing = false; field.Clear(); field.Focus(); }); clear.Focusable = false;
         clear.ToolTip = Tr("Clear search", "清空搜索", "清空搜尋"); Grid.SetColumn(clear, 2); input.Children.Add(clear);
         var overlay = new Border { Child = input, Height = 24, HorizontalAlignment = HorizontalAlignment.Right,
             Background = PanelBackground, BorderBrush = PanelLine, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5), ClipToBounds = true };
@@ -70,11 +92,23 @@ sealed partial class MainWindow
             clear.Visibility = field.Text.Length == 0 ? Visibility.Hidden : Visibility.Visible;
         }
         open.Click += (_, _) => { leaderboardSearchExpanded = true; Layout(true); field.Focus(); };
-        field.TextChanged += (_, _) => { leaderboardQuery = field.Text; Labels(); RefreshSearchResults(); };
+        field.TextChanged += (_, _) => { Labels(); QueueLeaderboardSearch(field.Text, composing); };
+        TextCompositionManager.AddPreviewTextInputStartHandler(field, (_, _) => {
+            composing = true;
+            QueueLeaderboardSearch(field.Text, true);
+        });
+        TextCompositionManager.AddPreviewTextInputHandler(field, (_, _) => {
+            composing = false;
+            // PreviewTextInput precedes the TextBox's final committed text.
+            Dispatcher.BeginInvoke(() => {
+                if (leaderboardSearchField == field) QueueLeaderboardSearch(field.Text, false);
+            }, DispatcherPriority.Input);
+        });
         field.LostKeyboardFocus += (_, _) => Dispatcher.BeginInvoke(() => {
-            if (rendering || leaderboardSearchField != field || field.IsKeyboardFocusWithin || leaderboardQuery.Length > 0) return;
+            if (rendering || leaderboardSearchField != field || field.IsKeyboardFocusWithin || !string.IsNullOrWhiteSpace(field.Text)) return;
             leaderboardSearchExpanded = false; Layout(true);
         }, DispatcherPriority.Background);
+        collapseLeaderboardSearch = () => { Keyboard.ClearFocus(); leaderboardSearchExpanded = false; Layout(true); };
         host.SizeChanged += (_, _) => Layout(false);
         Labels(); Layout(false);
         return host;

@@ -27,12 +27,34 @@ if (summaryBoard.Distribution is not { } summaryDistribution || summaryDistribut
     throw new Exception("Engine distribution must survive empty filtered/company projections");
 
 // Search accepts unordered words, case/width/diacritic variants, and whitespace.
+var searchInput = new DebouncedSearchQuery();
+foreach (var (value, at) in new[] { ("g", 0L), ("gp", 50L), ("gpt", 100L) })
+    if (searchInput.Edit(value, at)) throw new Exception("Draft typing filtered synchronously");
+if (searchInput.Input != "gpt" || searchInput.Query != "" || searchInput.ApplyIfReady(349) ||
+    !searchInput.ApplyIfReady(350) || searchInput.Query != "gpt" || searchInput.ApplyIfReady(600))
+    throw new Exception("Rapid typing must produce just one settled search");
+searchInput.Edit("claude", 700);
+if (!searchInput.Edit("", 750) || searchInput.Query != "" || searchInput.ApplyIfReady(1000))
+    throw new Exception("Clearing must restore rows immediately and cancel stale input");
+searchInput.Edit("pending", 1100);
+searchInput.Edit("中", 1150, composing: true);
+if (searchInput.Pending || searchInput.ApplyIfReady(2000) || searchInput.Query != "")
+    throw new Exception("IME composition must not refresh the table");
+searchInput.Edit("中文", 2100);
+if (!searchInput.ApplyIfReady(2350) || searchInput.Query != "中文")
+    throw new Exception("Committed IME input must be searchable");
+searchInput.Edit("中文", 2400);
+if (searchInput.Pending) throw new Exception("Identical input should not schedule another refresh");
+
 foreach (var sample in new (string Name, string Query, bool Expected)[] {
     ("DeepSeek V3.2 Speciale", "speciale DEEP", true),
     ("Café ＧＰＴ", "cafe gpt", true), ("Claude Sonnet", "   ", true),
     ("GPT-5", "GPT Claude", false), ("OpenAI", "openai", true) })
     if (LeaderboardSearch.Matches(sample.Name, sample.Query) != sample.Expected)
         throw new Exception("Incorrect selected-leaderboard search matching");
+var compiledSearch = LeaderboardSearch.Compile(" CAFE gpt ");
+if (!compiledSearch("Café ＧＰＴ") || compiledSearch("Café Claude"))
+    throw new Exception("Prepared search must retain matching rules across rows");
 
 foreach (var sample in new[] {
     (Score: 100d, Leader: 100d, Expected: 1d), (50, 100, 0.5), (99.6, 100, 0.996), (0, 100, 0),

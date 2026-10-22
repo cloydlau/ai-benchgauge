@@ -6,6 +6,9 @@ import LeaderboardKit
     #expect(LeaderboardPresentation.modelNameMatches("Café Ａlpha 中文模型", query: "  CAFE alpha 中文 "))
     #expect(!LeaderboardPresentation.modelNameMatches("Alpha Mini", query: "alpha pro"))
     #expect(LeaderboardPresentation.modelNameMatches("Anything", query: " \n "))
+    let matches = LeaderboardPresentation.modelNameMatcher(" CAFE alpha ")
+    #expect(matches("Café Ａlpha 中文模型"))
+    #expect(!matches("Café Beta"))
     let entries = [LeaderboardEntry(rank: 1, name: "Unrelated", score: 100, organization: "Alpha Labs"),
                    LeaderboardEntry(rank: 4, name: "Alpha Pro", score: 90, organization: "Other Labs")]
     let board = Leaderboard(kind: .arenaText, title: "Fixture", entries: entries)
