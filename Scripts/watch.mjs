@@ -827,7 +827,6 @@ async function main() {
       const runtime = watcherRuntimeSignature()
       if (runtime !== loadedRuntime && runtime !== rejectedRuntime) {
         const reloaded = reloadWatcher(() => { stopWeapp(); clearTimer(); clearInterval(poll); watchLock.release() })
-        if (reloaded) return
         if (reloaded === false) rejectedRuntime = runtime
       }
     }
