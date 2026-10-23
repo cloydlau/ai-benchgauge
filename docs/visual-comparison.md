@@ -1,3 +1,130 @@
+## Desktop usage loading states — 2026-10-23
+
+Mac and Windows distinguish an in-flight usage request from a completed empty
+result and a failed request. Uncached loading shows progress and a loading
+caption without empty/error copy. Completed failures show the error; successful
+empty results show the empty caption. Existing cached rows stay visible during
+refresh. Windows tracks requests per category and visible-board selection, so
+completion of an earlier view does not clear the current view's loading state.
+
+Ignored `work/usage-loading/` contains identical before/after fixtures, source
+snapshots, build logs, source/binary/fixture hashes, 24 before and 24 after native
+Mac frames, and `verification.json`. Four scenarios exercise loading to success,
+empty, error, and refresh with cached data, in EN / 简中 / 繁中, both themes and
+850/1100×720-point viewports. Reviewed originals confirm the previous simultaneous
+spinner/empty caption is replaced by loading-only content, with distinct settled
+empty/error states and retained cached rows. Actual environment: macOS 27.0.1
+(26A434), 1× backing scale, local uncommitted sources. The states are injected by
+the native fixture, not a live network timing test.
+
+Mac native capture and Windows Release compilation/shared tests pass. Windows
+native before/after screenshots and a source-matched CI artifact remain
+unavailable on this host. Windows visual verification, installed-client
+replacement and protected release approval are not claimed.
+
+## Desktop data-source menu — 2026-10-23
+
+Mac and Windows now expose a dedicated Data sources dropdown in the footer.
+It always lists Artificial Analysis, Arena, Epoch AI, OpenRouter and Vercel,
+independent of category, visible-board selection and cached snapshots. The
+models.dev credit, source address and full MIT notice belong to Open-source
+notices. The Windows source submenu is removed from Leaderboards; its Epoch
+license reference remains in the notices dialog. Tencent remains disabled.
+
+Ignored `work/desktop-source-menu/` retains pre-edit source snapshots, an
+identical before/after fixture, build logs, source/executable/fixture hashes,
+30 before and 46 after native Mac images, and `verification.json`. The cases
+cover General and Usage, EN / 简中 / 繁中, both themes, 850/1100/1600-point
+panel widths and 580×540-point notices, with shown/refreshed/settled frames.
+Actual environment is macOS 27.0.1 (26A434), 1× backing scale, local uncommitted
+sources. Reviewed originals show collapsed sources at wide/narrow widths,
+five complete links in both appearances, and the models.dev notice. Native
+assertions exercise menu reopening, control bounds and all link destinations.
+Mac uses a native transient popover; Windows uses a native context menu.
+Their existing license-view presentation differences are retained.
+
+Windows Release cross-compilation and shared tests pass. Native Windows
+screenshots/actual OS and DPI review and a source-matched CI visual artifact
+are unavailable on this host; Windows visual verification and protected
+release approval are not claimed. No installed-client replacement is claimed.
+
+## Tencent source paused — 2026-10-23
+
+Supersedes the enabled-source record below. Pending data-use permission, Tencent
+is absent from active Usage and About catalogs on Mac, iOS, Windows and the
+mini-program. Decoding old source IDs is retained; an obsolete Tencent-only
+selection falls back to OpenRouter/Vercel. The backend returns 410 for GET,
+refresh and contribute before service construction, storage or upstream access.
+The collector is no longer wired into the runtime service. Native fetchers also
+reject the disabled source before networking. Production probes verify all three
+410 responses and unchanged OpenRouter (50) / Vercel (10) responses.
+
+556 native core tests, 122 backend tests, 160 mini-program tests and Windows
+unit checks pass. Mini-program production and Windows Release builds pass.
+Mac originals include 36 frames for the same 1100x720-point fixture used before
+suspension, with 12 refreshed/settled pairs pixel-identical. Source, fixture and
+executable hashes are in disable-after-provenance.json. English company/light
+and Chinese model/dark originals were reviewed alongside the pre-suspension
+frames: only OpenRouter/Vercel remain, with the vacated width returned to those
+columns. Old Tencent selections in the fixture do not reintroduce the source.
+This does not validate the About modal interaction. No client installation or
+mini-program upload is claimed.
+
+Evidence is retained in work/tencent-usage/disable-*; this change hides a source
+rather than claiming a layout fix. Native Windows and iPhone/iPad screenshots
+remain unavailable; WeChat simulator access remains unavailable because its
+login expired. See cloudbase-usage.md for current state and official contacts.
+
+## Tencent CloudBase usage source — 2026-10-23
+
+Usage now has three independent sources: OpenRouter, Vercel AI Gateway and
+Tencent CloudBase. CloudBase is the official cumulative text-token share across
+sampled Beijing-time days, grouped by model family, including cache hits. Its
+public legend omits full sample dates, so the source header says “Sampled period”
+and does not display a fabricated publication timestamp. Company rows sum listed
+shares; no absolute token totals are manufactured. About opens an offline source
+notice, distinct from the CC BY licenses of the other two sources.
+
+Ignored work/tencent-usage/ retains the original public response, production
+snapshot, regression logs and native Mac before/after evidence. The existing
+common baseline was reused only after all five recorded rendering source hashes
+matched its provenance. Common fixtures and the 850×720-point viewport remain
+identical. New three-source scenarios use 1100×720 points for model/company,
+EN / 简中 / 繁中, light/dark, long names and percent values. Originals and
+source/executable/fixture hashes are retained there; no browser imitation is used.
+
+The deployed endpoint returns nine model families, all matched to exact canonical
+models.dev IDs and verified Chinese developer countries, with 99.8% listed share
+and 0.2% Other in this snapshot. Rounded ties retain the official source order.
+Existing OpenRouter/Vercel snapshots are checked separately. The final machine
+readable verification report is work/tencent-usage/verification.json.
+
+The final Mac captures contain 72 common frames and 36 new-source frames,
+on macOS 27.0.1 at actual 1× backing scale. All 24 common and 12 new
+refreshed/settled pairs are pixel-identical within the after capture. Common
+before/after pixels are not identical: mean absolute RGB-channel differences
+remain below 0.372/255, with maximum channel difference 28/255; metrics and
+originals are retained without attributing an unproven cause. Review of the
+English common model/light pair found no visible geometry regression. New
+English company/light, Simplified Chinese model/dark and Traditional Chinese
+model/dark originals show readable units, percentages and separate source
+headers. At 1100 points some source and row names truncate with ellipses;
+source help remains available through the native header tooltip. No claim of
+unchanged baseline pixels is made.
+
+122 backend tests, 160 mini-program tests and 555 native core tests pass;
+mini-program production and Windows Release builds pass, and Windows unit
+checks pass. iOS Release
+builds for simulator and physical-device targets both pass. These are build
+results, not installed-client or device interaction results.
+
+WeChat DevTools reports loginExpired=true. Per wechatide-skill 0.3.11, runtime
+work requires “loginExpired: false”; mini-program simulator visual validation is
+unavailable. Native Windows screenshots/OS/DPI and a matching native visual CI
+artifact are unavailable, as are iPhone/iPad interaction screenshots. Native
+compilation and unit tests do not replace this missing visual coverage. No human
+release approval, client installation or simulator upload success is claimed.
+
 ## Vercel AI Gateway usage source — 2026-10-23
 
 Usage now offers OpenRouter and Vercel AI Gateway in all four clients. Vercel

@@ -894,6 +894,44 @@
             "openness": "closed"
           }
         ]
+      },
+      {
+        "kind": "cloudbaseUsage",
+        "title": "Tencent CloudBase",
+        "url": "https://docs.cloudbase.net/ai/announcement/model-token-volume",
+        "updatedAt": null,
+        "fetchedAt": "2026-10-23T00:00:00Z",
+        "error": null,
+        "sourceNote": "Synthetic CloudBase source notice; sample dates unavailable.",
+        "entries": [
+          {
+            "rank": 1,
+            "name": "DeepSeek V4 Flash",
+            "score": 67.7,
+            "organization": "DeepSeek",
+            "country": "china",
+            "logo": "deepseek",
+            "openness": "open"
+          },
+          {
+            "rank": 2,
+            "name": "GLM 5.3 Flash · long model family name",
+            "score": 10.7,
+            "organization": "Z.ai",
+            "country": "china",
+            "logo": "zai",
+            "openness": "open"
+          },
+          {
+            "rank": 3,
+            "name": "Kimi K3",
+            "score": 1.1,
+            "organization": "MoonshotAI",
+            "country": "china",
+            "logo": "moonshotai",
+            "openness": "open"
+          }
+        ]
       }
     ],
     "quotas": [
@@ -3231,6 +3269,170 @@
         "openRouterUsage",
         "vercelUsage"
       ]
+    },
+    {
+      "id": "cloudbase-model-en",
+      "language": "en",
+      "width": 1100,
+      "height": 720,
+      "scenario": "usageModels",
+      "category": "usage",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterUsage",
+        "vercelUsage",
+        "cloudbaseUsage"
+      ]
+    },
+    {
+      "id": "cloudbase-company-en",
+      "language": "en",
+      "width": 1100,
+      "height": 720,
+      "scenario": "usageCompanies",
+      "category": "usage",
+      "grouping": "company",
+      "selectedBoards": [
+        "openRouterUsage",
+        "vercelUsage",
+        "cloudbaseUsage"
+      ]
+    },
+    {
+      "id": "cloudbase-model-zh",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "scenario": "usageModels",
+      "category": "usage",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterUsage",
+        "vercelUsage",
+        "cloudbaseUsage"
+      ]
+    },
+    {
+      "id": "cloudbase-company-zh",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "scenario": "usageCompanies",
+      "category": "usage",
+      "grouping": "company",
+      "selectedBoards": [
+        "openRouterUsage",
+        "vercelUsage",
+        "cloudbaseUsage"
+      ]
+    },
+    {
+      "id": "cloudbase-model-zh-Hant",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "scenario": "usageModels",
+      "category": "usage",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterUsage",
+        "vercelUsage",
+        "cloudbaseUsage"
+      ]
+    },
+    {
+      "id": "cloudbase-company-zh-Hant",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "scenario": "usageCompanies",
+      "category": "usage",
+      "grouping": "company",
+      "selectedBoards": [
+        "openRouterUsage",
+        "vercelUsage",
+        "cloudbaseUsage"
+      ]
+    },
+    {
+      "id": "sources-en-general-wide",
+      "language": "en",
+      "width": 1600,
+      "height": 720,
+      "scenario": "sourceMenu",
+      "category": "general",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "sources-zh-usage",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceMenu",
+      "category": "usage",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "sources-zh-Hant-general",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "scenario": "sourceMenu",
+      "category": "general",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "sources-en-usage-narrow",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceMenu",
+      "category": "usage",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "notices-zh",
+      "language": "zh",
+      "width": 580,
+      "height": 540,
+      "scenario": "thirdPartyNotices",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "usage-loading-success-en",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "usageLoadingSuccess",
+      "category": "usage",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "usage-loading-empty-zh",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "usageLoadingEmpty",
+      "category": "usage",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "usage-loading-failure-zh-Hant",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "scenario": "usageLoadingFailure",
+      "category": "usage",
+      "mode": "clickToClose"
+    },
+    {
+      "id": "usage-loading-cached-en",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "usageLoadingCached",
+      "category": "usage",
+      "mode": "clickToClose"
     }
   ],
   "quotaScenarios": {
