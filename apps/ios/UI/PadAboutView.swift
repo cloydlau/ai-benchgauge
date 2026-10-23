@@ -8,6 +8,7 @@ private final class PadAboutState: ObservableObject {
     @Published var expandedGroups: Set<String> = []
     @Published var noticeExpanded = false
     @Published var modelsDevNoticeExpanded = false
+    @Published var categoryIconNoticeExpanded = false
     @Published var licenseSourceID: String?
 }
 
@@ -270,6 +271,26 @@ struct PadAboutView<Brand: View>: View {
                 Text(BrandFont.licenseText).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
                     .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                     .padding(10).aboutCard(outline: outline).accessibilityIdentifier("about-license-text")
+            }
+            Button {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) { about.categoryIconNoticeExpanded.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(tr("Third-party notice 03", "第三方软件声明 03")).font(.system(size: 12))
+                    Text("MIT").font(.system(size: 10)).foregroundStyle(.secondary).padding(4)
+                        .background(inset, in: RoundedRectangle(cornerRadius: 3))
+                    Spacer(minLength: 0)
+                    Image(systemName: about.categoryIconNoticeExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 10)).foregroundStyle(.secondary)
+                }.foregroundStyle(.primary).frame(minHeight: 48).contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityIdentifier("category-icons-license")
+                .accessibilityValue(about.categoryIconNoticeExpanded ? tr("Expanded", "已展开") : tr("Collapsed", "已收起"))
+            if about.categoryIconNoticeExpanded,
+               let licenseURL = Bundle.module.url(forResource: "LICENSE", withExtension: "txt", subdirectory: "CategoryIcons"),
+               let license = try? String(contentsOf: licenseURL, encoding: .utf8) {
+                Text(license).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+                    .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                    .padding(10).aboutCard(outline: outline).accessibilityIdentifier("category-icons-license-text")
             }
         }
     }

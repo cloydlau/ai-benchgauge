@@ -401,12 +401,12 @@ definePage(query => {
       // into that space rather than adding another gap after the glyph box.
       subtitleHelpOffset: /。$/.test(subtitleParts.value[1]) ? -0.55 : 0.08 }
   })
-  const categoryItems = computed(() => categories.map((item, index) => ({ id: item.id, label: text(item.labels, language.value),
-    icon: ['apps-o', 'code', 'photo-o', 'video-o'][index] })))
+  const categoryItems = computed(() => categories.map(item => ({ id: item.id, label: text(item.labels, language.value),
+    icon: `/assets/categories/${item.id}.png` })))
   const categoryIndex = computed(() => categoryDragIndex.value ?? categories.findIndex(item => item.id === category.value))
   const sourceTabIndex = computed(() => sourceDragIndex.value ?? face.value)
   const current = computed(() => categoryFor(category.value))
-  const tabs = computed(() => current.value.kinds.map(kind => kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
+  const tabs = computed(() => current.value.kinds.map(kind => kind === 'openRouterUsage' ? tr('usage') : kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
   const filterFor = kind => ({ country: 'all', openness: 'all', ...filters.value[kind] })
   const countriesFor = kind => countryOptions({ entries: Object.values(snapshots.value).flatMap(board => board?.entries || []) }, language.value, filterFor(kind).country)
   function setFilters(filter) {

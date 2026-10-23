@@ -19,6 +19,8 @@ const notices = [
   ['Vue Mini', '@vue-mini/core'], ['Vant Weapp', '@vant/weapp'], ['Tailwind CSS', 'tailwindcss'], ['fflate', 'fflate'],
 ].map(([name, packageName]) => ({ name, license: readFileSync(new URL(`node_modules/${packageName}/LICENSE`, import.meta.url), 'utf8') }))
 notices.push({ name: 'Lucide Icons', licenseName: 'ISC', license: readFileSync(new URL('assets/openness/LICENSE', import.meta.url), 'utf8') })
+notices.push({ name: 'Fluent UI System Color Icons', licenseName: 'MIT',
+  license: readFileSync(resolve(root, 'apps/ios/UI/Resources/CategoryIcons/LICENSE.txt'), 'utf8') })
 notices.push({ name: 'flag-icons', license: readFileSync(new URL('assets/flags/LICENSE', import.meta.url), 'utf8') })
 notices.push({ name: 'Slide Xiaxing / BenchGauge Calligraphy', licenseName: 'SIL OFL 1.1',
   license: readFileSync(resolve(root, 'Sources/LeaderboardKit/Resources/Fonts/SlideFont-OFL.txt'), 'utf8') })
@@ -73,6 +75,10 @@ export default defineConfig({
           emit(`assets/openness/${name}`, new URL(`assets/openness/${name}`, import.meta.url))
         }
         emit('assets/openness/LICENSE.txt', new URL('assets/openness/LICENSE', import.meta.url))
+        for (const name of ['general', 'coding', 'image', 'video', 'usage']) {
+          emit(`assets/categories/${name}.png`, resolve(root, `apps/ios/UI/Resources/CategoryIcons/${name}.png`))
+        }
+        emit('assets/categories/LICENSE.txt', resolve(root, 'apps/ios/UI/Resources/CategoryIcons/LICENSE.txt'))
         for (const name of readdirSync(new URL('assets/flags/', import.meta.url)).filter(name => name.endsWith('.png'))) {
           emit(`assets/flags/${name}`, new URL(`assets/flags/${name}`, import.meta.url))
         }

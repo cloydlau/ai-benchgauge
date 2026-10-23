@@ -1,4 +1,5 @@
 import SwiftUI
+import ImageIO
 import LeaderboardKit
 
 @MainActor
@@ -10,18 +11,16 @@ struct MobileCategoryBar: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var selection
     @State private var dragIndex: Int?
+    private static let icons: [String: CGImage] = LeaderboardCategory.allCases.reduce(into: [:]) { images, category in
+        guard let url = Bundle.module.url(forResource: category.rawValue, withExtension: "png", subdirectory: "CategoryIcons"),
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return }
+        images[category.rawValue] = image
+    }
     private var selectedCategory: LeaderboardCategory {
         dragIndex.map { LeaderboardCategory.allCases[$0] } ?? category
     }
 
-    private func icon(_ category: LeaderboardCategory) -> String {
-        switch category {
-        case .general: "square.grid.2x2"
-        case .coding: "chevron.left.forwardslash.chevron.right"
-        case .image: "photo"
-        case .video: "video"
-        }
-    }
     var body: some View {
         HStack(spacing: 0) {
             ForEach(LeaderboardCategory.allCases, id: \.self) { item in
@@ -30,7 +29,10 @@ struct MobileCategoryBar: View {
                     withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.24)) { category = item }
                 } label: {
                     VStack(spacing: 4) {
-                        Image(systemName: icon(item)).font(.system(size: 18))
+                        if let icon = Self.icons[item.rawValue] {
+                            Image(decorative: icon, scale: 3)
+                                .renderingMode(.original).resizable().scaledToFit().frame(width: 18, height: 18)
+                        }
                         Text(LeaderboardPresentation.title(item, language: language)).font(.system(size: 11, weight: selectedCategory == item ? .semibold : .regular))
                     }
                     .frame(maxWidth: .infinity, minHeight: 50)

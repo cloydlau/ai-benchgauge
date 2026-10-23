@@ -140,12 +140,11 @@
     </view>
   </view>
   </view>
-  <view class="category-tabs" role="tablist" data-tabs="category" bindtouchstart="tabStart" catchtouchmove="tabMove" bindtouchend="tabEnd" bindtouchcancel="cancelTabDrag">
+  <view class="category-tabs" style="--category-count:{{categoryItems.length}};" role="tablist" data-tabs="category" bindtouchstart="tabStart" catchtouchmove="tabMove" bindtouchend="tabEnd" bindtouchcancel="cancelTabDrag">
     <view class="category-glass-selection" style="transform:translateX({{categoryIndex * 100}}%);" aria-hidden="true" />
     <button wx:for="{{categoryItems}}" wx:key="id" class="category-tab {{categoryIndex === index ? 'active' : ''}}"
       data-id="{{item.id}}" bindtap="selectCategory" role="tab" aria-selected="{{category === item.id}}">
-      <view wx:if="{{item.icon === 'code'}}" class="category-code-icon" aria-hidden="true"><view class="category-code-slash" /></view>
-      <van-icon wx:else name="{{item.icon}}" size="18px" /><text class="category-label">{{item.label}}</text>
+      <image class="category-icon" src="{{item.icon}}" mode="aspectFit" aria-hidden="true" /><text class="category-label">{{item.label}}</text>
     </button>
   </view>
   <!-- Let Vant receive option/button touches; backgroundLocked locks the boards. -->

@@ -58,6 +58,31 @@ test('upload snapshot detects edits and deletions but excludes credentials and g
   assert.notEqual(sourceSignature(inputSnapshot(root, ['src'])), first)
 })
 
+test('isolated upload includes every shared category icon and its license, and detects asset changes', t => {
+  const root = mkdtempSync(join(tmpdir(), 'benchgauge-category-stage-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  const directory = 'apps/ios/UI/Resources/CategoryIcons'
+  for (const path of [directory, 'node_modules', 'apps/weapp/node_modules']) mkdirSync(join(root, path), { recursive: true })
+  writeFileSync(join(root, 'apps/weapp/package.json'), '{}')
+  const names = ['general.png', 'coding.png', 'image.png', 'video.png', 'usage.png', 'LICENSE.txt']
+  for (const name of names) copyFileSync(new URL(`../${directory}/${name}`, import.meta.url), join(root, directory, name))
+  const snapshot = inputSnapshot(root)
+  const signature = sourceSignature(snapshot)
+  const stage = join(root, 'stage')
+  stageInputs(root, stage, snapshot)
+  assert.equal(sourceSignature(inputSnapshot(stage)), signature)
+  for (const name of names) {
+    const relative = `${directory}/${name}`
+    const original = readFileSync(join(root, relative))
+    assert.deepEqual(readFileSync(join(stage, relative)), original)
+    writeFileSync(join(root, relative), 'updated asset')
+    assert.notEqual(sourceSignature(inputSnapshot(root)), signature, `${name} edits must queue a new upload`)
+    rmSync(join(root, relative))
+    assert.notEqual(sourceSignature(inputSnapshot(root)), signature, `${name} deletions must invalidate the upload`)
+    writeFileSync(join(root, relative), original)
+  }
+})
+
 test('isolated build stage preserves source bytes and never includes private keys or live dist', t => {
   const root = mkdtempSync(join(tmpdir(), 'benchgauge-stage-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
