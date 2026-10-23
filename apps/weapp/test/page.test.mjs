@@ -612,13 +612,15 @@ test('every category and source shares the current page title and only the local
 })
 
 test('usage keeps source failures independent, switches to Vercel, and recovers OpenRouter configuration', async () => {
-  const h = setup({ category: 'usage', language: 'zh-CN' })
+  const h = setup({ category: 'usage', language: 'zh-CN', face: 2 })
+  assert.equal(h.page.face.value, 1, 'Old Tencent face selection clamps to an available source')
   const loading = globalThis.__benchHooks.load()
   assert.equal(h.requests.length, 2)
   assert.deepEqual(h.page.tabs.value, ['OpenRouter', 'Vercel AI Gateway'])
   h.requests[0].options.success({ statusCode: 200, data: { board: null, configurationRequired: true } })
   h.requests[0].options.complete()
   h.respond(1, { sourceUpdatedAt: '2026-10-22T00:00:00Z', entries: [{ rank: 1, name: 'DeepSeek V4.1 Flash', score: 16.3389, organization: 'DeepSeek' }] })
+  assert.ok(h.requests.every(request => !request.options.url.includes('cloudbaseUsage')))
   await loading
   assert.equal(h.page.cards.value[0].pendingConfiguration, true)
   assert.equal(h.page.cards.value[0].hasBoard, false)

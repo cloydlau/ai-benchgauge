@@ -47,6 +47,8 @@ import LeaderboardKit
                 if kind == .openRouterUsage {
                     #expect(compact.contains(language.text("Company totals cover listed models only", "公司用量仅汇总榜内模型")))
                     #expect(!compact.contains(language.text("Scores are not directly comparable across lists", "各榜分数不直接互比")))
+                } else if kind == .cloudbaseUsage {
+                    #expect(compact.contains(language.text("cache hits", "缓存命中")))
                 } else if kind == .vercelUsage {
                     #expect(compact.contains("OpenRouter"))
                 } else {

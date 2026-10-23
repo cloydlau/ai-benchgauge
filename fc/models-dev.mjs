@@ -133,6 +133,13 @@ export function modelMatcher(snapshot) {
   }
   return (entry, kind) => {
     const supplied = String(entry.modelID ?? '').replace(/#arena-rank-\d+$/, '').toLowerCase();
+    if (kind === 'cloudbaseUsage') {
+      // Older CloudBase snapshots used the documented Z.ai brand alias.
+      // Normalize only that complete developer segment, retaining the exact model ID.
+      const identity = String(entry.cloudbaseCanonicalID ?? '').toLowerCase().replace(/^zai\//, 'zhipuai/');
+      const matches = snapshot.models.filter(record => record.id.toLowerCase() === identity);
+      return matches.length === 1 ? matches[0] : null;
+    }
     if (kind === 'vercelUsage') {
       const candidates = entry.vercelModelID ? vercelIDs.get(String(entry.vercelModelID).toLowerCase()) : null;
       return candidates?.size === 1 ? [...candidates][0] : null;

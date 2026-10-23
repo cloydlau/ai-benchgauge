@@ -56,7 +56,7 @@ public enum CompanyLeaderboard {
         for standing: CompanyStanding,
         language: AppLanguage = .chinese, kind: LeaderboardKind? = nil
     ) -> String {
-        let share = kind == .vercelUsage
+        let share = kind?.isShareUsage == true
         let usage = kind?.isUsage == true || standing.entry.totalTokens != nil
         let details = standing.components.enumerated().map { index, component in
             let rank = language.text("#\(component.rank)", "第\(component.rank)名")

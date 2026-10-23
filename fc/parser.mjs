@@ -5,6 +5,7 @@ import { arenaRowLogos } from './source-logos.mjs';
 // Keep the record selectors aligned with HTMLLeaderboardParser.swift.
 // Accept source HTML, never a client-supplied score table or timestamp.
 export const sources = Object.freeze({
+  cloudbaseUsage: ['https://docs.cloudbase.net/ai/announcement/model-token-volume', 'Tencent CloudBase'],
   vercelUsage: ['https://vercel.com/ai-gateway/leaderboards/models', 'Vercel AI Gateway'],
   openRouterUsage: ['https://openrouter.ai/rankings', 'OpenRouter'],
   artificialAnalysis: ['https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index', 'Artificial Analysis Intelligence Index'],
@@ -95,7 +96,7 @@ export function modelOpenness(value) {
 }
 
 export function parseBoard(kind, html, now) {
-  if (kind === 'openRouterUsage' || kind === 'vercelUsage') throw new Error('Usage requires the official Data API');
+  if (kind === 'openRouterUsage' || kind === 'vercelUsage' || kind === 'cloudbaseUsage') throw new Error('Usage requires the official Data API');
   if (!Object.hasOwn(sources, kind) || typeof html !== 'string') throw new Error('Invalid source');
   if (kind === 'epochECI') return parseEpochECI(html, now);
   const text = payload(html);

@@ -173,6 +173,7 @@ struct LeaderboardView: View {
         .accentColor(BrandTheme.accent(for: colorScheme))
         .sheet(item: $screenshot.licenseSection) { section in
             LicenseNoticesView(section: section, language: language,
+                               cloudbaseSourceNote: state.snapshot.boards[.cloudbaseUsage]?.sourceNote,
                                vercelSourceNote: state.snapshot.boards[.vercelUsage]?.sourceNote,
                                openRouterSourceNote: state.snapshot.boards[.openRouterUsage]?.sourceNote)
         }
@@ -389,7 +390,7 @@ struct LeaderboardView: View {
     private var visibleKinds: [LeaderboardKind] { state.visibleBoardKinds }
     private func kind(at slot: Int) -> LeaderboardKind { visibleKinds.indices.contains(slot) ? visibleKinds[slot] : visibleKinds[0] }
     private func shareColor(for kind: LeaderboardKind) -> Color {
-        kind == .vercelUsage ? .secondary : kind == .openRouterUsage ? .orange : kind == .epochECI ? .teal : (kind.sourceLinkTitle == LeaderboardKind.artificialAnalysis.sourceLinkTitle ? .blue : .purple)
+        kind.isShareUsage ? .secondary : kind == .openRouterUsage ? .orange : kind == .epochECI ? .teal : (kind.sourceLinkTitle == LeaderboardKind.artificialAnalysis.sourceLinkTitle ? .blue : .purple)
     }
 
 
@@ -1015,7 +1016,7 @@ struct LeaderboardView: View {
                 guard entries.indices.contains(slot) else { return nil }
                 let list = entries[slot]
                 return cellModel(for: index < list.count ? list[index] : nil, organizationLogos: logos,
-                    leaderScore: unsearched[slot].first?.entry.score, showRelativeShare: visibleKinds[slot] != .vercelUsage)
+                    leaderScore: unsearched[slot].first?.entry.score, showRelativeShare: !visibleKinds[slot].isShareUsage)
             }
             return LeaderboardRow(rank: index + 1, cells: cells)
         }
@@ -1096,7 +1097,7 @@ struct LeaderboardView: View {
 /// SwiftUI's TableColumn labels only support plain text. Install a native
 /// one-line header with the source name leading and its own data time trailing.
 private func headerLicenseName(kind: LeaderboardKind, board: Leaderboard?) -> String? {
-    kind == .epochECI || kind.isUsage || ArenaAttribution.applies(board) ? "CC BY 4.0" : nil
+    kind == .epochECI || (kind.isUsage && kind != .cloudbaseUsage) || ArenaAttribution.applies(board) ? "CC BY 4.0" : nil
 }
 
 private struct BoardHeaderConfiguration {
@@ -1470,7 +1471,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             }
             switch role {
             case 0:
-                let tint: NSColor = board.kind == .vercelUsage ? .secondaryLabelColor : board.kind == .openRouterUsage ? .systemOrange : board.kind == .epochECI ? .systemTeal
+                let tint: NSColor = board.kind.isShareUsage ? .secondaryLabelColor : board.kind == .openRouterUsage ? .systemOrange : board.kind == .epochECI ? .systemTeal
                     : (board.kind.sourceLinkTitle == LeaderboardKind.artificialAnalysis.sourceLinkTitle ? .systemBlue : .systemPurple)
                 drawBoardHeader(tableView.tableColumns[index].headerCell.stringValue,
                     licenseName: board.licenseName, summary: board.summary,

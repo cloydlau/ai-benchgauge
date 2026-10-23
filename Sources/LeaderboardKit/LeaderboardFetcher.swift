@@ -16,16 +16,18 @@ public struct LeaderboardFetcher: Sendable {
     }
 
     public func fetch(_ kind: LeaderboardKind, onCachedBoard: LeaderboardService.BoardUpdate? = nil) async throws -> Leaderboard {
+        if kind == .cloudbaseUsage { throw URLError(.resourceUnavailable) }
         if let sharedEndpoint { return try await shared(kind, endpoint: sharedEndpoint, onCachedBoard: onCachedBoard) }
         // Arena's licensed Parquet snapshots are acquired by the shared service.
         // Never fall back to the website when shared storage is unconfigured.
         if kind == .openRouterUsage { throw LeaderboardConfigurationRequired() }
-        if kind == .vercelUsage || kind.sourcePrefix == "Arena" { throw URLError(.resourceUnavailable) }
+        if kind.isShareUsage || kind.sourcePrefix == "Arena" { throw URLError(.resourceUnavailable) }
         return try parse(kind, html: await html(kind.dataURL))
     }
 
     /// Reads FC only; used to paint the Windows view before its background refresh.
     public func fetchCached(_ kind: LeaderboardKind) async throws -> Leaderboard? {
+        if kind == .cloudbaseUsage { return nil }
         guard let sharedEndpoint else { return nil }
         return try await cachedShared(kind, url: sharedEndpoint.appendingPathComponent("v1/boards/\(kind.rawValue)"))
     }
@@ -145,7 +147,7 @@ public struct LeaderboardFetcher: Sendable {
 
     func parse(_ kind: LeaderboardKind, html: String) throws -> Leaderboard {
         switch kind {
-        case .openRouterUsage, .vercelUsage: throw URLError(.resourceUnavailable)
+        case .openRouterUsage, .vercelUsage, .cloudbaseUsage: throw URLError(.resourceUnavailable)
         case .epochECI:
             return try EpochECIParser.parse(html)
         case .artificialAnalysis:

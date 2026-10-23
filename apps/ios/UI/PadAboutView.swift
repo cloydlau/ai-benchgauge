@@ -18,6 +18,7 @@ struct PadAboutView<Brand: View>: View {
     let brand: Brand
     let copyLink: (String) -> Void
     let dismiss: () -> Void
+    var cloudbaseSourceNote: String? = nil
     var vercelSourceNote: String? = nil
     var openRouterSourceNote: String? = nil
     private let content = PadAboutContent.load()
@@ -123,9 +124,9 @@ struct PadAboutView<Brand: View>: View {
             .accessibilityLabel(tr("Quota lookup · PC · Copy link", "余量查询 · PC 端 · 复制链接"))
     }
     private func sourceCard(_ source: PadAboutContent.Source) -> some View {
-        let mark = source.id == "vercel" ? "V" : source.id == "openRouter" ? "OR" : source.id == "artificialAnalysis" ? "AA" : source.id == "arena" ? "A" : "E"
-        let color: Color = source.id == "vercel" ? .secondary : source.id == "openRouter" ? .orange : source.id == "artificialAnalysis" ? .blue : source.id == "arena" ? .purple : .cyan
-        let showsLicense = source.id == "vercel" || source.id == "arena" || source.id == "epoch" || source.id == "openRouter"
+        let mark = source.id == "cloudbase" ? "TC" : source.id == "vercel" ? "V" : source.id == "openRouter" ? "OR" : source.id == "artificialAnalysis" ? "AA" : source.id == "arena" ? "A" : "E"
+        let color: Color = ["cloudbase", "vercel"].contains(source.id) ? .secondary : source.id == "openRouter" ? .orange : source.id == "artificialAnalysis" ? .blue : source.id == "arena" ? .purple : .cyan
+        let showsLicense = source.id == "cloudbase" || source.id == "vercel" || source.id == "arena" || source.id == "epoch" || source.id == "openRouter"
         let titleLines = dynamicTypeSize.isAccessibilitySize ? 2 : 1
         return HStack(spacing: 8) {
             Button { copyLink(source.url) } label: {
@@ -146,14 +147,14 @@ struct PadAboutView<Brand: View>: View {
                 .accessibilityLabel(source.title + " · " + tr("Copy link", "复制链接"))
             if showsLicense {
                 Button { about.licenseSourceID = source.id } label: {
-                    Text("CC BY 4.0").font(.system(size: 12, weight: .medium)).foregroundStyle(accent)
+                    Text(source.id == "cloudbase" ? tr("Notice", "来源说明") : "CC BY 4.0").font(.system(size: 12, weight: .medium)).foregroundStyle(accent)
                         .lineLimit(1).minimumScaleFactor(0.8)
                         .padding(.horizontal, 2)
                         .frame(minHeight: 32)
                         .contentShape(Rectangle())
                 }.buttonStyle(.plain)
                     .accessibilityIdentifier("about-license-" + source.id)
-                    .accessibilityLabel(source.title + " · CC BY 4.0 · " + tr("View license", "查看协议"))
+                    .accessibilityLabel(source.title + (source.id == "cloudbase" ? " · " + tr("Source notice", "来源说明") + " · " : " · CC BY 4.0 · ") + tr("View license", "查看协议"))
             }
             Button { copyLink(source.url) } label: {
                 Image(systemName: "link").font(.system(size: 12)).foregroundStyle(.secondary)
@@ -301,13 +302,14 @@ struct PadAboutView<Brand: View>: View {
             HStack(spacing: 5) { Text(tr("Contribute code", "贡献代码")).underline(); Image(systemName: "link") }
                 .font(.system(size: 12)).frame(minHeight: 44)
         }.buttonStyle(.plain).foregroundStyle(accent).accessibilityIdentifier("about-contribute")
+            .accessibilityLabel(tr("AI BenchGauge · Contribute code · Copy link", "AI 天梯 · 贡献代码 · 复制链接"))
     }
     private func note(_ text: String) -> some View {
         Text(text).font(.system(size: 11)).lineSpacing(4).foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
     }
     private func licenseDialog(_ sourceID: String) -> some View {
-        let notice = sourceID == "openRouter"
+        let notice = sourceID == "cloudbase" ? CloudBaseAttribution.text(sourceNote: cloudbaseSourceNote, language: language) : sourceID == "openRouter"
             ? CCBYLicense.openRouterText(sourceNote: openRouterSourceNote, language: language)
             : sourceID == "vercel" ? CCBYLicense.vercelText(sourceNote: vercelSourceNote, language: language) : CCBYLicense.text(language: language)
         return ZStack {
@@ -315,7 +317,7 @@ struct PadAboutView<Brand: View>: View {
                 .onTapGesture { about.licenseSourceID = nil }
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 12) {
-                Text("CC BY 4.0").font(.system(size: 16, weight: .semibold))
+                Text(sourceID == "cloudbase" ? tr("Source notice", "来源说明") : "CC BY 4.0").font(.system(size: 16, weight: .semibold))
                     .accessibilityIdentifier("about-license-dialog-" + sourceID)
                 ScrollView {
                     VStack(alignment: .leading, spacing: 10) {

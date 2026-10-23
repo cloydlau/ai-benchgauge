@@ -1,10 +1,10 @@
 import { computed, definePage, ref, onShareAppMessage } from '@vue-mini/core'
-import { leaderboardSources, desktopDownloadURL, copy, text } from '../../core/catalog.js'
+import { leaderboardSources, desktopDownloadURL, repositoryURL, copy, text } from '../../core/catalog.js'
 import { createBrandMeasurer } from '../../core/brand-title.js'
 import { pagePreferences, sharePath } from '../../core/share-state.js'
 import { epochAttribution } from '../../core/epoch-attribution.js'
 import { arenaAttribution } from '../../core/arena-attribution.js'
-import { ccByLicense, openRouterLicense, vercelLicense } from '../../core/cc-by-4.0.js'
+import { cloudbaseNotice, ccByLicense, openRouterLicense, vercelLicense } from '../../core/cc-by-4.0.js'
 import { readCachedBoard } from '../../services/boards.js'
 import { investmentContent } from '../../core/investment.js'
 
@@ -37,16 +37,16 @@ definePage(query => {
   }
   const notices = __THIRD_PARTY_NOTICES__.map(item => ({ ...item,
     title: item.name || text([`Third-party notice ${item.number}`, `第三方软件声明 ${item.number}`, `第三方軟體聲明 ${item.number}`], language) }))
-  const attributions = { vercel: { license: "CC BY 4.0" }, openRouter: { license: "CC BY 4.0" }, arena: arenaAttribution(language), epoch: epochAttribution(language) }
+  const attributions = { cloudbase: { license: text(["Notice", "来源说明", "來源說明"], language) }, vercel: { license: "CC BY 4.0" }, openRouter: { license: "CC BY 4.0" }, arena: arenaAttribution(language), epoch: epochAttribution(language) }
   const licenseText = ccByLicense(language).text
   const items = leaderboardSources.map(item => ({ ...item,
-    domain: item.url.split('/')[2], mark: { vercel: 'V', openRouter: 'OR', artificialAnalysis: 'AA', arena: 'A', epoch: 'E' }[item.id],
-    license: Boolean(attributions[item.id]) }))
+    domain: item.url.split('/')[2], mark: { cloudbase: 'TC', vercel: 'V', openRouter: 'OR', artificialAnalysis: 'AA', arena: 'A', epoch: 'E' }[item.id],
+    license: Boolean(attributions[item.id]), licenseLabel: attributions[item.id] ? attributions[item.id].license || "CC BY 4.0" : "" }))
   const licenseNotice = ref({ open: false, text: '' })
   const openLicense = event => {
     const id = event.currentTarget.dataset.id
-    if (!attributions[id]) return
-    licenseNotice.value = { open: true, text: id === 'openRouter'
+    if (!attributions[id] || !items.some(item => item.id === id)) return
+    licenseNotice.value = { open: true, title: attributions[id].license || "CC BY 4.0", text: id === 'cloudbase' ? cloudbaseNotice(readCachedBoard(wx, 'cloudbaseUsage')?.sourceNote, language) : id === 'openRouter'
       ? openRouterLicense(readCachedBoard(wx, 'openRouterUsage')?.sourceNote, language) : id === 'vercel' ? vercelLicense(readCachedBoard(wx, 'vercelUsage')?.sourceNote, language) : licenseText }
   }
   const closeLicense = () => { licenseNotice.value = { ...licenseNotice.value, open: false } }

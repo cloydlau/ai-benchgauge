@@ -5,7 +5,8 @@ export const categories = [
   { id: 'image', labels: ['Image', '图片', '圖片'], kinds: ['artificialAnalysisTextToImage', 'arenaTextToImage'] },
   { id: 'video', labels: ['Video', '视频', '影片'], kinds: ['artificialAnalysisTextToVideo', 'arenaTextToVideo'] },
 ]
-export const desktopDownloadURL = 'https://github.com/cloydlau/ai-benchgauge/releases/latest'
+export const repositoryURL = 'https://github.com/cloydlau/ai-benchgauge'
+export const desktopDownloadURL = `${repositoryURL}/releases/latest`
 export const leaderboardSources = [
   { id: 'vercel', title: 'Vercel AI Gateway', url: 'https://vercel.com/ai-gateway/leaderboards/models' },
   { id: 'openRouter', title: 'OpenRouter', url: 'https://openrouter.ai/rankings' },
@@ -14,6 +15,7 @@ export const leaderboardSources = [
   { id: 'epoch', title: 'Epoch AI', url: 'https://epoch.ai/eci' },
 ]
 export const boards = {
+  cloudbaseUsage: { title: 'Tencent CloudBase', summaries: ['Cumulative text-token share across sampled Beijing-time days; full dates unavailable.', '北京时间抽样统计日的文本 token 累计占比；未公开完整日期。', '北京時間抽樣統計日的文字 token 累計佔比；未公開完整日期。'], methodology: ['Input + output tokens including cache hits; official model-family buckets. Other excluded; company shares sum listed families. No absolute volumes or open-data license stated.', '输入与输出 token 之和，含缓存命中；按官方模型系列汇总，排除 Other。公司占比仅汇总榜内系列。未公开绝对用量或开放数据许可。', '輸入與輸出 token 之和，含快取命中；按官方模型系列彙總，排除 Other。公司佔比僅彙總榜內系列。未公開絕對用量或開放資料授權。'], url: 'https://docs.cloudbase.net/ai/announcement/model-token-volume' },
   vercelUsage: { title: 'Vercel AI Gateway', summaries: ['Latest complete UTC day · text token share · absolute volumes unavailable.', '最近完整 UTC 日文本 token 用量占比；不提供绝对用量。', '最近完整 UTC 日文字 token 用量佔比；不提供絕對用量。'], methodology: ['Includes input, output, reasoning and cached tokens. Only published models are listed; Other is excluded. Company shares sum listed models only. Not comparable to OpenRouter absolute totals.', '包含输入、输出、推理及缓存 token；仅列出官方公布的模型，Other 不作为模型展示。公司占比只汇总榜内模型。与 OpenRouter 绝对用量口径不同。', '包含輸入、輸出、推理及快取 token；僅列出官方公布的模型，Other 不作為模型展示。公司佔比只彙總榜內模型。與 OpenRouter 絕對用量口徑不同。'], url: 'https://vercel.com/ai-gateway/leaderboards/models' },
   openRouterUsage: { title: 'OpenRouter', summaries: ['Latest complete UTC day · input + output tokens · 1B = 1 billion tokens.', '最近完整 UTC 日输入与输出 token 用量；1B = 十亿 token。', '最近完整 UTC 日輸入與輸出 token 用量；1B = 十億 token。'], methodology: ['Latest complete UTC day · prompt + completion tokens · top 50 public models. 1B = 1 billion tokens. Excludes private and zero-data-retention traffic; provider tokenizers differ. Company totals cover listed models only.', '最近完整 UTC 日的输入与输出 token 用量，展示公开流量前 50 名。1B = 十亿 token。排除私有及零数据留存流量；各供应商分词方式不同。公司用量仅汇总榜内模型。', '最近完整 UTC 日的輸入與輸出 token 用量，展示公開流量前 50 名。1B = 十億 token。排除私有及零資料留存流量；各供應商分詞方式不同。公司用量僅彙總榜內模型。'], url: 'https://openrouter.ai/rankings' },
   epochECI: { title: 'Epoch ECI', summaries: ['Estimates general capability from benchmark results, accounting for difficulty and discrimination.', '结合不同测试的难度与区分度，估计模型的综合能力', '結合不同測試的難度與區分度，估計模型的綜合能力'], url: 'https://epoch.ai/eci' },

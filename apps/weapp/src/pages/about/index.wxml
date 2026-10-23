@@ -32,7 +32,7 @@
               <view class="source-domain">{{item.domain}}</view>
             </view>
           </view>
-          <view wx:if="{{item.license}}" class="source-license" hover-class="source-license-active" data-id="{{item.id}}" bindtap="openLicense" aria-role="button" aria-label="{{item.title}} · CC BY 4.0 · {{viewLicenseLabel}}"><text>CC BY 4.0</text></view>
+          <view wx:if="{{item.license}}" class="source-license" hover-class="source-license-active" data-id="{{item.id}}" bindtap="openLicense" aria-role="button" aria-label="{{item.title}} · {{item.licenseLabel}} · {{viewLicenseLabel}}"><text>{{item.licenseLabel}}</text></view>
           <view class="source-link-mark" hover-class="source-main-active" data-url="{{item.url}}" bindtap="copyLink" aria-hidden="true"><van-icon name="link-o" size="16px" /></view>
         </view>
       </view>
@@ -83,7 +83,7 @@
       </view>
     </view>
   </view>
-  <van-dialog show="{{licenseNotice.open}}" title="CC BY 4.0" use-slot
+  <van-dialog show="{{licenseNotice.open}}" title="{{licenseNotice.title || 'CC BY 4.0'}}" use-slot
     confirm-button-text="{{labels.gotIt}}"
     confirm-button-color="{{dark ? '#d1dce8' : '#414d5c'}}"
     close-on-click-overlay="{{true}}"
