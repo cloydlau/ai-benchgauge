@@ -42,6 +42,8 @@ test('about-page menu forwarding and cold-start back navigation retain the origi
     reLaunch: ({ url }) => launches.push(url),
   }
   const about = globalThis.aboutFactory(query)
+  assert.equal(about.repositoryURL, 'https://github.com/cloydlau/ai-benchgauge')
+  assert.equal(about.desktopDownloadURL, about.repositoryURL + '/releases/latest')
   assert.deepEqual(about.items.map(item => [item.id, item.license]), [
     ['vercel', true],
     ['openRouter', true],
