@@ -72,7 +72,7 @@ function credentials(file) {
   if (!accessKeyId || !accessKeySecret) throw new Error('Missing Alibaba Cloud RAM credentials in the local environment');
   return { accessKeyId, accessKeySecret };
 }
-const runtimeFiles = ['package.json', 'package-lock.json', 'bootstrap', 'server.mjs', 'service.mjs', 'domain.mjs', 'parser.mjs', 'epoch-eci.mjs', 'arena-dataset.mjs', 'arena-collector.mjs', 'arena-attribution.json', 'models-dev.mjs', 'models-dev-license.txt', 'model-openness.mjs', 'source-logos.mjs', 'oss-store.mjs', 'brands.mjs', 'brand-catalog.json', 'leaderboard-policy.json', 'countries.mjs', 'country-catalog.json'];
+const runtimeFiles = ['package.json', 'package-lock.json', 'bootstrap', 'server.mjs', 'service.mjs', 'domain.mjs', 'parser.mjs', 'openrouter-usage.mjs', 'epoch-eci.mjs', 'arena-dataset.mjs', 'arena-collector.mjs', 'arena-attribution.json', 'models-dev.mjs', 'models-dev-license.txt', 'model-openness.mjs', 'source-logos.mjs', 'oss-store.mjs', 'brands.mjs', 'brand-catalog.json', 'leaderboard-policy.json', 'countries.mjs', 'country-catalog.json'];
 function runtimeSignature() {
   const hash = createHash('sha256');
   for (const name of runtimeFiles) hash.update(name).update(readFileSync(join(root, 'fc', name)));
@@ -92,7 +92,7 @@ async function main() {
   const args = process.argv.slice(2);
   if (args.length > 1 || args.some(arg => !['--plan', '--package'].includes(arg))) throw new Error('Usage: deploy-shared-leaderboards.mjs [--plan | --package]');
   if (args.includes('--package')) {
-    run(process.execPath, ['--test', 'Scripts/epoch-eci.test.mjs', 'Scripts/arena-dataset.test.mjs', 'Scripts/models-dev.test.mjs', 'Scripts/shared-leaderboards.test.mjs', 'Scripts/brand-discovery.test.mjs', 'Scripts/country-discovery.test.mjs']);
+    run(process.execPath, ['--test', 'Scripts/openrouter-usage.test.mjs', 'Scripts/epoch-eci.test.mjs', 'Scripts/arena-dataset.test.mjs', 'Scripts/models-dev.test.mjs', 'Scripts/shared-leaderboards.test.mjs', 'Scripts/brand-discovery.test.mjs', 'Scripts/country-discovery.test.mjs']);
     console.log(packageCode()); return;
   }
   const file = join(root, '.benchgauge-cloud.local.json');
@@ -108,7 +108,7 @@ async function main() {
   // placed in the ZIP or the app. Existing runtime credentials are transferred
   // in memory between FC configurations, never written into local artifacts.
   const signature = runtimeSignature();
-  run(process.execPath, ['--test', 'Scripts/epoch-eci.test.mjs', 'Scripts/arena-dataset.test.mjs', 'Scripts/models-dev.test.mjs', 'Scripts/shared-leaderboards.test.mjs', 'Scripts/brand-discovery.test.mjs', 'Scripts/country-discovery.test.mjs']);
+  run(process.execPath, ['--test', 'Scripts/openrouter-usage.test.mjs', 'Scripts/epoch-eci.test.mjs', 'Scripts/arena-dataset.test.mjs', 'Scripts/models-dev.test.mjs', 'Scripts/shared-leaderboards.test.mjs', 'Scripts/brand-discovery.test.mjs', 'Scripts/country-discovery.test.mjs']);
   if (runtimeSignature() !== signature) throw new Error('Runtime changed during validation');
   const archive = packageCode();
   if (runtimeSignature() !== signature) throw new Error('Runtime changed during packaging');
@@ -145,8 +145,9 @@ async function main() {
   const syncToken = readFileSync(syncTokenFile, 'utf8');
   if (!/^[A-Za-z0-9_-]{43}$/.test(syncToken)) throw new Error('Invalid metadata sync token');
   if (config.arenaCollector === true) {
-    // A dedicated, narrowly authenticated public-data collector avoids sending
-    // OSS/cloud credentials abroad or broadening the runtime user's RAM policy.
+    // The fixed-source collector serves Arena, models.dev and OpenRouter usage.
+    // OSS/cloud credentials stay in the main function. OpenRouter's API key is
+    // sent only with its authenticated HTTPS usage request, never stored here.
     const tokenFile = join(root, 'work/shared-leaderboards/arena-collector-token');
     if (!existsSync(tokenFile)) writeFileSync(tokenFile, randomBytes(32).toString('base64url'), { mode: 0o600 });
     const token = readFileSync(tokenFile, 'utf8');
@@ -189,8 +190,13 @@ async function main() {
   catch (error) { if (error.code !== 'FunctionNotFound') throw error; }
   if (existing) {
     if (!isManagedFunction(existing, config)) throw new Error('Refusing to replace an unrelated function');
+    const openRouterKey = process.env.OPENROUTER_API_KEY?.trim() || existing.environmentVariables?.OPENROUTER_API_KEY;
+    if (openRouterKey) body.environmentVariables.OPENROUTER_API_KEY = openRouterKey;
     await client.updateFunction(config.functionName, new FC.UpdateFunctionRequest({ body: new FC.UpdateFunctionInput(body) }));
-  } else await client.createFunction(new FC.CreateFunctionRequest({ body: new FC.CreateFunctionInput({ ...body, functionName: config.functionName }) }));
+  } else {
+    if (process.env.OPENROUTER_API_KEY?.trim()) body.environmentVariables.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY.trim();
+    await client.createFunction(new FC.CreateFunctionRequest({ body: new FC.CreateFunctionInput({ ...body, functionName: config.functionName }) }));
+  }
   let trigger;
   try { trigger = (await client.getTrigger(config.functionName, 'http')).body; }
   catch (error) {

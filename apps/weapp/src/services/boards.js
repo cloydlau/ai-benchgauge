@@ -13,6 +13,13 @@ function loadSnapshots(platform) {
   } catch { /* A missing or incomplete file can still fall back to the old cache. */ }
   return platform.getStorageSync(CACHE_KEY)
 }
+export function readCachedBoard(platform, kind) {
+  if (!hasOwn(boards, kind)) return null
+  try {
+    const saved = loadSnapshots(platform)?.[kind]
+    return saved ? normalizeBoard(saved, kind) : null
+  } catch { return null }
+}
 function saveSnapshots(platform, snapshots) {
   try {
     const file = snapshotFile(platform)
@@ -54,7 +61,10 @@ export function createBoardStore({ platform, endpoint }) {
           if (disposed) { reject(new Error('Store disposed')); return }
           try {
             if (result.statusCode !== 200) throw new Error('Shared service unavailable')
-            if (!result.data?.board) throw new Error('No shared snapshot yet')
+            if (!result.data?.board) {
+              if (result.data?.configurationRequired === true) throw Object.assign(new Error('Data source awaiting configuration'), { code: 'configurationRequired' })
+              throw new Error('No shared snapshot yet')
+            }
             const next = normalizeBoard(result.data.board, kind)
             if (canReplace(next, snapshots[kind])) {
               snapshots[kind] = next

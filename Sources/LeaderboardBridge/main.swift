@@ -344,10 +344,14 @@ actor Engine {
             boardTokens[kind] = token
             let fetcher = self.fetcher
             boardTasks[kind] = Task {
-                let board = try? await fetcher.fetch(kind, onCachedBoard: { board in
-                    await self.acceptRefreshingBoard(board, token: token)
-                })
-                self.finishBoard(kind, board: board, token: token)
+                do {
+                    let board = try await fetcher.fetch(kind, onCachedBoard: { board in
+                        await self.acceptRefreshingBoard(board, token: token)
+                    })
+                    self.finishBoard(kind, board: board, token: token)
+                } catch {
+                    self.finishBoard(kind, board: nil, token: token, configurationRequired: error is LeaderboardConfigurationRequired)
+                }
             }
         }
         let tasks = kinds.compactMap { boardTasks[$0] }
@@ -357,10 +361,10 @@ actor Engine {
         guard boardTokens[board.kind] == token else { return }
         acceptSharedBoard(board)
     }
-    private func finishBoard(_ kind: LeaderboardKind, board: Leaderboard?, token: UUID) {
+    private func finishBoard(_ kind: LeaderboardKind, board: Leaderboard?, token: UUID, configurationRequired: Bool = false) {
         guard boardTokens[kind] == token else { return }
         if let board { acceptSharedBoard(board); errors[kind] = nil }
-        else { errors[kind] = "Refresh failed" }
+        else { errors[kind] = configurationRequired ? "configurationRequired" : "Refresh failed" }
         boardTokens[kind] = nil
         boardTasks[kind] = nil
         cache.save(snapshot)
@@ -506,11 +510,11 @@ actor Engine {
             let countryFilter: LeaderboardCountryFilter = countryValue == "unknown" ? .unknown
                 : OrganizationCountry(rawValue: countryValue).map(LeaderboardCountryFilter.country) ?? .all
             let models = (board?.entries ?? []).filter { sourceFilter.matches($0) && countryFilter.matches($0) }
-            let standings = grouping == "company" ? CompanyLeaderboard.rank(models) : []
+            let standings = grouping == "company" ? CompanyLeaderboard.rank(models, summingUsage: kind == .openRouterUsage) : []
             let entries = grouping == "company" ? standings.map(\.entry) : models
             return Board(modelMetadataSource: board?.modelMetadataSource, kind: kind.rawValue, title: kind.sourcePrefix, url: kind.sourceURL.absoluteString,
                          updatedAt: board?.sourceUpdatedAt.map { formatter.string(from: $0) },
-                         error: errors[kind].map { _ in language.text("Refresh failed; showing saved data", "刷新失败，显示已保存的数据") },
+                         error: errors[kind].map { $0 == "configurationRequired" ? LeaderboardFailure.configurationRequired.message(language: language, hasCachedBoard: board != nil) : language.text("Refresh failed; showing saved data", "刷新失败，显示已保存的数据") },
                          entries: entries.map { entry in
                 let links = PurchaseLinkCatalog.links(forOrganization: entry.organization, modelName: entry.name)
                 return Entry(detailID: grouping == "company" ? nil : entry.modelMetadata?.id, voteCount: entry.voteCount,
@@ -540,7 +544,7 @@ actor Engine {
             for kind in category.boardKinds {
                 let models = snapshot.boards[kind]?.entries ?? []
                 for grouping in LeaderboardGrouping.allCases {
-                    let entries = grouping == .company ? CompanyLeaderboard.rank(models).map(\.entry) : models
+                    let entries = grouping == .company ? CompanyLeaderboard.rank(models, summingUsage: kind == .openRouterUsage).map(\.entry) : models
                     for entry in entries {
                         let links = PurchaseLinkCatalog.links(forOrganization: entry.organization, modelName: entry.name)
                         layoutEntries.append(LayoutEntry(name: entry.name,

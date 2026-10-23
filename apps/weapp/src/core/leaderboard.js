@@ -62,6 +62,7 @@ export function scoreShareText(score, leaderScore) {
   const percent = Math.round(score / leaderScore * 100)
   return percent < 100 ? `${percent}%` : ''
 }
+export const usageScoreText = score => score > 0 && score < 0.01 ? '<0.01B' : `${score.toFixed(2)}B`
 export function rowView(entry, { company = false, dark = false, details = true, language = 'en', category = 'general', kind, leaderScore } = {}) {
   const productKey = !company ? brandRules.bundledProductKey(entry) : null
   const modelBrand = !company ? brandRules.knownModelBrand(entry) : null
@@ -88,8 +89,8 @@ export function rowView(entry, { company = false, dark = false, details = true, 
     initial: [...entry.name][0], countryUnknown: countryCode(entry) === 'unknown', countryName: countryName(countryCode(entry), language),
     flag: countryCode(entry) === 'unknown' ? '?' : countryFlag(countryCode(entry)),
     countryCode: code, flagImage: countryFlagImage(code),
-    components: details ? entry.components?.map(member => ({ name: member.name, rank: member.rank, score: member.score.toFixed(kind === 'epochECI' ? 2 : 1) })) || [] : [],
-    scoreText: entry.score.toFixed(kind === 'epochECI' ? 2 : 1), scoreShare: scoreShareText(entry.score, leaderScore), openness: company ? null : resolvedOpenness(entry),
+    components: details ? entry.components?.map(member => ({ name: member.name, rank: member.rank, score: kind === 'openRouterUsage' ? usageScoreText(member.score) : member.score.toFixed(kind === 'epochECI' ? 2 : 1) })) || [] : [],
+    scoreText: kind === 'openRouterUsage' ? usageScoreText(entry.score) : entry.score.toFixed(kind === 'epochECI' ? 2 : 1), scoreShare: scoreShareText(entry.score, leaderScore), openness: company ? null : resolvedOpenness(entry),
     opennessIcon: opennessIcon(company ? null : resolvedOpenness(entry), dark),
     fill: `background-color:rgba(${rgb},${dark ? '0.26' : '0.18'});`,
     fillPercent: Number.isFinite(entry.score) && entry.score >= 0 && Number.isFinite(leaderScore) && leaderScore > 0
@@ -108,7 +109,7 @@ export function rankedEntries(board, { grouping = 'model', country = 'all', open
   country = normalizedCountryCode(country) ?? country
   const entries = (board?.entries || []).filter(entry => (country === 'all' || countryCode(entry) === country)
     && (openness === 'all' || (resolvedOpenness(entry) || 'unknown') === openness))
-  return grouping === 'company' ? companyRows(entries) : entries.filter(entry => modelNameMatches(entry.name, query))
+  return grouping === 'company' ? companyRows(entries, { summingUsage: board?.kind === 'openRouterUsage' }) : entries.filter(entry => modelNameMatches(entry.name, query))
 }
 export function visibleRows(board, { grouping = 'model', country = 'all', openness = 'all', query = '', dark = false, language = 'en', category = 'general' } = {}) {
   const leaderScore = rankedEntries(board, { grouping, country, openness })[0]?.score

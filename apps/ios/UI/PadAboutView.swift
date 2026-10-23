@@ -17,6 +17,7 @@ struct PadAboutView<Brand: View>: View {
     let brand: Brand
     let copyLink: (String) -> Void
     let dismiss: () -> Void
+    var openRouterSourceNote: String? = nil
     private let content = PadAboutContent.load()
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -120,9 +121,9 @@ struct PadAboutView<Brand: View>: View {
             .accessibilityLabel(tr("Quota lookup · PC · Copy link", "余量查询 · PC 端 · 复制链接"))
     }
     private func sourceCard(_ source: PadAboutContent.Source) -> some View {
-        let mark = source.id == "artificialAnalysis" ? "AA" : source.id == "arena" ? "A" : "E"
-        let color: Color = source.id == "artificialAnalysis" ? .blue : source.id == "arena" ? .purple : .cyan
-        let showsLicense = source.id == "arena" || source.id == "epoch"
+        let mark = source.id == "openRouter" ? "OR" : source.id == "artificialAnalysis" ? "AA" : source.id == "arena" ? "A" : "E"
+        let color: Color = source.id == "openRouter" ? .orange : source.id == "artificialAnalysis" ? .blue : source.id == "arena" ? .purple : .cyan
+        let showsLicense = source.id == "arena" || source.id == "epoch" || source.id == "openRouter"
         let titleLines = dynamicTypeSize.isAccessibilitySize ? 2 : 1
         return HStack(spacing: 8) {
             Button { copyLink(source.url) } label: {
@@ -284,8 +285,9 @@ struct PadAboutView<Brand: View>: View {
             .fixedSize(horizontal: false, vertical: true)
     }
     private func licenseDialog(_ sourceID: String) -> some View {
-        // Arena and Epoch share one official deed. Attribution notices stay on source help and exports.
-        let notice = CCBYLicense.text(language: language)
+        let notice = sourceID == "openRouter"
+            ? CCBYLicense.openRouterText(sourceNote: openRouterSourceNote, language: language)
+            : CCBYLicense.text(language: language)
         return ZStack {
             Color.black.opacity(dark ? 0.48 : 0.32).ignoresSafeArea()
                 .onTapGesture { about.licenseSourceID = nil }

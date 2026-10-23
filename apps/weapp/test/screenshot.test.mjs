@@ -21,6 +21,20 @@ const model = (counts = [415, 32], dark = false) => ({
       score: count - index, openness: index % 2 ? 'open' : 'closed', developerCountry: { countryCode: 'US' } }, { dark })) })),
 })
 
+test('single-source usage export fills the canvas and retains source licensing', () => {
+  const h = canvasHarness(), source = model([2])
+  source.language = 'en'
+  source.boards[0].kind = 'openRouterUsage'
+  source.boards[0].sourceNote = 'Source: OpenRouter (openrouter.ai/rankings), as of 2026-10-23T00:00:30Z.\nLicensed under CC BY 4.0.\nhttps://creativecommons.org/licenses/by/4.0/'
+  const image = planScreenshot(h.context, source)
+  drawScreenshot(h.context, source, image, new Map())
+  const heading = h.commands.find(([name, value]) => name === 'fillText' && value === 'Tokens')
+  assert.equal(heading[2], screenshotWidth - 24 - 14)
+  assert.ok(image.attributionLines.join('\n').includes('Licensed under CC BY 4.0.'))
+  assert.ok(image.attributionLines.join('\n').includes('as of 2026-10-23T00:00:30Z'))
+  assert.ok(image.rows[0].height < planScreenshot(h.context, model([2, 0])).rows[0].height)
+})
+
 test('exports draw exactly one timestamp per board, including the fetch-only fallback', () => {
   for (const dark of [false, true]) {
     const h = canvasHarness(), source = model([0, 0], dark)

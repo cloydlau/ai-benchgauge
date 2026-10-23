@@ -31,4 +31,10 @@ public enum CCBYLicense {
         case .traditionalChinese: document.zhHant
         }
     }
+
+    public static func openRouterText(sourceNote: String?, language: AppLanguage) -> String {
+        let note = sourceNote?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let attribution = note?.isEmpty == false ? note! : "Source: OpenRouter (openrouter.ai/rankings).\nLicensed under CC BY 4.0.\n" + canonicalURL
+        return attribution + "\n\n" + text(language: language)
+    }
 }

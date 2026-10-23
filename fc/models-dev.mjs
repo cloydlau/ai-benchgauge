@@ -119,7 +119,7 @@ export function validModelsDev(snapshot, now = Date.now()) {
 const fold = value => String(value ?? '').normalize('NFKC').toLowerCase().replace(/(\p{L})(\d)/gu, '$1-$2').replace(/(\d)(\p{L})/gu, '$1-$2').match(/[\p{L}\p{N}]+/gu)?.join('-') ?? '';
 const inferenceSettings = /\((?:\s*(?:high|xhigh|medium|low|minimal|max|effort|reasoning|default|standard)[\s,/-]*)+\)/gi;
 export function modelMatcher(snapshot) {
-  const ids = new Map(), names = new Map();
+  const ids = new Map(), names = new Map(), openRouterIDs = new Map();
   const add = (index, key, record) => { if (!key) return; const values = index.get(key) ?? new Set(); values.add(record); index.set(key, values); };
   for (const record of snapshot.models) {
     add(ids, record.id.toLowerCase(), record); add(names, fold(record.name), record);
@@ -127,10 +127,18 @@ export function modelMatcher(snapshot) {
     for (const offer of record.offers) {
       add(ids, `${offer.provider}/${offer.modelID}`.toLowerCase(), record);
       add(names, fold(offer.name), record);
+      if (offer.provider === 'openrouter') add(openRouterIDs, offer.modelID.toLowerCase(), record);
     }
   }
   return (entry, kind) => {
     const supplied = String(entry.modelID ?? '').replace(/#arena-rank-\d+$/, '').toLowerCase();
+    if (kind === 'openRouterUsage') {
+      // No name/date/version guessing for permanent OpenRouter build slugs.
+      // The optional routable ID comes from OpenRouter's explicit catalog pair.
+      const candidates = openRouterIDs.get(supplied)
+        ?? openRouterIDs.get(String(entry.openRouterModelID ?? '').toLowerCase());
+      return candidates?.size === 1 ? [...candidates][0] : null;
+    }
     let candidates = ids.get(supplied);
     if (!candidates) {
       let name = kind === 'artificialAnalysisCodingAgent' ? entry.name.split(' - ').at(-1) : entry.name;

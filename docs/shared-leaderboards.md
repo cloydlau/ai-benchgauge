@@ -119,7 +119,7 @@ node Scripts/deploy-shared-leaderboards.mjs
 
 部署使用 `custom.debian10` 的 Node.js 20，512 MB / 0.25 vCPU、512 MB 临时磁盘，实例并发 8、请求超时 30 秒，按需启动。临时磁盘只供运行程序，不存放共享快照。函数通过深圳 OSS 内网地址访问存储。部署脚本先运行服务端测试，再打包生产依赖；不会覆盖无关函数。部署回执保存在被忽略的 `work/shared-leaderboards/deployment.json`。ZIP、应用和接口响应均不包含云密钥；运行凭证仅存放在 FC 的运行配置中。
 
-`arenaCollector: true` 同时部署新加坡的专用 Arena 采集函数，解决深圳直连 Hugging Face 超时。它没有 OSS/云凭据，仅接受四个固定路径且必须携带专用随机令牌。令牌保存在被忽略的 `work/shared-leaderboards/arena-collector-token`（0600）及运行环境，重部署复用；丢失后重新生成并同时更新两端。部署后验证未认证访问为 403、四榜完整链路及原共享读取地址。
+`arenaCollector: true` 同时部署新加坡的专用采集函数，解决深圳直连 Hugging Face 和 OpenRouter 超时。它没有 OSS/云凭据，仅接受四个 Arena 固定路径、models.dev 元数据和 OpenRouter 用量路由，均须携带专用随机令牌。用量路由还须携带主函数转发的 OpenRouter 认证头，Key 只在请求内存中使用，不在采集函数配置中保存。令牌保存在被忽略的 `work/shared-leaderboards/arena-collector-token`（0600）及运行环境，重部署复用；丢失后重新生成并同时更新两端。部署后验证未认证访问为 403、各来源完整链路及原共享读取地址。
 
 部署后先验证读取接口；Arena 通过刷新接口读取官方数据集，其他来源使用更新资格从原站填充。确认读写链路可用后，设置 `Sources/LeaderboardKit/SharedLeaderboardConfiguration.swift` 的 `bundledEndpoint`，再构建应用。iOS、macOS、Windows 引用同一个 Swift 配置。开发调试也可设置 `BENCHGAUGE_SHARED_ENDPOINT`；配置了共享服务后，服务失败不能回退到无资格的原站请求。
 

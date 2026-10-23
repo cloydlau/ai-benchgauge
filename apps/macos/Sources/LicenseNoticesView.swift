@@ -58,10 +58,12 @@ struct LicenseNoticesView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var selection: LicenseSelection
     let language: AppLanguage
+    let openRouterSourceNote: String?
 
-    init(section: LicenseSection, language: AppLanguage) {
+    init(section: LicenseSection, language: AppLanguage, openRouterSourceNote: String? = nil) {
         _selection = StateObject(wrappedValue: LicenseSelection(section))
         self.language = language
+        self.openRouterSourceNote = openRouterSourceNote
     }
 
     private func tr(_ english: String, _ chinese: String) -> String {
@@ -88,6 +90,12 @@ struct LicenseNoticesView: View {
                     if selection.section == .application {
                         documentView(.application)
                     } else if let documents = LicenseCatalog.thirdParty {
+                        DisclosureGroup("OpenRouter · CC BY 4.0") {
+                            Text(CCBYLicense.openRouterText(sourceNote: openRouterSourceNote, language: language))
+                                .font(.system(size: 11)).textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
+                        }
                         if documents.isEmpty {
                             Text(tr(
                                 "No third-party open-source code libraries are bundled with this application.",

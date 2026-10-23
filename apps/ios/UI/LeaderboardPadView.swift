@@ -351,7 +351,8 @@ public struct LeaderboardPadView: View {
     }
     private var aboutSheet: some View {
         PadAboutView(language: store.language, brand: appTitle(fontSize: 24),
-                     copyLink: copyName, dismiss: { presentation.showingAbout = false })
+                     copyLink: copyName, dismiss: { presentation.showingAbout = false },
+                     openRouterSourceNote: store.snapshot.boards[.openRouterUsage]?.sourceNote)
         .overlay(alignment: .bottom) {
             if let note = presentation.note { Text(note).font(.footnote).padding(12).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8)).padding(20) }
         }
@@ -394,7 +395,14 @@ public struct LeaderboardPadView: View {
         #endif
     }
 
-    private var cubeSelector: some View {
+    @ViewBuilder private var cubeSelector: some View {
+        if store.category == .usage {
+            HStack(spacing: 8) {
+                Text("OpenRouter").font(.caption.weight(.semibold))
+                Text(LeaderboardPresentation.explanation(.openRouterUsage, language: store.language)).font(.caption)
+            }.foregroundStyle(Color.primary).frame(maxWidth: .infinity, minHeight: 38)
+                .background(Color.padBackground).accessibilityIdentifier("usage-source")
+        } else {
         HStack(spacing: 6) {
             ForEach(Array(store.category.boardKinds.enumerated()), id: \.offset) { index, kind in
                 Button { turnCube(to: index) } label: {
@@ -403,12 +411,12 @@ public struct LeaderboardPadView: View {
                         .lineLimit(2).frame(maxWidth: .infinity, minHeight: 38)
                         .foregroundStyle((sourceDragIndex ?? cube.face) == index ? (index == 0 ? Color.blue : (index == 2 ? Color.teal : Color.purple)) : Color.secondary)
                         .contentShape(Rectangle())
-                }.buttonStyle(.plain).accessibilityIdentifier("face-\(index)")
+                }.buttonStyle(.plain).disabled(store.category.boardKinds.count == 1).accessibilityIdentifier("face-\(index)")
                     .accessibilityAddTraits(cube.face == index ? .isSelected : [])
             }
         }
         .modifier(MobileTabDrag(count: store.category.boardKinds.count, preview: $sourceDragIndex,
-            enabled: !cube.turning && !store.modelSearchEditing, begin: cancelCubeEntrance) { turnCube(to: $0) })
+            enabled: store.category.boardKinds.count > 1 && !cube.turning && !store.modelSearchEditing, begin: cancelCubeEntrance) { turnCube(to: $0) })
         .background(alignment: .leading) {
             GeometryReader { geometry in
                 let count = store.category.boardKinds.count
@@ -424,6 +432,7 @@ public struct LeaderboardPadView: View {
         // Keep the rotating faces' shading behind the stationary tab bar.
         .background(Color.padBackground)
         .animation(usesReducedMotion ? nil : .timingCurve(0.22, 0.7, 0.2, 1, duration: 0.32), value: cube.face)
+        }
     }
     private func resetComparison() {
         cancelCubeEntrance()
@@ -538,7 +547,7 @@ public struct LeaderboardPadView: View {
                 }
                 .onChanged { value in
                     cancelCubeEntrance()
-                    guard !cube.turning, !store.modelSearchEditing else { return }
+                    guard store.category.boardKinds.count > 1, !cube.turning, !store.modelSearchEditing else { return }
                     guard LeaderboardCube.dragAxis(current: cubeDragAxis, x: value.translation.width, y: value.translation.height) == .horizontal else { return }
                     cube.origin = cube.face
                     cube.direction = value.translation.width > 0 ? -1 : 1
@@ -782,6 +791,7 @@ public struct LeaderboardPadView: View {
         PadBoardCard(kind: kind, board: store.snapshot.boards[kind], rowPresentation: pageRows.map { store.rowPresentation(for: kind).page($0) } ?? store.rowPresentation(for: kind), grouping: store.grouping,
             language: store.language, filter: store.countryFilter(for: kind), opennessFilter: store.opennessFilter(for: kind),
             countryOptions: store.availableCountryFilters, skeletonHeight: viewportHeight,
+            failure: store.failures[kind],
             modelSearchQuery: $store.modelSearchQuery, modelSearchPresented: $store.modelSearchPresented,
             modelSearchEditing: $store.modelSearchEditing,
             isRefreshing: store.refreshing.contains(kind), isImage: isImage, compact: compact, denseColumns: denseColumns, exportScheme: exportScheme,
@@ -826,6 +836,9 @@ public struct LeaderboardPadView: View {
                     category: store.category, language: store.language)).font(.caption).foregroundStyle(secondary)
             }
             boardPair(wide: width >= 760, isImage: true, exportScheme: scheme, pageRows: pageRows)
+            if let usage = store.snapshot.boards[.openRouterUsage], store.category == .usage {
+                Text(usage.sourceNote ?? "").font(.system(size: 11)).foregroundStyle(secondary).fixedSize(horizontal: false, vertical: true)
+            }
             if store.category.boardKinds.contains(.epochECI) {
                 Text(EpochAttribution.fullText(language: store.language))
                     .font(.system(size: 11)).foregroundStyle(secondary)
@@ -1059,6 +1072,7 @@ private struct PadBoardCard: View {
     let opennessFilter: LeaderboardOpennessFilter
     let countryOptions: [LeaderboardCountryFilter]
     let skeletonHeight: CGFloat
+    var failure: LeaderboardFailure? = nil
     @Binding var modelSearchQuery: String
     @Binding var modelSearchPresented: Bool
     @Binding var modelSearchEditing: Bool
@@ -1211,7 +1225,7 @@ private struct PadBoardCard: View {
     }
     private var timeLabels: some View {
         let time = LeaderboardPresentation.sourceTime(board, language: language)
-        let accent = kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue)
+        let accent = kind == .openRouterUsage ? Color.orange : kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue)
         return Text(time.text).font(.system(size: timeFontSize, weight: time.isSourceTime ? .medium : .regular))
         .foregroundColor(time.isSourceTime ? accent : secondaryForeground).monospacedDigit()
         .multilineTextAlignment(.trailing).lineLimit(1).fixedSize()
@@ -1277,7 +1291,7 @@ private struct PadBoardCard: View {
                 HStack(spacing: 2) {
                 Text(kind.sourceLinkTitle)
                     .font(columnHeaderFont.weight(.semibold))
-                    .foregroundStyle(kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue))
+                    .foregroundStyle(kind == .openRouterUsage ? Color.orange : kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue))
                     .lineLimit(1).minimumScaleFactor(0.8)
                     .accessibilityIdentifier("source-heading-\(kind.rawValue)")
                 if !isImage && grouping == .model {
@@ -1329,7 +1343,7 @@ private struct PadBoardCard: View {
                         .help(ModelOpenness.help(language: language))
                     }
                 }
-                scoreColumn { Text(tr("Score", "分数")).font(columnHeaderFont) }
+                scoreColumn { Text(LeaderboardPresentation.scoreTitle(kind, language: language)).font(columnHeaderFont) }
             }.font(columnHeaderFont).foregroundStyle(secondaryForeground).padding(.horizontal, columnPadding)
                 .padding(.top, headerTopPadding).padding(.bottom, headerBottomPadding)
                 .opacity(searchVisible ? 0 : 1)
@@ -1422,7 +1436,7 @@ private struct PadBoardCard: View {
         } else {
             VStack(spacing: 12) {
                 Image(systemName: "chart.bar").font(.title2)
-                Text(tr("No shared snapshot yet", "暂未取得共享榜单"))
+                Text(failure?.message(language: language, hasCachedBoard: false) ?? tr("No shared snapshot yet", "暂未取得共享榜单"))
             }.font(.subheadline).foregroundStyle(.secondary).frame(maxWidth: .infinity, minHeight: 200)
         }
     }
@@ -1590,12 +1604,12 @@ private struct PadBoardCard: View {
         #endif
     }
     private func scoreValue(_ entry: LeaderboardEntry) -> some View {
-        Text(entry.score, format: .number.grouping(.never).precision(.fractionLength(kind == .epochECI ? 2 : 1))).monospacedDigit()
+        Text(LeaderboardPresentation.scoreText(entry.score, kind: kind)).monospacedDigit()
             .overlay(alignment: .bottomTrailing) {
                 let share = LeaderboardPresentation.scoreShareText(entry.score, leaderScore: rowPresentation.leaderScore)
                 if !share.isEmpty {
                     Text(share).font(.system(size: 8)).monospacedDigit()
-                        .foregroundStyle(kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue)).offset(y: 10)
+                        .foregroundStyle(kind == .openRouterUsage ? Color.orange : kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue)).offset(y: 10)
                         .allowsHitTesting(false)
                 }
             }

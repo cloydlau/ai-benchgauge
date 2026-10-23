@@ -30,7 +30,7 @@ sealed partial class MainWindow
         var column = layout.Select(entry => MeasurePanelText(entry.Name) + 54 +
             (entry.PlanTitle is null ? 0 : MeasurePanelText(entry.PlanTitle, 12) + 14) +
             (entry.ApiTitle is null ? 0 : MeasurePanelText(entry.ApiTitle, 12) + 14)).DefaultIfEmpty(0).Max();
-        var header = state?.Boards.Select(board => MeasurePanelText(BoardTitle(board) + (board.Kind == "epochECI" || ArenaAttribution.Applies(board) ? " · CC BY 4.0" : ""), 11) + MeasurePanelText(" · " + SourceLens(board), 10)
+        var header = state?.Boards.Select(board => MeasurePanelText(BoardTitle(board) + (board.Kind is "epochECI" or "openRouterUsage" || ArenaAttribution.Applies(board) ? " · CC BY 4.0" : ""), 11) + MeasurePanelText(" · " + SourceLens(board), 10)
             + MeasurePanelText("12/31 23:59", 9) + 18)
             .DefaultIfEmpty(0).Max() ?? 0;
         // Shrink the popup with the fixed columns, keeping the measured name

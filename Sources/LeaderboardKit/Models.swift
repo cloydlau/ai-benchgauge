@@ -10,6 +10,7 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
     case arenaTextToImage = "arenaTextToImage"
     case artificialAnalysisTextToVideo = "artificialAnalysisTextToVideo"
     case arenaTextToVideo = "arenaTextToVideo"
+    case openRouterUsage = "openRouterUsage"
 
     /// Older builds stored these boards under abbreviated raw values.
     fileprivate static let legacyRawValues: [String: LeaderboardKind] = [
@@ -49,6 +50,7 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
             "https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index"
         case .artificialAnalysisCodingAgent:
             "https://artificialanalysis.ai/agents/coding-agents"
+        case .openRouterUsage: "https://openrouter.ai/rankings"
         case .epochECI:
             "https://epoch.ai/eci"
         case .arenaText:
@@ -82,6 +84,7 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
         case .arenaText, .codeArenaWebDev, .arenaTextToImage, .arenaTextToVideo:
             "Arena"
         case .epochECI: "Epoch AI"
+        case .openRouterUsage: "OpenRouter"
         }
     }
 
@@ -91,6 +94,7 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
         case .artificialAnalysisCodingAgent: "Artificial Analysis 编程"
         case .arenaText: "Text Arena"
         case .epochECI: "Epoch ECI"
+        case .openRouterUsage: "OpenRouter"
         case .codeArenaWebDev: "Code Arena"
         case .artificialAnalysisTextToImage: "Artificial Analysis 文生图"
         case .arenaTextToImage: "Arena 文生图"
@@ -101,6 +105,7 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
 }
 
 public enum LeaderboardCategory: String, Codable, CaseIterable, Identifiable, Sendable {
+    case usage
     case general
     case coding
     case image
@@ -114,6 +119,7 @@ public enum LeaderboardCategory: String, Codable, CaseIterable, Identifiable, Se
         case .coding: "编程"
         case .image: "图片"
         case .video: "视频"
+        case .usage: "用量"
         }
     }
 
@@ -123,6 +129,7 @@ public enum LeaderboardCategory: String, Codable, CaseIterable, Identifiable, Se
         case .coding: [.artificialAnalysisCodingAgent, .codeArenaWebDev]
         case .image: [.artificialAnalysisTextToImage, .arenaTextToImage]
         case .video: [.artificialAnalysisTextToVideo, .arenaTextToVideo]
+        case .usage: [.openRouterUsage]
         }
     }
 }
@@ -182,6 +189,8 @@ public struct LeaderboardEntry: Codable, Equatable, Identifiable, Sendable {
     public let developerCountry: OrganizationCountryMetadata?
     public let modelMetadata: ModelMetadata?
     public let voteCount: Int?
+    /// Exact upstream decimal string; score uses billions of tokens for display.
+    public let totalTokens: String?
 
     public init(
         rank: Int,
@@ -195,7 +204,8 @@ public struct LeaderboardEntry: Codable, Equatable, Identifiable, Sendable {
         organizationBrand: OrganizationBrand? = nil,
         developerCountry: OrganizationCountryMetadata? = nil,
         modelMetadata: ModelMetadata? = nil,
-        voteCount: Int? = nil
+        voteCount: Int? = nil,
+        totalTokens: String? = nil
     ) {
         self.rank = rank
         self.name = name
@@ -209,6 +219,7 @@ public struct LeaderboardEntry: Codable, Equatable, Identifiable, Sendable {
         self.developerCountry = developerCountry
         self.modelMetadata = modelMetadata
         self.voteCount = voteCount
+        self.totalTokens = totalTokens
     }
 }
 

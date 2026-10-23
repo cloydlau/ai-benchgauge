@@ -124,8 +124,9 @@ test('older or future source dates and failed writes cannot erase a good snapsho
   assert.deepEqual((await service.read('arenaText')).board, previous);
 });
 
-test('all eight sources retain ranking, IDs, organizations and correct source date semantics', () => {
-  for (const kind of Object.keys(sources)) {
+test('all parsed sources retain ranking, IDs, organizations and correct source date semantics; OpenRouter forbids HTML', () => {
+  assert.throws(() => parseBoard('openRouterUsage', html('arenaText'), time), /official Data API/);
+  for (const kind of Object.keys(sources).filter(kind => kind !== 'openRouterUsage')) {
     const board = parseBoard(kind, html(kind), time);
     assert.equal(board.kind, kind);
     assert.equal(board.entries.length, 22);

@@ -21,6 +21,7 @@ definePage(query => {
   const category = ref(initial.category)
   const grouping = ref(initial.grouping)
   const expandedBoards = ref({})
+  const configurationRequired = ref({})
   const modelSearchQuery = ref('')
   const modelSearchOpen = ref(false)
   const modelSearchFocused = ref(false)
@@ -103,6 +104,7 @@ definePage(query => {
     cancelTabDrag()
     const point = touchPoint(event), kind = event.currentTarget.dataset.tabs
     if (!point || event.touches?.length !== 1 || backgroundLocked.value || modelSearchFocused.value) return
+    if (kind === 'source' && current.value.kinds.length < 2) return
     const started = { kind, x: point.clientX, y: point.clientY, lastX: point.clientX, axis: '', rect: null }
     tabGesture = started
     const serial = tabSerial
@@ -256,7 +258,7 @@ definePage(query => {
   function touchPoint(event) { return event.touches?.[0] || event.changedTouches?.[0] }
   function cubeStart(event) {
     const point = touchPoint(event)
-    if (!point || event.touches?.length > 1 || backgroundLocked.value || modelSearchFocused.value) return
+    if (current.value.kinds.length < 2 || !point || event.touches?.length > 1 || backgroundLocked.value || modelSearchFocused.value) return
     stopCube(); entrancePlayed = true
     // A new touch takes ownership from any queued programmatic navigation.
     scrollRequests.clear(); cancelSourceTabsSync()
@@ -462,6 +464,8 @@ definePage(query => {
       rowHeight: geometry.value.rowHeight,
       rows: renderRows(kind, entries, range, leaderScore),
       searchStyle: modelSearchVisible.value ? 'left:0px;right:0px;' : searchOrigins.value[kind] || 'left:50%;right:50%;',
+      scoreLabel: kind === 'openRouterUsage' ? tr('tokens') : tr('score'),
+      pendingConfiguration: !!configurationRequired.value[kind],
       hasBoard: !!board, filtered: filter.country !== 'all' || filter.openness !== 'all' || grouping.value === 'model' && !!modelSearchQuery.value.trim(),
       countryFiltered: filter.country !== 'all', sourceFiltered: filter.openness !== 'all',
       loading: !!refreshing.value[kind],
@@ -648,8 +652,10 @@ definePage(query => {
     try {
       const board = await store.fetch(kind)
       if (!alive) return
+      configurationRequired.value = { ...configurationRequired.value, [kind]: false }
       snapshots.value = { ...snapshots.value, [kind]: board }
-    } catch {
+    } catch (error) {
+      if (alive) configurationRequired.value = { ...configurationRequired.value, [kind]: error.code === 'configurationRequired' }
       // Background failures keep the last shared snapshot and its timestamps.
     } finally {
       if (alive) {
@@ -903,7 +909,7 @@ definePage(query => {
     const time = boardTime(board)
     const times = `${time.time} ${time.timeLabel}`
     wx.showModal({ title: boardTitle(kind, language.value),
-      content: `${formerName}${text(boards[kind].summaries, language.value)}\n\n${times}\n\n${boards[kind].url}${kind === 'epochECI' ? `\n\n${epochAttribution(language.value).fullText}` : ''}${dataset ? `\n\n${arenaAttribution(language.value).fullText}` : ''}`,
+      content: `${formerName}${text(boards[kind].methodology || boards[kind].summaries, language.value)}\n\n${times}\n\n${boards[kind].url}${kind === 'epochECI' ? `\n\n${epochAttribution(language.value).fullText}` : ''}${dataset ? `\n\n${arenaAttribution(language.value).fullText}` : ''}`,
       showCancel: false })
   }
   function copyText(data) {
@@ -941,7 +947,7 @@ definePage(query => {
       return
     }
     const row = rowView(entry, { company: grouping.value === 'company', dark: dark.value, kind })
-    const content = row.components.length ? tr('strongest') : row.name
+    const content = row.components.length ? tr(kind === 'openRouterUsage' ? 'usageSum' : 'strongest') : row.name
     stopCube(); entrancePlayed = true
     companyDetails.value = { open: true, name: row.name, content, members: row.components }
   }

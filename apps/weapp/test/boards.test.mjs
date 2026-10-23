@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createBoardStore } from '../src/services/boards.js'
+import { createBoardStore, readCachedBoard } from '../src/services/boards.js'
 
 const kind = 'artificialAnalysis'
 const board = (fields = {}) => ({ kind, fetchedAt: '2026-10-13T12:00:00Z',
@@ -26,6 +26,16 @@ test('cold start reads valid offline snapshots and ignores corrupt cache indepen
   assert.equal(h.store.read(kind).entries[0].name, 'Public model')
   assert.equal(h.store.read('arenaText'), null)
   assert.equal(h.requests.length, 0)
+})
+test('agreement cache reads handle unknown, missing, corrupt and unavailable snapshots offline', () => {
+  const platform = { getStorageSync: () => ({ [kind]: board() }) }
+  assert.equal(readCachedBoard(platform, kind).entries[0].name, 'Public model')
+  assert.equal(readCachedBoard(platform, 'unknown'), null)
+  assert.equal(readCachedBoard(platform, 'arenaText'), null)
+  platform.getStorageSync = () => ({ [kind]: { kind: 'wrong' } })
+  assert.equal(readCachedBoard(platform, kind), null)
+  platform.getStorageSync = () => { throw Error('Storage denied') }
+  assert.equal(readCachedBoard(platform, kind), null)
 })
 test('deduplicated reads only contact the shared GET API and preserve its timestamps', async () => {
   const h = harness(); const first = h.store.fetch(kind); const second = h.store.fetch(kind)

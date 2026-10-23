@@ -50,12 +50,12 @@ struct LeaderboardView: View {
     }
 
     private var nameColumnWidth: CGFloat {
-        max(40, (contentWidth - Self.tableChromeWidth(boardCount: visibleKinds.count)) / CGFloat(visibleKinds.count))
+        max(40, (contentWidth - Self.tableChromeWidth(boardCount: visibleKinds.count, includesUsage: visibleKinds.contains(.openRouterUsage))) / CGFloat(visibleKinds.count))
     }
 
-    private static func tableChromeWidth(boardCount: Int) -> CGFloat {
+    private static func tableChromeWidth(boardCount: Int, includesUsage: Bool = false) -> CGFloat {
         // Rank, four native cell insets per source, country/source icons, score.
-        52 + CGFloat(boardCount) * 192
+        52 + CGFloat(boardCount) * 192 + (includesUsage ? 30 : 0)
     }
 
     static func preferredWidth(for state: AppState, maximumWidth: CGFloat) -> CGFloat {
@@ -101,7 +101,7 @@ struct LeaderboardView: View {
                 summary: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(kind, language: state.selectedLanguage)),
                 time: time)
         }.max() ?? 0
-        let desired = max(minimumWidth, ceil(max(columnWidth, headerWidth) * CGFloat(state.visibleBoardKinds.count) + tableChromeWidth(boardCount: state.visibleBoardKinds.count) + 88))
+        let desired = max(minimumWidth, ceil(max(columnWidth, headerWidth) * CGFloat(state.visibleBoardKinds.count) + tableChromeWidth(boardCount: state.visibleBoardKinds.count, includesUsage: state.visibleBoardKinds.contains(.openRouterUsage)) + 88))
         return min(desired, maximumWidth)
     }
 
@@ -145,7 +145,23 @@ struct LeaderboardView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            table
+            table.overlay {
+                if state.selectedCategory == .usage, state.snapshot.boards[.openRouterUsage] == nil {
+                    VStack(spacing: 10) {
+                        if state.isRefreshing { ProgressView() }
+                        Text(state.lastErrors[.openRouterUsage] ?? tr("Data source awaiting configuration", "数据源待配置"))
+                            .multilineTextAlignment(.center)
+                        Text(tr("OpenRouter · token usage · server API key required", "OpenRouter · token 用量 · 需配置服务端 API Key")).font(.caption)
+                    }.padding(24).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(BrandTheme.background(for: colorScheme))
+                }
+            }
+            if screenshot.isCapturing, state.selectedCategory == .usage, let board = state.snapshot.boards[.openRouterUsage] {
+                Text(board.sourceNote ?? "")
+                    .font(.system(size: 9)).foregroundStyle(.secondary).textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 18).padding(.vertical, 6)
+            }
             Divider()
             footer
         }
@@ -154,7 +170,8 @@ struct LeaderboardView: View {
         .tint(BrandTheme.accent(for: colorScheme))
         .accentColor(BrandTheme.accent(for: colorScheme))
         .sheet(item: $screenshot.licenseSection) { section in
-            LicenseNoticesView(section: section, language: language)
+            LicenseNoticesView(section: section, language: language,
+                               openRouterSourceNote: state.snapshot.boards[.openRouterUsage]?.sourceNote)
         }
         .sheet(isPresented: $screenshot.showOfficialAccounts) {
             OfficialQuotaAccountsView(state: state, onClose: { screenshot.showOfficialAccounts = false })
@@ -349,7 +366,7 @@ struct LeaderboardView: View {
         )
         .fixedSize(horizontal: true, vertical: false)
         .frame(height: GroupingSegmentedControl.height)
-        .help(tr("Company scores use each company's strongest model.", "按公司查看时，以最强模型分数为准，弱型号不拉低"))
+        .help(tr("Benchmark company scores use the strongest model; usage sums listed models.", "公司测评取最强模型分数；用量汇总榜内模型"))
     }
 
     private var categoryPicker: some View {
@@ -369,7 +386,7 @@ struct LeaderboardView: View {
     private var visibleKinds: [LeaderboardKind] { state.visibleBoardKinds }
     private func kind(at slot: Int) -> LeaderboardKind { visibleKinds.indices.contains(slot) ? visibleKinds[slot] : visibleKinds[0] }
     private func shareColor(for kind: LeaderboardKind) -> Color {
-        kind == .epochECI ? .teal : (kind.sourceLinkTitle == LeaderboardKind.artificialAnalysis.sourceLinkTitle ? .blue : .purple)
+        kind == .openRouterUsage ? .orange : kind == .epochECI ? .teal : (kind.sourceLinkTitle == LeaderboardKind.artificialAnalysis.sourceLinkTitle ? .blue : .purple)
     }
 
 
@@ -476,9 +493,9 @@ struct LeaderboardView: View {
         TableColumn(ModelOpenness.columnTitle(language: language)) { row in
             OpennessCell(model: row.cells[slot], language: language)
         }.width(Self.opennessColumnWidth).alignment(.center)
-        TableColumn(tr("Score", "分数")) { row in
-            ScoreCell(model: row.cells[slot], scoreDigits: kind(at: slot) == .epochECI ? 2 : 1)
-        }.width(60).alignment(.center)
+        TableColumn(LeaderboardPresentation.scoreTitle(kind(at: slot), language: language)) { row in
+            ScoreCell(model: row.cells[slot], kind: kind(at: slot))
+        }.width(kind(at: slot) == .openRouterUsage ? 90 : 60).alignment(.center)
     }
 
     private var table: some View {
@@ -957,7 +974,7 @@ struct LeaderboardView: View {
     /// Empty boards skeleton from the raw model list, not the company
     /// aggregation. Grouping is a local view and must not look like a fetch.
     private var needsSkeleton: Bool {
-        visibleKinds.allSatisfy { state.snapshot.boards[$0]?.entries.isEmpty ?? true }
+        state.selectedCategory != .usage && visibleKinds.allSatisfy { state.snapshot.boards[$0]?.entries.isEmpty ?? true }
     }
 
     private var distributionPanels: some View {
@@ -1076,7 +1093,7 @@ struct LeaderboardView: View {
 /// SwiftUI's TableColumn labels only support plain text. Install a native
 /// one-line header with the source name leading and its own data time trailing.
 private func headerLicenseName(kind: LeaderboardKind, board: Leaderboard?) -> String? {
-    kind == .epochECI || ArenaAttribution.applies(board) ? "CC BY 4.0" : nil
+    kind == .epochECI || kind == .openRouterUsage || ArenaAttribution.applies(board) ? "CC BY 4.0" : nil
 }
 
 private struct BoardHeaderConfiguration {
@@ -1450,7 +1467,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             }
             switch role {
             case 0:
-                let tint: NSColor = board.kind == .epochECI ? .systemTeal
+                let tint: NSColor = board.kind == .openRouterUsage ? .systemOrange : board.kind == .epochECI ? .systemTeal
                     : (board.kind.sourceLinkTitle == LeaderboardKind.artificialAnalysis.sourceLinkTitle ? .systemBlue : .systemPurple)
                 drawBoardHeader(tableView.tableColumns[index].headerCell.stringValue,
                     licenseName: board.licenseName, summary: board.summary,
@@ -1859,12 +1876,12 @@ private struct CountryCell: View {
 
 private struct ScoreCell: View {
     let model: LeaderboardCellModel?
-    let scoreDigits: Int
+    let kind: LeaderboardKind
 
     var body: some View {
         Group {
             if let entry = model?.entry {
-                Text(entry.score.formatted(.number.precision(.fractionLength(scoreDigits))))
+                Text(LeaderboardPresentation.scoreText(entry.score, kind: kind))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             } else {
@@ -1928,7 +1945,7 @@ private enum DesktopSegmentMetrics {
 }
 
 private struct CategorySegmentedControl: NSViewRepresentable {
-    static let width: CGFloat = 360
+    static let width: CGFloat = 420
     static let height: CGFloat = 24
 
     let language: AppLanguage
@@ -1941,6 +1958,7 @@ private struct CategorySegmentedControl: NSViewRepresentable {
         case .coding: language.text("Coding", "编程")
         case .image: language.text("Image", "图片")
         case .video: language.text("Video", "视频")
+        case .usage: language.text("Usage", "用量")
         }
     }
 
@@ -2047,7 +2065,7 @@ private struct GroupingSegmentedControl: NSViewRepresentable {
             let width = controlWidth / CGFloat(LeaderboardGrouping.allCases.count)
             if control.width(forSegment: index) != width { control.setWidth(width, forSegment: index) }
         }
-        control.toolTip = language.text("Company scores use each company's strongest model.", "按公司查看时，以最强模型分数为准，弱型号不拉低")
+        control.toolTip = language.text("Benchmark company scores use the strongest model; usage sums listed models.", "公司测评取最强模型分数；用量汇总榜内模型")
         control.setAccessibilityLabel(language.text("Leaderboard grouping", "榜单分组"))
     }
 

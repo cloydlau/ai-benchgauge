@@ -388,7 +388,7 @@ sealed partial class MainWindow
         var switches = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
         switches.Children.Add(Segments([("model",Tr("Models","模型")),("company",Tr("Companies","公司"))], prefs.Grouping, 180,
             async value => { prefs.Grouping = value; SaveFrame(); await Refresh("state"); if (engine is null) Render(); }, compact: compactTabs));
-        var categories = Segments([("general",Tr("General","综合","綜合")),("coding",Tr("Coding","编程","編程")),("image",Tr("Image","图片","圖片")),("video",Tr("Video","视频","視頻"))], prefs.Category, 360,
+        var categories = Segments([("usage",Tr("Usage","用量","用量")),("general",Tr("General","综合","綜合")),("coding",Tr("Coding","编程","編程")),("image",Tr("Image","图片","圖片")),("video",Tr("Video","视频","視頻"))], prefs.Category, 420,
             async value => { prefs.Category = value; SaveFrame(); await Refresh("state"); await Refresh("refreshBoards"); if (engine is null) Render(); }, compact: compactTabs);
         categories.Margin = new Thickness(8, 0, 0, 0); switches.Children.Add(categories);
         var tabs = SearchNavigation(switches);
@@ -588,13 +588,16 @@ sealed partial class MainWindow
         for (var i = 0; i < pair.Length; i++)
         {
             var board = pair[i]; var column = 1 + i * 4;
-            AddCell(headings, Center(Caption(Tr("Score", "分数", "分數"), PanelInk)), column + 3);
+            AddCell(headings, Center(Caption(board.Kind == "openRouterUsage" ? Tr("Tokens", "用量", "用量") : Tr("Score", "分数", "分數"), PanelInk)), column + 3);
             var summary = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 9,
                 FontFamily = new FontFamily("Segoe UI"),
                 Margin = new Thickness(5, 0, 4, 0), ToolTip = board.Error ?? BoardTitle(board) + "\n"
                     + (board.Kind.StartsWith("arena") || board.Kind == "codeArenaWebDev"
                         ? Tr("Formerly LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena") + "\n" : "")
-                    + SourceLens(board) + "\n" + Tr("Scores are not directly comparable across lists", "各榜分数不直接互比", "各榜分數不直接互比")
+                    + SourceLens(board) + "\n" + (board.Kind == "openRouterUsage"
+                        ? Tr("Latest complete UTC day · input + output tokens · 1B = 1 billion tokens. Top 50 public models; excludes private and zero-data-retention traffic. Provider tokenizers differ. Company totals cover listed models only.", "最近完整 UTC 日输入与输出 token 用量；1B = 十亿 token。展示公开流量前 50 名，排除私有及零数据留存流量；各供应商分词方式不同。公司用量仅汇总榜内模型。", "最近完整 UTC 日輸入與輸出 token 用量；1B = 十億 token。展示公開流量前 50 名，排除私有及零資料留存流量；各供應商分詞方式不同。公司用量僅彙總榜內模型。")
+                        : Tr("Scores are not directly comparable across lists", "各榜分数不直接互比", "各榜分數不直接互比"))
+                    + (board.Kind == "openRouterUsage" ? "\n" + board.SourceNote : "")
                     + (ArenaAttribution.Applies(board) ? "\n" + ArenaAttribution.FullText(prefs.Language) : "") };
             CenterTextInk(summary);
             summary.FontSize = 11;
@@ -609,7 +612,7 @@ sealed partial class MainWindow
                 var available = summary.ActualWidth;
                 if (available > 0 && Measure(title, 11, FontWeights.SemiBold) > available)
                     title = title.Replace("Artificial Analysis", "AA", StringComparison.Ordinal);
-                var license = board.Kind == "epochECI" || ArenaAttribution.Applies(board) ? " · CC BY 4.0" : "";
+                var license = board.Kind is "epochECI" or "openRouterUsage" || ArenaAttribution.Applies(board) ? " · CC BY 4.0" : "";
                 var lens = " · " + SourceLens(board);
                 var titleWidth = Measure(title, 11, FontWeights.SemiBold);
                 var licenseWidth = license.Length == 0 ? 0 : Measure(license, 11, FontWeights.SemiBold);
@@ -656,7 +659,7 @@ sealed partial class MainWindow
                 if (index >= entries[side].Length) continue;
                 var entry = entries[side][index]; AddCell(row, ModelCell(entry, unsearched[side][0].Score, BoardTint(pair[side].Kind)), column);
                 var score = new Grid();
-                score.Children.Add(Center(Caption(entry.Score.ToString(pair[side].Kind == "epochECI" ? "0.00" : "0.0", CultureInfo.InvariantCulture), PanelMuted, 13, numeric: true)));
+                score.Children.Add(Center(Caption((pair[side].Kind == "openRouterUsage" && entry.Score > 0 && entry.Score < 0.01 ? "<0.01B" : entry.Score.ToString(pair[side].Kind == "openRouterUsage" ? "0.00\"B\"" : pair[side].Kind == "epochECI" ? "0.00" : "0.0", CultureInfo.InvariantCulture)), PanelMuted, 13, numeric: true)));
                 AddCell(row, score, column + 3);
                 AddCell(row, OpennessBadge(entry.Openness), column + 2);
                 AddCell(row, Flag(entry.Country), column + 1);
@@ -674,6 +677,13 @@ sealed partial class MainWindow
         rows.AddHandler(ScrollViewer.ScrollChangedEvent, new ScrollChangedEventHandler((_, change) =>
             backToTop.Visibility = change.VerticalOffset >= 32 ? Visibility.Visible : Visibility.Collapsed));
         viewport.Children.Add(backToTop);
+        if (prefs.Category == "usage" && pair.All(board => board.Entries.Length == 0))
+        {
+            var pending = Caption(pair.FirstOrDefault()?.Error ?? Tr("Data source awaiting configuration", "数据源待配置", "資料來源待設定"), PanelMuted, 13);
+            pending.TextWrapping = TextWrapping.Wrap; pending.TextAlignment = TextAlignment.Center;
+            pending.HorizontalAlignment = HorizontalAlignment.Center; pending.VerticalAlignment = VerticalAlignment.Center;
+            pending.MaxWidth = 520; viewport.Children.Add(pending);
+        }
         if (!string.IsNullOrWhiteSpace(leaderboardQuery) && entries.All(board => board.Length == 0))
         {
             var empty = Caption(Tr("No matching results", "没有匹配结果", "沒有符合的結果"), PanelMuted, 13);
@@ -731,7 +741,7 @@ sealed partial class MainWindow
         return prefs.VisibleBoardKinds().Select(kind => saved.FirstOrDefault(board => board.Kind == kind)
             ?? new Board(kind, kind == "epochECI" ? "Epoch AI" : kind.StartsWith("artificialAnalysis") ? "Artificial Analysis" : "Arena", "", null, null, [])).ToArray();
     }
-    Brush BoardTint(string kind) => kind == "epochECI" ? Tint(panelDark ? "#5BD6D0" : "#168D86")
+    Brush BoardTint(string kind) => kind == "openRouterUsage" ? Tint(panelDark ? "#FFB45C" : "#A76514") : kind == "epochECI" ? Tint(panelDark ? "#5BD6D0" : "#168D86")
         : kind.StartsWith("artificialAnalysis") ? PanelBlue : PanelPurple;
 
     Grid TableGrid(int boardCount)
@@ -836,6 +846,7 @@ sealed partial class MainWindow
     }
     string BoardTitle(Board board) => board.Kind switch
     {
+        "openRouterUsage" => "OpenRouter",
         "artificialAnalysis" => "Artificial Analysis", "arenaText" => "Text Arena", "epochECI" => "Epoch ECI",
         "artificialAnalysisCodingAgent" => Tr("Artificial Analysis Coding", "Artificial Analysis 编程", "Artificial Analysis 編程"),
         "codeArenaWebDev" => "Code Arena",
@@ -848,6 +859,7 @@ sealed partial class MainWindow
     string SourceLens(Board board) => board.Kind switch
     {
         "artificialAnalysis" => Tr("Task benchmarks", "任务测评", "任務測評"),
+        "openRouterUsage" => Tr("Usage ranking", "用量排行", "用量排行"),
         "epochECI" => Tr("Calibrated tests", "难度校准", "難度校準"),
         "arenaText" => Tr("User votes", "用户盲测", "使用者盲測"),
         "artificialAnalysisCodingAgent" => Tr("Task completion", "任务完成率", "任務完成率"),
@@ -1008,7 +1020,7 @@ sealed partial class MainWindow
                 var board = VisibleBoards().FirstOrDefault(value => value.Kind == kind)
                     ?? state?.Boards.FirstOrDefault(value => value.Kind == kind)
                     ?? new Board(kind, kind == "epochECI" ? "Epoch AI" : kind.StartsWith("artificialAnalysis") ? "Artificial Analysis" : "Arena", "", null, null, []);
-                var item = new MenuItem { Header = (kind == "epochECI" ? "Epoch AI" : kind.StartsWith("artificialAnalysis") ? "Artificial Analysis" : "Arena") + " · " + SourceLens(board), IsCheckable = true,
+                var item = new MenuItem { Header = (kind == "openRouterUsage" ? "OpenRouter" : kind == "epochECI" ? "Epoch AI" : kind.StartsWith("artificialAnalysis") ? "Artificial Analysis" : "Arena") + " · " + SourceLens(board), IsCheckable = true,
                     IsChecked = draft.Contains(kind), IsEnabled = draft.Count > 1 || !draft.Contains(kind), StaysOpenOnClick = true };
                 System.Windows.Automation.AutomationProperties.SetAutomationId(item, "board-visibility-" + kind);
                 item.Click += (_, _) => {

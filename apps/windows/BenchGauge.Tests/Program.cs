@@ -285,6 +285,12 @@ Console.WriteLine("PASS: desktop board draft isolation and confirmed batch selec
 
 Console.WriteLine($"PASS: 13 signature/configuration cases, {gateCases + 1} update presentation cases, {downloadCases} signed check/download/cache/integrity cases");
 
+var usageVisibility = new Preferences { Category = "usage" };
+if (!usageVisibility.AvailableBoardKinds().SequenceEqual(new[] { "openRouterUsage" }) || !usageVisibility.VisibleBoardKinds().SequenceEqual(new[] { "openRouterUsage" }))
+    throw new Exception("Usage must be a separate single-source category");
+usageVisibility.ToggleBoard("openRouterUsage");
+if (!usageVisibility.VisibleBoardKinds().SequenceEqual(new[] { "openRouterUsage" })) throw new Exception("The sole usage source must remain selected");
+
 sealed class FixtureHttpHandler(Func<HttpRequestMessage, byte[]> response) : HttpMessageHandler
 {
     public int Requests { get; private set; }

@@ -105,6 +105,7 @@ static class VisualTests
             if (test.Scenario == "freshnessStale") state = state with {
                 QuotaUnavailable = true, Quotas = state.Quotas.Select(quota => quota with { IsStale = true }).ToArray() };
             state = state with { Boards = state.Boards.Select(board => board with { Distribution = LeaderboardDistribution.FromEntries(board.Entries) }).ToArray() };
+            if (test.Scenario == "usagePending") state = state with { Boards = state.Boards.Select(board => board.Kind == "openRouterUsage" ? board with { Entries = [], Error = "Data source awaiting configuration / 数据源待配置" } : board).ToArray() };
             var preferences = new Preferences { Language = test.Language, Category = test.Category ?? "general", PanelMode = test.Scenario == "window" ? "window" : test.Mode };
             if (test.SelectedBoards is { } selected) preferences.BoardSelections[preferences.Category] = selected;
             if (test.Grouping is { } grouping) preferences.Grouping = grouping;
@@ -113,7 +114,7 @@ static class VisualTests
             if (test.Grouping == "company") state = state with { Boards = state.Boards.Select(board => board with {
                 Entries = board.Entries.GroupBy(entry => entry.Organization).Select(group => {
                     var best = group.OrderByDescending(entry => entry.Score).First();
-                    return best with { Name = best.Organization ?? best.Name };
+                    return best with { Name = best.Organization ?? best.Name, Score = board.Kind == "openRouterUsage" ? group.Sum(entry => entry.Score) : best.Score };
                 }).OrderByDescending(entry => entry.Score).ToArray()
             }).ToArray() };
             var panel = new MainWindow(null, preferences)
