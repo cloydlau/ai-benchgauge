@@ -389,7 +389,7 @@ sealed partial class MainWindow
         switches.Children.Add(Segments([("model",Tr("Models","模型")),("company",Tr("Companies","公司"))], prefs.Grouping, 180,
             async value => { prefs.Grouping = value; SaveFrame(); await Refresh("state"); if (engine is null) Render(); }, compact: compactTabs));
         var categories = Segments([("usage",Tr("Usage","用量","用量")),("general",Tr("General","综合","綜合")),("coding",Tr("Coding","编程","編程")),("image",Tr("Image","图片","圖片")),("video",Tr("Video","视频","視頻"))], prefs.Category, 420,
-            async value => { prefs.Category = value; SaveFrame(); await Refresh("state"); await Refresh("refreshBoards"); if (engine is null) Render(); }, compact: compactTabs);
+            async value => { prefs.Category = value; SaveFrame(); await Refresh("refreshBoards"); if (engine is null) Render(); }, compact: compactTabs);
         categories.Margin = new Thickness(8, 0, 0, 0); switches.Children.Add(categories);
         var tabs = SearchNavigation(switches);
         var natural = new Size(double.PositiveInfinity, double.PositiveInfinity);
@@ -684,10 +684,23 @@ sealed partial class MainWindow
         viewport.Children.Add(backToTop);
         if (prefs.Category == "usage" && pair.All(board => board.Entries.Length == 0))
         {
-            var pending = Caption(pair.FirstOrDefault()?.Error ?? Tr("No usage data yet", "暂无用量数据", "暫無用量資料"), PanelMuted, 13);
-            pending.TextWrapping = TextWrapping.Wrap; pending.TextAlignment = TextAlignment.Center;
-            pending.HorizontalAlignment = HorizontalAlignment.Center; pending.VerticalAlignment = VerticalAlignment.Center;
-            pending.MaxWidth = 520; viewport.Children.Add(pending);
+            var loading = VisibleBoardsLoading;
+            var errors = pair.Where(board => !string.IsNullOrWhiteSpace(board.Error)).Select(board => board.Title + " · " + board.Error).ToList();
+            if (boardRefreshFailures.TryGetValue(BoardRefreshKey, out var failure)) errors.Add(failure);
+            var pending = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 520 };
+            var kind = loading ? "loading" : errors.Count > 0 ? "error" : "empty";
+            System.Windows.Automation.AutomationProperties.SetAutomationId(pending, "usage-" + kind);
+            if (loading) pending.Children.Add(new ProgressBar { IsIndeterminate = true, Width = 160, Height = 4, Margin = new Thickness(0, 0, 0, 12) });
+            var label = Caption(loading ? Tr("Loading usage data…", "正在加载用量数据…", "正在載入用量資料…")
+                : errors.Count > 0 ? Tr("Could not load usage data", "用量数据加载失败", "用量資料載入失敗")
+                : Tr("No usage data yet", "暂无用量数据", "暫無用量資料"), PanelMuted, 13);
+            label.TextWrapping = TextWrapping.Wrap; label.TextAlignment = TextAlignment.Center;
+            pending.Children.Add(label);
+            if (!loading) foreach (var error in errors) {
+                var detail = Caption(error, PanelMuted, 11); detail.TextWrapping = TextWrapping.Wrap; detail.TextAlignment = TextAlignment.Center; detail.Margin = new Thickness(0, 8, 0, 0);
+                pending.Children.Add(detail);
+            }
+            viewport.Children.Add(pending);
         }
         if (!string.IsNullOrWhiteSpace(leaderboardQuery) && entries.All(board => board.Length == 0))
         {

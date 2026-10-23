@@ -274,8 +274,9 @@ final class AppState: ObservableObject {
                             language: AppLanguage, errors: [LeaderboardKind: String],
                             emptyState: CCSwitchState?, panelMode: PanelMode = .clickToClose, quotaUpdatedAt: Date? = nil, quotaUnavailable: Bool = false,
                             modelConfiguration: CodexModelConfiguration? = nil, targets: [CCSwitchQuotaTarget] = [], taskCounts: CodexTaskCounts? = nil,
-                            codexDesktopRunning: Bool = true, category: LeaderboardCategory = .general, boardKinds: [LeaderboardKind]? = nil) {
+                            codexDesktopRunning: Bool = true, category: LeaderboardCategory = .general, boardKinds: [LeaderboardKind]? = nil, boardRefreshing: Bool = false) {
         self.snapshot = snapshot
+        self.isRefreshing = boardRefreshing
         self.quotaUpdatedAt = quotaUpdatedAt
         self.quotaUnavailable = quotaUnavailable
         quotaChips = chips

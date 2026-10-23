@@ -148,13 +148,23 @@ struct LeaderboardView: View {
             table.overlay {
                 if state.selectedCategory == .usage, visibleKinds.allSatisfy({ state.snapshot.boards[$0]?.entries.isEmpty ?? true }) {
                     VStack(spacing: 10) {
-                        if state.isRefreshing { ProgressView() }
-                        Text(tr("No usage data yet", "暂无用量数据"))
-                            .multilineTextAlignment(.center)
-                        ForEach(visibleKinds, id: \.self) { kind in
-                            Text(kind.sourcePrefix + " · " + (state.lastErrors[kind] ?? tr("Waiting for data", "等待数据"))).font(.caption)
+                        if state.isRefreshing {
+                            ProgressView()
+                            Text(tr("Loading usage data…", "正在加载用量数据…"))
+                                .accessibilityIdentifier("usage-loading")
+                        } else if visibleKinds.contains(where: { state.lastErrors[$0] != nil }) {
+                            Text(tr("Could not load usage data", "用量数据加载失败"))
+                                .accessibilityIdentifier("usage-error")
+                            ForEach(visibleKinds, id: \.self) { kind in
+                                if let error = state.lastErrors[kind] {
+                                    Text(kind.sourcePrefix + " · " + error).font(.caption)
+                                }
+                            }
+                        } else {
+                            Text(tr("No usage data yet", "暂无用量数据"))
+                                .accessibilityIdentifier("usage-empty")
                         }
-                    }.padding(24).foregroundStyle(.secondary)
+                    }.multilineTextAlignment(.center).padding(24).foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(BrandTheme.background(for: colorScheme))
                 }
