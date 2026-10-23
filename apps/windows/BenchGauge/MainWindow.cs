@@ -35,6 +35,13 @@ sealed partial class MainWindow : Window
     readonly DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromHours(24) };
     readonly List<ComboBox> dropdowns = [];
     DisplayState? state;
+    readonly Dictionary<string, int> boardRefreshes = [];
+    readonly Dictionary<string, string> boardRefreshFailures = [];
+    bool visualBoardLoading;
+    string BoardRefreshKey => prefs.Category + ":" + string.Join(",", prefs.VisibleBoardKinds());
+    bool VisibleBoardsLoading => visualBoardLoading || boardRefreshes.GetValueOrDefault(BoardRefreshKey) > 0
+        || (engine is not null && state is null && !boardRefreshFailures.ContainsKey(BoardRefreshKey));
+    internal void SetVisualBoardLoading(bool loading) { visualBoardLoading = loading; }
     QwenWebsiteWindow? qwenWindow;
     XAIWebsiteSubscriptionWindow? xaiSubscriptionWindow;
     DockPanel? footer;
@@ -156,6 +163,12 @@ sealed partial class MainWindow : Window
     public async Task Refresh(string command)
     {
         if (engine is null) return;
+        var boardKey = command == "refreshBoards" ? BoardRefreshKey : null;
+        if (boardKey is not null) {
+            boardRefreshes[boardKey] = boardRefreshes.GetValueOrDefault(boardKey) + 1;
+            boardRefreshFailures.Remove(boardKey);
+            Render();
+        }
         try
         {
             if ((command == "refreshQuotas" || command == "refreshCurrentQuota") && prefs.QwenWebsiteConnected)
@@ -176,6 +189,7 @@ sealed partial class MainWindow : Window
                 catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException) { }
             }
             var response = await engine.Request(command, prefs);
+            if (boardKey is not null && !string.IsNullOrWhiteSpace(response.Error)) boardRefreshFailures[boardKey] = response.Error;
             if (view != (prefs.Category, prefs.Grouping, prefs.Language, JsonSerializer.Serialize(prefs.Sources), JsonSerializer.Serialize(prefs.Countries), string.Join(",", prefs.VisibleBoardKinds())))
             {
                 if (response.Result is { } previousView) ShowQuotaAlerts(previousView.Alerts);
@@ -193,7 +207,18 @@ sealed partial class MainWindow : Window
                 _ = RefreshXaiSubscription();
             }
         }
-        catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException) { status.Text = Tr("Could not refresh. Try again.", "刷新失败，请重试。"); }
+        catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException) {
+            var message = Tr("Could not refresh. Try again.", "刷新失败，请重试。", "重新整理失敗，請重試。");
+            if (boardKey is not null) boardRefreshFailures[boardKey] = message;
+            status.Text = message;
+        }
+        finally {
+            if (boardKey is not null) {
+                var remaining = boardRefreshes[boardKey] - 1;
+                if (remaining == 0) boardRefreshes.Remove(boardKey); else boardRefreshes[boardKey] = remaining;
+                Render();
+            }
+        }
     }
     async Task RefreshXaiSubscription()
     {
