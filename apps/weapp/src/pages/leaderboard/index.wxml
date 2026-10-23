@@ -102,7 +102,7 @@
             </view>
             <button wx:if="{{row.countryUnknown}}" class="country-cell country-help" bindtap="countryHelp" aria-label="{{labels.unknownCountryTitle}}">?</button>
             <button wx:else class="country-cell attribute-action" data-kind="{{card.kind}}" data-rank="{{row.rank}}" data-attribute="country" catchtap="attributeHint" aria-label="{{row.countryName}}">{{row.flag}}</button>
-            <button wx:if="{{grouping !== 'company'}}" class="openness-cell attribute-action" data-kind="{{card.kind}}" data-rank="{{row.rank}}" data-attribute="openness" catchtap="attributeHint" aria-label="{{row.openness === 'open' ? labels.open : row.openness === 'closed' ? labels.closed : labels.unknown}}">
+            <button wx:if="{{grouping !== 'company'}}" class="openness-cell attribute-action" hover-class="none" data-kind="{{card.kind}}" data-rank="{{row.rank}}" data-attribute="openness" catchtap="attributeHint" aria-label="{{row.openness === 'open' ? labels.open : row.openness === 'closed' ? labels.closed : labels.unknown}}">
               <image wx:if="{{row.opennessIcon}}" class="openness-icon" src="{{row.opennessIcon}}" mode="aspectFit" aria-hidden="true" />
               <text wx:else>—</text>
             </button>
