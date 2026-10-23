@@ -2100,6 +2100,21 @@ final class LeaderboardTabDragTests: XCTestCase {
             first.tap(); selected(first)
             XCTAssertFalse(app.staticTexts[dark ? "已复制" : "Copied"].exists)
         }
+        // Cover every source identity, including the three-source category and
+        // the usage category, after switching and dragging between categories.
+        for (category, sourceIDs) in [("general", ["artificialAnalysis", "arena", "epoch"]),
+                                      ("usage", ["openRouter", "vercel"])] {
+            let categoryTab = app.buttons["category-" + category]
+            categoryTab.tap(); selected(categoryTab)
+            for (index, sourceID) in sourceIDs.enumerated() {
+                let sourceTab = app.buttons["face-\(index)"]
+                sourceTab.tap(); selected(sourceTab)
+                Thread.sleep(forTimeInterval: 0.6)
+                let capture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+                capture.name = "source-theme-\(dark ? "dark" : "light")-\(sourceID)"
+                capture.lifetime = .keepAlways; add(capture)
+            }
+        }
     }
 }
 

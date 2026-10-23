@@ -405,13 +405,16 @@ public struct LeaderboardPadView: View {
             }.foregroundStyle(Color.primary).frame(maxWidth: .infinity, minHeight: 38)
                 .background(Color.padBackground).accessibilityIdentifier("usage-source")
         } else {
+        let selectedIndex = min(max(0, sourceDragIndex ?? cube.face), store.category.boardKinds.count - 1)
+        let selectedKind = store.category.boardKinds[selectedIndex]
+        let palette = SourceTabTheme.palette(for: selectedKind, dark: colorScheme == .dark)
         HStack(spacing: 6) {
             ForEach(Array(store.category.boardKinds.enumerated()), id: \.offset) { index, kind in
                 Button { turnCube(to: index) } label: {
                     Text(kind.isUsage ? kind.sourcePrefix : LeaderboardPresentation.explanation(kind, language: store.language))
                         .font(.caption.weight(.semibold))
                         .lineLimit(2).frame(maxWidth: .infinity, minHeight: 38)
-                        .foregroundStyle((sourceDragIndex ?? cube.face) == index ? (store.category == .usage ? (index == 0 ? Color.orange : Color.secondary) : (index == 0 ? Color.blue : (index == 2 ? Color.teal : Color.purple))) : Color.secondary)
+                        .foregroundStyle(selectedIndex == index ? sourceTabColor(palette.foreground) : Color.secondary)
                         .contentShape(Rectangle())
                 }.buttonStyle(.plain).disabled(store.category.boardKinds.count == 1).accessibilityIdentifier("face-\(index)")
                     .accessibilityAddTraits(cube.face == index ? .isSelected : [])
@@ -424,9 +427,9 @@ public struct LeaderboardPadView: View {
                 let count = store.category.boardKinds.count
                 let tabWidth = (geometry.size.width - CGFloat(count - 1) * 6) / CGFloat(count)
                 RoundedRectangle(cornerRadius: 8)
-                    .fill((store.category == .usage ? ((sourceDragIndex ?? cube.face) == 0 ? Color.orange : Color.secondary) : ((sourceDragIndex ?? cube.face) == 0 ? Color.blue : ((sourceDragIndex ?? cube.face) == 2 ? Color.teal : Color.purple))).opacity(0.12))
+                    .fill(sourceTabColor(palette.background))
                     .frame(width: tabWidth)
-                    .offset(x: CGFloat(sourceDragIndex ?? cube.face) * (tabWidth + 6))
+                    .offset(x: CGFloat(selectedIndex) * (tabWidth + 6))
             }
             .allowsHitTesting(false)
         }
@@ -435,6 +438,10 @@ public struct LeaderboardPadView: View {
         .background(Color.padBackground)
         .animation(usesReducedMotion ? nil : .timingCurve(0.22, 0.7, 0.2, 1, duration: 0.32), value: cube.face)
         }
+    }
+    private func sourceTabColor(_ hex: String) -> Color {
+        let value = UInt32(hex.dropFirst(), radix: 16) ?? 0
+        return Color(red: Double((value >> 16) & 255) / 255, green: Double((value >> 8) & 255) / 255, blue: Double(value & 255) / 255)
     }
     private func resetComparison() {
         cancelCubeEntrance()
