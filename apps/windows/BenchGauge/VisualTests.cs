@@ -114,7 +114,7 @@ static class VisualTests
             if (test.Grouping == "company") state = state with { Boards = state.Boards.Select(board => board with {
                 Entries = board.Entries.GroupBy(entry => entry.Organization).Select(group => {
                     var best = group.OrderByDescending(entry => entry.Score).First();
-                    return best with { Name = best.Organization ?? best.Name, Score = board.Kind is "openRouterUsage" or "vercelUsage" ? group.Sum(entry => entry.Score) : best.Score };
+                    return best with { Name = best.Organization ?? best.Name, Score = board.Kind is "openRouterUsage" or "vercelUsage" or "cloudbaseUsage" ? group.Sum(entry => entry.Score) : best.Score };
                 }).OrderByDescending(entry => entry.Score).ToArray()
             }).ToArray() };
             var panel = new MainWindow(null, preferences)
@@ -123,11 +123,12 @@ static class VisualTests
             // The account dialog owns the panel; WPF requires that owner to
             // have been shown before assigning Window.Owner.
             panel.SetVisualAppearance(theme == "dark");
-            if (test.Scenario == "addModelDialog" || test.Scenario.StartsWith("modelDetails")) panel.Show();
+            if (test.Scenario is "addModelDialog" or "thirdPartyNotices" || test.Scenario.StartsWith("modelDetails")) panel.Show();
             var detailEntry = state.Boards[0].Entries[0] with { Details = fixture.ModelDetails?.GetValueOrDefault(test.Language) };
             if (test.Scenario == "modelDetailsMissing") detailEntry = detailEntry with { Name = "Unmatched model / 暂无模型资料", Details = [] };
             if (test.Scenario == "modelDetailsLong") detailEntry = detailEntry with { Name = "Research Model — Extended Reasoning / Very Long Provider Variant 长名称测试模型（高推理预算版本）" };
-            Window window = test.Scenario.StartsWith("modelDetails") ? panel.CreateModelDetailsWindow(detailEntry)
+            Window window = test.Scenario == "thirdPartyNotices" ? panel.CreateLicenseWindow(true)
+                : test.Scenario.StartsWith("modelDetails") ? panel.CreateModelDetailsWindow(detailEntry)
                 : test.Scenario == "addModelDialog"
                 ? panel.CreateOfficialAccountsWindow(new EngineResponse(0, null, null, null, null,
                     OfficialAccounts: [], OfficialProviders: [new OfficialProviderSummary("kimi", "Kimi Code", "Kimi Code plan")]))
@@ -141,7 +142,7 @@ static class VisualTests
                 panel.SetVisualAppearance(theme == "dark");
                 if (window is XAIAccountConnectionWindow xaiLogin) xaiLogin.SetAppearance(theme == "dark");
                 panel.SetState(state);
-                if (test.Scenario.StartsWith("modelDetails") || test.Scenario == "addModelDialog" || test.Scenario.StartsWith("xaiSubscriptionDialog", StringComparison.Ordinal) || test.Scenario.StartsWith("xaiDeviceDialog", StringComparison.Ordinal))
+                if (test.Scenario.StartsWith("modelDetails") || test.Scenario is "addModelDialog" or "thirdPartyNotices" || test.Scenario.StartsWith("xaiSubscriptionDialog", StringComparison.Ordinal) || test.Scenario.StartsWith("xaiDeviceDialog", StringComparison.Ordinal))
                 {
                     window.SizeToContent = SizeToContent.Manual; window.WindowStyle = WindowStyle.None;
                     window.Width = test.Width; window.Height = test.Height; window.Show();
@@ -169,7 +170,14 @@ static class VisualTests
                     throw new InvalidOperationException("Visual case does not fit the real Windows desktop: " + test.Id);
                 for (var frame = 0; frame < 3; frame++)
                 {
-                    if (frame == 1) { if (test.RefreshedSelectedBoards is { } selectedBoards) preferences.BoardSelections[preferences.Category] = selectedBoards; panel.SetState(state); window.InvalidateVisual(); } // Catch layout changes after refresh.
+                    if (test.Scenario.StartsWith("usageLoading", StringComparison.Ordinal)) {
+                        var displayed = state;
+                        var loading = frame < 2;
+                        if (test.Scenario != "usageLoadingCached" && !(frame == 2 && test.Scenario == "usageLoadingSuccess"))
+                            displayed = state with { Boards = state.Boards.Select(board => board.Kind is "openRouterUsage" or "vercelUsage" ? board with { Entries = [], Error = test.Scenario == "usageLoadingFailure" && frame == 2 ? "Refresh failed / 加载失败（测试）" : null } : board).ToArray() };
+                        panel.SetVisualBoardLoading(loading); panel.SetState(displayed);
+                    }
+                    else if (frame == 1) { if (test.RefreshedSelectedBoards is { } selectedBoards) preferences.BoardSelections[preferences.Category] = selectedBoards; panel.SetState(state); window.InvalidateVisual(); } // Catch layout changes after refresh.
                     Settle(window);
                     if (test.Scenario == "distributionCharts" && frame > 0) {
                         static System.Collections.Generic.IEnumerable<DependencyObject> Walk(DependencyObject view) {
@@ -181,6 +189,37 @@ static class VisualTests
                         list.ScrollIntoView(list.Items[list.Items.Count - 1]); Settle(window);
                         if (!Walk(window).OfType<FrameworkElement>().Any(view => System.Windows.Automation.AutomationProperties.GetAutomationId(view) == "leaderboard-distributions" && view.IsVisible))
                             throw new InvalidOperationException("Distribution footer missing");
+                    }
+                    if (test.Scenario.StartsWith("usageLoading", StringComparison.Ordinal)) {
+                        static IEnumerable<DependencyObject> WalkLoading(DependencyObject view) {
+                            yield return view;
+                            for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(view); i++)
+                                foreach (var child in WalkLoading(System.Windows.Media.VisualTreeHelper.GetChild(view, i))) yield return child;
+                        }
+                        var placeholders = WalkLoading(window).OfType<FrameworkElement>().Select(view => System.Windows.Automation.AutomationProperties.GetAutomationId(view)).Where(id => id is "usage-loading" or "usage-empty" or "usage-error").ToArray();
+                        var hasData = test.Scenario == "usageLoadingCached" || frame == 2 && test.Scenario == "usageLoadingSuccess";
+                        var expected = frame < 2 ? "usage-loading" : test.Scenario == "usageLoadingFailure" ? "usage-error" : "usage-empty";
+                        if (hasData ? placeholders.Length != 0 : !placeholders.SequenceEqual(new[] { expected }))
+                            throw new InvalidOperationException("Usage loading, empty and error states overlap or replace cached data");
+                    }
+                    if (test.Scenario == "sourceMenu")
+                    {
+                        static IEnumerable<DependencyObject> Walk(DependencyObject view) {
+                            yield return view;
+                            for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(view); i++)
+                                foreach (var child in Walk(System.Windows.Media.VisualTreeHelper.GetChild(view, i))) yield return child;
+                        }
+                        var button = Walk(window).OfType<System.Windows.Controls.Button>().Single(view =>
+                            System.Windows.Automation.AutomationProperties.GetAutomationId(view) == "data-sources-menu");
+                        if (!button.IsVisible || button.ActualWidth <= 0) throw new InvalidOperationException("Data sources button is missing");
+                        if (frame > 0) {
+                            button.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                            Settle(window);
+                            var links = button.ContextMenu.Items.OfType<System.Windows.Controls.MenuItem>().ToArray();
+                            var expected = new[] { "artificialAnalysis", "arenaText", "epochECI", "openRouterUsage", "vercelUsage" };
+                            if (!button.ContextMenu.IsOpen || !links.Select(link => System.Windows.Automation.AutomationProperties.GetAutomationId(link)).SequenceEqual(expected.Select(kind => "data-source-" + kind)))
+                                throw new InvalidOperationException("Data source links are incomplete or contain a disabled source");
+                        }
                     }
                     if (test.Scenario.StartsWith("desktopSearch", StringComparison.Ordinal))
                     {

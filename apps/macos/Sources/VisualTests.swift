@@ -135,12 +135,21 @@ enum NativeVisualCapture {
                     AccountQuotaChip(id: chip.id, shortName: chip.shortName, websiteURL: chip.websiteURL,
                                      kind: chip.kind, isCurrent: chip.isCurrent, status: chip.status, isStale: true)
                 } : visibleChips
-                func apply(refreshed: Bool = false) {
+                func apply(refreshed: Bool = false, phase: Int = 0) {
+                    let loadingScenario = test.scenario.hasPrefix("usageLoading")
+                    var displayedBoards = fetchedBoards
+                    var displayedErrors = errors
+                    if loadingScenario, test.scenario != "usageLoadingCached", !(phase == 2 && test.scenario == "usageLoadingSuccess") {
+                        for kind in LeaderboardCategory.usage.boardKinds { displayedBoards[kind] = nil }
+                    }
+                    if test.scenario == "usageLoadingFailure", phase == 2 {
+                        for kind in LeaderboardCategory.usage.boardKinds { displayedErrors[kind] = "Refresh failed / 加载失败（测试）" }
+                    }
                     state.setShowsCodexTaskStatus(refreshed
                         ? (test.refreshedShowsCodexTaskStatus ?? test.showsCodexTaskStatus ?? false)
                         : (test.showsCodexTaskStatus ?? false))
-                    state.applyVisualFixture(snapshot: LeaderboardSnapshot(boards: fetchedBoards), chips: shownChips,
-                        language: AppLanguage(rawValue: test.language)!, errors: errors,
+                    state.applyVisualFixture(snapshot: LeaderboardSnapshot(boards: displayedBoards), chips: shownChips,
+                        language: AppLanguage(rawValue: test.language)!, errors: displayedErrors,
                         emptyState: test.scenario == "empty" ? .notInstalled : (test.scenario == "installedEmpty" ? .installedEmpty : nil),
                         panelMode: test.scenario == "window" ? .window : .clickToClose, quotaUpdatedAt: quotaDate, quotaUnavailable: stale,
                         modelConfiguration: test.codexModel.map { CodexModelConfiguration(model: $0, provider: test.codexProvider, baseURL: test.codexBaseURL) },
@@ -150,7 +159,8 @@ enum NativeVisualCapture {
                                 baseURL: (fixture.quotaScenarios?[test.scenario] ?? fixture.state.quotas).first { $0.id == value.id }?.baseURL)
                         }, taskCounts: refreshed ? (test.refreshedTaskCounts ?? test.taskCounts) : test.taskCounts,
                         codexDesktopRunning: refreshed ? (test.refreshedCodexDesktopRunning ?? test.codexDesktopRunning ?? true) : (test.codexDesktopRunning ?? true),
-                        category: test.category ?? .general, boardKinds: refreshed ? (test.refreshedSelectedBoards ?? test.selectedBoards ?? (test.category ?? .general).boardKinds) : (test.selectedBoards ?? test.comparisonKind.map { [.artificialAnalysis, $0] } ?? (test.category ?? .general).boardKinds))
+                        category: test.category ?? .general, boardKinds: refreshed ? (test.refreshedSelectedBoards ?? test.selectedBoards ?? (test.category ?? .general).boardKinds) : (test.selectedBoards ?? test.comparisonKind.map { [.artificialAnalysis, $0] } ?? (test.category ?? .general).boardKinds),
+                        boardRefreshing: loadingScenario && phase < 2)
                     for (raw, filter) in test.sources ?? [:] {
                         if let kind = LeaderboardKind(rawValue: raw) { state.selectOpennessFilter(filter, for: kind) }
                     }
@@ -170,7 +180,8 @@ enum NativeVisualCapture {
                     }
                     var geometry: [[String: Any]] = []
                     for frame in 0..<4 {
-                        if frame == 1 { apply(refreshed: true) }
+                        if test.scenario.hasPrefix("usageLoading") { apply(refreshed: frame > 0, phase: frame) }
+                    else if frame == 1 { apply(refreshed: true) }
                         if frame == 2 {
                             _ = controller.visualPopoverWindow(show: false)
                             try await Task.sleep(for: .milliseconds(100))
@@ -312,9 +323,46 @@ enum NativeVisualCapture {
                     window.close(); defaults.removePersistentDomain(forName: defaultsName)
                 }
                 for frame in 0..<3 {
-                    if frame == 1 { apply(refreshed: true) }
+                    if test.scenario.hasPrefix("usageLoading") { apply(refreshed: frame > 0, phase: frame) }
+                    else if frame == 1 { apply(refreshed: true) }
                     try await Task.sleep(for: .milliseconds(300))
                     host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                    if test.scenario == "sourceMenu" {
+                        func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+                        func sourceButton() throws -> DataSourcesButton {
+                            guard let button = descendants(host).compactMap({ $0 as? DataSourcesButton }).first(where: {
+                                $0.window === window && !$0.isHiddenOrHasHiddenAncestor && !$0.visibleRect.isEmpty
+                            }), host.bounds.contains(button.convert(button.bounds, to: host)) else {
+                                throw CaptureError.blankFrame("data source menu missing or clipped")
+                            }
+                            return button
+                        }
+                        let button = try sourceButton()
+                        if frame > 0 {
+                            if button.sourcesPopover?.isShown == true { button.performClick(nil) }
+                            button.performClick(nil)
+                            try await Task.sleep(for: .milliseconds(250))
+                            guard let list = button.sourcesPopover?.contentViewController?.view as? DataSourcesListView,
+                                  list.linkButtons.map({ $0.identifier?.rawValue }) == DataSourcesListView.sources.map({ "data-source-\($0.rawValue)" }),
+                                  list.linkButtons.map(\.toolTip) == DataSourcesListView.sources.map({ $0.sourceURL.absoluteString }) else {
+                                throw CaptureError.blankFrame("source menu links missing, stale or disabled")
+                            }
+                            var menuPNG: Data?
+                            list.effectiveAppearance.performAsCurrentDrawingAppearance {
+                                menuPNG = PanelScreenshot.captureForm(view: list, minimumVariety: 1)
+                            }
+                            guard let menuPNG else { throw CaptureError.blankFrame("source menu capture is blank") }
+                            try menuPNG.write(to: output.appending(path: "\(test.id)-\(theme)-menu-frame-\(frame).png"))
+                            if frame == 2 {
+                                var destinations: [URL] = []
+                                let probe = DataSourcesListView(language: AppLanguage(rawValue: test.language)!) { destinations.append($0) }
+                                probe.linkButtons.forEach { $0.performClick(nil) }
+                                guard destinations == DataSourcesListView.sources.map(\.sourceURL) else {
+                                    throw CaptureError.blankFrame("source menu opens the wrong destination")
+                                }
+                            }
+                        }
+                    }
                     if test.scenario == "distributionCharts", frame > 0 {
                         func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
                         guard let table = descendants(host).compactMap({ $0 as? NSTableView }).first,
@@ -526,7 +574,7 @@ enum NativeVisualCapture {
                         }
                     }
                     let captureView = (isClaudeConsentAlert || isQuotaHelpAlert) ? window.attachedSheet?.contentView : host
-                    let png = test.scenario == "usagePending" ? PanelScreenshot.captureForm(view: host, minimumVariety: 3) : (test.scenario == "thirdPartyNotices" || test.scenario.hasPrefix("modelDetails") || test.scenario == "addModelDialog" || test.scenario.hasPrefix("xaiSubscriptionDialog") || test.scenario.hasPrefix("xaiDeviceDialog") || isClaudeConsentAlert || isQuotaHelpAlert)
+                    let png = (test.scenario == "usagePending" || test.scenario.hasPrefix("usageLoading")) ? PanelScreenshot.captureForm(view: host, minimumVariety: 3) : (test.scenario == "thirdPartyNotices" || test.scenario.hasPrefix("modelDetails") || test.scenario == "addModelDialog" || test.scenario.hasPrefix("xaiSubscriptionDialog") || test.scenario.hasPrefix("xaiDeviceDialog") || isClaudeConsentAlert || isQuotaHelpAlert)
                         ? captureView.flatMap { PanelScreenshot.captureForm(view: $0, minimumVariety: 1) }
                         : PanelScreenshot.capture(view: host)?.png
                     guard let png else { throw CaptureError.blankFrame(test.id) }
