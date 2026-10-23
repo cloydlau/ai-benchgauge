@@ -87,6 +87,7 @@ public enum LeaderboardPresentation {
         case .artificialAnalysisCodingAgent: "Artificial Analysis Coding Agent Index"
         case .arenaText: "Arena | Text"
         case .epochECI: "Epoch Capabilities Index"
+        case .cloudbaseUsage: "Tencent CloudBase | Token share"
         case .vercelUsage: "Vercel AI Gateway | Token share"
         case .openRouterUsage: "OpenRouter | Token usage"
         case .codeArenaWebDev: "Code Arena | WebDev"
@@ -117,7 +118,7 @@ public enum LeaderboardPresentation {
         case .artificialAnalysisTextToVideo: language.text("Matched settings", "统一设置")
         case .arenaText: language.text("User votes", "用户盲测")
         case .epochECI: language.text("Calibrated tests", "难度校准")
-        case .vercelUsage: language.text("Token share", "用量占比")
+        case .cloudbaseUsage, .vercelUsage: language.text("Token share", "用量占比")
         case .openRouterUsage: language.text("Usage ranking", "用量排行")
         case .codeArenaWebDev: language.text("WebDev votes", "网页开发盲选")
         case .arenaTextToImage, .arenaTextToVideo: language.text("User prompts", "用户出题")
@@ -128,6 +129,7 @@ public enum LeaderboardPresentation {
         switch kind {
         case .artificialAnalysis: language.text("Combines standardized tests across several abilities.", "汇总多项标准化测试，适合看综合能力")
         case .artificialAnalysisCodingAgent: language.text("Scores coding agents on software engineering tasks.", "通过软件工程任务，检验编程智能体的完成能力")
+        case .cloudbaseUsage: language.text("Cumulative text-token share across sampled Beijing-time days; full dates unavailable.", "北京时间抽样统计日的文本 token 累计占比；未公开完整日期。")
         case .vercelUsage: language.text("Latest complete UTC day · text token share · absolute volumes unavailable.", "最近完整 UTC 日文本 token 用量占比；不提供绝对用量。")
         case .openRouterUsage: language.text("Latest complete UTC day · input + output tokens · 1B = 1 billion tokens.", "最近完整 UTC 日输入与输出 token 用量；1B = 十亿 token。")
         case .epochECI: language.text("Estimates general capability from benchmark results, accounting for difficulty and discrimination.", "结合不同测试的难度与区分度，估计模型的综合能力")
@@ -141,7 +143,7 @@ public enum LeaderboardPresentation {
     }
 
     public static func scoreText(_ score: Double, kind: LeaderboardKind) -> String {
-        if kind == .vercelUsage {
+        if kind.isShareUsage {
             return score > 0 && score < 0.01 ? "<0.01%" : String(format: "%.2f%%", locale: Locale(identifier: "en_US_POSIX"), score)
         }
         if kind == .openRouterUsage {
@@ -151,7 +153,7 @@ public enum LeaderboardPresentation {
     }
 
     public static func scoreTitle(_ kind: LeaderboardKind, language: AppLanguage) -> String {
-        kind == .vercelUsage ? language.text("Share", "占比") : kind == .openRouterUsage ? language.text("Tokens", "用量") : language.text("Score", "分数")
+        kind.isShareUsage ? language.text("Share", "占比") : kind == .openRouterUsage ? language.text("Tokens", "用量") : language.text("Score", "分数")
     }
 
     public static func sourceHelp(_ kind: LeaderboardKind, language: AppLanguage, board: Leaderboard?,
@@ -164,6 +166,7 @@ public enum LeaderboardPresentation {
             parts.insert(language.text("Formerly LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena"), at: 1)
         }
         if kind == .vercelUsage { parts = [sourceSummary(kind, language: language), language.text("Includes input, output, reasoning and cached tokens; only published model buckets are listed. Company shares sum listed models only. Not comparable to OpenRouter absolute totals.", "包含输入、输出、推理及缓存 token，仅列出官方公布的模型；公司占比只汇总榜内模型。与 OpenRouter 绝对用量口径不同。例外的 Other 不作为模型展示。") ] }
+        if kind == .cloudbaseUsage { parts = [sourceSummary(kind, language: language), language.text("Input + output tokens including cache hits. Published model families only; Other excluded. Shares retain source rounding; company totals cover listed families. No absolute volumes or open-data license stated.", "输入与输出 token 之和，含缓存命中；按官方模型系列汇总，排除 Other。保留来源舍入，公司仅汇总榜内系列；未公开绝对用量或开放数据许可。") ] }
         if !kind.isUsage, let note = board?.sourceNote, !note.isEmpty { parts.append(note) }
         var help = parts.joined(separator: language.text(". ", "。"))
         if kind == .epochECI { help += "\n\n" + EpochAttribution.fullText(language: language) }
@@ -175,6 +178,7 @@ public enum LeaderboardPresentation {
     /// otherwise our successful fetch. Do not choose the later timestamp.
     public static func sourceTime(_ board: Leaderboard?, language: AppLanguage,
                                   timeZone: TimeZone = .current) -> (text: String, isSourceTime: Bool) {
+        if board?.kind == .cloudbaseUsage { return (language.text("Sampled period", "抽样统计"), false) }
         let formatter = DateFormatter()
         formatter.locale = language.locale
         formatter.timeZone = timeZone
@@ -192,6 +196,7 @@ public enum LeaderboardPresentation {
     }
 
     public static func sourceTimeHelp(_ board: Leaderboard?, language: AppLanguage) -> String {
+        if board?.kind == .cloudbaseUsage { return language.text("The source does not publish full sample dates. Retrieval time does not indicate data freshness.", "来源未公开完整抽样日期，抓取时间不代表数据更新时间。") }
         let formatter = DateFormatter()
         formatter.locale = language.locale
         formatter.dateStyle = .medium

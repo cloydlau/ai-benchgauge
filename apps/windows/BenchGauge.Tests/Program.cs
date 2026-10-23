@@ -298,7 +298,17 @@ foreach (var language in new[] { "en", "zh", "zh-Hant" }) {
     if (!UsageLicense.Text("vercelUsage", "Cached Vercel date", language).StartsWith("Cached Vercel date\n\n"))
         throw new Exception("Vercel agreement must retain the current snapshot provenance");
 }
+usageVisibility.BoardSelections["usage"] = ["cloudbaseUsage"];
+if (!usageVisibility.VisibleBoardKinds().SequenceEqual(new[] { "openRouterUsage", "vercelUsage" })) throw new Exception("Disabled Tencent selection must recover to available usage sources");
 Console.WriteLine("PASS: Vercel cached credit and offline full license in all three languages");
+
+
+foreach (var language in new[] { "en", "zh", "zh-Hant" }) {
+    var notice = UsageLicense.Text("cloudbaseUsage", "Cached Tencent provenance", language);
+    if (!notice.Contains("Cached Tencent provenance") || notice.Contains("creativecommons.org/licenses"))
+        throw new Exception("CloudBase source notice must remain offline and must not grant a Creative Commons license");
+}
+Console.WriteLine("PASS: CloudBase source notice in all three languages");
 
 sealed class FixtureHttpHandler(Func<HttpRequestMessage, byte[]> response) : HttpMessageHandler
 {

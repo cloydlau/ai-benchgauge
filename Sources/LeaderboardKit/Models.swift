@@ -10,10 +10,12 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
     case arenaTextToImage = "arenaTextToImage"
     case artificialAnalysisTextToVideo = "artificialAnalysisTextToVideo"
     case arenaTextToVideo = "arenaTextToVideo"
+    case cloudbaseUsage = "cloudbaseUsage"
     case vercelUsage = "vercelUsage"
     case openRouterUsage = "openRouterUsage"
 
-    public var isUsage: Bool { self == .openRouterUsage || self == .vercelUsage }
+    public var isUsage: Bool { self == .openRouterUsage || isShareUsage }
+    public var isShareUsage: Bool { self == .vercelUsage || self == .cloudbaseUsage }
 
     /// Older builds stored these boards under abbreviated raw values.
     fileprivate static let legacyRawValues: [String: LeaderboardKind] = [
@@ -53,6 +55,7 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
             "https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index"
         case .artificialAnalysisCodingAgent:
             "https://artificialanalysis.ai/agents/coding-agents"
+        case .cloudbaseUsage: "https://docs.cloudbase.net/ai/announcement/model-token-volume"
         case .vercelUsage: "https://vercel.com/ai-gateway/leaderboards/models"
         case .openRouterUsage: "https://openrouter.ai/rankings"
         case .epochECI:
@@ -88,6 +91,7 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
         case .arenaText, .codeArenaWebDev, .arenaTextToImage, .arenaTextToVideo:
             "Arena"
         case .epochECI: "Epoch AI"
+        case .cloudbaseUsage: "Tencent CloudBase"
         case .vercelUsage: "Vercel AI Gateway"
         case .openRouterUsage: "OpenRouter"
         }
@@ -99,6 +103,7 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
         case .artificialAnalysisCodingAgent: "Artificial Analysis 编程"
         case .arenaText: "Text Arena"
         case .epochECI: "Epoch ECI"
+        case .cloudbaseUsage: "Tencent CloudBase"
         case .vercelUsage: "Vercel AI Gateway"
         case .openRouterUsage: "OpenRouter"
         case .codeArenaWebDev: "Code Arena"

@@ -352,6 +352,7 @@ public struct LeaderboardPadView: View {
     private var aboutSheet: some View {
         PadAboutView(language: store.language, brand: appTitle(fontSize: 24),
                      copyLink: copyName, dismiss: { presentation.showingAbout = false },
+                     cloudbaseSourceNote: store.snapshot.boards[.cloudbaseUsage]?.sourceNote,
                      vercelSourceNote: store.snapshot.boards[.vercelUsage]?.sourceNote,
                      openRouterSourceNote: store.snapshot.boards[.openRouterUsage]?.sourceNote)
         .overlay(alignment: .bottom) {
@@ -1226,7 +1227,7 @@ private struct PadBoardCard: View {
     }
     private var timeLabels: some View {
         let time = LeaderboardPresentation.sourceTime(board, language: language)
-        let accent = kind == .vercelUsage ? Color.secondary : kind == .openRouterUsage ? Color.orange : kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue)
+        let accent = kind.isShareUsage ? Color.secondary : kind == .openRouterUsage ? Color.orange : kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue)
         return Text(time.text).font(.system(size: timeFontSize, weight: time.isSourceTime ? .medium : .regular))
         .foregroundColor(time.isSourceTime ? accent : secondaryForeground).monospacedDigit()
         .multilineTextAlignment(.trailing).lineLimit(1).fixedSize()
@@ -1292,7 +1293,7 @@ private struct PadBoardCard: View {
                 HStack(spacing: 2) {
                 Text(kind.sourceLinkTitle)
                     .font(columnHeaderFont.weight(.semibold))
-                    .foregroundStyle(kind == .vercelUsage ? Color.secondary : kind == .openRouterUsage ? Color.orange : kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue))
+                    .foregroundStyle(kind.isShareUsage ? Color.secondary : kind == .openRouterUsage ? Color.orange : kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue))
                     .lineLimit(1).minimumScaleFactor(0.8)
                     .accessibilityIdentifier("source-heading-\(kind.rawValue)")
                 if !isImage && grouping == .model {
@@ -1607,10 +1608,10 @@ private struct PadBoardCard: View {
     private func scoreValue(_ entry: LeaderboardEntry) -> some View {
         Text(LeaderboardPresentation.scoreText(entry.score, kind: kind)).monospacedDigit()
             .overlay(alignment: .bottomTrailing) {
-                let share = kind == .vercelUsage ? "" : LeaderboardPresentation.scoreShareText(entry.score, leaderScore: rowPresentation.leaderScore)
+                let share = kind.isShareUsage ? "" : LeaderboardPresentation.scoreShareText(entry.score, leaderScore: rowPresentation.leaderScore)
                 if !share.isEmpty {
                     Text(share).font(.system(size: 8)).monospacedDigit()
-                        .foregroundStyle(kind == .vercelUsage ? Color.secondary : kind == .openRouterUsage ? Color.orange : kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue)).offset(y: 10)
+                        .foregroundStyle(kind.isShareUsage ? Color.secondary : kind == .openRouterUsage ? Color.orange : kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue)).offset(y: 10)
                         .allowsHitTesting(false)
                 }
             }

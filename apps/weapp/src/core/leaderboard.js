@@ -90,8 +90,8 @@ export function rowView(entry, { company = false, dark = false, details = true, 
     initial: [...entry.name][0], countryUnknown: countryCode(entry) === 'unknown', countryName: countryName(countryCode(entry), language),
     flag: countryCode(entry) === 'unknown' ? '?' : countryFlag(countryCode(entry)),
     countryCode: code, flagImage: countryFlagImage(code),
-    components: details ? entry.components?.map(member => ({ name: member.name, rank: member.rank, score: kind === 'vercelUsage' ? shareScoreText(member.score) : kind === 'openRouterUsage' ? usageScoreText(member.score) : member.score.toFixed(kind === 'epochECI' ? 2 : 1) })) || [] : [],
-    scoreText: kind === 'vercelUsage' ? shareScoreText(entry.score) : kind === 'openRouterUsage' ? usageScoreText(entry.score) : entry.score.toFixed(kind === 'epochECI' ? 2 : 1), scoreShare: kind === 'vercelUsage' ? '' : scoreShareText(entry.score, leaderScore), openness: company ? null : resolvedOpenness(entry),
+    components: details ? entry.components?.map(member => ({ name: member.name, rank: member.rank, score: ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? shareScoreText(member.score) : kind === 'openRouterUsage' ? usageScoreText(member.score) : member.score.toFixed(kind === 'epochECI' ? 2 : 1) })) || [] : [],
+    scoreText: ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? shareScoreText(entry.score) : kind === 'openRouterUsage' ? usageScoreText(entry.score) : entry.score.toFixed(kind === 'epochECI' ? 2 : 1), scoreShare: ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? '' : scoreShareText(entry.score, leaderScore), openness: company ? null : resolvedOpenness(entry),
     opennessIcon: opennessIcon(company ? null : resolvedOpenness(entry), dark),
     fill: `background-color:rgba(${rgb},${dark ? '0.26' : '0.18'});`,
     fillPercent: Number.isFinite(entry.score) && entry.score >= 0 && Number.isFinite(leaderScore) && leaderScore > 0
@@ -110,7 +110,7 @@ export function rankedEntries(board, { grouping = 'model', country = 'all', open
   country = normalizedCountryCode(country) ?? country
   const entries = (board?.entries || []).filter(entry => (country === 'all' || countryCode(entry) === country)
     && (openness === 'all' || (resolvedOpenness(entry) || 'unknown') === openness))
-  return grouping === 'company' ? companyRows(entries, { summingUsage: ['openRouterUsage', 'vercelUsage'].includes(board?.kind) }) : entries.filter(entry => modelNameMatches(entry.name, query))
+  return grouping === 'company' ? companyRows(entries, { summingUsage: ['openRouterUsage', 'vercelUsage', 'cloudbaseUsage'].includes(board?.kind) }) : entries.filter(entry => modelNameMatches(entry.name, query))
 }
 export function visibleRows(board, { grouping = 'model', country = 'all', openness = 'all', query = '', dark = false, language = 'en', category = 'general' } = {}) {
   const leaderScore = rankedEntries(board, { grouping, country, openness })[0]?.score

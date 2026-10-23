@@ -406,7 +406,7 @@ definePage(query => {
   const categoryIndex = computed(() => categoryDragIndex.value ?? categories.findIndex(item => item.id === category.value))
   const sourceTabIndex = computed(() => sourceDragIndex.value ?? face.value)
   const current = computed(() => categoryFor(category.value))
-  const tabs = computed(() => current.value.kinds.map(kind => kind === 'openRouterUsage' ? 'OpenRouter' : kind === 'vercelUsage' ? 'Vercel AI Gateway' : kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
+  const tabs = computed(() => current.value.kinds.map(kind => kind === 'openRouterUsage' ? 'OpenRouter' : kind === 'cloudbaseUsage' ? 'Tencent CloudBase' : kind === 'vercelUsage' ? 'Vercel AI Gateway' : kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
   const filterFor = kind => ({ country: 'all', openness: 'all', ...filters.value[kind] })
   const countriesFor = kind => countryOptions({ entries: Object.values(snapshots.value).flatMap(board => board?.entries || []) }, language.value, filterFor(kind).country)
   function setFilters(filter) {
@@ -440,7 +440,8 @@ definePage(query => {
       sources: distribution.sources.map(slice => ({ ...slice, width: `${slice.fraction * 100}%`, color: opennessColor(slice.id, dark.value), icon: opennessIcon(slice.id, dark.value), name: tr(slice.id) })),
     }]
   })))
-  function boardTime(board) {
+  function boardTime(board, kind) {
+    if (kind === 'cloudbaseUsage') return { time: language.value === 'en' ? 'Sampled period' : language.value === 'zh-TW' ? '抽樣統計' : '抽样统计', timeLabel: '', isSourceTime: false }
     // A source date wins even when a later snapshot has been fetched.
     const isSourceTime = Number.isFinite(Date.parse(board?.sourceUpdatedAt))
     const value = isSourceTime ? board.sourceUpdatedAt : board?.fetchedAt
@@ -456,7 +457,7 @@ definePage(query => {
     const board = snapshots.value[kind]
     const filter = filterFor(kind)
     const range = rangeFor(kind, entries.length)
-    const time = boardTime(board)
+    const time = boardTime(board, kind)
     return { kind, title: boardTitle(kind, language.value), index, summary: text(boards[kind].summaries, language.value),
       ...time, timeAccessibility: `${time.time} ${time.timeLabel}`,
       count: totalCount, shownCount: entries.length, hasMore: totalCount > 20, expanded: !!expandedBoards.value[kind],
@@ -468,7 +469,7 @@ definePage(query => {
       rowHeight: geometry.value.rowHeight,
       rows: renderRows(kind, entries, range, leaderScore),
       searchStyle: modelSearchVisible.value ? 'left:0px;right:0px;' : searchOrigins.value[kind] || 'left:50%;right:50%;',
-      scoreLabel: kind === 'vercelUsage' ? tr('tokenShare') : kind === 'openRouterUsage' ? tr('tokens') : tr('score'),
+      scoreLabel: ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? tr('tokenShare') : kind === 'openRouterUsage' ? tr('tokens') : tr('score'),
       pendingConfiguration: !!configurationRequired.value[kind],
       hasBoard: !!board, filtered: filter.country !== 'all' || filter.openness !== 'all' || grouping.value === 'model' && !!modelSearchQuery.value.trim(),
       countryFiltered: filter.country !== 'all', sourceFiltered: filter.openness !== 'all',
@@ -910,7 +911,7 @@ definePage(query => {
     const formerName = kind.startsWith('arena') || kind === 'codeArenaWebDev'
       ? `${text(['Formerly LMSYS Chatbot Arena / LMArena', '原 LMSYS Chatbot Arena / LMArena', '原 LMSYS Chatbot Arena / LMArena'], language.value)}\n\n` : ''
     const dataset = isArenaDatasetBoard(board)
-    const time = boardTime(board)
+    const time = boardTime(board, kind)
     const times = `${time.time} ${time.timeLabel}`
     wx.showModal({ title: boardTitle(kind, language.value),
       content: `${formerName}${text(boards[kind].methodology || boards[kind].summaries, language.value)}\n\n${times}\n\n${boards[kind].url}${kind === 'epochECI' ? `\n\n${epochAttribution(language.value).fullText}` : ''}${dataset ? `\n\n${arenaAttribution(language.value).fullText}` : ''}`,
@@ -951,7 +952,7 @@ definePage(query => {
       return
     }
     const row = rowView(entry, { company: grouping.value === 'company', dark: dark.value, kind })
-    const content = row.components.length ? tr(kind === 'vercelUsage' ? 'usageShareSum' : kind === 'openRouterUsage' ? 'usageSum' : 'strongest') : row.name
+    const content = row.components.length ? tr(['vercelUsage', 'cloudbaseUsage'].includes(kind) ? 'usageShareSum' : kind === 'openRouterUsage' ? 'usageSum' : 'strongest') : row.name
     stopCube(); entrancePlayed = true
     companyDetails.value = { open: true, name: row.name, content, members: row.components }
   }
@@ -992,7 +993,7 @@ definePage(query => {
         boards: current.value.kinds.map((kind, index) => {
           const board = snapshots.value[kind], filter = filterFor(kind)
           const country = filter.country === 'all' ? tr('all') : countryName(filter.country, language.value)
-          const time = boardTime(board)
+          const time = boardTime(board, kind)
           return { kind, sourceNote: board?.sourceNote, title: boardTitle(kind, language.value), tab: tabs.value[index],
             summary: text(boards[kind].summaries, language.value),
             time: `${time.time} ${time.timeLabel}`, isSourceTime: time.isSourceTime,

@@ -35,6 +35,8 @@ export function handler(makeService, { syncToken = process.env.MODELS_DEV_SYNC_T
       const match = /^\/v1\/boards\/([A-Za-z]+)(?:\/(refresh|contribute))?$/.exec(path);
       if (!match) throw new RequestError(404, 'Unknown route');
       const [, kind, action] = match;
+      // Disabled pending data-use permission; reject before storage or upstream access.
+      if (kind === 'cloudbaseUsage') throw new RequestError(410, 'Tencent usage source disabled pending permission');
       if (action ? request.method !== 'POST' : request.method !== 'GET') throw new RequestError(405, 'Method not allowed');
       const service = await makeService(request);
       let result;

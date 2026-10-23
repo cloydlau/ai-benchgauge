@@ -125,8 +125,8 @@ test('older or future source dates and failed writes cannot erase a good snapsho
 });
 
 test('all parsed sources retain ranking, IDs, organizations and correct source date semantics; OpenRouter forbids HTML', () => {
-  for (const kind of ['openRouterUsage', 'vercelUsage']) assert.throws(() => parseBoard(kind, html('arenaText'), time), /official Data API/);
-  for (const kind of Object.keys(sources).filter(kind => !['openRouterUsage', 'vercelUsage'].includes(kind))) {
+  for (const kind of ['openRouterUsage', 'vercelUsage', 'cloudbaseUsage']) assert.throws(() => parseBoard(kind, html('arenaText'), time), /official Data API/);
+  for (const kind of Object.keys(sources).filter(kind => !['openRouterUsage', 'vercelUsage', 'cloudbaseUsage'].includes(kind))) {
     const board = parseBoard(kind, html(kind), time);
     assert.equal(board.kind, kind);
     assert.equal(board.entries.length, 22);

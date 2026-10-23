@@ -488,7 +488,7 @@ sealed partial class MainWindow : Window
         text.Children.Add(new TextBlock { Text = "github.com/" + config.Repository, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
         quotaPanel.Visibility = Visibility.Collapsed; privatePrompt.Text = Tr("View your remaining AI quotas with AI BenchGauge · CC Switch", "使用 AI 天梯 · CC Switch 查看 AI 余量", "使用 AI 天梯 · CC Switch 查看 AI 餘量"); privatePrompt.Visibility = Visibility.Visible;
         var exportFooter = new StackPanel();
-        if (string.Join("\n\n", VisibleBoards().Where(board => board.Kind is "openRouterUsage" or "vercelUsage").Select(board => board.SourceNote)) is { Length: > 0 } usageNote)
+        if (string.Join("\n\n", VisibleBoards().Where(board => board.Kind is "openRouterUsage" or "vercelUsage" or "cloudbaseUsage").Select(board => board.SourceNote)) is { Length: > 0 } usageNote)
             exportFooter.Children.Add(new TextBlock { Text = usageNote, FontSize = 9,
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(4, 4, 4, 0) });
         exportFooter.Children.Add(text);

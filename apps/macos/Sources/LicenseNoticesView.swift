@@ -58,12 +58,14 @@ struct LicenseNoticesView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var selection: LicenseSelection
     let language: AppLanguage
+    let cloudbaseSourceNote: String?
     let vercelSourceNote: String?
     let openRouterSourceNote: String?
 
-    init(section: LicenseSection, language: AppLanguage, vercelSourceNote: String? = nil, openRouterSourceNote: String? = nil) {
+    init(section: LicenseSection, language: AppLanguage, cloudbaseSourceNote: String? = nil, vercelSourceNote: String? = nil, openRouterSourceNote: String? = nil) {
         _selection = StateObject(wrappedValue: LicenseSelection(section))
         self.language = language
+        self.cloudbaseSourceNote = cloudbaseSourceNote
         self.vercelSourceNote = vercelSourceNote
         self.openRouterSourceNote = openRouterSourceNote
     }

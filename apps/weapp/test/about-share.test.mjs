@@ -49,6 +49,7 @@ test('about-page menu forwarding and cold-start back navigation retain the origi
     ['arena', true],
     ['epoch', true],
   ])
+  assert.ok(about.items.filter(item => item.license && item.id !== "cloudbase").every(item => item.licenseLabel === "CC BY 4.0"))
   assert.equal(about.licenseNotice.value.open, false)
   about.openLicense({ currentTarget: { dataset: { id: 'unknown' } } })
   assert.equal(about.licenseNotice.value.open, false)
@@ -169,5 +170,29 @@ test('Vercel agreement opens the current cached credit offline and never borrows
     about.closeLicense(); note = 'Updated Vercel credit'; open()
     assert.ok(about.licenseNotice.value.text.startsWith(note)); assert.ok(!about.licenseNotice.value.text.includes('Wrong source credit'))
     note = ''; open(); assert.ok(about.licenseNotice.value.text.includes('© 2026 Vercel'))
+  }
+})
+
+
+test('CloudBase entry stays hidden with a previously cached Tencent snapshot', () => {
+  globalThis.__APP_VERSION__ = '0.0.0'; globalThis.__THIRD_PARTY_NOTICES__ = []
+  globalThis.__ENGINEERING_INVESTMENT__ = { commitCount: 0, codeLineCount: 0 }
+  for (const language of ['en', 'zh-CN', 'zh-TW']) {
+    globalThis.wx = {
+      getStorageSync: key => key === 'benchgauge.preferences' ? { language } : {},
+      env: { USER_DATA_PATH: '/offline' },
+      getFileSystemManager: () => ({ readFileSync: () => JSON.stringify({
+        cloudbaseUsage: { kind: 'cloudbaseUsage', fetchedAt: '2026-10-23T06:00:00Z', sourceNote: 'Tencent sampled period', entries: [{ rank: 1, name: 'Kimi K3', score: 1.1 }] },
+        vercelUsage: { kind: 'vercelUsage', fetchedAt: '2026-10-23T06:00:00Z', sourceNote: 'Other platform credit', entries: [{ rank: 1, name: 'Vercel', score: 20 }] },
+      }) }),
+      getWindowInfo: () => ({ statusBarHeight: 24 }), getAppBaseInfo: () => ({ theme: 'light' }),
+      request: () => assert.fail('Source notice must open offline'),
+    }
+    const about = globalThis.aboutFactory({})
+    const source = about.items.find(item => item.id === 'cloudbase')
+    assert.equal(source, undefined)
+    about.openLicense({ currentTarget: { dataset: { id: 'cloudbase' } } })
+    assert.equal(about.licenseNotice.value.open, false)
+    about.closeLicense(); assert.equal(about.licenseNotice.value.open, false)
   }
 })

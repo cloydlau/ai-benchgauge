@@ -44,3 +44,10 @@ public enum CCBYLicense {
         return attribution + "\n\n" + text(language: language)
     }
 }
+
+public enum CloudBaseAttribution {
+    public static func text(sourceNote: String?, language: AppLanguage) -> String {
+        let explanation = language.text("Tencent CloudBase publishes cumulative token shares for sampled Beijing-time days. It groups model families, includes cached input tokens and does not provide absolute volumes or full sample dates. No open-data license is stated; Tencent retains its rights. This data is not licensed under CC BY 4.0.", "腾讯 CloudBase 公布北京时间抽样统计日的 token 累计占比，按模型系列汇总，包含缓存命中；未公开绝对用量或完整抽样日期。来源未声明开放数据许可，相关权利归腾讯所有，此数据不适用 CC BY 4.0。")
+        return explanation + "\n\n" + (sourceNote?.isEmpty == false ? sourceNote! : "Source: Tencent CloudBase\nhttps://docs.cloudbase.net/ai/announcement/model-token-volume")
+    }
+}

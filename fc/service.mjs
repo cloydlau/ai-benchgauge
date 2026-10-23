@@ -37,6 +37,7 @@ export class SharedLeaderboards {
     return withCodingOpenness(board, results.filter(result => result.status === 'fulfilled').map(result => result.value));
   }
   checkKind(kind) {
+    if (kind === 'cloudbaseUsage') throw new RequestError(410, 'Tencent usage source disabled pending permission');
     if (!Object.hasOwn(sources, kind)) throw new RequestError(404, 'Unknown leaderboard');
   }
   async read(kind) {
