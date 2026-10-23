@@ -66,7 +66,7 @@ import LeaderboardKit
     let fetched = Date(timeIntervalSince1970: 1_700_000_000)
     let unknown = Leaderboard(kind: .artificialAnalysis, title: "AA", fetchedAt: fetched, entries: [])
     let labels = LeaderboardPresentation.sourceTime(unknown, language: .chinese, timeZone: utc)
-    #expect(labels.text == "11/14 22:13 更新")
+    #expect(labels.text == "11/14 22:13 刷新")
     #expect(!labels.isSourceTime)
     #expect(!LeaderboardPresentation.sourceTimeHelp(unknown, language: .chinese).contains("数据更新"))
     for offset in [-3600.0, 0, 3600] {
@@ -78,18 +78,18 @@ import LeaderboardKit
         #expect(!LeaderboardPresentation.sourceTimeHelp(coding, language: .english).contains("Fetched"))
     }
     let pending = LeaderboardPresentation.sourceTime(nil, language: .chinese, timeZone: utc)
-    #expect(pending.text == "— 更新")
+    #expect(pending.text == "— 刷新")
     #expect(!pending.isSourceTime)
-    #expect(LeaderboardPresentation.sourceTimeHelp(nil, language: .english) == "— Updated")
+    #expect(LeaderboardPresentation.sourceTimeHelp(nil, language: .english) == "— Refreshed")
     for language in AppLanguage.allCases {
         let published = Leaderboard(kind: .artificialAnalysis, title: "AA", sourceUpdatedAt: fetched,
             fetchedAt: fetched.addingTimeInterval(3600), entries: [])
         #expect(LeaderboardPresentation.sourceTime(published, language: language, timeZone: utc).text
             == "11/14 22:13 \(language.text("Published", "发布"))")
         #expect(LeaderboardPresentation.sourceTime(unknown, language: language, timeZone: utc).text
-            == "11/14 22:13 \(language.text("Updated", "更新"))")
+            == "11/14 22:13 \(language.text("Refreshed", "刷新"))")
         #expect(LeaderboardPresentation.sourceTimeHelp(published, language: language).hasSuffix(language.text("Published", "发布")))
-        #expect(LeaderboardPresentation.sourceTimeHelp(unknown, language: language).hasSuffix(language.text("Updated", "更新")))
+        #expect(LeaderboardPresentation.sourceTimeHelp(unknown, language: language).hasSuffix(language.text("Refreshed", "刷新")))
     }
 }
 

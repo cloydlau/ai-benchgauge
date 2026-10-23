@@ -15,7 +15,7 @@ const model = (counts = [415, 32], dark = false) => ({
   dark, groupingLabel: 'Models', categoryLabel: 'General',
   boards: counts.map((count, side) => ({ title: side ? 'Text Arena' : 'Artificial Analysis',
     tab: side ? 'User votes' : 'Task benchmarks', summary: 'Comparable scores for this source.',
-    time: side ? '10/14 23:00 Updated' : '10/14 22:00 Published', isSourceTime: !side,
+    time: side ? '10/14 23:00 Refreshed' : '10/14 22:00 Published', isSourceTime: !side,
     filterLabel: 'Country: All · Source: All', empty: 'No matching entries',
     rows: Array.from({ length: count }, (_, index) => rowView({ rank: index + 1,
       name: `A very detailed model ${index + 1} with complete parameters and parentheses (High, Default Fallback)`,
@@ -40,7 +40,7 @@ test('exports draw exactly one timestamp per board, including the fetch-only fal
   for (const dark of [false, true]) {
     const h = canvasHarness(), source = model([0, 0], dark)
     drawScreenshot(h.context, source, planScreenshot(h.context, source), new Map())
-    const times = h.commands.filter(([name, value]) => name === 'fillText' && / (Published|Updated)$/.test(value))
+    const times = h.commands.filter(([name, value]) => name === 'fillText' && / (Published|Refreshed)$/.test(value))
     assert.equal(times.length, 2)
     for (const [index, board] of source.boards.entries()) {
       assert.equal(times[index][1], board.time)
@@ -97,7 +97,7 @@ test('one complete comparison retains every model and rank without page counters
     const source = model([4, 0], dark), image = planScreenshot(h.context, source)
     drawScreenshot(h.context, source, image, new Map())
     const text = h.commands.filter(([name]) => name === 'fillText').map(command => command[1])
-    for (const value of ['No matching entries', source.labels.name, '10/14 22:00 Published', '10/14 23:00 Updated', 'US']) assert.ok(text.includes(value))
+    for (const value of ['No matching entries', source.labels.name, '10/14 22:00 Published', '10/14 23:00 Refreshed', 'US']) assert.ok(text.includes(value))
     assert.ok(!text.some(value => /^\d+ \/ \d+$/.test(value)))
   }
 })

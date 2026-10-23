@@ -1,3 +1,15 @@
+## Refresh timestamp caption — 2026-10-23
+
+Fetch-time captions and their timestamp details now read “Refreshed / 刷新” on
+all clients and exports. Source publication labels retain “Published / 发布”.
+Existing sourceTimes fixtures cover English, Simplified and Traditional Chinese,
+both themes, and 850/1100×720-point viewports. Native Mac originals and hashes
+are retained in ignored `work/refresh-caption/after/`; reviewed English light
+output shows the longer caption fits without overlap. This is a wording change.
+Windows shared tests and 83 mini-program controller/export tests pass. Windows
+native screenshots and a source-matched CI artifact are unavailable on this host;
+no Windows visual verification is claimed.
+
 ## Source brand accents — 2026-10-23
 
 Source headings, publication timestamps and relative-share hints now use the same

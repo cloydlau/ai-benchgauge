@@ -25,7 +25,7 @@ if (SourceTabTheme.For("vercelUsage", false).Accent != "#000000"
 // Source data time always wins; snapshot time is only a fallback, never a maximum.
 var timestampFetch = DateTimeOffset.Parse("2026-10-22T12:00:00Z");
 foreach (var (language, published, updated) in new[] {
-    ("en", "Published", "Updated"), ("zh", "发布", "更新"), ("zh-Hant", "發佈", "更新") })
+    ("en", "Published", "Refreshed"), ("zh", "发布", "刷新"), ("zh-Hant", "發佈", "刷新") })
 {
     if (new BoardTimestamp(timestampFetch, true).Caption("10/22 12:00", language) != $"10/22 12:00 {published}" ||
         new BoardTimestamp(timestampFetch, false).Caption("10/22 12:00", language) != $"10/22 12:00 {updated}" ||

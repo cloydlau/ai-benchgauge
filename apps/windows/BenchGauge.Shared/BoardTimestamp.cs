@@ -8,8 +8,8 @@ public readonly record struct BoardTimestamp(DateTimeOffset? Value, bool IsSourc
 
     public string Caption(string value, string language)
     {
-        var label = language == "en" ? IsSourceTime ? "Published" : "Updated"
-            : IsSourceTime ? language == "zh-Hant" ? "發佈" : "发布" : "更新";
+        var label = language == "en" ? IsSourceTime ? "Published" : "Refreshed"
+            : IsSourceTime ? language == "zh-Hant" ? "發佈" : "发布" : "刷新";
         return $"{value} {label}";
     }
 }
