@@ -140,7 +140,7 @@ struct LicenseNoticesView: View {
     private func documentView(_ document: LicenseDocument) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text(document.name)
+                Text(document.id == "models-dev" ? ModelsDevAttribution.credit(language: language) : document.name)
                     .font(.headline)
                 Spacer()
                 Text(document.license)
@@ -152,7 +152,7 @@ struct LicenseNoticesView: View {
             Text(tr(document.englishDescription, document.chineseDescription))
                 .font(.callout)
                 .foregroundStyle(.secondary)
-            Link(tr("Project source", "项目源码"), destination: document.source)
+            Link(document.id == "models-dev" ? tr("Data source", "数据来源") : tr("Project source", "项目源码"), destination: document.source)
                 .font(.callout)
                 .pointingHandCursor()
             if let text = LicenseCatalog.text(for: document) {

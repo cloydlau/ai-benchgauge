@@ -991,6 +991,7 @@ sealed partial class MainWindow
         left.Children.Add(Caption(" Cloyd Lau · ", PanelMuted, 10)); left.Children.Add(FooterButton("MIT License", () => ShowLicenses(false)));
         left.Children.Add(Caption(" · ", PanelMuted, 10)); left.Children.Add(FooterButton(Tr("Open-source notices", "开源声明", "開源聲明"), () => ShowLicenses(true))); row.Children.Add(left);
         var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        right.Children.Add(DataSourcesMenu()); right.Children.Add(Caption(" · ", size: 10));
         right.Children.Add(BoardVisibilityMenu()); right.Children.Add(Caption(" · ", size: 10));
         right.Children.Add(IconButton("camera", Tr("Copy", "截图", "截圖"), Capture)); right.Children.Add(Caption(" · ", size: 10));
         right.Children.Add(Select([("clickToClose",Tr("Keep open","保持打开","保持打開")),("alwaysOnTop",Tr("Always on top","保持置顶","保持置頂")),("closeOnBlur",Tr("Close on blur","失焦关闭","失焦關閉")),("window",Tr("Window","独立窗口","獨立視窗"))], prefs.PanelMode,
@@ -1002,6 +1003,36 @@ sealed partial class MainWindow
         status.Margin = new Thickness(4, 0, 4, 0); status.FontSize = 10; status.FontFamily = new FontFamily("Segoe UI"); Grid.SetColumn(status, 1); row.Children.Add(status);
         border.Child = row; dock.Children.Add(border); return dock;
     }
+    Button DataSourcesMenu()
+    {
+        var button = QuietButton("", () => { });
+        var label = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        label.Children.Add(Caption(Tr("Data sources", "数据来源", "資料來源"), size: 10));
+        label.Children.Add(PanelIcon("chevron", PanelMuted, width: 6, height: 4, margin: new Thickness(4, 0, 0, 0)));
+        button.Content = label;
+        button.ToolTip = Tr("Leaderboard data sources", "榜单数据来源", "榜單資料來源");
+        System.Windows.Automation.AutomationProperties.SetAutomationId(button, "data-sources-menu");
+        var menu = new ContextMenu();
+        foreach (var (kind, title, url) in new[] {
+            ("artificialAnalysis", "Artificial Analysis", "https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index"),
+            ("arenaText", "Arena", "https://arena.ai/leaderboard/text"),
+            ("epochECI", "Epoch AI", "https://epoch.ai/eci"),
+            ("openRouterUsage", "OpenRouter", "https://openrouter.ai/rankings"),
+            ("vercelUsage", "Vercel AI Gateway", "https://vercel.com/ai-gateway/leaderboards/models")
+        }) {
+            if (kind == "openRouterUsage") menu.Items.Add(new Separator());
+            var link = new MenuItem { Header = title + " ↗" };
+            System.Windows.Automation.AutomationProperties.SetAutomationId(link, "data-source-" + kind);
+            link.Click += (_, _) => Open(url);
+            menu.Items.Add(link);
+        }
+        button.ContextMenu = menu;
+        menu.Opened += (_, _) => panelMenuOpen = true;
+        menu.Closed += (_, _) => panelMenuOpen = false;
+        button.Click += (_, _) => { panelMenuOpen = true; menu.PlacementTarget = button; menu.Placement = PlacementMode.Top; menu.IsOpen = true; };
+        return button;
+    }
+
     Button BoardVisibilityMenu()
     {
         var button = QuietButton(Tr("Leaderboards", "显示榜单", "顯示榜單"), () => { });
@@ -1053,20 +1084,6 @@ sealed partial class MainWindow
             System.Windows.Automation.AutomationProperties.SetAutomationId(cancel, "board-visibility-cancel");
             cancel.Click += (_, _) => menu.IsOpen = false;
             menu.Items.Add(cancel);
-            menu.Items.Add(new Separator());
-            var sources = new MenuItem { Header = Tr("Data sources", "数据来源", "資料來源") };
-            foreach (var board in VisibleBoards().Where(board => !string.IsNullOrEmpty(board.Url)))
-            {
-                var link = new MenuItem { Header = board.Kind == "epochECI" ? "Epoch AI ↗" : board.Title + " ↗" };
-                link.Click += (_, _) => Open(board.Url); sources.Items.Add(link);
-            }
-            if (VisibleBoards().Any(board => board.Kind == "epochECI")) {
-                var license = new MenuItem { Header = "Epoch ECI · CC BY 4.0 ↗" };
-                license.Click += (_, _) => Open(EpochAttribution.LicenseURL); sources.Items.Add(license);
-            }
-            var modelInformation = new MenuItem { Header = Tr("Model information: models.dev", "模型资料：models.dev", "模型資料：models.dev") + " ↗" };
-            modelInformation.Click += (_, _) => Open("https://models.dev"); sources.Items.Add(modelInformation);
-            menu.Items.Add(sources);
         }
         menu.Opened += (_, _) => panelMenuOpen = true;
         menu.Closed += (_, _) => panelMenuOpen = false;

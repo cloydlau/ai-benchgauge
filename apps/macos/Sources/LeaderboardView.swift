@@ -541,24 +541,6 @@ struct LeaderboardView: View {
         .disabled(needsSkeleton)
     }
 
-    private func sourceLink(title: String, url: String) -> some View {
-        Button {
-            if let url = URL(string: url) {
-                NSWorkspace.shared.open(url)
-            }
-        } label: {
-            HStack(spacing: 3) {
-                Text(title)
-                    .lineLimit(1)
-                Image(systemName: "arrow.up.right")
-                    .imageScale(.small)
-            }
-        }
-        .buttonStyle(.link)
-        .pointingHandCursor()
-        .help(url)
-    }
-
     private let repositoryURL = "https://github.com/cloydlau/ai-benchgauge"
 
     private func quit() {
@@ -744,10 +726,9 @@ struct LeaderboardView: View {
 
     private var footer: some View {
         ViewThatFits(in: .horizontal) {
-            footerRow(compact: false, showsSourceLinks: true)
-            footerRow(compact: false, showsSourceLinks: false)
-            footerRow(compact: true, showsSourceLinks: false)
-            footerRow(compact: true, showsSourceLinks: false, stacked: true)
+            footerRow(compact: false)
+            footerRow(compact: true)
+            footerRow(compact: true, stacked: true)
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -790,7 +771,7 @@ struct LeaderboardView: View {
         }
     }
 
-    private func footerRow(compact: Bool, showsSourceLinks: Bool, stacked: Bool = false) -> some View {
+    private func footerRow(compact: Bool, stacked: Bool = false) -> some View {
         let layout = stacked
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
             : AnyLayout(HStackLayout(spacing: compact ? 4 : 7))
@@ -810,19 +791,8 @@ struct LeaderboardView: View {
             }
             if !stacked { Spacer(minLength: 8) }
             HStack(spacing: compact ? 4 : 7) {
-                if showsSourceLinks {
-                    footerSources
-                } else {
-                    Menu(tr("Sources", "数据来源")) {
-                        ForEach(visibleKinds, id: \.self) { kind in
-                            sourceLink(title: kind.sourceLinkTitle, url: kind.sourceURL.absoluteString)
-                        }
-                        sourceLink(title: ModelsDevAttribution.credit(language: language), url: ModelsDevAttribution.sourceURL.absoluteString)
-                    }
-                    .menuStyle(.borderlessButton)
+                DataSourcesPicker(language: language)
                     .fixedSize()
-                    .help(tr("Leaderboard data sources", "榜单数据来源"))
-                }
                 Text("·")
                 footerControls(compact: compact)
             }
@@ -853,16 +823,6 @@ struct LeaderboardView: View {
             .accessibilityIdentifier("application-license")
         }
         .fixedSize(horizontal: true, vertical: false)
-    }
-
-    private var footerSources: some View {
-        HStack(spacing: 7) {
-            Text(tr("Sources", "数据来源"))
-            ForEach(visibleKinds, id: \.self) { kind in
-                sourceLink(title: kind.sourceLinkTitle, url: kind.sourceURL.absoluteString)
-            }
-            sourceLink(title: ModelsDevAttribution.credit(language: language), url: ModelsDevAttribution.sourceURL.absoluteString)
-        }.fixedSize(horizontal: true, vertical: false)
     }
 
     private var boardVisibilityMenu: some View {

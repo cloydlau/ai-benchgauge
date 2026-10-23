@@ -469,15 +469,22 @@ sealed partial class MainWindow : Window
         modalOpen = true;
         try
         {
-            var directory = Path.Combine(AppContext.BaseDirectory, "Licenses");
-            var files = thirdParty ? Directory.GetFiles(directory, "*.txt").Where(file => Path.GetFileName(file) != "AI-BenchGauge.txt") : new[] { Path.Combine(directory, "AI-BenchGauge.txt") };
-            var text = string.Join("\n\n", files.Select(file => Path.GetFileNameWithoutExtension(file) + "\n\n" + File.ReadAllText(file)));
-            if (thirdParty) text = string.Join("\n\n", new[] { "openRouterUsage", "vercelUsage" }.Select(kind => UsageLicense.Text(kind, state?.Boards.FirstOrDefault(board => board.Kind == kind)?.SourceNote, prefs.Language))) + "\n\n" + text;
-            var dialog = new Window { Owner = this, Title = Tr("Licenses & notices", "许可证与声明"), Width = 580, Height = 540, WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Content = new TextBox { Text = text, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(16), FontFamily = new FontFamily("Consolas"), FontSize = 11 } };
-            dialog.ShowDialog();
+            CreateLicenseWindow(thirdParty).ShowDialog();
         }
         finally { modalOpen = false; _ = Dispatcher.BeginInvoke(TryPresentPreparedUpdate); }
+    }
+    internal Window CreateLicenseWindow(bool thirdParty)
+    {
+        var directory = Path.Combine(AppContext.BaseDirectory, "Licenses");
+        var files = thirdParty ? Directory.GetFiles(directory, "*.txt").Where(file => Path.GetFileName(file) != "AI-BenchGauge.txt") : new[] { Path.Combine(directory, "AI-BenchGauge.txt") };
+        var text = string.Join("\n\n", files.Select(file =>
+            (Path.GetFileNameWithoutExtension(file) == "models.dev-MIT"
+                ? Tr("Model information: models.dev", "模型资料：models.dev", "模型資料：models.dev") + "\nhttps://models.dev"
+                : Path.GetFileNameWithoutExtension(file)) + "\n\n" + File.ReadAllText(file)));
+        if (thirdParty) text = EpochAttribution.FullText(prefs.Language) + "\n\n" + string.Join("\n\n", new[] { "openRouterUsage", "vercelUsage" }.Select(kind => UsageLicense.Text(kind, state?.Boards.FirstOrDefault(board => board.Kind == kind)?.SourceNote, prefs.Language))) + "\n\n" + text;
+        var dialog = new Window { Owner = this, Title = Tr("Licenses & notices", "许可证与声明"), Width = 580, Height = 540, WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new TextBox { Text = text, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(16), FontFamily = new FontFamily("Consolas"), FontSize = 11 } };
+        return dialog;
     }
     public BitmapSource RenderScreenshot()
     {
