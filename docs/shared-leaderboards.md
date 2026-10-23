@@ -52,6 +52,10 @@ Arena 的刷新请求由 FC 直接读取固定修订的 Parquet 文件并写入 
 
 ## 自动品牌资料
 
+2026-10-23 核实视频榜的 HappyHorse 与 Wan2.7 均属于阿里巴巴：[HappyHorse 官方发布](https://www.alibabacloud.com/blog/alibaba-rolls-out-happyhorse-1-0-in-limited-beta_603068/)明确开发者为 ATH，[阿里巴巴 Wan 介绍](https://home.alibabagroup.com/en-US/ai-governance/wan)及 [Wan2.7 视频 API](https://www.alibabacloud.com/help/en/model-studio/text-to-video-api-reference)确认 Wan 归属。线上 Arena 将两者开发者分别记为 `aorizon`、`wan`，此前未命中阿里巴巴国家目录而查询失败；AA 视频榜已有正确归属。代码将这两个别名统一到 Alibaba（`qwen`），更新后共享读取会规范厂商名称并返回中国 `CN`；本地离线兜底同步使用生成规则。Aorizon 名称关联另见[加拿大官方商标登记](https://ised-isde.canada.ca/cipo/trademark-search/2456500)。
+
+本次线上仅修复 `benchgauge/countries/aorizon.json` 与 `benchgauge/countries/wan.json` 两条国家缓存为 `CN`，保留现有服务使用的身份键以兼容已安装客户端，无需发布客户端或重部署函数。修复前后两张视频榜逐项核对排名、分数、来源时间及抓取时间；回执和可恢复的原国家记录保存在忽略目录 `work/alibaba-video-country/`。
+
 国家归属统一遵循 `fc/leaderboard-policy.json` 的 `countryOverrides`：港澳台代码（`HK`、`MO`、`TW`，含三字代码及常见中英文名称）归一为中国 `CN`，展示中国国旗及中国名称。该规则覆盖上游字段解析、自动总部查询、共享缓存读取、小程序旧快照、模型/公司筛选和分享链接；Swift 使用生成的同一份规则，Windows 也从该文件读取规则以迁移旧筛选设置。原始排名、分数和榜单时间不受影响。
 
 每次榜单刷新和新快照贡献都会按厂商识别缺失资料；普通读取只使用缓存。厂商名先去除格式差异并合并已有别名，已知厂商的新模型和不同榜单复用同一份资料。编码代理榜缺失厂商时，可从明确的 `Harness - Model` 家族识别归属；未知归属不猜测，也不继承另一家代理工具的图标。
