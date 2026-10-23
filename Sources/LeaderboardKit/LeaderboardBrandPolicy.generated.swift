@@ -216,6 +216,8 @@ enum LeaderboardBrandPolicy {
         "nousresearch": "US",
         "stanford": "US",
         "technologyinnovationinstitute": "AE",
+        "typesafe": "US",
+        "dotsstudio": "CN",
     ]
     static var countryCodes: [String: String] { countryCodesStorage }
     private static let companyNamesStorage: [String: String] = [
@@ -321,6 +323,12 @@ enum LeaderboardBrandPolicy {
         "qwen 3.5 plus (hosted 397b-a17b)": "closed",
         "qwen 3.5 flash (hosted 35b-a3b)": "closed",
         "qwen 3.6 flash": "closed",
+        "minimax/minimax-m3.1-flash-20261019:free": "closed",
+        "typesafe/jev-1.13-20260917": "closed",
+        "typesafe/jev-1.14-20261014": "closed",
+        "meta/muse-spark-1.3-contributor-20260902": "closed",
+        "dots-studio/dots-3-note-preview-20260813:free": "open",
+        "openai/gpt-6-luna-pro-20260922": "closed",
     ]
     static var verifiedModelOpenness: [String: String] { verifiedModelOpennessStorage }
     private static let modelFamiliesStorage: [(family: String, key: String)] = [

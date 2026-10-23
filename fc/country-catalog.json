@@ -373,5 +373,15 @@
     "countryCode": "AE",
     "sourceURL": "https://www.tii.ae/news/uaes-technology-innovation-institute-launches-falcon-foundation-champion-open-sourcing",
     "source": "official"
+  },
+  "typesafe": {
+    "countryCode": "US",
+    "sourceURL": "https://typesafe.ai/legal/terms",
+    "source": "official"
+  },
+  "dotsstudio": {
+    "countryCode": "CN",
+    "sourceURL": "https://studio.dots.ai/",
+    "source": "official"
   }
 }

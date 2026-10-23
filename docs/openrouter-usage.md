@@ -2,7 +2,11 @@
 
 核实日期：2026-10-23。
 
-底部新增“用量”，顶部仅一个“用量排行”数据源 OpenRouter。统计最近一个完整 UTC 日的公开模型输入与输出 token 总量，并非请求次数、用户数、能力评分或整个 AI 市场份额。展示当日前 50 个公开模型；`other` 是榜外模型的聚合量，不作为模型参赛。免费及其他 `:variant` 后缀按来源独立保留。不同供应商的 tokenizer 不同，用量比较仅作规模参考。私有模型、私有端点和零数据留存流量不在数据范围内。
+同日全量核对当前保存的 50 个模型：原有 6 行缺少源码分类，3 行缺少国家。共享规则按完整永久 ID 补充 MiniMax M3.1 Flash 免费版（权重尚未发布，闭源）、Muse Spark 1.3 Contributor（闭源）、Jev 1.13 / 1.14（闭源）、Dots3-Note Preview 免费版（开放权重）和 GPT-6 Luna Pro（闭源）；TypeSafe 国家为美国，Dots Studio 为中国。依据 URL、核实日期和版本说明保存在 `fc/leaderboard-policy.json` 与 `fc/country-catalog.json`。这些规则在缓存读取和新快照保存时生效，不修改排名、用量或统计时间；明确的上游分类优先，未核实的其他版本不套用。核对记录保存在 `work/openrouter-repair/coverage-*.json`。
+
+补充规则已部署并写入线上保存快照。GET / POST 刷新实测 HTTP 200，国家覆盖 50/50，源码分类为开放权重 25、闭源 25，无缺失；小程序归一化与筛选结果一致，原排名及整数用量不变。61 项相关 Node 回归测试通过，生成的原生共享策略与目录一致。
+
+底部“用量”中以 OpenRouter 和 Vercel AI Gateway 切换数据来源；本文描述 OpenRouter，Vercel 的百分比口径见 vercel-usage.md。统计最近一个完整 UTC 日的公开模型输入与输出 token 总量，并非请求次数、用户数、能力评分或整个 AI 市场份额。展示当日前 50 个公开模型；`other` 是榜外模型的聚合量，不作为模型参赛。免费及其他 `:variant` 后缀按来源独立保留。不同供应商的 tokenizer 不同，用量比较仅作规模参考。私有模型、私有端点和零数据留存流量不在数据范围内。
 
 “源码”列沿用现有 models.dev 开放权重分类。用量 Data API 的 `model_permaslug` 与 models.dev 的 OpenRouter 端点 ID 格式不同；采集时另读固定的 [官方模型目录](https://openrouter.ai/docs/api/api-reference/models/get-models)，根据每条明确的 `canonical_slug` / `id` 对应关系保存 `openRouterModelID`，再限定到 models.dev 的 `openrouter` 供应商 offer 匹配。保留榜单完整永久标识、日期、排名及整数用量；目录行未将变体写入 canonical slug 时，仅补回该行 ID 中明确的变体。不同版本、日期和免费/批量等变体不会通过删后缀、名称子串或厂商整体推断关联。动态别名、冲突对应或未收录模型保留未知；目录下载、格式校验失败不影响已经验证的用量榜单。
 

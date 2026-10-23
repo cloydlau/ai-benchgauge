@@ -133,7 +133,7 @@ export class SharedLeaderboards {
       if (!await this.store.appendState(key, position, { issuedAt: now, nextAttemptAt })) return { board: cached };
       let board = await this.openRouterUsage({ now });
       if (board?.kind !== openRouterKind || !board.entries?.length || replacementFailure(board, cached)) throw new Error('Invalid or older usage snapshot');
-      board = await this.enrich(board, { acquire: true });
+      board = await this.withModelOpenness(await this.enrich(board, { acquire: true }));
       await this.store.writeBoard(openRouterKind, board);
       await this.models?.queue?.(board);
       return { board, retryAt: nextAttemptAt };
