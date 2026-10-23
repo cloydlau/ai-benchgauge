@@ -208,6 +208,43 @@
       "openness": "closed",
       "sourceURL": "https://epoch.ai/models/qwen-3-6-flash",
       "verifiedAt": "2026-10-18"
+    },
+    "minimax/minimax-m3.1-flash-20261019:free": {
+      "openness": "closed",
+      "sourceURL": "https://openrouter.ai/minimax/minimax-m3.1-flash-20261019:free",
+      "verifiedAt": "2026-10-23",
+      "note": "Official model page says open weights are planned, not released; the retired free route remains this exact build."
+    },
+    "typesafe/jev-1.13-20260917": {
+      "openness": "closed",
+      "sourceURL": "https://openrouter.ai/blog/insights/what-is-jev/",
+      "verifiedAt": "2026-10-23",
+      "note": "OpenRouter documents Jev as proprietary with no published model weights; SDK source availability does not make the model open-weight."
+    },
+    "typesafe/jev-1.14-20261014": {
+      "openness": "closed",
+      "sourceURL": "https://openrouter.ai/blog/insights/what-is-jev/",
+      "verifiedAt": "2026-10-23",
+      "note": "OpenRouter explicitly identifies Jev 1.14 and 1.13 as proprietary with no published weights."
+    },
+    "meta/muse-spark-1.3-contributor-20260902": {
+      "openness": "closed",
+      "sourceURL": "https://epoch.ai/models/muse-spark-1-3",
+      "verifiedAt": "2026-10-23",
+      "note": "Epoch records Muse Spark 1.3 as closed weights; OpenRouter identifies Contributor as the cost-efficient tier of that model.",
+      "identitySourceURL": "https://openrouter.ai/meta/muse-spark-1.3-contributor"
+    },
+    "dots-studio/dots-3-note-preview-20260813:free": {
+      "openness": "open",
+      "sourceURL": "https://openrouter.ai/dots-studio",
+      "verifiedAt": "2026-10-23",
+      "note": "OpenRouter explicitly describes Dots3-Note Preview as an open-weight model."
+    },
+    "openai/gpt-6-luna-pro-20260922": {
+      "openness": "closed",
+      "sourceURL": "https://openrouter.ai/openai/gpt-6-luna-pro-20260922",
+      "verifiedAt": "2026-10-23",
+      "note": "Official route describes Pro as the same underlying GPT-6 Luna model with reasoning.mode=pro; the saved models.dev Luna record has openWeights=false."
     }
   }
 }

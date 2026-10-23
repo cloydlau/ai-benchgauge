@@ -5,7 +5,8 @@ import { once } from 'node:events';
 import { completedUsageDay, parseOpenRouterUsage, loadOpenRouterUsage, loadConfiguredOpenRouterUsage, openRouterInterval, openRouterModelsURL, withOpenRouterModels } from '../fc/openrouter-usage.mjs';
 import { collectorHandler } from '../fc/arena-collector.mjs';
 import { SharedLeaderboards } from '../fc/service.mjs';
-import { companyRows } from '../fc/domain.mjs';
+import { companyRows, resolvedOpenness } from '../fc/domain.mjs';
+import { CountryRegistry } from '../fc/countries.mjs';
 import { categories, boards } from '../apps/weapp/src/core/catalog.js';
 import { visibleRows, normalizeBoard } from '../apps/weapp/src/core/leaderboard.js';
 const now = Date.parse('2026-10-23T00:01:00Z');
@@ -14,6 +15,48 @@ const fixture = () => ({ meta: { as_of: '2026-10-23T00:00:30Z', version: 'v1', s
     { date: '2026-10-22', model_permaslug: 'openai/model-two:free', total_tokens: '20000000000' },
     { date: '2026-10-22', model_permaslug: 'anthropic/model-three', total_tokens: '30000000000' },
     { date: '2026-10-22', model_permaslug: 'other', total_tokens: '10000000000000000000' }] });
+test('audited OpenRouter gaps repair saved and refreshed rows without guessing other builds or changing usage', async () => {
+  const cases = [
+    ['minimax/minimax-m3.1-flash-20261019:free', 'CN', 'closed'],
+    ['meta/muse-spark-1.3-contributor-20260902', 'US', 'closed'],
+    ['typesafe/jev-1.13-20260917', 'US', 'closed'],
+    ['typesafe/jev-1.14-20261014', 'US', 'closed'],
+    ['dots-studio/dots-3-note-preview-20260813:free', 'CN', 'open'],
+    ['openai/gpt-6-luna-pro-20260922', 'US', 'closed'],
+  ];
+  const payload = fixture();
+  payload.data = cases.map(([id], index) => ({ date: '2026-10-22', model_permaslug: id, total_tokens: String(9007199254740993n - BigInt(index)) }));
+  const raw = parseOpenRouterUsage(payload, { now }), original = structuredClone(raw);
+  let cached = { ...raw, entries: raw.entries.map(entry => ({ ...entry,
+    developerCountry: { key: entry.organization.replace(/[^a-z]/g, ''), status: 'failed', nextAttemptAt: now + openRouterInterval },
+  })) };
+  const store = { readBoard: async () => cached, writeBoard: async (_, board) => { cached = board; },
+    readState: async () => ({ position: 0 }), appendState: async () => true,
+    readCountry: async () => { assert.fail('verified countries must resolve without discovery or cache retries'); } };
+  const service = new SharedLeaderboards(store, { clock: () => now, countries: new CountryRegistry(store),
+    openRouterConfigured: () => true, openRouterUsage: async () => structuredClone(raw) });
+  for (const result of [await service.read('openRouterUsage'), await service.refresh('openRouterUsage'), await service.read('openRouterUsage')]) {
+    const board = result.board;
+    for (const [index, entry] of board.entries.entries()) {
+      assert.equal(entry.developerCountry.countryCode, cases[index][1], entry.modelID);
+      assert.equal(entry.developerCountry.status, 'ready');
+      assert.equal(entry.openness, cases[index][2], entry.modelID);
+      assert.equal(entry.totalTokens, raw.entries[index].totalTokens);
+      assert.equal(entry.rank, raw.entries[index].rank);
+    }
+    const normalized = normalizeBoard(board, board.kind);
+    assert.equal(visibleRows(normalized, { openness: 'open' }).length, 1);
+    assert.equal(visibleRows(normalized, { openness: 'closed' }).length, 5);
+    assert.equal(board.sourceNote, raw.sourceNote);
+    assert.deepEqual(board.sourceMeta, raw.sourceMeta);
+  }
+  assert.deepEqual(raw, original);
+  for (const [modelID] of cases) {
+    assert.equal(resolvedOpenness({ modelID: modelID + '-unverified' }), null);
+    assert.equal(resolvedOpenness({ modelID, openness: 'open' }), 'open');
+  }
+  assert.equal(resolvedOpenness({ modelID: 'minimax/minimax-m3-20260531', modelMetadata: { source: 'models.dev', openWeights: true } }), 'open');
+});
 test('one completed UTC day preserves exact tokens, variants, original meta and CC attribution; other is not a model', () => {
   assert.equal(completedUsageDay(now), '2026-10-22');
   const payload = fixture(), board = parseOpenRouterUsage(payload, { now });
