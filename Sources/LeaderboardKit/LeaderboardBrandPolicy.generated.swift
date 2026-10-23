@@ -29,6 +29,8 @@ enum LeaderboardBrandPolicy {
         "xai": "spacexai",
         "alibaba": "qwen",
         "alibabaath": "qwen",
+        "aorizon": "qwen",
+        "wan": "qwen",
         "bytedanceseed": "bytedance",
         "lumaai": "luma",
         "lumalabs": "luma",

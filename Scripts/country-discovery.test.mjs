@@ -88,6 +88,28 @@ test('verified currently missing video developers and aliases work on cached rea
   }
   assert.equal(calls, 0);
 });
+test('Arena HappyHorse and Wan aliases repair failed countries on cached reads for older clients', async () => {
+  const store = new Store();
+  const entries = [['happyhorse-1.0', 'aorizon'], ['wan2.7-t2v', 'wan']].map(([name, organization], index) => {
+    const failed = { key: organization, status: 'failed', nextAttemptAt: Date.now() + countryRetryInterval };
+    store.records.set(organization, failed);
+    return { name, modelID: name, organization, rank: index + 1, score: 1400 - index, developerCountry: failed };
+  });
+  const value = { kind: 'arenaTextToVideo', fetchedAt: '2026-10-20T08:23:00Z', sourceUpdatedAt: '2026-10-19T00:00:00Z', entries };
+  const original = structuredClone(value);
+  const registry = new CountryRegistry(store, { discover: async () => { assert.fail('verified aliases must not discover'); } });
+  const result = await registry.enrich(value);
+  for (const entry of result.entries) {
+    assert.equal(entry.organization, 'Alibaba');
+    assert.equal(brandKey(entry), 'qwen');
+    assert.equal(entry.developerCountry.key, 'qwen');
+    assert.equal(entry.developerCountry.countryCode, 'CN');
+    assert.equal(entry.developerCountry.status, 'ready');
+  }
+  const stripMetadata = ({ entries, ...rest }) => ({ ...rest, entries: entries.map(({ organization, developerCountry, ...entry }) => entry) });
+  assert.deepEqual(stripMetadata(result), stripMetadata(value));
+  assert.deepEqual(value, original);
+});
 test('MAGI developer country corrects failed discovery on cached reads without changing leaderboard data', async () => {
   const store = new Store(); let calls = 0;
   store.records.set('sandai', { key: 'sandai', status: 'failed', nextAttemptAt: Date.now() + countryRetryInterval });

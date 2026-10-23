@@ -176,6 +176,8 @@
     "xai": "spacexai",
     "alibaba": "qwen",
     "alibabaath": "qwen",
+    "aorizon": "qwen",
+    "wan": "qwen",
     "bytedanceseed": "bytedance",
     "lumaai": "luma",
     "lumalabs": "luma",
@@ -311,6 +313,8 @@
     "minimax"
   ],
   "organizationNames": {
+    "aorizon": "Alibaba",
+    "wan": "Alibaba",
     "microsoft": "Microsoft AI",
     "inclusionai": "Ant Group",
     "pikaart": "Pika",

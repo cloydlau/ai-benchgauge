@@ -2,6 +2,25 @@ import Foundation
 import Testing
 @testable import LeaderboardKit
 
+@Test func alibabaVideoAliasesSurviveOldCachesAndChinaCompanyFilters() throws {
+    let entries = [
+        LeaderboardEntry(rank: 1, name: "happyhorse-1.0", score: 1400, organization: "aorizon",
+            developerCountry: .init(key: "aorizon", countryCode: nil)),
+        LeaderboardEntry(rank: 2, name: "wan2.7-t2v", score: 1300, organization: "wan",
+            developerCountry: .init(key: "wan", countryCode: nil)),
+        LeaderboardEntry(rank: 3, name: "HappyHorse-1.1", score: 1200, organization: "Alibaba-ATH"),
+        LeaderboardEntry(rank: 4, name: "Wan2.7-260612", score: 1100, organization: "Alibaba"),
+    ]
+    let board = Leaderboard(kind: .arenaTextToVideo, title: "Video", entries: entries)
+    let cached = try JSONDecoder().decode(Leaderboard.self, from: JSONEncoder().encode(board))
+    #expect(cached.entries.allSatisfy { OrganizationRegion.country(for: $0) == .china })
+    #expect(LeaderboardPresentation.rows(cached, grouping: .model, filter: .country(.china)).count == 4)
+    let companies = LeaderboardPresentation.rows(cached, grouping: .company, filter: .country(.china))
+    #expect(companies.count == 1)
+    #expect(companies.first?.name == "Alibaba")
+    #expect(companies.first?.score == 1400)
+}
+
 @Test func hongKongMacaoTaiwanUseChinaForCachedRowsFlagsAndFilters() throws {
     for code in ["HK", "MO", "TW", " hk ", "mo", "tw", "HKG", "MAC", "TWN", "Hong Kong", "Macao", "Macau", "Taiwan", "香港", "澳门", "澳門", "台湾", "台灣", "臺灣"] {
         let country = try #require(OrganizationCountry(regionCode: code))
