@@ -29,6 +29,8 @@ struct LeaderboardQuotaProviderTests {
         snapshot.boards[.openRouterUsage] = Leaderboard(kind: .openRouterUsage, title: "OpenRouter", entries: [
             LeaderboardEntry(rank: 1, name: "openrouter/traffic-only", score: 999_999, organization: "OpenRouter")
         ])
+        snapshot.boards[.vercelUsage] = Leaderboard(kind: .vercelUsage, title: "Vercel AI Gateway", entries: [LeaderboardEntry(rank: 1, name: "Vercel traffic only", score: 99, organization: "Vercel")])
+        #expect(LeaderboardQuotaProviders.rankedOrganizations(in: LeaderboardSnapshot(boards: [.vercelUsage: snapshot.boards[.vercelUsage]!])).isEmpty)
         #expect(LeaderboardQuotaProviders.rankedOrganizations(in: snapshot) == organizations)
         #expect(LeaderboardQuotaProviders.rankedOrganizations(in: LeaderboardSnapshot(boards: [.openRouterUsage: snapshot.boards[.openRouterUsage]!])).isEmpty)
     }

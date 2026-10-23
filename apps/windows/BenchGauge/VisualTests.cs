@@ -114,7 +114,7 @@ static class VisualTests
             if (test.Grouping == "company") state = state with { Boards = state.Boards.Select(board => board with {
                 Entries = board.Entries.GroupBy(entry => entry.Organization).Select(group => {
                     var best = group.OrderByDescending(entry => entry.Score).First();
-                    return best with { Name = best.Organization ?? best.Name, Score = board.Kind == "openRouterUsage" ? group.Sum(entry => entry.Score) : best.Score };
+                    return best with { Name = best.Organization ?? best.Name, Score = board.Kind is "openRouterUsage" or "vercelUsage" ? group.Sum(entry => entry.Score) : best.Score };
                 }).OrderByDescending(entry => entry.Score).ToArray()
             }).ToArray() };
             var panel = new MainWindow(null, preferences)

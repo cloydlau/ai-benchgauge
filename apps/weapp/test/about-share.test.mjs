@@ -43,6 +43,7 @@ test('about-page menu forwarding and cold-start back navigation retain the origi
   }
   const about = globalThis.aboutFactory(query)
   assert.deepEqual(about.items.map(item => [item.id, item.license]), [
+    ['vercel', true],
     ['openRouter', true],
     ['artificialAnalysis', false],
     ['arena', true],
@@ -144,5 +145,29 @@ test('about descriptions and share titles reuse common localized copy', () => {
     assert.equal(title, `${about.labels.about}｜${text(copy.rankingSummary, language)}`)
     assert.ok(!title.includes(text(copy.tagline, language)))
     assert.ok(about.description.includes(text(copy.tagline, language)))
+  }
+})
+
+test('Vercel agreement opens the current cached credit offline and never borrows OpenRouter attribution', () => {
+  globalThis.__APP_VERSION__ = '0.0.0'; globalThis.__THIRD_PARTY_NOTICES__ = []
+  globalThis.__ENGINEERING_INVESTMENT__ = { commitCount: 0, codeLineCount: 0 }
+  for (const language of ['en', 'zh-CN', 'zh-TW']) {
+    let note = '© 2026 Vercel · UTC 2026-10-22 · transformed shares'
+    globalThis.wx = {
+      getStorageSync: key => key === 'benchgauge.preferences' ? { language } : {},
+      env: { USER_DATA_PATH: '/offline' },
+      getFileSystemManager: () => ({ readFileSync: () => JSON.stringify({
+        openRouterUsage: { kind: 'openRouterUsage', fetchedAt: '2026-10-23T06:00:00Z', sourceNote: 'Wrong source credit', entries: [{ rank: 1, name: 'OR model', score: 9 }] },
+        vercelUsage: { kind: 'vercelUsage', fetchedAt: '2026-10-23T06:00:00Z', sourceNote: note, entries: [{ rank: 1, name: 'Vercel model', score: 16.3389 }] },
+      }) }),
+      getWindowInfo: () => ({ statusBarHeight: 24 }), getAppBaseInfo: () => ({ theme: 'light' }),
+      request: () => assert.fail('License opens offline'),
+    }
+    const about = globalThis.aboutFactory({})
+    const open = () => about.openLicense({ currentTarget: { dataset: { id: 'vercel' } } })
+    open(); assert.equal(about.licenseNotice.value.text, `${note}\n\n${ccByLicense(language).text}`)
+    about.closeLicense(); note = 'Updated Vercel credit'; open()
+    assert.ok(about.licenseNotice.value.text.startsWith(note)); assert.ok(!about.licenseNotice.value.text.includes('Wrong source credit'))
+    note = ''; open(); assert.ok(about.licenseNotice.value.text.includes('© 2026 Vercel'))
   }
 })

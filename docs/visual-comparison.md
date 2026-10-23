@@ -1,3 +1,40 @@
+## Vercel AI Gateway usage source — 2026-10-23
+
+Usage now offers OpenRouter and Vercel AI Gateway in all four clients. Vercel
+values are original daily text-token percentages, separate from OpenRouter's
+absolute B values. Company rows sum listed shares without creating token totals.
+Source dates explicitly show the UTC statistic day rather than a fabricated
+publication time. About agreements and exported images retain Vercel credit.
+
+Ignored work/vercel-usage/ contains 72 before/common-after Mac originals and 36
+additional new-source frames. The common baseline was reused only after all
+five recorded pre-change source hashes matched its original provenance; its
+fixture and viewport are unchanged. New cases are also in the canonical fixture
+and cover two sources, model/company views, long model names, tiny percentages,
+EN / 简中 / 繁中 and light/dark themes. Actual native captures are 850×720 points,
+macOS 27.0.1, 1× backing. All 24 common and 12 new refreshed/settled pairs are
+pixel-identical. Reviewed original English model/light and Chinese company/dark
+frames show readable B/% units, separate headers and complete percentage values.
+Common pending-source states use the native form capture's existing three-color
+check because an intentionally empty table has no table-region variation.
+verification.json retains source/executable/fixture hashes and real-data checks.
+
+101 backend tests, 159 mini-program tests, 554 native core tests and Windows unit
+checks pass; mini-program production and Windows Release cross-builds pass.
+iOS Release builds for both simulator and physical-device targets also pass with
+Xcode selected through the build command environment; this does not install an app.
+The deployed shared endpoint returns 10 real Vercel models for UTC 2026-10-22,
+all precisely matched to models.dev (five open and five closed). Listed shares
+sum to 78.3011%; Other is 21.6988%. Existing OpenRouter still returns 50 rows
+with exact absolute-token strings. These counts describe this snapshot only.
+
+WeChat DevTools reports loginExpired=true, so simulator visual validation remains
+unavailable. Per wechatide-skill/SKILL.md 0.3.11, runtime work requires
+“loginExpired: false”; no runtime or upload success is claimed. Native Windows
+screenshots/OS/DPI, a matching native-visual-comparison CI artifact and iPhone/iPad
+interaction screenshots are unavailable. No protected release approval or client
+installation is claimed. See vercel-usage.md for upstream license and methodology.
+
 ## OpenRouter notice placement — 2026-10-23
 
 The mini-program, iOS and Mac no longer show the raw OpenRouter attribution

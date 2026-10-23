@@ -146,19 +146,21 @@ struct LeaderboardView: View {
         VStack(spacing: 0) {
             header
             table.overlay {
-                if state.selectedCategory == .usage, state.snapshot.boards[.openRouterUsage] == nil {
+                if state.selectedCategory == .usage, visibleKinds.allSatisfy({ state.snapshot.boards[$0]?.entries.isEmpty ?? true }) {
                     VStack(spacing: 10) {
                         if state.isRefreshing { ProgressView() }
-                        Text(state.lastErrors[.openRouterUsage] ?? tr("Data source awaiting configuration", "数据源待配置"))
+                        Text(tr("No usage data yet", "暂无用量数据"))
                             .multilineTextAlignment(.center)
-                        Text(tr("OpenRouter · token usage · server API key required", "OpenRouter · token 用量 · 需配置服务端 API Key")).font(.caption)
+                        ForEach(visibleKinds, id: \.self) { kind in
+                            Text(kind.sourcePrefix + " · " + (state.lastErrors[kind] ?? tr("Waiting for data", "等待数据"))).font(.caption)
+                        }
                     }.padding(24).foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(BrandTheme.background(for: colorScheme))
                 }
             }
-            if screenshot.isCapturing, state.selectedCategory == .usage, let board = state.snapshot.boards[.openRouterUsage] {
-                Text(board.sourceNote ?? "")
+            if screenshot.isCapturing, state.selectedCategory == .usage {
+                Text(visibleKinds.compactMap { state.snapshot.boards[$0]?.sourceNote }.joined(separator: "\n\n"))
                     .font(.system(size: 9)).foregroundStyle(.secondary).textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 18).padding(.vertical, 6)
             }
@@ -171,6 +173,7 @@ struct LeaderboardView: View {
         .accentColor(BrandTheme.accent(for: colorScheme))
         .sheet(item: $screenshot.licenseSection) { section in
             LicenseNoticesView(section: section, language: language,
+                               vercelSourceNote: state.snapshot.boards[.vercelUsage]?.sourceNote,
                                openRouterSourceNote: state.snapshot.boards[.openRouterUsage]?.sourceNote)
         }
         .sheet(isPresented: $screenshot.showOfficialAccounts) {
@@ -386,7 +389,7 @@ struct LeaderboardView: View {
     private var visibleKinds: [LeaderboardKind] { state.visibleBoardKinds }
     private func kind(at slot: Int) -> LeaderboardKind { visibleKinds.indices.contains(slot) ? visibleKinds[slot] : visibleKinds[0] }
     private func shareColor(for kind: LeaderboardKind) -> Color {
-        kind == .openRouterUsage ? .orange : kind == .epochECI ? .teal : (kind.sourceLinkTitle == LeaderboardKind.artificialAnalysis.sourceLinkTitle ? .blue : .purple)
+        kind == .vercelUsage ? .secondary : kind == .openRouterUsage ? .orange : kind == .epochECI ? .teal : (kind.sourceLinkTitle == LeaderboardKind.artificialAnalysis.sourceLinkTitle ? .blue : .purple)
     }
 
 
@@ -1012,7 +1015,7 @@ struct LeaderboardView: View {
                 guard entries.indices.contains(slot) else { return nil }
                 let list = entries[slot]
                 return cellModel(for: index < list.count ? list[index] : nil, organizationLogos: logos,
-                    leaderScore: unsearched[slot].first?.entry.score)
+                    leaderScore: unsearched[slot].first?.entry.score, showRelativeShare: visibleKinds[slot] != .vercelUsage)
             }
             return LeaderboardRow(rank: index + 1, cells: cells)
         }
@@ -1032,7 +1035,7 @@ struct LeaderboardView: View {
         return LeaderboardPresentation.companies(board, filter: filter, openness: openness).map { standing in
             DisplayedLeaderboardEntry(
                 entry: standing.entry,
-                scoreHelp: CompanyLeaderboard.scoreHelp(for: standing, language: language),
+                scoreHelp: CompanyLeaderboard.scoreHelp(for: standing, language: language, kind: board?.kind),
                 isCompany: true
             )
         }
@@ -1044,7 +1047,7 @@ struct LeaderboardView: View {
 
     private func cellModel(
         for displayed: DisplayedLeaderboardEntry?,
-        organizationLogos: [String: URL], leaderScore: Double?
+        organizationLogos: [String: URL], leaderScore: Double?, showRelativeShare: Bool
     ) -> LeaderboardCellModel? {
         guard let displayed else { return nil }
         let entry = displayed.entry
@@ -1063,7 +1066,7 @@ struct LeaderboardView: View {
                 ),
             scoreHelp: displayed.scoreHelp,
             isCompany: displayed.isCompany,
-            leaderScore: leaderScore
+            showRelativeShare: showRelativeShare, leaderScore: leaderScore
         )
     }
 
@@ -1093,7 +1096,7 @@ struct LeaderboardView: View {
 /// SwiftUI's TableColumn labels only support plain text. Install a native
 /// one-line header with the source name leading and its own data time trailing.
 private func headerLicenseName(kind: LeaderboardKind, board: Leaderboard?) -> String? {
-    kind == .epochECI || kind == .openRouterUsage || ArenaAttribution.applies(board) ? "CC BY 4.0" : nil
+    kind == .epochECI || kind.isUsage || ArenaAttribution.applies(board) ? "CC BY 4.0" : nil
 }
 
 private struct BoardHeaderConfiguration {
@@ -1467,7 +1470,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             }
             switch role {
             case 0:
-                let tint: NSColor = board.kind == .openRouterUsage ? .systemOrange : board.kind == .epochECI ? .systemTeal
+                let tint: NSColor = board.kind == .vercelUsage ? .secondaryLabelColor : board.kind == .openRouterUsage ? .systemOrange : board.kind == .epochECI ? .systemTeal
                     : (board.kind.sourceLinkTitle == LeaderboardKind.artificialAnalysis.sourceLinkTitle ? .systemBlue : .systemPurple)
                 drawBoardHeader(tableView.tableColumns[index].headerCell.stringValue,
                     licenseName: board.licenseName, summary: board.summary,
@@ -1673,6 +1676,7 @@ private struct LeaderboardCellModel {
     let logoURL: URL?
     let scoreHelp: String?
     let isCompany: Bool
+    var showRelativeShare: Bool = true
     var leaderScore: Double? = nil
 
     func brandColor(isDark: Bool) -> Color? {
@@ -1726,7 +1730,7 @@ private struct LeaderboardCell: View {
                 model?.entry.score ?? 0, leaderScore: model?.leaderScore)
             let share = LeaderboardPresentation.scoreShareText(
                 model?.entry.score ?? 0, leaderScore: model?.leaderScore)
-            let showsShare = !share.isEmpty && filledWidth >= 38
+            let showsShare = model?.showRelativeShare != false && !share.isEmpty && filledWidth >= 38
             ZStack(alignment: .leading) {
                 if let brandColor = model?.brandColor(isDark: colorScheme == .dark) {
                     RoundedRectangle(cornerRadius: 5, style: .continuous)

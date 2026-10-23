@@ -352,6 +352,7 @@ public struct LeaderboardPadView: View {
     private var aboutSheet: some View {
         PadAboutView(language: store.language, brand: appTitle(fontSize: 24),
                      copyLink: copyName, dismiss: { presentation.showingAbout = false },
+                     vercelSourceNote: store.snapshot.boards[.vercelUsage]?.sourceNote,
                      openRouterSourceNote: store.snapshot.boards[.openRouterUsage]?.sourceNote)
         .overlay(alignment: .bottom) {
             if let note = presentation.note { Text(note).font(.footnote).padding(12).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8)).padding(20) }
@@ -396,7 +397,7 @@ public struct LeaderboardPadView: View {
     }
 
     @ViewBuilder private var cubeSelector: some View {
-        if store.category == .usage {
+        if store.category == .usage && store.category.boardKinds.count == 1 {
             HStack(spacing: 8) {
                 Text("OpenRouter").font(.caption.weight(.semibold))
                 Text(LeaderboardPresentation.explanation(.openRouterUsage, language: store.language)).font(.caption)
@@ -406,10 +407,10 @@ public struct LeaderboardPadView: View {
         HStack(spacing: 6) {
             ForEach(Array(store.category.boardKinds.enumerated()), id: \.offset) { index, kind in
                 Button { turnCube(to: index) } label: {
-                    Text(LeaderboardPresentation.explanation(kind, language: store.language))
+                    Text(kind.isUsage ? kind.sourcePrefix : LeaderboardPresentation.explanation(kind, language: store.language))
                         .font(.caption.weight(.semibold))
                         .lineLimit(2).frame(maxWidth: .infinity, minHeight: 38)
-                        .foregroundStyle((sourceDragIndex ?? cube.face) == index ? (index == 0 ? Color.blue : (index == 2 ? Color.teal : Color.purple)) : Color.secondary)
+                        .foregroundStyle((sourceDragIndex ?? cube.face) == index ? (store.category == .usage ? (index == 0 ? Color.orange : Color.secondary) : (index == 0 ? Color.blue : (index == 2 ? Color.teal : Color.purple))) : Color.secondary)
                         .contentShape(Rectangle())
                 }.buttonStyle(.plain).disabled(store.category.boardKinds.count == 1).accessibilityIdentifier("face-\(index)")
                     .accessibilityAddTraits(cube.face == index ? .isSelected : [])
@@ -422,7 +423,7 @@ public struct LeaderboardPadView: View {
                 let count = store.category.boardKinds.count
                 let tabWidth = (geometry.size.width - CGFloat(count - 1) * 6) / CGFloat(count)
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(((sourceDragIndex ?? cube.face) == 0 ? Color.blue : ((sourceDragIndex ?? cube.face) == 2 ? Color.teal : Color.purple)).opacity(0.12))
+                    .fill((store.category == .usage ? ((sourceDragIndex ?? cube.face) == 0 ? Color.orange : Color.secondary) : ((sourceDragIndex ?? cube.face) == 0 ? Color.blue : ((sourceDragIndex ?? cube.face) == 2 ? Color.teal : Color.purple))).opacity(0.12))
                     .frame(width: tabWidth)
                     .offset(x: CGFloat(sourceDragIndex ?? cube.face) * (tabWidth + 6))
             }
@@ -836,8 +837,8 @@ public struct LeaderboardPadView: View {
                     category: store.category, language: store.language)).font(.caption).foregroundStyle(secondary)
             }
             boardPair(wide: width >= 760, isImage: true, exportScheme: scheme, pageRows: pageRows)
-            if let usage = store.snapshot.boards[.openRouterUsage], store.category == .usage {
-                Text(usage.sourceNote ?? "").font(.system(size: 11)).foregroundStyle(secondary).fixedSize(horizontal: false, vertical: true)
+            if store.category == .usage {
+                Text(store.category.boardKinds.compactMap { store.snapshot.boards[$0]?.sourceNote }.joined(separator: "\n\n")).font(.system(size: 11)).foregroundStyle(secondary).fixedSize(horizontal: false, vertical: true)
             }
             if store.category.boardKinds.contains(.epochECI) {
                 Text(EpochAttribution.fullText(language: store.language))
@@ -1225,7 +1226,7 @@ private struct PadBoardCard: View {
     }
     private var timeLabels: some View {
         let time = LeaderboardPresentation.sourceTime(board, language: language)
-        let accent = kind == .openRouterUsage ? Color.orange : kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue)
+        let accent = kind == .vercelUsage ? Color.secondary : kind == .openRouterUsage ? Color.orange : kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue)
         return Text(time.text).font(.system(size: timeFontSize, weight: time.isSourceTime ? .medium : .regular))
         .foregroundColor(time.isSourceTime ? accent : secondaryForeground).monospacedDigit()
         .multilineTextAlignment(.trailing).lineLimit(1).fixedSize()
@@ -1291,7 +1292,7 @@ private struct PadBoardCard: View {
                 HStack(spacing: 2) {
                 Text(kind.sourceLinkTitle)
                     .font(columnHeaderFont.weight(.semibold))
-                    .foregroundStyle(kind == .openRouterUsage ? Color.orange : kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue))
+                    .foregroundStyle(kind == .vercelUsage ? Color.secondary : kind == .openRouterUsage ? Color.orange : kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue))
                     .lineLimit(1).minimumScaleFactor(0.8)
                     .accessibilityIdentifier("source-heading-\(kind.rawValue)")
                 if !isImage && grouping == .model {
@@ -1511,7 +1512,7 @@ private struct PadBoardCard: View {
         .sheet(isPresented: Binding(get: { detail.selectedCompany != nil }, set: { if !$0 { detail.selectedCompany = nil } })) {
             NavigationStack {
                 ScrollView {
-                    if let standing = detail.selectedCompany { Text(CompanyLeaderboard.scoreHelp(for: standing, language: language)).frame(maxWidth: .infinity, alignment: .leading).padding(24) }
+                    if let standing = detail.selectedCompany { Text(CompanyLeaderboard.scoreHelp(for: standing, language: language, kind: kind)).frame(maxWidth: .infinity, alignment: .leading).padding(24) }
                 }.navigationTitle(detail.selectedCompany?.entry.name ?? "")
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button(tr("Done", "完成")) { detail.selectedCompany = nil } } }
             }
@@ -1606,10 +1607,10 @@ private struct PadBoardCard: View {
     private func scoreValue(_ entry: LeaderboardEntry) -> some View {
         Text(LeaderboardPresentation.scoreText(entry.score, kind: kind)).monospacedDigit()
             .overlay(alignment: .bottomTrailing) {
-                let share = LeaderboardPresentation.scoreShareText(entry.score, leaderScore: rowPresentation.leaderScore)
+                let share = kind == .vercelUsage ? "" : LeaderboardPresentation.scoreShareText(entry.score, leaderScore: rowPresentation.leaderScore)
                 if !share.isEmpty {
                     Text(share).font(.system(size: 8)).monospacedDigit()
-                        .foregroundStyle(kind == .openRouterUsage ? Color.orange : kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue)).offset(y: 10)
+                        .foregroundStyle(kind == .vercelUsage ? Color.secondary : kind == .openRouterUsage ? Color.orange : kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue)).offset(y: 10)
                         .allowsHitTesting(false)
                 }
             }

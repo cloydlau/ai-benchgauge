@@ -39,7 +39,7 @@ export function planScreenshot(context, model) {
   }
   context.font = '11px sans-serif'
   const notices = [boards.some(board => board.kind === 'epochECI') ? epochAttribution(model.language).fullText : '',
-    ...boards.filter(board => board.kind === 'openRouterUsage').map(board => board.sourceNote || ''),
+    ...boards.filter(board => ['openRouterUsage', 'vercelUsage'].includes(board.kind)).map(board => board.sourceNote || ''),
     boards.some(isArenaDatasetBoard) ? arenaAttribution(model.language).fullText : ''].filter(Boolean)
   const attributionLines = notices.flatMap(notice => wrapText(context, notice, screenshotWidth - margin * 2))
   const footerHeight = bottom + (attributionLines.length ? attributionLines.length * 16 + 12 : 0)
@@ -85,7 +85,7 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
   }
   text(context, `${model.groupingLabel} · ${model.categoryLabel}`, screenshotWidth - margin, 40, 15, colors.muted, { align: 'right' })
   image.boards.forEach((board, column) => {
-    const x = margin + column * (columnWidth + gap), accent = board.kind === 'openRouterUsage' ? (model.dark ? '#ffb45c' : '#a76514') : column ? colors.purple : colors.blue
+    const x = margin + column * (columnWidth + gap), accent = board.kind === 'openRouterUsage' ? (model.dark ? '#ffb45c' : '#a76514') : board.kind === 'vercelUsage' ? colors.muted : column ? colors.purple : colors.blue
     rounded(context, x, 80, columnWidth, image.height - 80 - image.footerHeight, 12, colors.card)
     text(context, board.tab, x + 16, 104, 16, accent, { bold: true })
     text(context, board.time, x + columnWidth - 16, 132, 11, board.isSourceTime ? accent : colors.muted,
@@ -98,7 +98,7 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
     text(context, board.title, x + 49, 213, 13, accent, { bold: true })
     text(context, model.labels.country, countryX, 213, 11, colors.muted, { align: 'center' })
     if (showSource) text(context, model.labels.source, sourceX, 213, 11, colors.muted, { align: 'center' })
-    text(context, board.kind === 'openRouterUsage' ? (model.language === 'en' ? 'Tokens' : '用量') : model.labels.score, scoreX, 213, 12, colors.muted, { align: 'right' })
+    text(context, board.kind === 'vercelUsage' ? (model.language === 'en' ? 'Share' : model.language === 'zh-TW' ? '佔比' : '占比') : board.kind === 'openRouterUsage' ? (model.language === 'en' ? 'Tokens' : '用量') : model.labels.score, scoreX, 213, 12, colors.muted, { align: 'right' })
     context.strokeStyle = colors.line; context.lineWidth = 1; context.beginPath()
     context.moveTo(x + 12, 232); context.lineTo(x + columnWidth - 12, 232); context.stroke()
     if (!board.rows.length) text(context, board.empty, x + columnWidth / 2, top + 48, 14, colors.muted, { align: 'center' })

@@ -88,8 +88,8 @@ definePage(query => {
   const categoryDragIndex = ref(null)
   const sourceSelection = computed(() => {
     const position = sourceDragIndex.value ?? face.value
-    const from = dark.value ? [29, 55, 82] : [228, 240, 255]
-    const to = dark.value ? [59, 42, 78] : [238, 229, 248]
+    const from = category.value === 'usage' ? (dark.value ? [65, 48, 28] : [250, 237, 218]) : dark.value ? [29, 55, 82] : [228, 240, 255]
+    const to = category.value === 'usage' ? (dark.value ? [48, 51, 55] : [233, 235, 238]) : dark.value ? [59, 42, 78] : [238, 229, 248]
     const color = position === 2 ? (dark.value ? [30, 65, 60] : [220, 244, 236]) : from.map((channel, index) => Math.round(channel + (to[index] - channel) * position))
     return `width:calc((100% - ${(current.value.kinds.length - 1) * 12}rpx) / ${current.value.kinds.length});transform:translateX(${position * 100}%) translateX(${position * 12}rpx);background-color:rgb(${color.join(',')});`
   })
@@ -406,7 +406,7 @@ definePage(query => {
   const categoryIndex = computed(() => categoryDragIndex.value ?? categories.findIndex(item => item.id === category.value))
   const sourceTabIndex = computed(() => sourceDragIndex.value ?? face.value)
   const current = computed(() => categoryFor(category.value))
-  const tabs = computed(() => current.value.kinds.map(kind => kind === 'openRouterUsage' ? tr('usage') : kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
+  const tabs = computed(() => current.value.kinds.map(kind => kind === 'openRouterUsage' ? 'OpenRouter' : kind === 'vercelUsage' ? 'Vercel AI Gateway' : kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
   const filterFor = kind => ({ country: 'all', openness: 'all', ...filters.value[kind] })
   const countriesFor = kind => countryOptions({ entries: Object.values(snapshots.value).flatMap(board => board?.entries || []) }, language.value, filterFor(kind).country)
   function setFilters(filter) {
@@ -444,6 +444,10 @@ definePage(query => {
     // A source date wins even when a later snapshot has been fetched.
     const isSourceTime = Number.isFinite(Date.parse(board?.sourceUpdatedAt))
     const value = isSourceTime ? board.sourceUpdatedAt : board?.fetchedAt
+    if (isSourceTime && board.kind === 'vercelUsage') {
+      const day = new Date(value)
+      return { time: `${day.getUTCMonth() + 1}/${day.getUTCDate()}`, timeLabel: tr('usageDay'), isSourceTime }
+    }
     const dataset = isSourceTime && isArenaDatasetBoard(board)
     return { time: dataset ? new Date(value).toISOString().slice(0, 10) : formatTime(value),
       timeLabel: tr(isSourceTime ? 'published' : 'updated'), isSourceTime }
@@ -464,7 +468,7 @@ definePage(query => {
       rowHeight: geometry.value.rowHeight,
       rows: renderRows(kind, entries, range, leaderScore),
       searchStyle: modelSearchVisible.value ? 'left:0px;right:0px;' : searchOrigins.value[kind] || 'left:50%;right:50%;',
-      scoreLabel: kind === 'openRouterUsage' ? tr('tokens') : tr('score'),
+      scoreLabel: kind === 'vercelUsage' ? tr('tokenShare') : kind === 'openRouterUsage' ? tr('tokens') : tr('score'),
       pendingConfiguration: !!configurationRequired.value[kind],
       hasBoard: !!board, filtered: filter.country !== 'all' || filter.openness !== 'all' || grouping.value === 'model' && !!modelSearchQuery.value.trim(),
       countryFiltered: filter.country !== 'all', sourceFiltered: filter.openness !== 'all',
@@ -947,7 +951,7 @@ definePage(query => {
       return
     }
     const row = rowView(entry, { company: grouping.value === 'company', dark: dark.value, kind })
-    const content = row.components.length ? tr(kind === 'openRouterUsage' ? 'usageSum' : 'strongest') : row.name
+    const content = row.components.length ? tr(kind === 'vercelUsage' ? 'usageShareSum' : kind === 'openRouterUsage' ? 'usageSum' : 'strongest') : row.name
     stopCube(); entrancePlayed = true
     companyDetails.value = { open: true, name: row.name, content, members: row.components }
   }

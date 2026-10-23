@@ -5,6 +5,7 @@ import { RequestError, SharedLeaderboards } from './service.mjs';
 import { BrandRegistry } from './brands.mjs';
 import { CountryRegistry } from './countries.mjs';
 import { loadConfiguredArenaDataset } from './arena-collector.mjs';
+import { loadConfiguredVercelUsage } from './vercel-usage.mjs';
 import { loadConfiguredOpenRouterUsage, openRouterConfigured } from './openrouter-usage.mjs';
 import { ModelsDevRegistry, loadConfiguredModelsDev, modelsDevInterval } from './models-dev.mjs';
 
@@ -37,7 +38,7 @@ export function handler(makeService, { syncToken = process.env.MODELS_DEV_SYNC_T
       if (action ? request.method !== 'POST' : request.method !== 'GET') throw new RequestError(405, 'Method not allowed');
       const service = await makeService(request);
       let result;
-      if (!action) result = kind === 'openRouterUsage' ? await service.refresh(kind) : await service.read(kind);
+      if (!action) result = ['openRouterUsage', 'vercelUsage'].includes(kind) ? await service.refresh(kind) : await service.read(kind);
       else if (action === 'refresh') result = await service.refresh(kind);
       else {
         const contentType = kind === 'epochECI' ? 'text/csv' : 'text/html';
@@ -79,7 +80,7 @@ async function serviceFor(request) {
   const client = new OSS(configuration);
   const store = new OSSStore(client);
   return new SharedLeaderboards(store, { brands: new BrandRegistry(store), countries: new CountryRegistry(store), arenaDataset: loadConfiguredArenaDataset,
-    openRouterUsage: loadConfiguredOpenRouterUsage, openRouterConfigured,
+    vercelUsage: loadConfiguredVercelUsage, openRouterUsage: loadConfiguredOpenRouterUsage, openRouterConfigured,
     models: new ModelsDevRegistry(store, { load: loadConfiguredModelsDev, cache: modelsCache }) });
 }
 

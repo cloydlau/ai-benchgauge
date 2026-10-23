@@ -10,7 +10,10 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
     case arenaTextToImage = "arenaTextToImage"
     case artificialAnalysisTextToVideo = "artificialAnalysisTextToVideo"
     case arenaTextToVideo = "arenaTextToVideo"
+    case vercelUsage = "vercelUsage"
     case openRouterUsage = "openRouterUsage"
+
+    public var isUsage: Bool { self == .openRouterUsage || self == .vercelUsage }
 
     /// Older builds stored these boards under abbreviated raw values.
     fileprivate static let legacyRawValues: [String: LeaderboardKind] = [
@@ -50,6 +53,7 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
             "https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index"
         case .artificialAnalysisCodingAgent:
             "https://artificialanalysis.ai/agents/coding-agents"
+        case .vercelUsage: "https://vercel.com/ai-gateway/leaderboards/models"
         case .openRouterUsage: "https://openrouter.ai/rankings"
         case .epochECI:
             "https://epoch.ai/eci"
@@ -84,6 +88,7 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
         case .arenaText, .codeArenaWebDev, .arenaTextToImage, .arenaTextToVideo:
             "Arena"
         case .epochECI: "Epoch AI"
+        case .vercelUsage: "Vercel AI Gateway"
         case .openRouterUsage: "OpenRouter"
         }
     }
@@ -94,6 +99,7 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
         case .artificialAnalysisCodingAgent: "Artificial Analysis 编程"
         case .arenaText: "Text Arena"
         case .epochECI: "Epoch ECI"
+        case .vercelUsage: "Vercel AI Gateway"
         case .openRouterUsage: "OpenRouter"
         case .codeArenaWebDev: "Code Arena"
         case .artificialAnalysisTextToImage: "Artificial Analysis 文生图"
@@ -129,7 +135,7 @@ public enum LeaderboardCategory: String, Codable, CaseIterable, Identifiable, Se
         case .coding: [.artificialAnalysisCodingAgent, .codeArenaWebDev]
         case .image: [.artificialAnalysisTextToImage, .arenaTextToImage]
         case .video: [.artificialAnalysisTextToVideo, .arenaTextToVideo]
-        case .usage: [.openRouterUsage]
+        case .usage: [.openRouterUsage, .vercelUsage]
         }
     }
 }

@@ -4,7 +4,7 @@ import { createBrandMeasurer } from '../../core/brand-title.js'
 import { pagePreferences, sharePath } from '../../core/share-state.js'
 import { epochAttribution } from '../../core/epoch-attribution.js'
 import { arenaAttribution } from '../../core/arena-attribution.js'
-import { ccByLicense, openRouterLicense } from '../../core/cc-by-4.0.js'
+import { ccByLicense, openRouterLicense, vercelLicense } from '../../core/cc-by-4.0.js'
 import { readCachedBoard } from '../../services/boards.js'
 import { investmentContent } from '../../core/investment.js'
 
@@ -37,17 +37,17 @@ definePage(query => {
   }
   const notices = __THIRD_PARTY_NOTICES__.map(item => ({ ...item,
     title: item.name || text([`Third-party notice ${item.number}`, `第三方软件声明 ${item.number}`, `第三方軟體聲明 ${item.number}`], language) }))
-  const attributions = { openRouter: { license: "CC BY 4.0" }, arena: arenaAttribution(language), epoch: epochAttribution(language) }
+  const attributions = { vercel: { license: "CC BY 4.0" }, openRouter: { license: "CC BY 4.0" }, arena: arenaAttribution(language), epoch: epochAttribution(language) }
   const licenseText = ccByLicense(language).text
   const items = leaderboardSources.map(item => ({ ...item,
-    domain: item.url.split('/')[2], mark: { openRouter: 'OR', artificialAnalysis: 'AA', arena: 'A', epoch: 'E' }[item.id],
+    domain: item.url.split('/')[2], mark: { vercel: 'V', openRouter: 'OR', artificialAnalysis: 'AA', arena: 'A', epoch: 'E' }[item.id],
     license: Boolean(attributions[item.id]) }))
   const licenseNotice = ref({ open: false, text: '' })
   const openLicense = event => {
     const id = event.currentTarget.dataset.id
     if (!attributions[id]) return
     licenseNotice.value = { open: true, text: id === 'openRouter'
-      ? openRouterLicense(readCachedBoard(wx, 'openRouterUsage')?.sourceNote, language) : licenseText }
+      ? openRouterLicense(readCachedBoard(wx, 'openRouterUsage')?.sourceNote, language) : id === 'vercel' ? vercelLicense(readCachedBoard(wx, 'vercelUsage')?.sourceNote, language) : licenseText }
   }
   const closeLicense = () => { licenseNotice.value = { ...licenseNotice.value, open: false } }
   const back = () => {

@@ -47,7 +47,7 @@ test('deployment rejects invalid endpoints and incomplete runtime credentials', 
   await checkExistingBucket({ ...oss, getBucketLifecycle: async () => ({ rules: [{ prefix: 'unrelated/' }] }) }, 'bucket', 'cn-shenzhen', '123')
 })
 
-const runtimeFiles = ['package.json', 'package-lock.json', 'bootstrap', 'server.mjs', 'service.mjs', 'domain.mjs', 'parser.mjs', 'openrouter-usage.mjs', 'epoch-eci.mjs', 'arena-dataset.mjs', 'arena-collector.mjs', 'arena-attribution.json', 'models-dev.mjs', 'models-dev-license.txt', 'model-openness.mjs', 'source-logos.mjs', 'oss-store.mjs', 'brands.mjs', 'brand-catalog.json', 'leaderboard-policy.json', 'countries.mjs', 'country-catalog.json']
+const runtimeFiles = ['package.json', 'package-lock.json', 'bootstrap', 'server.mjs', 'service.mjs', 'domain.mjs', 'parser.mjs', 'openrouter-usage.mjs', 'vercel-usage.mjs', 'epoch-eci.mjs', 'arena-dataset.mjs', 'arena-collector.mjs', 'arena-attribution.json', 'models-dev.mjs', 'models-dev-license.txt', 'model-openness.mjs', 'source-logos.mjs', 'oss-store.mjs', 'brands.mjs', 'brand-catalog.json', 'leaderboard-policy.json', 'countries.mjs', 'country-catalog.json']
 function fixture(t, mode, config) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'benchgauge-cloud-boundary-')))
   t.after(() => rmSync(root, { recursive: true, force: true }))

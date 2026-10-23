@@ -5,8 +5,8 @@ import Testing
 import FoundationNetworking
 #endif
 
-@Test func usageIsAnIndependentSingleSourceCategoryAndPreservesExactCounts() throws {
-    #expect(LeaderboardCategory.usage.boardKinds == [.openRouterUsage])
+@Test func usageIsAnIndependentCategoryAndPreservesExactCounts() throws {
+    #expect(LeaderboardCategory.usage.boardKinds == [.openRouterUsage, .vercelUsage])
     #expect(LeaderboardKind.openRouterUsage.sourceURL.absoluteString == "https://openrouter.ai/rankings")
     #expect(LeaderboardKind.openRouterUsage.sourcePrefix == "OpenRouter")
     let entries = [
@@ -29,7 +29,7 @@ import FoundationNetworking
     for language in AppLanguage.allCases {
         #expect(!LeaderboardPresentation.scoreTitle(.openRouterUsage, language: language).isEmpty)
         #expect(!LeaderboardPresentation.title(.usage, language: language).isEmpty)
-        #expect(LeaderboardPresentation.sourceHelp(.openRouterUsage, language: language, board: board).contains("Licensed under CC BY 4.0"))
+        #expect(LeaderboardPresentation.sourceHelp(.openRouterUsage, language: language, board: board).contains("1B"))
     }
     #expect(LeaderboardPresentation.scoreText(5.678, kind: .openRouterUsage) == "5.68B")
     #expect(LeaderboardPresentation.scoreText(0.0001, kind: .openRouterUsage) == "<0.01B")

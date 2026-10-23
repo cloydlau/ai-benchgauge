@@ -26,7 +26,7 @@ public enum LeaderboardPresentation {
                             modelQuery: String = "") -> [LeaderboardEntry] {
         let entries = filteredEntries(board, country: filter, openness: openness)
         let matches = modelNameMatcher(modelQuery)
-        return grouping == .company ? CompanyLeaderboard.rank(entries, summingUsage: board?.kind == .openRouterUsage).map(\.entry)
+        return grouping == .company ? CompanyLeaderboard.rank(entries, summingUsage: board?.kind.isUsage == true).map(\.entry)
             : entries.filter { matches($0.name) }
     }
 
@@ -48,7 +48,7 @@ public enum LeaderboardPresentation {
 
     public static func companies(_ board: Leaderboard?, filter: LeaderboardCountryFilter,
                                  openness: LeaderboardOpennessFilter = .all) -> [CompanyStanding] {
-        CompanyLeaderboard.rank(filteredEntries(board, country: filter, openness: openness), summingUsage: board?.kind == .openRouterUsage)
+        CompanyLeaderboard.rank(filteredEntries(board, country: filter, openness: openness), summingUsage: board?.kind.isUsage == true)
     }
 
     private static func filteredEntries(_ board: Leaderboard?, country: LeaderboardCountryFilter,
@@ -87,6 +87,7 @@ public enum LeaderboardPresentation {
         case .artificialAnalysisCodingAgent: "Artificial Analysis Coding Agent Index"
         case .arenaText: "Arena | Text"
         case .epochECI: "Epoch Capabilities Index"
+        case .vercelUsage: "Vercel AI Gateway | Token share"
         case .openRouterUsage: "OpenRouter | Token usage"
         case .codeArenaWebDev: "Code Arena | WebDev"
         case .artificialAnalysisTextToImage: "Artificial Analysis | 文生图"
@@ -116,6 +117,7 @@ public enum LeaderboardPresentation {
         case .artificialAnalysisTextToVideo: language.text("Matched settings", "统一设置")
         case .arenaText: language.text("User votes", "用户盲测")
         case .epochECI: language.text("Calibrated tests", "难度校准")
+        case .vercelUsage: language.text("Token share", "用量占比")
         case .openRouterUsage: language.text("Usage ranking", "用量排行")
         case .codeArenaWebDev: language.text("WebDev votes", "网页开发盲选")
         case .arenaTextToImage, .arenaTextToVideo: language.text("User prompts", "用户出题")
@@ -126,6 +128,7 @@ public enum LeaderboardPresentation {
         switch kind {
         case .artificialAnalysis: language.text("Combines standardized tests across several abilities.", "汇总多项标准化测试，适合看综合能力")
         case .artificialAnalysisCodingAgent: language.text("Scores coding agents on software engineering tasks.", "通过软件工程任务，检验编程智能体的完成能力")
+        case .vercelUsage: language.text("Latest complete UTC day · text token share · absolute volumes unavailable.", "最近完整 UTC 日文本 token 用量占比；不提供绝对用量。")
         case .openRouterUsage: language.text("Latest complete UTC day · input + output tokens · 1B = 1 billion tokens.", "最近完整 UTC 日输入与输出 token 用量；1B = 十亿 token。")
         case .epochECI: language.text("Estimates general capability from benchmark results, accounting for difficulty and discrimination.", "结合不同测试的难度与区分度，估计模型的综合能力")
         case .arenaText: language.text("People compare anonymous answers to real prompts.", "真实提问下盲选回答，贴近用户偏好")
@@ -138,6 +141,9 @@ public enum LeaderboardPresentation {
     }
 
     public static func scoreText(_ score: Double, kind: LeaderboardKind) -> String {
+        if kind == .vercelUsage {
+            return score > 0 && score < 0.01 ? "<0.01%" : String(format: "%.2f%%", locale: Locale(identifier: "en_US_POSIX"), score)
+        }
         if kind == .openRouterUsage {
             return score > 0 && score < 0.01 ? "<0.01B" : String(format: "%.2fB", locale: Locale(identifier: "en_US_POSIX"), score)
         }
@@ -145,7 +151,7 @@ public enum LeaderboardPresentation {
     }
 
     public static func scoreTitle(_ kind: LeaderboardKind, language: AppLanguage) -> String {
-        kind == .openRouterUsage ? language.text("Tokens", "用量") : language.text("Score", "分数")
+        kind == .vercelUsage ? language.text("Share", "占比") : kind == .openRouterUsage ? language.text("Tokens", "用量") : language.text("Score", "分数")
     }
 
     public static func sourceHelp(_ kind: LeaderboardKind, language: AppLanguage, board: Leaderboard?,
@@ -157,7 +163,8 @@ public enum LeaderboardPresentation {
         if kind.sourcePrefix == "Arena" {
             parts.insert(language.text("Formerly LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena"), at: 1)
         }
-        if let note = board?.sourceNote, !note.isEmpty { parts.append(note) }
+        if kind == .vercelUsage { parts = [sourceSummary(kind, language: language), language.text("Includes input, output, reasoning and cached tokens; only published model buckets are listed. Company shares sum listed models only. Not comparable to OpenRouter absolute totals.", "包含输入、输出、推理及缓存 token，仅列出官方公布的模型；公司占比只汇总榜内模型。与 OpenRouter 绝对用量口径不同。例外的 Other 不作为模型展示。") ] }
+        if !kind.isUsage, let note = board?.sourceNote, !note.isEmpty { parts.append(note) }
         var help = parts.joined(separator: language.text(". ", "。"))
         if kind == .epochECI { help += "\n\n" + EpochAttribution.fullText(language: language) }
         if includesFetchTime { help += language.text(". ", "。") + sourceTimeHelp(board, language: language) }
@@ -176,6 +183,10 @@ public enum LeaderboardPresentation {
             let fetched = board.map { formatter.string(from: $0.fetchedAt) } ?? "—"
             return ("\(fetched) \(language.text("Updated", "更新"))", false)
         }
+        if board?.kind == .vercelUsage {
+            formatter.dateFormat = "M/d"; formatter.timeZone = TimeZone(secondsFromGMT: 0)
+            return ("\(formatter.string(from: updated)) \(language.text("UTC day", "UTC统计日"))", true)
+        }
         if ArenaAttribution.applies(board) { formatter.dateFormat = "yyyy-MM-dd"; formatter.timeZone = TimeZone(secondsFromGMT: 0) }
         return ("\(formatter.string(from: updated)) \(language.text("Published", "发布"))", true)
     }
@@ -188,6 +199,10 @@ public enum LeaderboardPresentation {
         guard let updated = board?.sourceUpdatedAt else {
             let fetched = board.map { formatter.string(from: $0.fetchedAt) } ?? "—"
             return "\(fetched) \(language.text("Updated", "更新"))"
+        }
+        if board?.kind == .vercelUsage {
+            formatter.dateFormat = "yyyy-MM-dd"; formatter.timeZone = TimeZone(secondsFromGMT: 0)
+            return "\(formatter.string(from: updated)) \(language.text("UTC day", "UTC统计日"))"
         }
         if ArenaAttribution.applies(board) { formatter.timeStyle = .none; formatter.timeZone = TimeZone(secondsFromGMT: 0) }
         let value = formatter.string(from: updated)

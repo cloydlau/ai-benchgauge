@@ -18,6 +18,7 @@ struct PadAboutView<Brand: View>: View {
     let brand: Brand
     let copyLink: (String) -> Void
     let dismiss: () -> Void
+    var vercelSourceNote: String? = nil
     var openRouterSourceNote: String? = nil
     private let content = PadAboutContent.load()
     @Environment(\.colorScheme) private var colorScheme
@@ -122,9 +123,9 @@ struct PadAboutView<Brand: View>: View {
             .accessibilityLabel(tr("Quota lookup · PC · Copy link", "余量查询 · PC 端 · 复制链接"))
     }
     private func sourceCard(_ source: PadAboutContent.Source) -> some View {
-        let mark = source.id == "openRouter" ? "OR" : source.id == "artificialAnalysis" ? "AA" : source.id == "arena" ? "A" : "E"
-        let color: Color = source.id == "openRouter" ? .orange : source.id == "artificialAnalysis" ? .blue : source.id == "arena" ? .purple : .cyan
-        let showsLicense = source.id == "arena" || source.id == "epoch" || source.id == "openRouter"
+        let mark = source.id == "vercel" ? "V" : source.id == "openRouter" ? "OR" : source.id == "artificialAnalysis" ? "AA" : source.id == "arena" ? "A" : "E"
+        let color: Color = source.id == "vercel" ? .secondary : source.id == "openRouter" ? .orange : source.id == "artificialAnalysis" ? .blue : source.id == "arena" ? .purple : .cyan
+        let showsLicense = source.id == "vercel" || source.id == "arena" || source.id == "epoch" || source.id == "openRouter"
         let titleLines = dynamicTypeSize.isAccessibilitySize ? 2 : 1
         return HStack(spacing: 8) {
             Button { copyLink(source.url) } label: {
@@ -308,7 +309,7 @@ struct PadAboutView<Brand: View>: View {
     private func licenseDialog(_ sourceID: String) -> some View {
         let notice = sourceID == "openRouter"
             ? CCBYLicense.openRouterText(sourceNote: openRouterSourceNote, language: language)
-            : CCBYLicense.text(language: language)
+            : sourceID == "vercel" ? CCBYLicense.vercelText(sourceNote: vercelSourceNote, language: language) : CCBYLicense.text(language: language)
         return ZStack {
             Color.black.opacity(dark ? 0.48 : 0.32).ignoresSafeArea()
                 .onTapGesture { about.licenseSourceID = nil }

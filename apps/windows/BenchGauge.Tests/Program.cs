@@ -286,10 +286,19 @@ Console.WriteLine("PASS: desktop board draft isolation and confirmed batch selec
 Console.WriteLine($"PASS: 13 signature/configuration cases, {gateCases + 1} update presentation cases, {downloadCases} signed check/download/cache/integrity cases");
 
 var usageVisibility = new Preferences { Category = "usage" };
-if (!usageVisibility.AvailableBoardKinds().SequenceEqual(new[] { "openRouterUsage" }) || !usageVisibility.VisibleBoardKinds().SequenceEqual(new[] { "openRouterUsage" }))
-    throw new Exception("Usage must be a separate single-source category");
+if (!usageVisibility.AvailableBoardKinds().SequenceEqual(new[] { "openRouterUsage", "vercelUsage" }) || !usageVisibility.VisibleBoardKinds().SequenceEqual(new[] { "openRouterUsage", "vercelUsage" }))
+    throw new Exception("Usage must expose OpenRouter and Vercel separately");
 usageVisibility.ToggleBoard("openRouterUsage");
-if (!usageVisibility.VisibleBoardKinds().SequenceEqual(new[] { "openRouterUsage" })) throw new Exception("The sole usage source must remain selected");
+if (!usageVisibility.VisibleBoardKinds().SequenceEqual(new[] { "vercelUsage" })) throw new Exception("Vercel remains selected when OpenRouter is hidden");
+
+foreach (var language in new[] { "en", "zh", "zh-Hant" }) {
+    var fallback = UsageLicense.Text("vercelUsage", null, language);
+    if (!fallback.Contains("© 2026 Vercel") || !fallback.Contains("creativecommons.org/licenses/by/4.0") || fallback.Length < 1000)
+        throw new Exception("Vercel offline credit and localized full license must be bundled");
+    if (!UsageLicense.Text("vercelUsage", "Cached Vercel date", language).StartsWith("Cached Vercel date\n\n"))
+        throw new Exception("Vercel agreement must retain the current snapshot provenance");
+}
+Console.WriteLine("PASS: Vercel cached credit and offline full license in all three languages");
 
 sealed class FixtureHttpHandler(Func<HttpRequestMessage, byte[]> response) : HttpMessageHandler
 {

@@ -3,6 +3,7 @@ import { replacementFailure, resolvedOpenness } from './domain.mjs';
 import { parseBoard, sources } from './parser.mjs';
 import { codingKinds, withCodingOpenness } from './model-openness.mjs';
 import { isArena, isArenaDataset } from './arena-dataset.mjs';
+import { vercelKind, vercelInterval } from './vercel-usage.mjs';
 import { openRouterKind, openRouterInterval } from './openrouter-usage.mjs';
 
 export const refreshInterval = 30 * 60 * 1000;
@@ -15,9 +16,9 @@ export class RequestError extends Error {
 // All durable decisions live in OSS, not a process-local lock. AppendObject's
 // position precondition makes simultaneous FC instances compete atomically.
 export class SharedLeaderboards {
-  constructor(store, { clock = Date.now, token = () => randomBytes(32).toString('base64url'), brands = null, countries = null, arenaDataset = null, models = null, openRouterUsage = null, openRouterConfigured = () => false } = {}) {
+  constructor(store, { clock = Date.now, token = () => randomBytes(32).toString('base64url'), brands = null, countries = null, arenaDataset = null, models = null, openRouterUsage = null, vercelUsage = null, openRouterConfigured = () => false } = {}) {
     this.store = store; this.clock = clock; this.token = token; this.brands = brands; this.countries = countries; this.arenaDataset = arenaDataset; this.models = models;
-    this.openRouterUsage = openRouterUsage; this.openRouterConfigured = openRouterConfigured;
+    this.vercelUsage = vercelUsage; this.openRouterUsage = openRouterUsage; this.openRouterConfigured = openRouterConfigured;
   }
   async enrich(board, options) {
     if (this.models) board = await this.models.enrich(board, options);
@@ -47,6 +48,7 @@ export class SharedLeaderboards {
   }
   async refresh(kind) {
     this.checkKind(kind);
+    if (kind === vercelKind) return this.refreshVercel();
     if (kind === openRouterKind) return this.refreshOpenRouter();
     if (this.arenaDataset && isArena(kind)) return this.refreshArena(kind);
     const cached = await this.store.readBoard(kind);
@@ -71,7 +73,7 @@ export class SharedLeaderboards {
   }
   async contribute(kind, token, html) {
     this.checkKind(kind);
-    if (kind === openRouterKind) throw new RequestError(403, 'OpenRouter uses the official API; contributions disabled');
+    if (kind === openRouterKind || kind === vercelKind) throw new RequestError(403, 'Usage uses the official API; contributions disabled');
     if (this.arenaDataset && isArena(kind)) throw new RequestError(403, 'Arena uses the official dataset; contributions disabled');
     if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) throw new RequestError(403, 'Invalid grant');
     const { position, state } = await this.store.readState(kind);
@@ -140,6 +142,35 @@ export class SharedLeaderboards {
     } catch {
       if (cached) return { board: cached };
       throw new RequestError(503, 'OpenRouter usage temporarily unavailable');
+    }
+  }
+  async refreshVercel() {
+    const { board: cached } = await this.read(vercelKind);
+    const key = 'vercel-export/usage';
+    let issuedAt;
+    try {
+      const { position, state } = await this.store.readState(key);
+      const now = this.clock();
+      if (state && now < state.nextAttemptAt) return { board: cached, retryAt: state.nextAttemptAt };
+      const nextAttemptAt = now + vercelInterval;
+      // Durable coordination limits the entire application to one public export/day.
+      if (!await this.store.appendState(key, position, { issuedAt: now, nextAttemptAt })) return { board: cached };
+      issuedAt = now;
+      let board = await this.vercelUsage({ now });
+      if (board?.kind !== vercelKind || !board.entries?.length || replacementFailure(board, cached)) throw new Error('Invalid or older usage snapshot');
+      board = await this.enrich(board, { acquire: true });
+      await this.store.writeBoard(vercelKind, board);
+      await this.models?.queue?.(board);
+      return { board, retryAt: nextAttemptAt };
+    } catch {
+      if (issuedAt != null) {
+        try {
+          const { position, state } = await this.store.readState(key);
+          if (state?.issuedAt === issuedAt) await this.store.appendState(key, position, { ...state, nextAttemptAt: this.clock() + 600000 });
+        } catch { /* Storage failure must not trigger an uncoordinated source call. */ }
+      }
+      if (cached) return { board: cached };
+      throw new RequestError(503, 'Vercel usage temporarily unavailable');
     }
   }
 }
