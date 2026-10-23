@@ -28,3 +28,7 @@ For mini-program runtime and UI debugging, use the connected official `wechat-de
 Use the installed official `wechatide-skill` and read its current `SKILL.md` version. Start with `check_wechatide_status` (pass that version) and `project_list`. Import the canonical directory with `project_import` only if missing, then use `open_project_window` to open or reuse its window. Confirm the project and page with `automation_runtime_info` before interactions. Use console/network reads and the automation tools to verify the actual simulator; report connection or compile failures as failures. Keep using the repository's normal build/watch workflow for generated files.
 
 The host MCP connection is in `~/.codex/config.toml` and uses the DevTools-owned MCP token. Never put that token in this repository or logs. The four mini-programs share one connection and select projects explicitly. Follow the existing media intent/review rules before screenshots or recordings.
+
+## 品牌资源目录
+
+品牌资源统一维护在仓库根目录 `assets/brand/`；正式主图固定命名 `logo.png` 或 `logo.svg`。设计提示词用 `logo.prompt.txt`，平台导出图用 `app-icon-<platform>.*`，其他产品标志放 `partners/`。更新资源时同步该目录的 README、构建复制/生成入口及消费者引用。运行目录、资源包和 `dist` 中的同图仅为导出副本，不作为新的源图维护点；未选定设计仅在仓库外预览；只有用户选定或明确要求存档，才允许加入版本库。
