@@ -80,9 +80,7 @@
 
 .notices { margin-top: 34rpx; padding: 26rpx 8rpx 0; border: 0; border-top: 1rpx solid var(--line); border-radius: 0; background: transparent; box-shadow: none; }
 .notices .section-title { margin-bottom: 12rpx; font-size: 25rpx; }
-.notices-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12rpx; margin-bottom: 12rpx; }
-.notices-heading .section-title { margin-bottom: 0; }
-.contribute-link { display: flex; align-items: center; gap: 10rpx; min-height: 44px; color: var(--accent); font-size: 22rpx; }
+.contribute-link { display: inline-flex; align-items: center; gap: 10rpx; min-height: 44px; margin-top: 4rpx; color: var(--accent); font-size: 22rpx; text-align: left; }
 .contribute-link text { text-decoration: underline; text-underline-offset: 5rpx; }
 .contribute-link:active { opacity: .72; }
 .notice-intro { display: block; margin-bottom: 16rpx; font-size: 21rpx; line-height: 1.75; }

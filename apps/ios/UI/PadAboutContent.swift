@@ -51,6 +51,7 @@ struct PadAboutContent: Decodable, Sendable {
         func total(months: Int) -> Int { groups.reduce(0) { $0 + $1.amount(months: months) } }
     }
     let desktopDownloadURL: String
+    let repositoryURL: String
     let sources: [Source]
     let schedule: Schedule
     let languages: [String: Copy]

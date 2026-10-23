@@ -14,6 +14,9 @@
       <view class="about-description">
         <text wx:for="{{descriptionLines}}" wx:key="*this" class="about-description-line">{{item}}</text>
       </view>
+      <button class="contribute-link" data-url="{{repositoryURL}}" bindtap="copyLink" aria-label="{{labels.name}} · {{contributeLabel}} · {{labels.copyLink}}">
+        <text>{{contributeLabel}}</text><van-icon name="link-o" size="14px" />
+      </button>
       <view class="hero-rule" aria-hidden="true"><view /><view /></view>
     </view>
     <button class="quota-card" data-url="{{desktopDownloadURL}}" bindtap="copyLink" aria-label="{{desktopTitle}} · {{desktopDownloadLabel}} · {{labels.copyLink}}">
@@ -67,12 +70,7 @@
       </view>
     </view>
     <view class="about-card notices">
-      <view class="notices-heading">
-        <text class="section-title">{{noticesTitle}}</text>
-        <button class="contribute-link" data-url="{{desktopDownloadURL}}" bindtap="copyLink" aria-label="{{contributeLabel}} · {{labels.copyLink}}">
-          <text>{{contributeLabel}}</text><van-icon name="link-o" size="14px" />
-        </button>
-      </view>
+      <text class="section-title">{{noticesTitle}}</text>
       <text class="muted notice-intro">{{noticesIntro}}</text>
       <view wx:for="{{notices}}" wx:key="id">
         <button class="license-toggle" data-id="{{item.id}}" bindtap="toggleNotice" aria-expanded="{{notice === item.id}}">

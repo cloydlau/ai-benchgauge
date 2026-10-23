@@ -9,6 +9,7 @@ test('iOS About exports the same localized descriptions, metrics and cost defini
   const content = iosAboutContent(stats)
   assert.equal(content.sources.length, 5)
   assert.equal(content.desktopDownloadURL, 'https://github.com/cloydlau/ai-benchgauge/releases/latest')
+  assert.equal(content.repositoryURL, 'https://github.com/cloydlau/ai-benchgauge')
   for (const language of ['en', 'zh-CN', 'zh-TW']) {
     const entry = content.languages[language]
     assert.equal(entry.descriptionLines.join(language === 'en' ? ' ' : ''), text(copy.description, language))

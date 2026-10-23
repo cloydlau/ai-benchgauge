@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { copy, text, languages, desktopDownloadURL, leaderboardSources } from '../apps/weapp/src/core/catalog.js'
+import { copy, text, languages, desktopDownloadURL, repositoryURL, leaderboardSources } from '../apps/weapp/src/core/catalog.js'
 import { investmentContent, investmentSchedule } from '../apps/weapp/src/core/investment.js'
 import { engineeringInvestment } from '../apps/weapp/scripts/engineering-investment.mjs'
 
@@ -8,7 +8,7 @@ import { engineeringInvestment } from '../apps/weapp/scripts/engineering-investm
 // investment is recalculated on-device; engineering counters are build-time data.
 export function iosAboutContent(stats) {
   return {
-    desktopDownloadURL, sources: leaderboardSources, schedule: investmentSchedule,
+    desktopDownloadURL, repositoryURL, sources: leaderboardSources, schedule: investmentSchedule,
     languages: Object.fromEntries(languages.map(language => [language, {
       descriptionLines: text(copy.description, language).match(/[^。.]+[。.]?/g).map(line => line.trim()),
       investment: investmentContent(stats, language, { now: investmentSchedule.startedAt }),

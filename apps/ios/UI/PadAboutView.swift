@@ -69,7 +69,7 @@ struct PadAboutView<Brand: View>: View {
 
     private func main(_ content: PadAboutContent, copy: PadAboutContent.Copy) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            hero(copy.descriptionLines)
+            hero(copy.descriptionLines, repositoryURL: content.repositoryURL)
             quota(content.desktopDownloadURL)
             Text(tr("Data sources", "数据来源")).font(.system(size: 14, weight: .semibold))
                 .padding(.leading, 4).padding(.top, 17).padding(.bottom, 11)
@@ -80,10 +80,10 @@ struct PadAboutView<Brand: View>: View {
             }
             investment(copy.investment, months: content.schedule.months(at: Date()))
                 .padding(14).aboutCard(outline: outline).padding(.top, 14)
-            notices(content.desktopDownloadURL).padding(.horizontal, 4).padding(.top, 17)
+            notices.padding(.horizontal, 4).padding(.top, 17)
         }
     }
-    private func hero(_ lines: [String]) -> some View {
+    private func hero(_ lines: [String], repositoryURL: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .bottom, spacing: 4) { brand; version }
@@ -93,6 +93,7 @@ struct PadAboutView<Brand: View>: View {
                 ForEach(lines, id: \.self) { Text($0).fixedSize(horizontal: false, vertical: true) }
             }
             .font(.system(size: 13)).lineSpacing(5).foregroundStyle(.secondary).padding(.top, 14)
+            contribute(repositoryURL).padding(.top, 2)
             HStack(spacing: 3) {
                 Capsule().fill(accent).frame(width: 20, height: 2.5)
                 Capsule().fill(accent.opacity(0.55)).frame(width: 11, height: 2.5)
@@ -232,13 +233,10 @@ struct PadAboutView<Brand: View>: View {
         }.padding(.horizontal, 7).padding(.bottom, expanded ? 10 : 0)
             .background(expanded ? inset : .clear, in: RoundedRectangle(cornerRadius: 7))
     }
-    private func notices(_ url: String) -> some View {
+    private var notices: some View {
         VStack(alignment: .leading, spacing: 8) {
             Divider().padding(.bottom, 5)
-            ViewThatFits(in: .horizontal) {
-                HStack { noticeTitle; Spacer(); contribute(url) }
-                VStack(alignment: .leading, spacing: 0) { noticeTitle; contribute(url) }
-            }
+            noticeTitle
             note(tr("Third-party software and data follow their original licenses. Tap to read the full copyright and license text.", "第三方软件及数据分别遵循其原始许可证。点按查看完整版权与许可文本。"))
             Button {
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) { about.modelsDevNoticeExpanded.toggle() }

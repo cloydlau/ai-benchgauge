@@ -61,7 +61,7 @@ definePage(query => {
     if (notices.some(item => item.id === id)) notice.value = notice.value === id ? '' : id
   }
   return { labels, brandTitle, dark, statusBar, items, version: __APP_VERSION__,
-    back, copyLink, notices, notice, toggleNotice, desktopDownloadURL, investment, costGroups, toggleCostGroup,
+    back, copyLink, notices, notice, toggleNotice, desktopDownloadURL, repositoryURL, investment, costGroups, toggleCostGroup,
     licenseNotice, openLicense, closeLicense,
     viewLicenseLabel: text(['View license', '查看协议', '查看協議'], language),
     description: labels.description,
