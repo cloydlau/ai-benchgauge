@@ -526,7 +526,7 @@ enum NativeVisualCapture {
                         }
                     }
                     let captureView = (isClaudeConsentAlert || isQuotaHelpAlert) ? window.attachedSheet?.contentView : host
-                    let png = (test.scenario == "thirdPartyNotices" || test.scenario.hasPrefix("modelDetails") || test.scenario == "addModelDialog" || test.scenario.hasPrefix("xaiSubscriptionDialog") || test.scenario.hasPrefix("xaiDeviceDialog") || isClaudeConsentAlert || isQuotaHelpAlert)
+                    let png = test.scenario == "usagePending" ? PanelScreenshot.captureForm(view: host, minimumVariety: 3) : (test.scenario == "thirdPartyNotices" || test.scenario.hasPrefix("modelDetails") || test.scenario == "addModelDialog" || test.scenario.hasPrefix("xaiSubscriptionDialog") || test.scenario.hasPrefix("xaiDeviceDialog") || isClaudeConsentAlert || isQuotaHelpAlert)
                         ? captureView.flatMap { PanelScreenshot.captureForm(view: $0, minimumVariety: 1) }
                         : PanelScreenshot.capture(view: host)?.png
                     guard let png else { throw CaptureError.blankFrame(test.id) }

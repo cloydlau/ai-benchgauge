@@ -472,6 +472,7 @@ sealed partial class MainWindow : Window
             var directory = Path.Combine(AppContext.BaseDirectory, "Licenses");
             var files = thirdParty ? Directory.GetFiles(directory, "*.txt").Where(file => Path.GetFileName(file) != "AI-BenchGauge.txt") : new[] { Path.Combine(directory, "AI-BenchGauge.txt") };
             var text = string.Join("\n\n", files.Select(file => Path.GetFileNameWithoutExtension(file) + "\n\n" + File.ReadAllText(file)));
+            if (thirdParty) text = string.Join("\n\n", new[] { "openRouterUsage", "vercelUsage" }.Select(kind => UsageLicense.Text(kind, state?.Boards.FirstOrDefault(board => board.Kind == kind)?.SourceNote, prefs.Language))) + "\n\n" + text;
             var dialog = new Window { Owner = this, Title = Tr("Licenses & notices", "许可证与声明"), Width = 580, Height = 540, WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Content = new TextBox { Text = text, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(16), FontFamily = new FontFamily("Consolas"), FontSize = 11 } };
             dialog.ShowDialog();
@@ -487,7 +488,7 @@ sealed partial class MainWindow : Window
         text.Children.Add(new TextBlock { Text = "github.com/" + config.Repository, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
         quotaPanel.Visibility = Visibility.Collapsed; privatePrompt.Text = Tr("View your remaining AI quotas with AI BenchGauge · CC Switch", "使用 AI 天梯 · CC Switch 查看 AI 余量", "使用 AI 天梯 · CC Switch 查看 AI 餘量"); privatePrompt.Visibility = Visibility.Visible;
         var exportFooter = new StackPanel();
-        if (VisibleBoards().FirstOrDefault(board => board.Kind == "openRouterUsage")?.SourceNote is { } usageNote)
+        if (string.Join("\n\n", VisibleBoards().Where(board => board.Kind is "openRouterUsage" or "vercelUsage").Select(board => board.SourceNote)) is { Length: > 0 } usageNote)
             exportFooter.Children.Add(new TextBlock { Text = usageNote, FontSize = 9,
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(4, 4, 4, 0) });
         exportFooter.Children.Add(text);

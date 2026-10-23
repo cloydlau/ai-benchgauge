@@ -19,7 +19,7 @@ struct KitCoverageBoundaryTests {
                 #expect(!LeaderboardPresentation.title(kind, language: language).isEmpty)
                 #expect(!LeaderboardPresentation.explanation(kind, language: language).isEmpty)
                 let board = Leaderboard(kind: kind, title: "Fixture", sourceUpdatedAt: Date(timeIntervalSince1970: 1000), sourceNote: "Source note", entries: [])
-                #expect(LeaderboardPresentation.sourceHelp(kind, language: language, board: board).contains("Source note"))
+                #expect(LeaderboardPresentation.sourceHelp(kind, language: language, board: board).contains("Source note") == !kind.isUsage)
             }
             for failure in [LeaderboardFailure.offline, .sourceUnavailable] {
                 for cached in [true, false] { #expect(!failure.message(language: language, hasCachedBoard: cached).isEmpty) }

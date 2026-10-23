@@ -110,7 +110,7 @@ export function companyRows(entries, { summingUsage = false } = {}) {
     const organizationBrand = brands.find(brand => typeof brand.pngData === 'string'
       && /^[A-Za-z0-9+/=]+$/.test(brand.pngData) && brand.pngData.length < 160000)
       ?? brands[0] ?? { key: group.key }
-    const totalTokens = summingUsage ? members.reduce((total, row) => total + BigInt(row.totalTokens ?? "0"), 0n).toString() : undefined
+    const totalTokens = summingUsage && members.some(row => row.totalTokens != null) ? members.reduce((total, row) => total + BigInt(row.totalTokens ?? "0"), 0n).toString() : undefined
     return { ...best, ...(summingUsage && { score: members.reduce((sum, row) => sum + row.score, 0), totalTokens }), name: group.name, bestRank: best.rank, openness: null,
       brand: organizationBrand, organizationBrand, developerCountry, components: members }
   }).sort((a, b) => b.score - a.score || a.bestRank - b.bestRank || a.name.localeCompare(b.name))

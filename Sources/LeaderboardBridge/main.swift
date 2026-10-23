@@ -510,7 +510,7 @@ actor Engine {
             let countryFilter: LeaderboardCountryFilter = countryValue == "unknown" ? .unknown
                 : OrganizationCountry(rawValue: countryValue).map(LeaderboardCountryFilter.country) ?? .all
             let models = (board?.entries ?? []).filter { sourceFilter.matches($0) && countryFilter.matches($0) }
-            let standings = grouping == "company" ? CompanyLeaderboard.rank(models, summingUsage: kind == .openRouterUsage) : []
+            let standings = grouping == "company" ? CompanyLeaderboard.rank(models, summingUsage: kind.isUsage) : []
             let entries = grouping == "company" ? standings.map(\.entry) : models
             return Board(modelMetadataSource: board?.modelMetadataSource, kind: kind.rawValue, title: kind.sourcePrefix, url: kind.sourceURL.absoluteString,
                          updatedAt: board?.sourceUpdatedAt.map { formatter.string(from: $0) },
@@ -523,7 +523,7 @@ actor Engine {
                              logo: OrganizationLogoCatalog.resolvedKey(organization: entry.organization, modelName: entry.name),
                              codingURL: PurchaseLinkCatalog.preferredLink(from: links.codingPlan, language: language)?.url.absoluteString,
                              apiURL: PurchaseLinkCatalog.preferredLink(from: links.payAsYouGo, language: language)?.url.absoluteString,
-                             help: standings.first { $0.entry.rank == entry.rank }.map { CompanyLeaderboard.scoreHelp(for: $0, language: language) },
+                             help: standings.first { $0.entry.rank == entry.rank }.map { CompanyLeaderboard.scoreHelp(for: $0, language: language, kind: kind) },
                              openness: entry.resolvedOpenness?.rawValue,
                              brandColor: OrganizationLogoCatalog.rowBrandColorHex(for: entry),
                              logoPNG: OrganizationLogoCatalog.rowLogoPNGData(for: entry, isCompany: grouping == "company")?.base64EncodedString(),
@@ -544,7 +544,7 @@ actor Engine {
             for kind in category.boardKinds {
                 let models = snapshot.boards[kind]?.entries ?? []
                 for grouping in LeaderboardGrouping.allCases {
-                    let entries = grouping == .company ? CompanyLeaderboard.rank(models, summingUsage: kind == .openRouterUsage).map(\.entry) : models
+                    let entries = grouping == .company ? CompanyLeaderboard.rank(models, summingUsage: kind.isUsage).map(\.entry) : models
                     for entry in entries {
                         let links = PurchaseLinkCatalog.links(forOrganization: entry.organization, modelName: entry.name)
                         layoutEntries.append(LayoutEntry(name: entry.name,

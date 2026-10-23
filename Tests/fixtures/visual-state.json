@@ -853,6 +853,47 @@
             "openness": "closed"
           }
         ]
+      },
+      {
+        "kind": "vercelUsage",
+        "title": "Vercel AI Gateway",
+        "sourceUpdatedAt": "2026-10-22T00:00:00Z",
+        "fetchedAt": "2026-10-23T07:00:00Z",
+        "sourceNote": "© 2026 Vercel. \"AI Gateway Leaderboard Data\" is licensed under CC BY 4.0.\nSource: https://vercel.com/ai-gateway/leaderboards/models\nSynthetic fixture; filtered and rounded for display.",
+        "entries": [
+          {
+            "rank": 1,
+            "name": "DeepSeek V4.1 Flash 1017",
+            "organization": "DeepSeek",
+            "logo": "deepseek",
+            "score": 30.1234,
+            "openness": "open"
+          },
+          {
+            "rank": 2,
+            "name": "DeepSeek V4.1 Flash",
+            "organization": "DeepSeek",
+            "logo": "deepseek",
+            "score": 20.0001,
+            "openness": "open"
+          },
+          {
+            "rank": 3,
+            "name": "Claude Opus 5.5",
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "score": 15.2345,
+            "openness": "closed"
+          },
+          {
+            "rank": 4,
+            "name": "GPT-6 Luna · long model title",
+            "organization": "OpenAI",
+            "logo": "openai",
+            "score": 0.0001,
+            "openness": "closed"
+          }
+        ]
       }
     ],
     "quotas": [
@@ -3112,6 +3153,84 @@
         "openRouterUsage"
       ],
       "grouping": "model"
+    },
+    {
+      "id": "vercel-model-en",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "usageModels",
+      "category": "usage",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterUsage",
+        "vercelUsage"
+      ]
+    },
+    {
+      "id": "vercel-company-en",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "usageCompanies",
+      "category": "usage",
+      "grouping": "company",
+      "selectedBoards": [
+        "openRouterUsage",
+        "vercelUsage"
+      ]
+    },
+    {
+      "id": "vercel-model-zh",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "usageModels",
+      "category": "usage",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterUsage",
+        "vercelUsage"
+      ]
+    },
+    {
+      "id": "vercel-company-zh",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "usageCompanies",
+      "category": "usage",
+      "grouping": "company",
+      "selectedBoards": [
+        "openRouterUsage",
+        "vercelUsage"
+      ]
+    },
+    {
+      "id": "vercel-model-zh-Hant",
+      "language": "zh-Hant",
+      "width": 850,
+      "height": 720,
+      "scenario": "usageModels",
+      "category": "usage",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterUsage",
+        "vercelUsage"
+      ]
+    },
+    {
+      "id": "vercel-company-zh-Hant",
+      "language": "zh-Hant",
+      "width": 850,
+      "height": 720,
+      "scenario": "usageCompanies",
+      "category": "usage",
+      "grouping": "company",
+      "selectedBoards": [
+        "openRouterUsage",
+        "vercelUsage"
+      ]
     }
   ],
   "quotaScenarios": {

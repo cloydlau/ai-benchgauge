@@ -20,7 +20,7 @@ public struct LeaderboardFetcher: Sendable {
         // Arena's licensed Parquet snapshots are acquired by the shared service.
         // Never fall back to the website when shared storage is unconfigured.
         if kind == .openRouterUsage { throw LeaderboardConfigurationRequired() }
-        if kind.sourcePrefix == "Arena" { throw URLError(.resourceUnavailable) }
+        if kind == .vercelUsage || kind.sourcePrefix == "Arena" { throw URLError(.resourceUnavailable) }
         return try parse(kind, html: await html(kind.dataURL))
     }
 
@@ -89,7 +89,7 @@ public struct LeaderboardFetcher: Sendable {
     }
 
     private func contribute(_ kind: LeaderboardKind, path: URL, grant: Grant) async throws -> Leaderboard {
-        guard kind.sourcePrefix != "Arena", kind != .openRouterUsage else { throw URLError(.badServerResponse) }
+        guard kind.sourcePrefix != "Arena", !kind.isUsage else { throw URLError(.badServerResponse) }
         guard grant.sourceURL == kind.dataURL,
               grant.token.utf8.count == 43,
               grant.expiresAt / 1000 > Date().timeIntervalSince1970 else { throw URLError(.badServerResponse) }
@@ -145,7 +145,7 @@ public struct LeaderboardFetcher: Sendable {
 
     func parse(_ kind: LeaderboardKind, html: String) throws -> Leaderboard {
         switch kind {
-        case .openRouterUsage: throw URLError(.resourceUnavailable)
+        case .openRouterUsage, .vercelUsage: throw URLError(.resourceUnavailable)
         case .epochECI:
             return try EpochECIParser.parse(html)
         case .artificialAnalysis:

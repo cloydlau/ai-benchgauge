@@ -438,6 +438,7 @@ sealed partial class MainWindow
     (string Text, bool IsSourceTime) BoardTime(Board board)
     {
         var time = BoardTimestamp.For(board);
+        if (time.IsSourceTime && board.Kind == "vercelUsage") return ($"{time.Value?.UtcDateTime.ToString("M/d", CultureInfo.InvariantCulture)} {Tr("UTC day", "UTC统计日", "UTC統計日")}", true);
         var dataset = time.IsSourceTime && ArenaAttribution.Applies(board);
         var value = dataset
             ? time.Value?.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
@@ -447,6 +448,7 @@ sealed partial class MainWindow
     string BoardTimeHelp(Board board)
     {
         var time = BoardTimestamp.For(board);
+        if (time.IsSourceTime && board.Kind == "vercelUsage") return $"{time.Value?.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)} {Tr("UTC day", "UTC统计日", "UTC統計日")}";
         var value = time.IsSourceTime && ArenaAttribution.Applies(board)
             ? time.Value?.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
             : time.Value?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
@@ -588,7 +590,7 @@ sealed partial class MainWindow
         for (var i = 0; i < pair.Length; i++)
         {
             var board = pair[i]; var column = 1 + i * 4;
-            AddCell(headings, Center(Caption(board.Kind == "openRouterUsage" ? Tr("Tokens", "用量", "用量") : Tr("Score", "分数", "分數"), PanelInk)), column + 3);
+            AddCell(headings, Center(Caption(board.Kind == "vercelUsage" ? Tr("Share", "占比", "佔比") : board.Kind == "openRouterUsage" ? Tr("Tokens", "用量", "用量") : Tr("Score", "分数", "分數"), PanelInk)), column + 3);
             var summary = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 9,
                 FontFamily = new FontFamily("Segoe UI"),
                 Margin = new Thickness(5, 0, 4, 0), ToolTip = board.Error ?? BoardTitle(board) + "\n"
@@ -597,7 +599,7 @@ sealed partial class MainWindow
                     + SourceLens(board) + "\n" + (board.Kind == "openRouterUsage"
                         ? Tr("Latest complete UTC day · input + output tokens · 1B = 1 billion tokens. Top 50 public models; excludes private and zero-data-retention traffic. Provider tokenizers differ. Company totals cover listed models only.", "最近完整 UTC 日输入与输出 token 用量；1B = 十亿 token。展示公开流量前 50 名，排除私有及零数据留存流量；各供应商分词方式不同。公司用量仅汇总榜内模型。", "最近完整 UTC 日輸入與輸出 token 用量；1B = 十億 token。展示公開流量前 50 名，排除私有及零資料留存流量；各供應商分詞方式不同。公司用量僅彙總榜內模型。")
                         : Tr("Scores are not directly comparable across lists", "各榜分数不直接互比", "各榜分數不直接互比"))
-                    + (board.Kind == "openRouterUsage" ? "\n" + board.SourceNote : "")
+                    + (board.Kind == "vercelUsage" ? "\n" + Tr("Latest complete UTC day · text token share, including cached and reasoning tokens. Company shares sum listed models only; no absolute volumes are published.", "最近完整 UTC 日文本 token 用量占比，包含缓存及推理 token；公司只汇总榜内模型，不提供绝对用量。", "最近完整 UTC 日文字 token 用量佔比，包含快取及推理 token；公司只彙總榜內模型，不提供絕對用量。") : "")
                     + (ArenaAttribution.Applies(board) ? "\n" + ArenaAttribution.FullText(prefs.Language) : "") };
             CenterTextInk(summary);
             summary.FontSize = 11;
@@ -612,7 +614,7 @@ sealed partial class MainWindow
                 var available = summary.ActualWidth;
                 if (available > 0 && Measure(title, 11, FontWeights.SemiBold) > available)
                     title = title.Replace("Artificial Analysis", "AA", StringComparison.Ordinal);
-                var license = board.Kind is "epochECI" or "openRouterUsage" || ArenaAttribution.Applies(board) ? " · CC BY 4.0" : "";
+                var license = board.Kind is "epochECI" or "openRouterUsage" or "vercelUsage" || ArenaAttribution.Applies(board) ? " · CC BY 4.0" : "";
                 var lens = " · " + SourceLens(board);
                 var titleWidth = Measure(title, 11, FontWeights.SemiBold);
                 var licenseWidth = license.Length == 0 ? 0 : Measure(license, 11, FontWeights.SemiBold);
@@ -657,9 +659,9 @@ sealed partial class MainWindow
             {
                 var column = 1 + side * 4;
                 if (index >= entries[side].Length) continue;
-                var entry = entries[side][index]; AddCell(row, ModelCell(entry, unsearched[side][0].Score, BoardTint(pair[side].Kind)), column);
+                var entry = entries[side][index]; AddCell(row, ModelCell(entry, unsearched[side][0].Score, BoardTint(pair[side].Kind), pair[side].Kind != "vercelUsage"), column);
                 var score = new Grid();
-                score.Children.Add(Center(Caption((pair[side].Kind == "openRouterUsage" && entry.Score > 0 && entry.Score < 0.01 ? "<0.01B" : entry.Score.ToString(pair[side].Kind == "openRouterUsage" ? "0.00\"B\"" : pair[side].Kind == "epochECI" ? "0.00" : "0.0", CultureInfo.InvariantCulture)), PanelMuted, 13, numeric: true)));
+                score.Children.Add(Center(Caption((pair[side].Kind == "vercelUsage" ? (entry.Score > 0 && entry.Score < 0.01 ? "<0.01%" : entry.Score.ToString("0.00", CultureInfo.InvariantCulture) + "%") : pair[side].Kind == "openRouterUsage" && entry.Score > 0 && entry.Score < 0.01 ? "<0.01B" : entry.Score.ToString(pair[side].Kind == "openRouterUsage" ? "0.00\"B\"" : pair[side].Kind == "epochECI" ? "0.00" : "0.0", CultureInfo.InvariantCulture)), PanelMuted, 13, numeric: true)));
                 AddCell(row, score, column + 3);
                 AddCell(row, OpennessBadge(entry.Openness), column + 2);
                 AddCell(row, Flag(entry.Country), column + 1);
@@ -679,7 +681,7 @@ sealed partial class MainWindow
         viewport.Children.Add(backToTop);
         if (prefs.Category == "usage" && pair.All(board => board.Entries.Length == 0))
         {
-            var pending = Caption(pair.FirstOrDefault()?.Error ?? Tr("Data source awaiting configuration", "数据源待配置", "資料來源待設定"), PanelMuted, 13);
+            var pending = Caption(pair.FirstOrDefault()?.Error ?? Tr("No usage data yet", "暂无用量数据", "暫無用量資料"), PanelMuted, 13);
             pending.TextWrapping = TextWrapping.Wrap; pending.TextAlignment = TextAlignment.Center;
             pending.HorizontalAlignment = HorizontalAlignment.Center; pending.VerticalAlignment = VerticalAlignment.Center;
             pending.MaxWidth = 520; viewport.Children.Add(pending);
@@ -741,7 +743,7 @@ sealed partial class MainWindow
         return prefs.VisibleBoardKinds().Select(kind => saved.FirstOrDefault(board => board.Kind == kind)
             ?? new Board(kind, kind == "epochECI" ? "Epoch AI" : kind.StartsWith("artificialAnalysis") ? "Artificial Analysis" : "Arena", "", null, null, [])).ToArray();
     }
-    Brush BoardTint(string kind) => kind == "openRouterUsage" ? Tint(panelDark ? "#FFB45C" : "#A76514") : kind == "epochECI" ? Tint(panelDark ? "#5BD6D0" : "#168D86")
+    Brush BoardTint(string kind) => kind == "vercelUsage" ? PanelMuted : kind == "openRouterUsage" ? Tint(panelDark ? "#FFB45C" : "#A76514") : kind == "epochECI" ? Tint(panelDark ? "#5BD6D0" : "#168D86")
         : kind.StartsWith("artificialAnalysis") ? PanelBlue : PanelPurple;
 
     Grid TableGrid(int boardCount)
@@ -782,7 +784,7 @@ sealed partial class MainWindow
         channels = channels.Select(channel => (int)Math.Round(shade < 0 ? channel * (1 + shade) : channel + (255 - channel) * shade, MidpointRounding.AwayFromZero)).ToArray();
         return new SolidColorBrush(Color.FromRgb((byte)channels[0], (byte)channels[1], (byte)channels[2])) { Opacity = 0.34 };
     }
-    FrameworkElement ModelCell(Entry entry, double leaderScore, Brush shareColor)
+    FrameworkElement ModelCell(Entry entry, double leaderScore, Brush shareColor, bool showRelativeShare)
     {
         var row = new Grid { HorizontalAlignment = HorizontalAlignment.Left };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) }); row.ColumnDefinitions.Add(new ColumnDefinition());
@@ -817,7 +819,7 @@ sealed partial class MainWindow
         var nameContent = new Border { Child = row, Padding = new Thickness(4, 0, 3, 0),
             HorizontalAlignment = HorizontalAlignment.Left, ClipToBounds = true };
         content.Children.Add(nameContent);
-        var share = ScoreShare.Format(entry.Score, leaderScore);
+        var share = showRelativeShare ? ScoreShare.Format(entry.Score, leaderScore) : "";
         var overlay = new Canvas { IsHitTestVisible = false, ClipToBounds = true };
         var label = Caption(share, shareColor, 8, numeric: true);
         label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
@@ -846,6 +848,7 @@ sealed partial class MainWindow
     }
     string BoardTitle(Board board) => board.Kind switch
     {
+        "vercelUsage" => "Vercel AI Gateway",
         "openRouterUsage" => "OpenRouter",
         "artificialAnalysis" => "Artificial Analysis", "arenaText" => "Text Arena", "epochECI" => "Epoch ECI",
         "artificialAnalysisCodingAgent" => Tr("Artificial Analysis Coding", "Artificial Analysis 编程", "Artificial Analysis 編程"),
@@ -859,6 +862,7 @@ sealed partial class MainWindow
     string SourceLens(Board board) => board.Kind switch
     {
         "artificialAnalysis" => Tr("Task benchmarks", "任务测评", "任務測評"),
+        "vercelUsage" => Tr("Token share", "用量占比", "用量佔比"),
         "openRouterUsage" => Tr("Usage ranking", "用量排行", "用量排行"),
         "epochECI" => Tr("Calibrated tests", "难度校准", "難度校準"),
         "arenaText" => Tr("User votes", "用户盲测", "使用者盲測"),
@@ -1020,7 +1024,7 @@ sealed partial class MainWindow
                 var board = VisibleBoards().FirstOrDefault(value => value.Kind == kind)
                     ?? state?.Boards.FirstOrDefault(value => value.Kind == kind)
                     ?? new Board(kind, kind == "epochECI" ? "Epoch AI" : kind.StartsWith("artificialAnalysis") ? "Artificial Analysis" : "Arena", "", null, null, []);
-                var item = new MenuItem { Header = (kind == "openRouterUsage" ? "OpenRouter" : kind == "epochECI" ? "Epoch AI" : kind.StartsWith("artificialAnalysis") ? "Artificial Analysis" : "Arena") + " · " + SourceLens(board), IsCheckable = true,
+                var item = new MenuItem { Header = (kind == "vercelUsage" ? "Vercel AI Gateway" : kind == "openRouterUsage" ? "OpenRouter" : kind == "epochECI" ? "Epoch AI" : kind.StartsWith("artificialAnalysis") ? "Artificial Analysis" : "Arena") + " · " + SourceLens(board), IsCheckable = true,
                     IsChecked = draft.Contains(kind), IsEnabled = draft.Count > 1 || !draft.Contains(kind), StaysOpenOnClick = true };
                 System.Windows.Automation.AutomationProperties.SetAutomationId(item, "board-visibility-" + kind);
                 item.Click += (_, _) => {

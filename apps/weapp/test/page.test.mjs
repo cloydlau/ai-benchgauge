@@ -601,7 +601,7 @@ test('every category and source shares the current page title and only the local
   for (const language of ['en', 'zh-CN', 'zh-TW']) for (const category of categories) for (const face of category.kinds.keys()) {
     const h = setup({ language, category: category.id, face })
     const message = globalThis.__benchHooks.share()
-    const title = text(category.id === 'usage' ? copy.usage : [copy.tasks, copy.votes, copy.capabilityIndex][face], language)
+    const title = category.id === 'usage' ? ['OpenRouter', 'Vercel AI Gateway'][face] : text([copy.tasks, copy.votes, copy.capabilityIndex][face], language)
     assert.equal(message.title, `${title}｜${text(copy.rankingSummary, language)}`)
     assert.ok(!message.title.includes(text(copy.tagline, language)))
     const shared = pagePreferences(Object.fromEntries(new URL('https://shared.example' + message.path).searchParams))
@@ -611,31 +611,37 @@ test('every category and source shares the current page title and only the local
   }
 })
 
-test('usage has one source, reports missing configuration, disables cube turns, and recovers after configuration', async () => {
+test('usage keeps source failures independent, switches to Vercel, and recovers OpenRouter configuration', async () => {
   const h = setup({ category: 'usage', language: 'zh-CN' })
   const loading = globalThis.__benchHooks.load()
-  assert.equal(h.requests.length, 1)
-  assert.ok(h.requests[0].options.url.endsWith('/openRouterUsage'))
-  assert.deepEqual(h.page.tabs.value, ['用量排行'])
+  assert.equal(h.requests.length, 2)
+  assert.deepEqual(h.page.tabs.value, ['OpenRouter', 'Vercel AI Gateway'])
   h.requests[0].options.success({ statusCode: 200, data: { board: null, configurationRequired: true } })
-  h.requests[0].options.complete(); await loading
+  h.requests[0].options.complete()
+  h.respond(1, { sourceUpdatedAt: '2026-10-22T00:00:00Z', entries: [{ rank: 1, name: 'DeepSeek V4.1 Flash', score: 16.3389, organization: 'DeepSeek' }] })
+  await loading
   assert.equal(h.page.cards.value[0].pendingConfiguration, true)
   assert.equal(h.page.cards.value[0].hasBoard, false)
   assert.equal(h.page.cards.value[0].scoreLabel, '用量')
-  h.page.cubeStart({ touches: [{ clientX: 200, clientY: 250 }] })
-  h.page.cubeMove({ touches: [{ clientX: 60, clientY: 250 }] })
-  assert.equal(h.page.cubeDragging.value, false)
-  assert.equal(h.page.face.value, 0)
+  assert.equal(h.page.cards.value[1].scoreLabel, '占比')
+  assert.equal(h.page.cards.value[1].time, '10/22')
+  assert.equal(h.page.cards.value[1].timeLabel, 'UTC统计日')
+  assert.equal(h.page.cards.value[1].rows[0].scoreText, '16.34%')
+  assert.equal(h.page.cards.value[1].rows[0].scoreShare, '')
+  h.page.changeFace({ detail: { current: 1 } })
+  assert.equal(h.page.face.value, 1)
   const retry = h.page.pullRefresh(event({ kind: 'openRouterUsage' }))
-  const notice = 'Source: OpenRouter (openrouter.ai/rankings), as of 2026-10-23T00:00:30Z.\nLicensed under CC BY 4.0.\nUTC 2026-10-22'
-  h.respond(1, { sourceNote: notice })
+  const notice = 'Source: OpenRouter · Licensed under CC BY 4.0.'
+  h.respond(2, { sourceNote: notice })
+  h.respond(3, { entries: [{ rank: 1, name: "Vercel model", score: 16.3389 }] })
   await retry
   assert.equal(h.page.cards.value[0].pendingConfiguration, false)
-  assert.equal(h.page.cards.value[0].hasBoard, true)
   assert.equal(h.page.cards.value[0].rows[0].scoreText, '99.00B')
   h.page.sourceHelp(event({ kind: 'openRouterUsage' }))
   assert.ok(!h.modals.at(-1).content.includes(notice))
-  assert.ok(h.modals.at(-1).content.includes('https://openrouter.ai/rankings'))
+  h.page.sourceHelp(event({ kind: 'vercelUsage' }))
+  assert.ok(h.modals.at(-1).content.includes('缓存'))
+  assert.ok(h.modals.at(-1).content.includes('https://vercel.com/ai-gateway/leaderboards/models'))
   globalThis.__benchHooks.unload()
 })
 

@@ -32,6 +32,12 @@ public enum CCBYLicense {
         }
     }
 
+    public static func vercelText(sourceNote: String?, language: AppLanguage) -> String {
+        let note = sourceNote?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let attribution = note?.isEmpty == false ? note! : "© 2026 Vercel. \"AI Gateway Leaderboard Data\" is licensed under CC BY 4.0. To view a copy of this license, visit " + canonicalURL + "\nSource: https://vercel.com/ai-gateway/leaderboards/models"
+        return attribution + "\n\n" + text(language: language)
+    }
+
     public static func openRouterText(sourceNote: String?, language: AppLanguage) -> String {
         let note = sourceNote?.trimmingCharacters(in: .whitespacesAndNewlines)
         let attribution = note?.isEmpty == false ? note! : "Source: OpenRouter (openrouter.ai/rankings).\nLicensed under CC BY 4.0.\n" + canonicalURL

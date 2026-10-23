@@ -54,7 +54,7 @@ public sealed class Preferences
         "coding" => ["artificialAnalysisCodingAgent", "codeArenaWebDev"],
         "image" => ["artificialAnalysisTextToImage", "arenaTextToImage"],
         "video" => ["artificialAnalysisTextToVideo", "arenaTextToVideo"],
-        "usage" => ["openRouterUsage"],
+        "usage" => ["openRouterUsage", "vercelUsage"],
         _ => ["artificialAnalysis", "arenaText", "epochECI"]
     };
     public string[] VisibleBoardKinds()

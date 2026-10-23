@@ -54,16 +54,17 @@ public enum CompanyLeaderboard {
 
     public static func scoreHelp(
         for standing: CompanyStanding,
-        language: AppLanguage = .chinese
+        language: AppLanguage = .chinese, kind: LeaderboardKind? = nil
     ) -> String {
-        let usage = standing.entry.totalTokens != nil
+        let share = kind == .vercelUsage
+        let usage = kind?.isUsage == true || standing.entry.totalTokens != nil
         let details = standing.components.enumerated().map { index, component in
             let rank = language.text("#\(component.rank)", "第\(component.rank)名")
-            let score = usage ? LeaderboardPresentation.scoreText(component.score, kind: .openRouterUsage) : scoreText(component.score)
+            let score = usage ? LeaderboardPresentation.scoreText(component.score, kind: share ? .vercelUsage : .openRouterUsage) : scoreText(component.score)
             let marker = index == 0 && !usage ? language.text(" · strongest", " · 最强") : ""
             return "\(component.name) · \(rank) · \(score)\(marker)"
         }
-        return ([usage ? language.text("Sum of listed models only; 1B = 1 billion tokens", "仅汇总榜内模型；1B = 十亿 token") : language.text("Score uses the strongest model", scoreExplanation)] + details)
+        return ([share ? language.text("Sum of listed model shares only", "仅汇总榜内模型的用量占比") : usage ? language.text("Sum of listed models only; 1B = 1 billion tokens", "仅汇总榜内模型；1B = 十亿 token") : language.text("Score uses the strongest model", scoreExplanation)] + details)
             .joined(separator: "\n")
     }
 
@@ -101,7 +102,7 @@ public enum CompanyLeaderboard {
         return Aggregate(
             name: displayName(key: key, best: flagship),
             score: summingUsage ? members.reduce(0) { $0 + $1.score } : flagship.score,
-            totalTokens: summingUsage ? members.reduce(Decimal(0)) { $0 + (Decimal(string: $1.totalTokens ?? "0") ?? 0) }.description : nil,
+            totalTokens: summingUsage && members.contains(where: { $0.totalTokens != nil }) ? members.reduce(Decimal(0)) { $0 + (Decimal(string: $1.totalTokens ?? "0") ?? 0) }.description : nil,
             bestRank: flagship.rank,
             logoURL: flagship.logoURL,
             brand: flagship.organizationBrand ?? flagship.brand,

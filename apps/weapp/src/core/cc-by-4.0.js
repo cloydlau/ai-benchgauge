@@ -10,3 +10,8 @@ export function openRouterLicense(sourceNote, language = 'en') {
   const attribution = sourceNote?.trim() || 'Source: OpenRouter (openrouter.ai/rankings).\nLicensed under CC BY 4.0.\nhttps://creativecommons.org/licenses/by/4.0/'
   return `${attribution}\n\n${ccByLicense(language).text}`
 }
+
+export function vercelLicense(sourceNote, language = 'en') {
+  const attribution = sourceNote?.trim() || '© 2026 Vercel. "AI Gateway Leaderboard Data" is licensed under CC BY 4.0. To view a copy of this license, visit https://creativecommons.org/licenses/by/4.0/\nSource: https://vercel.com/ai-gateway/leaderboards/models'
+  return `${attribution}\n\n${ccByLicense(language).text}`
+}

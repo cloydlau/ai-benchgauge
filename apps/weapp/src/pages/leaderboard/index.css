@@ -103,8 +103,8 @@
 .time-loading { align-self: center; flex-shrink: 0; width: 1em; height: 1em; box-sizing: border-box; border: 2rpx solid currentColor; border-right-color: transparent; border-radius: 50%; animation: time-spin .8s linear infinite; pointer-events: none; }
 @keyframes time-spin { to { transform: rotate(360deg); } }
 .table-grid { display: grid; grid-template-columns: 44rpx minmax(0,1fr) var(--country-column) var(--source-column) var(--score-column,75rpx); gap: 6rpx; align-items: center; }
-.usage-category { --score-column: 110rpx; --blue: #a76514; }
-.dark.usage-category { --blue: #ffb45c; }
+.usage-category { --score-column: 110rpx; --blue: #a76514; --purple: #626973; }
+.dark.usage-category { --blue: #ffb45c; --purple: #b4b9c1; }
 .company-view .table-grid { grid-template-columns: 44rpx minmax(0,1fr) var(--country-column) var(--score-column,75rpx); }
 .table-head { position: sticky; top: 0; z-index: 3; background: var(--card); padding: 0 2rpx 16rpx; margin: 0 4rpx 6rpx; border-bottom: 1rpx solid var(--line); color: var(--muted); font-size: 21rpx; }
 /* Mask the card inset and fractional sticky-position seams without moving the columns. */
