@@ -457,7 +457,7 @@ definePage(query => {
     const filter = filterFor(kind)
     const range = rangeFor(kind, entries.length)
     const time = boardTime(board, kind)
-    return { kind, title: boardTitle(kind, language.value), index, summary: text(boards[kind].summaries, language.value),
+    return { kind, themeStyle: `--source-accent:${sourceTabTheme(kind, dark.value).accent};`, title: boardTitle(kind, language.value), index, summary: text(boards[kind].summaries, language.value),
       ...time, timeAccessibility: `${time.time} ${time.timeLabel}`,
       count: totalCount, shownCount: entries.length, hasMore: totalCount > 20, expanded: !!expandedBoards.value[kind],
       expansionLabel: expandedBoards.value[kind] ? tr('showLess') : tr('showAll').replace('{count}', totalCount), distribution: distributions.value[kind],

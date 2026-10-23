@@ -6,6 +6,7 @@ import { canvasHarness } from './helpers/canvas.mjs'
 import { pagePreferences } from '../src/core/share-state.js'
 import { boards, categories, copy, text, desktopDownloadURL } from '../src/core/catalog.js'
 import { formatTime } from '../src/core/leaderboard.js'
+import { sourceTabTheme } from '../src/core/source-tab-theme.js'
 
 // Exercise the real page controller with deterministic lifecycle/network hooks.
 // This does not substitute for WeChat's Vue bridge or native visual verification.
@@ -1849,3 +1850,19 @@ test('Epoch is a third live source with original score precision, persistent sha
   assert.equal(h.page.cubeFaces.value.length, 2);
   globalThis.__benchHooks.unload();
 });
+
+
+test('source header accents follow full identities across category changes and live theme updates', async () => {
+  const h = setup()
+  const loaded = globalThis.__benchHooks.load(); h.respondAll(); await loaded
+  for (const dark of [false, true]) {
+    h.theme(dark ? 'dark' : 'light')
+    for (const category of categories) {
+      h.page.selectCategory(event({ id: category.id })); h.respondAll()
+      for (const card of h.page.cards.value) {
+        assert.equal(card.themeStyle, `--source-accent:${sourceTabTheme(card.kind, dark).accent};`)
+      }
+    }
+  }
+  globalThis.__benchHooks.unload()
+})

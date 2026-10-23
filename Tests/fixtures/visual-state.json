@@ -3433,6 +3433,64 @@
       "scenario": "usageLoadingCached",
       "category": "usage",
       "mode": "clickToClose"
+    },
+    {
+      "id": "source-brand-general-zh-light",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "scenario": "sourceTimes",
+      "mode": "clickToClose",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ],
+      "appearance": "light"
+    },
+    {
+      "id": "source-brand-general-hant-dark",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "scenario": "sourceTimes",
+      "mode": "clickToClose",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ],
+      "appearance": "dark"
+    },
+    {
+      "id": "source-brand-usage-light",
+      "language": "en",
+      "width": 1100,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "category": "usage",
+      "selectedBoards": [
+        "openRouterUsage",
+        "vercelUsage"
+      ],
+      "grouping": "model",
+      "appearance": "light"
+    },
+    {
+      "id": "source-brand-usage-dark",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "category": "usage",
+      "selectedBoards": [
+        "openRouterUsage",
+        "vercelUsage"
+      ],
+      "grouping": "model",
+      "appearance": "dark"
     }
   ],
   "quotaScenarios": {

@@ -2111,6 +2111,12 @@ final class LeaderboardTabDragTests: XCTestCase {
                 sourceTab.tap(); selected(sourceTab)
                 Thread.sleep(forTimeInterval: 0.6)
                 let capture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+                let kind = ["artificialAnalysis": "artificialAnalysis", "arena": "arenaText", "epoch": "epochECI",
+                            "openRouter": "openRouterUsage", "vercel": "vercelUsage"][sourceID]!
+                XCTAssertTrue(app.staticTexts["source-heading-" + kind].exists)
+                let refresh = app.buttons.matching(identifier: "refresh").allElementsBoundByIndex.first { $0.isHittable }
+                XCTAssertNotNil(refresh)
+                XCTAssertFalse(refresh?.label.isEmpty ?? true)
                 capture.name = "source-theme-\(dark ? "dark" : "light")-\(sourceID)"
                 capture.lifetime = .keepAlways; add(capture)
             }

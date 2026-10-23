@@ -5,6 +5,7 @@ import { bundledFlags } from '../src/core/flag-catalog.js'
 import { planScreenshot, drawScreenshot, screenshotStripHeight, screenshotWidth } from '../src/core/screenshot.js'
 import { exportScreenshot, removeScreenshot } from '../src/services/screenshot.js'
 import { rowView } from '../src/core/leaderboard.js'
+import { sourceTabTheme } from '../src/core/source-tab-theme.js'
 import { copy, text } from '../src/core/catalog.js'
 import { canvasHarness } from './helpers/canvas.mjs'
 import { decodePNG } from './helpers/png.mjs'
@@ -214,4 +215,27 @@ test('unavailable flag images and unknown countries export readable fallbacks', 
   const values = h.commands.filter(([name]) => name === 'fillText').map(([, value]) => value)
   for (const value of ['US', 'ZZ', '?']) assert.ok(values.includes(value))
   assert.ok(!values.some(value => /[\u{1F1E6}-\u{1F1FF}]/u.test(value)))
+})
+
+
+test('export source headings, publication times and shares retain identity after column reordering', () => {
+  for (const dark of [false, true]) {
+    for (const kind of ['epochECI', 'vercelUsage', 'arenaText', 'openRouterUsage', 'artificialAnalysisCodingAgent']) {
+      const h = canvasHarness(), source = model([1, 1], dark), paints = []
+      source.boards[1].kind = kind
+      source.boards[1].title = 'Source heading'
+      source.boards[1].time = 'Source published'
+      source.boards[1].isSourceTime = true
+      source.boards[1].rows[0].scoreShare = 'Unique share'
+      h.context.fillText = (value, x, y) => paints.push({ value, x, y, color: h.context.fillStyle })
+      drawScreenshot(h.context, source, planScreenshot(h.context, source), new Map())
+      const accent = sourceTabTheme(kind, dark).accent
+      for (const value of ['Source heading', 'Source published', 'Unique share'])
+        assert.equal(paints.find(paint => paint.value === value).color, accent)
+      source.boards[1].isSourceTime = false
+      paints.length = 0
+      drawScreenshot(h.context, source, planScreenshot(h.context, source), new Map())
+      assert.notEqual(paints.find(paint => paint.value === 'Source published').color, accent)
+    }
+  }
 })

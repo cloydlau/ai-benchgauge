@@ -1,43 +1,43 @@
 {
   "fallback": {
-    "light": { "background": "#414D5C", "foreground": "#FFFFFF" },
-    "dark": { "background": "#D1DCE8", "foreground": "#101216" }
+    "light": { "background": "#414D5C", "foreground": "#FFFFFF", "accent": "#414D5C" },
+    "dark": { "background": "#D1DCE8", "foreground": "#101216", "accent": "#D1DCE8" }
   },
   "sources": [
     {
       "id": "artificialAnalysis",
       "kinds": ["artificialAnalysis", "artificialAnalysisCodingAgent", "artificialAnalysisTextToImage", "artificialAnalysisTextToVideo"],
       "reference": "https://artificialanalysis.ai/brand-kit/",
-      "light": { "background": "#8842FD", "foreground": "#FFFFFF" },
-      "dark": { "background": "#C394FF", "foreground": "#43003B" }
+      "light": { "background": "#8842FD", "foreground": "#FFFFFF", "accent": "#8842FD" },
+      "dark": { "background": "#C394FF", "foreground": "#43003B", "accent": "#C394FF" }
     },
     {
       "id": "arena",
       "kinds": ["arenaText", "codeArenaWebDev", "arenaTextToImage", "arenaTextToVideo"],
       "reference": "https://arena.ai/blog/lmarena-is-now-arena",
-      "light": { "background": "#1A1919", "foreground": "#FCFAF7" },
-      "dark": { "background": "#FCFAF7", "foreground": "#1A1919" }
+      "light": { "background": "#1A1919", "foreground": "#FCFAF7", "accent": "#1A1919" },
+      "dark": { "background": "#FCFAF7", "foreground": "#1A1919", "accent": "#FCFAF7" }
     },
     {
       "id": "epoch",
       "kinds": ["epochECI"],
       "reference": "https://epoch.ai/eci",
-      "light": { "background": "#70EFD1", "foreground": "#072B33" },
-      "dark": { "background": "#70EFD1", "foreground": "#072B33" }
+      "light": { "background": "#70EFD1", "foreground": "#072B33", "accent": "#026B70" },
+      "dark": { "background": "#70EFD1", "foreground": "#072B33", "accent": "#70EFD1" }
     },
     {
       "id": "openRouter",
       "kinds": ["openRouterUsage"],
       "reference": "https://openrouter.ai/brand",
-      "light": { "background": "#7624F4", "foreground": "#FCFCFE" },
-      "dark": { "background": "#C8FF00", "foreground": "#03080A" }
+      "light": { "background": "#7624F4", "foreground": "#FCFCFE", "accent": "#7624F4" },
+      "dark": { "background": "#C8FF00", "foreground": "#03080A", "accent": "#C8FF00" }
     },
     {
       "id": "vercel",
       "kinds": ["vercelUsage"],
       "reference": "https://vercel.com/geist/colors",
-      "light": { "background": "#000000", "foreground": "#FFFFFF" },
-      "dark": { "background": "#FFFFFF", "foreground": "#000000" }
+      "light": { "background": "#000000", "foreground": "#FFFFFF", "accent": "#000000" },
+      "dark": { "background": "#FFFFFF", "foreground": "#000000", "accent": "#FFFFFF" }
     }
   ]
 }

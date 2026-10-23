@@ -6,6 +6,22 @@ using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Security;
 
+// The shared brand catalog covers exact category IDs, independent of column positions.
+foreach (var kinds in new[] {
+    new[] { "artificialAnalysis", "artificialAnalysisCodingAgent", "artificialAnalysisTextToImage", "artificialAnalysisTextToVideo" },
+    new[] { "arenaText", "codeArenaWebDev", "arenaTextToImage", "arenaTextToVideo" },
+    new[] { "epochECI" }, new[] { "openRouterUsage" }, new[] { "vercelUsage" } })
+    foreach (var dark in new[] { false, true })
+        foreach (var kind in kinds)
+            if (SourceTabTheme.For(kind, dark) != SourceTabTheme.For(kinds[0], dark)
+                || !SourceTabTheme.For(kind, dark).Accent.StartsWith('#'))
+                throw new Exception("Source themes must follow complete source identities");
+if (SourceTabTheme.For("vercelUsage", false).Accent != "#000000"
+    || SourceTabTheme.For("vercelUsage", true).Accent != "#FFFFFF"
+    || SourceTabTheme.For("artificialAnalysisCodingAgent-extra", false) != SourceTabTheme.For("cloudbaseUsage", false)
+    || SourceTabTheme.For("cloudbaseUsage", true) == SourceTabTheme.For("cloudbaseUsage", false))
+    throw new Exception("Source text must retain brand contrast and exact-ID fallback");
+
 // Source data time always wins; snapshot time is only a fallback, never a maximum.
 var timestampFetch = DateTimeOffset.Parse("2026-10-22T12:00:00Z");
 foreach (var (language, published, updated) in new[] {
