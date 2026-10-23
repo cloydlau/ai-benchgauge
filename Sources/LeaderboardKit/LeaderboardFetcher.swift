@@ -19,6 +19,7 @@ public struct LeaderboardFetcher: Sendable {
         if let sharedEndpoint { return try await shared(kind, endpoint: sharedEndpoint, onCachedBoard: onCachedBoard) }
         // Arena's licensed Parquet snapshots are acquired by the shared service.
         // Never fall back to the website when shared storage is unconfigured.
+        if kind == .openRouterUsage { throw LeaderboardConfigurationRequired() }
         if kind.sourcePrefix == "Arena" { throw URLError(.resourceUnavailable) }
         return try parse(kind, html: await html(kind.dataURL))
     }
@@ -32,6 +33,7 @@ public struct LeaderboardFetcher: Sendable {
     private struct SharedResponse: Decodable {
         let board: Leaderboard?
         let grant: Grant?
+        let configurationRequired: Bool?
     }
     private struct Grant: Decodable {
         let token: String
@@ -55,6 +57,7 @@ public struct LeaderboardFetcher: Sendable {
         }
         let cached = valid(response.board, kind: kind)
         if let cached { await onCachedBoard?(cached) }
+        if response.configurationRequired == true && cached == nil { throw LeaderboardConfigurationRequired() }
         guard let grant = response.grant else {
             if let cached { return cached }
             // Another contributor may be seeding the first snapshot. Poll only
@@ -86,7 +89,7 @@ public struct LeaderboardFetcher: Sendable {
     }
 
     private func contribute(_ kind: LeaderboardKind, path: URL, grant: Grant) async throws -> Leaderboard {
-        guard kind.sourcePrefix != "Arena" else { throw URLError(.badServerResponse) }
+        guard kind.sourcePrefix != "Arena", kind != .openRouterUsage else { throw URLError(.badServerResponse) }
         guard grant.sourceURL == kind.dataURL,
               grant.token.utf8.count == 43,
               grant.expiresAt / 1000 > Date().timeIntervalSince1970 else { throw URLError(.badServerResponse) }
@@ -113,6 +116,7 @@ public struct LeaderboardFetcher: Sendable {
 
     private func cachedShared(_ kind: LeaderboardKind, url: URL) async throws -> Leaderboard {
         let response = try await sharedResponse(URLRequest(url: url))
+        if response.configurationRequired == true && response.board == nil { throw LeaderboardConfigurationRequired() }
         guard let board = valid(response.board, kind: kind) else { throw URLError(.resourceUnavailable) }
         return board
     }
@@ -141,6 +145,7 @@ public struct LeaderboardFetcher: Sendable {
 
     func parse(_ kind: LeaderboardKind, html: String) throws -> Leaderboard {
         switch kind {
+        case .openRouterUsage: throw URLError(.resourceUnavailable)
         case .epochECI:
             return try EpochECIParser.parse(html)
         case .artificialAnalysis:

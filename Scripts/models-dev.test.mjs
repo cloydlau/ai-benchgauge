@@ -6,6 +6,7 @@ import { parseModelsDev, validModelsDev, modelMatcher, ModelsDevRegistry, models
 import { resolvedOpenness } from '../fc/domain.mjs';
 import { handler } from '../fc/server.mjs';
 import { sources } from '../fc/parser.mjs';
+import { withOpenRouterModels } from '../fc/openrouter-usage.mjs';
 const now = Date.now(), revision = 'a'.repeat(64);
 function raw() {
   const models = Object.fromEntries(Array.from({ length: 100 }, (_, i) => [`lab/model-${i}`, { id: `lab/model-${i}`, name: `Model ${i}`, limit: { context: 100000 }, open_weights: true, license: 'Apache-2.0' }]));
@@ -62,6 +63,38 @@ test('identity matching preserves numeric versions, agents, ambiguous names and 
   assert.equal(match({ name: 'Agent - Variant 5.1 (high)' }, 'artificialAnalysisCodingAgent').id, 'lab/variant-5.1');
   assert.equal(match({ name: 'Unknown', modelID: 'provider-1/0' }).id, 'lab/variant-5.1');
   assert.equal(match({ name: 'Variant 5.1 + Variant 51' }), null);
+});
+test('OpenRouter usage joins only confirmed OpenRouter offers through official full-ID pairs, including closed weights', async () => {
+  const r = raw();
+  r.models['lab/model-1'].open_weights = false;
+  r.providers.openrouter = { name: 'OpenRouter', models: {
+    'vendor/k3-1017': { id: 'vendor/k3-1017', canonical_model_id: 'lab/model-0' },
+    'vendor/k3': { id: 'vendor/k3', canonical_model_id: 'lab/model-1' },
+    'vendor/k3-1017:free': { id: 'vendor/k3-1017:free', canonical_model_id: 'lab/model-0' },
+  } };
+  const store = new Store(); store.value = parseModelsDev(r, { now, revision });
+  const original = { kind: 'openRouterUsage', fetchedAt: new Date(now).toISOString(), entries: [
+    { modelID: 'vendor/k3-20261017', name: 'Model 1', rank: 1, totalTokens: '123456789123456789' },
+    { modelID: 'vendor/k3-20260910', name: 'Model 0', rank: 2 },
+    { modelID: 'vendor/k3-20261017:free', name: 'Model 0', rank: 3 },
+    { modelID: 'other/k3-20261017', name: 'Model 0', rank: 4 },
+    { modelID: 'vendor/k3-20260801', name: 'Model 0', rank: 5 },
+    { modelID: 'provider-1/0', name: 'Model 0', rank: 6 },
+    { modelID: 'vendor/k3-1017', name: 'Ignored name', rank: 7 },
+  ] };
+  const board = withOpenRouterModels(original, { data: [
+    { id: 'vendor/k3-1017', canonical_slug: 'vendor/k3-20261017' },
+    { id: 'vendor/k3', canonical_slug: 'vendor/k3-20260910' },
+    { id: 'vendor/k3-1017:free', canonical_slug: 'vendor/k3-20261017' },
+  ] });
+  const enriched = await new ModelsDevRegistry(store).enrich(board);
+  assert.deepEqual(enriched.entries.map(e => e.modelMetadata?.id), ['lab/model-0', 'lab/model-1', 'lab/model-0', undefined, undefined, undefined, 'lab/model-0']);
+  assert.deepEqual(enriched.entries.map(resolvedOpenness), ['open', 'closed', 'open', null, null, null, 'open']);
+  assert.equal(enriched.entries[0].totalTokens, original.entries[0].totalTokens);
+  assert.equal(enriched.fetchedAt, original.fetchedAt); assert.equal(store.writes, 0);
+  const s = store.value;
+  s.models[2].offers.push({ ...s.models[0].offers.find(o => o.provider === 'openrouter') });
+  assert.equal(modelMatcher(s)(board.entries[0], board.kind), null, 'Conflicting canonical links cannot be disambiguated by display name');
 });
 test('100 concurrent services sync once; 24-hour freshness and failed updates retain the last valid OSS snapshot', async () => {
   const store = new Store(); let calls = 0, time = now;

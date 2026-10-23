@@ -1,3 +1,101 @@
+## OpenRouter notice placement — 2026-10-23
+
+The mini-program, iOS and Mac no longer show the raw OpenRouter attribution
+paragraph in the normal leaderboard. Mobile About → OpenRouter → CC BY 4.0
+opens the current cached attribution and the localized full license. Mac's
+existing notices dialog contains an OpenRouter disclosure. Unknown/missing
+offline snapshots retain a static source credit and the bundled license;
+opening the agreement does not request network access. Exported images retain
+their attribution. Windows already has no equivalent inline paragraph, and its
+interface is unchanged.
+
+Ignored work/usage-license-placement/ retains 72 before and 72 after native Mac
+panel frames, fixture, source hashes, capture intent, provenance and verification.
+The before frames reuse usage-tab-order's final originals after all five recorded
+rendering source hashes matched this task's pre-change versions. Both sets use
+the identical fixture, 850×720-point viewport, three languages, both themes and
+shown/refreshed/settled phases. Original Chinese model, English company/dark and
+Traditional Chinese model/dark frames were reviewed: the long notice is absent,
+the table uses the available space and the source header/footer remain visible.
+These are local uncommitted sources on macOS 27.0.1, actual 1× backing scale;
+full metadata and any frame differences are recorded in verification.json.
+
+158 mini-program tests, its production build and 552 native core tests pass.
+The native package compiles the shared iOS UI. The About offline snapshot,
+localized license, fallback, reopen and malformed-cache paths are tested;
+the new Mac disclosure interaction is outside the panel screenshot scenarios.
+WeChat DevTools reports expired login, so simulator visual review is unavailable.
+No new iPhone/iPad simulator visual review, native Windows screenshots or matching
+CI visual artifact is claimed. No installed-client replacement or protected
+release approval is part of this verification.
+
+## Usage before General — 2026-10-23
+
+All clients now present Usage / General / Coding / Image / Video, with the
+existing category identifiers and preference keys unchanged. First launches
+and invalid preferences still select General. Existing saved choices continue
+to restore by identifier. The mini-program's category lookup fallback explicitly
+selects General instead of relying on the first item in the display order.
+
+Ignored work/usage-tab-order/ retains 72 before and 72 after native Mac frames
+with the same fixture, 850×720-point content viewport, three languages, both
+themes and shown/refreshed/settled phases. The before frames reuse the preceding
+usage capture after checking that all five recorded rendering source hashes
+matched the pre-change sources; original provenance is retained. All 24 after
+refreshed/settled pairs match pixel for pixel. Representative Chinese General,
+English Usage and Traditional Chinese pending-configuration originals were
+reviewed. Before/after settled differences remain within the category control.
+Actual environment: macOS 27.0.1 (26A434), native backing scale 1.0, local
+uncommitted sources; after-provenance.json records source and executable hashes.
+
+The focused mini-program regressions pass (97 cases), its final drag regression
+passes, and direct checks confirm the order, default, invalid-category fallback
+and restoration of every saved category. Production mini-program build and
+Windows Release cross-compilation pass (zero Windows warnings/errors).
+The final managed core run passes 550 tests. The concurrent full coverage gate
+reported existing CompanyLeaderboard.swift coverage of 150/152 lines and a
+changed-input result (75); it is not a passing release receipt.
+
+Native Windows captures, actual Windows OS/DPI and a matching CI visual artifact
+are unavailable. WeChat DevTools reports expired login, so mini-program simulator
+review is unavailable; iOS simulator visual review is not claimed for this
+order-only change. No protected release approval or client publication is claimed.
+
+## OpenRouter usage category — 2026-10-23
+
+All clients add the independent Usage / 用量 category. Mobile has a fifth bottom
+tab and a static OpenRouter / 用量排行 heading; a single source cannot turn the
+cube. Values are input plus output tokens for the latest complete UTC day, in
+billions (B). Company values sum listed models. Usage does not expand the
+capability-based quota provider scope. The shared backend is deployed and its
+production endpoint returns HTTP 200 with configurationRequired=true, without
+synthetic entries, until a server API key is provided. See openrouter-usage.md
+for the official API, attribution and license requirements.
+
+Ignored work/openrouter-usage/ retains 18 before and 72 after native Mac frames,
+the frozen baseline executable, fixtures, provenance and verification reports.
+The three common baseline cases have identical case configuration and visible
+board content; nine added cases cover model/company/missing-configuration
+states. All use 850×720 points, EN / 简中 / 繁中, both themes, macOS 27.0.1
+(26A434), native backing scale 1.0. All 24 final refreshed/settled pairs are
+pixel-identical. Representative originals and the common before/after baseline
+were reviewed. The review caught truncated B values and the old purple source
+tint; the final native captures show complete 123.46B / 146.67B values and an
+orange usage heading. These are local uncommitted sources, identified by the
+source and binary hashes in after-provenance.json.
+
+The final core check passes 550 tests, the mini-program passes 156 tests and its
+production build, Windows Release cross-compilation has zero warnings/errors,
+and Windows unit checks pass. The focused server/deployment checks pass 34
+tests. A coordinated iOS simulator build also passes; this is not a claim that
+the new tab's iPhone/iPad interactions were visually reviewed. Real upstream
+data cannot be validated without an OpenRouter key.
+
+Native Windows screenshots, actual Windows OS/DPI, and a matching CI
+native-visual-comparison artifact remain unavailable. WeChat DevTools reports
+expired login, so mini-program simulator runtime review is unavailable. No
+protected native release approval or client publication is claimed.
+
 ## Copy icon beside the model title — 2026-10-20
 
 The shared Apple detail view, Windows dialog and mini-program now size the model

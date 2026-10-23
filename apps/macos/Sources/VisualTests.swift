@@ -11,7 +11,7 @@ private final class SearchVisualWindow: NSWindow { override var canBecomeKey: Bo
 @MainActor
 enum NativeVisualCapture {
     enum CaptureError: Error { case blankFrame(String) }
-    struct Entry: Decodable { let rank: Int; let name: String; let score: Double; let modelID: String?; let organization: String; let logo: String; let openness: ModelOpenness?; let brand: OrganizationBrand?; let organizationBrand: OrganizationBrand?; let developerCountry: OrganizationCountryMetadata?; let modelMetadata: ModelMetadata? }
+    struct Entry: Decodable { let rank: Int; let name: String; let score: Double; let modelID: String?; let organization: String; let logo: String; let openness: ModelOpenness?; let brand: OrganizationBrand?; let organizationBrand: OrganizationBrand?; let developerCountry: OrganizationCountryMetadata?; let modelMetadata: ModelMetadata?; let totalTokens: String? }
     struct Board: Decodable { let kind: String; let title: String; let entries: [Entry]; let sourceUpdatedAt: String?; let sourceTimeUnavailable: Bool?; let fetchedAt: String?; let sourceNote: String? }
     struct Quota: Decodable {
         struct Run: Decodable { let text: String }
@@ -43,7 +43,7 @@ enum NativeVisualCapture {
             let kind = LeaderboardKind(rawValue: board.kind)!
             let entries = board.entries.map { entry in
                 LeaderboardEntry(rank: entry.rank, name: entry.name, score: entry.score, modelID: entry.modelID, organization: entry.organization,
-                    logoURL: root.appending(path: "assets/logos/\(entry.logo).png"), openness: entry.openness, brand: entry.brand, organizationBrand: entry.organizationBrand, developerCountry: entry.developerCountry, modelMetadata: entry.modelMetadata)
+                    logoURL: root.appending(path: "assets/logos/\(entry.logo).png"), openness: entry.openness, brand: entry.brand, organizationBrand: entry.organizationBrand, developerCountry: entry.developerCountry, modelMetadata: entry.modelMetadata, totalTokens: entry.totalTokens)
             }
             return (kind, Leaderboard(kind: kind, title: board.title, sourceUpdatedAt: board.sourceTimeUnavailable == true ? nil : board.sourceUpdatedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, sourceNote: board.sourceNote, fetchedAt: board.fetchedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, entries: entries))
         })
@@ -109,7 +109,7 @@ enum NativeVisualCapture {
                 } else {
                     quotaDate = fixture.state.quotaUpdatedAt.flatMap { ISO8601DateFormatter().date(from: $0) }
                 }
-                let fetchedBoards = boards.mapValues { board in
+                var fetchedBoards = boards.mapValues { board in
                     let entries = test.rowCount.map { count in
                         (1...count).map { rank in
                             if test.scenario == "scrollPerformance", !board.entries.isEmpty {
@@ -129,6 +129,7 @@ enum NativeVisualCapture {
                     return Leaderboard(kind: board.kind, title: board.title, sourceUpdatedAt: sourceDate, sourceNote: board.sourceNote,
                                 fetchedAt: fetchDate, entries: entries)
                 }
+                if test.scenario == "usagePending" { fetchedBoards[.openRouterUsage] = nil }
                 let stale = test.scenario == "freshnessStale"
                 let shownChips = stale ? visibleChips.map { chip in
                     AccountQuotaChip(id: chip.id, shortName: chip.shortName, websiteURL: chip.websiteURL,

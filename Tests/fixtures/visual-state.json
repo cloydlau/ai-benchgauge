@@ -812,6 +812,47 @@
           }
         ],
         "fetchedAt": "2026-09-29T00:00:00Z"
+      },
+      {
+        "kind": "openRouterUsage",
+        "title": "OpenRouter",
+        "url": "https://openrouter.ai/rankings",
+        "sourceUpdatedAt": "2026-09-29T00:00:00Z",
+        "updatedAt": "2026-09-29T00:00:00Z",
+        "fetchedAt": "2026-09-29T00:00:00Z",
+        "sourceNote": "Source: OpenRouter (openrouter.ai/rankings), as of 2026-09-29T00:00:00Z.\nLicensed under CC BY 4.0.\nhttps://creativecommons.org/licenses/by/4.0/\nUTC 2026-09-28 · prompt + completion tokens · public traffic only.\nFiltered and rounded for display; company totals cover listed models only.\nSnapshot meta: {\"as_of\":\"2026-09-29T00:00:00Z\",\"version\":\"v1\",\"start_date\":\"2026-09-28\",\"end_date\":\"2026-09-28\"}",
+        "entries": [
+          {
+            "rank": 1,
+            "name": "openai/synthetic-model-with-an-extra-long-name-for-layout-testing:free",
+            "score": 123.456,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates",
+            "totalTokens": "123456000000",
+            "openness": "closed"
+          },
+          {
+            "rank": 2,
+            "name": "anthropic/synthetic-model",
+            "score": 110.01,
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "country": "unitedStates",
+            "totalTokens": "110010000000",
+            "openness": "closed"
+          },
+          {
+            "rank": 3,
+            "name": "openai/second-synthetic-model",
+            "score": 23.21,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates",
+            "totalTokens": "23210000000",
+            "openness": "closed"
+          }
+        ]
       }
     ],
     "quotas": [
@@ -968,7 +1009,11 @@
       "height": 720,
       "scenario": "sourceTimes",
       "mode": "clickToClose",
-      "selectedBoards": ["artificialAnalysis", "arenaText", "epochECI"]
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ]
     },
     {
       "id": "single-time-zh-1100",
@@ -977,7 +1022,11 @@
       "height": 720,
       "scenario": "sourceTimes",
       "mode": "clickToClose",
-      "selectedBoards": ["artificialAnalysis", "arenaText", "epochECI"]
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ]
     },
     {
       "id": "single-time-zh-Hant-1100",
@@ -986,7 +1035,11 @@
       "height": 720,
       "scenario": "sourceTimes",
       "mode": "clickToClose",
-      "selectedBoards": ["artificialAnalysis", "arenaText", "epochECI"]
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ]
     },
     {
       "id": "model-en-900",
@@ -2942,6 +2995,123 @@
       "selectedBoards": [
         "artificialAnalysis"
       ]
+    },
+    {
+      "id": "usageModels-en",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "usageModels",
+      "mode": "clickToClose",
+      "category": "usage",
+      "selectedBoards": [
+        "openRouterUsage"
+      ],
+      "grouping": "model"
+    },
+    {
+      "id": "usageCompanies-en",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "usageCompanies",
+      "mode": "clickToClose",
+      "category": "usage",
+      "selectedBoards": [
+        "openRouterUsage"
+      ],
+      "grouping": "company"
+    },
+    {
+      "id": "usagePending-en",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "usagePending",
+      "mode": "clickToClose",
+      "category": "usage",
+      "selectedBoards": [
+        "openRouterUsage"
+      ],
+      "grouping": "model"
+    },
+    {
+      "id": "usageModels-zh",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "usageModels",
+      "mode": "clickToClose",
+      "category": "usage",
+      "selectedBoards": [
+        "openRouterUsage"
+      ],
+      "grouping": "model"
+    },
+    {
+      "id": "usageCompanies-zh",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "usageCompanies",
+      "mode": "clickToClose",
+      "category": "usage",
+      "selectedBoards": [
+        "openRouterUsage"
+      ],
+      "grouping": "company"
+    },
+    {
+      "id": "usagePending-zh",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "usagePending",
+      "mode": "clickToClose",
+      "category": "usage",
+      "selectedBoards": [
+        "openRouterUsage"
+      ],
+      "grouping": "model"
+    },
+    {
+      "id": "usageModels-zh-Hant",
+      "language": "zh-Hant",
+      "width": 850,
+      "height": 720,
+      "scenario": "usageModels",
+      "mode": "clickToClose",
+      "category": "usage",
+      "selectedBoards": [
+        "openRouterUsage"
+      ],
+      "grouping": "model"
+    },
+    {
+      "id": "usageCompanies-zh-Hant",
+      "language": "zh-Hant",
+      "width": 850,
+      "height": 720,
+      "scenario": "usageCompanies",
+      "mode": "clickToClose",
+      "category": "usage",
+      "selectedBoards": [
+        "openRouterUsage"
+      ],
+      "grouping": "company"
+    },
+    {
+      "id": "usagePending-zh-Hant",
+      "language": "zh-Hant",
+      "width": 850,
+      "height": 720,
+      "scenario": "usagePending",
+      "mode": "clickToClose",
+      "category": "usage",
+      "selectedBoards": [
+        "openRouterUsage"
+      ],
+      "grouping": "model"
     }
   ],
   "quotaScenarios": {

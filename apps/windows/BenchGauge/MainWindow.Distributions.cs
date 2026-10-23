@@ -28,6 +28,10 @@ sealed partial class MainWindow
             var data = board.Distribution ?? LeaderboardDistribution.FromEntries(prefs.Grouping == "company" ? [] : board.Entries);
             var panel = new StackPanel { Margin = new Thickness(12) };
             panel.Children.Add(Caption(BoardTitle(board), PanelInk, 11));
+            if (board.Kind == "openRouterUsage" && board.SourceNote is { } usageNote) {
+                var notice = Caption(usageNote, PanelMuted, 10); notice.TextWrapping = TextWrapping.Wrap;
+                panel.Children.Add(notice);
+            }
             TextBlock Heading(string label) => new() { Text = label, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = PanelInk, Margin = new Thickness(0, 12, 0, 8) };
             var countries = Heading(Tr("Country share", "国家占比", "國家占比"));
             System.Windows.Automation.AutomationProperties.SetAutomationId(countries, "country-distribution-heading"); panel.Children.Add(countries);

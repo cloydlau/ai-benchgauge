@@ -601,7 +601,7 @@ test('every category and source shares the current page title and only the local
   for (const language of ['en', 'zh-CN', 'zh-TW']) for (const category of categories) for (const face of category.kinds.keys()) {
     const h = setup({ language, category: category.id, face })
     const message = globalThis.__benchHooks.share()
-    const title = text([copy.tasks, copy.votes, copy.capabilityIndex][face], language)
+    const title = text(category.id === 'usage' ? copy.usage : [copy.tasks, copy.votes, copy.capabilityIndex][face], language)
     assert.equal(message.title, `${title}｜${text(copy.rankingSummary, language)}`)
     assert.ok(!message.title.includes(text(copy.tagline, language)))
     const shared = pagePreferences(Object.fromEntries(new URL('https://shared.example' + message.path).searchParams))
@@ -609,6 +609,34 @@ test('every category and source shares the current page title and only the local
     assert.equal(shared.face, face)
     globalThis.__benchHooks.unload()
   }
+})
+
+test('usage has one source, reports missing configuration, disables cube turns, and recovers after configuration', async () => {
+  const h = setup({ category: 'usage', language: 'zh-CN' })
+  const loading = globalThis.__benchHooks.load()
+  assert.equal(h.requests.length, 1)
+  assert.ok(h.requests[0].options.url.endsWith('/openRouterUsage'))
+  assert.deepEqual(h.page.tabs.value, ['用量排行'])
+  h.requests[0].options.success({ statusCode: 200, data: { board: null, configurationRequired: true } })
+  h.requests[0].options.complete(); await loading
+  assert.equal(h.page.cards.value[0].pendingConfiguration, true)
+  assert.equal(h.page.cards.value[0].hasBoard, false)
+  assert.equal(h.page.cards.value[0].scoreLabel, '用量')
+  h.page.cubeStart({ touches: [{ clientX: 200, clientY: 250 }] })
+  h.page.cubeMove({ touches: [{ clientX: 60, clientY: 250 }] })
+  assert.equal(h.page.cubeDragging.value, false)
+  assert.equal(h.page.face.value, 0)
+  const retry = h.page.pullRefresh(event({ kind: 'openRouterUsage' }))
+  const notice = 'Source: OpenRouter (openrouter.ai/rankings), as of 2026-10-23T00:00:30Z.\nLicensed under CC BY 4.0.\nUTC 2026-10-22'
+  h.respond(1, { sourceNote: notice })
+  await retry
+  assert.equal(h.page.cards.value[0].pendingConfiguration, false)
+  assert.equal(h.page.cards.value[0].hasBoard, true)
+  assert.equal(h.page.cards.value[0].rows[0].scoreText, '99.00B')
+  h.page.sourceHelp(event({ kind: 'openRouterUsage' }))
+  assert.ok(!h.modals.at(-1).content.includes(notice))
+  assert.ok(h.modals.at(-1).content.includes('https://openrouter.ai/rankings'))
+  globalThis.__benchHooks.unload()
 })
 
 test('menu sharing restores live choices and all filters over conflicting receiver preferences', async () => {
@@ -748,7 +776,7 @@ test('all categories share filters in both directions, including before data arr
     h.page.sheetSelect({ detail: h.page.sheet.value.actions.find(action => action.value === value) })
   }
   select('arenaText', 'country', 'CN'); select('arenaText', 'openness', 'open')
-  for (const category of categories.slice(1)) {
+  for (const category of categories.filter(item => item.id !== 'general')) {
     const start = h.requests.length
     h.page.selectCategory(event({ id: category.id }))
     for (const kind of category.kinds) for (const [mode, value] of [['country', 'CN'], ['openness', 'open']]) {
@@ -1696,7 +1724,7 @@ test('edge exit gestures on either tab bar never preview or commit another selec
     h.page.tabStart(tabTouch(kind, 16))
     for (const x of [17, 170, 300, -60]) {
       h.page.tabMove(tabTouch(kind, x))
-      assert.equal(h.page.categoryIndex.value, 0)
+      assert.equal(h.page.categoryIndex.value, 1)
       assert.equal(h.page.sourceTabIndex.value, 0)
       assert.equal(h.page.sourceSelection.value, selection)
       assert.equal(h.page.cubeBusy.value, false)
@@ -1716,21 +1744,21 @@ test('edge exit gestures on either tab bar never preview or commit another selec
 test('bar drags preview under the finger and commit only the final category once', () => {
   const h = setup(); mockTabBounds()
   h.page.tabStart(tabTouch('category', 60))
-  h.page.tabMove(tabTouch('category', 170))
-  assert.equal(h.page.categoryIndex.value, 1)
+  h.page.tabMove(tabTouch('category', 190))
+  assert.equal(h.page.categoryIndex.value, 2)
   assert.equal(h.page.category.value, 'general')
   assert.equal(h.requests.length, 0)
   h.page.tabMove(tabTouch('category', 600))
-  assert.equal(h.page.categoryIndex.value, 3)
+  assert.equal(h.page.categoryIndex.value, 4)
   h.page.tabEnd(tabTouch('category', 600, 740, true))
   assert.equal(h.page.category.value, 'video')
-  assert.equal(h.requests.length, 2, 'Only the released category fetches its two sources')
+  assert.equal(h.requests.length, 2, 'Only the released category fetches its two video sources')
   h.page.selectCategory(event({ id: 'coding' }))
   assert.equal(h.page.category.value, 'video', 'A synthesized tap cannot overwrite the drag result')
   h.page.tabStart(tabTouch('category', 300))
   h.page.tabMove(tabTouch('category', -100))
   h.page.tabEnd(tabTouch('category', -100, 740, true))
-  assert.equal(h.page.category.value, 'general')
+  assert.equal(h.page.category.value, 'usage')
   globalThis.__benchHooks.unload()
 })
 test('source bar drags do not rotate or copy while moving; release selects the pointed tab', () => {
@@ -1760,7 +1788,7 @@ test('vertical, multitouch, cancelled and interrupted tab drags never change a s
     h.page.tabStart(tabTouch('category', 60)); h.page.tabMove(tabTouch('category', 300))
     cancel(); h.page.tabEnd(tabTouch('category', 300, 740, true))
     assert.equal(h.page.category.value, 'general')
-    assert.equal(h.page.categoryIndex.value, 0)
+    assert.equal(h.page.categoryIndex.value, 1)
   }
   assert.equal(h.requests.length, 0)
   globalThis.__benchHooks.unload()
@@ -1772,7 +1800,7 @@ test('a delayed bounds query cannot revive a released tab gesture', () => {
   h.page.tabStart(tabTouch('category', 60)); h.page.tabMove(tabTouch('category', 300))
   h.page.tabEnd(tabTouch('category', 300, 740, true))
   measured([{ left: 20, width: 320 }])
-  assert.equal(h.page.categoryIndex.value, 0)
+  assert.equal(h.page.categoryIndex.value, 1)
   assert.equal(h.page.category.value, 'general')
   globalThis.__benchHooks.unload()
 })

@@ -86,7 +86,7 @@ function companyIdentity(entry) {
   const name = hasOwn(policy.companyNames, key) ? policy.companyNames[key] : rules.normalizedBrandKey(raw) === key ? raw : key
   return { key, name }
 }
-export function companyRows(entries) {
+export function companyRows(entries, { summingUsage = false } = {}) {
   const groups = new Map()
   for (const entry of entries) {
     const identity = companyIdentity(entry)
@@ -110,7 +110,8 @@ export function companyRows(entries) {
     const organizationBrand = brands.find(brand => typeof brand.pngData === 'string'
       && /^[A-Za-z0-9+/=]+$/.test(brand.pngData) && brand.pngData.length < 160000)
       ?? brands[0] ?? { key: group.key }
-    return { ...best, name: group.name, bestRank: best.rank, openness: null,
+    const totalTokens = summingUsage ? members.reduce((total, row) => total + BigInt(row.totalTokens ?? "0"), 0n).toString() : undefined
+    return { ...best, ...(summingUsage && { score: members.reduce((sum, row) => sum + row.score, 0), totalTokens }), name: group.name, bestRank: best.rank, openness: null,
       brand: organizationBrand, organizationBrand, developerCountry, components: members }
   }).sort((a, b) => b.score - a.score || a.bestRank - b.bestRank || a.name.localeCompare(b.name))
     .map((entry, index) => ({ ...entry, rank: index + 1 }))

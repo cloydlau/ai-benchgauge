@@ -30,7 +30,7 @@ test('sharing unfiltered defaults clears every receiver filter instead of inheri
   assert.equal(restored.grouping, 'model')
   assert.equal(restored.theme, 'light')
   assert.equal(restored.fromShare, true)
-  assert.equal(Object.keys(saved.filters).length, 9)
+  assert.equal(Object.keys(saved.filters).length, 10)
 })
 test('malformed and future-version links fall back safely, and legacy links remain supported', () => {
   const saved = { category: 'image', face: 1, language: 'en', theme: 'dark' }

@@ -1,9 +1,10 @@
 import { createServer } from 'node:http';
-import { timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { isArena, isArenaDataset, loadArenaDataset, parseArenaRows, readBounded } from './arena-dataset.mjs';
 import { loadModelsDev } from './models-dev.mjs';
+import { completedUsageDay, loadOpenRouterUsage } from './openrouter-usage.mjs';
 
-export function collectorHandler({ token, load = loadArenaDataset, models = loadModelsDev, clock = Date.now } = {}) {
+export function collectorHandler({ token, load = loadArenaDataset, models = loadModelsDev, usage = loadOpenRouterUsage, clock = Date.now } = {}) {
   if (!/^[A-Za-z0-9_-]{43}$/.test(token ?? '')) throw new Error('Collector token required');
   const cache = new Map();
   return async (request, response) => {
@@ -15,17 +16,25 @@ export function collectorHandler({ token, load = loadArenaDataset, models = load
     }
     const match = /^\/v1\/arena\/([A-Za-z]+)$/.exec(request.url);
     const metadata = request.url === '/v1/models-dev';
-    if (request.method !== 'GET' || !metadata && (!match || !isArena(match[1]))) {
+    const openRouter = request.url === '/v1/openrouter-usage';
+    if (request.method !== 'GET' || !metadata && !openRouter && (!match || !isArena(match[1]))) {
       response.statusCode = 404; response.end('{}'); return;
     }
-    const kind = metadata ? 'models-dev' : match[1], now = clock();
+    const apiKey = openRouter ? /^Bearer ([\x21-\x7e]{1,1024})$/.exec(String(request.headers.authorization ?? ''))?.[1] : null;
+    if (openRouter && !apiKey) { response.statusCode = 403; response.end('{}'); return; }
+    const now = clock();
+    // Credentials stay in request memory. A different key or UTC day must not
+    // inherit another acquisition's cache (including its authentication).
+    const kind = openRouter ? `openrouter-usage:${completedUsageDay(now)}:${createHash('sha256').update(apiKey).digest('hex')}`
+      : metadata ? 'models-dev' : match[1];
     try {
       let item = cache.get(kind);
       if (!item || now >= item.expires) {
         // Reuse an in-flight acquisition on this instance. The main service's
         // OSS coordination controls the global 30-minute refresh interval.
         const options = { now, signal: AbortSignal.timeout(18000) };
-        item = { expires: now + 600000, value: metadata ? models(options) : load(kind, options) };
+        item = { expires: now + 600000, value: openRouter ? usage({ ...options, apiKey })
+          : metadata ? models(options) : load(kind, options) };
         cache.set(kind, item);
       }
       response.end(JSON.stringify(await item.value));

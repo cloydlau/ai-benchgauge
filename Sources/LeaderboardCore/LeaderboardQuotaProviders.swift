@@ -14,11 +14,12 @@ public struct OfficialQuotaProvider: Equatable, Sendable, Identifiable {
     public let quotaDescription: String
 }
 
-/// Development scope is the union of all four categories, not the selected tab.
+/// Development scope is the union of capability categories, not the selected tab.
+/// Token traffic is not a capability result and does not expand this scope.
 /// Existing accounts are never deleted when a model falls out of the top 20.
 public enum LeaderboardQuotaProviders {
     public static func rankedOrganizations(in snapshot: LeaderboardSnapshot) -> Set<String> {
-        Set(LeaderboardCategory.allCases.flatMap(\.boardKinds).flatMap { kind in
+        Set(LeaderboardCategory.allCases.filter { $0 != .usage }.flatMap(\.boardKinds).flatMap { kind in
             (snapshot.boards[kind]?.entries ?? []).compactMap { entry in
                 OrganizationLogoCatalog.resolvedKey(organization: entry.organization, modelName: entry.name)
             }

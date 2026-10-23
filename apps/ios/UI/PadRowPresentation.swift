@@ -16,7 +16,7 @@ final class PadRowPresentation {
         leaderScore = unsearched.first?.score
         rows = grouping == .company ? unsearched : unsearched.filter { LeaderboardPresentation.modelNameMatches($0.name, query: modelQuery) }
         scoreWidthReference = rows.map {
-            $0.score.formatted(.number.grouping(.never).precision(.fractionLength(board?.kind == .epochECI ? 2 : 1)).locale(language.locale))
+            LeaderboardPresentation.scoreText($0.score, kind: board?.kind ?? .artificialAnalysis)
         }.max { $0.count < $1.count } ?? "0.0"
         countries = LeaderboardPresentation.countryFilters(board)
     }

@@ -2,6 +2,19 @@ import Foundation
 import Testing
 import LeaderboardKit
 
+@Test func openRouterAgreementRetainsSnapshotAttributionAndLocalizedLicenseWithOfflineFallback() {
+    let notice = "Source: OpenRouter (openrouter.ai/rankings), as of 2026-10-23T06:00:00Z.\nLicensed under CC BY 4.0.\nUTC 2026-10-22\nSnapshot meta: {\"version\":\"v1\"}"
+    for language in [AppLanguage.english, .chinese, .traditionalChinese] {
+        #expect(CCBYLicense.openRouterText(sourceNote: notice, language: language)
+            == notice + "\n\n" + CCBYLicense.text(language: language))
+        let fallback = CCBYLicense.openRouterText(sourceNote: nil, language: language)
+        #expect(fallback.contains("Source: OpenRouter (openrouter.ai/rankings)."))
+        #expect(fallback.contains(CCBYLicense.canonicalURL))
+        #expect(fallback.hasSuffix(CCBYLicense.text(language: language)))
+        #expect(CCBYLicense.openRouterText(sourceNote: " \n ", language: language) == fallback)
+    }
+}
+
 @Test func ccByLicenseDialogUsesTheOfficialTextRatherThanAttributionNotices() throws {
     #expect(CCBYLicense.canonicalURL == "https://creativecommons.org/licenses/by/4.0/")
     let english = CCBYLicense.text(language: .english)

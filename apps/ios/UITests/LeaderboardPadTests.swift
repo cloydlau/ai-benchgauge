@@ -815,7 +815,7 @@ final class LeaderboardCategoryTabTests: XCTestCase {
             XCTAssertLessThanOrEqual(frame.width, app.windows.firstMatch.frame.width)
             XCTAssertGreaterThan(frame.minY, app.windows.firstMatch.frame.height * 0.6)
             let segments = category.buttons.allElementsBoundByIndex
-            XCTAssertEqual(segments.count, 4)
+            XCTAssertEqual(segments.count, 5)
             for segment in segments { XCTAssertEqual(segment.frame.width, segments[0].frame.width, accuracy: 2) }
             segments[1].tap()
             XCTAssertTrue(segments[1].isSelected)
@@ -971,7 +971,7 @@ final class LeaderboardPadTests: XCTestCase {
     }
     private func assertCategorySegments() {
         let segments = app.otherElements["category"].buttons.allElementsBoundByIndex.map(\.frame)
-        XCTAssertEqual(segments.count, 4)
+        XCTAssertEqual(segments.count, 5)
         for (left, right) in zip(segments, segments.dropFirst()) {
             XCTAssertLessThan(left.maxX, right.maxX)
             XCTAssertEqual(left.width, right.width, accuracy: 2)
@@ -1791,7 +1791,7 @@ final class LeaderboardPhoneTests: XCTestCase {
     }
     private func assertCategorySegments() {
         let segments = app.otherElements["category"].buttons.allElementsBoundByIndex.map(\.frame)
-        XCTAssertEqual(segments.count, 4)
+        XCTAssertEqual(segments.count, 5)
         for (left, right) in zip(segments, segments.dropFirst()) {
             XCTAssertEqual(left.width, right.width, accuracy: 2)
             XCTAssertLessThan(left.maxX, right.maxX)
@@ -1886,7 +1886,7 @@ final class LeaderboardMobileParityTests: XCTestCase {
             let first = app.buttons["name-artificialAnalysis-1"]
             XCTAssertTrue(first.waitForExistence(timeout: 15))
             let category = app.otherElements["category"]
-            XCTAssertEqual(category.buttons.count, 4)
+            XCTAssertEqual(category.buttons.count, 5)
             XCTAssertGreaterThan(category.frame.minY, app.windows.firstMatch.frame.height * 0.65)
             XCTAssertEqual(app.buttons["quota-tracking-help"].exists, chinese)
             XCTAssertTrue(app.segmentedControls["grouping"].exists)

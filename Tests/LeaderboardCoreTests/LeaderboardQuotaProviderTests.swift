@@ -16,7 +16,7 @@ struct LeaderboardQuotaProviderTests {
         snapshot.boards[.epochECI] = Leaderboard(kind: .epochECI, title: "Epoch Capabilities Index",
             entries: snapshot.boards[.artificialAnalysis]!.entries)
         #expect(snapshot.boards.count == 9)
-        #expect(LeaderboardCategory.allCases.allSatisfy { $0.boardKinds.allSatisfy { snapshot.boards[$0]?.entries.count == 20 } })
+        #expect(LeaderboardCategory.allCases.filter { $0 != .usage }.allSatisfy { $0.boardKinds.allSatisfy { snapshot.boards[$0]?.entries.count == 20 } })
         let organizations = LeaderboardQuotaProviders.rankedOrganizations(in: snapshot)
         #expect(organizations.contains("minimax")) // video only in this snapshot
         #expect(organizations.contains("luma")) // Arena image only
@@ -26,6 +26,11 @@ struct LeaderboardQuotaProviderTests {
         #expect(!LeaderboardQuotaProviders.keyProviders.contains { ["siliconflow", "openrouter", "novita"].contains($0.id) })
         let generalOnly = LeaderboardSnapshot(boards: snapshot.boards.filter { LeaderboardCategory.general.boardKinds.contains($0.key) })
         #expect(!LeaderboardQuotaProviders.rankedOrganizations(in: generalOnly).contains("luma"))
+        snapshot.boards[.openRouterUsage] = Leaderboard(kind: .openRouterUsage, title: "OpenRouter", entries: [
+            LeaderboardEntry(rank: 1, name: "openrouter/traffic-only", score: 999_999, organization: "OpenRouter")
+        ])
+        #expect(LeaderboardQuotaProviders.rankedOrganizations(in: snapshot) == organizations)
+        #expect(LeaderboardQuotaProviders.rankedOrganizations(in: LeaderboardSnapshot(boards: [.openRouterUsage: snapshot.boards[.openRouterUsage]!])).isEmpty)
     }
 
     @Test func miniMaxSelectsCodingAndHonorsOptionalWeeklyWindow() {

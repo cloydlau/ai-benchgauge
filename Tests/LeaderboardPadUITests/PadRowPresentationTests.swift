@@ -3,6 +3,18 @@ import Testing
 import LeaderboardKit
 @testable import LeaderboardPadUI
 
+@MainActor @Test func usageWidthIncludesPrecisionAndTokenUnitInBothGroupings() {
+    let board = Leaderboard(kind: .openRouterUsage, title: "OpenRouter", entries: [
+        LeaderboardEntry(rank: 1, name: "openai/a", score: 123.456, organization: "OpenAI", totalTokens: "123456000000"),
+        LeaderboardEntry(rank: 2, name: "openai/b", score: 23.21, organization: "OpenAI", totalTokens: "23210000000")
+    ])
+    for grouping in LeaderboardGrouping.allCases {
+        let presentation = PadRowPresentation(board: board, grouping: grouping, country: .all, openness: .all, language: .english)
+        #expect(presentation.scoreWidthReference == (grouping == .model ? "123.46B" : "146.67B"))
+        #expect(presentation.page(0..<1).scoreWidthReference == presentation.scoreWidthReference)
+    }
+}
+
 @MainActor @Test func modelSearchIsSharedAcrossBoardsAndCategoriesButNeverFiltersCompanies() throws {
     let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: directory) }

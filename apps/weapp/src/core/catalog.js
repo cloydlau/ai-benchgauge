@@ -1,4 +1,5 @@
 export const categories = [
+  { id: 'usage', labels: ['Usage', '用量', '用量'], kinds: ['openRouterUsage'] },
   { id: 'general', labels: ['General', '综合', '綜合'], kinds: ['artificialAnalysis', 'arenaText', 'epochECI'] },
   { id: 'coding', labels: ['Coding', '编程', '編程'], kinds: ['artificialAnalysisCodingAgent', 'codeArenaWebDev'] },
   { id: 'image', labels: ['Image', '图片', '圖片'], kinds: ['artificialAnalysisTextToImage', 'arenaTextToImage'] },
@@ -6,11 +7,13 @@ export const categories = [
 ]
 export const desktopDownloadURL = 'https://github.com/cloydlau/ai-benchgauge/releases/latest'
 export const leaderboardSources = [
+  { id: 'openRouter', title: 'OpenRouter', url: 'https://openrouter.ai/rankings' },
   { id: 'artificialAnalysis', title: 'Artificial Analysis', url: 'https://artificialanalysis.ai/' },
   { id: 'arena', title: 'Arena', url: 'https://arena.ai/leaderboard' },
   { id: 'epoch', title: 'Epoch AI', url: 'https://epoch.ai/eci' },
 ]
 export const boards = {
+  openRouterUsage: { title: 'OpenRouter', summaries: ['Latest complete UTC day · input + output tokens · 1B = 1 billion tokens.', '最近完整 UTC 日输入与输出 token 用量；1B = 十亿 token。', '最近完整 UTC 日輸入與輸出 token 用量；1B = 十億 token。'], methodology: ['Latest complete UTC day · prompt + completion tokens · top 50 public models. 1B = 1 billion tokens. Excludes private and zero-data-retention traffic; provider tokenizers differ. Company totals cover listed models only.', '最近完整 UTC 日的输入与输出 token 用量，展示公开流量前 50 名。1B = 十亿 token。排除私有及零数据留存流量；各供应商分词方式不同。公司用量仅汇总榜内模型。', '最近完整 UTC 日的輸入與輸出 token 用量，展示公開流量前 50 名。1B = 十億 token。排除私有及零資料留存流量；各供應商分詞方式不同。公司用量僅彙總榜內模型。'], url: 'https://openrouter.ai/rankings' },
   epochECI: { title: 'Epoch ECI', summaries: ['Estimates general capability from benchmark results, accounting for difficulty and discrimination.', '结合不同测试的难度与区分度，估计模型的综合能力', '結合不同測試的難度與區分度，估計模型的綜合能力'], url: 'https://epoch.ai/eci' },
   artificialAnalysis: { title: 'Artificial Analysis', summaries: ['Combines standardized tests across several abilities.', '汇总多项标准化测试，适合看综合能力', '彙總多項標準化測試，適合看綜合能力'], url: 'https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index' },
   arenaText: { title: 'Text Arena', summaries: ['People compare anonymous answers to real prompts.', '真实提问下盲选回答，贴近用户偏好', '真實提問下盲選回答，貼近使用者偏好'], url: 'https://arena.ai/leaderboard/text' },
@@ -25,7 +28,7 @@ export const languages = ['en', 'zh-CN', 'zh-TW']
 export const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key)
 export const text = (values, language) => values[Math.max(0, languages.indexOf(language))]
 export const boardTitle = (kind, language) => boards[kind].titles ? text(boards[kind].titles, language) : boards[kind].title
-export const categoryFor = id => categories.find(category => category.id === id) || categories[0]
+export const categoryFor = id => categories.find(category => category.id === id) || categories.find(category => category.id === 'general')
 
 const tagline = ['Compare leaderboards to make informed choices; track quotas to know where you stand.',
   '多榜对照，选得明白；余量追踪，用得有数。',
@@ -35,6 +38,10 @@ const rankingSummary = ['Task benchmarks show results; blind user votes show the
   '任務測評看成績，使用者盲測看體驗，難度校準看實力。']
 
 export const copy = {
+  usage: ['Usage ranking', '用量排行', '用量排行'], tokens: ['Tokens', '用量', '用量'],
+  dataPending: ['Data source awaiting configuration', '数据源待配置', '資料來源待設定'],
+  dataPendingHelp: ['An OpenRouter API key must be configured on the server.', '服务端尚未配置 OpenRouter API Key。', '伺服器尚未設定 OpenRouter API Key。'],
+  usageSum: ['Sum of listed models only; 1B = 1 billion tokens.', '仅汇总榜内模型；1B = 十亿 token。', '僅彙總榜內模型；1B = 十億 token。'],
   tagline,
   rankingSummary,
   description: rankingSummary.map((summary, index) => `${summary}${index === 0 ? ' ' : ''}${tagline[index]}`),

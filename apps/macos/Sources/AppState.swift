@@ -988,7 +988,10 @@ final class AppState: ObservableObject {
                 switch result {
                 case .success(let board):
                     if board.canReplace(snapshot.boards[kind]) { snapshot.boards[kind] = board }
-                case .failure(let error): lastErrors[kind] = error.localizedDescription
+                case .failure(let error):
+                    lastErrors[kind] = error is LeaderboardConfigurationRequired
+                        ? LeaderboardFailure.configurationRequired.message(language: selectedLanguage, hasCachedBoard: snapshot.boards[kind] != nil)
+                        : error.localizedDescription
                 }
                 boardRefreshTokens[kind] = nil
                 boardRefreshTasks[kind] = nil

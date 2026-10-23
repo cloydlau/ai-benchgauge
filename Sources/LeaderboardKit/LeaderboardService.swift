@@ -1,9 +1,12 @@
 import Foundation
 
+public struct LeaderboardConfigurationRequired: Error, Sendable { public init() {} }
+
 public enum LeaderboardFailure: Equatable, Sendable {
-    case offline, sourceUnavailable
+    case offline, sourceUnavailable, configurationRequired
 
     public func message(language: AppLanguage, hasCachedBoard: Bool) -> String {
+        if self == .configurationRequired { return language.text("Data source awaiting configuration. OpenRouter API key is required on the server.", "数据源待配置：服务端尚未配置 OpenRouter API Key。") }
         let reason = self == .offline
             ? language.text("No internet connection.", "网络未连接。")
             : language.text("This source could not be refreshed.", "暂时无法更新这个来源。")
@@ -44,6 +47,8 @@ public struct LeaderboardService: Sendable {
                             return (kind, nil, .sourceUnavailable)
                         }
                         return (kind, board, nil)
+                    } catch is LeaderboardConfigurationRequired {
+                        return (kind, nil, .configurationRequired)
                     } catch let error as URLError where [.notConnectedToInternet, .networkConnectionLost, .dataNotAllowed].contains(error.code) {
                         return (kind, nil, .offline)
                     } catch {

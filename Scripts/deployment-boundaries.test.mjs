@@ -47,7 +47,7 @@ test('deployment rejects invalid endpoints and incomplete runtime credentials', 
   await checkExistingBucket({ ...oss, getBucketLifecycle: async () => ({ rules: [{ prefix: 'unrelated/' }] }) }, 'bucket', 'cn-shenzhen', '123')
 })
 
-const runtimeFiles = ['package.json', 'package-lock.json', 'bootstrap', 'server.mjs', 'service.mjs', 'domain.mjs', 'parser.mjs', 'epoch-eci.mjs', 'arena-dataset.mjs', 'arena-collector.mjs', 'arena-attribution.json', 'models-dev.mjs', 'models-dev-license.txt', 'model-openness.mjs', 'source-logos.mjs', 'oss-store.mjs', 'brands.mjs', 'brand-catalog.json', 'leaderboard-policy.json', 'countries.mjs', 'country-catalog.json']
+const runtimeFiles = ['package.json', 'package-lock.json', 'bootstrap', 'server.mjs', 'service.mjs', 'domain.mjs', 'parser.mjs', 'openrouter-usage.mjs', 'epoch-eci.mjs', 'arena-dataset.mjs', 'arena-collector.mjs', 'arena-attribution.json', 'models-dev.mjs', 'models-dev-license.txt', 'model-openness.mjs', 'source-logos.mjs', 'oss-store.mjs', 'brands.mjs', 'brand-catalog.json', 'leaderboard-policy.json', 'countries.mjs', 'country-catalog.json']
 function fixture(t, mode, config) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'benchgauge-cloud-boundary-')))
   t.after(() => rmSync(root, { recursive: true, force: true }))
@@ -107,7 +107,7 @@ exports.default = class {
     if (name === 'runtime') return {body:{environmentVariables:{ALIBABA_CLOUD_ACCESS_KEY_ID:'runtime-id',ALIBABA_CLOUD_ACCESS_KEY_SECRET:'runtime-secret',ALIBABA_CLOUD_SECURITY_TOKEN:'runtime-token'}}};
     if (mode === 'lookup-failed') throw {code:'Denied'};
     if (mode === 'new' || mode === 'trigger-new') throw {code:'FunctionNotFound'};
-    return {body:{description:mode === 'unrelated' ? 'someone else' : 'BenchGauge shared leaderboards (managed by ai-benchgauge)'}};
+    return {body:{description:mode === 'unrelated' ? 'someone else' : 'BenchGauge shared leaderboards (managed by ai-benchgauge)', ...(mode === 'openrouter-existing' && {environmentVariables:{OPENROUTER_API_KEY:'fixture-existing-key'}})}};
   }
   async updateFunction(name, request) {fs.writeFileSync(${JSON.stringify(root)} + '/' + (this.collector ? 'collector' : 'request') + '.json',JSON.stringify({name,operation:'update',body:request.body}))}
   async createFunction(request) {fs.writeFileSync(${JSON.stringify(root)} + '/' + (this.collector ? 'collector' : 'request') + '.json',JSON.stringify({operation:'create',body:request.body}))}
@@ -141,7 +141,7 @@ exports.default = class {
   }
   return { root, run(args = [], env = {}) {
     const environment = { ...process.env }
-    for (const key of ['ALIBABA_CLOUD_ACCESS_KEY_ID', 'ALIBABA_CLOUD_ACCESS_KEY_SECRET', 'ALIBABA_CLOUD_SECURITY_TOKEN']) delete environment[key]
+    for (const key of ['ALIBABA_CLOUD_ACCESS_KEY_ID', 'ALIBABA_CLOUD_ACCESS_KEY_SECRET', 'ALIBABA_CLOUD_SECURITY_TOKEN', 'OPENROUTER_API_KEY']) delete environment[key]
     Object.assign(environment, env)
     return spawnSync(process.execPath, ['--require', preload, join(root, 'Scripts/deploy-shared-leaderboards.mjs'), ...args], { cwd: root, env: environment, encoding: 'utf8', timeout: 15000 })
   } }
@@ -245,3 +245,14 @@ test('collector deployment keeps credentials local and configures only a verifie
     assert.equal(existsSync(join(sandbox.root, 'request.json')), false)
   }
 })
+
+test('OpenRouter key is server-only, existing configuration survives redeployment, and a deliberate environment override wins', t => {
+  for (const [mode, supplied, expected] of [['openrouter-existing', {}, 'fixture-existing-key'], ['openrouter-existing', { OPENROUTER_API_KEY: 'fixture-new-key' }, 'fixture-new-key'], ['new', { OPENROUTER_API_KEY: 'fixture-new-key' }, 'fixture-new-key'], ['update', {}, undefined]]) {
+    const sandbox = fixture(t, mode, role); const result = sandbox.run([], supplied);
+    assert.equal(result.status, 0, result.stderr);
+    const request = JSON.parse(readFileSync(join(sandbox.root, 'request.json'), 'utf8'));
+    assert.equal(request.body.environmentVariables.OPENROUTER_API_KEY, expected);
+    assert.ok(!result.stdout.includes('fixture-new-key') && !result.stderr.includes('fixture-existing-key'));
+    assert.ok(!readFileSync(join(sandbox.root, 'work/shared-leaderboards/deployment.json'), 'utf8').includes('fixture-new-key'));
+  }
+});
