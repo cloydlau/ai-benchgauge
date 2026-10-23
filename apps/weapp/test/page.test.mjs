@@ -586,7 +586,7 @@ test('page lifecycle paints independent sources, honors the new tabs/headings an
   h.respond(0); h.respond(2); await loading
   assert.deepEqual(h.page.cards.value.map(card => [card.title, card.rows.length]), [['Artificial Analysis', 2], ['Text Arena', 2], ['Epoch ECI', 2]])
   assert.notEqual(h.page.cards.value[0].time, '—')
-  assert.equal(h.page.cards.value[0].timeLabel, '更新')
+  assert.equal(h.page.cards.value[0].timeLabel, '刷新')
   assert.equal(h.page.cards.value[0].isSourceTime, false)
   h.page.selectFace(event({ index: 1 })); assert.equal(h.page.face.value, 1)
   h.page.selectCategory(event({ id: 'video' })); assert.equal(h.requests.length, 5)

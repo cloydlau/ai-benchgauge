@@ -419,7 +419,7 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
                 let times: XCUIElement? = app.staticTexts["source-times-\(kind)"]
                 XCTAssertNotNil(times)
                 XCTAssertEqual(times?.label.hasSuffix(chinese ? "发布" : "Published"), !missing)
-                XCTAssertEqual(times?.label.hasSuffix(chinese ? "更新" : "Updated"), missing)
+                XCTAssertEqual(times?.label.hasSuffix(chinese ? "刷新" : "Refreshed"), missing)
                 XCTAssertFalse(times?.label.contains(chinese ? "抓取" : "Fetched") ?? true)
                 XCTAssertFalse(times?.label.contains("—") ?? true)
                 if let times {

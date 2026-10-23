@@ -68,7 +68,7 @@ export const copy = {
   countryShare: ['Country share', '国家占比', '國家占比'], sourceShare: ['Source share', '源码占比', '原始碼占比'],
   distributionBasis: ['All models on this board · counts, not scores', '按全榜模型数量统计，不按分数加权', '按全榜模型數量統計，不按分數加權'],
   noModels: ['No model data yet', '暂无模型数据', '暫無模型資料'], other: ['Other', '其他', '其他'],
-  published: ['Published', '发布', '發佈'], updated: ['Updated', '更新', '更新'], refresh: ['Refresh', '刷新', '重新整理'],
+  published: ['Published', '发布', '發佈'], updated: ['Refreshed', '刷新', '刷新'], refresh: ['Refresh', '刷新', '重新整理'],
   loading: ['Loading shared rankings…', '正在读取共享榜单…', '正在讀取共享榜單…'],
   empty: ['No matching entries', '暂无符合筛选的条目', '暫無符合篩選的項目'],
   noBoard: ['No shared snapshot yet', '暂未取得共享榜单', '暫未取得共享榜單'],

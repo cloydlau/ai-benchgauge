@@ -185,7 +185,7 @@ public enum LeaderboardPresentation {
         formatter.dateFormat = "M/d HH:mm"
         guard let updated = board?.sourceUpdatedAt else {
             let fetched = board.map { formatter.string(from: $0.fetchedAt) } ?? "—"
-            return ("\(fetched) \(language.text("Updated", "更新"))", false)
+            return ("\(fetched) \(language.text("Refreshed", "刷新"))", false)
         }
         if board?.kind == .vercelUsage {
             formatter.dateFormat = "M/d"; formatter.timeZone = TimeZone(secondsFromGMT: 0)
@@ -203,7 +203,7 @@ public enum LeaderboardPresentation {
         formatter.timeStyle = .medium
         guard let updated = board?.sourceUpdatedAt else {
             let fetched = board.map { formatter.string(from: $0.fetchedAt) } ?? "—"
-            return "\(fetched) \(language.text("Updated", "更新"))"
+            return "\(fetched) \(language.text("Refreshed", "刷新"))"
         }
         if board?.kind == .vercelUsage {
             formatter.dateFormat = "yyyy-MM-dd"; formatter.timeZone = TimeZone(secondsFromGMT: 0)

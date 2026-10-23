@@ -45,5 +45,5 @@ import Testing
     #expect(!labels.text.contains("Published"))
     let unknown = Leaderboard(kind: .vercelUsage, title: "Vercel", entries: [])
     #expect(!LeaderboardPresentation.sourceTime(unknown, language: .chinese).isSourceTime)
-    #expect(LeaderboardPresentation.sourceTimeHelp(unknown, language: .chinese).hasSuffix("更新"))
+    #expect(LeaderboardPresentation.sourceTimeHelp(unknown, language: .chinese).hasSuffix("刷新"))
 }
