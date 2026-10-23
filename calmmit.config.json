@@ -137,6 +137,7 @@
           "assets/brand/header-logo.png",
           "assets/brand/header-logo-dark.png",
           "assets/logos",
+          "apps/ios/UI/Resources/CategoryIcons",
           "Sources/LeaderboardKit/SharedLeaderboardConfiguration.swift",
           "config/app.json",
           "Sources/LeaderboardKit/Resources/Fonts/SlideFont-OFL.txt",

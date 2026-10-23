@@ -21,7 +21,7 @@ var targets: [Target] = [
 #if os(macOS)
 // SwiftUI is shared across Apple targets; macOS tests also type-check the iPad interface.
 targets.append(.target(name: "LeaderboardPadUI", dependencies: ["LeaderboardKit"],
-                       path: "apps/ios/UI", resources: [.copy("Resources/AI-BenchGauge.txt")]))
+                       path: "apps/ios/UI", resources: [.copy("Resources/AI-BenchGauge.txt"), .copy("Resources/CategoryIcons")]))
 targets.append(.testTarget(name: "LeaderboardPadUITests", dependencies: ["LeaderboardPadUI", "LeaderboardKit"],
                            path: "Tests/LeaderboardPadUITests"))
 dependencies.append(.package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0"))

@@ -1,0 +1,34 @@
+{
+  "collection": "Microsoft Fluent UI System Color Icons",
+  "license": "MIT",
+  "source": "https://github.com/microsoft/fluentui-system-icons",
+  "displaySize": 18,
+  "rasterSize": 54,
+  "icons": {
+    "general": {
+      "icon": "apps-20",
+      "url": "https://api.iconify.design/fluent-color/apps-20.svg",
+      "sha256": "a432448652d6857202b29cd26a2f0aa4be7f497238911c173c3f9cea3f45f87a"
+    },
+    "coding": {
+      "icon": "code-20",
+      "url": "https://api.iconify.design/fluent-color/code-20.svg",
+      "sha256": "ed9c477df83c1c5ab89017ea1dfc252abbac465c4eb3cf3402dc87b19e81ea2e"
+    },
+    "image": {
+      "icon": "image-20",
+      "url": "https://api.iconify.design/fluent-color/image-20.svg",
+      "sha256": "812d56852bf53d748c4c1dfa1a823065742a9026dd9df42cab38951f0d4e6df1"
+    },
+    "video": {
+      "icon": "video-20",
+      "url": "https://api.iconify.design/fluent-color/video-20.svg",
+      "sha256": "ed2433c83b7d7088ac4b508fcc257add9195641587577a288451bc2a6afe9cb2"
+    },
+    "usage": {
+      "icon": "data-bar-vertical-ascending-20",
+      "url": "https://api.iconify.design/fluent-color/data-bar-vertical-ascending-20.svg",
+      "sha256": "8517b24d5d6e48ff7404600d007991e9e6a308182b53527195d6e9922daf4dcf"
+    }
+  }
+}

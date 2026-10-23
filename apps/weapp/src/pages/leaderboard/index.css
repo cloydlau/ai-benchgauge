@@ -49,17 +49,7 @@
   transition: color 220ms, transform 180ms;
 }
 .category-label { white-space: nowrap; }
-.category-code-icon { position: relative; width: 18px; height: 18px; flex-shrink: 0; }
-.category-code-icon::before, .category-code-icon::after {
-  content: ""; position: absolute; top: 5.25px; width: 5.5px; height: 5.5px;
-  border: solid currentColor; border-width: 0 0 1.5px 1.5px; transform: rotate(45deg);
-}
-.category-code-icon::before { left: 1px; }
-.category-code-icon::after { right: 1px; transform: rotate(225deg); }
-.category-code-slash {
-  position: absolute; left: 8.25px; top: 2px; width: 1.5px; height: 14px;
-  border-radius: 1px; background: currentColor; transform: rotate(18deg);
-}
+.category-icon { width: 18px; height: 18px; flex-shrink: 0; }
 .category-tab.active { color: var(--accent); font-weight: 600; }
 .category-tab:active { transform: scale(.94); }
 .dark .category-tabs {

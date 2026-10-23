@@ -25,6 +25,7 @@ export const sourcePaths = [
   'fc/purchase-links.json', 'Scripts/generate-purchase-links.mjs',
   'Sources/LeaderboardKit/PurchaseLinkData.generated.swift',
   'assets/brand/header-logo.png', 'assets/brand/header-logo-dark.png', 'assets/logos',
+  'apps/ios/UI/Resources/CategoryIcons',
   'Sources/LeaderboardKit/SharedLeaderboardConfiguration.swift', 'config/app.json',
   'Sources/LeaderboardKit/Resources/Fonts/SlideFont-OFL.txt',
   'Sources/LeaderboardKit/Resources/EpochAttribution.json',
