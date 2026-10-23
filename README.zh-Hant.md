@@ -1,5 +1,7 @@
 # AI 天梯
 
+[Logo / 品牌资源](assets/brand/README.md) · [PNG](assets/brand/logo.png)
+
 *AI Benchmarks & Quotas — who's on top, how much you've got left.*
 
 [English](README.md) | [简体中文](README.zh-CN.md) | **繁體中文**

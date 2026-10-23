@@ -1,5 +1,7 @@
 # AI BenchGauge
 
+[Logo / 品牌资源](assets/brand/README.md) · [PNG](assets/brand/logo.png)
+
 **English** | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-Hant.md)
 
 <!-- app-description:start (generated from apps/weapp/src/core/catalog.js) -->
