@@ -1,3 +1,4 @@
+import { sourceTabTheme } from './source-tab-theme.js'
 import { epochAttribution } from './epoch-attribution.js'
 import { arenaAttribution, isArenaDatasetBoard } from './arena-attribution.js'
 import { brandTitleLayout, brandLogoSource, drawBrandGlyphs, drawBrandLogo } from './brand-title.js'
@@ -85,7 +86,7 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
   }
   text(context, `${model.groupingLabel} · ${model.categoryLabel}`, screenshotWidth - margin, 40, 15, colors.muted, { align: 'right' })
   image.boards.forEach((board, column) => {
-    const x = margin + column * (columnWidth + gap), accent = board.kind === 'openRouterUsage' ? (model.dark ? '#ffb45c' : '#a76514') : ['vercelUsage', 'cloudbaseUsage'].includes(board.kind) ? colors.muted : column ? colors.purple : colors.blue
+    const x = margin + column * (columnWidth + gap), accent = sourceTabTheme(board.kind, model.dark).accent
     rounded(context, x, 80, columnWidth, image.height - 80 - image.footerHeight, 12, colors.card)
     text(context, board.tab, x + 16, 104, 16, accent, { bold: true })
     text(context, board.time, x + columnWidth - 16, 132, 11, board.isSourceTime ? accent : colors.muted,

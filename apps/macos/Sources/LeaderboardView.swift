@@ -400,7 +400,7 @@ struct LeaderboardView: View {
     private var visibleKinds: [LeaderboardKind] { state.visibleBoardKinds }
     private func kind(at slot: Int) -> LeaderboardKind { visibleKinds.indices.contains(slot) ? visibleKinds[slot] : visibleKinds[0] }
     private func shareColor(for kind: LeaderboardKind) -> Color {
-        kind.isShareUsage ? .secondary : kind == .openRouterUsage ? .orange : kind == .epochECI ? .teal : (kind.sourceLinkTitle == LeaderboardKind.artificialAnalysis.sourceLinkTitle ? .blue : .purple)
+        Color(hex: SourceTabTheme.palette(for: kind, dark: colorScheme == .dark).accent)!
     }
 
 
@@ -1441,8 +1441,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             }
             switch role {
             case 0:
-                let tint: NSColor = board.kind.isShareUsage ? .secondaryLabelColor : board.kind == .openRouterUsage ? .systemOrange : board.kind == .epochECI ? .systemTeal
-                    : (board.kind.sourceLinkTitle == LeaderboardKind.artificialAnalysis.sourceLinkTitle ? .systemBlue : .systemPurple)
+                let tint = NSColor(Color(hex: SourceTabTheme.palette(for: board.kind, dark: dark).accent)!)
                 drawBoardHeader(tableView.tableColumns[index].headerCell.stringValue,
                     licenseName: board.licenseName, summary: board.summary,
                     time: board.time, tint: tint, in: rect)

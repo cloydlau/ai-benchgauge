@@ -1,3 +1,36 @@
+## Source brand accents — 2026-10-23
+
+Source headings, publication timestamps and relative-share hints now use the same
+brand catalog as mobile selected tabs. Mac uses that catalog for AppKit headers
+and SwiftUI hints; Windows embeds it in BenchGauge.Shared. Epoch light text uses
+its official teal-700 to retain contrast on white, while its tab keeps teal-300.
+Fetch-only times and organization branding retain their existing semantics.
+
+Ignored `work/source-heading-themes/` contains pre-edit source copies, identical
+before/after fixtures, source/binary/fixture hashes, 24 before and 24 after native
+Mac frames, and `verification.json`. General and Usage cover all five sources,
+EN / 简中 / 繁中 and both themes at 1100×720 points. All eight refreshed/settled
+pairs per capture are pixel-identical. Actual environment: macOS 27.0.1
+(26A434), 1× backing scale, local uncommitted sources. Reviewed originals confirm
+brand text replaces the old positional blue/purple/orange rules, with unchanged
+column geometry, readable text, retained fetch fallback styling and long-name
+truncation. Four scenarios are added to the common native fixture.
+
+iOS light/dark tab-drag tests pass, covering all five source headings, accessible
+refresh times and selected tabs. Native simulator originals are retained in
+`work/source-heading-themes/iPhone-retry.xcresult` and `ios-attachments/`; reviewed
+AA/Epoch light and OpenRouter/Vercel dark frames show readable brand accents and
+secondary fetch-only timestamps. A separate `--source-times` Arena capture
+(`ios-published-dark.png`) confirms the publication label and header share the
+selected brand text color. Complete tests and the 100% script/Swift coverage
+gate pass for the final inputs.
+
+Windows Release cross-compilation/shared tests and mini-program production
+build/tests pass. Windows native before/after captures and a source-matched CI
+artifact are unavailable on this Mac; Windows visual verification is not claimed.
+WeChat simulator visual review remains unavailable because DevTools login expired.
+No protected release approval is claimed.
+
 ## Desktop usage loading states — 2026-10-23
 
 Mac and Windows distinguish an in-flight usage request from a completed empty

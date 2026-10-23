@@ -35,7 +35,7 @@
         data-kind="{{card.kind}}" scroll-anchoring="{{false}}"
         bindscroll="scroll" bindrefresherrefresh="pullRefresh" bindrefresherrestore="finishPullRefresh" bindrefresherabort="finishPullRefresh">
         <view class="source-tabs-spacer" style="height:{{sourceTabsExtent}}px;" aria-hidden="true" />
-        <view class="board-card source-{{card.index}}">
+        <view class="board-card source-{{card.index}}" style="{{card.themeStyle}}">
           <view class="metadata">
             <button class="summary" data-kind="{{card.kind}}" bindtap="sourceHelp">{{card.summary}}</button>
             <button class="times" data-kind="{{card.kind}}" bindtap="refreshTap" aria-label="{{card.timeAccessibility}} · {{card.loading ? labels.loading : labels.refresh}}" aria-busy="{{card.loading}}">

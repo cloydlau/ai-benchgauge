@@ -1,10 +1,12 @@
 import Foundation
 
-/// Source identities, rather than segment positions, select the shared mobile palette.
+/// Source identities, rather than segment positions, select the shared brand palette.
 public enum SourceTabTheme {
     public struct Palette: Decodable, Equatable, Sendable {
         public let background: String
         public let foreground: String
+        /// Brand text color on the page/card surface, distinct from the tab label.
+        public let accent: String
     }
     private struct Variants: Decodable, Sendable {
         let light: Palette

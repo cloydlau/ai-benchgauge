@@ -1107,6 +1107,11 @@ private struct PadBoardCard: View {
     private var rows: [LeaderboardEntry] { rowPresentation.rows }
     private var visibleRowCount: Int { isImage || rankingExpanded ? rows.count : min(20, rows.count) }
     private var displayScheme: ColorScheme { exportScheme ?? colorScheme }
+    private var sourceAccent: Color {
+        let hex = SourceTabTheme.palette(for: kind, dark: displayScheme == .dark).accent
+        let value = UInt32(hex.dropFirst(), radix: 16) ?? 0
+        return Color(red: Double((value >> 16) & 255) / 255, green: Double((value >> 8) & 255) / 255, blue: Double(value & 255) / 255)
+    }
     private var primaryForeground: Color { isImage ? (displayScheme == .dark ? .white : .black) : .primary }
     private var secondaryForeground: Color {
         guard isImage else { return .secondary }
@@ -1234,7 +1239,7 @@ private struct PadBoardCard: View {
     }
     private var timeLabels: some View {
         let time = LeaderboardPresentation.sourceTime(board, language: language)
-        let accent = kind.isShareUsage ? Color.secondary : kind == .openRouterUsage ? Color.orange : kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue)
+        let accent = sourceAccent
         return Text(time.text).font(.system(size: timeFontSize, weight: time.isSourceTime ? .medium : .regular))
         .foregroundColor(time.isSourceTime ? accent : secondaryForeground).monospacedDigit()
         .multilineTextAlignment(.trailing).lineLimit(1).fixedSize()
@@ -1300,7 +1305,7 @@ private struct PadBoardCard: View {
                 HStack(spacing: 2) {
                 Text(kind.sourceLinkTitle)
                     .font(columnHeaderFont.weight(.semibold))
-                    .foregroundStyle(kind.isShareUsage ? Color.secondary : kind == .openRouterUsage ? Color.orange : kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue))
+                    .foregroundStyle(sourceAccent)
                     .lineLimit(1).minimumScaleFactor(0.8)
                     .accessibilityIdentifier("source-heading-\(kind.rawValue)")
                 if !isImage && grouping == .model {
@@ -1618,7 +1623,7 @@ private struct PadBoardCard: View {
                 let share = kind.isShareUsage ? "" : LeaderboardPresentation.scoreShareText(entry.score, leaderScore: rowPresentation.leaderScore)
                 if !share.isEmpty {
                     Text(share).font(.system(size: 8)).monospacedDigit()
-                        .foregroundStyle(kind.isShareUsage ? Color.secondary : kind == .openRouterUsage ? Color.orange : kind == .epochECI ? Color.teal : (kind.sourcePrefix == "Arena" ? Color.purple : Color.blue)).offset(y: 10)
+                        .foregroundStyle(sourceAccent).offset(y: 10)
                         .allowsHitTesting(false)
                 }
             }

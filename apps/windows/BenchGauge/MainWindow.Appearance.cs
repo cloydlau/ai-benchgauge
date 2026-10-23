@@ -759,8 +759,7 @@ sealed partial class MainWindow
         return prefs.VisibleBoardKinds().Select(kind => saved.FirstOrDefault(board => board.Kind == kind)
             ?? new Board(kind, kind == "epochECI" ? "Epoch AI" : kind.StartsWith("artificialAnalysis") ? "Artificial Analysis" : "Arena", "", null, null, [])).ToArray();
     }
-    Brush BoardTint(string kind) => kind is "vercelUsage" or "cloudbaseUsage" ? PanelMuted : kind == "openRouterUsage" ? Tint(panelDark ? "#FFB45C" : "#A76514") : kind == "epochECI" ? Tint(panelDark ? "#5BD6D0" : "#168D86")
-        : kind.StartsWith("artificialAnalysis") ? PanelBlue : PanelPurple;
+    Brush BoardTint(string kind) => Tint(SourceTabTheme.For(kind, panelDark).Accent);
 
     Grid TableGrid(int boardCount)
     {
