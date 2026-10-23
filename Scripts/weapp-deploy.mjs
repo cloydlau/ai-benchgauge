@@ -31,6 +31,7 @@ export const sourcePaths = [
   'Sources/LeaderboardKit/Resources/EpochAttribution.json',
   'Sources/LeaderboardKit/Resources/CC-BY-4.0.json',
   'Sources/LeaderboardKit/Resources/ModelDetailLabels.json',
+  'Sources/LeaderboardKit/Resources/SourceTabThemes.json',
   'fc/models-dev-license.txt',
   'Tests/fixtures/model-details.json',
   'fc/arena-attribution.json',

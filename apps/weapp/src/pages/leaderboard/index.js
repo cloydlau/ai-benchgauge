@@ -4,6 +4,7 @@ import { definePage, ref, computed, onLoad, onReady, onShow, onHide, onUnload, o
 import { boards, categories, categoryFor, copy, text, languages, boardTitle, hasOwn, desktopDownloadURL } from '../../core/catalog.js'
 import { rankedEntries, rowView, countryCode, countryName, countryFlag, countryFlagImage, countryOptions, formatTime } from '../../core/leaderboard.js'
 import { opennessIcon, opennessColor } from '../../core/openness-icon.js'
+import { sourceTabTheme } from '../../core/source-tab-theme.js'
 import { leaderboardDistribution } from '../../../../../fc/distributions.mjs'
 import { createBoardStore } from '../../services/boards.js'
 import { rowGeometry, resolveRowWindow, createRowRenderer } from '../../core/row-window.js'
@@ -35,7 +36,7 @@ definePage(query => {
   const cubeClipTop = ref(null)
   const sourceTabsExtent = computed(() => sourceTabsHeight.value + 8)
   const cubeViewportStyle = computed(() => `--cube-top:${cubeClipTop.value ?? Math.max(0, sourceTabsExtent.value - sourceTabsOffset.value)}px;--cube-layout-duration:${cubeDuration.value}ms;`)
-  const sourceTabsStyle = computed(() => `transform:translateY(-${sourceTabsOffset.value}px);pointer-events:${sourceTabsOffset.value >= sourceTabsExtent.value ? 'none' : 'auto'};`)
+  const sourceTabsStyle = computed(() => `transform:translateY(-${sourceTabsOffset.value}px);pointer-events:${sourceTabsOffset.value >= sourceTabsExtent.value ? 'none' : 'auto'};--source-selected-foreground:${selectedSourceTheme.value.foreground};`)
   function updateSourceTabs(top) {
     sourceTabsOffset.value = Math.min(sourceTabsExtent.value, Math.max(0, top))
   }
@@ -86,12 +87,10 @@ definePage(query => {
   }))
   const sourceDragIndex = ref(null)
   const categoryDragIndex = ref(null)
+  const selectedSourceTheme = computed(() => sourceTabTheme(current.value.kinds[sourceDragIndex.value ?? face.value], dark.value))
   const sourceSelection = computed(() => {
     const position = sourceDragIndex.value ?? face.value
-    const from = category.value === 'usage' ? (dark.value ? [65, 48, 28] : [250, 237, 218]) : dark.value ? [29, 55, 82] : [228, 240, 255]
-    const to = category.value === 'usage' ? (dark.value ? [48, 51, 55] : [233, 235, 238]) : dark.value ? [59, 42, 78] : [238, 229, 248]
-    const color = position === 2 ? (dark.value ? [30, 65, 60] : [220, 244, 236]) : from.map((channel, index) => Math.round(channel + (to[index] - channel) * position))
-    return `width:calc((100% - ${(current.value.kinds.length - 1) * 12}rpx) / ${current.value.kinds.length});transform:translateX(${position * 100}%) translateX(${position * 12}rpx);background-color:rgb(${color.join(',')});`
+    return `width:calc((100% - ${(current.value.kinds.length - 1) * 12}rpx) / ${current.value.kinds.length});transform:translateX(${position * 100}%) translateX(${position * 12}rpx);background-color:${selectedSourceTheme.value.background};`
   })
   let tabGesture
   let tabSerial = 0
