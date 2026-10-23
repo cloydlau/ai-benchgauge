@@ -14,4 +14,9 @@
 # TEST_AUTO_REPAIR=0 关闭测试失败后的一次 Codex 修复
 set -euo pipefail
 ROOT=${0:A:h}
+if [ "${1:-}" != '--no-update' ]; then
+  if ! node "$ROOT/Scripts/calmmit.mjs" update-deps; then
+    echo "! Calmmit 依赖更新失败，沿用现有依赖继续；请检查上方错误" >&2
+  fi
+fi
 exec node "$ROOT/Scripts/watch.mjs"
