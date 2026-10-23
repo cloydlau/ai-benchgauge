@@ -198,9 +198,6 @@
       "Scripts/watch.mjs"
     ],
     "themeColor": "#0070e3",
-    "update": [
-      "node",
-      "Scripts/dev-update-deps.mjs"
-    ]
+    "update": true
   }
 }

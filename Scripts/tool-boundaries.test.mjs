@@ -209,7 +209,7 @@ test('entry points honor empty policy inputs and bundled Windows SDK selection',
   mkdirSync(join(root, 'Scripts'))
   for (const name of ['windows-tests.mjs', 'dev-update-deps.mjs', 'node-executable.mjs']) copyFileSync(new URL('./' + name, import.meta.url), join(root, 'Scripts', name))
   writeFileSync(join(root, 'Scripts/test.mjs'), `export const testRoot=${JSON.stringify(root)}`)
-  writeFileSync(join(root, 'Scripts/calmmit.mjs'), `export const ci={root:${JSON.stringify(root)},load:async()=>({runCiProcess:()=>({status:0})})}`)
+  writeFileSync(join(root, 'Scripts/calmmit.mjs'), `export const ci={root:${JSON.stringify(root)},load:async()=>({runCiProcess:()=>({status:0}),updateNativeDependencies:()=>0}),run:args=>{if(args.join()!=='update-deps')throw Error('unexpected shared command')}}`)
   writeFileSync(join(root, 'hook.cjs'), `const cp=require('node:child_process'),fs=require('node:fs');Object.defineProperty(process,'platform',{value:process.env.UNIT_PLATFORM});cp.spawnSync=()=>({status:0});fs.existsSync=()=>process.env.UNIT_BUNDLED==='1';require('node:module').syncBuiltinESMExports();`)
   for (const platform of ['darwin','win32']) for (const bundled of ['0','1']) {
     const result = cp.spawnSync(process.execPath, ['--require', join(root, 'hook.cjs'), join(root, 'Scripts/windows-tests.mjs')], {encoding:'utf8',env:{...process.env,UNIT_PLATFORM:platform,UNIT_BUNDLED:bundled,BENCHGAUGE_DOTNET:''}})
