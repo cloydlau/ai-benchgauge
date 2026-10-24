@@ -1333,19 +1333,16 @@ private struct PadBoardCard: View {
                 .anchorPreference(key: MobileModelSearchOrigin.self, value: .bounds) { $0 }
             }
         }.fixedSize(horizontal: true, vertical: false)
+            .layoutPriority(1)
     }
     @ViewBuilder private var sourceHeadingDetails: some View {
         if isImage { sourceHeading }
         else {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .center, spacing: 6) {
-                    sourceHeading
-                    sourceHeadingActions
-                }.fixedSize(horizontal: true, vertical: false)
-                VStack(alignment: .leading, spacing: 2) {
-                    sourceHeading
-                    sourceHeadingActions
-                }
+            // Dates keep their full width; a long heading takes the remaining
+            // space and truncates instead of moving the actions to another row.
+            HStack(alignment: .center, spacing: 6) {
+                sourceHeading
+                sourceHeadingActions
             }
         }
     }
