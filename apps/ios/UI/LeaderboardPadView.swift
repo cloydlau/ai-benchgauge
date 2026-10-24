@@ -1239,9 +1239,8 @@ private struct PadBoardCard: View {
     }
     private var timeLabels: some View {
         let time = LeaderboardPresentation.sourceTime(board, language: language, includesYear: isImage)
-        let accent = sourceAccent
         return Text(time.text).font(.system(size: timeFontSize, weight: time.isSourceTime ? .medium : .regular))
-        .foregroundColor(time.isSourceTime ? accent : secondaryForeground).monospacedDigit()
+        .foregroundStyle(secondaryForeground).monospacedDigit()
         .multilineTextAlignment(.trailing).lineLimit(1).fixedSize()
         .accessibilityLabel(time.text)
         .accessibilityIdentifier("source-times-\(kind.rawValue)")
@@ -1305,17 +1304,34 @@ private struct PadBoardCard: View {
             .lineLimit(1).minimumScaleFactor(0.8)
             .accessibilityIdentifier("source-heading-\(kind.rawValue)")
     }
+    private var sourceHeadingActions: some View {
+        HStack(alignment: .center, spacing: 2) {
+            refreshTime
+            if grouping == .model {
+                Button(action: openModelSearch) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 12))
+                        .frame(width: 28, height: 28).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(sourceAccent)
+                .accessibilityLabel(tr("Search models", "搜索模型"))
+                .accessibilityIdentifier("model-filter-\(kind.rawValue)")
+                .anchorPreference(key: MobileModelSearchOrigin.self, value: .bounds) { $0 }
+            }
+        }.fixedSize(horizontal: true, vertical: false)
+    }
     @ViewBuilder private var sourceHeadingDetails: some View {
         if isImage { sourceHeading }
         else {
             ViewThatFits(in: .horizontal) {
-                HStack(spacing: 6) {
+                HStack(alignment: .center, spacing: 6) {
                     sourceHeading
-                    refreshTime
+                    sourceHeadingActions
                 }.fixedSize(horizontal: true, vertical: false)
                 VStack(alignment: .leading, spacing: 2) {
                     sourceHeading
-                    refreshTime
+                    sourceHeadingActions
                 }
             }
         }
@@ -1325,20 +1341,9 @@ private struct PadBoardCard: View {
             ZStack(alignment: .leading) {
             HStack(spacing: columnSpacing) {
                 Text(tr("Rank", "排名")).lineLimit(1).frame(width: rankColumnWidth)
-                HStack(spacing: 0) {
-                sourceHeadingDetails
-                Spacer(minLength: 0)
-                if !isImage && grouping == .model {
-                    Button(action: openModelSearch) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 12))
-                            .frame(width: 28, height: 28).contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(tr("Search models", "搜索模型"))
-                    .accessibilityIdentifier("model-filter-\(kind.rawValue)")
-                    .anchorPreference(key: MobileModelSearchOrigin.self, value: .bounds) { $0 }
-                }
+                HStack(alignment: .center, spacing: 0) {
+                    sourceHeadingDetails
+                    Spacer(minLength: 0)
                 }.frame(maxWidth: .infinity, alignment: .leading)
                 if isImage { countryColumn { countryHeaderLabel } }
                 else {

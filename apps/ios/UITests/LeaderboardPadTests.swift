@@ -426,13 +426,15 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
                 if let times {
                     XCTAssertGreaterThanOrEqual(heading.frame.minY - summary.frame.maxY, 8)
                     if times.frame.minX >= heading.frame.maxX {
-                        XCTAssertEqual(heading.frame.midY, times.frame.midY, accuracy: 3)
+                        XCTAssertEqual(heading.frame.midY, times.frame.midY, accuracy: 1)
                     } else {
                         XCTAssertGreaterThanOrEqual(times.frame.minY, heading.frame.maxY)
                     }
                     let search = app.buttons["model-filter-\(kind)"]
                     XCTAssertTrue(search.exists)
                     XCTAssertGreaterThanOrEqual(search.frame.minX, times.frame.maxX)
+                    XCTAssertLessThanOrEqual(search.frame.minX - times.frame.maxX, 3)
+                    XCTAssertEqual(search.frame.midY, times.frame.midY, accuracy: 1)
                     XCTAssertFalse(times.label.contains("2026"))
                     if UIDevice.current.userInterfaceIdiom == .phone {
                         XCTAssertGreaterThanOrEqual(summary.frame.minY - app.buttons["face-0"].frame.maxY, 8)

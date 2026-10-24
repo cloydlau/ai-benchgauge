@@ -46,14 +46,16 @@
             <view class="model-heading">
             <view class="source-heading-details">
             <button class="source-heading" data-kind="{{card.kind}}" bindtap="copyBoardTitle" aria-label="{{labels.copyName}} {{card.title}}">{{card.title}}</button>
+            <view class="source-heading-actions">
             <button class="times" data-kind="{{card.kind}}" bindtap="refreshTap" aria-label="{{card.timeAccessibility}} · {{card.loading ? labels.loading : labels.refresh}}" aria-busy="{{card.loading}}">
               <view wx:if="{{card.loading}}" class="time-loading" aria-hidden="true" />
               <view class="time-copy">
-                <view class="time-row {{card.isSourceTime ? 'time-source' : 'time-fetched'}}"><text class="time-value mono">{{card.time}}</text><text class="time-label">{{card.timeLabel}}</text></view>
+                <view class="time-row {{card.isSourceTime ? 'time-source' : 'time-fetched'}}"><text class="time-value">{{card.time}}</text><text class="time-label">{{card.timeLabel}}</text></view>
               </view>
             </button>
-            </view>
             <button wx:if="{{grouping === 'model'}}" id="model-filter-{{card.kind}}" class="model-filter-toggle" data-kind="{{card.kind}}" bindtap="openModelSearch" aria-label="{{labels.searchModels}}"><van-icon name="search" size="13px" /></button>
+            </view>
+            </view>
             </view>
             <button class="filter {{card.countryFiltered ? 'filtered' : ''}}" data-kind="{{card.kind}}" data-mode="country" bindtap="filterMenu">
               <view class="filter-label">{{labels.country}}<view class="filter-arrow" aria-hidden="true"><van-icon name="{{card.countryFiltered ? 'filter-o' : 'arrow-down'}}" size="{{card.countryFiltered ? '8px' : '7px'}}" /></view></view>
