@@ -136,8 +136,8 @@ struct GrokQuotaTests {
             return try JSONSerialization.data(withJSONObject: ["subscriptions": [record]])
         }
         #expect(try await !client.captureXAIWebsiteSubscription(response(userID: "other-user")))
-        #expect(try await !client.captureXAIWebsiteSubscription(response(userID: "canonical-user", date: "2026-09-01T12:00:00Z")))
-        #expect(store.record(accountID: "test", now: now) == nil)
+        #expect(try await client.captureXAIWebsiteSubscription(response(userID: "canonical-user", date: "2026-09-01T12:00:00Z")))
+        #expect(store.record(accountID: "test", now: now)?.periodEnd == ISO8601DateFormatter().date(from: "2026-09-01T12:00:00Z"))
         #expect(try await client.captureXAIWebsiteSubscription(response(userID: nil)))
         #expect(store.record(accountID: "test", now: now)?.periodEnd == ISO8601DateFormatter().date(from: "2026-11-18T12:00:00Z"))
         #expect(try await client.captureXAIWebsiteSubscription(response(userID: "canonical-user")))
@@ -226,7 +226,7 @@ struct GrokQuotaTests {
         let target = CCSwitchQuotaTarget(id: "xai", shortName: "xAI", websiteURL: nil, kind: .xaiOAuth, isCurrent: false, apiKey: nil, baseURL: nil)
         for (accountID, date, status, expected) in [
             ("other", end, 403, "7d 75%"),
-            ("test", now.addingTimeInterval(-60), 403, "7d 75%"),
+            ("test", now.addingTimeInterval(-60), 403, "7d 75% · 至9月28日19时59分"),
             ("test", end, 403, "7d 75% · 至10月24日"),
             ("test", end.addingTimeInterval(31 * 86_400), 200, "7d 75% · 至10月24日"),
         ] {
@@ -298,6 +298,8 @@ private struct GrokFixtureTransport: AccountQuotaTransport {
             #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer test-access")
             #expect(request.value(forHTTPHeaderField: "X-XAI-Token-Auth") == "xai-grok-cli")
             return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(#"{"userId":"canonical-user","subscriptionTier":"SuperGrok"}"#.utf8))
+        case "https://cli-chat-proxy.grok.com/v1/settings":
+            return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: Data(#"{"subscription_tier_display":"SuperGrok"}"#.utf8))
         case "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig":
             return AccountQuotaHTTPResponse(statusCode: 200, headers: [:], body: billingBody)
         case "https://grok.com/rest/subscriptions":
@@ -314,17 +316,207 @@ private struct GrokFixtureTransport: AccountQuotaTransport {
     }
 }
 
+private struct GrokEntitlementTransport: AccountQuotaTransport {
+    let base: GrokFixtureTransport
+    let settings: String
+    var settingsStatus = 200
+    var subscriptionBody: String? = nil
+    var settingsFailure: URLError.Code? = nil
+    func data(for request: URLRequest) async throws -> AccountQuotaHTTPResponse {
+        if request.url == XaiEndpointValidator.subscriptionSettingsURL {
+            if let settingsFailure { throw URLError(settingsFailure) }
+            #expect(request.value(forHTTPHeaderField: "X-XAI-Token-Auth") == "xai-grok-cli")
+            return .init(statusCode: settingsStatus, headers: [:], body: Data(settings.utf8))
+        }
+        if request.url == XaiEndpointValidator.subscriptionsURL, let subscriptionBody {
+            return .init(statusCode: 200, headers: [:], body: Data(subscriptionBody.utf8))
+        }
+        return try await base.data(for: request)
+    }
+}
+
+extension GrokQuotaTests {
+    @Test func aStaleActiveRecordRequiresTheCurrentTierButKeepsItsReportedDate() async throws {
+        let auth = FileManager.default.temporaryDirectory.appending(path: "grok-stale-active-\(UUID()).json")
+        try Data(#"{"default_account_id":"test","accounts":{"test":{"account_id":"test","refresh_token":"test-refresh"}}}"#.utf8).write(to: auth)
+        defer { try? FileManager.default.removeItem(at: auth) }
+        for (tier, expected): (String, ParsedSubscriptionState) in [("Free", .inactive), ("SuperGrok", .active)] {
+            let transport = GrokEntitlementTransport(base: .init(status: 200,
+                billingBody: credits(type: 2, end: "2026-10-05T12:00:00Z", percent: nil), subscriptionEnd: "2026-09-27T12:00:00Z"),
+                settings: "{\"subscription_tier_display\":\"\(tier)\"}")
+            let tokens = XAIAccessTokens(refreshAllowed: { true })
+            guard case let .windows(windows) = try await tokens.billing(transport: transport, authFileURL: auth, now: now) else {
+                Issue.record("A stale active record must be checked against current entitlement"); continue
+            }
+            #expect(windows.last?.subscriptionState == expected)
+            #expect(windows.last?.resetsAt == ISO8601DateFormatter().date(from: "2026-09-27T12:00:00Z"))
+            #expect(AccountQuotaFormatting.plainSummary(for: chip(windows), now: now)
+                == (expected == .inactive ? "订阅已过期" : "7d 100%") + " · 至9月27日")
+        }
+    }
+
+    @Test func unavailablePlansStayOutOfUsableQuotaOrderingAndExhaustion() {
+        func plan(_ id: String, _ state: ParsedSubscriptionState) -> AccountQuotaChip {
+            .init(id: id, shortName: "xAI", websiteURL: nil, kind: .xaiOAuth, isCurrent: false,
+                status: .windows([.init(name: "weekly_limit", utilization: 0, resetsAt: nil),
+                    .init(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: nil, subscriptionState: state)]))
+        }
+        let free = plan("free", .inactive), unknown = plan("unknown", .unverified), paid = plan("paid", .active)
+        #expect(AccountQuotaFormatting.plainSummary(for: free, now: now) == "未订购")
+        #expect(AccountQuotaFormatting.plainSummary(for: unknown, now: now) == "套餐待核实")
+        #expect(!AccountQuotaFormatting.isExhausted(free))
+        #expect(!AccountQuotaFormatting.isExhausted(unknown))
+        #expect(AccountQuotaFormatting.sortedChips([unknown, free, paid]).map(\.id) == ["paid", "free", "unknown"])
+    }
+
+    @Test func anExpiredInMemoryBoundarySurvivesLossOfTheDiskCache() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "grok-memory-boundary-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let auth = root.appending(path: "auth.json")
+        try Data(#"{"default_account_id":"test","accounts":{"test":{"account_id":"test","refresh_token":"test-refresh"}}}"#.utf8).write(to: auth)
+        let dates = XAISubscriptionDateStore(fileURL: root.appending(path: "dates.json"))
+        let body = credits(type: 2, end: "2026-10-05T12:00:00Z", percent: nil)
+        let transport = GrokSubscriptionOutageTransport(
+            success: .init(status: 200, billingBody: body, subscriptionEnd: "2026-09-27T12:00:00Z"),
+            outage: .init(status: 503, billingBody: body), settingsBody: "{}")
+        let fixedNow = now
+        let client = AccountQuotaClient(transport: transport, authFileURL: auth, now: { fixedNow },
+            xaiSubscriptionDateStore: dates, xaiRefreshAllowed: { true })
+        let target = CCSwitchQuotaTarget(id: "xai", shortName: "xAI", websiteURL: nil, kind: .xaiOAuth,
+            isCurrent: true, apiKey: nil, baseURL: nil)
+        let live = try #require(try await client.refresh(targets: [target]).first)
+        #expect(AccountQuotaFormatting.plainSummary(for: live, now: now) == "套餐待核实 · 至9月27日")
+        try FileManager.default.removeItem(at: dates.fileURL)
+        let retained = try #require(try await client.refresh(targets: [target]).first)
+        #expect(AccountQuotaFormatting.plainSummary(for: retained, now: now) == "套餐待核实 · 至9月27日")
+        #expect(dates.record(accountID: "test", now: now)?.subscriptionState == .unverified)
+        #expect(dates.record(accountID: "test", now: now)?.periodEnd == ISO8601DateFormatter().date(from: "2026-09-27T12:00:00Z"))
+    }
+
+    @Test func aTierNetworkFailureIsUnverifiedAndCancellationStillPropagates() async throws {
+        let auth = FileManager.default.temporaryDirectory.appending(path: "grok-tier-\(UUID()).json")
+        try Data(#"{"default_account_id":"test","accounts":{"test":{"account_id":"test","refresh_token":"test-refresh"}}}"#.utf8).write(to: auth)
+        defer { try? FileManager.default.removeItem(at: auth) }
+        for error: URLError.Code in [.networkConnectionLost, .cancelled] {
+            let tokens = XAIAccessTokens(refreshAllowed: { true })
+            let transport = GrokEntitlementTransport(base: .init(status: 403,
+                billingBody: credits(type: 2, end: "2026-10-05T12:00:00Z", percent: nil)), settings: "{}", settingsFailure: error)
+            if error == .cancelled {
+                await #expect(throws: CancellationError.self) { try await tokens.billing(transport: transport, authFileURL: auth, now: now) }
+            } else {
+                guard case let .windows(windows) = try await tokens.billing(transport: transport, authFileURL: auth, now: now) else {
+                    Issue.record("An entitlement outage must preserve the independently fetched usage"); continue
+                }
+                #expect(windows.first?.utilization == 0)
+                #expect(windows.last?.subscriptionState == .unverified)
+                #expect(AccountQuotaFormatting.plainSummary(for: chip(windows), now: now) == "套餐待核实")
+            }
+        }
+    }
+
+    @Test func expiredCacheSurvivesTheBoundaryAndZeroUsageRequiresCurrentEntitlement() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "grok-expired-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let auth = root.appending(path: "auth.json")
+        try Data(#"{"default_account_id":"test","accounts":{"test":{"account_id":"test","refresh_token":"test-refresh"}}}"#.utf8).write(to: auth)
+        let end = now.addingTimeInterval(-3600)
+        let fixedNow = now
+        for (settings, status, expected) in [
+            (#"{"subscription_tier_display":"Free"}"#, 200, "订阅已过期"),
+            (#"{"subscription_tier_display":"SuperGrok"}"#, 200, "7d 100%"),
+            (#"{}"#, 200, "套餐待核实"),
+            (#"{"subscription_tier_display":"Free"}"#, 503, "套餐待核实")
+        ] {
+            let dates = XAISubscriptionDateStore(fileURL: root.appending(path: UUID().uuidString + ".json"))
+            try dates.save(.init(accountID: "test", periodEnd: end, source: .cached))
+            try dates.save(.init(accountID: "other", periodEnd: now.addingTimeInterval(86400), source: .cached))
+            #expect(dates.record(accountID: "test", now: now)?.periodEnd == end)
+            let transport = GrokEntitlementTransport(base: .init(status: 403,
+                billingBody: credits(type: 2, end: "2026-10-05T12:00:00Z", percent: nil)), settings: settings, settingsStatus: status)
+            let client = AccountQuotaClient(transport: transport, authFileURL: auth, now: { fixedNow },
+                xaiSubscriptionDateStore: dates, xaiRefreshAllowed: { true })
+            let target = CCSwitchQuotaTarget(id: "xai", shortName: "xAI", websiteURL: nil, kind: .xaiOAuth, isCurrent: true, apiKey: nil, baseURL: nil)
+            let result = try #require(try await client.refresh(targets: [target]).first)
+            let summary = AccountQuotaFormatting.plainSummary(for: result, now: now)
+            #expect(summary == expected + " · " + AccountQuotaFormatting.periodEndPhrase(until: end, now: now))
+            if expected != "7d 100%" {
+                #expect(!summary.contains("100%"))
+                #expect(AccountQuotaFormatting.compactMenuBarQuota(for: result) == nil)
+                #expect(AccountQuotaFormatting.lowestRemainingPercent(for: result) == nil)
+                #expect(!QuotaAlerts.isConclusive(result.status))
+                #expect(!AccountQuotaFormatting.help(for: result, now: now).contains("7d 100%"))
+            }
+            #expect(dates.record(accountID: "other", now: now)?.periodEnd == now.addingTimeInterval(86400))
+        }
+    }
+
+    @Test func endedSubscriptionRecordsKeepTheirDateButActiveRenewalsWin() throws {
+        let ended = #"{"status":"SUBSCRIPTION_STATUS_INACTIVE","tier":"SUBSCRIPTION_TIER_GROK_PRO","billingPeriodEnd":"2026-09-27T12:00:00Z"}"#
+        let active = #"{"status":"SUBSCRIPTION_STATUS_ACTIVE","tier":"SUBSCRIPTION_TIER_GROK_PRO","billingPeriodEnd":"2026-10-24T12:00:00Z"}"#
+        func parse(_ records: String) -> ParsedQuotaWindow? {
+            GrokBillingParser.parseSubscriptionExpiry(Data("{\"subscriptions\":[\(records)]}".utf8), now: now)
+        }
+        #expect(parse(ended)?.subscriptionState == .inactive)
+        #expect(parse(ended)?.resetsAt == ISO8601DateFormatter().date(from: "2026-09-27T12:00:00Z"))
+        #expect(parse(ended + "," + active)?.subscriptionState == .active)
+        #expect(parse(active + "," + ended)?.subscriptionState == .active)
+        let renewed = active.replacingOccurrences(of: "2026-10-24", with: "2026-11-24")
+        #expect(parse(active + "," + renewed)?.resetsAt == ISO8601DateFormatter().date(from: "2026-11-24T12:00:00Z"))
+        let olderEnded = ended.replacingOccurrences(of: "2026-09-27", with: "2026-08-27")
+        #expect(parse(olderEnded + "," + ended)?.resetsAt == ISO8601DateFormatter().date(from: "2026-09-27T12:00:00Z"))
+        #expect(parse(ended.replacingOccurrences(of: "2026-09-27", with: "2026-11-27")) == nil)
+        #expect(GrokBillingParser.parseSubscriptionExpiry(Data("{\"subscriptions\":[\(ended)]}".utf8), accountID: "test", now: now)?.subscriptionState == .inactive)
+        #expect(GrokBillingParser.parseSubscriptionExpiry(Data(#"{"subscriptions":[{"xaiUserId":"other","status":"SUBSCRIPTION_STATUS_INACTIVE","tier":"SUBSCRIPTION_TIER_GROK_PRO","billingPeriodEnd":"2026-09-27T12:00:00Z"}]}"#.utf8), accountID: "test", now: now) == nil)
+        #expect(GrokBillingParser.parseSubscriptionState(Data(#"{"subscription_tier_display":"mystery-future-plan"}"#.utf8)) == nil)
+        #expect(GrokBillingParser.parseSubscriptionState(Data(#"{"subscription_tier_display":false}"#.utf8)) == nil)
+    }
+
+    @Test func liveEndedSubscriptionKeepsItsDateAcrossRestartAndAnOutage() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "grok-ended-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let auth = root.appending(path: "auth.json")
+        try Data(#"{"default_account_id":"test","accounts":{"test":{"account_id":"test","refresh_token":"test-refresh"}}}"#.utf8).write(to: auth)
+        let dates = XAISubscriptionDateStore(fileURL: root.appending(path: "dates.json"))
+        let fixedNow = now
+        let target = CCSwitchQuotaTarget(id: "xai", shortName: "xAI", websiteURL: nil, kind: .xaiOAuth, isCurrent: true, apiKey: nil, baseURL: nil)
+        let transport = GrokEntitlementTransport(base: .init(status: 403,
+            billingBody: credits(type: 2, end: "2026-10-05T12:00:00Z", percent: nil)), settings: "{}",
+            subscriptionBody: #"{"subscriptions":[{"status":"SUBSCRIPTION_STATUS_INACTIVE","tier":"SUBSCRIPTION_TIER_GROK_PRO","billingPeriodEnd":"2026-09-27T12:00:00Z"}]}"#)
+        let client = AccountQuotaClient(transport: transport, authFileURL: auth, now: { fixedNow },
+            xaiSubscriptionDateStore: dates, xaiRefreshAllowed: { true })
+        let first = try #require(try await client.refresh(targets: [target]).first)
+        #expect(AccountQuotaFormatting.plainSummary(for: first, now: now) == "订阅已过期 · 至9月27日")
+        #expect(dates.record(accountID: "test", now: now)?.subscriptionState == .inactive)
+        let restarted = AccountQuotaClient(transport: GrokEntitlementTransport(base: .init(status: 403,
+            billingBody: credits(type: 2, end: "2026-10-05T12:00:00Z", percent: nil)), settings: "{}", settingsStatus: 503),
+            authFileURL: auth, now: { fixedNow }, xaiSubscriptionDateStore: dates, xaiRefreshAllowed: { true })
+        let cached = try #require(try await restarted.refresh(targets: [target]).first)
+        #expect(AccountQuotaFormatting.plainSummary(for: cached, now: now) == "订阅已过期 · 至9月27日")
+        #expect(AccountQuotaFormatting.isDimmed(cached))
+        #expect(AppLanguage.english.quotaText("订阅已过期") == "Subscription expired")
+        #expect(AppLanguage.english.quotaText("套餐待核实") == "Plan unverified")
+    }
+}
+
 private actor GrokSubscriptionOutageTransport: AccountQuotaTransport {
     let success: GrokFixtureTransport
     let outage: GrokFixtureTransport
+    let settingsBody: String?
     private var hasSucceeded = false
 
-    init(success: GrokFixtureTransport, outage: GrokFixtureTransport) {
+    init(success: GrokFixtureTransport, outage: GrokFixtureTransport, settingsBody: String? = nil) {
         self.success = success
         self.outage = outage
+        self.settingsBody = settingsBody
     }
 
     func data(for request: URLRequest) async throws -> AccountQuotaHTTPResponse {
+        if request.url == XaiEndpointValidator.subscriptionSettingsURL, let settingsBody {
+            return .init(statusCode: 200, headers: [:], body: Data(settingsBody.utf8))
+        }
         let transport = request.url == XaiEndpointValidator.subscriptionsURL && hasSucceeded
             ? outage
             : success

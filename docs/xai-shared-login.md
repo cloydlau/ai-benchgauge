@@ -1,5 +1,40 @@
 # xAI desktop authorization
 
+## Subscription boundaries and entitlement (2026-10-25)
+
+A zero usage counter does not establish that a paid subscription still exists.
+When the subscriptions endpoint cannot provide a current record, quota refresh
+checks the current CLI settings tier. The [official Grok client](https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-shell/src/tier.rs)
+classifies Free and X Basic separately from paid tiers. Without an unexpired
+API subscription result to reuse, an unknown, missing or failed tier response
+stays unverified; it cannot become a green 100% allowance.
+
+API subscription dates remain cached for the same account after their boundary
+passes. Explicit ended records retain their actual end date; an active renewal
+wins over ended history. A passed date alone is not proof of expired access, so
+an unverifiable renewal shows “套餐待核实” with the last reported date. Confirmed
+inactive plans show “订阅已过期” when their reported end has passed, or “未订购”
+without an ended date. Their usage percentages are suppressed in the card,
+help and menu bar, and do not trigger quota recovery notifications. No usage
+reset is promoted to a subscription date. A date the provider never reported
+cannot be reconstructed.
+
+Shared parser/client regression tests and the native fixture
+`Tests/fixtures/xai-expired-subscription.json` cover these states. Native Mac
+captures and logs are kept under ignored `work/xai-expired-subscription/`.
+Windows native OS/DPI captures require a Windows environment and are not
+claimed by local shared-code tests or cross-compilation.
+
+Local validation passed `./test.sh --coverage` for stable inputs, with no skipped
+checks and 100% script/Swift coverage. The identical fixture produced 54 native
+Mac frames before and 54 after on macOS 27.0.1 at actual 1× backing scale,
+900×720 points, covering three subscription states, all three languages and
+both themes. All shown/refreshed/settled pairs are pixel-identical. Reviewed
+originals show complete status labels and retained dates without clipping;
+confirmed inactive cards keep their existing dimmed presentation. Source hashes,
+capture provenance, test receipt and review notes are in
+`work/xai-expired-subscription/verification.json`.
+
 BenchGauge now owns an independent xAI device-authorization session. CC Switch
 can remain open while quota refreshes and scheduled keep-alive run. The old
 requirement to quit/restart CC Switch is removed from the desktop login flow.

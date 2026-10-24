@@ -384,11 +384,12 @@ public actor AccountQuotaClient {
               case let .account(started) = XAIAccessTokens.readLogin(at: authURL),
               let identity = try await xaiTokens.subscriptionUserID(transport: transport, authFileURL: authURL, now: now()),
               identity.accountID == started.id,
-              let end = GrokBillingParser.parseSubscriptionExpiry(data, accountID: identity.userID)?.resetsAt,
-              end > now(),
+              let plan = GrokBillingParser.parseSubscriptionExpiry(data, accountID: identity.userID, now: now()),
+              let end = plan.resetsAt,
               case let .account(current) = XAIAccessTokens.readLogin(at: authURL),
               current.id == started.id else { return false }
-        try xaiSubscriptionDateStore.save(.init(accountID: current.id, periodEnd: end, source: .cached))
+        try xaiSubscriptionDateStore.save(.init(accountID: current.id, periodEnd: end, source: .cached,
+            subscriptionState: plan.subscriptionState))
         return true
     }
 
@@ -442,16 +443,27 @@ public actor AccountQuotaClient {
                 if let accountID,
                    case let .account(account) = XAIAccessTokens.readLogin(at: authFileURL),
                    account.id == accountID {
-                    if let end = windows.first(where: { $0.name == ParsedQuotaWindow.planExpiryName })?.resetsAt {
+                    let plan = windows.first(where: { $0.name == ParsedQuotaWindow.planExpiryName })
+                    if let end = plan?.resetsAt {
                         lastGoodXAISubscriptionDatesByAccountID[accountID] = end
-                        try? xaiSubscriptionDateStore.save(.init(accountID: accountID, periodEnd: end, source: .cached))
-                    } else if let saved = xaiSubscriptionDateStore.record(accountID: accountID, now: now()) {
-                        resolvedWindows.append(ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName,
-                            utilization: 0, resetsAt: saved.periodEnd, dateSource: saved.source))
-                    } else if let end = lastGoodXAISubscriptionDatesByAccountID[accountID], end > now() {
-                        resolvedWindows.append(ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName,
-                            utilization: 0, resetsAt: end, dateSource: .cached))
-                        try? xaiSubscriptionDateStore.save(.init(accountID: accountID, periodEnd: end, source: .cached))
+                        try? xaiSubscriptionDateStore.save(.init(accountID: accountID, periodEnd: end, source: .cached,
+                            subscriptionState: plan?.subscriptionState))
+                    } else {
+                        let saved = xaiSubscriptionDateStore.record(accountID: accountID, now: now())
+                        if let end = saved?.periodEnd ?? lastGoodXAISubscriptionDatesByAccountID[accountID] {
+                            // An old billing boundary remains useful, but cannot
+                            // prove that the current subscription renewed.
+                            let state = plan?.subscriptionState == .unverified ? nil : plan?.subscriptionState
+                            let fallback: ParsedSubscriptionState? = saved?.subscriptionState == .inactive
+                                ? .inactive : (end <= now() ? .unverified : nil)
+                            resolvedWindows.removeAll { $0.name == ParsedQuotaWindow.planExpiryName }
+                            resolvedWindows.append(ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName,
+                                utilization: 0, resetsAt: end, dateSource: .cached, subscriptionState: state ?? fallback))
+                            if saved == nil || (state != nil && state != saved?.subscriptionState) {
+                                try? xaiSubscriptionDateStore.save(.init(accountID: accountID, periodEnd: end,
+                                    source: .cached, subscriptionState: state ?? fallback))
+                            }
+                        }
                     }
                 }
                 return AccountQuotaChip(
@@ -1004,18 +1016,36 @@ actor XAIAccessTokens {
         subscriptionRequest.setValue("application/json", forHTTPHeaderField: "Accept")
         subscriptionRequest.setValue("https://grok.com", forHTTPHeaderField: "Origin")
         subscriptionRequest.setValue("ai-benchgauge", forHTTPHeaderField: "User-Agent")
+        var reportedPlan: ParsedQuotaWindow?
         do {
             let subscription = try await transport.data(for: subscriptionRequest)
             if (200...299).contains(subscription.statusCode), subscription.body.count <= 1_048_576,
-               let expiry = GrokBillingParser.parseSubscriptionExpiry(subscription.body) {
-                return .windows(usage + [expiry])
+               let expiry = GrokBillingParser.parseSubscriptionExpiry(subscription.body, now: now) {
+                reportedPlan = expiry
+                if expiry.subscriptionState != .unverified { return .windows(usage + [expiry]) }
             }
         } catch {
             if AccountQuotaClient.isCancellation(error) { throw CancellationError() }
         }
-        // An optional subscription failure must not erase the usage result or
-        // mislabel its weekly reset as the monthly subscription deadline.
-        return billing
+        // A typed zero is valid protobuf, including for a former subscriber.
+        // Confirm the current tier before presenting it as 100% available.
+        do {
+            var settingsRequest = URLRequest(url: XaiEndpointValidator.subscriptionSettingsURL, timeoutInterval: 8)
+            settingsRequest.setValue("Bearer \(access)", forHTTPHeaderField: "Authorization")
+            settingsRequest.setValue("xai-grok-cli", forHTTPHeaderField: "X-XAI-Token-Auth")
+            settingsRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+            var state: ParsedSubscriptionState = .unverified
+            do {
+                let settings = try await transport.data(for: settingsRequest)
+                if (200...299).contains(settings.statusCode), settings.body.count <= 1_048_576 {
+                    state = GrokBillingParser.parseSubscriptionState(settings.body) ?? .unverified
+                }
+            } catch {
+                if AccountQuotaClient.isCancellation(error) { throw CancellationError() }
+            }
+            return .windows(usage + [ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName,
+                utilization: 0, resetsAt: reportedPlan?.resetsAt, subscriptionState: state)])
+        }
     }
 
     func subscriptionUserID(transport: any AccountQuotaTransport, authFileURL: URL, now: Date) async throws -> (accountID: String, userID: String)? {

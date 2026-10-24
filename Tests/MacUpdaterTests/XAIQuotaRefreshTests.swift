@@ -37,6 +37,8 @@ private actor XAIRefreshTransport: AccountQuotaTransport {
                 return .init(statusCode: 200, headers: [:], body: body)
             }
             return .init(statusCode: 401, headers: [:], body: Data())
+        case "cli-chat-proxy.grok.com":
+            return .init(statusCode: 200, headers: [:], body: Data(#"{"subscription_tier_display":"SuperGrok"}"#.utf8))
         default:
             if !released { await withCheckedContinuation { waiting.append($0) } }
             return .init(statusCode: 200, headers: [:], body: Data("{}".utf8))
@@ -151,7 +153,8 @@ struct XAIQuotaRefreshTests {
         try await waitFor { state.quotaChips.first { $0.id == "xai" }?.status != .pending }
         let status = state.quotaChips.first { $0.id == "xai" }?.status
         if succeeds {
-            #expect(status == .windows([.init(name: "weekly_limit", utilization: 25, resetsAt: nil)]))
+            #expect(status == .windows([.init(name: "weekly_limit", utilization: 25, resetsAt: nil),
+                .init(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: nil, subscriptionState: .active)]))
         } else {
             #expect(status == .message(AccountQuotaMessage.reauthRequired))
         }

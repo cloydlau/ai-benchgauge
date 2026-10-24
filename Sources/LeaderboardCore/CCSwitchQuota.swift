@@ -132,6 +132,10 @@ public enum ParsedQuotaDateSource: String, Codable, Sendable {
     case cached
 }
 
+public enum ParsedSubscriptionState: String, Codable, Sendable {
+    case active, inactive, unverified
+}
+
 public struct ParsedQuotaWindow: Equatable, Sendable {
     /// Plan, entitlement, or billing-period boundary, without renewal status.
     /// Not a usage percentage or evidence that access will stop on this date.
@@ -142,19 +146,22 @@ public struct ParsedQuotaWindow: Equatable, Sendable {
     public let resetsAt: Date?
     public let dateSource: ParsedQuotaDateSource?
     public let isAutoRenewing: Bool
+    public let subscriptionState: ParsedSubscriptionState?
 
     public init(
         name: String,
         utilization: Double,
         resetsAt: Date?,
         dateSource: ParsedQuotaDateSource? = nil,
-        isAutoRenewing: Bool = false
+        isAutoRenewing: Bool = false,
+        subscriptionState: ParsedSubscriptionState? = nil
     ) {
         self.name = name
         self.utilization = utilization
         self.resetsAt = resetsAt
         self.dateSource = dateSource
         self.isAutoRenewing = isAutoRenewing
+        self.subscriptionState = subscriptionState
     }
 }
 
@@ -309,6 +316,7 @@ public enum AccountQuotaFormatting {
     /// when the live page read does not land. Dropping those here would leave
     /// the menu bar empty or behind the number the panel already shows.
     public static func compactMenuBarQuota(for chip: AccountQuotaChip) -> String? {
+        guard xaiUnavailableState(chip) == nil else { return nil }
         switch chip.status {
         case let .windows(windows):
             for name in ["five_hour", "seven_day", "weekly_limit", "monthly"] {
@@ -350,6 +358,7 @@ public enum AccountQuotaFormatting {
     /// The most restrictive usage pool determines the quota color level.
     /// Monetary balances and dates are not quota percentages.
     public static func lowestRemainingPercent(for chip: AccountQuotaChip) -> Double? {
+        guard xaiUnavailableState(chip) == nil else { return nil }
         switch chip.status {
         case let .windows(windows):
             return windows.filter {
@@ -411,6 +420,7 @@ public enum AccountQuotaFormatting {
     /// never counts. A balance chip is exhausted only when no positive
     /// balance remains.
     public static func isExhausted(_ chip: AccountQuotaChip) -> Bool {
+        guard xaiUnavailableState(chip) == nil else { return false }
         switch chip.status {
         case let .windows(windows):
             return windows.contains { window in
@@ -432,6 +442,7 @@ public enum AccountQuotaFormatting {
     /// An unknown/querying balance is not evidence of zero funds. Usage-window
     /// exhaustion retains its existing warning presentation.
     public static func isDimmed(_ chip: AccountQuotaChip) -> Bool {
+        if xaiUnavailableState(chip) == .inactive { return true }
         switch chip.status {
         case let .note(text, _), let .message(text):
             return text == AccountQuotaMessage.glmNoCodingPlan || text == AccountQuotaMessage.qwenNoPlan
@@ -690,6 +701,7 @@ public enum AccountQuotaFormatting {
     }
 
     private static func billingPriority(_ chip: AccountQuotaChip) -> Int {
+        if let state = xaiUnavailableState(chip) { return state == .inactive ? 3 : 5 }
         // Classify unavailable results before provider kind, otherwise a failed
         // plan looks usable and a failed wallet looks funded.
         switch chip.status {
@@ -844,12 +856,25 @@ public enum AccountQuotaFormatting {
     public static func requiresXAISubscriptionConnection(_ chip: AccountQuotaChip) -> Bool {
         guard chip.kind == .xaiOAuth, case let .windows(windows) = chip.status else { return false }
         guard let expiry = windows.first(where: { $0.name == ParsedQuotaWindow.planExpiryName }) else { return true }
-        return expiry.dateSource == .cached
+        return expiry.resetsAt == nil || expiry.dateSource == .cached
+    }
+
+    private static func xaiUnavailableState(_ chip: AccountQuotaChip) -> ParsedSubscriptionState? {
+        guard chip.kind == .xaiOAuth, case let .windows(windows) = chip.status,
+              let state = planWindow(windows)?.subscriptionState, state != .active else { return nil }
+        return state
     }
 
     private static func detailLines(for chip: AccountQuotaChip, now: Date) -> [String] {
         switch chip.status {
         case let .windows(windows) where !windows.isEmpty:
+            if chip.kind == .xaiOAuth, let plan = planWindow(windows),
+               let state = plan.subscriptionState, state != .active {
+                var lines = [windowRuns(windows, kind: chip.kind, now: now).map(\.text).joined(),
+                    state == .inactive ? "当前账号没有有效付费套餐，额度百分比不代表可用订阅。" : "暂时无法核实当前套餐，不将零用量显示为可用满额。"]
+                if plan.dateSource == .cached { lines.append("套餐日期来自已保存的查询结果；接口暂时不可用") }
+                return lines
+            }
             return windowDetailLines(windows, now: now)
         case let .qwenPlan(plan):
             return [qwenPlanHelp(plan, now: now)]
@@ -964,6 +989,17 @@ public enum AccountQuotaFormatting {
 
     private static func windowRuns(_ windows: [ParsedQuotaWindow], kind: CCSwitchQuotaKind, now: Date) -> [QuotaTextRun] {
         var runs: [QuotaTextRun] = []
+        if kind == .xaiOAuth, let plan = planWindow(windows),
+           let state = plan.subscriptionState, state != .active {
+            let ended = state == .inactive && plan.resetsAt.map { $0 <= now } == true
+            runs.append(QuotaTextRun(text: state == .unverified ? "套餐待核实" : (ended ? "订阅已过期" : "未订购"),
+                tone: state == .inactive ? .red : .orange))
+            if let end = plan.resetsAt {
+                appendSeparator(&runs)
+                runs.append(contentsOf: periodEndRuns(until: end, now: now))
+            }
+            return runs
+        }
         for window in orderedUsageWindows(windows) {
             appendSeparator(&runs)
             runs.append(contentsOf: remainingRuns(
@@ -1504,6 +1540,7 @@ public enum XaiEndpointValidator {
     public static let subscriptionsURL = URL(string: "https://grok.com/rest/subscriptions")!
     /// Official Grok Build's live subscription account lookup.
     public static let subscriptionUserURL = URL(string: "https://cli-chat-proxy.grok.com/v1/user?include=subscription")!
+    public static let subscriptionSettingsURL = URL(string: "https://cli-chat-proxy.grok.com/v1/settings")!
     public static let billingURL = URL(string: "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig")!
 
     public static func isTrustedIssuer(_ value: String) -> Bool {

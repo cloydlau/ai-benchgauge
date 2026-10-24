@@ -16,7 +16,7 @@ enum NativeVisualCapture {
     struct Quota: Decodable {
         struct Run: Decodable { let text: String }
         struct Balance: Decodable { let currency: String; let amount: Double }
-        struct Window: Decodable { let name: String; let utilization: Double; let resetsAt: String?; let dateSource: ParsedQuotaDateSource? }
+        struct Window: Decodable { let name: String; let utilization: Double; let resetsAt: String?; let dateSource: ParsedQuotaDateSource?; let subscriptionState: ParsedSubscriptionState? }
         let id: String; let name: String; let isCurrent: Bool; let runs: [Run]; let status: String?; let modelName: String?; let failureReason: String?; let baseURL: String?
         let windows: [Window]?
         let balances: [Balance]?
@@ -83,7 +83,8 @@ enum NativeVisualCapture {
                     status = .balances(balances.map { ParsedBalance(currency: $0.currency, amount: $0.amount) })
                 } else if let windows = quota.windows {
                     status = .windows(windows.map { ParsedQuotaWindow(name: $0.name, utilization: $0.utilization,
-                        resetsAt: $0.resetsAt.flatMap { ISO8601DateFormatter().date(from: $0) }, dateSource: $0.dateSource) })
+                        resetsAt: $0.resetsAt.flatMap { ISO8601DateFormatter().date(from: $0) }, dateSource: $0.dateSource,
+                        subscriptionState: $0.subscriptionState) })
                 } else {
                     let percent = Double(quota.runs.last!.text.replacingOccurrences(of: "%", with: ""))!
                     status = .windows([ParsedQuotaWindow(name: "seven_day", utilization: 100 - percent, resetsAt: nil)])

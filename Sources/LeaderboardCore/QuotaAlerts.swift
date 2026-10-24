@@ -108,6 +108,8 @@ public enum QuotaAlerts {
             return false
         case let .qwenWebsite(quota) where quota.isCached:
             return false
+        case let .windows(windows) where windows.contains(where: { $0.subscriptionState == .inactive || $0.subscriptionState == .unverified }):
+            return false
         case .windows, .balances, .qwenPlan, .qwenWebsite:
             return true
         }
