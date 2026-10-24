@@ -59,6 +59,16 @@ struct LeaderboardView: View {
     }
 
     static func preferredWidth(for state: AppState, maximumWidth: CGFloat) -> CGFloat {
+        let measured = state.panelLayoutCache.columnWidth(revision: state.snapshotRevision, language: state.selectedLanguage) {
+            measuredNameColumnWidth(for: state)
+        }
+        let kinds = state.visibleBoardKinds
+        let desired = max(minimumWidth, ceil(measured * CGFloat(kinds.count)
+            + tableChromeWidth(boardCount: kinds.count, includesUsage: kinds.contains(.openRouterUsage)) + 88))
+        return min(desired, maximumWidth)
+    }
+
+    private static func measuredNameColumnWidth(for state: AppState) -> CGFloat {
         let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
         let captionFont = NSFont.systemFont(ofSize: 12)
         // Size against every category and grouping. Switching tabs then keeps
@@ -101,8 +111,7 @@ struct LeaderboardView: View {
                 summary: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(kind, language: state.selectedLanguage)),
                 time: time)
         }.max() ?? 0
-        let desired = max(minimumWidth, ceil(max(columnWidth, headerWidth) * CGFloat(state.visibleBoardKinds.count) + tableChromeWidth(boardCount: state.visibleBoardKinds.count, includesUsage: state.visibleBoardKinds.contains(.openRouterUsage)) + 88))
-        return min(desired, maximumWidth)
+        return max(columnWidth, headerWidth)
     }
 
     static func preferredSize(for state: AppState, maximumWidth: CGFloat) -> NSSize {
@@ -111,6 +120,12 @@ struct LeaderboardView: View {
     }
 
     static func preferredHeight(for state: AppState, width: CGFloat, maximumWidth: CGFloat) -> CGFloat {
+        state.panelLayoutCache.height(for: state, width: width, maximumWidth: maximumWidth) {
+            measuredHeight(for: state, width: width, maximumWidth: maximumWidth)
+        }
+    }
+
+    private static func measuredHeight(for state: AppState, width: CGFloat, maximumWidth: CGFloat) -> CGFloat {
         let view = LeaderboardView(state: state, maximumWidth: maximumWidth)
         let header = NSHostingView(rootView: view.header.frame(width: width))
         let footer = NSHostingView(rootView: view.footer.frame(width: width))

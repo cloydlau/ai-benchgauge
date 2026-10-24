@@ -9,6 +9,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var stateController: StatusBarController?
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if DEBUG
+        if CommandLine.arguments.contains("--popover-performance") {
+            Task { @MainActor in
+                do { try await NativePopoverPerformance.run(); NSApp.terminate(nil) }
+                catch { print("Popover performance failed: \(error)"); exit(1) }
+            }
+            return
+        }
         if CommandLine.arguments.contains("--codex-model-status") {
             let configuration = CCSwitchProviderStore.currentCodexModelConfiguration()
             FileHandle.standardOutput.write(Data("model=\(configuration?.model ?? "unavailable") provider=\(configuration?.provider ?? "default")\n".utf8))
@@ -115,6 +122,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
     private let statusItem: NSStatusItem
     private let hosting: NSHostingController<LeaderboardView>
     private var stateObservation: AnyCancellable?
+    private var presentationUpdateScheduled = false
     private var presentedMode: PanelMode
     private var leaderboardWindow: NSWindow?
     private var lastLeaderboardWindowFrame: NSRect?
@@ -169,12 +177,16 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
         updateStatusItem()
 
         stateObservation = state.objectWillChange.sink { [weak self] _ in
+            guard let self, !self.presentationUpdateScheduled else { return }
+            self.presentationUpdateScheduled = true
             Task { @MainActor [weak self] in
-                self?.updateStatusItem()
-                self?.updatePresentationMode()
-                self?.updatePanelWidth()
-                self?.updateDismissMonitor()
-                self?.presentClaudeKeychainConsentIfNeeded()
+                guard let self else { return }
+                self.presentationUpdateScheduled = false
+                self.updateStatusItem()
+                self.updatePresentationMode()
+                self.updatePanelWidth()
+                self.updateDismissMonitor()
+                self.presentClaudeKeychainConsentIfNeeded()
             }
         }
         appActivationObserver = NSWorkspace.shared.notificationCenter.addObserver(
@@ -637,7 +649,9 @@ final class StatusBarController: NSObject, NSPopoverDelegate, NSWindowDelegate {
             popover.contentViewController?.view.window?.alphaValue = 0
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         }
-        state.refreshFromMenuClick()
+        // The native reveal is queued by popoverDidShow. Do not put local
+        // provider discovery or refresh state changes in front of that frame.
+        DispatchQueue.main.async { [weak self] in self?.state.refreshFromMenuClick() }
     }
 
     private func closePopover() {
