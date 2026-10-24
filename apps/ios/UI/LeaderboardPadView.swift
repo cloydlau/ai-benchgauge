@@ -788,7 +788,15 @@ public struct LeaderboardPadView: View {
                 }
             } label: { Image(systemName: "circle.lefthalf.filled").frame(width: 44, height: 44) }
                 .accessibilityLabel(tr("Appearance", "外观")).accessibilityIdentifier("appearance-menu")
+            #if !os(iOS)
             screenshotButton(compact: true).frame(width: 44, height: 44)
+            #elseif DEBUG
+            // Retain explicit export previews for development while the mobile entry is hidden.
+            if ProcessInfo.processInfo.arguments.contains("--ui-testing"),
+               ProcessInfo.processInfo.arguments.contains("--export-preview") {
+                screenshotButton(compact: true).frame(width: 44, height: 44)
+            }
+            #endif
         }.font(.caption).buttonStyle(.plain).foregroundStyle(.secondary).lineLimit(1)
     }
     private func languageLabel(_ language: AppLanguage) -> String {

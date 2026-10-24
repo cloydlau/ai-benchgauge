@@ -274,16 +274,17 @@ final class LeaderboardBottomSafeAreaTests: XCTestCase {
                 .press(forDuration: 0.1, thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)))
             capture("scrolling-\(dark ? "dark" : "light")")
             for _ in 0..<12 {
-                let footer = app.buttons["share"].firstMatch
+                let footer = app.buttons["appearance-menu"].firstMatch
                 let categories = app.otherElements["category"]
                 if footer.isHittable && footer.frame.maxY <= categories.frame.minY - 12 { break }
                 scroll.swipeUp()
             }
             // Finish the remaining footer clearance after it first becomes visible.
             scroll.swipeUp()
-            let footer = app.buttons["share"].firstMatch
+            let footer = app.buttons["appearance-menu"].firstMatch
             capture("bottom-\(dark ? "dark" : "light")")
             XCTAssertTrue(footer.isHittable, "Footer must be reachable above the Home indicator")
+            XCTAssertFalse(app.buttons["share"].exists, "The mobile screenshot entry is temporarily hidden")
             XCTAssertLessThanOrEqual(footer.frame.maxY, app.frame.maxY - 30)
             let back = app.buttons["leaderboard-back-to-top"].firstMatch
             XCTAssertTrue(back.isHittable)
@@ -295,9 +296,9 @@ final class LeaderboardBottomSafeAreaTests: XCTestCase {
             XCTAssertEqual(scroll.frame.maxY, app.frame.maxY, accuracy: 1,
                            "Ranking viewport must continue through the bottom safe area")
             footer.tap()
-            XCTAssertTrue(app.buttons["copy-screenshot"].waitForExistence(timeout: 10),
-                          "The screenshot button must still open its preview at the end of the list")
-            capture("bottom-screenshot-preview-\(dark ? "dark" : "light")")
+            XCTAssertTrue(app.buttons["跟随系统"].waitForExistence(timeout: 5),
+                          "The appearance control must still open its menu at the end of the list")
+            capture("bottom-appearance-menu-\(dark ? "dark" : "light")")
             app.terminate()
         }
     }
@@ -888,6 +889,7 @@ final class LeaderboardPadTests: XCTestCase {
     }
     func testOfflineResultsAndLicenseAndScreenshot() {
         app.launchArguments.append("--offline")
+        app.launchArguments.append("--export-preview")
         app.launch()
         XCTAssertTrue(app.buttons["name-artificialAnalysis-1"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.buttons["source-error-artificialAnalysis"].exists)
@@ -977,7 +979,7 @@ final class LeaderboardPadTests: XCTestCase {
     }
     private func scrollToFooter() {
         for _ in 0..<8 {
-            if app.buttons["language-menu"].isHittable && app.buttons["share"].frame.maxY < app.otherElements["category"].frame.minY { return }
+            if app.buttons["language-menu"].isHittable && app.buttons["appearance-menu"].frame.maxY < app.otherElements["category"].frame.minY { return }
             app.swipeUp()
         }
         XCTAssertTrue(app.buttons["language-menu"].isHittable)
@@ -1489,6 +1491,7 @@ final class LeaderboardPhoneTests: XCTestCase {
     }
     func testOfflineLicenseScreenshotAndLanguages() {
         app.launchArguments.append("--offline")
+        app.launchArguments.append("--export-preview")
         app.launch()
         XCTAssertTrue(app.buttons["name-artificialAnalysis-1"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.buttons["source-error-artificialAnalysis"].exists)
@@ -1535,6 +1538,7 @@ final class LeaderboardPhoneTests: XCTestCase {
         capture("iphone-traditional-video")
     }
     func testScreenshotPhotoSaveFeedback() {
+        app.launchArguments.append("--export-preview")
         app.launch()
         waitForFace("artificialAnalysis")
         scrollToFooter()
@@ -1574,7 +1578,7 @@ final class LeaderboardPhoneTests: XCTestCase {
         app.launchArguments += ["--full-board", "--dark", "--preview-zh"]
         app.launch()
         waitForFace("artificialAnalysis")
-        XCTAssertFalse(app.buttons["share"].isHittable, "The footer must stay below the full board")
+        XCTAssertFalse(app.buttons["appearance-menu"].isHittable, "The footer must stay below the full board")
         capture("iphone-long-dark")
         let viewport = app.otherElements["cube-viewport"]
         viewport.swipeUp()
@@ -1601,12 +1605,12 @@ final class LeaderboardPhoneTests: XCTestCase {
         capture("iphone-landscape-dark")
         XCTAssertFalse(app.buttons["face-0"].isHittable, "The source selector scrolls away with the board")
         scrollToFooter()
-        XCTAssertTrue(app.buttons["share"].isHittable)
+        XCTAssertTrue(app.buttons["appearance-menu"].isHittable)
         viewport.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .press(forDuration: 0.05, thenDragTo: viewport.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)))
         let back = app.buttons["leaderboard-back-to-top"].firstMatch
         XCTAssertTrue(back.isHittable)
-        XCTAssertGreaterThanOrEqual(back.frame.minY, app.buttons["share"].frame.maxY + 8)
+        XCTAssertGreaterThanOrEqual(back.frame.minY, app.buttons["appearance-menu"].frame.maxY + 8)
         XCTAssertLessThanOrEqual(back.frame.maxY, app.otherElements["category"].frame.minY - 8)
         capture("iphone-landscape-scrolled-footer")
         assertCategorySegments()
@@ -1615,7 +1619,7 @@ final class LeaderboardPhoneTests: XCTestCase {
         XCTAssertTrue(app.otherElements["board-artificialAnalysis"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "name-artificialAnalysis-")).firstMatch.waitForExistence(timeout: 5))
         app.segmentedControls["grouping"].buttons["公司"].tap()
-        XCTAssertFalse(app.buttons["share"].isHittable, "Returning to the top must scroll the footer out of view")
+        XCTAssertFalse(app.buttons["appearance-menu"].isHittable, "Returning to the top must scroll the footer out of view")
         XCTAssertTrue(app.buttons["country-artificialAnalysis"].isHittable, "Grouping changes must return to the top")
         XCTAssertTrue(app.buttons["name-artificialAnalysis-1"].isHittable)
         capture("iphone-reset-companies-landscape")
@@ -1794,13 +1798,13 @@ final class LeaderboardPhoneTests: XCTestCase {
     private func scrollToFooter() {
         let viewport = app.otherElements["cube-viewport"]
         for _ in 0..<12 {
-            if app.buttons["share"].isHittable && app.buttons["share"].frame.maxY < app.otherElements["category"].frame.minY { return }
+            if app.buttons["appearance-menu"].isHittable && app.buttons["appearance-menu"].frame.maxY < app.otherElements["category"].frame.minY { return }
             // The landscape category bar covers the usual swipe start near
             // the bottom. Start inside the unobstructed ranking viewport.
             viewport.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
                 .press(forDuration: 0.05, thenDragTo: viewport.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)))
         }
-        XCTAssertTrue(app.buttons["share"].isHittable)
+        XCTAssertTrue(app.buttons["appearance-menu"].isHittable)
     }
     private func assertCategorySegments() {
         let segments = app.otherElements["category"].buttons.allElementsBoundByIndex.map(\.frame)
@@ -1884,12 +1888,12 @@ final class LeaderboardMobileParityTests: XCTestCase {
     private func scrollToFooter() {
         let scroll = UIDevice.current.userInterfaceIdiom == .phone ? app.otherElements["cube-viewport"] : app.scrollViews.firstMatch
         for _ in 0..<18 {
-            let camera = app.buttons["share"]
-            if camera.isHittable && camera.frame.maxY < app.otherElements["category"].frame.minY - 4 { return }
+            let appearance = app.buttons["appearance-menu"]
+            if appearance.isHittable && appearance.frame.maxY < app.otherElements["category"].frame.minY - 4 { return }
             scroll.swipeUp()
         }
-        XCTAssertTrue(app.buttons["share"].isHittable)
-        XCTAssertLessThan(app.buttons["share"].frame.maxY, app.otherElements["category"].frame.minY)
+        XCTAssertTrue(app.buttons["appearance-menu"].isHittable)
+        XCTAssertLessThan(app.buttons["appearance-menu"].frame.maxY, app.otherElements["category"].frame.minY)
     }
     func testHeaderGlobalFiltersAboutAndLanguages() {
         for chinese in [true, false] {
@@ -1926,7 +1930,7 @@ final class LeaderboardMobileParityTests: XCTestCase {
             scrollToFooter()
             XCTAssertTrue(app.buttons["language-menu"].exists)
             XCTAssertTrue(app.buttons["appearance-menu"].exists)
-            XCTAssertTrue(app.buttons["share"].exists)
+            XCTAssertFalse(app.buttons["share"].exists, "The mobile screenshot entry is temporarily hidden")
             app.buttons["about"].tap()
             XCTAssertTrue(app.buttons["desktop-download"].waitForExistence(timeout: 5))
             XCTAssertTrue(app.staticTexts["about-version"].exists)
@@ -1952,6 +1956,7 @@ final class LeaderboardMobileParityTests: XCTestCase {
         let entries = (1...55).map { ["rank": $0, "name": "Complete fixture model \($0) with extended reasoning and full parameters", "score": 1000 - $0, "organization": "OpenAI"] as [String: Any] }
         app.launchEnvironment["BENCHGAUGE_UI_MODEL_ENTRIES"] = String(data: try JSONSerialization.data(withJSONObject: entries), encoding: .utf8)
         app.launchArguments = ["--ui-testing", "--offline", "--reduce-motion"]
+        app.launchArguments.append("--export-preview")
         app.launch()
         XCTAssertTrue(app.buttons["name-artificialAnalysis-1"].waitForExistence(timeout: 15))
         scrollToFooter()

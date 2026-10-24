@@ -136,7 +136,6 @@
           <view class="footer-actions">
             <button class="tap" data-mode="language" bindtap="preferences" aria-label="{{labels.language}}"><text class="language-symbol">文/A</text></button>
             <button class="tap" data-mode="theme" bindtap="preferences" aria-label="{{labels.theme}}"><view class="theme-symbol" aria-hidden="true" /></button>
-            <button class="tap screenshot-button" bindtap="screenshot" disabled="{{capturing}}" aria-label="{{labels.screenshot}}"><van-icon name="photograph" size="19px" /></button>
           </view>
         </view>
       </scroll-view>
