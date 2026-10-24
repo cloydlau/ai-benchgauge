@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 
-// Isolated npm + Node 20 compiler, shared convention with Watrek / Weaveo.
+// Isolated npm + Node compiler; weapp-deploy configures compatibility flags.
 const runtime = fileURLToPath(new URL('../ci-runtime/package.json', import.meta.url))
 const ci = createRequire(runtime)('miniprogram-ci')
 const [projectPath, appid, privateKeyPath, version] = process.argv.slice(2)

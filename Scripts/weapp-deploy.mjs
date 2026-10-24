@@ -126,7 +126,8 @@ async function upload() {
     }
     // Dependency installation may take minutes. Revalidate immediately before uploading.
     if (sourceSignature(inputSnapshot()) !== signature || readUploadConfig(root).signature !== config.signature) throw new Error('源码或上传配置已更新，等待下一轮上传')
-    await run(binary, [join(root, 'apps/weapp/scripts/upload.mjs'), join(stage, 'apps/weapp'), config.appid, config.privateKeyPath, version])
+    // Preloading also covers Workers; a version-specific Web Storage flag fails on Node 20.
+    await run(binary, ['--require', join(root, 'apps/weapp/scripts/ci-compat.cjs'), join(root, 'apps/weapp/scripts/upload.mjs'), join(stage, 'apps/weapp'), config.appid, config.privateKeyPath, version])
     const receipt = { schemaVersion: 1, status: 'success', publishedAt: Date.now(), version, sourceSignature: signature }
     writeFileSync(`${receiptPath}.tmp`, `${JSON.stringify(receipt, null, 2)}\n`)
     renameSync(`${receiptPath}.tmp`, receiptPath)

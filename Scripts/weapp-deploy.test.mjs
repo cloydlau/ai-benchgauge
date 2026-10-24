@@ -164,6 +164,7 @@ function isolatedUploader(t, mode = 'success') {
   writeFileSync(join(root, 'package.json'), '{"type":"module"}')
   copyFileSync(new URL('./weapp-deploy.mjs', import.meta.url), join(root, 'Scripts/weapp-deploy.mjs'))
   copyFileSync(new URL('../apps/weapp/scripts/version.mjs', import.meta.url), join(root, 'apps/weapp/scripts/version.mjs'))
+  copyFileSync(new URL('../apps/weapp/scripts/ci-compat.cjs', import.meta.url), join(root, 'apps/weapp/scripts/ci-compat.cjs'))
   writeFileSync(join(root, 'apps/weapp/src/page.js'), 'initial')
   writeFileSync(join(root, 'privacy-guide.json'), '{"items":[]}')
   writeFileSync(join(root, 'Scripts/node-executable.mjs'), 'export const nodeExecutable=()=>process.execPath')
@@ -238,6 +239,28 @@ test('successful uploader installs its isolated runtime when needed and writes a
     assert.equal(existsSync(join(f.root, 'apps/weapp/.last-publish.tmp')), false)
     assert.equal(existsSync(join(f.root, `work/weapp-deploy/stage-${result.pid}`)), false)
   }
+})
+
+test('isolated uploader disables Web Storage before loading the compiler and in compiler subprocesses', t => {
+  const f = isolatedUploader(t)
+  f.env.NODE_OPTIONS += ' --experimental-webstorage'
+  writeFileSync(join(f.root, 'apps/weapp/scripts/upload.mjs'), `
+import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
+import { Worker } from 'node:worker_threads'
+assert.equal(globalThis.localStorage, undefined)
+assert.ok(process.env.NODE_OPTIONS.includes('ci-compat.cjs'))
+const check = 'require("node:assert/strict").equal(globalThis.localStorage, undefined)'
+execFileSync(process.execPath, ['--eval', check])
+await new Promise((resolve, reject) => {
+  const worker = new Worker(check, { eval: true })
+  worker.once('error', reject)
+  worker.once('exit', code => code === 0 ? resolve() : reject(new Error('worker exit ' + code)))
+})
+`)
+  const result = spawnSync(process.execPath, [f.script, 'upload'], { cwd: f.root, env: f.env, encoding: 'utf8', timeout: 10_000 })
+  assert.equal(result.status, 0, result.stdout + result.stderr)
+  assert.ok(readReceipt(join(f.root, 'apps/weapp/.last-publish')))
 })
 
 test('privacy failures stop only the isolated upload before build/network and guide edits change its signature', t => {
