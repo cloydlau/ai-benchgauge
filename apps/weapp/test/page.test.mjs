@@ -92,7 +92,7 @@ test('headers and help select only source time, falling back to fetch time when 
         const opposite = isSource ? 'updated' : 'published'
         assert.equal(card.timeLabel, text(copy[label], language))
         assert.equal(card.isSourceTime, !!isSource)
-        assert.equal(card.time, isSource && card.kind === 'arenaText' ? sourceUpdatedAt.slice(5, 10) : formatTime(isSource ? sourceUpdatedAt : fetchedAt))
+        assert.equal(card.time, isSource && card.kind === 'arenaText' ? `${new Date(sourceUpdatedAt).getUTCMonth() + 1}/${new Date(sourceUpdatedAt).getUTCDate()}` : formatTime(isSource ? sourceUpdatedAt : fetchedAt))
         assert.equal(card.timeAccessibility, `${card.time} ${card.timeLabel}`)
         assert.doesNotMatch(card.timeAccessibility, /Fetched|抓取|擷取|Data updated|数据更新|資料更新|数据发布|資料發佈/)
         assert.equal('fetched' in card || 'updated' in card, false, 'Do not bridge a second timestamp')
