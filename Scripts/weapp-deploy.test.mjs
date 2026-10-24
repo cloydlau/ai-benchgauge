@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync, copyFileSync, symlinkSync, realpathSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync, copyFileSync, cpSync, symlinkSync, realpathSync } from 'node:fs'
 import { spawnSync, spawn } from 'node:child_process'
 import cp from 'node:child_process'
 import { EventEmitter } from 'node:events'
-import { syncBuiltinESMExports } from 'node:module'
+import { createRequire, syncBuiltinESMExports } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -39,6 +39,35 @@ test('isolated upload loads shared domain and chart statistics and detects their
   assert.notEqual(sourceSignature(inputSnapshot(root)), signature)
   const config = JSON.parse(readFileSync(new URL('../calmmit.config.json', import.meta.url)))
   assert.deepEqual(new Set(config.dev.activity.find(item => item.kind === 'mini-program').sources), new Set(sourcePaths))
+})
+
+test('isolated upload renders canonical source marks and tracks scripts, artwork and notices', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'benchgauge-source-marks-stage-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  for (const path of ['Scripts', 'assets/brand', 'node_modules', 'apps/weapp/node_modules']) mkdirSync(join(root, path), { recursive: true })
+  writeFileSync(join(root, 'apps/weapp/package.json'), '{}')
+  copyFileSync(new URL('./source-logos.mjs', import.meta.url), join(root, 'Scripts/source-logos.mjs'))
+  cpSync(new URL('../assets/brand/partners', import.meta.url), join(root, 'assets/brand/partners'), { recursive: true })
+  const snapshot = inputSnapshot(root), signature = sourceSignature(snapshot)
+  const stage = join(root, 'stage')
+  stageInputs(root, stage, snapshot)
+  const { renderSourceLogos } = await import(pathToFileURL(join(stage, 'Scripts/source-logos.mjs')).href)
+  const sharp = createRequire(new URL('../apps/weapp/package.json', import.meta.url))('sharp')
+  const assets = await renderSourceLogos(sharp)
+  const catalog = JSON.parse(readFileSync(join(root, 'assets/brand/partners/sources.json'), 'utf8'))
+  assert.equal(assets.length, catalog.sources.length * 2 + 1)
+  for (const asset of assets.filter(item => item.name.endsWith('.png'))) {
+    const metadata = await sharp(asset.source).metadata()
+    assert.equal(metadata.width, 84)
+    assert.equal(metadata.height, 84)
+  }
+  assert.deepEqual(assets.find(item => item.name === 'NOTICE.txt').source, readFileSync(join(root, 'assets/brand/partners/NOTICE.txt')))
+  for (const relative of ['Scripts/source-logos.mjs', ...snapshot.keys()].filter((path, index, paths) => paths.indexOf(path) === index)) {
+    const original = readFileSync(join(root, relative))
+    writeFileSync(join(root, relative), Buffer.concat([original, Buffer.from('\n')]))
+    assert.notEqual(sourceSignature(inputSnapshot(root)), signature, `${relative} edits must queue a new upload`)
+    writeFileSync(join(root, relative), original)
+  }
 })
 
 test('upload snapshot detects edits and deletions but excludes credentials and generated files', t => {
