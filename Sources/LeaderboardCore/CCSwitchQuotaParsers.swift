@@ -682,24 +682,45 @@ public enum GrokBillingParser {
     /// `GET https://grok.com/rest/subscriptions`: billingPeriodEnd on an
     /// active Grok subscription is its monthly/annual billing-period boundary.
     /// Active status does not establish whether the next period will renew.
-    /// Inactive history and usage reset timestamps must not supply this date.
-    public static func parseSubscriptionExpiry(_ data: Data, accountID: String? = nil) -> ParsedQuotaWindow? {
+    /// Ended history is accepted only with an explicit status and a passed end
+    /// when `now` is supplied. Usage resets never supply subscription dates.
+    public static func parseSubscriptionExpiry(_ data: Data, accountID: String? = nil, now: Date? = nil) -> ParsedQuotaWindow? {
         guard let body = CCSwitchJSON.object(data),
               let subscriptions = body["subscriptions"] as? [[String: Any]] else { return nil }
-        let ends = subscriptions.compactMap { subscription -> Date? in
+        let records = subscriptions.compactMap { subscription -> (end: Date, active: Bool)? in
             // The identity endpoint establishes that the whole website response
             // belongs to the current login. Some records omit the redundant user
             // ID; an explicit mismatch is still fatal.
             if let accountID, let recordAccountID = subscription["xaiUserId"] as? String,
                recordAccountID != accountID { return nil }
-            guard subscription["status"] as? String == "SUBSCRIPTION_STATUS_ACTIVE",
+            guard let status = subscription["status"] as? String,
                   let tier = subscription["tier"] as? String,
                   tier.hasPrefix("SUBSCRIPTION_TIER_GROK_") || tier.hasPrefix("SUBSCRIPTION_TIER_SUPER_GROK_"),
-                  let end = subscription["billingPeriodEnd"] as? String else { return nil }
-            return CCSwitchJSON.isoDate(end)
+                  let text = subscription["billingPeriodEnd"] as? String,
+                  let end = CCSwitchJSON.isoDate(text) else { return nil }
+            let active = status == "SUBSCRIPTION_STATUS_ACTIVE"
+            let ended = ["SUBSCRIPTION_STATUS_INACTIVE", "SUBSCRIPTION_STATUS_EXPIRED", "SUBSCRIPTION_STATUS_CANCELED", "SUBSCRIPTION_STATUS_CANCELLED"].contains(status)
+            guard active || (ended && now.map { end <= $0 } == true) else { return nil }
+            return (end, active)
         }
-        guard let end = ends.max() else { return nil }
-        return ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: end)
+        // A current subscription wins over old history, including overlapping
+        // products. A future cancellation is not proof that access has ended.
+        guard let record = records.filter(\.active).max(by: { $0.end < $1.end })
+            ?? records.max(by: { $0.end < $1.end }) else { return nil }
+        let state: ParsedSubscriptionState? = now.map { record.active ? (record.end > $0 ? .active : .unverified) : .inactive }
+        return ParsedQuotaWindow(name: ParsedQuotaWindow.planExpiryName, utilization: 0,
+            resetsAt: record.end, subscriptionState: state)
+    }
+
+    /// Current CLI settings carry entitlement separately from usage. A zero
+    /// usage counter does not establish that a paid allowance still exists.
+    public static func parseSubscriptionState(_ data: Data) -> ParsedSubscriptionState? {
+        guard let body = CCSwitchJSON.object(data),
+              let text = body["subscription_tier_display"] as? String else { return nil }
+        let tier = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if ["", "free", "x basic", "x_basic"].contains(tier) { return .inactive }
+        if tier.hasPrefix("supergrok") || tier.hasPrefix("super_grok") || tier.hasPrefix("x premium") || tier.hasPrefix("x_premium") { return .active }
+        return nil
     }
 
     /// Classifies an HTTP status and optional grpc-status before the body is trusted.

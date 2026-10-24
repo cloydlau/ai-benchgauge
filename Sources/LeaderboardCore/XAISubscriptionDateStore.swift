@@ -7,11 +7,13 @@ public struct XAISubscriptionDateStore: Sendable {
         public let accountID: String
         public let periodEnd: Date
         public let source: ParsedQuotaDateSource
+        public let subscriptionState: ParsedSubscriptionState?
 
-        public init(accountID: String, periodEnd: Date, source: ParsedQuotaDateSource) {
+        public init(accountID: String, periodEnd: Date, source: ParsedQuotaDateSource, subscriptionState: ParsedSubscriptionState? = nil) {
             self.accountID = accountID
             self.periodEnd = periodEnd
             self.source = source
+            self.subscriptionState = subscriptionState
         }
     }
 
@@ -22,8 +24,7 @@ public struct XAISubscriptionDateStore: Sendable {
 
     public func record(accountID: String, now: Date) -> Record? {
         guard let record = records().first(where: { $0.accountID == accountID }),
-              record.periodEnd.timeIntervalSince1970.isFinite,
-              record.periodEnd > now else { return nil }
+              record.periodEnd.timeIntervalSince1970.isFinite else { return nil }
         return record
     }
 
