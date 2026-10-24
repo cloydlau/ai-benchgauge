@@ -82,7 +82,7 @@
     </view>
   </view>
   <van-dialog show="{{licenseNotice.open}}" title="{{licenseNotice.title || 'CC BY 4.0'}}" use-slot
-    confirm-button-text="{{labels.gotIt}}"
+    confirm-button-text="OK"
     confirm-button-color="{{dark ? '#d1dce8' : '#414d5c'}}"
     close-on-click-overlay="{{true}}"
     custom-style="background:var(--card);color:var(--ink);--dialog-has-title-message-text-color:var(--muted);--button-default-background-color:var(--card);"

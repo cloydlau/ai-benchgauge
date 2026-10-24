@@ -359,7 +359,7 @@ struct PadAboutView<Brand: View>: View {
                         }
                     }
                 }.frame(maxHeight: dynamicTypeSize.isAccessibilitySize ? 360 : 440)
-                Button(tr("Got it", "知道了")) { about.licenseSourceID = nil }
+                Button("OK") { about.licenseSourceID = nil }
                     .font(.system(size: 15, weight: .semibold)).foregroundStyle(accent)
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .background(accent.opacity(dark ? 0.16 : 0.08), in: RoundedRectangle(cornerRadius: 10))
