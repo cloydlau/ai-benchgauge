@@ -7,7 +7,7 @@ import { investmentContent, investmentSchedule } from '../apps/weapp/src/core/in
 test('iOS About exports the same localized descriptions, metrics and cost definitions as the mini-program', () => {
   const stats = { commitCount: 1234, codeLineCount: 56789 }
   const content = iosAboutContent(stats)
-  assert.equal(content.sources.length, 5)
+  assert.equal(content.sources.length, 6)
   assert.equal(content.desktopDownloadURL, 'https://github.com/cloydlau/ai-benchgauge/releases/latest')
   assert.equal(content.repositoryURL, 'https://github.com/cloydlau/ai-benchgauge')
   for (const language of ['en', 'zh-CN', 'zh-TW']) {

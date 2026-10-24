@@ -4,7 +4,7 @@ The selected source tab uses a solid brand fill and a contrasting label. The
 mini-program, iOS, Mac and Windows read the same `SourceTabThemes.json`; mappings use complete
 board kinds, never segment positions. Category tabs retain AI BenchGauge's own
 slate theme and glass treatment. Unknown sources use the application palette.
-Tencent remains hidden and disabled.
+Tencent is restored on 2026-10-24 with its official Tencent Cloud blues.
 
 Colors checked against official sources on 2026-10-23:
 
@@ -15,6 +15,7 @@ Colors checked against official sources on 2026-10-23:
 | Epoch AI | `#70EFD1` / `#072B33` | Same | [ECI website](https://epoch.ai/eci): `.button-primary` uses `--color-teal-300`, `--color-teal-900` |
 | OpenRouter | `#7624F4` / `#FCFCFE` | `#C8FF00` / `#03080A` | [Brand assets](https://openrouter.ai/brand) and official website tokens: Grape / Cloud, Volt / Ink |
 | Vercel AI Gateway | Black / white | White / black | [Geist colors](https://vercel.com/geist/colors) |
+| Tencent CloudBase | `#0052D9` / white | `#00A4FF` / `#101216` | [Tencent Cloud](https://cloud.tencent.com/) and its official portal stylesheet (`full.df73a28ab3829ca0322a.css`), checked 2026-10-24 |
 
 All label/fill pairs meet a 4.5:1 contrast ratio. Official CSS observations are
 saved in ignored `work/source-tab-themes/`; these are evidence, not runtime
@@ -39,4 +40,4 @@ fallbacks remain secondary. Per-model organization colors are retained.
 Mini-program canvas exports use the same source identity mapping; iOS exports
 resolve the palette against the export appearance. Windows embeds the catalog
 in its shared assembly. Exact source IDs cover every category and do not depend
-on a column index or name prefix. Legacy disabled sources use the fallback.
+on a column index or name prefix. Unknown sources use the fallback.

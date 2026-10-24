@@ -16,7 +16,6 @@ public struct LeaderboardFetcher: Sendable {
     }
 
     public func fetch(_ kind: LeaderboardKind, onCachedBoard: LeaderboardService.BoardUpdate? = nil) async throws -> Leaderboard {
-        if kind == .cloudbaseUsage { throw URLError(.resourceUnavailable) }
         if let sharedEndpoint { return try await shared(kind, endpoint: sharedEndpoint, onCachedBoard: onCachedBoard) }
         // Arena's licensed Parquet snapshots are acquired by the shared service.
         // Never fall back to the website when shared storage is unconfigured.
@@ -27,7 +26,6 @@ public struct LeaderboardFetcher: Sendable {
 
     /// Reads FC only; used to paint the Windows view before its background refresh.
     public func fetchCached(_ kind: LeaderboardKind) async throws -> Leaderboard? {
-        if kind == .cloudbaseUsage { return nil }
         guard let sharedEndpoint else { return nil }
         return try await cachedShared(kind, url: sharedEndpoint.appendingPathComponent("v1/boards/\(kind.rawValue)"))
     }

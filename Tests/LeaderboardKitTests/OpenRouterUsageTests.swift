@@ -6,7 +6,7 @@ import FoundationNetworking
 #endif
 
 @Test func usageIsAnIndependentCategoryAndPreservesExactCounts() throws {
-    #expect(LeaderboardCategory.usage.boardKinds == [.openRouterUsage, .vercelUsage])
+    #expect(LeaderboardCategory.usage.boardKinds == [.openRouterUsage, .vercelUsage, .cloudbaseUsage])
     #expect(LeaderboardKind.openRouterUsage.sourceURL.absoluteString == "https://openrouter.ai/rankings")
     #expect(LeaderboardKind.openRouterUsage.sourcePrefix == "OpenRouter")
     let entries = [

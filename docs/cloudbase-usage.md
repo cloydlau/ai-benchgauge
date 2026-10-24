@@ -1,16 +1,20 @@
 # 腾讯 CloudBase 用量占比
 
-## Current status: paused (2026-10-23)
+## Current status: restored (2026-10-24)
 
-This supersedes the enabled-source design below. At the user's request, Tencent
-is hidden from all active Usage and About catalogs pending data-use permission.
-Old IDs remain decodable; obsolete Tencent-only preferences fall back to the
-available OpenRouter/Vercel sources. User caches and preferences are not deleted.
-The deployed backend returns 410 for read, refresh and contribute before service
-construction, storage or upstream access. Its runtime no longer injects the
-Tencent collector. Native fetchers also reject Tencent before networking. No
-environment switch can silently re-enable it. Production checks are retained in
-work/tencent-usage/disable-production.json.
+At the user's explicit request, Tencent is restored in all active Usage and
+About/source catalogs, and shared data acquisition is enabled again. Native
+clients use the shared service; GET and refresh can initialize the same snapshot.
+OSS atomic coordination permits one acquisition per day across all clients,
+retains the last successful snapshot on failure, and allows a retry after ten
+minutes. Client contributions remain disabled. Existing source selections and
+cached data are retained. Tencent's own source notice remains distinct from CC BY.
+
+The official page was rechecked on 2026-10-24: its cumulative token legend still
+parses as nine published model families, with 99.8% listed share and 0.2% Other.
+The public legend still omits full sample dates. This source shows “抽样统计”
+rather than inventing a publication date. Its selected tab and source text use
+Tencent Cloud's official blues; the shared palette is used by every client.
 
 Official contacts verified on 2026-10-23:
 
@@ -31,8 +35,7 @@ daily, caching on its server and attributing/linking to the source without
 copying the chart or prose. Ask whether automated fetching, caching, public
 display, image exports and commercial use are allowed, and what attribution,
 frequency, license or other conditions apply. Request referral if the recipient
-does not own those rights. Re-enabling requires the user's instruction and a
-completed authorization review.
+does not own those rights. The source notice does not assert an open-data license.
 
 ## Design before suspension
 

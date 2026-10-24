@@ -25,7 +25,11 @@ public enum SourceTabTheme {
         from: Data(contentsOf: BundledResource.url("SourceTabThemes", extension: "json")))
 
     public static func palette(for kind: LeaderboardKind, dark: Bool) -> Palette {
-        if let source = catalog.sources.first(where: { $0.kinds.contains(kind.rawValue) }) {
+        palette(forKindID: kind.rawValue, dark: dark)
+    }
+
+    static func palette(forKindID kindID: String, dark: Bool) -> Palette {
+        if let source = catalog.sources.first(where: { $0.kinds.contains(kindID) }) {
             return dark ? source.dark : source.light
         }
         return dark ? catalog.fallback.dark : catalog.fallback.light

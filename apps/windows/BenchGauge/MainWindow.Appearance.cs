@@ -1030,7 +1030,8 @@ sealed partial class MainWindow
             ("arenaText", "Arena", "https://arena.ai/leaderboard/text"),
             ("epochECI", "Epoch AI", "https://epoch.ai/eci"),
             ("openRouterUsage", "OpenRouter", "https://openrouter.ai/rankings"),
-            ("vercelUsage", "Vercel AI Gateway", "https://vercel.com/ai-gateway/leaderboards/models")
+            ("vercelUsage", "Vercel AI Gateway", "https://vercel.com/ai-gateway/leaderboards/models"),
+            ("cloudbaseUsage", "Tencent CloudBase", "https://docs.cloudbase.net/ai/announcement/model-token-volume")
         }) {
             if (kind == "openRouterUsage") menu.Items.Add(new Separator());
             var link = new MenuItem { Header = title + " ↗" };

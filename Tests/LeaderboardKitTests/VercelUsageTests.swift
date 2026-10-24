@@ -3,7 +3,7 @@ import Testing
 @testable import LeaderboardKit
 
 @Test func vercelSharesStaySeparateFromAbsoluteTokenTotals() throws {
-    #expect(LeaderboardCategory.usage.boardKinds == [.openRouterUsage, .vercelUsage])
+    #expect(LeaderboardCategory.usage.boardKinds == [.openRouterUsage, .vercelUsage, .cloudbaseUsage])
     #expect(LeaderboardKind.vercelUsage.sourceURL.host == "vercel.com")
     let board = Leaderboard(kind: .vercelUsage, title: "Vercel AI Gateway", entries: [
         LeaderboardEntry(rank: 1, name: "Model One", score: 30, organization: "OpenAI"),

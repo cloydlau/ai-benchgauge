@@ -57,18 +57,53 @@ test('CloudBase acquisition is keyless, bounded and fixed to official public doc
   assert.equal(calls, 1); assert.equal(b.kind, 'cloudbaseUsage');
   for (const response of [new Response('', { status: 503 }), new Response('invalid'), new Response('x'.repeat(2 * 1024 * 1024 + 1))]) await assert.rejects(loadCloudBaseUsage({ now, fetcher: async () => response }));
 });
-test('CloudBase is disabled before cache, storage, service initialization or upstream access', async t => {
-  const touched = () => assert.fail('Disabled Tencent source must not access storage or upstream');
-  const service = new SharedLeaderboards({ readBoard: touched, readState: touched, appendState: touched }, { cloudbaseUsage: touched });
-  for (const request of [() => service.read('cloudbaseUsage'), () => service.refresh('cloudbaseUsage'), () => service.contribute('cloudbaseUsage', 'x', html())])
-    await assert.rejects(request(), e => e.status === 410);
-  const server = createServer(handler(touched)); server.listen(0, '127.0.0.1'); await once(server, 'listening');
+class Store {
+  boards = new Map(); states = new Map();
+  async readBoard(kind) { return this.boards.get(kind) ?? null; }
+  async writeBoard(kind, board) { this.boards.set(kind, board); }
+  async readState(key) { return this.states.get(key) ?? { position: 0, state: null }; }
+  async appendState(key, position, state) {
+    if ((this.states.get(key)?.position ?? 0) !== position) return false;
+    this.states.set(key, { position: position + 1, state }); return true;
+  }
+}
+test('restored CloudBase shares daily acquisition across clients, isolates sources, retains cache and retries after failures', async () => {
+  let time = now, calls = 0, fail = false;
+  const store = new Store(), service = new SharedLeaderboards(store, { clock: () => time,
+    cloudbaseUsage: async ({ now }) => { calls++; if (fail) throw Error('upstream unavailable'); return parseCloudBaseUsage(html(), { now }); } });
+  const results = await Promise.all([service.refresh('cloudbaseUsage'), service.refresh('cloudbaseUsage')]);
+  assert.equal(calls, 1); assert.ok(results.some(result => result.board));
+  assert.ok(results.every(result => !result.grant && !result.configurationRequired));
+  await service.refresh('cloudbaseUsage'); assert.equal(calls, 1);
+  assert.equal((await service.read('openRouterUsage')).configurationRequired, true);
+  time += cloudbaseInterval; fail = true;
+  const retained = (await service.refresh('cloudbaseUsage')).board;
+  assert.equal(retained.entries[0].name, 'Kimi K3');
+  assert.equal((await service.refresh('cloudbaseUsage')).board.fetchedAt, retained.fetchedAt);
+  assert.equal(calls, 2);
+  store.boards.clear(); time += 600001;
+  await assert.rejects(service.refresh('cloudbaseUsage'), { status: 503, message: 'Tencent usage temporarily unavailable' });
+  time += 600001; fail = false;
+  assert.ok((await service.refresh('cloudbaseUsage')).board);
+  await assert.rejects(service.contribute('cloudbaseUsage', 'x'.repeat(43), html()), { status: 403 });
+});
+test('restored CloudBase GET and refresh serve the shared snapshot without client contribution grants', async t => {
+  let calls = 0;
+  const service = new SharedLeaderboards(new Store(), { clock: () => now,
+    cloudbaseUsage: async () => { calls++; return parseCloudBaseUsage(html(), { now }); } });
+  const server = createServer(handler(() => service)); server.listen(0, '127.0.0.1'); await once(server, 'listening');
   t.after(() => { server.closeAllConnections(); server.close(); });
   const base = `http://127.0.0.1:${server.address().port}/v1/boards/cloudbaseUsage`;
-  for (const [path, method] of [['', 'GET'], ['/refresh', 'POST'], ['/contribute', 'POST']]) {
+  for (const [path, method] of [['', 'GET'], ['/refresh', 'POST']]) {
     const response = await fetch(base + path, { method });
-    assert.equal(response.status, 410); assert.deepEqual(Object.keys(await response.json()), ['error']);
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.board.kind, 'cloudbaseUsage'); assert.equal(payload.board.entries[0].score, 30);
+    assert.equal(payload.grant, undefined); assert.equal(payload.configurationRequired, undefined);
   }
+  assert.equal(calls, 1);
+  const response = await fetch(base + '/contribute', { method: 'POST', headers: { 'content-type': 'text/html' }, body: html() });
+  assert.equal(response.status, 403);
 });
 test('CloudBase source notice works offline and never grants the CC BY license used by other sources', () => {
   for (const language of ['en', 'zh-CN', 'zh-TW']) {

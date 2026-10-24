@@ -90,9 +90,9 @@ test('score backgrounds use the unsearched leader, retain full leader width and 
   }
 })
 
-test('the five categories expose active sources and retain only metadata for disabled Tencent snapshots', () => {
+test('the five categories expose all active sources including restored Tencent', () => {
   assert.equal(categories.length, 5)
-  assert.deepEqual(categories.flatMap(item => item.kinds).sort(), Object.keys(boards).filter(kind => kind !== 'cloudbaseUsage').sort())
+  assert.deepEqual(categories.flatMap(item => item.kinds).sort(), Object.keys(boards).sort())
   for (const values of Object.values(copy)) for (const language of languages) assert.ok(text(values, language))
   assert.equal(text(copy.tasks, 'zh-CN'), '任务测评')
   assert.equal(text(copy.votes, 'zh-TW'), '使用者盲測')

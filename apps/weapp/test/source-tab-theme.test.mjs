@@ -26,7 +26,7 @@ test('source themes cover enabled boards exactly once and retain readable light 
         assert.ok((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05) >= 4.5,
           `${source.id || 'fallback'} ${mode}: unreadable source text on ${surface}`)
       }
-      for (const kind of source.kinds || ['unknown-source', 'cloudbaseUsage']) {
+      for (const kind of source.kinds || ['unknown-source']) {
         assert.deepEqual(sourceTabTheme(kind, mode === 'dark'), palette)
       }
     }

@@ -6,6 +6,7 @@ import { BrandRegistry } from './brands.mjs';
 import { CountryRegistry } from './countries.mjs';
 import { loadConfiguredArenaDataset } from './arena-collector.mjs';
 import { loadConfiguredVercelUsage } from './vercel-usage.mjs';
+import { loadCloudBaseUsage } from './cloudbase-usage.mjs';
 import { loadConfiguredOpenRouterUsage, openRouterConfigured } from './openrouter-usage.mjs';
 import { ModelsDevRegistry, loadConfiguredModelsDev, modelsDevInterval } from './models-dev.mjs';
 
@@ -35,12 +36,10 @@ export function handler(makeService, { syncToken = process.env.MODELS_DEV_SYNC_T
       const match = /^\/v1\/boards\/([A-Za-z]+)(?:\/(refresh|contribute))?$/.exec(path);
       if (!match) throw new RequestError(404, 'Unknown route');
       const [, kind, action] = match;
-      // Disabled pending data-use permission; reject before storage or upstream access.
-      if (kind === 'cloudbaseUsage') throw new RequestError(410, 'Tencent usage source disabled pending permission');
       if (action ? request.method !== 'POST' : request.method !== 'GET') throw new RequestError(405, 'Method not allowed');
       const service = await makeService(request);
       let result;
-      if (!action) result = ['openRouterUsage', 'vercelUsage'].includes(kind) ? await service.refresh(kind) : await service.read(kind);
+      if (!action) result = ['openRouterUsage', 'vercelUsage', 'cloudbaseUsage'].includes(kind) ? await service.refresh(kind) : await service.read(kind);
       else if (action === 'refresh') result = await service.refresh(kind);
       else {
         const contentType = kind === 'epochECI' ? 'text/csv' : 'text/html';
@@ -82,7 +81,7 @@ async function serviceFor(request) {
   const client = new OSS(configuration);
   const store = new OSSStore(client);
   return new SharedLeaderboards(store, { brands: new BrandRegistry(store), countries: new CountryRegistry(store), arenaDataset: loadConfiguredArenaDataset,
-    vercelUsage: loadConfiguredVercelUsage, openRouterUsage: loadConfiguredOpenRouterUsage, openRouterConfigured,
+    cloudbaseUsage: loadCloudBaseUsage, vercelUsage: loadConfiguredVercelUsage, openRouterUsage: loadConfiguredOpenRouterUsage, openRouterConfigured,
     models: new ModelsDevRegistry(store, { load: loadConfiguredModelsDev, cache: modelsCache }) });
 }
 

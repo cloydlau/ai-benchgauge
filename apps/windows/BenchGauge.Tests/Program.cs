@@ -18,8 +18,10 @@ foreach (var kinds in new[] {
                 throw new Exception("Source themes must follow complete source identities");
 if (SourceTabTheme.For("vercelUsage", false).Accent != "#000000"
     || SourceTabTheme.For("vercelUsage", true).Accent != "#FFFFFF"
-    || SourceTabTheme.For("artificialAnalysisCodingAgent-extra", false) != SourceTabTheme.For("cloudbaseUsage", false)
-    || SourceTabTheme.For("cloudbaseUsage", true) == SourceTabTheme.For("cloudbaseUsage", false))
+    || SourceTabTheme.For("artificialAnalysisCodingAgent-extra", false) != SourceTabTheme.For("unknown-source", false)
+    || SourceTabTheme.For("unknown-source", true) == SourceTabTheme.For("unknown-source", false)
+    || SourceTabTheme.For("cloudbaseUsage", false).Accent != "#0052D9"
+    || SourceTabTheme.For("cloudbaseUsage", true).Accent != "#00A4FF")
     throw new Exception("Source text must retain brand contrast and exact-ID fallback");
 
 // Source data time always wins; snapshot time is only a fallback, never a maximum.
@@ -302,10 +304,10 @@ Console.WriteLine("PASS: desktop board draft isolation and confirmed batch selec
 Console.WriteLine($"PASS: 13 signature/configuration cases, {gateCases + 1} update presentation cases, {downloadCases} signed check/download/cache/integrity cases");
 
 var usageVisibility = new Preferences { Category = "usage" };
-if (!usageVisibility.AvailableBoardKinds().SequenceEqual(new[] { "openRouterUsage", "vercelUsage" }) || !usageVisibility.VisibleBoardKinds().SequenceEqual(new[] { "openRouterUsage", "vercelUsage" }))
-    throw new Exception("Usage must expose OpenRouter and Vercel separately");
+if (!usageVisibility.AvailableBoardKinds().SequenceEqual(new[] { "openRouterUsage", "vercelUsage", "cloudbaseUsage" }) || !usageVisibility.VisibleBoardKinds().SequenceEqual(new[] { "openRouterUsage", "vercelUsage", "cloudbaseUsage" }))
+    throw new Exception("Usage must expose all three sources separately");
 usageVisibility.ToggleBoard("openRouterUsage");
-if (!usageVisibility.VisibleBoardKinds().SequenceEqual(new[] { "vercelUsage" })) throw new Exception("Vercel remains selected when OpenRouter is hidden");
+if (!usageVisibility.VisibleBoardKinds().SequenceEqual(new[] { "vercelUsage", "cloudbaseUsage" })) throw new Exception("Vercel and Tencent remain selected when OpenRouter is hidden");
 
 foreach (var language in new[] { "en", "zh", "zh-Hant" }) {
     var fallback = UsageLicense.Text("vercelUsage", null, language);
@@ -315,7 +317,7 @@ foreach (var language in new[] { "en", "zh", "zh-Hant" }) {
         throw new Exception("Vercel agreement must retain the current snapshot provenance");
 }
 usageVisibility.BoardSelections["usage"] = ["cloudbaseUsage"];
-if (!usageVisibility.VisibleBoardKinds().SequenceEqual(new[] { "openRouterUsage", "vercelUsage" })) throw new Exception("Disabled Tencent selection must recover to available usage sources");
+if (!usageVisibility.VisibleBoardKinds().SequenceEqual(new[] { "cloudbaseUsage" })) throw new Exception("Restored Tencent selection must be retained");
 Console.WriteLine("PASS: Vercel cached credit and offline full license in all three languages");
 
 

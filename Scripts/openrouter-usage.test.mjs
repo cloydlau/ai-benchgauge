@@ -69,7 +69,7 @@ test('one completed UTC day preserves exact tokens, variants, original meta and 
   assert.match(board.sourceNote, /Licensed under CC BY 4.0/);
   assert.match(board.sourceNote, /UTC 2026-10-22/);
   assert.deepEqual(categories.map(category => category.id), ['usage', 'general', 'coding', 'image', 'video']);
-  assert.deepEqual(categories[0].kinds, ['openRouterUsage', 'vercelUsage']);
+  assert.deepEqual(categories[0].kinds, ['openRouterUsage', 'vercelUsage', 'cloudbaseUsage']);
   assert.equal(boards.openRouterUsage.title, 'OpenRouter');
   const normalized = normalizeBoard(board, board.kind);
   assert.equal(normalized.entries[0].totalTokens, payload.data[0].total_tokens);

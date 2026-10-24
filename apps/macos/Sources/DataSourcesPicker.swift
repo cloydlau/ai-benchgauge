@@ -57,7 +57,7 @@ final class DataSourcesButton: NSButton, NSPopoverDelegate {
 @MainActor
 final class DataSourcesListView: NSView {
     // Source discovery is independent of the selected category, cached data and visibility preferences.
-    static let sources: [LeaderboardKind] = [.artificialAnalysis, .arenaText, .epochECI, .openRouterUsage, .vercelUsage]
+    static let sources: [LeaderboardKind] = [.artificialAnalysis, .arenaText, .epochECI, .openRouterUsage, .vercelUsage, .cloudbaseUsage]
     private(set) var linkButtons: [NSButton] = []
     private let onOpen: (URL) -> Void
 

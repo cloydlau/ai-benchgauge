@@ -70,7 +70,7 @@ private func board(_ kind: LeaderboardKind, score: Double = 90, fetchedAt: Date 
     #expect(china.first?.rank == 2)
     #expect(LeaderboardPresentation.rows(source, grouping: .company, country: .unitedStates).first?.score == 90)
     #expect(LeaderboardPresentation.countries(source, grouping: .model) == [.china, .unitedStates])
-    #expect(Set(LeaderboardCategory.allCases.flatMap(\.boardKinds)) == Set(LeaderboardKind.allCases.filter { $0 != .cloudbaseUsage }))
+    #expect(Set(LeaderboardCategory.allCases.flatMap(\.boardKinds)) == Set(LeaderboardKind.allCases))
 }
 
 @Test func cacheRoundTripUsesPortableLibrary() throws {

@@ -2470,3 +2470,24 @@ not a clean source-matched CI baseline.
 Native Windows screenshots/actual DPI, iOS device/simulator review, connected
 WeChat DevTools runtime review and a source-matched CI visual artifact remain
 unavailable. No cross-platform visual or protected release approval is claimed.
+
+## 2026-10-24: restore Tencent CloudBase usage
+
+Ignored `work/tencent-restore/` records source-matched Mac before/after captures
+against the same fixture (SHA-256
+`fc735278cfa1360b58a011394e15752e2a9cc612763346f3e7652c514dceb069`).
+Each phase contains 36 native frames: model/company grouping, three languages,
+both themes, 1100×720 points, macOS 27.0.1 (26A434), actual 1× backing scale.
+The baseline is `f9d6266b`; after-capture source and executable hashes are in
+`after-provenance.json`. Reviewed English company/light and Chinese model/dark
+originals show the restored third source with Tencent blue. Existing narrow
+desktop columns truncate names; this restoration does not change that layout.
+Initial fallback logos resolve asynchronously; refreshed and settled frames
+are pixel-identical in every case. Details are in `verification.json`.
+
+Native iPhone light/dark source-selection tests passed and their Tencent
+screenshots were reviewed (`work/ios/tencent-restored-1792813510.xcresult`).
+Windows WPF Release cross-compilation and the mini-program build/upload passed.
+Native Windows comparison artifacts and a connected WeChat DevTools visual
+review remain unavailable; no Windows visual or protected release approval is
+claimed.

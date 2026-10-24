@@ -38,6 +38,13 @@
       "reference": "https://vercel.com/geist/colors",
       "light": { "background": "#000000", "foreground": "#FFFFFF", "accent": "#000000" },
       "dark": { "background": "#FFFFFF", "foreground": "#000000", "accent": "#FFFFFF" }
+    },
+    {
+      "id": "cloudbase",
+      "kinds": ["cloudbaseUsage"],
+      "reference": "https://cloud.tencent.com/",
+      "light": { "background": "#0052D9", "foreground": "#FFFFFF", "accent": "#0052D9" },
+      "dark": { "background": "#00A4FF", "foreground": "#101216", "accent": "#00A4FF" }
     }
   ]
 }

@@ -1,9 +1,12 @@
 import Foundation
 import Testing
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 @testable import LeaderboardKit
 
 @Test func cloudBaseSharesRemainDistinctFromVolumesAndPreservePreferences() throws {
-    #expect(LeaderboardCategory.usage.boardKinds == [.openRouterUsage, .vercelUsage])
+    #expect(LeaderboardCategory.usage.boardKinds == [.openRouterUsage, .vercelUsage, .cloudbaseUsage])
     #expect(LeaderboardKind.cloudbaseUsage.sourceURL.host == "docs.cloudbase.net")
     let board = Leaderboard(kind: .cloudbaseUsage, title: "Tencent CloudBase", entries: [
         .init(rank: 1, name: "GLM 5.3", score: 20, organization: "zai"),
@@ -30,14 +33,34 @@ import Testing
     }
 }
 
-@Test func disabledCloudBaseDoesNotRequestSharedOrUpstreamData() async throws {
-    let fetcher = LeaderboardFetcher(sharedEndpoint: URL(string: "http://127.0.0.1:1")!)
-    do {
-        _ = try await fetcher.fetch(.cloudbaseUsage)
-        Issue.record("Disabled source must not fetch")
-    } catch let error as URLError {
-        #expect(error.code == .resourceUnavailable)
+private final class CloudBaseSharedProtocol: URLProtocol, @unchecked Sendable {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        let allowed = request.url?.host == "cloudbase-fixture.invalid"
+            && request.url?.path.hasPrefix("/v1/boards/cloudbaseUsage") == true
+        let response = HTTPURLResponse(url: request.url!, statusCode: allowed ? 200 : 403,
+                                       httpVersion: nil, headerFields: nil)!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(#"{"board":{"kind":"cloudbaseUsage","title":"Tencent CloudBase","fetchedAt":"2026-10-24T00:00:00Z","entries":[{"rank":1,"name":"Kimi K3","score":1.1}]}}"#.utf8))
+        client?.urlProtocolDidFinishLoading(self)
     }
-    #expect(try await fetcher.fetchCached(.cloudbaseUsage) == nil)
-    #expect(DesktopBoardSelection.kinds(for: .usage, saved: ["cloudbaseUsage"]) == [.openRouterUsage, .vercelUsage])
+    override func stopLoading() {}
+}
+
+@Test func restoredCloudBaseReadsSharedDataAndRetainsSourceSelectionWithoutOriginFallback() async throws {
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [CloudBaseSharedProtocol.self]
+    let session = URLSession(configuration: configuration)
+    defer { session.invalidateAndCancel() }
+    let fetcher = LeaderboardFetcher(session: session, sharedEndpoint: URL(string: "https://cloudbase-fixture.invalid")!)
+    let board = try await fetcher.fetch(.cloudbaseUsage)
+    #expect(board.entries.first?.name == "Kimi K3")
+    #expect(board.entries.first?.score == 1.1)
+    #expect(try await fetcher.fetchCached(.cloudbaseUsage)?.kind == .cloudbaseUsage)
+    #expect(DesktopBoardSelection.kinds(for: .usage, saved: ["cloudbaseUsage"]) == [.cloudbaseUsage])
+    do {
+        _ = try await LeaderboardFetcher(session: session, sharedEndpoint: nil).fetch(.cloudbaseUsage)
+        Issue.record("CloudBase must use the shared service")
+    } catch let error as URLError { #expect(error.code == .resourceUnavailable) }
 }
