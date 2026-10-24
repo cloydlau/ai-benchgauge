@@ -17,7 +17,7 @@ Colors checked against official sources on 2026-10-23:
 | Epoch AI | `#70EFD1` / `#072B33` | Same | [ECI website](https://epoch.ai/eci): `.button-primary` uses `--color-teal-300`, `--color-teal-900` |
 | OpenRouter | `#7624F4` / `#FCFCFE` | `#C8FF00` / `#03080A` | [Brand assets](https://openrouter.ai/brand) and official website tokens: Grape / Cloud, Volt / Ink |
 | Vercel AI Gateway | Black / white | White / black | [Geist colors](https://vercel.com/geist/colors) |
-| Tencent CloudBase | `#0052D9` / white | `#00A4FF` / `#101216` | [Tencent Cloud](https://cloud.tencent.com/) and its official portal stylesheet (`full.df73a28ab3829ca0322a.css`), checked 2026-10-24 |
+| Tencent Cloud | `#0052D9` / white | `#00A4FF` / `#101216` | [Tencent Cloud](https://cloud.tencent.com/) and its official portal stylesheet (`full.df73a28ab3829ca0322a.css`), checked 2026-10-24 |
 
 All label/fill pairs meet a 4.5:1 contrast ratio. Official CSS observations are
 saved in ignored `work/source-tab-themes/`; these are evidence, not runtime

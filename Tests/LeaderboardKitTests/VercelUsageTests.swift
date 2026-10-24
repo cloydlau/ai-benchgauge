@@ -39,9 +39,9 @@ import Testing
     let day = ISO8601DateFormatter().date(from: "2026-10-22T00:00:00Z")!
     let board = Leaderboard(kind: .vercelUsage, title: "Vercel AI Gateway", sourceUpdatedAt: day, entries: [])
     let labels = LeaderboardPresentation.sourceTime(board, language: .english, timeZone: TimeZone(secondsFromGMT: -10 * 3600)!)
-    #expect(labels.text == "10/22 UTC day")
+    #expect(labels.text == "10/22 Data")
     #expect(labels.isSourceTime)
-    #expect(LeaderboardPresentation.sourceTimeHelp(board, language: .english) == "2026-10-22 UTC day")
+    #expect(LeaderboardPresentation.sourceTimeHelp(board, language: .english) == "2026-10-22 Data")
     #expect(!labels.text.contains("Published"))
     let unknown = Leaderboard(kind: .vercelUsage, title: "Vercel", entries: [])
     #expect(!LeaderboardPresentation.sourceTime(unknown, language: .chinese).isSourceTime)

@@ -91,7 +91,7 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
         case .arenaText, .codeArenaWebDev, .arenaTextToImage, .arenaTextToVideo:
             "Arena"
         case .epochECI: "Epoch AI"
-        case .cloudbaseUsage: "Tencent CloudBase"
+        case .cloudbaseUsage: "Tencent Cloud"
         case .vercelUsage: "Vercel AI Gateway"
         case .openRouterUsage: "OpenRouter"
         }
@@ -103,7 +103,7 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
         case .artificialAnalysisCodingAgent: "Artificial Analysis 编程"
         case .arenaText: "Text Arena"
         case .epochECI: "Epoch ECI"
-        case .cloudbaseUsage: "Tencent CloudBase"
+        case .cloudbaseUsage: "Tencent Cloud"
         case .vercelUsage: "Vercel AI Gateway"
         case .openRouterUsage: "OpenRouter"
         case .codeArenaWebDev: "Code Arena"

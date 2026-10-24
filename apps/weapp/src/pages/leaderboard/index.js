@@ -406,7 +406,7 @@ definePage(query => {
   const categoryThemeStyle = computed(() => `--category-accent:${selectedSourceTheme.value.accent};`)
   const sourceTabIndex = computed(() => sourceDragIndex.value ?? face.value)
   const current = computed(() => categoryFor(category.value))
-  const tabs = computed(() => current.value.kinds.map(kind => kind === 'openRouterUsage' ? 'OpenRouter' : kind === 'cloudbaseUsage' ? 'Tencent CloudBase' : kind === 'vercelUsage' ? 'Vercel AI Gateway' : kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
+  const tabs = computed(() => current.value.kinds.map(kind => kind === 'openRouterUsage' ? 'OpenRouter' : kind === 'cloudbaseUsage' ? 'Tencent Cloud' : kind === 'vercelUsage' ? 'Vercel AI Gateway' : kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
   const filterFor = kind => ({ country: 'all', openness: 'all', ...filters.value[kind] })
   const countriesFor = kind => countryOptions({ entries: Object.values(snapshots.value).flatMap(board => board?.entries || []) }, language.value, filterFor(kind).country)
   function setFilters(filter) {
