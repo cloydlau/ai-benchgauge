@@ -1869,3 +1869,25 @@ test('source header accents follow full identities across category changes and l
   }
   globalThis.__benchHooks.unload()
 })
+
+
+test('bottom category icons and selected label follow the active source and live appearance', async () => {
+  const h = setup()
+  const loaded = globalThis.__benchHooks.load(); h.respondAll(); await loaded
+  for (const dark of [false, true]) {
+    h.theme(dark ? 'dark' : 'light')
+    for (const category of categories) {
+      h.page.selectCategory(event({ id: category.id })); h.respondAll()
+      for (const [index, kind] of category.kinds.entries()) {
+        // Exercise the reactive face state used by taps, drags and cube swipes.
+        h.page.face.value = index
+        const { accent } = sourceTabTheme(kind, dark)
+        assert.equal(h.page.categoryThemeStyle.value, `--category-accent:${accent};`)
+        assert.deepEqual(h.page.categoryItems.value.map(item => item.icon),
+          categories.map(item => `/assets/categories/${item.id}-${accent.slice(1)}.png`))
+        assert.equal(h.page.category.value, category.id)
+      }
+    }
+  }
+  globalThis.__benchHooks.unload()
+})

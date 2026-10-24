@@ -1,6 +1,7 @@
 packages:
   - apps/weapp
 allowBuilds:
+  sharp: true
   esbuild: true
   '@swc/core': true
   weapp-tailwindcss: true

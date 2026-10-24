@@ -214,7 +214,10 @@ public struct LeaderboardPadView: View {
         .accentColor(BrandTheme.accent(for: colorScheme))
         .background { Color.padBackground.ignoresSafeArea() }
         .overlay(alignment: .bottom) {
-            MobileCategoryBar(category: $store.category, language: store.language, select: cancelCubeEntrance)
+            MobileCategoryBar(category: $store.category, language: store.language,
+                accent: sourceTabColor(SourceTabTheme.palette(for: store.category.boardKinds[
+                    min(max(0, sourceDragIndex ?? cube.face), store.category.boardKinds.count - 1)],
+                    dark: colorScheme == .dark).accent), select: cancelCubeEntrance)
                 .padding(.bottom, 8)
         }
         .overlay(alignment: .bottom) {

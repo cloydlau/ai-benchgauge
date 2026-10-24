@@ -6,6 +6,7 @@ import LeaderboardKit
 struct MobileCategoryBar: View {
     @Binding var category: LeaderboardCategory
     let language: AppLanguage
+    let accent: Color
     let select: () -> Void
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -31,12 +32,13 @@ struct MobileCategoryBar: View {
                     VStack(spacing: 4) {
                         if let icon = Self.icons[item.rawValue] {
                             Image(decorative: icon, scale: 3)
-                                .renderingMode(.original).resizable().scaledToFit().frame(width: 18, height: 18)
+                                .renderingMode(.template).resizable().scaledToFit().frame(width: 18, height: 18)
+                                .foregroundStyle(accent)
                         }
                         Text(LeaderboardPresentation.title(item, language: language)).font(.system(size: 11, weight: selectedCategory == item ? .semibold : .regular))
                     }
                     .frame(maxWidth: .infinity, minHeight: 50)
-                    .foregroundStyle(selectedCategory == item ? BrandTheme.accent(for: colorScheme) : Color.secondary)
+                    .foregroundStyle(selectedCategory == item ? accent : Color.secondary)
                     .background {
                         if selectedCategory == item {
                             Capsule().fill(BrandTheme.selection(for: colorScheme)).matchedGeometryEffect(id: "selection", in: selection)

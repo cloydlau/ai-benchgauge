@@ -2,8 +2,10 @@
 
 The selected source tab uses a solid brand fill and a contrasting label. The
 mini-program, iOS, Mac and Windows read the same `SourceTabThemes.json`; mappings use complete
-board kinds, never segment positions. Category tabs retain AI BenchGauge's own
-slate theme and glass treatment. Unknown sources use the application palette.
+board kinds, never segment positions. Mobile category icons and the selected
+category label follow the current source's `accent`, including live appearance
+changes; unselected labels stay secondary and the glass selection stays neutral.
+Unknown sources use the application palette.
 Tencent is restored on 2026-10-24 with its official Tencent Cloud blues.
 
 Colors checked against official sources on 2026-10-23:

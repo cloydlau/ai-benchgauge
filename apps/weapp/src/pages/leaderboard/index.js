@@ -401,8 +401,9 @@ definePage(query => {
       subtitleHelpOffset: /。$/.test(subtitleParts.value[1]) ? -0.55 : 0.08 }
   })
   const categoryItems = computed(() => categories.map(item => ({ id: item.id, label: text(item.labels, language.value),
-    icon: `/assets/categories/${item.id}.png` })))
+    icon: `/assets/categories/${item.id}-${selectedSourceTheme.value.accent.slice(1)}.png` })))
   const categoryIndex = computed(() => categoryDragIndex.value ?? categories.findIndex(item => item.id === category.value))
+  const categoryThemeStyle = computed(() => `--category-accent:${selectedSourceTheme.value.accent};`)
   const sourceTabIndex = computed(() => sourceDragIndex.value ?? face.value)
   const current = computed(() => categoryFor(category.value))
   const tabs = computed(() => current.value.kinds.map(kind => kind === 'openRouterUsage' ? 'OpenRouter' : kind === 'cloudbaseUsage' ? 'Tencent CloudBase' : kind === 'vercelUsage' ? 'Vercel AI Gateway' : kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
@@ -1056,7 +1057,7 @@ definePage(query => {
   const closeFeatureHelp = () => { showingFeatureHelp.value = false }
   const copyDesktopLink = () => { closeFeatureHelp(); copyText(desktopDownloadURL) }
   const refreshTap = event => refreshKind(event.currentTarget.dataset.kind)
-  return { labels, subtitleParts, brandTitle, groupingControl, categoryItems, categoryIndex, category, grouping, face, dark, cards, tabs, backToTop, skeletonRows,
+  return { labels, subtitleParts, brandTitle, groupingControl, categoryItems, categoryIndex, categoryThemeStyle, category, grouping, face, dark, cards, tabs, backToTop, skeletonRows,
     modelSearchQuery, modelSearchVisible, modelSearchFocused, openModelSearch, inputModelSearch, beginModelSearchClear, cancelModelSearchClear, clearModelSearch, closeModelSearch, blurModelSearch, deferModelSearchBlur, focusModelSearch,
     statusBar, navHeight, headerTop, capsuleWidth, sheet, backgroundLocked,
     cubeFaces, sourceSelection, sourceTabIndex, sourceTabsStyle, sourceTabsExtent, cubeViewportStyle,

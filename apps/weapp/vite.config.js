@@ -4,6 +4,8 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'weapp-vite/config'
 import { VantResolver } from 'weapp-vite/auto-import-components/resolvers'
+import sourceThemes from '../../Sources/LeaderboardKit/Resources/SourceTabThemes.json' with { type: 'json' }
+import sharp from 'sharp'
 import { engineeringInvestment } from './scripts/engineering-investment.mjs'
 import { createAutoVersion } from './scripts/version.mjs'
 
@@ -60,7 +62,7 @@ export default defineConfig({
   plugins: [
     {
       name: 'benchgauge-existing-assets',
-      generateBundle() {
+      async generateBundle() {
         const emit = (fileName, path) => this.emitFile({ type: 'asset', fileName, source: readFileSync(path) })
         emit('assets/header-logo.png', resolve(root, 'assets/brand/header-logo.png'))
         emit('assets/header-logo-dark.png', resolve(root, 'assets/brand/header-logo-dark.png'))
@@ -75,8 +77,16 @@ export default defineConfig({
           emit(`assets/openness/${name}`, new URL(`assets/openness/${name}`, import.meta.url))
         }
         emit('assets/openness/LICENSE.txt', new URL('assets/openness/LICENSE', import.meta.url))
+        // Render local template SVGs into platform-safe PNGs; no CSS masks or
+        // remote images are needed when the selected source changes.
+        const accents = new Set([sourceThemes.fallback, ...sourceThemes.sources]
+          .flatMap(source => [source.light.accent, source.dark.accent]))
         for (const name of ['general', 'coding', 'image', 'video', 'usage']) {
-          emit(`assets/categories/${name}.png`, resolve(root, `apps/ios/UI/Resources/CategoryIcons/${name}.png`))
+          const template = readFileSync(resolve(root, `apps/ios/UI/Resources/CategoryIcons/${name}.svg`), 'utf8')
+          for (const accent of accents) {
+            const source = await sharp(Buffer.from(template.replaceAll('currentColor', accent))).resize(54, 54).png().toBuffer()
+            this.emitFile({ type: 'asset', fileName: `assets/categories/${name}-${accent.slice(1)}.png`, source })
+          }
         }
         emit('assets/categories/LICENSE.txt', resolve(root, 'apps/ios/UI/Resources/CategoryIcons/LICENSE.txt'))
         for (const name of readdirSync(new URL('assets/flags/', import.meta.url)).filter(name => name.endsWith('.png'))) {
