@@ -38,7 +38,7 @@ definePage(query => {
   const cubeClipTop = ref(null)
   const sourceTabsExtent = computed(() => sourceTabsHeight.value + 8)
   const cubeViewportStyle = computed(() => `--cube-top:${cubeClipTop.value ?? Math.max(0, sourceTabsExtent.value - sourceTabsOffset.value)}px;--cube-layout-duration:${cubeDuration.value}ms;`)
-  const sourceTabsStyle = computed(() => `transform:translateY(-${sourceTabsOffset.value}px);pointer-events:${sourceTabsOffset.value >= sourceTabsExtent.value ? 'none' : 'auto'};--source-selected-foreground:${selectedSourceTheme.value.foreground};`)
+  const sourceTabsStyle = computed(() => `transform:translateY(-${sourceTabsOffset.value}px);pointer-events:${sourceTabsOffset.value >= sourceTabsExtent.value ? 'none' : 'auto'};--source-selected-foreground:${selectedSourceTheme.value.foreground};--source-transition-duration:${cubeBusy.value ? cubeDuration.value : 420}ms;`)
   function updateSourceTabs(top) {
     sourceTabsOffset.value = Math.min(sourceTabsExtent.value, Math.max(0, top))
   }
@@ -89,9 +89,12 @@ definePage(query => {
   }))
   const sourceDragIndex = ref(null)
   const categoryDragIndex = ref(null)
-  const selectedSourceTheme = computed(() => sourceTabTheme(current.value.kinds[sourceDragIndex.value ?? face.value], dark.value))
+  // The logical destination starts loading immediately. Keep the visual tab at
+  // the outgoing face until the cube's actual CSS transition starts as well.
+  const sourceTabIndex = computed(() => sourceDragIndex.value ?? (cubeBusy.value && cubeDuration.value === 0 ? cubeOrigin.value : face.value))
+  const selectedSourceTheme = computed(() => sourceTabTheme(current.value.kinds[sourceTabIndex.value], dark.value))
   const sourceSelection = computed(() => {
-    const position = sourceDragIndex.value ?? face.value
+    const position = sourceTabIndex.value
     return `width:calc((100% - ${(current.value.kinds.length - 1) * 12}rpx) / ${current.value.kinds.length});transform:translateX(${position * 100}%) translateX(${position * 12}rpx);background-color:${selectedSourceTheme.value.background};`
   })
   let tabGesture
@@ -417,7 +420,6 @@ definePage(query => {
     icon: `/assets/categories/${item.id}-${selectedSourceTheme.value.accent.slice(1)}.png` })))
   const categoryIndex = computed(() => categoryDragIndex.value ?? categories.findIndex(item => item.id === category.value))
   const categoryThemeStyle = computed(() => `--category-accent:${selectedSourceTheme.value.accent};`)
-  const sourceTabIndex = computed(() => sourceDragIndex.value ?? face.value)
   const current = computed(() => categoryFor(category.value))
   const tabs = computed(() => current.value.kinds.map(kind => kind === 'openRouterUsage' ? 'OpenRouter' : kind === 'cloudbaseUsage' ? 'Tencent Cloud' : kind === 'vercelUsage' ? 'Vercel AI Gateway' : kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
   const filterFor = kind => ({ country: 'all', openness: 'all', ...filters.value[kind] })
