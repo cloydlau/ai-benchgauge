@@ -8,6 +8,7 @@ import sourceThemes from '../../Sources/LeaderboardKit/Resources/SourceTabThemes
 import sharp from 'sharp'
 import { engineeringInvestment } from './scripts/engineering-investment.mjs'
 import { createAutoVersion } from './scripts/version.mjs'
+import { renderSourceLogos } from '../../Scripts/source-logos.mjs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 // The native clients remain the authority for the shared-service address.
@@ -34,6 +35,8 @@ const sharedPackage = createRequire(reactivityPackage).resolve('@vue/shared/pack
 for (const [name, manifest] of [['Vue Reactivity', reactivityPackage], ['Vue Shared', sharedPackage]]) {
   notices.push({ name, license: readFileSync(resolve(dirname(manifest), 'LICENSE'), 'utf8') })
 }
+notices.push({ name: 'Source brand marks', id: 'source-marks', licenseName: 'Trademarks',
+  license: readFileSync(resolve(root, 'assets/brand/partners/NOTICE.txt'), 'utf8') })
 
 // Neutral public metadata, following Watrek's notice presentation. Original
 // copyrights, permission terms and disclaimers remain byte-for-byte intact.
@@ -66,6 +69,9 @@ export default defineConfig({
         const emit = (fileName, path) => this.emitFile({ type: 'asset', fileName, source: readFileSync(path) })
         emit('assets/header-logo.png', resolve(root, 'assets/brand/header-logo.png'))
         emit('assets/header-logo-dark.png', resolve(root, 'assets/brand/header-logo-dark.png'))
+        for (const { name, source } of await renderSourceLogos(sharp)) {
+          this.emitFile({ type: 'asset', fileName: `assets/source-logos/${name}`, source })
+        }
         for (const name of readdirSync(new URL('assets/brand-glyphs/', import.meta.url)).filter(name => name.endsWith('.svg'))) {
           emit(`assets/brand-glyphs/${name}`, new URL(`assets/brand-glyphs/${name}`, import.meta.url))
         }

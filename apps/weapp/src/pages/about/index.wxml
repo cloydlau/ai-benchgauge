@@ -29,7 +29,7 @@
       <view class="source-list">
         <view wx:for="{{items}}" wx:key="id" class="source-row source-{{item.id}}">
           <view class="source-main" hover-class="source-main-active" data-url="{{item.url}}" bindtap="copyLink" aria-role="button" aria-label="{{item.title}} · {{labels.copyLink}}">
-            <view class="source-monogram" aria-hidden="true">{{item.mark}}</view>
+            <image class="source-logo" src="{{item.icon}}" mode="aspectFit" aria-hidden="true" />
             <view class="source-copy">
               <view class="source-name">{{item.title}}</view>
               <view class="source-domain">{{item.domain}}</view>

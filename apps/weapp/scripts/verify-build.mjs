@@ -35,6 +35,14 @@ function inspect(directory) {
 }
 inspect(root)
 if (!existsSync(resolve(root, 'assets/header-logo.png'))) throw new Error('Missing existing brand asset')
+const sourceMarks = JSON.parse(readFileSync(new URL('../../../assets/brand/partners/sources.json', import.meta.url), 'utf8')).sources
+for (const { id } of sourceMarks) {
+  for (const suffix of ['', '-dark']) {
+    const asset = `assets/source-logos/${id}${suffix}.png`
+    if (!existsSync(resolve(root, asset))) throw new Error(`Missing source brand mark: ${asset}`)
+  }
+}
+if (!existsSync(resolve(root, 'assets/source-logos/NOTICE.txt'))) throw new Error('Missing source brand notice')
 for (const glyph of ['zh-I', 'zh-tian', 'zh-ti', 'en-I', 'en-name']) {
   for (const theme of ['', '-dark']) {
     if (!existsSync(resolve(root, `assets/brand-glyphs/${glyph}${theme}.svg`))) throw new Error(`Missing native title glyph: ${glyph}${theme}`)

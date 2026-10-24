@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "cloudbase",
+      "title": "Tencent Cloud",
+      "pageURL": "https://cloud.tencent.com/",
+      "file": "logo.png",
+      "url": "https://cloudcache.tencent-cloud.com/qcloud/favicon.ico?t=201902181234",
+      "conversion": "Lossless RGBA export of the official 32×32 ICO frame; no redraw or recoloring.",
+      "retrievedAt": "2026-10-24",
+      "downloadSHA256": "5171df10b79863d76d591705e52b93b4c5295e64d874e41fca5ecac351f5f45e",
+      "sha256": "35cbfebcef4e4ccbc1558779d3b2850f5b1dc3715f92194ced0b6495de3b0f8d",
+      "rights": "Third-party brand mark; retained ownership, not licensed by the repository MIT license.",
+      "usage": [
+        "iOS About data sources",
+        "Mini-program About data sources"
+      ]
+    },
+    {
+      "id": "vercel",
+      "title": "Vercel AI Gateway",
+      "pageURL": "https://vercel.com/geist/brands",
+      "file": "logo.svg",
+      "darkFile": "logo-dark.svg",
+      "url": "https://k2mkucxia43oc7fa.public.blob.vercel-storage.com/front/press/vercel-assets.zip",
+      "archivePaths": [
+        "Vercel/icon/light/vercel-icon-light.svg",
+        "Vercel/icon/dark/vercel-icon-dark.svg"
+      ],
+      "retrievedAt": "2026-10-24",
+      "downloadSHA256": "2243f5d67b7e5465f8630500fd1e9164d8bdcf664c16210be678caf430c47ad4",
+      "sha256": "178d63338a92fe0082c9a55623a62367c284aa3376112154abc37d7246a9e13d",
+      "rights": "Third-party brand mark; retained ownership, not licensed by the repository MIT license.",
+      "usage": [
+        "iOS About data sources",
+        "Mini-program About data sources"
+      ],
+      "darkSHA256": "88fb3e9d686b7a165393a2b61e0e6e62c9c86288d01d5bef62955947f54f40fb"
+    },
+    {
+      "id": "openRouter",
+      "title": "OpenRouter",
+      "pageURL": "https://openrouter.ai/brand",
+      "file": "logo.svg",
+      "darkFile": "logo-dark.svg",
+      "url": "https://openrouter.ai/brand/logos/transparent/glyph/svg/glyph-grape.svg",
+      "darkURL": "https://openrouter.ai/brand/logos/transparent/glyph/svg/glyph-volt.svg",
+      "retrievedAt": "2026-10-24",
+      "downloadSHA256": "5b49593d44e6aa41011be377e182cd89e57473f1948e0dfb128f99a92adfc68d",
+      "sha256": "5b49593d44e6aa41011be377e182cd89e57473f1948e0dfb128f99a92adfc68d",
+      "rights": "Third-party brand mark; retained ownership, not licensed by the repository MIT license.",
+      "usage": [
+        "iOS About data sources",
+        "Mini-program About data sources"
+      ],
+      "darkSHA256": "0d22462e4f2835a5a5b9000af0a55fc9238e39996100f54706e41ec45b9d1727"
+    },
+    {
+      "id": "artificialAnalysis",
+      "title": "Artificial Analysis",
+      "pageURL": "https://artificialanalysis.ai/",
+      "file": "logo.png",
+      "url": "https://artificialanalysis.ai/favicon.ico",
+      "conversion": "Lossless RGBA export of the largest official ICO frame (48×48); no redraw or recoloring.",
+      "retrievedAt": "2026-10-24",
+      "downloadSHA256": "e6ebfbfaca0651bba5a0ad7d148f166f862b1d6a22f790e5e06fdfd7c45d2e60",
+      "sha256": "094088e02e6a75dbe344f5ee03f42cab04954a5afee83afe211fa7b60615219b",
+      "rights": "Third-party brand mark; retained ownership, not licensed by the repository MIT license.",
+      "usage": [
+        "iOS About data sources",
+        "Mini-program About data sources"
+      ]
+    },
+    {
+      "id": "arena",
+      "title": "Arena",
+      "pageURL": "https://arena.ai/blog/lmarena-is-now-arena",
+      "file": "logo.svg",
+      "url": "https://arena.ai/cms/icons/favicon.svg",
+      "darkMedia": true,
+      "retrievedAt": "2026-10-24",
+      "downloadSHA256": "b6f80b5480143d713c594fce9df6ae3eda601ee1243124ac6eeb076f3aa85037",
+      "sha256": "b6f80b5480143d713c594fce9df6ae3eda601ee1243124ac6eeb076f3aa85037",
+      "rights": "Third-party brand mark; retained ownership, not licensed by the repository MIT license.",
+      "usage": [
+        "iOS About data sources",
+        "Mini-program About data sources"
+      ]
+    },
+    {
+      "id": "epoch",
+      "title": "Epoch AI",
+      "pageURL": "https://epoch.ai/",
+      "file": "logo.svg",
+      "url": "https://epoch.ai/favicon.svg",
+      "retrievedAt": "2026-10-24",
+      "downloadSHA256": "5267735e52798f7bf56a5fef7f2d3547769e0210e2f0992df6dc271644b077db",
+      "sha256": "5267735e52798f7bf56a5fef7f2d3547769e0210e2f0992df6dc271644b077db",
+      "rights": "Third-party brand mark; retained ownership, not licensed by the repository MIT license.",
+      "usage": [
+        "iOS About data sources",
+        "Mini-program About data sources"
+      ]
+    }
+  ]
+}
