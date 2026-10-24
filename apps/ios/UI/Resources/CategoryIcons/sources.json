@@ -19,9 +19,12 @@
       "sha256": "ed9c477df83c1c5ab89017ea1dfc252abbac465c4eb3cf3402dc87b19e81ea2e"
     },
     "image": {
-      "icon": "image-20",
-      "url": "https://api.iconify.design/fluent-color/image-20.svg",
-      "sha256": "812d56852bf53d748c4c1dfa1a823065742a9026dd9df42cab38951f0d4e6df1"
+      "icon": "image-landscape",
+      "source": "Original BenchGauge geometry",
+      "license": "MIT",
+      "licenseFile": "LICENSE",
+      "sha256": "55ebef218a2b44cd93b5a4c07b783aecc1d225bc6fb92cb66096db88bc1353a1",
+      "hashScope": "image.svg"
     },
     "video": {
       "icon": "video-20",
