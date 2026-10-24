@@ -426,16 +426,16 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
                 XCTAssertFalse(times?.label.contains("—") ?? true)
                 if let times {
                     XCTAssertGreaterThanOrEqual(heading.frame.minY - summary.frame.maxY, 8)
-                    if times.frame.minX >= heading.frame.maxX {
-                        XCTAssertEqual(heading.frame.midY, times.frame.midY, accuracy: 1)
-                    } else {
-                        XCTAssertGreaterThanOrEqual(times.frame.minY, heading.frame.maxY)
-                    }
+                    XCTAssertGreaterThan(heading.frame.width, 0, "Long headings retain visible space")
+                    XCTAssertGreaterThanOrEqual(times.frame.minX, heading.frame.maxX, "The date stays beside the heading")
+                    XCTAssertEqual(heading.frame.midY, times.frame.midY, accuracy: 1)
                     let search = app.buttons["model-filter-\(kind)"]
                     XCTAssertTrue(search.exists)
                     XCTAssertGreaterThanOrEqual(search.frame.minX, times.frame.maxX)
                     XCTAssertLessThanOrEqual(search.frame.minX - times.frame.maxX, 3)
                     XCTAssertEqual(search.frame.midY, times.frame.midY, accuracy: 1)
+                    let country = app.buttons["country-\(kind)"]
+                    XCTAssertLessThanOrEqual(search.frame.maxX, country.frame.minX, "Header actions must not cover the country filter")
                     XCTAssertFalse(times.label.contains("2026"))
                     let label = times.label
                     times.tap()
@@ -2089,6 +2089,9 @@ final class TimestampLoadingLayoutTests: XCTestCase {
                     let heading = app.staticTexts["source-heading-\(kind)"]
                     XCTAssertTrue(time.waitForExistence(timeout: 5))
                     Thread.sleep(forTimeInterval: 0.4)
+                    XCTAssertGreaterThanOrEqual(time.frame.minX, heading.frame.maxX)
+                    XCTAssertEqual(heading.frame.midY, time.frame.midY, accuracy: 1,
+                        "Cached and loading timestamps stay on the heading's line")
                     XCTAssertEqual(time.value as? String ?? "", loading ? (dark ? "Loading" : "加载中") : "")
                     XCTAssertTrue(app.buttons["name-\(kind)-1"].exists, "Cached rows remain visible while loading")
                     let geometry = CGRect(x: time.frame.minX - heading.frame.minX,
