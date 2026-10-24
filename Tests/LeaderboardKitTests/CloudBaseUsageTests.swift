@@ -8,7 +8,8 @@ import FoundationNetworking
 @Test func cloudBaseSharesRemainDistinctFromVolumesAndPreservePreferences() throws {
     #expect(LeaderboardCategory.usage.boardKinds == [.openRouterUsage, .vercelUsage, .cloudbaseUsage])
     #expect(LeaderboardKind.cloudbaseUsage.sourceURL.host == "docs.cloudbase.net")
-    let board = Leaderboard(kind: .cloudbaseUsage, title: "Tencent CloudBase", entries: [
+    let board = Leaderboard(kind: .cloudbaseUsage, title: "Tencent CloudBase",
+        sourceUpdatedAt: Date(timeIntervalSince1970: 1_800_000_000), fetchedAt: Date(timeIntervalSince1970: 1_700_000_000), entries: [
         .init(rank: 1, name: "GLM 5.3", score: 20, organization: "zai"),
         .init(rank: 2, name: "GLM 5.3 Flash", score: 10, organization: "zai")
     ])
@@ -17,8 +18,12 @@ import FoundationNetworking
     #expect(company.entry.totalTokens == nil)
     #expect(LeaderboardPresentation.scoreText(company.entry.score, kind: .cloudbaseUsage) == "30.00%")
     #expect(CompanyLeaderboard.scoreHelp(for: company, language: .english, kind: .cloudbaseUsage).contains("20.00%"))
-    #expect(LeaderboardPresentation.sourceTime(board, language: .chinese).text == "抽样统计")
-    #expect(LeaderboardPresentation.sourceTimeHelp(board, language: .english).contains("does not publish full sample dates"))
+    #expect(LeaderboardPresentation.sourceTime(board, language: .chinese, timeZone: TimeZone(secondsFromGMT: 0)!).text == "11/14 22:13 刷新")
+    #expect(!LeaderboardPresentation.sourceTime(board, language: .english).isSourceTime)
+    let sourceHelp = LeaderboardPresentation.sourceHelp(.cloudbaseUsage, language: .english, board: board)
+    #expect(sourceHelp.contains("sampled Beijing-time days"))
+    #expect(sourceHelp.contains("full dates unavailable"))
+    #expect(sourceHelp.contains("does not indicate a new source update"))
     #expect(try JSONDecoder().decode(LeaderboardKind.self, from: Data("\"cloudbaseUsage\"".utf8)) == .cloudbaseUsage)
     for language in AppLanguage.allCases {
         #expect(!LeaderboardPresentation.sourceSummary(.cloudbaseUsage, language: language).isEmpty)

@@ -90,6 +90,24 @@ import LeaderboardKit
             == "11/14 22:13 \(language.text("Refreshed", "刷新"))")
         #expect(LeaderboardPresentation.sourceTimeHelp(published, language: language).hasSuffix(language.text("Published", "发布")))
         #expect(LeaderboardPresentation.sourceTimeHelp(unknown, language: language).hasSuffix(language.text("Refreshed", "刷新")))
+        for board in [published, unknown] {
+            let parts = LeaderboardPresentation.sourceTimeParts(board, language: language, timeZone: utc)
+            #expect(parts.value == "11/14 22:13")
+            #expect(parts.caption == language.text(board.sourceUpdatedAt == nil ? "Refreshed" : "Published",
+                                                  board.sourceUpdatedAt == nil ? "刷新" : "发布"))
+            #expect(LeaderboardPresentation.sourceTime(board, language: language, timeZone: utc).text
+                == "\(parts.value) \(parts.caption)")
+        }
+        let sampled = Leaderboard(kind: .cloudbaseUsage, title: "Tencent", fetchedAt: fetched, entries: [])
+        let sampledParts = LeaderboardPresentation.sourceTimeParts(sampled, language: language, timeZone: utc)
+        #expect(sampledParts.value == "11/14 22:13")
+        #expect(sampledParts.caption == language.text("Refreshed", "刷新"))
+        #expect(!sampledParts.isSourceTime)
+        let daily = Leaderboard(kind: .vercelUsage, title: "Vercel", sourceUpdatedAt: fetched, fetchedAt: fetched, entries: [])
+        let dailyParts = LeaderboardPresentation.sourceTimeParts(daily, language: language, timeZone: utc)
+        #expect(dailyParts.value == "11/14 22:13")
+        #expect(dailyParts.caption == language.text("Refreshed", "刷新"))
+        #expect(!dailyParts.isSourceTime)
     }
 }
 

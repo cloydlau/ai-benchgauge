@@ -728,6 +728,30 @@ test('every category and source shares the current page title and only the local
   }
 })
 
+test('usage headers show retrieval time while source help retains statistical coverage', async () => {
+  const fetchedAt = '2026-10-24T12:34:00Z'
+  for (const language of ['en', 'zh-CN', 'zh-TW']) {
+    const h = setup({ category: 'usage', language }), loading = h.loadCategory()
+    for (let index = 0; index < h.requests.length; index++) h.respond(index,
+      { sourceUpdatedAt: '2026-10-22T00:00:00Z', fetchedAt })
+    await loading
+    for (const kind of ['vercelUsage', 'cloudbaseUsage']) {
+      const card = h.page.cards.value.find(item => item.kind === kind)
+      assert.equal(card.time, formatTime(fetchedAt))
+      assert.equal(card.timeLabel, text(copy.updated, language))
+      assert.equal(card.isSourceTime, false)
+      h.page.sourceHelp(event({ kind }))
+      const content = h.modals.at(-1).content
+      assert.match(content, language === 'en' ? /does not indicate a new source update/ : language === 'zh-TW' ? /不代表來源資料剛剛更新/ : /不代表来源数据刚刚更新/)
+      if (kind === 'vercelUsage') {
+        assert.match(content, /2026-10-22/)
+        assert.match(content, /UTC/)
+      } else assert.match(content, language === 'en' ? /sampled Beijing-time days/ : language === 'zh-TW' ? /抽樣統計日/ : /抽样统计日/)
+    }
+    globalThis.__benchHooks.unload()
+  }
+})
+
 test('usage restores Tencent, keeps failures independent and recovers OpenRouter configuration', async () => {
   const h = setup({ category: 'usage', language: 'zh-CN', face: 2 })
   assert.equal(h.page.face.value, 2, 'Restored Tencent selection is retained')
@@ -739,14 +763,16 @@ test('usage restores Tencent, keeps failures independent and recovers OpenRouter
   h.respond(1, { sourceUpdatedAt: '2026-10-22T00:00:00Z', entries: [{ rank: 1, name: 'DeepSeek V4.1 Flash', score: 16.3389, organization: 'DeepSeek' }] })
   h.respond(2, { sourceUpdatedAt: undefined, entries: [{ rank: 1, name: 'Kimi K3', score: 1.1 }] })
   await loading
-  assert.equal(h.page.cards.value[2].time, "抽样统计")
+  assert.equal(h.page.cards.value[2].time, formatTime('2026-10-13T12:00:00Z'))
+  assert.equal(h.page.cards.value[2].timeLabel, '刷新')
   assert.equal(h.page.cards.value[2].rows[0].scoreText, "1.10%")
   assert.equal(h.page.cards.value[0].pendingConfiguration, true)
   assert.equal(h.page.cards.value[0].hasBoard, false)
   assert.equal(h.page.cards.value[0].scoreLabel, '用量')
   assert.equal(h.page.cards.value[1].scoreLabel, '占比')
-  assert.equal(h.page.cards.value[1].time, '10/22')
-  assert.equal(h.page.cards.value[1].timeLabel, '数据')
+  assert.equal(h.page.cards.value[1].time, formatTime('2026-10-13T12:00:00Z'))
+  assert.equal(h.page.cards.value[1].timeLabel, '刷新')
+  assert.equal(h.page.cards.value[1].isSourceTime, false)
   assert.equal(h.page.cards.value[1].rows[0].scoreText, '16.34%')
   assert.equal(h.page.cards.value[1].rows[0].scoreShare, '')
   h.page.changeFace({ detail: { current: 1 } })

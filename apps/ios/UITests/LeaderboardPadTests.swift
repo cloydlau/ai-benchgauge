@@ -2104,8 +2104,71 @@ final class TimestampLoadingLayoutTests: XCTestCase {
                     capture.name = "timestamp-loading-\(dark ? "en-dark" : "zh-light")-\(kind)-\(loading ? "loading" : "idle")"
                     capture.lifetime = .keepAlways; add(capture)
                 }
+                if loading {
+                    let time = app.staticTexts["source-times-epochECI"]
+                    let heading = app.staticTexts["source-heading-epochECI"]
+                    let label = time.label
+                    let settled = XCTNSPredicateExpectation(
+                        predicate: NSPredicate(format: "value == %@", ""), object: time)
+                    XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 35), .completed,
+                        "The caption returns after the request completes")
+                    XCTAssertEqual(time.label, label)
+                    let reference = references["epochECI"]!
+                    XCTAssertEqual(time.frame.minX - heading.frame.minX, reference.minX, accuracy: 0.5)
+                    XCTAssertEqual(time.frame.minY - heading.frame.minY, reference.minY, accuracy: 0.5)
+                    XCTAssertEqual(time.frame.width, reference.width, accuracy: 0.5)
+                    XCTAssertEqual(time.frame.height, reference.height, accuracy: 0.5)
+                    let capture = XCTAttachment(screenshot: app.screenshot())
+                    capture.name = "timestamp-loading-\(dark ? "en-dark" : "zh-light")-epochECI-settled"
+                    capture.lifetime = .keepAlways; add(capture)
+                }
                 app.terminate()
             }
+        }
+    }
+}
+
+final class UsageTimestampTests: XCTestCase {
+    @MainActor func testStatisticsStayInSourceHelp() {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        for dark in [false, true] {
+            let app = XCUIApplication()
+            app.launchArguments = ["--ui-testing", "--offline", "--usage-source-times", "--reduce-motion"]
+                + (dark ? ["--dark"] : ["--preview-zh"])
+            app.launch()
+            let usage = app.buttons["category-usage"]
+            XCTAssertTrue(usage.waitForExistence(timeout: 10)); usage.tap()
+            let formatter = DateFormatter()
+            formatter.dateFormat = "M/d HH:mm"
+            let expected = formatter.string(from: Date(timeIntervalSince1970: 1_700_000_000))
+                + (dark ? " Refreshed" : " 刷新")
+            for (index, kind) in [(1, "vercelUsage"), (2, "cloudbaseUsage")] {
+                app.buttons["face-\(index)"].tap()
+                let time = app.staticTexts["source-times-\(kind)"]
+                let heading = app.staticTexts["source-heading-\(kind)"]
+                XCTAssertTrue(time.waitForExistence(timeout: 5))
+                XCTAssertEqual(time.label, expected, "The header uses retrieval time, not the statistics day")
+                XCTAssertEqual(time.frame.midY, heading.frame.midY, accuracy: 1)
+                let header = XCTAttachment(screenshot: app.screenshot())
+                header.name = "usage-refresh-\(dark ? "en-dark" : "zh-light")-\(kind)-header"
+                header.lifetime = .keepAlways; add(header)
+                app.buttons["source-help-\(kind)"].tap()
+                let marker = dark ? "Refresh time records" : "刷新时间仅表示"
+                let explanation = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", marker)).firstMatch
+                XCTAssertTrue(explanation.waitForExistence(timeout: 5))
+                if kind == "vercelUsage" {
+                    XCTAssertTrue(explanation.label.contains("2023-11-12"))
+                    XCTAssertTrue(explanation.label.contains("UTC"))
+                } else {
+                    XCTAssertTrue(explanation.label.contains(dark ? "sampled Beijing-time days" : "抽样统计日"))
+                }
+                let help = XCTAttachment(screenshot: app.screenshot())
+                help.name = "usage-refresh-\(dark ? "en-dark" : "zh-light")-\(kind)-help"
+                help.lifetime = .keepAlways; add(help)
+                app.buttons[dark ? "Done" : "完成"].tap()
+            }
+            app.terminate()
         }
     }
 }

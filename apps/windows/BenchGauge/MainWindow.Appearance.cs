@@ -441,9 +441,7 @@ sealed partial class MainWindow
     }
     (string Text, bool IsSourceTime) BoardTime(Board board)
     {
-        if (board.Kind == "cloudbaseUsage") return (Tr("Sampled period", "抽样统计", "抽樣統計"), false);
         var time = BoardTimestamp.For(board);
-        if (time.IsSourceTime && board.Kind == "vercelUsage") return ($"{time.Value?.UtcDateTime.ToString("M/d", CultureInfo.InvariantCulture)} {Tr("Data", "数据", "資料")}", true);
         var dataset = time.IsSourceTime && ArenaAttribution.Applies(board);
         var value = dataset
             ? time.Value?.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
@@ -452,9 +450,7 @@ sealed partial class MainWindow
     }
     string BoardTimeHelp(Board board)
     {
-        if (board.Kind == "cloudbaseUsage") return Tr("Full sample dates unavailable; retrieval time does not indicate data freshness.", "未公开完整抽样日期，抓取时间不代表数据更新时间。", "未公開完整抽樣日期，擷取時間不代表資料更新時間。");
         var time = BoardTimestamp.For(board);
-        if (time.IsSourceTime && board.Kind == "vercelUsage") return $"{time.Value?.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)} {Tr("Data", "数据", "資料")}";
         var value = time.IsSourceTime && ArenaAttribution.Applies(board)
             ? time.Value?.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
             : time.Value?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
@@ -607,6 +603,8 @@ sealed partial class MainWindow
                         : Tr("Scores are not directly comparable across lists", "各榜分数不直接互比", "各榜分數不直接互比"))
                     + (board.Kind == "cloudbaseUsage" ? "\n" + Tr("Sampled-period text token shares, including cache hits; model families only. Full dates and absolute volumes unavailable.", "抽样统计日文本 token 累计占比，含缓存命中；按模型系列汇总，未公开完整日期或绝对用量。", "抽樣統計日文字 token 累計佔比，含快取命中；按模型系列彙總，未公開完整日期或絕對用量。") : "")
                     + (board.Kind == "vercelUsage" ? "\n" + Tr("Daily data uses UTC 00:00 to 00:00 the next day (08:00 to 08:00 the next day in Beijing). Text token shares include cached and reasoning tokens. Company shares sum listed models only; no absolute volumes are published.", "按 UTC 当天 00:00 至次日 00:00 统计，对应北京时间当天 08:00 至次日 08:00。文本 token 用量占比包含缓存及推理 token；公司只汇总榜内模型，不提供绝对用量。", "按 UTC 當天 00:00 至次日 00:00 統計，對應北京時間當天 08:00 至次日 08:00。文字 token 用量佔比包含快取及推理 token；公司只彙總榜內模型，不提供絕對用量。") : "")
+                    + (BoardTimestamp.StatisticalDay(board, prefs.Language) is { } statisticalDay ? "\n" + statisticalDay : "")
+                    + (board.Kind is "vercelUsage" or "cloudbaseUsage" ? "\n" + Tr("Refresh time records when we retrieved this snapshot; it does not indicate a new source update.", "刷新时间仅表示我们取得这份数据的时间，不代表来源数据刚刚更新。", "刷新時間僅表示我們取得這份資料的時間，不代表來源資料剛剛更新。") : "")
                     + (ArenaAttribution.Applies(board) ? "\n" + ArenaAttribution.FullText(prefs.Language) : "") };
             CenterTextInk(summary);
             summary.FontSize = 11;

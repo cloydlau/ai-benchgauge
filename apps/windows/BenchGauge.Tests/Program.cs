@@ -50,6 +50,25 @@ foreach (var source in new string?[] { null, "", "invalid" })
         throw new Exception("Missing source time must fall back only to fetch time");
 }
 
+// Statistical coverage dates must not replace retrieval timestamps in usage headers.
+foreach (var kind in new[] { "vercelUsage", "cloudbaseUsage" })
+    foreach (var hours in new[] { -24, 0, 24 })
+    {
+        var board = new Board(kind, "Fixture", "https://example.test", timestampFetch.AddHours(hours).ToString("O"), null, [], timestampFetch.ToString("O"));
+        if (BoardTimestamp.For(board) != new BoardTimestamp(timestampFetch, false)
+            || BoardTimestamp.For(board with { FetchedAt = "invalid" }) != new BoardTimestamp(null, false))
+            throw new Exception("Usage statistical dates must never masquerade as retrieval time");
+    }
+foreach (var language in new[] { "en", "zh", "zh-Hant" })
+{
+    var board = new Board("vercelUsage", "Fixture", "https://example.test", "2026-10-22T23:00:00-02:00", null, [], timestampFetch.ToString("O"));
+    if (BoardTimestamp.StatisticalDay(board, language) is not { } day || !day.Contains("2026-10-23") || !day.Contains("UTC"))
+        throw new Exception("Statistics help must retain the UTC coverage day");
+    if (BoardTimestamp.StatisticalDay(board with { Kind = "cloudbaseUsage" }, language) != null
+        || BoardTimestamp.StatisticalDay(board with { UpdatedAt = "invalid" }, language) != null)
+        throw new Exception("Do not invent unpublished statistical dates");
+}
+
 // Model distributions retain unknowns and the China policy without score weighting.
 var distributionEntries = new[] {
     new Entry(1, "A", 9999, "Maker", "US", null, null, null, null, "closed"),
