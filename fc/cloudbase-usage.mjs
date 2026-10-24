@@ -44,9 +44,9 @@ export function parseCloudBaseUsage(html, { now = Date.now() } = {}) {
   // Keep the source's published order: rounded ties can have different raw totals.
   const models = rows.filter(r => r.name !== 'Other' && r.score > 0);
   if (!models.length) throw new Error('Empty CloudBase models');
-  return { kind: cloudbaseKind, title: 'Tencent CloudBase', fetchedAt: new Date(now).toISOString(),
+  return { kind: cloudbaseKind, title: 'Tencent Cloud', fetchedAt: new Date(now).toISOString(),
     // The public legend omits full calendar dates. A fetch is not publication.
-    sourceNote: `Source: Tencent CloudBase · ${cloudbaseSource}\nCumulative text-token share across ${count} sampled Beijing-time days; full statistic dates are not published in the legend. Input + output tokens, including cache hits. Model-family aggregation; Other excluded; published rounded shares retained. Company shares sum listed families only. No absolute volumes published.\nTencent retains its rights. No open-data license is stated on the source page; this is not CC BY data.`,
+    sourceNote: `Source: Tencent Cloud · ${cloudbaseSource}\nCumulative text-token share across ${count} sampled Beijing-time days; full statistic dates are not published in the legend. Input + output tokens, including cache hits. Model-family aggregation; Other excluded; published rounded shares retained. Company shares sum listed families only. No absolute volumes published.\nTencent retains its rights. No open-data license is stated on the source page; this is not CC BY data.`,
     otherSharePercent: rows.find(r => r.name === 'Other').score,
     entries: models.map((row, index) => {
       const identity = families.get(row.name);

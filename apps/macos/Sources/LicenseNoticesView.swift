@@ -94,7 +94,7 @@ struct LicenseNoticesView: View {
                     if selection.section == .application {
                         documentView(.application)
                     } else if let documents = LicenseCatalog.thirdParty {
-                        DisclosureGroup("Tencent CloudBase · " + tr("Source notice", "来源说明")) {
+                        DisclosureGroup("Tencent Cloud · " + tr("Source notice", "来源说明")) {
                             Text(CloudBaseAttribution.text(sourceNote: cloudbaseSourceNote, language: language))
                                 .font(.system(size: 11)).textSelection(.enabled)
                                 .fixedSize(horizontal: false, vertical: true)

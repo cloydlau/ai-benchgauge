@@ -87,7 +87,7 @@ public enum LeaderboardPresentation {
         case .artificialAnalysisCodingAgent: "Artificial Analysis Coding Agent Index"
         case .arenaText: "Arena | Text"
         case .epochECI: "Epoch Capabilities Index"
-        case .cloudbaseUsage: "Tencent CloudBase | Token share"
+        case .cloudbaseUsage: "Tencent Cloud | Token share"
         case .vercelUsage: "Vercel AI Gateway | Token share"
         case .openRouterUsage: "OpenRouter | Token usage"
         case .codeArenaWebDev: "Code Arena | WebDev"
@@ -130,7 +130,7 @@ public enum LeaderboardPresentation {
         case .artificialAnalysis: language.text("Combines standardized tests across several abilities.", "汇总多项标准化测试，适合看综合能力")
         case .artificialAnalysisCodingAgent: language.text("Scores coding agents on software engineering tasks.", "通过软件工程任务，检验编程智能体的完成能力")
         case .cloudbaseUsage: language.text("Cumulative text-token share across sampled Beijing-time days; full dates unavailable.", "北京时间抽样统计日的文本 token 累计占比；未公开完整日期。")
-        case .vercelUsage: language.text("Latest complete UTC day · text token share · absolute volumes unavailable.", "最近完整 UTC 日文本 token 用量占比；不提供绝对用量。")
+        case .vercelUsage: language.text("Latest complete day · text token share · absolute volumes unavailable.", "最近完整一天的文本 token 用量占比；不提供绝对用量。")
         case .openRouterUsage: language.text("Latest complete UTC day · input + output tokens · 1B = 1 billion tokens.", "最近完整 UTC 日输入与输出 token 用量；1B = 十亿 token。")
         case .epochECI: language.text("Estimates general capability from benchmark results, accounting for difficulty and discrimination.", "结合不同测试的难度与区分度，估计模型的综合能力")
         case .arenaText: language.text("People compare anonymous answers to real prompts.", "真实提问下盲选回答，贴近用户偏好")
@@ -165,7 +165,7 @@ public enum LeaderboardPresentation {
         if kind.sourcePrefix == "Arena" {
             parts.insert(language.text("Formerly LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena"), at: 1)
         }
-        if kind == .vercelUsage { parts = [sourceSummary(kind, language: language), language.text("Includes input, output, reasoning and cached tokens; only published model buckets are listed. Company shares sum listed models only. Not comparable to OpenRouter absolute totals.", "包含输入、输出、推理及缓存 token，仅列出官方公布的模型；公司占比只汇总榜内模型。与 OpenRouter 绝对用量口径不同。例外的 Other 不作为模型展示。") ] }
+        if kind == .vercelUsage { parts = [sourceSummary(kind, language: language), language.text("Daily data uses UTC 00:00 to 00:00 the next day (08:00 to 08:00 the next day in Beijing). Includes input, output, reasoning and cached tokens; only published model buckets are listed. Company shares sum listed models only. Not comparable to OpenRouter absolute totals.", "按 UTC 当天 00:00 至次日 00:00 统计，对应北京时间当天 08:00 至次日 08:00。包含输入、输出、推理及缓存 token，仅列出官方公布的模型；公司占比只汇总榜内模型。与 OpenRouter 绝对用量口径不同。例外的 Other 不作为模型展示。") ] }
         if kind == .cloudbaseUsage { parts = [sourceSummary(kind, language: language), language.text("Input + output tokens including cache hits. Published model families only; Other excluded. Shares retain source rounding; company totals cover listed families. No absolute volumes or open-data license stated.", "输入与输出 token 之和，含缓存命中；按官方模型系列汇总，排除 Other。保留来源舍入，公司仅汇总榜内系列；未公开绝对用量或开放数据许可。") ] }
         if !kind.isUsage, let note = board?.sourceNote, !note.isEmpty { parts.append(note) }
         var help = parts.joined(separator: language.text(". ", "。"))
@@ -189,7 +189,7 @@ public enum LeaderboardPresentation {
         }
         if board?.kind == .vercelUsage {
             formatter.dateFormat = "M/d"; formatter.timeZone = TimeZone(secondsFromGMT: 0)
-            return ("\(formatter.string(from: updated)) \(language.text("UTC day", "UTC统计日"))", true)
+            return ("\(formatter.string(from: updated)) \(language.text("Data", "数据"))", true)
         }
         if ArenaAttribution.applies(board) { formatter.dateFormat = includesYear ? "yyyy-MM-dd" : "M/d"; formatter.timeZone = TimeZone(secondsFromGMT: 0) }
         return ("\(formatter.string(from: updated)) \(language.text("Published", "发布"))", true)
@@ -207,7 +207,7 @@ public enum LeaderboardPresentation {
         }
         if board?.kind == .vercelUsage {
             formatter.dateFormat = "yyyy-MM-dd"; formatter.timeZone = TimeZone(secondsFromGMT: 0)
-            return "\(formatter.string(from: updated)) \(language.text("UTC day", "UTC统计日"))"
+            return "\(formatter.string(from: updated)) \(language.text("Data", "数据"))"
         }
         if ArenaAttribution.applies(board) { formatter.timeStyle = .none; formatter.timeZone = TimeZone(secondsFromGMT: 0) }
         let value = formatter.string(from: updated)

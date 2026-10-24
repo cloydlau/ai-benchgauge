@@ -1,4 +1,4 @@
-# 腾讯 CloudBase 用量占比
+# 腾讯云 用量占比
 
 ## Current status: restored (2026-10-24)
 
@@ -39,7 +39,7 @@ does not own those rights. The source notice does not assert an open-data licens
 
 ## Design before suspension
 
-“用量”增加第三个独立来源 Tencent CloudBase。综合默认选择及原有偏好键不变，各端共享同一服务端快照。无需腾讯账号或 Key，不调用模型推理接口。
+“用量” 增加第三个独立来源 Tencent Cloud。综合默认选择及原有偏好键不变，各端共享同一服务端快照。无需腾讯账号或 Key，不调用模型推理接口。
 
 官方来源：https://docs.cloudbase.net/ai/announcement/model-token-volume
 

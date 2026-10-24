@@ -5,7 +5,7 @@ import { arenaRowLogos } from './source-logos.mjs';
 // Keep the record selectors aligned with HTMLLeaderboardParser.swift.
 // Accept source HTML, never a client-supplied score table or timestamp.
 export const sources = Object.freeze({
-  cloudbaseUsage: ['https://docs.cloudbase.net/ai/announcement/model-token-volume', 'Tencent CloudBase'],
+  cloudbaseUsage: ['https://docs.cloudbase.net/ai/announcement/model-token-volume', 'Tencent Cloud'],
   vercelUsage: ['https://vercel.com/ai-gateway/leaderboards/models', 'Vercel AI Gateway'],
   openRouterUsage: ['https://openrouter.ai/rankings', 'OpenRouter'],
   artificialAnalysis: ['https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index', 'Artificial Analysis Intelligence Index'],
