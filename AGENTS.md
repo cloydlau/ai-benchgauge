@@ -32,3 +32,10 @@ The host MCP connection is in `~/.codex/config.toml` and uses the DevTools-owned
 ## 品牌资源目录
 
 品牌资源统一维护在仓库根目录 `assets/brand/`；正式主图固定命名 `logo.png` 或 `logo.svg`。设计提示词用 `logo.prompt.txt`，平台导出图用 `app-icon-<platform>.*`，其他产品标志放 `partners/`。更新资源时同步该目录的 README、构建复制/生成入口及消费者引用。运行目录、资源包和 `dist` 中的同图仅为导出副本，不作为新的源图维护点；未选定设计仅在仓库外预览；只有用户选定或明确要求存档，才允许加入版本库。
+
+<!-- calmmit:agents:start sha256=999991842f72e6a33393720385570fa40538f51681837806ddaa2efc93322644 -->
+
+## Calmmit 约定引用
+
+开始任务前，请阅读并遵守 [Calmmit AGENTS.md](../calmmit/AGENTS.md) 中适用于本仓库的约定；业务命令使用本仓库已有的 Calmmit 入口。无法读取原文时请明确说明，不推测其内容。
+<!-- calmmit:agents:end -->
