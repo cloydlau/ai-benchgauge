@@ -38,7 +38,9 @@ definePage(query => {
   const cubeClipTop = ref(null)
   const sourceTabsExtent = computed(() => sourceTabsHeight.value + 8)
   const cubeViewportStyle = computed(() => `--cube-top:${cubeClipTop.value ?? Math.max(0, sourceTabsExtent.value - sourceTabsOffset.value)}px;--cube-layout-duration:${cubeDuration.value}ms;`)
-  const sourceTabsStyle = computed(() => `transform:translateY(-${sourceTabsOffset.value}px);pointer-events:${sourceTabsOffset.value >= sourceTabsExtent.value ? 'none' : 'auto'};--source-selected-foreground:${selectedSourceTheme.value.foreground};--source-transition-duration:${cubeBusy.value ? cubeDuration.value : 420}ms;`)
+  // Keep the tab transition armed while cube faces are prepared at 0ms.
+  // Separate native style updates must never move the highlight with a 0ms duration.
+  const sourceTabsStyle = computed(() => `transform:translateY(-${sourceTabsOffset.value}px);pointer-events:${sourceTabsOffset.value >= sourceTabsExtent.value ? 'none' : 'auto'};--source-selected-foreground:${selectedSourceTheme.value.foreground};`)
   function updateSourceTabs(top) {
     sourceTabsOffset.value = Math.min(sourceTabsExtent.value, Math.max(0, top))
   }
