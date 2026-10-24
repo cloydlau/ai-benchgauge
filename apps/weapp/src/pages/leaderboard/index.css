@@ -119,8 +119,9 @@
 .table-head-anchor { height: 0; }
 .table-head-pinned { padding-bottom: 0; margin-bottom: 0; }
 .table-head-content { min-height: 28px; opacity: 1; transition: opacity .22s ease; }
-.model-heading { display: flex; align-items: center; min-width: 0; gap: 2rpx; }
-.model-heading .source-heading { flex: 0 1 auto; }
+.model-heading { display: flex; align-items: center; justify-content: space-between; min-width: 0; gap: 2rpx; }
+.source-heading-details { display: flex; flex-wrap: wrap; align-items: center; min-width: 0; gap: 4rpx 12rpx; }
+.model-heading .source-heading { flex: 0 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .model-filter-toggle { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 28px; min-height: 28px; padding: 0; color: var(--muted); }
 .model-search-open .table-head-content { opacity: 0; pointer-events: none; }
 .model-search { position: absolute; top: 0; height: 28px; box-sizing: border-box; border-radius: 12rpx; overflow: hidden; opacity: 0; pointer-events: none; background: var(--card); transition: left .32s cubic-bezier(.4,0,.2,1), right .32s cubic-bezier(.4,0,.2,1), opacity .22s ease, background-color .25s ease; }

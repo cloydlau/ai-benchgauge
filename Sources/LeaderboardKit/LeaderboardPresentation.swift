@@ -177,7 +177,7 @@ public enum LeaderboardPresentation {
     /// Show exactly one time: source publication/update whenever available,
     /// otherwise our successful fetch. Do not choose the later timestamp.
     public static func sourceTime(_ board: Leaderboard?, language: AppLanguage,
-                                  timeZone: TimeZone = .current) -> (text: String, isSourceTime: Bool) {
+                                  timeZone: TimeZone = .current, includesYear: Bool = true) -> (text: String, isSourceTime: Bool) {
         if board?.kind == .cloudbaseUsage { return (language.text("Sampled period", "抽样统计"), false) }
         let formatter = DateFormatter()
         formatter.locale = language.locale
@@ -191,7 +191,7 @@ public enum LeaderboardPresentation {
             formatter.dateFormat = "M/d"; formatter.timeZone = TimeZone(secondsFromGMT: 0)
             return ("\(formatter.string(from: updated)) \(language.text("UTC day", "UTC统计日"))", true)
         }
-        if ArenaAttribution.applies(board) { formatter.dateFormat = "yyyy-MM-dd"; formatter.timeZone = TimeZone(secondsFromGMT: 0) }
+        if ArenaAttribution.applies(board) { formatter.dateFormat = includesYear ? "yyyy-MM-dd" : "MM-dd"; formatter.timeZone = TimeZone(secondsFromGMT: 0) }
         return ("\(formatter.string(from: updated)) \(language.text("Published", "发布"))", true)
     }
 

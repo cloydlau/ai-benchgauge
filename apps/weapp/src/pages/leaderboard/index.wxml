@@ -38,19 +38,21 @@
         <view class="board-card source-{{card.index}}" style="{{card.themeStyle}}">
           <view class="metadata">
             <button class="summary" data-kind="{{card.kind}}" bindtap="sourceHelp">{{card.summary}}</button>
-            <button class="times" data-kind="{{card.kind}}" bindtap="refreshTap" aria-label="{{card.timeAccessibility}} · {{card.loading ? labels.loading : labels.refresh}}" aria-busy="{{card.loading}}">
-              <view wx:if="{{card.loading}}" class="time-loading" aria-hidden="true" />
-              <view class="time-copy">
-                <view class="time-row {{card.isSourceTime ? 'time-source' : 'time-fetched'}}"><text class="time-value mono">{{card.time}}</text><text class="time-label">{{card.timeLabel}}</text></view>
-              </view>
-            </button>
           </view>
           <view id="head-anchor-{{card.kind}}" class="table-head-anchor" aria-hidden="true" />
           <view id="table-head-{{card.kind}}" class="table-head {{card.headerPinned ? 'table-head-pinned' : ''}} {{modelSearchVisible ? 'model-search-open' : ''}}">
           <view class="table-head-content table-grid" aria-hidden="{{modelSearchVisible}}">
             <text class="rank-cell">{{labels.rank}}</text>
             <view class="model-heading">
+            <view class="source-heading-details">
             <button class="source-heading" data-kind="{{card.kind}}" bindtap="copyBoardTitle" aria-label="{{labels.copyName}} {{card.title}}">{{card.title}}</button>
+            <button class="times" data-kind="{{card.kind}}" bindtap="refreshTap" aria-label="{{card.timeAccessibility}} · {{card.loading ? labels.loading : labels.refresh}}" aria-busy="{{card.loading}}">
+              <view wx:if="{{card.loading}}" class="time-loading" aria-hidden="true" />
+              <view class="time-copy">
+                <view class="time-row {{card.isSourceTime ? 'time-source' : 'time-fetched'}}"><text class="time-value mono">{{card.time}}</text><text class="time-label">{{card.timeLabel}}</text></view>
+              </view>
+            </button>
+            </view>
             <button wx:if="{{grouping === 'model'}}" id="model-filter-{{card.kind}}" class="model-filter-toggle" data-kind="{{card.kind}}" bindtap="openModelSearch" aria-label="{{labels.searchModels}}"><van-icon name="search" size="13px" /></button>
             </view>
             <button class="filter {{card.countryFiltered ? 'filtered' : ''}}" data-kind="{{card.kind}}" data-mode="country" bindtap="filterMenu">

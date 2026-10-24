@@ -416,20 +416,25 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
                 let badge = app.descendants(matching: .any)["openness-\(kind)-1"].firstMatch
                 XCTAssertTrue(badge.exists)
                 XCTAssertEqual(badge.label, chinese ? "闭源" : "Closed")
-                let times: XCUIElement? = app.staticTexts["source-times-\(kind)"]
+                let times = app.buttons.matching(identifier: "refresh").allElementsBoundByIndex.first { $0.isHittable }
                 XCTAssertNotNil(times)
                 XCTAssertEqual(times?.label.hasSuffix(chinese ? "发布" : "Published"), !missing)
                 XCTAssertEqual(times?.label.hasSuffix(chinese ? "刷新" : "Refreshed"), missing)
                 XCTAssertFalse(times?.label.contains(chinese ? "抓取" : "Fetched") ?? true)
                 XCTAssertFalse(times?.label.contains("—") ?? true)
                 if let times {
-                    let top = min(summary.frame.minY, times.frame.minY)
-                    let bottom = max(summary.frame.maxY, times.frame.maxY)
-                    // AX reports the caption's ink bounds; the regular iPad
-                    // header font adds a 2.5-point inset to the layout gap.
-                    XCTAssertGreaterThanOrEqual(heading.frame.minY - bottom, 8)
+                    XCTAssertGreaterThanOrEqual(heading.frame.minY - summary.frame.maxY, 8)
+                    if times.frame.minX >= heading.frame.maxX {
+                        XCTAssertEqual(heading.frame.midY, times.frame.midY, accuracy: 3)
+                    } else {
+                        XCTAssertGreaterThanOrEqual(times.frame.minY, heading.frame.maxY)
+                    }
+                    let search = app.buttons["model-filter-\(kind)"]
+                    XCTAssertTrue(search.exists)
+                    XCTAssertGreaterThanOrEqual(search.frame.minX, times.frame.maxX)
+                    XCTAssertFalse(times.label.contains("2026"))
                     if UIDevice.current.userInterfaceIdiom == .phone {
-                        XCTAssertGreaterThanOrEqual(top - app.buttons["face-0"].frame.maxY, 8)
+                        XCTAssertGreaterThanOrEqual(summary.frame.minY - app.buttons["face-0"].frame.maxY, 8)
                     }
                 }
                 for frame in 0..<3 {

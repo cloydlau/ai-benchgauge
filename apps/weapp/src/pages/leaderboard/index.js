@@ -449,7 +449,7 @@ definePage(query => {
       return { time: `${day.getUTCMonth() + 1}/${day.getUTCDate()}`, timeLabel: tr('usageDay'), isSourceTime }
     }
     const dataset = isSourceTime && isArenaDatasetBoard(board)
-    return { time: dataset ? new Date(value).toISOString().slice(0, 10) : formatTime(value),
+    return { time: dataset ? new Date(value).toISOString().slice(5, 10) : formatTime(value),
       timeLabel: tr(isSourceTime ? 'published' : 'updated'), isSourceTime }
   }
   const cards = computed(() => visibleCards.value.map(({ kind, entries, leaderScore, totalCount }, index) => {

@@ -1238,7 +1238,7 @@ private struct PadBoardCard: View {
         modelSearchQuery = ""
     }
     private var timeLabels: some View {
-        let time = LeaderboardPresentation.sourceTime(board, language: language)
+        let time = LeaderboardPresentation.sourceTime(board, language: language, includesYear: isImage)
         let accent = sourceAccent
         return Text(time.text).font(.system(size: timeFontSize, weight: time.isSourceTime ? .medium : .regular))
         .foregroundColor(time.isSourceTime ? accent : secondaryForeground).monospacedDigit()
@@ -1254,32 +1254,33 @@ private struct PadBoardCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("source-summary-\(kind.rawValue)")
     }
+    private var refreshTime: some View {
+        Button(action: refresh) {
+            HStack(spacing: timeFontSize * 0.6) {
+                if isRefreshing {
+                    ProgressView().controlSize(.mini).tint(secondaryForeground)
+                        .scaleEffect(timeFontSize / 20)
+                        .frame(width: timeFontSize, height: timeFontSize)
+                        .accessibilityHidden(true)
+                }
+                timeLabels
+            }
+        }
+        .buttonStyle(.plain).disabled(isRefreshing)
+        .accessibilityHint(tr("Tap to refresh. Source update may be unavailable.", "点击刷新；来源可能不提供更新时间。"))
+        .accessibilityIdentifier("refresh")
+        .help(LeaderboardPresentation.sourceTimeHelp(board, language: language))
+    }
     @ViewBuilder private var sourceMetadata: some View {
         HStack(alignment: .top, spacing: 12) {
-            if isImage { sourceDescription }
-            else {
+            if isImage {
+                sourceDescription
+                timeLabels
+            } else {
                 Button { detail.showingSource = true } label: { sourceDescription }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("source-help-\(kind.rawValue)")
                     .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            if isImage { timeLabels }
-            else {
-                Button(action: refresh) {
-                    HStack(spacing: timeFontSize * 0.6) {
-                        if isRefreshing {
-                            ProgressView().controlSize(.mini).tint(secondaryForeground)
-                                .scaleEffect(timeFontSize / 20)
-                                .frame(width: timeFontSize, height: timeFontSize)
-                                .accessibilityHidden(true)
-                        }
-                        timeLabels
-                    }
-                }
-                    .buttonStyle(.plain).disabled(isRefreshing)
-                    .accessibilityHint(tr("Tap to refresh. Source update may be unavailable.", "点击刷新；来源可能不提供更新时间。"))
-                    .accessibilityIdentifier("refresh")
-                    .help(LeaderboardPresentation.sourceTimeHelp(board, language: language))
             }
         }.font(.caption)
     }
@@ -1297,17 +1298,36 @@ private struct PadBoardCard: View {
             }
         }.padding(.horizontal, columnPadding).padding(.top, 12).padding(.bottom, 6)
     }
+    private var sourceHeading: some View {
+        Text(kind.sourceLinkTitle)
+            .font(columnHeaderFont.weight(.semibold))
+            .foregroundStyle(sourceAccent)
+            .lineLimit(1).minimumScaleFactor(0.8)
+            .accessibilityIdentifier("source-heading-\(kind.rawValue)")
+    }
+    @ViewBuilder private var sourceHeadingDetails: some View {
+        if isImage { sourceHeading }
+        else {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) {
+                    sourceHeading
+                    refreshTime
+                }.fixedSize(horizontal: true, vertical: false)
+                VStack(alignment: .leading, spacing: 2) {
+                    sourceHeading
+                    refreshTime
+                }
+            }
+        }
+    }
     private var columnHeader: some View {
         VStack(spacing: 0) {
             ZStack(alignment: .leading) {
             HStack(spacing: columnSpacing) {
                 Text(tr("Rank", "排名")).lineLimit(1).frame(width: rankColumnWidth)
-                HStack(spacing: 2) {
-                Text(kind.sourceLinkTitle)
-                    .font(columnHeaderFont.weight(.semibold))
-                    .foregroundStyle(sourceAccent)
-                    .lineLimit(1).minimumScaleFactor(0.8)
-                    .accessibilityIdentifier("source-heading-\(kind.rawValue)")
+                HStack(spacing: 0) {
+                sourceHeadingDetails
+                Spacer(minLength: 0)
                 if !isImage && grouping == .model {
                     Button(action: openModelSearch) {
                         Image(systemName: "magnifyingglass")
