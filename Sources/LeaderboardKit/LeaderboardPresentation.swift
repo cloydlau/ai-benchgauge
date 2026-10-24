@@ -191,7 +191,7 @@ public enum LeaderboardPresentation {
             formatter.dateFormat = "M/d"; formatter.timeZone = TimeZone(secondsFromGMT: 0)
             return ("\(formatter.string(from: updated)) \(language.text("UTC day", "UTC统计日"))", true)
         }
-        if ArenaAttribution.applies(board) { formatter.dateFormat = includesYear ? "yyyy-MM-dd" : "MM-dd"; formatter.timeZone = TimeZone(secondsFromGMT: 0) }
+        if ArenaAttribution.applies(board) { formatter.dateFormat = includesYear ? "yyyy-MM-dd" : "M/d"; formatter.timeZone = TimeZone(secondsFromGMT: 0) }
         return ("\(formatter.string(from: updated)) \(language.text("Published", "发布"))", true)
     }
 
