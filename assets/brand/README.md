@@ -39,6 +39,11 @@ proportions. Cylindrical rod highlights, reflected dark bands and fine bevels
 adapt the approved material to small sizes without a black tile behind the A.
 Monochrome menu-bar artwork keeps its existing silhouette and template behavior.
 
+Official leaderboard-source marks live separately in [`partners/`](partners/README.md).
+Their provenance and rights remain distinct from the BenchGauge artwork. Run
+`node Scripts/source-logos.mjs` to synchronize Apple exports; the mini-program
+build renders the same canonical assets into its package.
+
 Wordmark letters use neutral steel/silver reflection bands at 0%, 42%, 50% and
 100% of their height: `#303945` / `#8894A2` / `#414D5C` / `#6C7888` on light
 surfaces and `#F5F7FA` / `#A5AFBC` / `#E0E6EE` / `#8D99A8` on dark surfaces.

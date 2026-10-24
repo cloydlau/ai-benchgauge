@@ -1,5 +1,17 @@
 import SwiftUI
+import ImageIO
 import LeaderboardKit
+
+@MainActor
+private enum SourceIconCache {
+    static let images: [String: CGImage] = ["cloudbase", "vercel", "openRouter", "artificialAnalysis", "arena", "epoch"]
+        .flatMap { [$0, $0 + "-dark"] }.reduce(into: [:]) { images, name in
+            guard let url = Bundle.module.url(forResource: name, withExtension: "png", subdirectory: "SourceLogos"),
+                  let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+                  let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return }
+            images[name] = image
+        }
+}
 
 @MainActor
 private final class PadAboutState: ObservableObject {
@@ -9,6 +21,7 @@ private final class PadAboutState: ObservableObject {
     @Published var noticeExpanded = false
     @Published var modelsDevNoticeExpanded = false
     @Published var categoryIconNoticeExpanded = false
+    @Published var sourceMarkNoticeExpanded = false
     @Published var licenseSourceID: String?
 }
 
@@ -22,6 +35,9 @@ struct PadAboutView<Brand: View>: View {
     var vercelSourceNote: String? = nil
     var openRouterSourceNote: String? = nil
     private let content = PadAboutContent.load()
+    private static var sourceIcons: [String: CGImage] {
+        SourceIconCache.images
+    }
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -125,17 +141,16 @@ struct PadAboutView<Brand: View>: View {
             .accessibilityLabel(tr("Quota lookup · PC · Copy link", "余量查询 · PC 端 · 复制链接"))
     }
     private func sourceCard(_ source: PadAboutContent.Source) -> some View {
-        let mark = source.id == "cloudbase" ? "TC" : source.id == "vercel" ? "V" : source.id == "openRouter" ? "OR" : source.id == "artificialAnalysis" ? "AA" : source.id == "arena" ? "A" : "E"
-        let color: Color = ["cloudbase", "vercel"].contains(source.id) ? .secondary : source.id == "openRouter" ? .orange : source.id == "artificialAnalysis" ? .blue : source.id == "arena" ? .purple : .cyan
         let showsLicense = source.id == "vercel" || source.id == "arena" || source.id == "epoch" || source.id == "openRouter"
         let titleLines = dynamicTypeSize.isAccessibilitySize ? 2 : 1
         return HStack(spacing: 8) {
             Button { copyLink(source.url) } label: {
                 HStack(spacing: 10) {
-                    Text(mark).font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(color)
-                        .frame(width: 28, height: 28)
-                        .background(color.opacity(0.09), in: RoundedRectangle(cornerRadius: 8))
+                    if let icon = Self.sourceIcons[source.id + (dark ? "-dark" : "")] {
+                        Image(decorative: icon, scale: 3).renderingMode(.original)
+                            .resizable().scaledToFit().frame(width: 24, height: 24)
+                            .frame(width: 28, height: 28).accessibilityHidden(true)
+                    }
                     VStack(alignment: .leading, spacing: 2) {
                         Text(source.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(.primary)
                             .lineLimit(titleLines).minimumScaleFactor(0.85).truncationMode(.tail)
@@ -291,6 +306,26 @@ struct PadAboutView<Brand: View>: View {
                 Text(license).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
                     .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                     .padding(10).aboutCard(outline: outline).accessibilityIdentifier("category-icons-license-text")
+            }
+            Button {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) { about.sourceMarkNoticeExpanded.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(tr("Source brand marks", "来源品牌标识")).font(.system(size: 12))
+                    Text(tr("Trademarks", "商标")).font(.system(size: 10)).foregroundStyle(.secondary).padding(4)
+                        .background(inset, in: RoundedRectangle(cornerRadius: 3))
+                    Spacer(minLength: 0)
+                    Image(systemName: about.sourceMarkNoticeExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 10)).foregroundStyle(.secondary)
+                }.foregroundStyle(.primary).frame(minHeight: 48).contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityIdentifier("source-marks-notice")
+                .accessibilityValue(about.sourceMarkNoticeExpanded ? tr("Expanded", "已展开") : tr("Collapsed", "已收起"))
+            if about.sourceMarkNoticeExpanded,
+               let url = Bundle.module.url(forResource: "NOTICE", withExtension: "txt", subdirectory: "SourceLogos"),
+               let notice = try? String(contentsOf: url, encoding: .utf8) {
+                Text(notice).font(.system(size: 11)).foregroundStyle(.secondary)
+                    .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                    .padding(10).aboutCard(outline: outline)
             }
         }
     }

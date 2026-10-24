@@ -1,0 +1,19 @@
+Source brand marks
+
+The Tencent Cloud, Vercel, OpenRouter, Artificial Analysis, Arena and Epoch AI
+names and marks belong to their respective owners. The artwork identifies the
+sources listed in AI BenchGauge; its inclusion does not imply endorsement.
+These third-party marks are not covered by AI BenchGauge's MIT license or by
+the licenses that apply to leaderboard data.
+
+Vercel, the Vercel design, Next.js and related marks, designs and logos are
+trademarks or registered trademarks of Vercel, Inc. or its affiliates in the US
+and other countries.
+
+Official artwork sources and asset provenance:
+Tencent Cloud: https://cloud.tencent.com/
+Vercel: https://vercel.com/geist/brands
+OpenRouter: https://openrouter.ai/brand
+Artificial Analysis: https://artificialanalysis.ai/
+Arena: https://arena.ai/blog/lmarena-is-now-arena
+Epoch AI: https://epoch.ai/

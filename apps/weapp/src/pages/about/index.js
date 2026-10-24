@@ -40,7 +40,7 @@ definePage(query => {
   const attributions = { vercel: { license: "CC BY 4.0" }, openRouter: { license: "CC BY 4.0" }, arena: arenaAttribution(language), epoch: epochAttribution(language) }
   const licenseText = ccByLicense(language).text
   const items = leaderboardSources.map(item => ({ ...item,
-    domain: item.url.split('/')[2], mark: { cloudbase: 'TC', vercel: 'V', openRouter: 'OR', artificialAnalysis: 'AA', arena: 'A', epoch: 'E' }[item.id],
+    domain: item.url.split('/')[2], icon: `/assets/source-logos/${item.id}${dark ? '-dark' : ''}.png`,
     license: Boolean(attributions[item.id]), licenseLabel: attributions[item.id] ? attributions[item.id].license || "CC BY 4.0" : "" }))
   const licenseNotice = ref({ open: false, text: '' })
   const openLicense = event => {
