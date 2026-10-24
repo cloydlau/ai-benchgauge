@@ -1,6 +1,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { createTimestampPolish, polishDuration, polishInterval } from '../src/core/timestamp-polish.js'
+
+test('timestamp loading replaces the caption without removing its layout space', () => {
+  const template = readFileSync(new URL('../src/pages/leaderboard/index.wxml', import.meta.url), 'utf8')
+  const css = readFileSync(new URL('../src/pages/leaderboard/index.css', import.meta.url), 'utf8')
+  assert.match(template, /class="time-caption \{\{card.loading \? 'time-caption-loading' : ''\}\}"/)
+  assert.match(template, /<text class="time-label">\{\{card.timeLabel\}\}<\/text><view wx:if="\{\{card.loading\}\}" class="time-loading"/)
+  assert.match(css, /\.time-caption-loading \.time-label\s*\{\s*visibility: hidden;/)
+  assert.match(css, /\.time-loading\s*\{[^}]*position: absolute;/)
+})
 
 test('one pass after loading, every 30 seconds, without restarting on renders', () => {
   let now = 0, serial = 0

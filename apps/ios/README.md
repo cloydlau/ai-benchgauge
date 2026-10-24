@@ -64,6 +64,12 @@ Simulator checks cover portrait/landscape. Before distribution, also verify on a
 
 ## Validation status
 
+### Pull refresh feedback (2026-10-24)
+
+iOS uses the same three 5-point dots and 55-point loading area as the mini-program. A vertical drag of 64 points beginning at the top triggers the current board on release; small, horizontal and off-top drags do not. The loading area uses SwiftUI content spacing so UIKit's release bounce cannot hide the dots behind the phone's source tabs. The existing store still joins an in-flight request for the same board. Reduce Motion keeps the dots static. Timestamp captions retain their space while a small spinner replaces “Published” / “Refreshed”; the mini-program now shares that behavior.
+
+Native iPhone 18 Pro and iPad Pro 11-inch (M5), iOS 27.0, passed light/dark interaction checks using 28-point and 90-point drags. Captures cover the initial, refreshing and settled states; the phone additionally checks that the dots remain below the source tabs. Results and mini-program runtime captures remain in ignored `work/mobile-refresh-feedback/`.
+
 ### Resizable and folding windows (2026-10-18)
 
 The layout recomputes from `GeometryReader` on every size change. A universal iOS 27 SDK build can resize on the folding iPhone; this project no longer assumes an iPhone always uses the narrow layout. The shared category bar stays within the current safe area. The local Xcode 27.0 installation has no iPhone Duo simulator: ordinary iPhone/iPad rotation and adaptive-width tests do not validate fold poses, the reserved folding region, or iOS 27.1 edge-to-edge behavior. Complete those checks with Xcode 27.1 / iPhone Duo before claiming full device support ([Apple preparation guide](https://developer.apple.com/iphone-duo/prepare/)).

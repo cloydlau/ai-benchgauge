@@ -96,10 +96,14 @@
 .times { position: relative; color: var(--muted); display: flex; justify-content: flex-start; white-space: nowrap; gap: 8rpx; flex-shrink: 0; text-align: left; align-items: center; font-size: 18rpx; line-height: 1.25; }
 .time-copy { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 4rpx; }
 .time-row { display: flex; align-items: center; justify-content: flex-start; gap: 7rpx; }
-.time-label { font-size: 16rpx; font-weight: 600; letter-spacing: .02em; }
+.time-label { font: inherit; }
+.time-caption { position: relative; min-width: 12px; min-height: 12px; display: flex; align-items: center; font: inherit; }
+.time-caption-loading .time-label { visibility: hidden; }
+.time-loading { position: absolute; left: 0; top: 50%; width: 1em; height: 1em; box-sizing: border-box; margin-top: -.5em; border: .125em solid currentColor; border-right-color: transparent; border-radius: 50%; animation: time-loading-spin 700ms linear infinite; }
+@keyframes time-loading-spin { to { transform: rotate(360deg); } }
 .time-source, .time-fetched { color: var(--muted); opacity: .82; }
 .time-value { font-variant-numeric: tabular-nums; }
-.time-source .time-value { font-weight: 600; }
+.time-source { font-weight: 600; }
 /* One non-repeating band crosses the whole timestamp, including its caption. */
 .time-polish { position: absolute; inset: 0; pointer-events: none; opacity: 1; color: transparent; background-image: linear-gradient(90deg, transparent 40%, rgba(255,255,255,.85) 50%, transparent 60%); background-size: 250% 100%; background-repeat: no-repeat; -webkit-background-clip: text; background-clip: text; animation: time-polish 1.1s linear both; }
 .time-polish text { color: transparent; }
