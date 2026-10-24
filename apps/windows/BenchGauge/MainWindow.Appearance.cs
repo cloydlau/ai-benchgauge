@@ -856,10 +856,11 @@ sealed partial class MainWindow
             var filledWidth = trackWidth * ratio;
             var showsShare = share.Length > 0 && filledWidth >= 38;
             background.Width = trackWidth;
-            nameContent.Width = showsShare ? filledWidth : trackWidth;
+            // Names use the whole model column, independently of the score fill.
+            nameContent.Width = trackWidth;
             name.Margin = new Thickness(nameContent.Width < 90 ? 0 : 6, 0, 3, 0);
             label.Visibility = showsShare ? Visibility.Visible : Visibility.Collapsed;
-            Canvas.SetLeft(label, filledWidth + badgeGap);
+            Canvas.SetLeft(label, trackWidth + badgeGap);
             Canvas.SetTop(label, (content.ActualHeight - badgeHeight) / 2);
         }
         content.SizeChanged += (_, _) => PositionBadge();

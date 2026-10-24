@@ -1,0 +1,291 @@
+{
+  "state": {
+    "boards": [
+      {
+        "kind": "artificialAnalysis",
+        "title": "Artificial Analysis",
+        "url": "https://artificialanalysis.ai",
+        "updatedAt": "2026-09-29T00:00:00Z",
+        "error": null,
+        "entries": [
+          {
+            "rank": 1,
+            "name": "GPT-5.2 (high)",
+            "score": 100,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates"
+          },
+          {
+            "rank": 2,
+            "name": "Claude Sonnet 4.5 (extended thinking)",
+            "score": 55,
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "country": "unitedStates"
+          },
+          {
+            "rank": 3,
+            "name": "Gemini 3 Pro Preview",
+            "score": 25,
+            "organization": "Google",
+            "logo": "google",
+            "country": "unitedStates"
+          },
+          {
+            "rank": 4,
+            "name": "Qwen3-Max-Thinking 长名称测试模型",
+            "score": 12,
+            "organization": "Alibaba",
+            "logo": "qwen",
+            "country": "china"
+          },
+          {
+            "rank": 5,
+            "name": "DeepSeek-V3.2-Speciale",
+            "score": 5,
+            "organization": "DeepSeek",
+            "logo": "deepseek",
+            "country": "china"
+          },
+          {
+            "rank": 6,
+            "name": "GLM-4.6",
+            "score": 0,
+            "organization": "Z.ai",
+            "logo": "zai",
+            "country": "china"
+          }
+        ],
+        "fetchedAt": "2026-09-29T00:00:00Z"
+      },
+      {
+        "kind": "arenaText",
+        "title": "Arena",
+        "url": "https://arena.ai",
+        "updatedAt": "2026-09-29T00:00:00Z",
+        "error": null,
+        "entries": [
+          {
+            "rank": 1,
+            "name": "GPT-5.2 (high)",
+            "score": 100,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates"
+          },
+          {
+            "rank": 2,
+            "name": "Claude Sonnet 4.5 (extended thinking)",
+            "score": 55,
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "country": "unitedStates"
+          },
+          {
+            "rank": 3,
+            "name": "Gemini 3 Pro Preview",
+            "score": 25,
+            "organization": "Google",
+            "logo": "google",
+            "country": "unitedStates"
+          },
+          {
+            "rank": 4,
+            "name": "Qwen3-Max-Thinking 长名称测试模型",
+            "score": 12,
+            "organization": "Alibaba",
+            "logo": "qwen",
+            "country": "china"
+          },
+          {
+            "rank": 5,
+            "name": "DeepSeek-V3.2-Speciale",
+            "score": 5,
+            "organization": "DeepSeek",
+            "logo": "deepseek",
+            "country": "china"
+          },
+          {
+            "rank": 6,
+            "name": "GLM-4.6",
+            "score": 0,
+            "organization": "Z.ai",
+            "logo": "zai",
+            "country": "china"
+          }
+        ],
+        "fetchedAt": "2026-09-29T00:00:00Z",
+        "sourceNote": "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset",
+        "sourceUpdatedAt": "2026-10-15T00:00:00Z"
+      },
+      {
+        "kind": "epochECI",
+        "title": "Epoch AI | ECI",
+        "url": "https://epoch.ai/data/eci",
+        "updatedAt": "2026-09-29T00:00:00Z",
+        "error": null,
+        "entries": [
+          {
+            "rank": 1,
+            "name": "GPT-5.2 (high)",
+            "score": 100,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates"
+          },
+          {
+            "rank": 2,
+            "name": "Claude Sonnet 4.5 (extended thinking)",
+            "score": 55,
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "country": "unitedStates"
+          },
+          {
+            "rank": 3,
+            "name": "Gemini 3 Pro Preview",
+            "score": 25,
+            "organization": "Google",
+            "logo": "google",
+            "country": "unitedStates"
+          },
+          {
+            "rank": 4,
+            "name": "Qwen3-Max-Thinking 长名称测试模型",
+            "score": 12,
+            "organization": "Alibaba",
+            "logo": "qwen",
+            "country": "china"
+          },
+          {
+            "rank": 5,
+            "name": "DeepSeek-V3.2-Speciale",
+            "score": 5,
+            "organization": "DeepSeek",
+            "logo": "deepseek",
+            "country": "china"
+          },
+          {
+            "rank": 6,
+            "name": "GLM-4.6",
+            "score": 0,
+            "organization": "Z.ai",
+            "logo": "zai",
+            "country": "china"
+          }
+        ],
+        "fetchedAt": "2026-09-29T00:00:00Z"
+      }
+    ],
+    "quotas": [
+      {
+        "id": "fixture-0",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "88%",
+            "light": "#3D8437",
+            "dark": "#99D37C"
+          }
+        ],
+        "accentLight": "#3D8437"
+      },
+      {
+        "id": "fixture-1",
+        "name": "Kimi",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "7d ",
+            "light": "#666666",
+            "dark": "#AAAAAA"
+          },
+          {
+            "text": "20%",
+            "light": "#DB521D",
+            "dark": "#FF9153"
+          }
+        ],
+        "accentLight": "#DB521D"
+      }
+    ],
+    "quotaNeedsCCSwitch": false,
+    "quotaUnavailable": false,
+    "trayText": null,
+    "alerts": [],
+    "quotaUpdatedAt": "2026-09-29T00:00:00Z"
+  },
+  "cases": [
+    {
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "category": "general",
+      "grouping": "model",
+      "id": "name-overflow-en-single",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "category": "general",
+      "grouping": "model",
+      "id": "name-overflow-zh-single",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "category": "general",
+      "grouping": "model",
+      "id": "name-overflow-hant-three",
+      "language": "zh-Hant",
+      "width": 1600,
+      "height": 720,
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ]
+    },
+    {
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "category": "general",
+      "grouping": "company",
+      "id": "name-overflow-company-control",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    }
+  ]
+}
