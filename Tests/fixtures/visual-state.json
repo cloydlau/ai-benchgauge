@@ -3545,6 +3545,60 @@
       "scenario": "usageCompanies",
       "category": "usage",
       "grouping": "company"
+    },
+    {
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "category": "general",
+      "grouping": "model",
+      "id": "name-overflow-en-single",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "category": "general",
+      "grouping": "model",
+      "id": "name-overflow-zh-single",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "category": "general",
+      "grouping": "model",
+      "id": "name-overflow-hant-three",
+      "language": "zh-Hant",
+      "width": 1600,
+      "height": 720,
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ]
+    },
+    {
+      "scenario": "normal",
+      "mode": "clickToClose",
+      "category": "general",
+      "grouping": "company",
+      "id": "name-overflow-company-control",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
     }
   ],
   "quotaScenarios": {

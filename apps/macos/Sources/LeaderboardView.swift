@@ -1787,9 +1787,9 @@ private struct LeaderboardCell: View {
                         .frame(width: filledWidth, height: 24)
                         .allowsHitTesting(false).accessibilityHidden(true)
                 }
-                // Keep the name clear of the badge, including shorter score bars.
-                nameContent(compact: (showsShare ? filledWidth : trackWidth) < 90)
-                    .frame(width: showsShare ? filledWidth : trackWidth,
+                // Only the model column bounds the name; the score fill is background.
+                nameContent(compact: trackWidth < 90)
+                    .frame(width: trackWidth,
                            height: 24)
                 if showsShare {
                     Text(share)
@@ -1797,7 +1797,7 @@ private struct LeaderboardCell: View {
                         .foregroundStyle(shareColor)
                         .fixedSize()
                         .frame(width: Self.shareWidth, alignment: .leading)
-                        .position(x: filledWidth + Self.shareGap + Self.shareWidth / 2,
+                        .position(x: trackWidth + Self.shareGap + Self.shareWidth / 2,
                                   y: 12)
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
