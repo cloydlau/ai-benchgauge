@@ -6,11 +6,11 @@
   "rasterSize": 54,
   "icons": {
     "general": {
-      "icon": "general-trophy",
+      "icon": "general-layers",
       "source": "Original BenchGauge geometry",
       "license": "MIT",
       "licenseFile": "LICENSE",
-      "sha256": "2538d87d511f54d163f0b01978236935eaa52f71cc23857855b43256cece3968",
+      "sha256": "ff7a8abb894e1d31c7a4d1cceab012cb54fdb554f1ac175d7d4e37d59ba8b24c",
       "hashScope": "general.svg"
     },
     "coding": {

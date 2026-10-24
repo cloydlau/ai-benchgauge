@@ -1,6 +1,6 @@
 # Mobile category templates
 
-`usage.svg` (ring statistics) and `general.svg` (trophy) are original BenchGauge
+`usage.svg` (ring statistics) and `general.svg` (layers representing combined dimensions) are original BenchGauge
 glyphs, licensed under the repository root MIT license. The other three SVGs
 adapt Microsoft Fluent UI System Color Icons into monochrome templates; their
 MIT notice remains in `LICENSE.txt`. Per-icon provenance is in `sources.json`. Geometry for
