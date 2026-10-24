@@ -7,6 +7,7 @@ public final class LeaderboardPadStore: ObservableObject {
     @Published public private(set) var snapshot: LeaderboardSnapshot { didSet { rowPresentations.removeAll(); countryOptionsCache = nil } }
     @Published public private(set) var failures: [LeaderboardKind: LeaderboardFailure] = [:]
     @Published public private(set) var refreshing: Set<LeaderboardKind> = []
+    @Published public private(set) var timestampPolishRevisions: [LeaderboardKind: Int] = [:]
     @Published public var category: LeaderboardCategory { didSet { CategoryPreference.save(category, to: defaults) } }
     @Published public var grouping: LeaderboardGrouping { didSet { rowPresentations.removeAll(); GroupingPreference.save(grouping, to: defaults) } }
     @Published public var appearance: String { didSet { defaults.set(appearance, forKey: "mobileAppearance") } }
@@ -19,6 +20,7 @@ public final class LeaderboardPadStore: ObservableObject {
     @Published private var filters: [LeaderboardKind: LeaderboardCountryFilter] = [:]
     @Published private var opennessFilters: [LeaderboardKind: LeaderboardOpennessFilter] = [:]
     private var attempts: [LeaderboardKind: Date] = [:]
+    private var refreshTasks: [LeaderboardKind: Task<Void, Never>] = [:]
     private let defaults: UserDefaults
     private let cache: LeaderboardCache?
     private let service: LeaderboardService
@@ -123,24 +125,32 @@ public final class LeaderboardPadStore: ObservableObject {
         setCountryFilter(country.map(LeaderboardCountryFilter.country) ?? .all, for: kind)
     }
 
-    public func refresh(force: Bool = false, now: Date = Date()) async {
-        let requested = force ? category.boardKinds : LeaderboardFreshness.dueKinds(
-            category.boardKinds, snapshot: snapshot, lastAttempts: attempts, now: now)
-        let kinds = requested.filter { !refreshing.contains($0) }
-        guard !kinds.isEmpty else { return }
-        refreshing.formUnion(kinds)
-        for kind in kinds { attempts[kind] = now }
-        // Another category can refresh while this one is suspended. Merge only
-        // this request's successful boards so its return cannot overwrite them.
-        let result = await service.refresh(kinds, keeping: LeaderboardSnapshot(), onBoard: { [weak self] board in
+    public var selectedKind: LeaderboardKind {
+        category.boardKinds[min(max(0, selectedSource), category.boardKinds.count - 1)]
+    }
+
+    public func refresh(kind: LeaderboardKind? = nil, force: Bool = false, now: Date = Date()) async {
+        let kind = kind ?? selectedKind
+        if let task = refreshTasks[kind] { await task.value; return }
+        guard force || !LeaderboardFreshness.dueKinds([kind], snapshot: snapshot, lastAttempts: attempts, now: now).isEmpty else { return }
+        attempts[kind] = now
+        refreshing.insert(kind)
+        let task = Task { await self.load(kind) }
+        refreshTasks[kind] = task
+        await task.value
+    }
+
+    private func load(_ kind: LeaderboardKind) async {
+        defer {
+            refreshTasks[kind] = nil; refreshing.remove(kind)
+            timestampPolishRevisions[kind, default: 0] += 1
+        }
+        let result = await service.refresh([kind], keeping: LeaderboardSnapshot(), onBoard: { [weak self] board in
             await self?.accept(board)
         })
-        for kind in kinds {
-            if let board = result.snapshot.boards[kind], board.canReplace(snapshot.boards[kind]) { snapshot.boards[kind] = board }
-            failures[kind] = result.failures[kind]
-        }
+        if let board = result.snapshot.boards[kind], board.canReplace(snapshot.boards[kind]) { snapshot.boards[kind] = board }
+        failures[kind] = result.failures[kind]
         cache?.save(snapshot)
-        refreshing.subtract(kinds)
     }
 
     private func accept(_ board: Leaderboard) {

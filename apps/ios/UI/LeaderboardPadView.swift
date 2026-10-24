@@ -195,6 +195,7 @@ public struct LeaderboardPadView: View {
                     }
                     .padding(.horizontal, 12).padding(.top, 8)
                     .ignoresSafeArea(.container, edges: .bottom)
+                    .task(id: store.selectedKind) { await store.refresh() }
                 } else {
                     pairedBoards(layout: layout, bottomInset: geometry.safeAreaInsets.bottom, viewportHeight: geometry.size.height)
                 }
@@ -257,13 +258,11 @@ public struct LeaderboardPadView: View {
         } message: {
             Text(AppFeatureCopy.subtitle(language: store.language) + "\n\n" + AppFeatureCopy.quotaMessage(language: store.language))
         }
-        .task(id: store.category) { await store.refresh() }
         #if DEBUG && os(iOS)
         .task { await writeDebugExportIfRequested() }
         #endif
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await store.refresh() } }
-            else {
+            if phase != .active {
                 cancelCubeEntrance()
                 if cube.dragging { turnCube(to: cube.face) }
             }
@@ -644,6 +643,7 @@ public struct LeaderboardPadView: View {
                               alignment: .leading, spacing: MobileLeaderboardLayout.spacing) {
                         ForEach(store.category.boardKinds, id: \.self) { kind in
                             boardCard(kind, denseColumns: layout.usesCompactColumns, viewportHeight: viewportHeight)
+                                .task { await store.refresh(kind: kind) }
                         }
                     }
                     distributionPanels
@@ -658,7 +658,7 @@ public struct LeaderboardPadView: View {
             .modifier(PadRankingScrollTracking { presentation.pairScrolled = $0 })
             .modifier(PadLeaderboardScrollEdges(edges: .bottom))
             .ignoresSafeArea(.container, edges: .bottom)
-            .refreshable { await store.refresh(force: true) }
+            .refreshable { await store.refresh(kind: store.selectedKind, force: true) }
             // This overlay is inside the paired layout's safe-area bounds;
             // the phone cube's explicitly extended viewport needs its inset.
             .modifier(PadBackToTopControl(bottomInset: 0,
@@ -718,7 +718,7 @@ public struct LeaderboardPadView: View {
                 .onChange(of: cube.face) { _, face in
                     if face == index { alignCubeFace(proxy, height: size.height) }
                 }
-                .refreshable { await store.refresh(force: true) }
+                .refreshable { await store.refresh(kind: kind, force: true) }
                 .frame(width: size.width, height: size.height)
                 .modifier(PadCubeBackToTopControl(scroll: cube.scroll,
                     active: index == cube.face, bottomInset: bottomInset,
@@ -806,8 +806,7 @@ public struct LeaderboardPadView: View {
             failure: store.failures[kind],
             modelSearchQuery: $store.modelSearchQuery, modelSearchPresented: $store.modelSearchPresented,
             modelSearchEditing: $store.modelSearchEditing,
-            isRefreshing: store.refreshing.contains(kind), isImage: isImage, compact: compact, denseColumns: denseColumns, exportScheme: exportScheme,
-            refresh: { Task { await store.refresh(force: true) } },
+            isRefreshing: store.refreshing.contains(kind), polishRevision: store.timestampPolishRevisions[kind, default: 0], isImage: isImage, compact: compact, denseColumns: denseColumns, exportScheme: exportScheme,
             selectCountry: { store.setCountryFilter($0, for: kind); resetComparison() },
             clearFilters: { store.modelSearchQuery = ""; store.setCountryFilter(.all, for: kind); store.setOpennessFilter(.all, for: kind); resetComparison() },
             selectOpenness: { store.setOpennessFilter($0, for: kind); resetComparison() }, openModel: { entry in
@@ -1089,11 +1088,11 @@ private struct PadBoardCard: View {
     @Binding var modelSearchPresented: Bool
     @Binding var modelSearchEditing: Bool
     let isRefreshing: Bool
+    let polishRevision: Int
     let isImage: Bool
     let compact: Bool
     let denseColumns: Bool
     let exportScheme: ColorScheme?
-    let refresh: () -> Void
     let selectCountry: (LeaderboardCountryFilter) -> Void
     let clearFilters: () -> Void
     let selectOpenness: (LeaderboardOpennessFilter) -> Void
@@ -1245,7 +1244,9 @@ private struct PadBoardCard: View {
         return Text(time.text).font(.system(size: timeFontSize, weight: time.isSourceTime ? .medium : .regular))
         .foregroundStyle(secondaryForeground).monospacedDigit()
         .multilineTextAlignment(.trailing).lineLimit(1).fixedSize()
+        .modifier(TimestampPolish(ready: !isImage && !isRefreshing && board != nil && kind != .cloudbaseUsage, revision: polishRevision))
         .accessibilityLabel(time.text)
+        .accessibilityValue(isRefreshing ? tr("Loading", "加载中") : "")
         .accessibilityIdentifier("source-times-\(kind.rawValue)")
     }
     private var sourceDescription: some View {
@@ -1256,22 +1257,8 @@ private struct PadBoardCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("source-summary-\(kind.rawValue)")
     }
-    private var refreshTime: some View {
-        Button(action: refresh) {
-            HStack(spacing: timeFontSize * 0.6) {
-                if isRefreshing {
-                    ProgressView().controlSize(.mini).tint(secondaryForeground)
-                        .scaleEffect(timeFontSize / 20)
-                        .frame(width: timeFontSize, height: timeFontSize)
-                        .accessibilityHidden(true)
-                }
-                timeLabels
-            }
-        }
-        .buttonStyle(.plain).disabled(isRefreshing)
-        .accessibilityHint(tr("Tap to refresh. Source update may be unavailable.", "点击刷新；来源可能不提供更新时间。"))
-        .accessibilityIdentifier("refresh")
-        .help(LeaderboardPresentation.sourceTimeHelp(board, language: language))
+    private var timestamp: some View {
+        timeLabels.help(LeaderboardPresentation.sourceTimeHelp(board, language: language))
     }
     @ViewBuilder private var sourceMetadata: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -1309,7 +1296,7 @@ private struct PadBoardCard: View {
     }
     private var sourceHeadingActions: some View {
         HStack(alignment: .center, spacing: 2) {
-            refreshTime
+            timestamp
             if grouping == .model {
                 Button(action: openModelSearch) {
                     Image(systemName: "magnifyingglass")

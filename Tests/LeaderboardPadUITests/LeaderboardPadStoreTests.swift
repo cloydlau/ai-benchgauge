@@ -3,17 +3,39 @@ import Testing
 import LeaderboardKit
 @testable import LeaderboardPadUI
 
+@MainActor @Test func rapidUnchangedRefreshStillSignalsTimestampPolish() async throws {
+    let name = "timestamp-polish-\(UUID())"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    let directory = FileManager.default.temporaryDirectory.appending(path: name)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let cache = LeaderboardCache(fileURL: directory.appending(path: "cache.json"))
+    let board = Leaderboard(kind: .artificialAnalysis, title: "Unchanged", fetchedAt: Date(),
+        entries: [LeaderboardEntry(rank: 1, name: "Fixture", score: 90)])
+    let store = LeaderboardPadStore(defaults: defaults, cache: cache, service: LeaderboardService { _ in board })
+    await store.refresh(kind: .artificialAnalysis, force: true)
+    #expect(store.timestampPolishRevisions[.artificialAnalysis] == 1)
+    await store.refresh(kind: .artificialAnalysis, force: true)
+    #expect(store.timestampPolishRevisions[.artificialAnalysis] == 2)
+    #expect(store.snapshot.boards[.artificialAnalysis] == board)
+    #expect(store.refreshing.isEmpty)
+}
+
 private actor FetchGate {
     private var continuations: [LeaderboardKind: CheckedContinuation<Leaderboard, Never>] = [:]
     private var observer: CheckedContinuation<Void, Never>?
+    private var expected: Set<LeaderboardKind> = []
+    private(set) var requests: [LeaderboardKind] = []
     func fetch(_ kind: LeaderboardKind) async -> Leaderboard {
-        await withCheckedContinuation { continuation in
+        requests.append(kind)
+        return await withCheckedContinuation { continuation in
             continuations[kind] = continuation
-            if continuations.count == LeaderboardCategory.general.boardKinds.count { observer?.resume(); observer = nil }
+            if expected.isSubset(of: Set(continuations.keys)) { observer?.resume(); observer = nil }
         }
     }
-    func waitForGeneralSources() async {
-        if continuations.count < LeaderboardCategory.general.boardKinds.count { await withCheckedContinuation { observer = $0 } }
+    func waitFor(_ kinds: Set<LeaderboardKind>) async {
+        expected = kinds
+        if !expected.isSubset(of: Set(continuations.keys)) { await withCheckedContinuation { observer = $0 } }
     }
     func release() {
         for (kind, continuation) in continuations {
@@ -22,6 +44,79 @@ private actor FetchGate {
         }
         continuations.removeAll()
     }
+}
+
+private actor BoardRequestLog {
+    private(set) var kinds: [LeaderboardKind] = []
+    func fetch(_ kind: LeaderboardKind) -> Leaderboard {
+        kinds.append(kind)
+        return Leaderboard(kind: kind, title: "Refreshed", entries: [LeaderboardEntry(rank: 1, name: "Latest", score: 99)])
+    }
+}
+
+@MainActor @Test func manualBoardRefreshRequestsOnlyItsSourceAcrossCategories() async throws {
+    let name = "single-board-refresh-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    let directory = FileManager.default.temporaryDirectory.appending(path: name)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let cache = LeaderboardCache(fileURL: directory.appending(path: "cache.json"))
+    cache.save(LeaderboardSnapshot(boards: Dictionary(uniqueKeysWithValues: LeaderboardKind.allCases.map { kind in
+        (kind, Leaderboard(kind: kind, title: "Saved", fetchedAt: Date(timeIntervalSince1970: 1000),
+            entries: [LeaderboardEntry(rank: 1, name: "Saved model", score: 80)]))
+    })))
+    let log = BoardRequestLog()
+    let store = LeaderboardPadStore(defaults: defaults, cache: cache, service: LeaderboardService { kind in await log.fetch(kind) })
+    var expected: [LeaderboardKind] = []
+    for category in LeaderboardCategory.allCases {
+        store.category = category
+        for (index, kind) in category.boardKinds.enumerated() {
+            store.selectedSource = index
+            #expect(store.selectedKind == kind)
+            let before = store.snapshot.boards.filter { $0.key != kind }
+            await store.refresh(kind: kind, force: true)
+            expected.append(kind)
+            #expect(await log.kinds == expected)
+            #expect(store.snapshot.boards[kind]?.entries.first?.name == "Latest")
+            #expect(store.snapshot.boards.filter { $0.key != kind } == before)
+            #expect(cache.load() == store.snapshot)
+            #expect(store.refreshing.isEmpty)
+        }
+    }
+}
+
+@MainActor @Test func sourceEntryRefreshesOnlyAnExpiredPublicationAndManualRefreshBypassesAutomaticBackoff() async throws {
+    let name = "board-entry-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    let directory = FileManager.default.temporaryDirectory.appending(path: name)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let now = Date()
+    let entries = [LeaderboardEntry(rank: 1, name: "Saved", score: 80)]
+    let cache = LeaderboardCache(fileURL: directory.appending(path: "cache.json"))
+    cache.save(.init(boards: [
+        .artificialAnalysis: Leaderboard(kind: .artificialAnalysis, title: "Fresh", fetchedAt: now, entries: entries),
+        .arenaText: Leaderboard(kind: .arenaText, title: "Expired publication", sourceUpdatedAt: now.addingTimeInterval(-86400), fetchedAt: now, entries: entries),
+        .epochECI: Leaderboard(kind: .epochECI, title: "Fresh publication", sourceUpdatedAt: now, fetchedAt: now.addingTimeInterval(-86400), entries: entries)
+    ]))
+    let log = BoardRequestLog()
+    let store = LeaderboardPadStore(defaults: defaults, cache: cache, service: LeaderboardService { kind in await log.fetch(kind) })
+    await store.refresh(now: now)
+    #expect(await log.kinds.isEmpty)
+    store.selectedSource = 1
+    await store.refresh(now: now)
+    #expect(await log.kinds == [.arenaText])
+    await store.refresh(now: now)
+    #expect(await log.kinds == [.arenaText])
+    await store.refresh(force: true, now: now)
+    #expect(await log.kinds == [.arenaText, .arenaText])
+    store.selectedSource = 2
+    await store.refresh(now: now)
+    #expect(await log.kinds == [.arenaText, .arenaText])
+    store.category = .video
+    await store.refresh(now: now)
+    #expect(await log.kinds == [.arenaText, .arenaText, .arenaTextToVideo])
+    #expect(store.snapshot.boards[.artificialAnalysis]?.entries.first?.name == "Saved")
 }
 
 @MainActor @Test func mergedCountryChoicesKeepUnknownAfterLaterBoardsAndRestoredSelection() throws {
@@ -52,7 +147,7 @@ private actor FetchGate {
     #expect(restored.availableCountryFilters == expected)
 }
 
-@MainActor @Test func concurrentCategoryRefreshesMergeWithoutOverwriting() async throws {
+@MainActor @Test func aManualPullJoinsItsAutomaticBoardWhileOtherSelectionsRefreshIndependently() async throws {
     let name = "ipad-test-\(UUID().uuidString)"
     let defaults = try #require(UserDefaults(suiteName: name))
     defer { defaults.removePersistentDomain(forName: name) }
@@ -64,16 +159,22 @@ private actor FetchGate {
         return Leaderboard(kind: kind, title: "Image", entries: [LeaderboardEntry(rank: 1, name: "Image", score: 99)])
     }
     let store = LeaderboardPadStore(defaults: defaults, cache: LeaderboardCache(fileURL: directory.appending(path: "cache.json")), service: service)
-    let first = Task { await store.refresh(force: true) }
-    await gate.waitForGeneralSources()
-    // Repeated activation or pulling must not launch duplicate requests.
-    await store.refresh(force: true)
-    #expect(store.refreshing.count == LeaderboardCategory.general.boardKinds.count)
+    store.selectedSource = 1
+    let first = Task { await store.refresh() }
+    await gate.waitFor([.arenaText])
+    var pullFinished = false
+    let pull = Task { await store.refresh(kind: .arenaText, force: true); pullFinished = true }
+    await Task.yield()
+    #expect(!pullFinished)
+    #expect(await gate.requests == [.arenaText])
+    #expect(store.refreshing == [.arenaText])
     store.category = .image
     await store.refresh(force: true)
     await gate.release()
     await first.value
-    #expect(store.snapshot.boards.count == LeaderboardCategory.general.boardKinds.count + LeaderboardCategory.image.boardKinds.count)
+    await pull.value
+    #expect(pullFinished)
+    #expect(store.snapshot.boards.count == 2)
     #expect(store.snapshot.boards[.arenaTextToImage]?.title == "Image")
     #expect(store.refreshing.isEmpty)
 }
@@ -93,6 +194,7 @@ private actor FetchGate {
     store.language = .traditionalChinese
     store.setCountry(.china, for: .arenaText)
     store.setCountryFilter(.unknown, for: .artificialAnalysis)
+    store.selectedSource = 1
     await store.refresh(force: true)
     #expect(store.snapshot.boards[.arenaText] == cached)
     #expect(store.failures[.arenaText] == .offline)
@@ -140,6 +242,7 @@ private actor RecoveringBoardSource {
     let source = RecoveringBoardSource()
     let service = LeaderboardService { kind in try await source.fetch(kind) }
     let store = LeaderboardPadStore(defaults: defaults, cache: cache, service: service)
+    store.selectedSource = 1
     await store.refresh()
     #expect(store.snapshot.boards[.arenaText] == old)
     #expect(cache.load()?.boards[.arenaText] == old)
@@ -167,9 +270,10 @@ private actor RecoveringBoardSource {
         return Leaderboard(kind: kind, title: "Fast", entries: [LeaderboardEntry(rank: 1, name: "AA new", score: 99)])
     }
     let store = LeaderboardPadStore(defaults: defaults, cache: cache, service: service)
-    let refresh = Task { await store.refresh(force: true) }
+    let refresh = Task { await store.refresh(kind: .arenaText, force: true) }
     let started = ContinuousClock.now
-    while store.snapshot.boards[.artificialAnalysis] == nil && started.duration(to: .now) < .seconds(2) { await Task.yield() }
+    while !store.refreshing.contains(.arenaText) && started.duration(to: .now) < .seconds(2) { await Task.yield() }
+    await store.refresh(kind: .artificialAnalysis, force: true)
     #expect(store.snapshot.boards[.artificialAnalysis]?.entries.first?.name == "AA new")
     #expect(store.snapshot.boards[.arenaText] == old)
     #expect(store.refreshing.contains(.arenaText))

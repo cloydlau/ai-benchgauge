@@ -159,7 +159,7 @@ actor Engine {
             boardTokens[kind] = nil
         }
         do {
-            guard allowsAccountAccess || ["state", "cachedBoards", "refreshBoards", "modelDetails"].contains(request.command) else {
+            guard allowsAccountAccess || ["state", "cachedBoards", "refreshBoards", "refreshBoardsIfStale", "modelDetails"].contains(request.command) else {
                 return Response(id: request.id, error: "Account access disabled for offline fixtures")
             }
             if let connected = request.qwenWebsiteConnected { qwenWebsiteConnected = connected }
@@ -264,7 +264,7 @@ actor Engine {
                 }
                 return Response(id: request.id)
             case "cachedBoards": await readCachedBoards(kinds)
-            case "refreshBoards": await refreshBoards(kinds)
+            case "refreshBoards", "refreshBoardsIfStale": await refreshBoards(kinds, force: request.command == "refreshBoards")
             case "refreshQuotas", "refreshCurrentQuota":
                 try await refreshQuotas(onlyCurrent: request.command == "refreshCurrentQuota")
             case "refreshQuotaRecoveries":
@@ -333,12 +333,11 @@ actor Engine {
             return Response(id: request.id, error: language.text("Could not complete this request. Check the connection and try again.", "请求未完成，请检查连接后重试。"))
         }
     }
-    private func refreshBoards(_ kinds: [LeaderboardKind]) async {
+    private func refreshBoards(_ kinds: [LeaderboardKind], force: Bool) async {
         let now = Date()
         for kind in kinds {
             guard boardTasks[kind] == nil else { continue }
-            if let previous = lastBoardRefresh[kind], now.timeIntervalSince(previous) < 1800 { continue }
-            if let fetched = snapshot.boards[kind]?.fetchedAt, now.timeIntervalSince(fetched) < 1800 { continue }
+            if !force, LeaderboardFreshness.dueKinds([kind], snapshot: snapshot, lastAttempts: lastBoardRefresh, now: now).isEmpty { continue }
             lastBoardRefresh[kind] = now
             let token = UUID()
             boardTokens[kind] = token

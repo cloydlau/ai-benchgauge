@@ -22,8 +22,8 @@ enum InactiveQuotaRefreshScope {
 final class AppState: ObservableObject {
     @Published private(set) var snapshot = LeaderboardSnapshot()
     @Published private(set) var isRefreshing = false
+    @Published private(set) var timestampPolishRevision = 0
     @Published private(set) var lastErrors: [LeaderboardKind: String] = [:]
-    @Published private(set) var schedule = UpdateSchedule.initial()
     @Published private(set) var boardSelections: [String: [String]] = [:]
     var visibleBoardKinds: [LeaderboardKind] { boardKinds(for: selectedCategory) }
 
@@ -55,7 +55,7 @@ final class AppState: ObservableObject {
             lastErrors[kind] = nil
         }
         isRefreshing = !boardRefreshTasks.isEmpty
-        refreshNow()
+        refreshNow(force: false)
     }
 
     @Published private(set) var selectedCategory = LeaderboardCategory.general
@@ -160,7 +160,6 @@ final class AppState: ObservableObject {
     private var sharedXAILoginTimer: Timer?
     private var sharedXAILoginRevision: XAISharedLoginRevision?
     private var xaiKeepAliveTask: Task<Void, Never>?
-    private var refreshPending = false
     private var lastLeaderboardAttemptAtByKind: [LeaderboardKind: Date] = [:]
     private var lastQuotaAttemptAt: Date?
     private var lastQuotaAttemptAtByID: [String: Date] = [:]
@@ -259,7 +258,7 @@ final class AppState: ObservableObject {
             }
             await monitor.stop()
         }
-        refreshNow()
+        refreshNow(force: false)
         refreshQuotas(minimumInterval: 0)
         startXAIKeepAliveIfNeeded()
         lastCheckedQuotaProviderID = currentQuotaProviderSelection()
@@ -294,9 +293,6 @@ final class AppState: ObservableObject {
     }
     #endif
 
-    /// Applies to every leaderboard refresh path. Quota refreshes use their
-    /// own intervals because they read different sources.
-    private static let minimumLeaderboardRefreshInterval: TimeInterval = 30 * 60
     private static let inactiveQuotaRefreshInterval: TimeInterval = 60
     /// Automatic menu-bar quota refreshes run only while the Codex desktop
     /// app is open and the user is active. xAI token renewal runs independently.
@@ -382,7 +378,6 @@ final class AppState: ObservableObject {
         openAIConnection.cancel()
         xaiConnection.cancel()
         xaiWebsiteSource.cancel()
-        refreshPending = false
         updateTimer?.invalidate()
         updateTimer = nil
         sharedXAILoginTimer?.invalidate()
@@ -403,12 +398,7 @@ final class AppState: ObservableObject {
         guard category != selectedCategory else { return }
         selectedCategory = category
         CategoryPreference.save(category)
-        guard !isFresh(category) else { return }
-        if isRefreshing {
-            refreshPending = true
-        } else {
-            refreshNow()
-        }
+        refreshNow(force: false)
     }
 
     func selectOpennessFilter(_ filter: LeaderboardOpennessFilter, for kind: LeaderboardKind) {
@@ -511,17 +501,6 @@ final class AppState: ObservableObject {
                 inactiveScope: .xaiOAuthOnly
             )
         }
-        if SharedLeaderboardConfiguration.endpoint != nil {
-            if !isRefreshing, !isFresh(selectedCategory) { refreshNow() }
-            return
-        }
-        if Date() >= schedule.giveUpAt {
-            schedule = schedule.givingUp()
-            return
-        }
-
-        guard !isRefreshing, schedule.isDue() else { return }
-        refreshNow()
     }
 
     /// Model selection can change inside Codex without switching CC Switch providers.
@@ -960,17 +939,11 @@ final class AppState: ObservableObject {
         }
     }
 
-    func refreshNow() {
+    func refreshNow(force: Bool = true, now: Date = Date()) {
         guard !isQuitting else { return }
-        let now = Date()
-        let kinds = visibleBoardKinds.filter { kind in
-            guard boardRefreshTasks[kind] == nil else { return false }
-            if let attempt = lastLeaderboardAttemptAtByKind[kind],
-               now.timeIntervalSince(attempt) < Self.minimumLeaderboardRefreshInterval { return false }
-            if let fetched = snapshot.boards[kind]?.fetchedAt,
-               now.timeIntervalSince(fetched) < Self.minimumLeaderboardRefreshInterval { return false }
-            return true
-        }
+        let requested = force ? visibleBoardKinds : LeaderboardFreshness.dueKinds(
+            visibleBoardKinds, snapshot: snapshot, lastAttempts: lastLeaderboardAttemptAtByKind, now: now)
+        let kinds = requested.filter { boardRefreshTasks[$0] == nil }
         guard !kinds.isEmpty else { return }
         isRefreshing = true
         for kind in kinds {
@@ -1008,36 +981,9 @@ final class AppState: ObservableObject {
         cache.save(snapshot)
     }
 
-    private func isFresh(_ category: LeaderboardCategory) -> Bool {
-        if SharedLeaderboardConfiguration.endpoint != nil {
-            let now = Date()
-            return boardKinds(for: category).allSatisfy { kind in
-                guard let date = snapshot.boards[kind]?.fetchedAt else { return false }
-                let age = now.timeIntervalSince(date)
-                return age >= 0 && age < LeaderboardFreshness.interval
-            }
-        }
-        let startOfDay = Calendar.current.startOfDay(for: Date())
-        return boardKinds(for: category).allSatisfy { kind in
-            (snapshot.boards[kind]?.fetchedAt ?? .distantPast) >= startOfDay
-        }
-    }
-
     private func finishRefresh() {
         cache.save(snapshot)
         isRefreshing = false
-
-        if !visibleBoardKinds.contains(where: { lastErrors[$0] != nil }) {
-            schedule = .afterSuccess()
-        } else if Date() >= schedule.giveUpAt {
-            schedule = schedule.givingUp()
-        } else {
-            schedule = schedule.schedulingRetry()
-        }
-
-        if refreshPending {
-            refreshPending = false
-            refreshNow()
-        }
+        timestampPolishRevision += 1
     }
 }

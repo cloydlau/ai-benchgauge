@@ -47,12 +47,12 @@
             <view class="source-heading-details">
             <button class="source-heading" data-kind="{{card.kind}}" bindtap="copyBoardTitle" aria-label="{{labels.copyName}} {{card.title}}">{{card.title}}</button>
             <view class="source-heading-actions">
-            <button class="times" data-kind="{{card.kind}}" bindtap="refreshTap" aria-label="{{card.timeAccessibility}} · {{card.loading ? labels.loading : labels.refresh}}" aria-busy="{{card.loading}}">
-              <view wx:if="{{card.loading}}" class="time-loading" aria-hidden="true" />
+            <view class="times" aria-label="{{card.timeAccessibility}}" aria-busy="{{card.loading}}">
               <view class="time-copy">
                 <view class="time-row {{card.isSourceTime ? 'time-source' : 'time-fetched'}}"><text class="time-value">{{card.time}}</text><text class="time-label">{{card.timeLabel}}</text></view>
+                <view wx:if="{{card.polishing}}" class="time-row time-polish {{card.isSourceTime ? 'time-source' : 'time-fetched'}}" aria-hidden="true"><text class="time-value">{{card.time}}</text><text class="time-label">{{card.timeLabel}}</text></view>
               </view>
-            </button>
+            </view>
             <button wx:if="{{grouping === 'model'}}" id="model-filter-{{card.kind}}" class="model-filter-toggle" data-kind="{{card.kind}}" bindtap="openModelSearch" aria-label="{{labels.searchModels}}"><van-icon name="search" size="13px" /></button>
             </view>
             </view>

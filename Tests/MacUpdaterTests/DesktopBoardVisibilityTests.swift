@@ -36,6 +36,17 @@ private final class BoardVisibilityHTTP: URLProtocol, @unchecked Sendable {
 
 @Suite(.serialized) @MainActor
 struct DesktopBoardVisibilityTests {
+    @Test func rapidCompletedRefreshAlwaysSignalsTimestampPolish() async throws {
+        let (state, _, session) = fixture(["general": ["artificialAnalysis"]])
+        defer { state.beginQuitting(); session.invalidateAndCancel() }
+        #expect(state.timestampPolishRevision == 0)
+        state.refreshNow()
+        try await waitFor { !state.isRefreshing }
+        #expect(state.timestampPolishRevision == 1)
+        state.refreshNow()
+        try await waitFor { !state.isRefreshing }
+        #expect(state.timestampPolishRevision == 2)
+    }
     private func fixture(_ saved: [String: [String]] = [:], stalled: Set<String> = []) -> (AppState, UserDefaults, URLSession) {
         BoardVisibilityHTTP.log.reset(stalled: stalled)
         let configuration = URLSessionConfiguration.ephemeral
@@ -58,7 +69,7 @@ struct DesktopBoardVisibilityTests {
     @Test func checkboxEditsDoNotPersistOrCancelRequestsUntilConfirmed() async throws {
         let (state, defaults, session) = fixture(stalled: ["artificialAnalysis", "arenaText"])
         defer { state.beginQuitting(); session.invalidateAndCancel() }
-        state.refreshNow()
+        state.refreshNow(force: false)
         try await waitFor { BoardVisibilityHTTP.log.read().requests.count == 3 }
         let picker = BoardVisibilitySelectionView(language: .english, category: .general,
             selected: state.visibleBoardKinds, onConfirm: { state.setVisibleBoards($0) }, onCancel: {})
@@ -92,16 +103,37 @@ struct DesktopBoardVisibilityTests {
     @Test func defaultAllSourcesFetchOnceWithPerSourceThrottling() async throws {
         let (state, _, session) = fixture()
         defer { state.beginQuitting(); session.invalidateAndCancel() }
-        state.refreshNow()
+        state.refreshNow(force: false)
         try await waitFor { !state.isRefreshing }
         #expect(Set(BoardVisibilityHTTP.log.read().requests) == Set(["artificialAnalysis", "arenaText", "epochECI"]))
-        state.refreshNow()
+        state.refreshNow(force: false)
         #expect(BoardVisibilityHTTP.log.read().requests.count == 3)
+        state.refreshNow()
+        try await waitFor { !state.isRefreshing }
+        #expect(BoardVisibilityHTTP.log.read().requests.count == 6, "Manual refresh bypasses automatic age/backoff checks")
+    }
+
+    @Test func enteringAViewRefreshesOnlyBoardsWhoseDisplayedTimestampIsAtLeastOneDayOld() async throws {
+        let (state, _, session) = fixture()
+        defer { state.beginQuitting(); session.invalidateAndCancel() }
+        let now = Date()
+        let entries = [LeaderboardEntry(rank: 1, name: "Saved", score: 90)]
+        state.applyVisualFixture(snapshot: .init(boards: [
+            .artificialAnalysis: Leaderboard(kind: .artificialAnalysis, title: "Fresh", fetchedAt: now, entries: entries),
+            .arenaText: Leaderboard(kind: .arenaText, title: "Expired", sourceUpdatedAt: now.addingTimeInterval(-86400), fetchedAt: now, entries: entries),
+            .epochECI: Leaderboard(kind: .epochECI, title: "Fresh publication", sourceUpdatedAt: now, fetchedAt: now.addingTimeInterval(-86400), entries: entries)
+        ]), chips: [], language: .english, errors: [:], emptyState: nil, category: .general)
+        state.refreshNow(force: false, now: now)
+        try await waitFor { !state.isRefreshing }
+        #expect(BoardVisibilityHTTP.log.read().requests == ["arenaText"])
+        #expect(state.snapshot.boards[.artificialAnalysis]?.entries.first?.name == "Saved")
+        state.refreshNow(force: false, now: now)
+        #expect(BoardVisibilityHTTP.log.read().requests == ["arenaText"])
     }
     @Test func disabledBoardsAreNotFetchedAndEnablingFetchesWithoutRefreshingTheOthers() async throws {
         let (state, defaults, session) = fixture(["general": ["epochECI"]])
         defer { state.beginQuitting(); session.invalidateAndCancel() }
-        state.refreshNow()
+        state.refreshNow(force: false)
         try await waitFor { !state.isRefreshing }
         #expect(BoardVisibilityHTTP.log.read().requests == ["epochECI"])
         state.toggleBoard(.artificialAnalysis)
@@ -120,7 +152,7 @@ struct DesktopBoardVisibilityTests {
     @Test func disablingAnInFlightBoardCancelsItsRequest() async throws {
         let (state, _, session) = fixture(["general": ["artificialAnalysis", "epochECI"]], stalled: ["artificialAnalysis"])
         defer { state.beginQuitting(); session.invalidateAndCancel() }
-        state.refreshNow()
+        state.refreshNow(force: false)
         try await waitFor { BoardVisibilityHTTP.log.read().requests.count == 2 }
         state.toggleBoard(.artificialAnalysis)
         try await waitFor { BoardVisibilityHTTP.log.read().cancellations.contains("artificialAnalysis") && !state.isRefreshing }

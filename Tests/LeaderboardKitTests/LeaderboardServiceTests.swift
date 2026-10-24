@@ -50,6 +50,21 @@ private func board(_ kind: LeaderboardKind, score: Double = 90, fetchedAt: Date 
     #expect(LeaderboardFreshness.dueKinds([.arenaText], snapshot: boundary, lastAttempts: [:], now: now) == [.arenaText])
 }
 
+@Test func entryFreshnessUsesPublicationBeforeFetchTimeAndIncludesTheDailyBoundary() {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    for age: TimeInterval in [86399, 86400, 86401, -60] {
+        let source = Leaderboard(kind: .arenaText, title: "Published", sourceUpdatedAt: now.addingTimeInterval(-age),
+            fetchedAt: now, entries: [LeaderboardEntry(rank: 1, name: "Model", score: 90)])
+        let due = LeaderboardFreshness.dueKinds([.arenaText], snapshot: .init(boards: [.arenaText: source]), lastAttempts: [:], now: now)
+        #expect(due == (age >= 86400 ? [.arenaText] : []))
+        let fallback = board(.arenaText, fetchedAt: now.addingTimeInterval(-age))
+        #expect(LeaderboardFreshness.dueKinds([.arenaText], snapshot: .init(boards: [.arenaText: fallback]), lastAttempts: [:], now: now) == due)
+    }
+    let recentPublication = Leaderboard(kind: .arenaText, title: "Published", sourceUpdatedAt: now,
+        fetchedAt: now.addingTimeInterval(-86400), entries: [LeaderboardEntry(rank: 1, name: "Model", score: 90)])
+    #expect(LeaderboardFreshness.dueKinds([.arenaText], snapshot: .init(boards: [.arenaText: recentPublication]), lastAttempts: [:], now: now).isEmpty)
+}
+
 @Test func olderSharedSnapshotCannotReplaceNewerLocalData() async {
     let now = Date(timeIntervalSince1970: 1_800_000_000)
     let cached = board(.arenaText, score: 90, fetchedAt: now)

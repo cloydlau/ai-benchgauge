@@ -27,7 +27,7 @@ sealed partial class MainWindow : Window
     readonly QuotaWrapPanel quotaPanel = new() { Margin = new Thickness(18, 0, 18, 6) };
     readonly TextBlock privatePrompt = new() { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 12), TextWrapping = TextWrapping.Wrap };
     readonly TextBlock status = new() { FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(4) };
-    readonly DispatcherTimer boardTimer = new() { Interval = TimeSpan.FromMinutes(30) };
+    readonly DispatcherTimer currentQuotaTimer = new() { Interval = TimeSpan.FromMinutes(30) };
     readonly DispatcherTimer quotaClockTimer = new() { Interval = TimeSpan.FromMinutes(1) };
     readonly DispatcherTimer sharedXAILoginTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     bool checkingSharedXAILogin;
@@ -84,7 +84,7 @@ sealed partial class MainWindow : Window
                 e.Handled = true;
             } else Hide();
         };
-        boardTimer.Tick += async (_, _) => { await Refresh("refreshBoards"); await Refresh("refreshCurrentQuota"); };
+        currentQuotaTimer.Tick += async (_, _) => await Refresh("refreshCurrentQuota");
         quotaClockTimer.Tick += async (_, _) =>
         {
             // OAuth renewal must continue with the panel hidden and no user activity.
@@ -114,12 +114,12 @@ sealed partial class MainWindow : Window
     }
     public async Task Start()
     {
-        boardTimer.Start(); quotaClockTimer.Start(); updateTimer.Start(); sharedXAILoginTimer.Start();
+        currentQuotaTimer.Start(); quotaClockTimer.Start(); updateTimer.Start(); sharedXAILoginTimer.Start();
         await Refresh("state");
-        await Task.WhenAll(Refresh("refreshBoards"), Refresh("refreshQuotas"));
+        await Task.WhenAll(Refresh("refreshBoardsIfStale"), Refresh("refreshQuotas"));
         await CheckUpdates(false);
     }
-    public void Stop(bool savePreferences = true) { closing = true; updateDialog?.PrepareForShutdown(); boardTimer.Stop(); quotaClockTimer.Stop(); updateTimer.Stop(); if (savePreferences) SaveFrame(); }
+    public void Stop(bool savePreferences = true) { closing = true; updateDialog?.PrepareForShutdown(); currentQuotaTimer.Stop(); quotaClockTimer.Stop(); updateTimer.Stop(); if (savePreferences) SaveFrame(); }
     public void Toggle() { if (preparedUpdate.IsPresenting) { updateDialog?.Activate(); return; } if (IsVisible) { Hide(); SaveFrame(); } else { Reveal(); _ = Refresh("refreshQuotas"); } }
     public void Reveal()
     {
@@ -163,7 +163,7 @@ sealed partial class MainWindow : Window
     public async Task Refresh(string command)
     {
         if (engine is null) return;
-        var boardKey = command == "refreshBoards" ? BoardRefreshKey : null;
+        var boardKey = command is "refreshBoards" or "refreshBoardsIfStale" ? BoardRefreshKey : null;
         if (boardKey is not null) {
             boardRefreshes[boardKey] = boardRefreshes.GetValueOrDefault(boardKey) + 1;
             boardRefreshFailures.Remove(boardKey);
@@ -177,17 +177,9 @@ sealed partial class MainWindow : Window
                 try { await qwenWindow.Refresh(); } catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException or System.ComponentModel.Win32Exception or Microsoft.Web.WebView2.Core.WebView2RuntimeNotFoundException) { }
             }
             var view = (prefs.Category, prefs.Grouping, prefs.Language, JsonSerializer.Serialize(prefs.Sources), JsonSerializer.Serialize(prefs.Countries), string.Join(",", prefs.VisibleBoardKinds()));
-            if (command == "refreshBoards")
-            {
-                // Paint FC's last snapshot before waiting for a contributor's
-                // origin request. A failed read leaves the visible rows intact.
-                try
-                {
-                    var cached = await engine.Request("cachedBoards", prefs);
-                    if (view == (prefs.Category, prefs.Grouping, prefs.Language, JsonSerializer.Serialize(prefs.Sources), JsonSerializer.Serialize(prefs.Countries), string.Join(",", prefs.VisibleBoardKinds())) && cached.Result is { } saved) SetState(saved);
-                }
-                catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException) { }
-            }
+            // Join the engine's per-board task immediately. A separate cache
+            // request here could delay a manual refresh until an automatic one
+            // completes and accidentally start a second refresh afterward.
             var response = await engine.Request(command, prefs);
             if (boardKey is not null && !string.IsNullOrWhiteSpace(response.Error)) boardRefreshFailures[boardKey] = response.Error;
             if (view != (prefs.Category, prefs.Grouping, prefs.Language, JsonSerializer.Serialize(prefs.Sources), JsonSerializer.Serialize(prefs.Countries), string.Join(",", prefs.VisibleBoardKinds())))
@@ -513,6 +505,7 @@ sealed partial class MainWindow : Window
     }
     public BitmapSource RenderScreenshot()
     {
+        foreach (var timestamp in timestampPolishViews) timestamp.SetExporting(true);
         var original = footer;
         var text = new DockPanel { Height = 28, Margin = new Thickness(0, 10, 0, 0), LastChildFill = true };
         var attribution = new TextBlock { Text = "© cloydlau · MIT", FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
@@ -532,7 +525,9 @@ sealed partial class MainWindow : Window
             var bitmap = new RenderTargetBitmap((int)Math.Ceiling(root.ActualWidth * dpi.DpiScaleX), (int)Math.Ceiling(root.ActualHeight * dpi.DpiScaleY), dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
             bitmap.Render(root); bitmap.Freeze(); return bitmap;
         }
-        finally { content.Children.Remove(exportFooter); if (original is not null) Place(original, 3); quotaPanel.Visibility = Visibility.Visible; privatePrompt.Visibility = Visibility.Collapsed; UpdateLayout(); }
+        finally { content.Children.Remove(exportFooter); if (original is not null) Place(original, 3); quotaPanel.Visibility = Visibility.Visible; privatePrompt.Visibility = Visibility.Collapsed; UpdateLayout();
+            foreach (var timestamp in timestampPolishViews) timestamp.SetExporting(false);
+        }
     }
     void Capture()
     {

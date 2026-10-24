@@ -71,22 +71,18 @@ public struct LeaderboardService: Sendable {
 }
 
 public enum LeaderboardFreshness {
-    public static var interval: TimeInterval {
-        interval(sharedEndpoint: SharedLeaderboardConfiguration.endpoint)
-    }
-    static func interval(sharedEndpoint: URL?) -> TimeInterval { sharedEndpoint == nil ? 24 * 60 * 60 : 30 * 60 }
+    public static let interval: TimeInterval = 24 * 60 * 60
     public static let retryInterval: TimeInterval = 5 * 60
 
-    /// iPadOS controls background execution. Check on foreground activation and
-    /// category changes, with a short backoff after failures. Pull to refresh
-    /// bypasses this policy.
+    /// Check only when entering a board. Manual refresh bypasses the age and
+    /// retry backoff; callers must still join the board's in-flight request.
     public static func dueKinds(_ kinds: [LeaderboardKind], snapshot: LeaderboardSnapshot,
                                 lastAttempts: [LeaderboardKind: Date], now: Date = Date()) -> [LeaderboardKind] {
         kinds.filter { kind in
-            if let attempt = lastAttempts[kind], now.timeIntervalSince(attempt) < retryInterval { return false }
+            if let attempt = lastAttempts[kind], (0..<retryInterval).contains(now.timeIntervalSince(attempt)) { return false }
             guard let board = snapshot.boards[kind] else { return true }
-            let age = now.timeIntervalSince(board.fetchedAt)
-            return age < 0 || age >= interval
+            let age = now.timeIntervalSince(board.sourceUpdatedAt ?? board.fetchedAt)
+            return age >= interval
         }
     }
 }
