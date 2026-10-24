@@ -1,14 +1,17 @@
 {
-  "collection": "Microsoft Fluent UI System Color Icons",
+  "collection": "BenchGauge original glyphs and Microsoft Fluent UI System Color Icons",
   "license": "MIT",
   "source": "https://github.com/microsoft/fluentui-system-icons",
   "displaySize": 18,
   "rasterSize": 54,
   "icons": {
     "general": {
-      "icon": "apps-20",
-      "url": "https://api.iconify.design/fluent-color/apps-20.svg",
-      "sha256": "a432448652d6857202b29cd26a2f0aa4be7f497238911c173c3f9cea3f45f87a"
+      "icon": "general-trophy",
+      "source": "Original BenchGauge geometry",
+      "license": "MIT",
+      "licenseFile": "LICENSE",
+      "sha256": "2538d87d511f54d163f0b01978236935eaa52f71cc23857855b43256cece3968",
+      "hashScope": "general.svg"
     },
     "coding": {
       "icon": "code-20",
@@ -26,9 +29,12 @@
       "sha256": "ed2433c83b7d7088ac4b508fcc257add9195641587577a288451bc2a6afe9cb2"
     },
     "usage": {
-      "icon": "data-bar-vertical-ascending-20",
-      "url": "https://api.iconify.design/fluent-color/data-bar-vertical-ascending-20.svg",
-      "sha256": "8517b24d5d6e48ff7404600d007991e9e6a308182b53527195d6e9922daf4dcf"
+      "icon": "usage-donut",
+      "source": "Original BenchGauge geometry",
+      "license": "MIT",
+      "licenseFile": "LICENSE",
+      "sha256": "651cac9fc0402c38da0cd109f4ff989268d1dab33f308e298d93c5b29e8d23d6",
+      "hashScope": "usage.svg"
     }
   }
 }

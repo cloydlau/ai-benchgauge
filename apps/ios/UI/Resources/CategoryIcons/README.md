@@ -1,7 +1,9 @@
 # Mobile category templates
 
-These SVGs adapt the bundled Microsoft Fluent UI System Color Icons into
-monochrome templates. Their MIT notice remains in `LICENSE.txt`. Geometry for
+`usage.svg` (ring statistics) and `general.svg` (trophy) are original BenchGauge
+glyphs, licensed under the repository root MIT license. The other three SVGs
+adapt Microsoft Fluent UI System Color Icons into monochrome templates; their
+MIT notice remains in `LICENSE.txt`. Per-icon provenance is in `sources.json`. Geometry for
 picture/video details uses transparent cutouts or strokes so tinting cannot
 turn a picture into a solid square. The SVGs are the editable sources; PNGs
 are 54×54 native template exports (18 points at 3×).
