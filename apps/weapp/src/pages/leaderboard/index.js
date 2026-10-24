@@ -456,14 +456,9 @@ definePage(query => {
     }]
   })))
   function boardTime(board, kind) {
-    if (kind === 'cloudbaseUsage') return { time: language.value === 'en' ? 'Sampled period' : language.value === 'zh-TW' ? '抽樣統計' : '抽样统计', timeLabel: '', isSourceTime: false }
-    // A source date wins even when a later snapshot has been fetched.
-    const isSourceTime = Number.isFinite(Date.parse(board?.sourceUpdatedAt))
+    // Statistical dates describe coverage, not publication or retrieval.
+    const isSourceTime = !['vercelUsage', 'cloudbaseUsage'].includes(kind) && Number.isFinite(Date.parse(board?.sourceUpdatedAt))
     const value = isSourceTime ? board.sourceUpdatedAt : board?.fetchedAt
-    if (isSourceTime && board.kind === 'vercelUsage') {
-      const day = new Date(value)
-      return { time: `${day.getUTCMonth() + 1}/${day.getUTCDate()}`, timeLabel: tr('usageDay'), isSourceTime }
-    }
     const dataset = isSourceTime && isArenaDatasetBoard(board)
     const day = dataset ? new Date(value) : null
     return { time: day ? `${day.getUTCMonth() + 1}/${day.getUTCDate()}` : formatTime(value),
@@ -937,8 +932,13 @@ definePage(query => {
     const dataset = isArenaDatasetBoard(board)
     const time = boardTime(board, kind)
     const times = `${time.time} ${time.timeLabel}`
+    const refreshOnly = ['vercelUsage', 'cloudbaseUsage'].includes(kind)
+    const day = kind === 'vercelUsage' && Number.isFinite(Date.parse(board?.sourceUpdatedAt))
+      ? `${text(['Statistical day (UTC): ', '统计日期（UTC）：', '統計日期（UTC）：'], language.value)}${new Date(board.sourceUpdatedAt).toISOString().slice(0, 10)}\n\n` : ''
+    const sampled = kind === 'cloudbaseUsage' ? `${text(boards[kind].summaries, language.value)}\n\n` : ''
+    const refreshMeaning = refreshOnly ? `\n${text(['Refresh time records when we retrieved this snapshot; it does not indicate a new source update.', '刷新时间仅表示我们取得这份数据的时间，不代表来源数据刚刚更新。', '刷新時間僅表示我們取得這份資料的時間，不代表來源資料剛剛更新。'], language.value)}` : ''
     wx.showModal({ title: boardTitle(kind, language.value),
-      content: `${formerName}${text(boards[kind].methodology || boards[kind].summaries, language.value)}\n\n${times}\n\n${boards[kind].url}${kind === 'epochECI' ? `\n\n${epochAttribution(language.value).fullText}` : ''}${dataset ? `\n\n${arenaAttribution(language.value).fullText}` : ''}`,
+      content: `${formerName}${day}${sampled}${text(boards[kind].methodology || boards[kind].summaries, language.value)}\n\n${times}${refreshMeaning}\n\n${boards[kind].url}${kind === 'epochECI' ? `\n\n${epochAttribution(language.value).fullText}` : ''}${dataset ? `\n\n${arenaAttribution(language.value).fullText}` : ''}`,
       showCancel: false })
   }
   function copyText(data) {

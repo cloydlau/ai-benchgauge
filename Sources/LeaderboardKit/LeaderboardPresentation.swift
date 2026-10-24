@@ -167,6 +167,16 @@ public enum LeaderboardPresentation {
         }
         if kind == .vercelUsage { parts = [sourceSummary(kind, language: language), language.text("Daily data uses UTC 00:00 to 00:00 the next day (08:00 to 08:00 the next day in Beijing). Includes input, output, reasoning and cached tokens; only published model buckets are listed. Company shares sum listed models only. Not comparable to OpenRouter absolute totals.", "按 UTC 当天 00:00 至次日 00:00 统计，对应北京时间当天 08:00 至次日 08:00。包含输入、输出、推理及缓存 token，仅列出官方公布的模型；公司占比只汇总榜内模型。与 OpenRouter 绝对用量口径不同。例外的 Other 不作为模型展示。") ] }
         if kind == .cloudbaseUsage { parts = [sourceSummary(kind, language: language), language.text("Input + output tokens including cache hits. Published model families only; Other excluded. Shares retain source rounding; company totals cover listed families. No absolute volumes or open-data license stated.", "输入与输出 token 之和，含缓存命中；按官方模型系列汇总，排除 Other。保留来源舍入，公司仅汇总榜内系列；未公开绝对用量或开放数据许可。") ] }
+        if kind == .vercelUsage, let date = board?.sourceUpdatedAt {
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.timeZone = TimeZone(secondsFromGMT: 0)
+            formatter.dateFormat = "yyyy-MM-dd"
+            parts.insert(language.text("Statistical day (UTC): ", "统计日期（UTC）：") + formatter.string(from: date), at: 1)
+        }
+        if kind.isShareUsage {
+            parts.append(language.text("Refresh time records when we retrieved this snapshot; it does not indicate a new source update.", "刷新时间仅表示我们取得这份数据的时间，不代表来源数据刚刚更新。"))
+        }
         if !kind.isUsage, let note = board?.sourceNote, !note.isEmpty { parts.append(note) }
         var help = parts.joined(separator: language.text(". ", "。"))
         if kind == .epochECI { help += "\n\n" + EpochAttribution.fullText(language: language) }
@@ -174,40 +184,39 @@ public enum LeaderboardPresentation {
         return help
     }
 
-    /// Show exactly one time: source publication/update whenever available,
-    /// otherwise our successful fetch. Do not choose the later timestamp.
+    /// Statistical coverage dates stay in source help; share-usage headers show
+    /// retrieval time. Other sources prefer publication time, then successful fetch.
     public static func sourceTime(_ board: Leaderboard?, language: AppLanguage,
                                   timeZone: TimeZone = .current, includesYear: Bool = true) -> (text: String, isSourceTime: Bool) {
-        if board?.kind == .cloudbaseUsage { return (language.text("Sampled period", "抽样统计"), false) }
+        let parts = sourceTimeParts(board, language: language, timeZone: timeZone, includesYear: includesYear)
+        return ("\(parts.value) \(parts.caption)", parts.isSourceTime)
+    }
+
+    /// Keep the timestamp and its status separate so a loading indicator can
+    /// replace the caption without parsing localized presentation text.
+    public static func sourceTimeParts(_ board: Leaderboard?, language: AppLanguage,
+                                       timeZone: TimeZone = .current, includesYear: Bool = true)
+        -> (value: String, caption: String, isSourceTime: Bool) {
         let formatter = DateFormatter()
         formatter.locale = language.locale
         formatter.timeZone = timeZone
         formatter.dateFormat = "M/d HH:mm"
-        guard let updated = board?.sourceUpdatedAt else {
+        guard board?.kind.isShareUsage != true, let updated = board?.sourceUpdatedAt else {
             let fetched = board.map { formatter.string(from: $0.fetchedAt) } ?? "—"
-            return ("\(fetched) \(language.text("Refreshed", "刷新"))", false)
-        }
-        if board?.kind == .vercelUsage {
-            formatter.dateFormat = "M/d"; formatter.timeZone = TimeZone(secondsFromGMT: 0)
-            return ("\(formatter.string(from: updated)) \(language.text("Data", "数据"))", true)
+            return (fetched, language.text("Refreshed", "刷新"), false)
         }
         if ArenaAttribution.applies(board) { formatter.dateFormat = includesYear ? "yyyy-MM-dd" : "M/d"; formatter.timeZone = TimeZone(secondsFromGMT: 0) }
-        return ("\(formatter.string(from: updated)) \(language.text("Published", "发布"))", true)
+        return (formatter.string(from: updated), language.text("Published", "发布"), true)
     }
 
     public static func sourceTimeHelp(_ board: Leaderboard?, language: AppLanguage) -> String {
-        if board?.kind == .cloudbaseUsage { return language.text("The source does not publish full sample dates. Retrieval time does not indicate data freshness.", "来源未公开完整抽样日期，抓取时间不代表数据更新时间。") }
         let formatter = DateFormatter()
         formatter.locale = language.locale
         formatter.dateStyle = .medium
         formatter.timeStyle = .medium
-        guard let updated = board?.sourceUpdatedAt else {
+        guard board?.kind.isShareUsage != true, let updated = board?.sourceUpdatedAt else {
             let fetched = board.map { formatter.string(from: $0.fetchedAt) } ?? "—"
             return "\(fetched) \(language.text("Refreshed", "刷新"))"
-        }
-        if board?.kind == .vercelUsage {
-            formatter.dateFormat = "yyyy-MM-dd"; formatter.timeZone = TimeZone(secondsFromGMT: 0)
-            return "\(formatter.string(from: updated)) \(language.text("Data", "数据"))"
         }
         if ArenaAttribution.applies(board) { formatter.timeStyle = .none; formatter.timeZone = TimeZone(secondsFromGMT: 0) }
         let value = formatter.string(from: updated)

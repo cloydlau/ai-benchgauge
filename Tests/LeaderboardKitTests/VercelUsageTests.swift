@@ -35,15 +35,26 @@ import Testing
     }
 }
 
-@Test func vercelShowsItsUTCStatisticDayWithoutInventingAPublicationTime() {
+@Test func vercelShowsRetrievalTimeSeparatelyFromItsUTCStatisticDay() {
     let day = ISO8601DateFormatter().date(from: "2026-10-22T00:00:00Z")!
-    let board = Leaderboard(kind: .vercelUsage, title: "Vercel AI Gateway", sourceUpdatedAt: day, entries: [])
-    let labels = LeaderboardPresentation.sourceTime(board, language: .english, timeZone: TimeZone(secondsFromGMT: -10 * 3600)!)
-    #expect(labels.text == "10/22 Data")
-    #expect(labels.isSourceTime)
-    #expect(LeaderboardPresentation.sourceTimeHelp(board, language: .english) == "2026-10-22 Data")
-    #expect(!labels.text.contains("Published"))
-    let unknown = Leaderboard(kind: .vercelUsage, title: "Vercel", entries: [])
+    let fetched = ISO8601DateFormatter().date(from: "2026-10-24T12:34:00Z")!
+    for offset in [-7.0, 0, 7] {
+        let board = Leaderboard(kind: .vercelUsage, title: "Vercel AI Gateway",
+            sourceUpdatedAt: day.addingTimeInterval(offset * 86400), fetchedAt: fetched, entries: [])
+        let labels = LeaderboardPresentation.sourceTime(board, language: .english, timeZone: TimeZone(secondsFromGMT: -10 * 3600)!)
+        #expect(labels.text == "10/24 02:34 Refreshed")
+        #expect(!labels.isSourceTime)
+        #expect(LeaderboardPresentation.sourceTimeHelp(board, language: .english).hasSuffix("Refreshed"))
+    }
+    let board = Leaderboard(kind: .vercelUsage, title: "Vercel", sourceUpdatedAt: day, fetchedAt: fetched, entries: [])
+    for language in AppLanguage.allCases {
+        let help = LeaderboardPresentation.sourceHelp(.vercelUsage, language: language, board: board)
+        #expect(help.contains("2026-10-22"))
+        #expect(help.contains(language.text("Statistical day (UTC)", "统计日期（UTC）")))
+        #expect(help.contains(language.text("does not indicate a new source update", "不代表来源数据刚刚更新")))
+    }
+    let unknown = Leaderboard(kind: .vercelUsage, title: "Vercel", fetchedAt: fetched, entries: [])
     #expect(!LeaderboardPresentation.sourceTime(unknown, language: .chinese).isSourceTime)
     #expect(LeaderboardPresentation.sourceTimeHelp(unknown, language: .chinese).hasSuffix("刷新"))
+    #expect(!LeaderboardPresentation.sourceHelp(.vercelUsage, language: .english, board: unknown).contains("Statistical day (UTC):"))
 }

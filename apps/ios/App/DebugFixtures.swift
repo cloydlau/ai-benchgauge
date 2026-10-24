@@ -53,8 +53,10 @@ enum DebugFixtures {
             LeaderboardEntry(rank: rank, name: "Fixture Model \(rank)", score: Double(90 - rank), organization: rank == 20 ? "Unknown Developer" : "Google")
         } : []))
         let sourceDates = ProcessInfo.processInfo.arguments.contains("--source-times")
-        let sourceDate = sourceDates && (kind.sourcePrefix == "Arena" || kind == .artificialAnalysisCodingAgent)
-            ? fetchedAt.addingTimeInterval(-3600) : nil
+        let sourceDate = ProcessInfo.processInfo.arguments.contains("--usage-source-times") && kind == .vercelUsage
+            ? fetchedAt.addingTimeInterval(-2 * 86400)
+            : sourceDates && (kind.sourcePrefix == "Arena" || kind == .artificialAnalysisCodingAgent)
+                ? fetchedAt.addingTimeInterval(-3600) : nil
         return Leaderboard(kind: kind, title: "Fixture", sourceUpdatedAt: sourceDate, fetchedAt: fetchedAt, entries: entries)
     }
 }

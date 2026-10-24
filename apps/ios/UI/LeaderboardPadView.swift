@@ -1241,10 +1241,33 @@ private struct PadBoardCard: View {
     }
     private var timeLabels: some View {
         let time = LeaderboardPresentation.sourceTime(board, language: language, includesYear: isImage)
-        return Text(time.text).font(.system(size: timeFontSize, weight: time.isSourceTime ? .medium : .regular))
+        let parts = LeaderboardPresentation.sourceTimeParts(board, language: language, includesYear: isImage)
+        let loading = !isImage && isRefreshing
+        return HStack(spacing: 0) {
+            Text(parts.value)
+            if !parts.caption.isEmpty || !isImage {
+                Text(" ")
+                Group {
+                    if parts.caption.isEmpty {
+                        Color.clear.frame(width: 12, height: 12)
+                    } else {
+                        Text(parts.caption).opacity(loading ? 0 : 1)
+                    }
+                }
+                .overlay(alignment: .leading) {
+                    if loading {
+                        ProgressView().progressViewStyle(.circular).controlSize(.mini)
+                            .scaleEffect(0.65).frame(width: 12, height: 12)
+                            .tint(secondaryForeground).accessibilityHidden(true)
+                    }
+                }
+            }
+        }.font(.system(size: timeFontSize, weight: time.isSourceTime ? .medium : .regular))
         .foregroundStyle(secondaryForeground).monospacedDigit()
         .multilineTextAlignment(.trailing).lineLimit(1).fixedSize()
         .modifier(TimestampPolish(ready: !isImage && !isRefreshing && board != nil && kind != .cloudbaseUsage, revision: polishRevision))
+        .accessibilityElement(children: .ignore)
+        .accessibilityAddTraits(.isStaticText)
         .accessibilityLabel(time.text)
         .accessibilityValue(isRefreshing ? tr("Loading", "加载中") : "")
         .accessibilityIdentifier("source-times-\(kind.rawValue)")
