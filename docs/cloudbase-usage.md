@@ -8,7 +8,9 @@ clients use the shared service; GET and refresh can initialize the same snapshot
 OSS atomic coordination permits one acquisition per day across all clients,
 retains the last successful snapshot on failure, and allows a retry after ten
 minutes. Client contributions remain disabled. Existing source selections and
-cached data are retained. Tencent's own source notice remains distinct from CC BY.
+cached data are retained. The source name, link and statistical scope remain;
+the app's additional Tencent notice entry was removed on 2026-10-24. This does
+not change the underlying data-use permission or apply CC BY to Tencent data.
 
 The official page was rechecked on 2026-10-24: its cumulative token legend still
 parses as nine published model families, with 99.8% listed share and 0.2% Other.
@@ -35,7 +37,7 @@ daily, caching on its server and attributing/linking to the source without
 copying the chart or prose. Ask whether automated fetching, caching, public
 display, image exports and commercial use are allowed, and what attribution,
 frequency, license or other conditions apply. Request referral if the recipient
-does not own those rights. The source notice does not assert an open-data license.
+does not own those rights. Internal provenance does not assert an open-data license.
 
 ## Design before suspension
 
@@ -51,6 +53,6 @@ does not own those rights. The source notice does not assert an open-data licens
 
 模型身份只使用此来源作用域内的明确完整系列标签映射供应商及规范系列 ID，例如官方 Kimi-K3 对应 Moonshot AI 的 Kimi K3；K3、含 K3 的其他名称和不同版本不继承该映射。models.dev 仅匹配唯一、完全相同的规范完整 ID，不使用名称或日期移除来猜版本；未明确匹配时保留未知。开发者的国家信息继续遵循统一国家策略。
 
-许可核查：2026-10-23 官方页面未声明开放数据许可证，文档站版权为腾讯所有，不能将 SDK 的 MIT/Apache 许可证或其他来源的 CC BY 4.0 套用于此数据。应用只作带原始来源链接的汇总事实展示，不声称获得腾讯开放数据授权或认可。关于页提供独立“来源说明”，不标为 CC BY 4.0、不附带 CC 全文；导出保留来源说明。扩大转载范围前需另行确认腾讯的适用授权条件。
+许可核查：2026-10-23 官方页面未声明开放数据许可证，文档站版权为腾讯所有，不能将 SDK 的 MIT/Apache 许可证或其他来源的 CC BY 4.0 套用于此数据。应用只作带原始来源链接的汇总事实展示，不声称获得腾讯开放数据授权或认可。2026-10-24 按用户要求移除关于页中自行撰写的独立 “来源说明” 入口，保留正常来源名称、链接和榜单统计口径；其他来源实际适用的许可证不受影响。移除或添加这段说明都不构成腾讯的授权，授权核验记录与服务端来源信息仍保留。扩大转载范围前需另行确认腾讯的适用授权条件。
 
 忽略目录 work/tencent-usage/ 保存此次公开响应、解析结果、部署日志、回归和原生截图证据。当前快照为 9 个模型系列，占比 99.8%，Other 为 0.2%；这些数字不写死在业务中。
