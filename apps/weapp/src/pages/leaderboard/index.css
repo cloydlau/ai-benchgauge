@@ -100,9 +100,10 @@
 .time-source, .time-fetched { color: var(--muted); opacity: .82; }
 .time-value { font-variant-numeric: tabular-nums; }
 .time-source .time-value { font-weight: 600; }
-.time-polish { position: absolute; inset: 0; pointer-events: none; opacity: 1; }
-.time-polish text { color: transparent; background-image: linear-gradient(110deg, transparent 40%, rgba(255,255,255,.85) 50%, transparent 60%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; animation: time-polish 1.1s linear both; }
-@keyframes time-polish { from { background-position: 200% 0; } to { background-position: -100% 0; } }
+/* One non-repeating band crosses the whole timestamp, including its caption. */
+.time-polish { position: absolute; inset: 0; pointer-events: none; opacity: 1; color: transparent; background-image: linear-gradient(90deg, transparent 40%, rgba(255,255,255,.85) 50%, transparent 60%); background-size: 250% 100%; background-repeat: no-repeat; -webkit-background-clip: text; background-clip: text; animation: time-polish 1.1s linear both; }
+.time-polish text { color: transparent; }
+@keyframes time-polish { from { background-position: 100% 0; } to { background-position: 0% 0; } }
 @media (prefers-reduced-motion: reduce) { .time-polish { display: none; } }
 .table-grid { display: grid; grid-template-columns: 44rpx minmax(0,1fr) var(--country-column) var(--source-column) var(--score-column,75rpx); gap: 6rpx; align-items: center; }
 .usage-category { --score-column: 110rpx; --blue: #a76514; --purple: #626973; }
