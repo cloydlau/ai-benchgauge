@@ -45,14 +45,14 @@ test('about-page menu forwarding and cold-start back navigation retain the origi
   assert.equal(about.repositoryURL, 'https://github.com/cloydlau/ai-benchgauge')
   assert.equal(about.desktopDownloadURL, about.repositoryURL + '/releases/latest')
   assert.deepEqual(about.items.map(item => [item.id, item.license]), [
-    ['cloudbase', true],
+    ['cloudbase', false],
     ['vercel', true],
     ['openRouter', true],
     ['artificialAnalysis', false],
     ['arena', true],
     ['epoch', true],
   ])
-  assert.ok(about.items.filter(item => item.license && item.id !== "cloudbase").every(item => item.licenseLabel === "CC BY 4.0"))
+  assert.ok(about.items.filter(item => item.license).every(item => item.licenseLabel === "CC BY 4.0"))
   assert.equal(about.licenseNotice.value.open, false)
   about.openLicense({ currentTarget: { dataset: { id: 'unknown' } } })
   assert.equal(about.licenseNotice.value.open, false)
@@ -177,7 +177,7 @@ test('Vercel agreement opens the current cached credit offline and never borrows
 })
 
 
-test('CloudBase source notice opens offline with its own cached provenance', () => {
+test('Tencent keeps its source link without an invented license or separate notice entry', () => {
   globalThis.__APP_VERSION__ = '0.0.0'; globalThis.__THIRD_PARTY_NOTICES__ = []
   globalThis.__ENGINEERING_INVESTMENT__ = { commitCount: 0, codeLineCount: 0 }
   for (const language of ['en', 'zh-CN', 'zh-TW']) {
@@ -189,16 +189,21 @@ test('CloudBase source notice opens offline with its own cached provenance', () 
         vercelUsage: { kind: 'vercelUsage', fetchedAt: '2026-10-23T06:00:00Z', sourceNote: 'Other platform credit', entries: [{ rank: 1, name: 'Vercel', score: 20 }] },
       }) }),
       getWindowInfo: () => ({ statusBarHeight: 24 }), getAppBaseInfo: () => ({ theme: 'light' }),
-      request: () => assert.fail('Source notice must open offline'),
+      request: () => assert.fail('Source metadata must remain offline'),
     }
     const about = globalThis.aboutFactory({})
     const source = about.items.find(item => item.id === 'cloudbase')
-    assert.equal(source.license, true)
+    assert.equal(source.title, 'Tencent Cloud')
+    assert.equal(source.url, 'https://docs.cloudbase.net/ai/announcement/model-token-volume')
+    assert.equal(source.license, false)
+    assert.equal(source.licenseLabel, '')
     about.openLicense({ currentTarget: { dataset: { id: 'cloudbase' } } })
+    assert.equal(about.licenseNotice.value.open, false)
+    assert.equal(about.licenseNotice.value.text, '')
+    about.openLicense({ currentTarget: { dataset: { id: 'vercel' } } })
     assert.equal(about.licenseNotice.value.open, true)
-    assert.ok(about.licenseNotice.value.text.includes("Tencent sampled period"))
-    assert.ok(!about.licenseNotice.value.text.includes("Other platform credit"))
-    assert.ok(!about.licenseNotice.value.text.includes("creativecommons.org/licenses"))
+    assert.ok(about.licenseNotice.value.text.includes('Other platform credit'))
+    assert.ok(!about.licenseNotice.value.text.includes('Tencent sampled period'))
     about.closeLicense(); assert.equal(about.licenseNotice.value.open, false)
   }
 })
