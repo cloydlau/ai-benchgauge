@@ -20,7 +20,11 @@ enum InactiveQuotaRefreshScope {
 
 @MainActor
 final class AppState: ObservableObject {
-    @Published private(set) var snapshot = LeaderboardSnapshot()
+    @Published private(set) var snapshot = LeaderboardSnapshot() {
+        didSet { snapshotRevision &+= 1 }
+    }
+    private(set) var snapshotRevision: UInt64 = 0
+    let panelLayoutCache = PanelLayoutCache()
     @Published private(set) var isRefreshing = false
     @Published private(set) var timestampPolishRevision = 0
     @Published private(set) var lastErrors: [LeaderboardKind: String] = [:]
@@ -138,6 +142,7 @@ final class AppState: ObservableObject {
 
     private let fetcher: LeaderboardFetcher
     private let cache: LeaderboardCache
+    private let snapshotPersistence: SnapshotPersistence
     private let defaults: UserDefaults
     private let configuration: AppConfiguration
     private let qwenWebsiteSource = QwenWebsiteQuotaSource()
@@ -184,6 +189,7 @@ final class AppState: ObservableObject {
         quotaProviderLoad: (@Sendable () async -> CCSwitchQuotaLoad)? = nil
     ) {
         self.cache = cache
+        snapshotPersistence = SnapshotPersistence(cache: cache)
         self.defaults = defaults
         self.fetcher = fetcher
         boardSelections = defaults.dictionary(forKey: "desktopBoardSelections") as? [String: [String]] ?? [:]
@@ -267,6 +273,10 @@ final class AppState: ObservableObject {
     }
 
     #if DEBUG
+    func applyVisualQuotaUpdate(_ chips: [AccountQuotaChip]) {
+        quotaChips = chips
+    }
+
     /// The native visual suite supplies public fixture data and never starts
     /// timers, network requests, authentication or account refreshes.
     func applyVisualFixture(snapshot: LeaderboardSnapshot, chips: [AccountQuotaChip],
@@ -978,11 +988,11 @@ final class AppState: ObservableObject {
         guard boardRefreshTokens[board.kind] == token, !isQuitting, board != snapshot.boards[board.kind], board.canReplace(snapshot.boards[board.kind]) else { return }
         snapshot.boards[board.kind] = board
         lastErrors[board.kind] = nil
-        cache.save(snapshot)
+        snapshotPersistence.save(snapshot)
     }
 
     private func finishRefresh() {
-        cache.save(snapshot)
+        snapshotPersistence.save(snapshot)
         isRefreshing = false
         timestampPolishRevision += 1
     }
