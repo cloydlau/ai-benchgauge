@@ -653,12 +653,12 @@ public struct LeaderboardPadView: View {
                 .padding(.bottom, bottomInset + PadBottomControls.footerPadding)
                 .frame(maxWidth: MobileLeaderboardLayout.maximumContentWidth + MobileLeaderboardLayout.inset * 2)
                 .frame(maxWidth: .infinity)
+                .modifier(pullRefreshAttachment(store.selectedKind))
             }
             .coordinateSpace(name: "paired-rankings")
             .modifier(PadRankingScrollTracking { presentation.pairScrolled = $0 })
             .modifier(PadLeaderboardScrollEdges(edges: .bottom))
             .ignoresSafeArea(.container, edges: .bottom)
-            .refreshable { await store.refresh(kind: store.selectedKind, force: true) }
             // This overlay is inside the paired layout's safe-area bounds;
             // the phone cube's explicitly extended viewport needs its inset.
             .modifier(PadBackToTopControl(bottomInset: 0,
@@ -691,6 +691,8 @@ public struct LeaderboardPadView: View {
                     compactFooter
                 }
                 .padding(.bottom, bottomInset + PadBottomControls.footerPadding)
+                .modifier(pullRefreshAttachment(kind, topSpacer: LeaderboardCubeScrollState.contentTopInset,
+                    enabled: index == cube.face && !cube.dragging && !cube.turning && !cube.entranceActive))
             }
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: store.modelSearchQuery) { _, _ in
@@ -718,7 +720,6 @@ public struct LeaderboardPadView: View {
                 .onChange(of: cube.face) { _, face in
                     if face == index { alignCubeFace(proxy, height: size.height) }
                 }
-                .refreshable { await store.refresh(kind: kind, force: true) }
                 .frame(width: size.width, height: size.height)
                 .modifier(PadCubeBackToTopControl(scroll: cube.scroll,
                     active: index == cube.face, bottomInset: bottomInset,
@@ -733,6 +734,12 @@ public struct LeaderboardPadView: View {
                 .allowsHitTesting(index == cube.face && !cube.dragging && !cube.turning)
                 .accessibilityHidden(index != cube.face || cube.dragging)
         }
+    }
+    private func pullRefreshAttachment(_ kind: LeaderboardKind, topSpacer: CGFloat = 0, enabled: Bool = true) -> MobilePullRefreshContent {
+        MobilePullRefreshContent(enabled: enabled && !store.modelSearchEditing, topSpacer: topSpacer,
+            identifier: "pull-refresh-\(kind.rawValue)", loadingLabel: tr("Loading", "加载中")) {
+                await store.refresh(kind: kind, force: true)
+            }
     }
     private func alignCubeFace(_ proxy: ScrollViewProxy, height: CGFloat) {
         guard let rank = cube.scroll.rank else { return }

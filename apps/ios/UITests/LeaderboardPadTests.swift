@@ -2420,3 +2420,50 @@ private extension XCUIApplication {
             .press(forDuration: 0.1, thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8)))
     }
 }
+
+final class PullRefreshFeedbackTests: XCTestCase {
+    @MainActor func testShortPullRefreshesCurrentBoardWithVisibleDots() {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        for dark in [false, true] {
+            let app = XCUIApplication()
+            app.launchArguments = ["--ui-testing", "--slow-manual-refresh", "--recent-update", "--preview-zh", "--source-times", "--reduce-motion"] + (dark ? ["--dark"] : [])
+            app.launch()
+            XCTAssertTrue(app.buttons["name-artificialAnalysis-1"].waitForExistence(timeout: 10))
+            let time = app.staticTexts["source-times-artificialAnalysis"]
+            XCTAssertEqual(time.value as? String ?? "", "")
+            let scroll = app.scrollViews.allElementsBoundByIndex.first { $0.isHittable }!
+            func pull(_ distance: CGFloat) {
+                let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+                start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: 0, dy: distance)))
+            }
+            func capture(_ phase: String) {
+                let shot = XCTAttachment(screenshot: app.screenshot())
+                shot.name = "pull-refresh-\(UIDevice.current.userInterfaceIdiom == .phone ? "iphone" : "ipad")-\(dark ? "dark" : "light")-\(phase)"
+                shot.lifetime = .keepAlways; add(shot)
+            }
+            capture("shown")
+            pull(28)
+            XCTAssertEqual(time.value as? String ?? "", "", "A small movement must not refresh")
+            pull(90)
+            let indicator = app.descendants(matching: .any)["pull-refresh-artificialAnalysis"].firstMatch
+            XCTAssertTrue(indicator.waitForExistence(timeout: 3))
+            XCTAssertTrue(indicator.isHittable, "The three dots must stay in the visible viewport")
+            XCTAssertEqual(time.value as? String, "加载中")
+            if app.buttons["face-0"].exists {
+                XCTAssertGreaterThanOrEqual(indicator.frame.minY, app.buttons["face-0"].frame.maxY - 1,
+                    "The source tabs must not cover the dots")
+            }
+            capture("refreshing")
+            if app.staticTexts["source-times-arenaText"].isHittable {
+                XCTAssertEqual(app.staticTexts["source-times-arenaText"].value as? String ?? "", "", "Pull only refreshes the current board")
+            }
+            let finished = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", ""), object: time)
+            XCTAssertEqual(XCTWaiter.wait(for: [finished], timeout: 12), .completed)
+            XCTAssertFalse(indicator.exists)
+            XCTAssertTrue(app.buttons["name-artificialAnalysis-1"].isHittable)
+            capture("settled")
+            app.terminate()
+        }
+    }
+}

@@ -33,6 +33,7 @@ enum DebugFixtures {
         let offline = arguments.contains("--offline") || pending && !loading
         return LeaderboardPadStore(defaults: defaults, cache: cache, service: LeaderboardService { kind in
             if loading { try await Task.sleep(for: .seconds(30)) }
+            else if arguments.contains("--slow-manual-refresh") { try await Task.sleep(for: .seconds(8)) }
             if offline { throw URLError(.notConnectedToInternet) }
             return board(kind, full: full, wrappedNames: wrappedNames, arenaScores: arenaScores, brands: brands, fetchedAt: fetchedAt)
         })
