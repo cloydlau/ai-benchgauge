@@ -42,8 +42,7 @@ struct ParserBoundaryTests {
 
 
 extension ParserBoundaryTests {
-    @Test func sharedAndStandaloneFreshnessIntervalsRemainDistinct() {
-        #expect(LeaderboardFreshness.interval(sharedEndpoint: nil) == 86400)
-        #expect(LeaderboardFreshness.interval(sharedEndpoint: URL(string: "https://fixture.invalid")) == 1800)
+    @Test func boardEntryFreshnessUsesTwentyFourHoursForEverySource() {
+        #expect(LeaderboardFreshness.interval == 86400)
     }
 }

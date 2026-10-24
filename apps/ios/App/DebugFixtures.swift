@@ -24,8 +24,8 @@ enum DebugFixtures {
         let brands = arguments.contains("--brand-discovery")
         let fetchedAt = arguments.contains("--recent-update") ? Date().addingTimeInterval(-29 * 60)
             : Date(timeIntervalSince1970: 1_700_000_000)
-        let loading = arguments.contains("--loading-boards")
-        let pending = arguments.contains("--pending-boards") || loading
+        let loading = arguments.contains("--loading-boards") || arguments.contains("--loading-cached-boards")
+        let pending = arguments.contains("--pending-boards") || arguments.contains("--loading-boards")
         let boards = pending ? [:] : Dictionary(uniqueKeysWithValues: LeaderboardKind.allCases.map {
             ($0, board($0, full: full, wrappedNames: wrappedNames, arenaScores: arenaScores, brands: brands, fetchedAt: fetchedAt))
         })

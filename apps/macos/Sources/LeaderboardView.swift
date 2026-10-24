@@ -532,6 +532,8 @@ struct LeaderboardView: View {
                     licenseName: headerLicenseName(kind: kind, board: state.snapshot.boards[kind]),
                     summary: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(kind, language: language)),
                     time: time,
+                    polishReady: !state.isRefreshing && !screenshot.isCapturing && state.snapshot.boards[kind] != nil && kind != .cloudbaseUsage,
+                    polishRevision: state.timestampPolishRevision,
                     help: LeaderboardPresentation.columnTitle(kind, language: language) + "\n" + LeaderboardPresentation.sourceHelp(kind, language: language, board: state.snapshot.boards[kind]),
                     country: state.countryFilters[kind] ?? .all,
                     countryOptions: countryOptions(for: kind), openness: state.opennessFilters[kind] ?? .all)
@@ -1075,6 +1077,8 @@ private struct BoardHeaderConfiguration {
     let licenseName: String?
     let summary: SourceLensDescription
     let time: (text: String, isSourceTime: Bool)
+    let polishReady: Bool
+    let polishRevision: Int
     let help: String
     let country: LeaderboardCountryFilter
     let countryOptions: [LeaderboardCountryFilter]
@@ -1332,6 +1336,60 @@ private final class SourceTableHeaderView: NSTableHeaderView {
     private var showsSkeleton = false
     private var menuChoices: [LeaderboardCountryFilter] = []
     private var menuKind: LeaderboardKind?
+    private var polishSchedules: [LeaderboardKind: TimestampPolishSchedule] = [:]
+    private var polishRevisions: [LeaderboardKind: Int] = [:]
+    private var polishTimer: Timer?
+    private var fixedPolishPhase: Double? {
+        ProcessInfo.processInfo.environment["BENCHGAUGE_TIMESTAMP_POLISH_PHASE"].flatMap(Double.init)
+    }
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        for name in [NSApplication.didBecomeActiveNotification, NSApplication.didResignActiveNotification,
+                     NSWindow.didChangeOcclusionStateNotification] {
+            NotificationCenter.default.addObserver(self, selector: #selector(updatePolish), name: name, object: nil)
+        }
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(updatePolish),
+            name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    isolated deinit {
+        polishTimer?.invalidate()
+        NotificationCenter.default.removeObserver(self)
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
+    }
+    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); updatePolish() }
+
+    @objc private func updatePolish() {
+        polishTimer?.invalidate(); polishTimer = nil
+        let now = ProcessInfo.processInfo.systemUptime
+        let visible = window?.occlusionState.contains(.visible) == true && NSApp.isActive
+        let animated = visible && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+            && !ProcessInfo.processInfo.arguments.contains("--visual-test")
+        var delay: TimeInterval = TimestampPolishSchedule.interval
+        var pending = false
+        for board in boards {
+            var schedule = polishSchedules[board.kind] ?? TimestampPolishSchedule()
+            if polishRevisions[board.kind] != board.polishRevision {
+                schedule.update(now: now, ready: false)
+                polishRevisions[board.kind] = board.polishRevision
+            }
+            let ready = animated && !showsSkeleton && board.polishReady && board.time.text != "—"
+            schedule.update(now: now, ready: ready)
+            polishSchedules[board.kind] = schedule
+            if ready, let start = schedule.startedAt {
+                pending = true
+                delay = min(delay, schedule.phase(at: now) == nil ? max(0.02, start + TimestampPolishSchedule.interval - now) : 1 / 30)
+            }
+        }
+        polishSchedules = polishSchedules.filter { key, _ in boards.contains { $0.kind == key } }
+        needsDisplay = true
+        if pending {
+            polishTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+                MainActor.assumeIsolated { self?.updatePolish() }
+            }
+        }
+    }
 
     /// Body capsules are the label composited at 35/255. Header titles drawn in
     /// `labelColor` are redacted as a solid block of that color instead, so the
@@ -1359,6 +1417,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         self.onOpennessFilter = onOpennessFilter
         self.onCountryFilter = onCountryFilter
         self.showsSkeleton = showsSkeleton
+        updatePolish()
         needsDisplay = true
     }
 
@@ -1444,7 +1503,9 @@ private final class SourceTableHeaderView: NSTableHeaderView {
                 let tint = NSColor(Color(hex: SourceTabTheme.palette(for: board.kind, dark: dark).accent)!)
                 drawBoardHeader(tableView.tableColumns[index].headerCell.stringValue,
                     licenseName: board.licenseName, summary: board.summary,
-                    time: board.time, tint: tint, in: rect)
+                    time: board.time, tint: tint,
+                    polishPhase: board.polishReady ? (fixedPolishPhase ?? polishSchedules[board.kind]?.phase(at: ProcessInfo.processInfo.systemUptime)) : nil,
+                    in: rect)
             case 1: drawCountryHeader(selected: board.country, in: rect)
             case 2: drawFilterHeader(title: ModelOpenness.columnTitle(language: language), active: board.openness != .all, in: rect)
             default: tableView.tableColumns[index].headerCell.draw(withFrame: rect, in: self)
@@ -1553,6 +1614,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         summary: SourceLensDescription,
         time: (text: String, isSourceTime: Bool),
         tint: NSColor,
+        polishPhase: Double?,
         in rect: NSRect
     ) {
         let timeFont = NSFont.monospacedDigitSystemFont(ofSize: 8, weight: time.isSourceTime ? .semibold : .regular)
@@ -1569,8 +1631,25 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         let stacked = rect.width < min(45, compactTitleWidth) + timeWidth + 18
         let timeY = stacked ? (isFlipped ? rect.maxY - timeSize.height - 3 : rect.minY + 3)
             : titleRect.midY - timeSize.height / 2
-        (time.text as NSString).draw(at: NSPoint(x: rect.maxX - timeSize.width - 5,
-            y: timeY), withAttributes: timeAttributes)
+        let timeOrigin = NSPoint(x: rect.maxX - timeSize.width - 5, y: timeY)
+        (time.text as NSString).draw(at: timeOrigin, withAttributes: timeAttributes)
+        if let polishPhase, let context = NSGraphicsContext.current?.cgContext {
+            context.saveGState()
+            context.clip(to: NSRect(origin: timeOrigin, size: timeSize))
+            context.beginTransparencyLayer(auxiliaryInfo: nil)
+            (time.text as NSString).draw(at: timeOrigin, withAttributes: [.font: timeFont, .foregroundColor: NSColor.white])
+            context.setBlendMode(.sourceIn)
+            let colors = [NSColor.white.withAlphaComponent(0).cgColor,
+                          NSColor.white.withAlphaComponent(0.85).cgColor,
+                          NSColor.white.withAlphaComponent(0).cgColor] as CFArray
+            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 0.5, 1]) {
+                let x = timeOrigin.x + timeSize.width * (-0.45 + polishPhase * 1.45)
+                context.drawLinearGradient(gradient, start: CGPoint(x: x, y: timeY),
+                    end: CGPoint(x: x + timeSize.width * 0.45, y: timeY), options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+            }
+            context.endTransparencyLayer()
+            context.restoreGState()
+        }
         let nameRect = NSRect(x: rect.minX, y: rect.minY, width: stacked ? rect.width : max(0, rect.width - timeWidth - 8), height: rect.height)
         let summaryFont = NSFont.systemFont(ofSize: 10)
         let available = max(0, nameRect.width - 10)

@@ -26,6 +26,8 @@ sealed partial class MainWindow
     bool panelMenuOpen;
     bool panelRefreshing;
     bool panelDark = ReadSystemDark();
+    readonly Dictionary<string, TimestampPolishClock> timestampPolishClocks = [];
+    readonly List<TimestampPolish> timestampPolishViews = [];
     Brush PanelInk => Tint(panelDark ? "#F2F5FA" : "#20262F");
     Brush PanelMuted => Tint(panelDark ? "#A2ACBA" : "#687382");
     Brush PanelLine => Tint(panelDark ? "#343B46" : "#DFE3E9");
@@ -314,6 +316,8 @@ sealed partial class MainWindow
 
     void RenderPanel(Func<Task>? manageAccounts = null)
     {
+        timestampPolishViews.Clear();
+        foreach (var clock in timestampPolishClocks.Values) clock.Update(!VisibleBoardsLoading);
         var restoreSearchFocus = leaderboardSearchField?.IsKeyboardFocusWithin == true;
         var searchCaret = leaderboardSearchField?.CaretIndex ?? 0;
         rendering = true;
@@ -389,7 +393,7 @@ sealed partial class MainWindow
         switches.Children.Add(Segments([("model",Tr("Models","模型")),("company",Tr("Companies","公司"))], prefs.Grouping, 180,
             async value => { prefs.Grouping = value; SaveFrame(); await Refresh("state"); if (engine is null) Render(); }, compact: compactTabs));
         var categories = Segments([("usage",Tr("Usage","用量","用量")),("general",Tr("General","综合","綜合")),("coding",Tr("Coding","编程","編程")),("image",Tr("Image","图片","圖片")),("video",Tr("Video","视频","視頻"))], prefs.Category, 420,
-            async value => { prefs.Category = value; SaveFrame(); await Refresh("refreshBoards"); if (engine is null) Render(); }, compact: compactTabs);
+            async value => { prefs.Category = value; SaveFrame(); await Refresh("refreshBoardsIfStale"); if (engine is null) Render(); }, compact: compactTabs);
         categories.Margin = new Thickness(8, 0, 0, 0); switches.Children.Add(categories);
         var tabs = SearchNavigation(switches);
         var natural = new Size(double.PositiveInfinity, double.PositiveInfinity);
@@ -640,7 +644,12 @@ sealed partial class MainWindow
             var time = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 5, 0) };
             var sourceTime = Caption(selectedTime.Text, selectedTime.IsSourceTime ? BoardTint(board.Kind) : PanelMuted, 8.5, numeric: true);
             sourceTime.FontWeight = selectedTime.IsSourceTime ? FontWeights.SemiBold : FontWeights.Normal;
-            time.Children.Add(sourceTime);
+            if (!timestampPolishClocks.TryGetValue(board.Kind, out var polishClock))
+                timestampPolishClocks[board.Kind] = polishClock = new TimestampPolishClock();
+            polishClock.Update(!VisibleBoardsLoading && board.Kind != "cloudbaseUsage" && selectedTime.Text != "—");
+            var polishedTime = new TimestampPolish(sourceTime, polishClock);
+            timestampPolishViews.Add(polishedTime);
+            time.Children.Add(polishedTime);
             time.ToolTip = BoardTimeHelp(board);
             heading.Children.Add(summary);
             Grid.SetColumn(time, 1); heading.Children.Add(time);
@@ -1090,7 +1099,7 @@ sealed partial class MainWindow
             confirm.Click += async (_, _) => {
                 menu.IsOpen = false;
                 if (prefs.Category != category || !prefs.SetVisibleBoards(draft)) return;
-                SaveFrame(); Render(); await Refresh("refreshBoards");
+                SaveFrame(); Render(); await Refresh("refreshBoardsIfStale");
             };
             menu.Items.Add(confirm);
             var cancel = new MenuItem { Header = Tr("Cancel", "取消", "取消") };

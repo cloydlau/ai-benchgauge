@@ -7,6 +7,8 @@ import { opennessIcon, opennessColor } from '../../core/openness-icon.js'
 import { sourceTabTheme } from '../../core/source-tab-theme.js'
 import { leaderboardDistribution } from '../../../../../fc/distributions.mjs'
 import { createBoardStore } from '../../services/boards.js'
+import { shouldAutoRefresh } from '../../core/freshness.js'
+import { createTimestampPolish } from '../../core/timestamp-polish.js'
 import { rowGeometry, resolveRowWindow, createRowRenderer } from '../../core/row-window.js'
 import { exportScreenshot, removeScreenshot, saveScreenshotImage } from '../../services/screenshot.js'
 import { cubeIndex, cubeTarget, cubeRenderedFace, cubeFaceStyle, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll, isBackSwipe } from '../../core/cube.js'
@@ -158,6 +160,13 @@ definePage(query => {
   let gesture, cubeTimer, entranceTimer, entrancePlayed = false
   let preparedScroll, queuedCubeFace, cubeTurnSerial = 0
   let pageReady = false, pageVisible = false
+  const polishingKind = ref(null)
+  const timestampPolish = createTimestampPolish(kind => { polishingKind.value = kind })
+  function syncTimestampPolish() {
+    const kind = current.value.kinds[face.value], board = snapshots.value[kind]
+    const hasDate = Number.isFinite(Date.parse(board?.sourceUpdatedAt)) || Number.isFinite(Date.parse(board?.fetchedAt))
+    timestampPolish.update(kind, alive && pageReady && pageVisible && kind !== 'cloudbaseUsage' && hasDate && !refreshing.value[kind])
+  }
   let cubeWidth = 375
   let suppressTapUntil = 0
   let lastCategoryTap = null
@@ -196,6 +205,7 @@ definePage(query => {
       if (request?.failed) {
         face.value = cubeIndex(cubeOrigin.value, current.value.kinds.length)
         stopCube(); updateSourceTabs(scrollPositions[current.value.kinds[face.value]] || 0); persist()
+        syncTimestampPolish()
         return
       }
       // A quick swipe can arrive before the hidden native scroll-view settles.
@@ -215,6 +225,7 @@ definePage(query => {
       // A second tab tap during preparation still starts from the visible face.
       face.value = cubeIndex(cubeOrigin.value, current.value.kinds.length)
       stopCube(); updateSourceTabs(scrollPositions[current.value.kinds[face.value]] || 0); persist()
+      syncTimestampPolish()
     }
     position ??= cubeTarget(face.value, destination, current.value.kinds.length)
     blurModelSearch()
@@ -231,6 +242,8 @@ definePage(query => {
     if (gesture?.axis !== 'horizontal' || direction !== cubeDirection.value) prepareCubeFace(destination)
     cubeOrigin.value = face.value; cubeDirection.value = direction
     face.value = destination; gesture = null
+    syncTimestampPolish()
+    if (destination !== cubeOrigin.value) autoRefresh()
     updateSourceTabs(scrollPositions[current.value.kinds[destination]] || 0)
     cubeBusy.value = true; cubeDuration.value = 0
     persist()
@@ -475,6 +488,7 @@ definePage(query => {
       hasBoard: !!board, filtered: filter.country !== 'all' || filter.openness !== 'all' || grouping.value === 'model' && !!modelSearchQuery.value.trim(),
       countryFiltered: filter.country !== 'all', sourceFiltered: filter.openness !== 'all',
       loading: !!refreshing.value[kind],
+      polishing: polishingKind.value === kind,
       headerPinned: !!pinnedHeaders.value[kind],
     }
   }))
@@ -655,6 +669,7 @@ definePage(query => {
   async function loadKind(kind) {
     lastAttempt[kind] = Date.now()
     refreshing.value = { ...refreshing.value, [kind]: true }
+    syncTimestampPolish()
     try {
       const board = await store.fetch(kind)
       if (!alive) return
@@ -666,13 +681,18 @@ definePage(query => {
     } finally {
       if (alive) {
         refreshing.value = { ...refreshing.value, [kind]: false }
+        syncTimestampPolish()
         syncWindow(kind, true)
         measureLists()
         playEntrance()
       }
     }
   }
-  const refreshCategory = () => Promise.all(current.value.kinds.map(refreshKind))
+  function autoRefresh() {
+    const kind = current.value.kinds[face.value]
+    if (refreshTasks.has(kind)) return refreshTasks.get(kind)
+    return shouldAutoRefresh(snapshots.value[kind], lastAttempt[kind]) ? refreshKind(kind) : Promise.resolve()
+  }
   async function pullRefresh(event) {
     if (backgroundLocked.value || pullRefreshing.value) return
     const kind = event?.currentTarget?.dataset?.kind || current.value.kinds[face.value]
@@ -680,7 +700,7 @@ definePage(query => {
     pullRefreshKind.value = kind
     pullRefreshing.value = true
     const started = Date.now()
-    try { await refreshCategory() } finally {
+    try { await refreshKind(kind) } finally {
       // Even a cached response needs a painted loading frame before restoring
       // the native header; otherwise a quick release leaves only its blank gap.
       const remaining = 300 - (Date.now() - started)
@@ -691,20 +711,20 @@ definePage(query => {
   function finishPullRefresh(event) {
     if (!pullRefreshing.value && event.currentTarget.dataset.kind === pullRefreshKind.value) pullRefreshKind.value = ''
   }
-  onLoad(async () => { await refreshCategory(); playEntrance() })
-  onReady(() => { pageReady = true; measureSourceTabs(); playEntrance() })
+  onLoad(async () => { await autoRefresh(); playEntrance() })
+  onReady(() => { pageReady = true; measureSourceTabs(); playEntrance(); syncTimestampPolish() })
   onShow(() => {
     pageVisible = true
+    syncTimestampPolish()
     syncSourceTabsAfterScroll(current.value.kinds[face.value])
     if (languageMode.value === 'system') {
       const next = systemLanguage(wx.getAppBaseInfo?.().language)
       if (next !== language.value) { language.value = next; measureLists() }
     }
-    for (const kind of current.value.kinds) if (!lastAttempt[kind] || Date.now() - lastAttempt[kind] > 600000) refreshKind(kind)
     playEntrance()
   })
-  onHide(() => { pageVisible = false; blurModelSearch(); clearTimeout(searchExpandTimer); stopCube(); cancelSourceTabsSync() })
-  onUnload(() => { blurModelSearch(); clearTimeout(searchExpandTimer); stopCube(); cancelSourceTabsSync(); alive = false; measureSerial++; scrollRequests.clear(); rowRenderers.clear(); store.dispose(); wx.offThemeChange?.(themeListener)
+  onHide(() => { pageVisible = false; timestampPolish.stop(); blurModelSearch(); clearTimeout(searchExpandTimer); stopCube(); cancelSourceTabsSync() })
+  onUnload(() => { timestampPolish.stop(); blurModelSearch(); clearTimeout(searchExpandTimer); stopCube(); cancelSourceTabsSync(); alive = false; measureSerial++; scrollRequests.clear(); rowRenderers.clear(); store.dispose(); wx.offThemeChange?.(themeListener)
     if (!capture.value.saving) removeScreenshot(wx, capture.value.path)
     if (capturing.value || capture.value.saving) wx.hideLoading() })
   onShareAppMessage(() => ({ title: `${tabs.value[face.value]}｜${tr('rankingSummary')}`,
@@ -727,7 +747,8 @@ definePage(query => {
   }
   function changeCategory(id) {
     blurModelSearch(); stopCube(); entrancePlayed = true
-    expandedBoards.value = {}; category.value = id; face.value = Math.min(face.value, current.value.kinds.length - 1); cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1; rowRenderers.clear(); resetScroll(); persist(); refreshCategory()
+    expandedBoards.value = {}; category.value = id; face.value = Math.min(face.value, current.value.kinds.length - 1); cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1; rowRenderers.clear(); resetScroll(); persist(); autoRefresh()
+    syncTimestampPolish()
   }
   function selectGrouping(event) { blurModelSearch(); stopCube(); entrancePlayed = true; grouping.value = event.currentTarget.dataset.id; expandedBoards.value = {}; resetScroll(); persist() }
   function selectFace(event) {
@@ -1065,6 +1086,6 @@ definePage(query => {
     cubeStart, cubeMove, cubeEnd, cubeCancel, tabStart, tabMove, tabEnd, cancelTabDrag, attributeHint,
     selectCategory, selectGrouping, selectFace, changeFace, scroll, top, filterMenu, toggleRanking,
     clearFilters, preferences, sheetSelect, closeSheet, sourceHelp, countryHelp, copyBoardTitle, copyPurchaseLink, rowDetails, companyDetails, closeCompanyDetails, copyCompanyName, about,
-    quotaHelp, quotaHelpContent, showingFeatureHelp, closeFeatureHelp, copyDesktopLink, refreshTap, refreshCategory, pullRefresh, pullRefreshing, pullRefreshKind, finishPullRefresh,
+    quotaHelp, quotaHelpContent, showingFeatureHelp, closeFeatureHelp, copyDesktopLink, refreshTap, autoRefresh, pullRefresh, pullRefreshing, pullRefreshKind, finishPullRefresh,
     capturing, capture, screenshot, closeCapture, previewScreenshot, saveScreenshot }
 }, { canShareToOthers: true })

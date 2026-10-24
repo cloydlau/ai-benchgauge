@@ -45,6 +45,50 @@ struct DesktopBridgeBoardTests {
         }
         #expect(condition())
     }
+    @Test func boardEntryUsesPublicationAgeAndManualRefreshBypassesAutomaticBackoff() async throws {
+        BoardVisibilityHTTP.log.reset()
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [BoardVisibilityHTTP.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let file = FileManager.default.temporaryDirectory.appending(path: "bridge-age-\(UUID()).json")
+        defer { try? FileManager.default.removeItem(at: file) }
+        let now = Date()
+        let entries = [LeaderboardEntry(rank: 1, name: "Saved", score: 90)]
+        LeaderboardCache(fileURL: file).save(.init(boards: [
+            .artificialAnalysis: Leaderboard(kind: .artificialAnalysis, title: "Fresh", fetchedAt: now, entries: entries),
+            .arenaText: Leaderboard(kind: .arenaText, title: "Expired", sourceUpdatedAt: now.addingTimeInterval(-86401), fetchedAt: now, entries: entries),
+            .epochECI: Leaderboard(kind: .epochECI, title: "Fresh publication", sourceUpdatedAt: now, fetchedAt: now.addingTimeInterval(-86400), entries: entries)
+        ]))
+        let engine = try Engine(cacheFile: file, fetcher: LeaderboardFetcher(session: session, sharedEndpoint: URL(string: "https://synthetic.invalid")!))
+        _ = await engine.handle(Request(id: 1, command: "refreshBoardsIfStale"))
+        #expect(BoardVisibilityHTTP.log.read().requests == ["arenaText"])
+        _ = await engine.handle(Request(id: 2, command: "refreshBoardsIfStale"))
+        #expect(BoardVisibilityHTTP.log.read().requests == ["arenaText"])
+        _ = await engine.handle(Request(id: 3, command: "refreshBoards", boards: ["arenaText"]))
+        #expect(BoardVisibilityHTTP.log.read().requests == ["arenaText", "arenaText"])
+    }
+
+    @Test func manualRefreshJoinsAnAutomaticRequestInsteadOfStartingAnother() async throws {
+        BoardVisibilityHTTP.log.reset(stalled: ["epochECI"])
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [BoardVisibilityHTTP.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let file = FileManager.default.temporaryDirectory.appending(path: "bridge-join-\(UUID()).json")
+        defer { try? FileManager.default.removeItem(at: file) }
+        let engine = try Engine(cacheFile: file, fetcher: LeaderboardFetcher(session: session, sharedEndpoint: URL(string: "https://synthetic.invalid")!))
+        let automatic = Task { await engine.handle(Request(id: 1, command: "refreshBoardsIfStale", boards: ["epochECI"])) }
+        try await waitFor { BoardVisibilityHTTP.log.read().requests == ["epochECI"] }
+        let manual = Task { await engine.handle(Request(id: 2, command: "refreshBoards", boards: ["epochECI"])) }
+        await Task.yield()
+        #expect(BoardVisibilityHTTP.log.read().requests == ["epochECI"])
+        _ = await engine.handle(Request(id: 3, command: "state", boards: ["artificialAnalysis"]))
+        _ = await automatic.value
+        _ = await manual.value
+        #expect(BoardVisibilityHTTP.log.read().requests == ["epochECI"])
+    }
+
     @Test func bridgeProjectsAndFetchesOnlySelectedBoardsIncludingCacheReads() async throws {
         BoardVisibilityHTTP.log.reset()
         let configuration = URLSessionConfiguration.ephemeral
@@ -54,15 +98,15 @@ struct DesktopBridgeBoardTests {
         let file = FileManager.default.temporaryDirectory.appending(path: "bridge-visibility-\(UUID()).json")
         defer { try? FileManager.default.removeItem(at: file) }
         let engine = try Engine(cacheFile: file, fetcher: LeaderboardFetcher(session: session, sharedEndpoint: URL(string: "https://synthetic.invalid")!))
-        let one = await engine.handle(Request(id: 1, command: "refreshBoards", boards: ["epochECI"]))
+        let one = await engine.handle(Request(id: 1, command: "refreshBoardsIfStale", boards: ["epochECI"]))
         #expect(one.result?.boards.map(\.kind) == ["epochECI"])
         #expect(BoardVisibilityHTTP.log.read().requests == ["epochECI"])
-        let two = await engine.handle(Request(id: 2, command: "refreshBoards", boards: ["artificialAnalysis", "epochECI"]))
+        let two = await engine.handle(Request(id: 2, command: "refreshBoardsIfStale", boards: ["artificialAnalysis", "epochECI"]))
         #expect(two.result?.boards.map(\.kind) == ["artificialAnalysis", "epochECI"])
         #expect(BoardVisibilityHTTP.log.read().requests == ["epochECI", "artificialAnalysis"])
-        _ = await engine.handle(Request(id: 3, command: "refreshBoards", boards: ["artificialAnalysis", "epochECI"]))
+        _ = await engine.handle(Request(id: 3, command: "refreshBoardsIfStale", boards: ["artificialAnalysis", "epochECI"]))
         #expect(BoardVisibilityHTTP.log.read().requests.count == 2)
-        _ = await engine.handle(Request(id: 1, command: "refreshBoards")) // An older queued request cannot re-enable Arena.
+        _ = await engine.handle(Request(id: 1, command: "refreshBoardsIfStale")) // An older queued request cannot re-enable Arena.
         #expect(BoardVisibilityHTTP.log.read().requests.count == 2)
         _ = await engine.handle(Request(id: 4, command: "cachedBoards", boards: ["epochECI"]))
         #expect(BoardVisibilityHTTP.log.read().requests == ["epochECI", "artificialAnalysis", "epochECI"])
@@ -84,14 +128,14 @@ struct DesktopBridgeBoardTests {
         let file = FileManager.default.temporaryDirectory.appending(path: "bridge-cancel-\(UUID()).json")
         defer { try? FileManager.default.removeItem(at: file) }
         let engine = try Engine(cacheFile: file, fetcher: LeaderboardFetcher(session: session, sharedEndpoint: URL(string: "https://synthetic.invalid")!))
-        let refreshing = Task { await engine.handle(Request(id: 1, command: "refreshBoards", boards: ["artificialAnalysis", "epochECI"])) }
+        let refreshing = Task { await engine.handle(Request(id: 1, command: "refreshBoardsIfStale", boards: ["artificialAnalysis", "epochECI"])) }
         try await waitFor { BoardVisibilityHTTP.log.read().requests.count == 2 }
         let selected = await engine.handle(Request(id: 2, command: "state", boards: ["epochECI"]))
         #expect(selected.result?.boards.map(\.kind) == ["epochECI"])
         _ = await refreshing.value
         try await waitFor { BoardVisibilityHTTP.log.read().cancellations.contains("artificialAnalysis") }
         BoardVisibilityHTTP.log.allow("artificialAnalysis")
-        _ = await engine.handle(Request(id: 3, command: "refreshBoards", boards: ["artificialAnalysis", "epochECI"]))
+        _ = await engine.handle(Request(id: 3, command: "refreshBoardsIfStale", boards: ["artificialAnalysis", "epochECI"]))
         #expect(BoardVisibilityHTTP.log.read().requests.count == 3)
     }
     @Test func changingSelectionAlsoCancelsTheSharedCacheRead() async throws {

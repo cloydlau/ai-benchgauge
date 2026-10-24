@@ -349,7 +349,7 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
                     show(kind)
                     XCTAssertFalse(app.buttons["source-error-\(kind)"].exists)
                     for frame in 0..<3 {
-                        if frame == 1 { app.buttons["refresh"].firstMatch.tap() }
+                        if frame == 1 { app.pullLeaderboardToRefresh() }
                         Thread.sleep(forTimeInterval: 0.75)
                         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
                         attachment.name = "source-\(state)-\(kind)-\(dark ? "dark" : "light")-frame-\(frame)"
@@ -417,8 +417,9 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
                 let badge = app.descendants(matching: .any)["openness-\(kind)-1"].firstMatch
                 XCTAssertTrue(badge.exists)
                 XCTAssertEqual(badge.label, chinese ? "闭源" : "Closed")
-                let times = app.buttons.matching(identifier: "refresh").allElementsBoundByIndex.first { $0.isHittable }
+                let times = app.sourceTimestamps.allElementsBoundByIndex.first { $0.isHittable }
                 XCTAssertNotNil(times)
+                XCTAssertFalse(app.buttons["refresh"].exists, "Dates are display text; manual refresh uses a pull gesture")
                 XCTAssertEqual(times?.label.hasSuffix(chinese ? "发布" : "Published"), !missing)
                 XCTAssertEqual(times?.label.hasSuffix(chinese ? "刷新" : "Refreshed"), missing)
                 XCTAssertFalse(times?.label.contains(chinese ? "抓取" : "Fetched") ?? true)
@@ -436,12 +437,16 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
                     XCTAssertLessThanOrEqual(search.frame.minX - times.frame.maxX, 3)
                     XCTAssertEqual(search.frame.midY, times.frame.midY, accuracy: 1)
                     XCTAssertFalse(times.label.contains("2026"))
+                    let label = times.label
+                    times.tap()
+                    XCTAssertEqual(times.label, label)
+                    XCTAssertFalse(app.buttons["refresh"].exists)
                     if UIDevice.current.userInterfaceIdiom == .phone {
                         XCTAssertGreaterThanOrEqual(summary.frame.minY - app.buttons["face-0"].frame.maxY, 8)
                     }
                 }
                 for frame in 0..<3 {
-                    if frame == 1 { times?.tap() }
+                    if frame == 1 { app.pullLeaderboardToRefresh() }
                     Thread.sleep(forTimeInterval: 0.5)
                     let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
                     attachment.name = "metadata-\(kind)-\(chinese ? "zh-light" : "en-dark")-frame-\(frame)"
@@ -668,7 +673,7 @@ final class LeaderboardCategoryTabTests: XCTestCase {
             for company in [false, true] {
                 if company { app.segmentedControls["grouping"].buttons[chinese ? "公司" : "Companies"].tap() }
                 for frame in 0..<3 {
-                    if frame == 1 { app.buttons["refresh"].firstMatch.tap() }
+                    if frame == 1 { app.pullLeaderboardToRefresh() }
                     Thread.sleep(forTimeInterval: 0.75)
                     let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
                     attachment.name = "country-\(chinese ? "zh-light" : "en-dark")-\(company ? "company" : "model")-frame-\(frame)"
@@ -688,7 +693,7 @@ final class LeaderboardCategoryTabTests: XCTestCase {
             for company in [false, true] {
                 if company { app.segmentedControls["grouping"].buttons[chinese ? "公司" : "Companies"].tap() }
                 for frame in 0..<3 {
-                    if frame == 1 { app.buttons["refresh"].firstMatch.tap() }
+                    if frame == 1 { app.pullLeaderboardToRefresh() }
                     Thread.sleep(forTimeInterval: 0.75)
                     let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
                     attachment.name = "model-logo-\(chinese ? "zh-light" : "en-dark")-\(company ? "company" : "model")-frame-\(frame)"
@@ -708,7 +713,7 @@ final class LeaderboardCategoryTabTests: XCTestCase {
             for company in [false, true] {
                 if company { app.segmentedControls["grouping"].buttons[chinese ? "公司" : "Companies"].tap() }
                 for frame in 0..<3 {
-                    if frame == 1 { app.buttons["refresh"].firstMatch.tap() }
+                    if frame == 1 { app.pullLeaderboardToRefresh() }
                     Thread.sleep(forTimeInterval: 0.75)
                     let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
                     attachment.name = "mobile-logo-corners-\(chinese ? "zh-light" : "en-dark")-\(company ? "company" : "model")-frame-\(frame)"
@@ -727,7 +732,7 @@ final class LeaderboardCategoryTabTests: XCTestCase {
             for landscape in [false, true] {
                 orient(landscape)
                 for frame in 0..<3 {
-                    if frame == 1 { app.buttons["refresh"].firstMatch.tap() }
+                    if frame == 1 { app.pullLeaderboardToRefresh() }
                     Thread.sleep(forTimeInterval: 0.75)
                     let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
                     attachment.name = "brands-\(chinese ? "zh-light" : "en-dark")-\(landscape ? "landscape" : "portrait")-frame-\(frame)"
@@ -747,7 +752,7 @@ final class LeaderboardCategoryTabTests: XCTestCase {
             for landscape in [false, true] {
                 orient(landscape)
                 for frame in 0..<3 {
-                    if frame == 1 { app.buttons["refresh"].firstMatch.tap() }
+                    if frame == 1 { app.pullLeaderboardToRefresh() }
                     Thread.sleep(forTimeInterval: 0.75)
                     let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
                     attachment.name = "category-\(chinese ? "zh-light" : "en-dark")-\(landscape ? "landscape" : "portrait")-frame-\(frame)"
@@ -859,7 +864,7 @@ final class LeaderboardPadTests: XCTestCase {
     func testCategoriesGroupingAndCountryFilter() {
         app.launch()
         XCTAssertTrue(app.otherElements["board-artificialAnalysis"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.buttons["refresh"].firstMatch.exists)
+        XCTAssertTrue(app.sourceTimestamps.firstMatch.exists)
         XCTAssertTrue(app.staticTexts["AI BenchGauge"].exists)
         XCTAssertFalse(app.staticTexts["Fetched"].exists)
         app.otherElements["category"].buttons["Coding"].tap()
@@ -918,7 +923,7 @@ final class LeaderboardPadTests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.otherElements["board-artificialAnalysis"].waitForExistence(timeout: 10))
         waitForLayout(landscape: false)
-        XCTAssertTrue(app.buttons["refresh"].firstMatch.exists)
+        XCTAssertTrue(app.sourceTimestamps.firstMatch.exists)
         XCTAssertTrue(app.staticTexts["AI 天梯"].exists)
         XCTAssertFalse(app.staticTexts["获取于"].exists)
         capture("zh-models-portrait")
@@ -946,7 +951,7 @@ final class LeaderboardPadTests: XCTestCase {
         // Footer may be below the fold with twenty real rows.
         scrollToFooter()
         app.buttons["language-menu"].tap(); app.buttons["繁中"].tap()
-        XCTAssertTrue(app.buttons["refresh"].firstMatch.exists)
+        XCTAssertTrue(app.sourceTimestamps.firstMatch.exists)
         XCTAssertTrue(app.staticTexts["AI 天梯"].exists)
         capture("traditional-footer-dark")
         scrollToHeader()
@@ -954,7 +959,7 @@ final class LeaderboardPadTests: XCTestCase {
         capture("traditional-dark")
         scrollToFooter()
         app.buttons["language-menu"].tap(); app.buttons["简中"].tap()
-        XCTAssertTrue(app.buttons["refresh"].firstMatch.exists)
+        XCTAssertTrue(app.sourceTimestamps.firstMatch.exists)
         scrollToHeader()
         app.otherElements["category"].buttons["图片"].tap()
         XCTAssertTrue(app.otherElements["board-arenaTextToImage"].waitForExistence(timeout: 5))
@@ -1372,7 +1377,7 @@ final class LeaderboardPhoneTests: XCTestCase {
         XCTAssertEqual(app.otherElements["cube-viewport"].frame, before)
         swipe(left: false)
         waitForFace("artificialAnalysis")
-        app.buttons["refresh"].tap()
+        app.pullLeaderboardToRefresh()
         waitForFace("artificialAnalysis")
         capture("iphone-refreshed")
         app.buttons["face-1"].tap()
@@ -2065,6 +2070,80 @@ final class LeaderboardAboutParityTests: XCTestCase {
 }
 
 
+final class TimestampLoadingLayoutTests: XCTestCase {
+    @MainActor func testCachedLoadingKeepsTimestampGeometry() {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        for dark in [false, true] {
+            var references: [String: CGRect] = [:]
+            for loading in [false, true] {
+                let app = XCUIApplication()
+                app.launchArguments = ["--ui-testing", "--source-times", "--reduce-motion",
+                    loading ? "--loading-cached-boards" : "--offline"]
+                    + (dark ? ["--dark"] : ["--preview-zh"])
+                app.launch()
+                for (index, kind) in ["artificialAnalysis", "arenaText", "epochECI"].enumerated() {
+                    let tab = app.buttons["face-\(index)"]
+                    XCTAssertTrue(tab.waitForExistence(timeout: 10)); tab.tap()
+                    let time = app.staticTexts["source-times-\(kind)"]
+                    let heading = app.staticTexts["source-heading-\(kind)"]
+                    XCTAssertTrue(time.waitForExistence(timeout: 5))
+                    Thread.sleep(forTimeInterval: 0.4)
+                    XCTAssertEqual(time.value as? String ?? "", loading ? (dark ? "Loading" : "加载中") : "")
+                    XCTAssertTrue(app.buttons["name-\(kind)-1"].exists, "Cached rows remain visible while loading")
+                    let geometry = CGRect(x: time.frame.minX - heading.frame.minX,
+                        y: time.frame.minY - heading.frame.minY,
+                        width: time.frame.width, height: time.frame.height)
+                    if let reference = references[kind] {
+                        XCTAssertEqual(geometry.minX, reference.minX, accuracy: 0.5)
+                        XCTAssertEqual(geometry.minY, reference.minY, accuracy: 0.5)
+                        XCTAssertEqual(geometry.width, reference.width, accuracy: 0.5)
+                        XCTAssertEqual(geometry.height, reference.height, accuracy: 0.5)
+                    } else { references[kind] = geometry }
+                    let capture = XCTAttachment(screenshot: app.screenshot())
+                    capture.name = "timestamp-loading-\(dark ? "en-dark" : "zh-light")-\(kind)-\(loading ? "loading" : "idle")"
+                    capture.lifetime = .keepAlways; add(capture)
+                }
+                app.terminate()
+            }
+        }
+    }
+}
+
+final class TimestampPolishTests: XCTestCase {
+    @MainActor func testTimestampReflectionKeepsTextAndGeometryInBothThemes() {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        for dark in [false, true] {
+            var references: [String: CGRect] = [:]
+            for phase in ["0", "0.5"] {
+                let app = XCUIApplication()
+                app.launchArguments = ["--ui-testing", "--offline", "--source-times", "--preview-zh", "--reduce-motion"] + (dark ? ["--dark"] : [])
+                app.launchEnvironment["BENCHGAUGE_TIMESTAMP_POLISH_PHASE"] = phase
+                app.launch()
+                for (index, kind, label) in [(0, "artificialAnalysis", "刷新"), (1, "arenaText", "发布")] {
+                    let tab = app.buttons["face-\(index)"]
+                    XCTAssertTrue(tab.waitForExistence(timeout: 10)); tab.tap()
+                    let time = app.staticTexts["source-times-\(kind)"]
+                    XCTAssertTrue(time.waitForExistence(timeout: 10))
+                    Thread.sleep(forTimeInterval: 1.2)
+                    XCTAssertTrue(time.label.contains(label))
+                    if let reference = references[kind] {
+                        XCTAssertEqual(time.frame.minX, reference.minX, accuracy: 0.5)
+                        XCTAssertEqual(time.frame.minY, reference.minY, accuracy: 0.5)
+                        XCTAssertEqual(time.frame.width, reference.width, accuracy: 0.5)
+                        XCTAssertEqual(time.frame.height, reference.height, accuracy: 0.5)
+                    } else { references[kind] = time.frame }
+                    let capture = XCTAttachment(screenshot: app.screenshot())
+                    capture.name = "timestamp-\(dark ? "dark" : "light")-\(kind)-phase-\(phase)"
+                    capture.lifetime = .keepAlways; add(capture)
+                }
+                app.terminate()
+            }
+        }
+    }
+}
+
 final class LeaderboardTabDragTests: XCTestCase {
     func testDragBothBarsInLightMode() { verify(dark: false) }
     func testDragBothBarsInDarkMode() { verify(dark: true) }
@@ -2122,7 +2201,7 @@ final class LeaderboardTabDragTests: XCTestCase {
                 let kind = ["artificialAnalysis": "artificialAnalysis", "arena": "arenaText", "epoch": "epochECI",
                             "openRouter": "openRouterUsage", "vercel": "vercelUsage", "cloudbase": "cloudbaseUsage"][sourceID]!
                 XCTAssertTrue(app.staticTexts["source-heading-" + kind].exists)
-                let refresh = app.buttons.matching(identifier: "refresh").allElementsBoundByIndex.first { $0.isHittable }
+                let refresh = app.sourceTimestamps.allElementsBoundByIndex.first { $0.isHittable }
                 XCTAssertNotNil(refresh)
                 XCTAssertFalse(refresh?.label.isEmpty ?? true)
                 capture.name = "source-theme-\(dark ? "dark" : "light")-\(sourceID)"
@@ -2261,5 +2340,17 @@ final class LeaderboardFilterMenuTests: XCTestCase {
             }
             app.terminate()
         }
+    }
+}
+
+private extension XCUIApplication {
+    var sourceTimestamps: XCUIElementQuery {
+        staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "source-times-"))
+    }
+
+    func pullLeaderboardToRefresh() {
+        let scroll = scrollViews.allElementsBoundByIndex.first { $0.isHittable } ?? scrollViews.firstMatch
+        scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+            .press(forDuration: 0.1, thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8)))
     }
 }
