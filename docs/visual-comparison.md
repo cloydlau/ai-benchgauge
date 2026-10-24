@@ -2491,3 +2491,139 @@ Windows WPF Release cross-compilation and the mini-program build/upload passed.
 Native Windows comparison artifacts and a connected WeChat DevTools visual
 review remain unavailable; no Windows visual or protected release approval is
 claimed.
+
+
+## Desktop names can extend past score fills — 2026-10-24
+
+Mac and Windows give model/company names the full model-column track, independently
+of the proportional background width. Names no longer get a shorter truncation
+width merely because a relative score badge is visible. Relative percentages use
+the reserved trailing gutter, preventing overlap with text extending past the fill.
+Score ratios, badge visibility, table boundaries, detail/copy actions and full-name
+tooltips retain their existing rules. Truly column-wide names can still truncate.
+
+The common fixture adds `name-overflow-*` long-name cases. The dedicated shared
+`Tests/fixtures/desktop-name-overflow.json` uses fixed 100/55/25/12/5/0 scores
+to exercise text crossing short backgrounds: single-source 850/1100×720,
+three-source 1600×720, EN / 简中 / 繁中, and a company-row control. Both native
+runners consume the same fixture. Local originals, fixture/source hashes and
+actual verification results are retained in ignored `work/name-overflow/`.
+Windows WPF Release cross-compilation passes with zero warnings/errors; real
+Windows before/after screenshots and actual Windows DPI review remain unavailable
+on this Mac host. No Windows visual sign-off or protected release approval is
+claimed. Mac comparison results are recorded separately in that evidence folder.
+
+## Timestamp reflection — 2026-10-24
+
+Leaderboard dates retain their existing fonts, colors, formatting and placement.
+A soft white reflection crosses only the timestamp glyphs over 1.1 seconds after
+loading completes, then once every 30 seconds. Apple clients explicitly publish
+refresh completion so a fast, unchanged response also triggers a pass. Ordinary
+quota updates and view redraws preserve the cadence. Inactive native apps/windows,
+reduced motion and static image exports suppress the reflection; the
+mini-program stops its timers on hide/unload and honors reduced motion in CSS.
+Tencent's “Sampled period” and missing-date placeholders stay static.
+
+`Tests/fixtures/timestamp-polish.json` covers publication/fetch captions, usage
+sources, three languages, narrow/single and three-board headers in both themes.
+The native diagnostic phase override freezes the same glyph overlay at idle or
+mid-pass for visual comparison; it does not shorten the production interval.
+Ignored `work/timestamp-polish/` retains the native originals and verification
+receipts. Timing and refresh completion have deterministic regression tests.
+Windows native visual coverage remains unavailable on this Mac. WeChat runtime
+visual review remains blocked by expired DevTools login; neither is claimed as
+visually verified. The protected native release review still requires a human.
+
+Native Mac review retains 18 before, 18 idle and 18 mid-pass originals at
+macOS 27.0.1 / 1× backing scale. Mid-pass differences are confined to timestamp
+ink rows. Settled single-board and usage baseline/idle frames match exactly;
+the three-board case has small subpixel color variations (maximum RGB delta 15),
+and some initial logo realizations differ. No geometry regression was observed.
+The iPhone 18 Pro / iOS 27 simulator test passes eight native captures covering
+publication and fetch captions, idle/mid-pass and both themes. The text remains
+accessible and its frame stays within 0.5 points of the idle frame. An initial
+offscreen-gradient accessibility-frame defect was corrected by drawing the band
+inside a fixed Canvas. Original failed runs are retained alongside the final pass.
+
+
+## Mobile timestamp interaction — 2026-10-24
+
+iOS and the mini-program now expose the timestamp as display text rather than
+a refresh button. Loading feedback and the reflection remain; manual refresh
+uses the existing native pull gesture. iOS capture tests now use that gesture
+instead of tapping the old date button.
+
+The iPhone 18 Pro / iOS 27 simulator metadata test passed with 12 native captures
+in ignored `work/date-display/`, checking publication/fetch captions, text-only
+accessibility, date taps and pull gestures in Chinese light and English dark.
+The two initial general-board originals were visually reviewed for readability
+and layout. The mini-program build and 79 focused checks passed; the compiled
+template retains its native pull binding and has no timestamp tap binding.
+Mini-program runtime review remains unavailable with the expired DevTools login.
+
+
+## Vercel reporting-day caption — 2026-10-24
+
+The Vercel header now reads “10/22 Data / 10/22 数据”. Its UTC reporting day
+stays unchanged. Source help explains UTC 00:00 to the next day's 00:00,
+corresponding to Beijing 08:00 to the next day's 08:00. The short source summary
+no longer carries the UTC detail. Apple clients share the presentation rule;
+Windows and the mini-program use matching caption semantics.
+
+`Tests/fixtures/timestamp-polish.json` adds Simplified and Traditional Chinese
+single-Vercel cases alongside the existing English usage case. Ignored
+`work/usage-date-caption/` retains identical fixtures, source and binary hashes,
+18 before and 18 after native Mac frames, metadata, pixel differences and the
+passing full coverage-gate receipt. macOS 27.0.1 / actual 1× backing scale;
+local uncommitted sources. Settled differences are confined to the Vercel date
+caption ink in all six language/theme states. Original Chinese/light and
+English/dark frames were reviewed for complete readable text.
+
+The mini-program production build and 88 focused controller/export tests pass;
+Windows Release cross-compilation has zero warnings/errors. Native Windows
+visual coverage and WeChat simulator review remain unavailable on this host.
+No source-matched CI visual artifact or protected release approval is claimed.
+
+
+## Stable mobile timestamp while loading — 2026-10-24
+
+iOS and the mini-program no longer insert a spinner beside the timestamp.
+That extra inline width could move the date/actions to the next header line.
+Native pull feedback and first-load skeletons remain, while accessibility still
+announces an in-progress load. The timestamp reflection resumes after completion.
+
+The iPhone 18 Pro / iOS 27 simulator regression passes for General's three sources
+in Chinese/light and English/dark. A cached-data fixture keeps requests pending
+for 30 seconds. Loading accessibility values confirm the active state; date
+position relative to the heading and date size match idle within 0.5 points,
+and cached model rows remain present. Twelve native originals and the passed
+xcresult/log/source hashes are retained in ignored `work/timestamp-loading-layout/`.
+The Chinese/light and English/dark loading originals were visually reviewed.
+Mini-program production build and 76 focused checks pass; its simulator visual
+review remains unavailable with the expired DevTools login.
+
+
+## Tencent display name — 2026-10-24
+
+The user-facing source name is now Tencent Cloud across client rankings, source
+catalogs, notices and exports; Chinese notice prose uses 腾讯云. New backend
+snapshots use the same title. The `cloudbaseUsage` / `cloudbase` identifiers,
+source links, saved selections, data scope and license status stay unchanged.
+Legacy Swift cache fixtures deliberately retain the old upstream title.
+
+Ignored `work/tencent-cloud-name/` retains the same six model/company fixtures
+in English/Simplified/Traditional Chinese, 36 before and 36 after native Mac
+originals, source/binary hashes and metadata on macOS 27.0.1 / actual 1× scale.
+Settled differences are confined to the Tencent header caption in all twelve
+locale/theme/grouping states. English/light model and Chinese/dark company
+originals were reviewed for a complete readable source name. The 100 focused
+backend/mini-program checks, two existing Swift cache/source tests, mini-program
+production build and Windows Release cross-build pass. Windows native visual
+coverage, WeChat simulator review and a new iOS wording capture are unavailable;
+no CI visual artifact or protected release approval is claimed.
+
+### 2026-10-24 — Usage / General mobile glyph refresh
+
+Replaced the shared usage bars with a segmented statistics ring and the general apps grid with a trophy. Both are original MIT-licensed SVG geometry; native 54×54 template exports and mini-program source-accent variants share those SVGs. Existing 18pt frames, category selection and source tint behavior remain. Per-icon provenance is recorded in `apps/ios/UI/Resources/CategoryIcons/sources.json`.
+
+Evidence: `work/category-icon-refresh/verification.json`, `iPhone.xcresult`, and `attachments/manifest.json`. The existing category-layout UI test passed and captured 12 native frames across Chinese/light and English/dark, portrait and landscape, including initial, refresh and settled states. Reviewed the four settled originals: both glyphs are aligned, distinct and unclipped. Simulator bundled PNG hashes match the current exports. Mini-program build, 75 page tests and 11 asset/deployment tests passed; both glyphs match generated PNGs for all 14 source colors. No mini-program simulator visual review or physical installation/upload is claimed. Desktop category navigation has no corresponding glyphs and is unaffected.
