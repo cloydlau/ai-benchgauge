@@ -1,5 +1,5 @@
 export const categories = [
-  { id: 'usage', labels: ['Usage', '用量', '用量'], kinds: ['openRouterUsage', 'vercelUsage'] },
+  { id: 'usage', labels: ['Usage', '用量', '用量'], kinds: ['openRouterUsage', 'vercelUsage', 'cloudbaseUsage'] },
   { id: 'general', labels: ['General', '综合', '綜合'], kinds: ['artificialAnalysis', 'arenaText', 'epochECI'] },
   { id: 'coding', labels: ['Coding', '编程', '編程'], kinds: ['artificialAnalysisCodingAgent', 'codeArenaWebDev'] },
   { id: 'image', labels: ['Image', '图片', '圖片'], kinds: ['artificialAnalysisTextToImage', 'arenaTextToImage'] },
@@ -8,6 +8,7 @@ export const categories = [
 export const repositoryURL = 'https://github.com/cloydlau/ai-benchgauge'
 export const desktopDownloadURL = `${repositoryURL}/releases/latest`
 export const leaderboardSources = [
+  { id: 'cloudbase', title: 'Tencent CloudBase', url: 'https://docs.cloudbase.net/ai/announcement/model-token-volume' },
   { id: 'vercel', title: 'Vercel AI Gateway', url: 'https://vercel.com/ai-gateway/leaderboards/models' },
   { id: 'openRouter', title: 'OpenRouter', url: 'https://openrouter.ai/rankings' },
   { id: 'artificialAnalysis', title: 'Artificial Analysis', url: 'https://artificialanalysis.ai/' },

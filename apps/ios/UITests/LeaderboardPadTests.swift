@@ -2111,7 +2111,7 @@ final class LeaderboardTabDragTests: XCTestCase {
         // Cover every source identity, including the three-source category and
         // the usage category, after switching and dragging between categories.
         for (category, sourceIDs) in [("general", ["artificialAnalysis", "arena", "epoch"]),
-                                      ("usage", ["openRouter", "vercel"])] {
+                                      ("usage", ["openRouter", "vercel", "cloudbase"])] {
             let categoryTab = app.buttons["category-" + category]
             categoryTab.tap(); selected(categoryTab)
             for (index, sourceID) in sourceIDs.enumerated() {
@@ -2120,7 +2120,7 @@ final class LeaderboardTabDragTests: XCTestCase {
                 Thread.sleep(forTimeInterval: 0.6)
                 let capture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
                 let kind = ["artificialAnalysis": "artificialAnalysis", "arena": "arenaText", "epoch": "epochECI",
-                            "openRouter": "openRouterUsage", "vercel": "vercelUsage"][sourceID]!
+                            "openRouter": "openRouterUsage", "vercel": "vercelUsage", "cloudbase": "cloudbaseUsage"][sourceID]!
                 XCTAssertTrue(app.staticTexts["source-heading-" + kind].exists)
                 let refresh = app.buttons.matching(identifier: "refresh").allElementsBoundByIndex.first { $0.isHittable }
                 XCTAssertNotNil(refresh)

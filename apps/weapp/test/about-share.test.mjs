@@ -45,6 +45,7 @@ test('about-page menu forwarding and cold-start back navigation retain the origi
   assert.equal(about.repositoryURL, 'https://github.com/cloydlau/ai-benchgauge')
   assert.equal(about.desktopDownloadURL, about.repositoryURL + '/releases/latest')
   assert.deepEqual(about.items.map(item => [item.id, item.license]), [
+    ['cloudbase', true],
     ['vercel', true],
     ['openRouter', true],
     ['artificialAnalysis', false],
@@ -176,7 +177,7 @@ test('Vercel agreement opens the current cached credit offline and never borrows
 })
 
 
-test('CloudBase entry stays hidden with a previously cached Tencent snapshot', () => {
+test('CloudBase source notice opens offline with its own cached provenance', () => {
   globalThis.__APP_VERSION__ = '0.0.0'; globalThis.__THIRD_PARTY_NOTICES__ = []
   globalThis.__ENGINEERING_INVESTMENT__ = { commitCount: 0, codeLineCount: 0 }
   for (const language of ['en', 'zh-CN', 'zh-TW']) {
@@ -192,9 +193,12 @@ test('CloudBase entry stays hidden with a previously cached Tencent snapshot', (
     }
     const about = globalThis.aboutFactory({})
     const source = about.items.find(item => item.id === 'cloudbase')
-    assert.equal(source, undefined)
+    assert.equal(source.license, true)
     about.openLicense({ currentTarget: { dataset: { id: 'cloudbase' } } })
-    assert.equal(about.licenseNotice.value.open, false)
+    assert.equal(about.licenseNotice.value.open, true)
+    assert.ok(about.licenseNotice.value.text.includes("Tencent sampled period"))
+    assert.ok(!about.licenseNotice.value.text.includes("Other platform credit"))
+    assert.ok(!about.licenseNotice.value.text.includes("creativecommons.org/licenses"))
     about.closeLicense(); assert.equal(about.licenseNotice.value.open, false)
   }
 })

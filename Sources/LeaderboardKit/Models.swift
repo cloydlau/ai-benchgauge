@@ -140,7 +140,7 @@ public enum LeaderboardCategory: String, Codable, CaseIterable, Identifiable, Se
         case .coding: [.artificialAnalysisCodingAgent, .codeArenaWebDev]
         case .image: [.artificialAnalysisTextToImage, .arenaTextToImage]
         case .video: [.artificialAnalysisTextToVideo, .arenaTextToVideo]
-        case .usage: [.openRouterUsage, .vercelUsage]
+        case .usage: [.openRouterUsage, .vercelUsage, .cloudbaseUsage]
         }
     }
 }

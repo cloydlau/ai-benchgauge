@@ -3491,6 +3491,60 @@
       ],
       "grouping": "model",
       "appearance": "dark"
+    },
+    {
+      "id": "restored-cloudbase-model-en",
+      "language": "en",
+      "width": 1100,
+      "height": 720,
+      "scenario": "usageModels",
+      "category": "usage",
+      "grouping": "model"
+    },
+    {
+      "id": "restored-cloudbase-company-en",
+      "language": "en",
+      "width": 1100,
+      "height": 720,
+      "scenario": "usageCompanies",
+      "category": "usage",
+      "grouping": "company"
+    },
+    {
+      "id": "restored-cloudbase-model-zh",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "scenario": "usageModels",
+      "category": "usage",
+      "grouping": "model"
+    },
+    {
+      "id": "restored-cloudbase-company-zh",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "scenario": "usageCompanies",
+      "category": "usage",
+      "grouping": "company"
+    },
+    {
+      "id": "restored-cloudbase-model-zh-Hant",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "scenario": "usageModels",
+      "category": "usage",
+      "grouping": "model"
+    },
+    {
+      "id": "restored-cloudbase-company-zh-Hant",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "scenario": "usageCompanies",
+      "category": "usage",
+      "grouping": "company"
     }
   ],
   "quotaScenarios": {

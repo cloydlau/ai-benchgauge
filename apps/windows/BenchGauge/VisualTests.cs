@@ -216,7 +216,7 @@ static class VisualTests
                             button.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                             Settle(window);
                             var links = button.ContextMenu.Items.OfType<System.Windows.Controls.MenuItem>().ToArray();
-                            var expected = new[] { "artificialAnalysis", "arenaText", "epochECI", "openRouterUsage", "vercelUsage" };
+                            var expected = new[] { "artificialAnalysis", "arenaText", "epochECI", "openRouterUsage", "vercelUsage", "cloudbaseUsage" };
                             if (!button.ContextMenu.IsOpen || !links.Select(link => System.Windows.Automation.AutomationProperties.GetAutomationId(link)).SequenceEqual(expected.Select(kind => "data-source-" + kind)))
                                 throw new InvalidOperationException("Data source links are incomplete or contain a disabled source");
                         }
