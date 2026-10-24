@@ -25,6 +25,10 @@ import LeaderboardKit
         let source = LeaderboardPresentation.sourceTime(board, language: language, timeZone: TimeZone(secondsFromGMT: -28800)!)
         #expect(source.isSourceTime)
         #expect(source.text == "2026-10-15 \(language.text("Published", "发布"))")
+        let mobile = LeaderboardPresentation.sourceTime(board, language: language,
+            timeZone: TimeZone(secondsFromGMT: -28800)!, includesYear: false)
+        #expect(mobile.text == "10-15 \(language.text("Published", "发布"))")
+        #expect(mobile.isSourceTime)
         #expect(!source.text.contains(":"))
         #expect(!source.text.contains(language.text("Fetched", "抓取")))
     }
