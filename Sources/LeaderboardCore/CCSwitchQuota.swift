@@ -99,9 +99,10 @@ public enum GLMQuotaRecoveryAction: Sendable {
 public enum AccountQuotaMessage {
     public static let querying = "查询中"
     public static let queryFailed = "查询失败"
-    public static let kimiNoCodingPlan = "未订购"
+    public static let notSubscribed = "未订购"
+    public static let kimiNoCodingPlan = notSubscribed
     public static let kimiNoCodingPlanHelp = "Kimi Code 未返回有效套餐额度；套餐可能已过期或未订购，请检查套餐与 Key 所属账号。"
-    public static let glmNoCodingPlan = "未订购"
+    public static let glmNoCodingPlan = notSubscribed
     public static let glmNoCodingPlanHelp = "套餐可能已过期或未订购；请在 CC Switch 检查 GLM Key 与套餐账号。"
     public static let glmConfigurationHelp = "点击打开 CC Switch，检查 GLM Key 与 Coding Plan 套餐账号；修改后重新打开本面板刷新余量。"
     public static let glmRetryHelp = "点击重新读取 GLM 配置并重试余量查询。"
@@ -124,7 +125,7 @@ public enum AccountQuotaMessage {
     public static let autoRenewing = "自动续费"
     public static let connectOfficial = "未连接"
     public static let connectOfficialHelp = "只显示千问账号套餐剩余，多设备共用，不统计本机请求"
-    public static let qwenNoPlan = "未订购"
+    public static let qwenNoPlan = notSubscribed
     public static let qwenNoPlanHelp = "千问官网未显示有效个人版套餐；请检查套餐与登录账号。"
 }
 
@@ -991,8 +992,7 @@ public enum AccountQuotaFormatting {
         var runs: [QuotaTextRun] = []
         if kind == .xaiOAuth, let plan = planWindow(windows),
            let state = plan.subscriptionState, state != .active {
-            let ended = state == .inactive && plan.resetsAt.map { $0 <= now } == true
-            runs.append(QuotaTextRun(text: state == .unverified ? "套餐待核实" : (ended ? "订阅已过期" : "未订购"),
+            runs.append(QuotaTextRun(text: state == .unverified ? "套餐待核实" : AccountQuotaMessage.notSubscribed,
                 tone: state == .inactive ? .red : .orange))
             if let end = plan.resetsAt {
                 appendSeparator(&runs)

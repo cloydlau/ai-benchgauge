@@ -13,8 +13,8 @@ API subscription dates remain cached for the same account after their boundary
 passes. Explicit ended records retain their actual end date; an active renewal
 wins over ended history. A passed date alone is not proof of expired access, so
 an unverifiable renewal shows “套餐待核实” with the last reported date. Confirmed
-inactive plans show “订阅已过期” when their reported end has passed, or “未订购”
-without an ended date. Their usage percentages are suppressed in the card,
+inactive plans always show “未订购” / “未訂購” / “Not subscribed”, matching
+Kimi and GLM, whether or not a reported end date has passed. Their usage percentages are suppressed in the card,
 help and menu bar, and do not trigger quota recovery notifications. No usage
 reset is promoted to a subscription date. A date the provider never reported
 cannot be reconstructed.
@@ -25,7 +25,7 @@ captures and logs are kept under ignored `work/xai-expired-subscription/`.
 Windows native OS/DPI captures require a Windows environment and are not
 claimed by local shared-code tests or cross-compilation.
 
-Local validation passed `./test.sh --coverage` for stable inputs, with no skipped
+Earlier boundary/entitlement validation passed `./test.sh --coverage` for stable inputs, with no skipped
 checks and 100% script/Swift coverage. The identical fixture produced 54 native
 Mac frames before and 54 after on macOS 27.0.1 at actual 1× backing scale,
 900×720 points, covering three subscription states, all three languages and

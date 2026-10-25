@@ -324,7 +324,6 @@ static class VisualTests
         ("en", "登录失效") => "Login expired", ("en", "查询中") => "Checking",
         ("en", "查询失败") => "Query failed", ("zh-Hant", "查询失败") => "查詢失敗",
         ("en", "未订购") => "Not subscribed", ("zh-Hant", "未订购") => "未訂購",
-        ("en", "订阅已过期") => "Subscription expired", ("zh-Hant", "订阅已过期") => "訂閱已過期",
         ("en", "套餐待核实") => "Plan unverified", ("zh-Hant", "套餐待核实") => "套餐待核實",
         ("en", " · 至11月18日") => " · to Nov 18", ("zh-Hant", " · 至11月18日") => " · 至11月18日",
         ("en", "未配置") => "Not configured", ("zh-Hant", "登录失效") => "登錄失效",
