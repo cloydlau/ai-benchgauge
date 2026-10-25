@@ -13,6 +13,7 @@ public enum SourceTabTheme {
         let dark: Palette
     }
     private struct Source: Decodable, Sendable {
+        let id: String
         let kinds: [String]
         let light: Palette
         let dark: Palette
@@ -26,6 +27,10 @@ public enum SourceTabTheme {
 
     public static func palette(for kind: LeaderboardKind, dark: Bool) -> Palette {
         palette(forKindID: kind.rawValue, dark: dark)
+    }
+
+    public static func sourceID(for kind: LeaderboardKind) -> String? {
+        catalog.sources.first(where: { $0.kinds.contains(kind.rawValue) })?.id
     }
 
     static func palette(forKindID kindID: String, dark: Bool) -> Palette {

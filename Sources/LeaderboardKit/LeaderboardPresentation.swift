@@ -110,6 +110,10 @@ public enum LeaderboardPresentation {
         }
     }
 
+    public static func sourceTabTitle(_ kind: LeaderboardKind, language: AppLanguage) -> String {
+        explanation(kind, language: language)
+    }
+
     public static func explanation(_ kind: LeaderboardKind, language: AppLanguage) -> String {
         switch kind {
         case .artificialAnalysis: language.text("Task benchmarks", "任务测评")
@@ -118,8 +122,9 @@ public enum LeaderboardPresentation {
         case .artificialAnalysisTextToVideo: language.text("Matched settings", "统一设置")
         case .arenaText: language.text("User votes", "用户盲测")
         case .epochECI: language.text("Calibrated tests", "难度校准")
-        case .cloudbaseUsage, .vercelUsage: language.text("Token share", "用量占比")
-        case .openRouterUsage: language.text("Usage ranking", "用量排行")
+        case .cloudbaseUsage: language.text("Cumulative share", "累计占比")
+        case .vercelUsage: language.text("Daily share", "每日占比")
+        case .openRouterUsage: language.text("Daily usage", "每日用量")
         case .codeArenaWebDev: language.text("WebDev votes", "网页开发盲选")
         case .arenaTextToImage, .arenaTextToVideo: language.text("User prompts", "用户出题")
         }

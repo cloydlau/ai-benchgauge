@@ -1,6 +1,22 @@
 import Testing
 @testable import LeaderboardKit
 
+@Test func sourceTabLogosFollowSourceIdentityAcrossAllCategories() {
+    let sources: [(String, [LeaderboardKind])] = [
+        ("artificialAnalysis", [.artificialAnalysis, .artificialAnalysisCodingAgent,
+            .artificialAnalysisTextToImage, .artificialAnalysisTextToVideo]),
+        ("arena", [.arenaText, .codeArenaWebDev, .arenaTextToImage, .arenaTextToVideo]),
+        ("epoch", [.epochECI]), ("openRouter", [.openRouterUsage]),
+        ("vercel", [.vercelUsage]), ("cloudbase", [.cloudbaseUsage])
+    ]
+    #expect(Set(sources.flatMap { $0.1 }) == Set(LeaderboardKind.allCases))
+    for (source, kinds) in sources {
+        for kind in kinds {
+            #expect(SourceTabTheme.sourceID(for: kind) == source)
+        }
+    }
+}
+
 @Test func nativeSourceTabsKeepEachBrandsColorsAcrossCategoriesAndAppearances() {
     let brands: [([LeaderboardKind], [String], [String])] = [
         ([.artificialAnalysis, .artificialAnalysisCodingAgent, .artificialAnalysisTextToImage, .artificialAnalysisTextToVideo],

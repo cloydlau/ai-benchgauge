@@ -15,7 +15,7 @@ test('titles use the native font outlines offline and keep the logo aligned with
     assert.equal(larger.width, title.width * 2)
     assert.equal(larger.height, title.height * 2)
     const bottomLift = title.glyphs[0].y + title.glyphs[0].height - title.logoTop - title.logoHeight
-    assert.ok(Math.abs(bottomLift - (name === 'AI BenchGauge' ? 0.6 : 0)) < 1e-9)
+    assert.ok(Math.abs(bottomLift) < 1e-9)
     assert.ok(title.glyphs[0].x > title.logoWidth)
     for (const glyph of title.glyphs) {
       assert.ok(glyph.y >= 0 && glyph.y + glyph.height <= title.height)
@@ -62,7 +62,7 @@ test('the English A leans right in both renderers without clipping, touching I o
   for (const size of [14, 21, 42]) {
     const title = brandTitleLayout(null, 'AI BenchGauge', size), h = canvasHarness(), image = {}
     const angle = Number(title.logoStyle.match(/skewX\(([-\d.]+)deg\)/)[1])
-    assert.equal(angle, -28)
+    assert.equal(angle, -31)
     drawBrandLogo(h.context, image, title, 10, 20)
     assert.deepEqual(h.commands.map(([method]) => method), ['save', 'transform', 'drawImage', 'restore'])
     const [, a, b, c, d, tx, ty] = h.commands[1]

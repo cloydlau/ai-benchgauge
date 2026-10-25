@@ -2,6 +2,22 @@ import Foundation
 import Testing
 import LeaderboardKit
 
+@Test func usageCaptionsDistinguishDailyAndCumulativeCoverageAcrossClientsAndLanguages() {
+    let captions: [(LeaderboardKind, String, String, String)] = [
+        (.cloudbaseUsage, "Cumulative share", "累计占比", "累計佔比"),
+        (.vercelUsage, "Daily share", "每日占比", "每日佔比"),
+        (.openRouterUsage, "Daily usage", "每日用量", "每日用量")
+    ]
+    for (kind, english, chinese, traditional) in captions {
+        for (language, expected): (AppLanguage, String) in [
+            (.english, english), (.chinese, chinese), (.traditionalChinese, traditional)
+        ] {
+            #expect(LeaderboardPresentation.explanation(kind, language: language) == expected)
+            #expect(LeaderboardPresentation.sourceTabTitle(kind, language: language) == expected)
+        }
+    }
+}
+
 @Test func modelNameSearchFoldsCaseAccentsWidthAndWhitespaceWithoutLookingAtProviders() {
     #expect(LeaderboardPresentation.modelNameMatches("Café Ａlpha 中文模型", query: "  CAFE alpha 中文 "))
     #expect(!LeaderboardPresentation.modelNameMatches("Alpha Mini", query: "alpha pro"))

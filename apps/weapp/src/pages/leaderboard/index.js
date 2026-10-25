@@ -4,7 +4,7 @@ import { definePage, ref, computed, onLoad, onReady, onShow, onHide, onUnload, o
 import { boards, categories, categoryFor, copy, text, languages, boardTitle, hasOwn, desktopDownloadURL } from '../../core/catalog.js'
 import { rankedEntries, rowView, countryCode, countryName, countryFlag, countryFlagImage, countryOptions, formatTime } from '../../core/leaderboard.js'
 import { opennessIcon, opennessColor } from '../../core/openness-icon.js'
-import { sourceTabTheme } from '../../core/source-tab-theme.js'
+import { sourceTabTheme, sourceTabLogo } from '../../core/source-tab-theme.js'
 import { leaderboardDistribution } from '../../../../../fc/distributions.mjs'
 import { createBoardStore } from '../../services/boards.js'
 import { shouldAutoRefresh } from '../../core/freshness.js'
@@ -423,7 +423,8 @@ definePage(query => {
   const categoryIndex = computed(() => categoryDragIndex.value ?? categories.findIndex(item => item.id === category.value))
   const categoryThemeStyle = computed(() => `--category-accent:${selectedSourceTheme.value.accent};`)
   const current = computed(() => categoryFor(category.value))
-  const tabs = computed(() => current.value.kinds.map(kind => kind === 'openRouterUsage' ? 'OpenRouter' : kind === 'cloudbaseUsage' ? 'Tencent Cloud' : kind === 'vercelUsage' ? 'Vercel AI Gateway' : kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
+  const sourceTabIcons = computed(() => current.value.kinds.map(kind => sourceTabLogo(kind, dark.value)))
+  const tabs = computed(() => current.value.kinds.map(kind => kind === 'openRouterUsage' ? tr('dailyUsage') : kind === 'cloudbaseUsage' ? tr('cumulativeShare') : kind === 'vercelUsage' ? tr('dailyShare') : kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
   const filterFor = kind => ({ country: 'all', openness: 'all', ...filters.value[kind] })
   const countriesFor = kind => countryOptions({ entries: Object.values(snapshots.value).flatMap(board => board?.entries || []) }, language.value, filterFor(kind).country)
   function setFilters(filter) {
@@ -1081,7 +1082,7 @@ definePage(query => {
   const closeFeatureHelp = () => { showingFeatureHelp.value = false }
   const copyDesktopLink = () => { closeFeatureHelp(); copyText(desktopDownloadURL) }
   const refreshTap = event => refreshKind(event.currentTarget.dataset.kind)
-  return { labels, subtitleParts, brandTitle, groupingControl, categoryItems, categoryIndex, categoryThemeStyle, category, grouping, face, dark, cards, tabs, backToTop, skeletonRows,
+  return { labels, subtitleParts, brandTitle, groupingControl, categoryItems, categoryIndex, categoryThemeStyle, category, grouping, face, dark, cards, tabs, sourceTabIcons, backToTop, skeletonRows,
     modelSearchQuery, modelSearchVisible, modelSearchFocused, openModelSearch, inputModelSearch, beginModelSearchClear, cancelModelSearchClear, clearModelSearch, closeModelSearch, blurModelSearch, deferModelSearchBlur, focusModelSearch,
     statusBar, navHeight, headerTop, capsuleWidth, sheet, backgroundLocked,
     cubeFaces, sourceSelection, sourceTabIndex, sourceTabsStyle, sourceTabsExtent, cubeViewportStyle,

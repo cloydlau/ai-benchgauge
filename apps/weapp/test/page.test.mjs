@@ -720,7 +720,7 @@ test('every category and source shares the current page title and only the local
   for (const language of ['en', 'zh-CN', 'zh-TW']) for (const category of categories) for (const face of category.kinds.keys()) {
     const h = setup({ language, category: category.id, face })
     const message = globalThis.__benchHooks.share()
-    const title = category.id === 'usage' ? ['OpenRouter', 'Vercel AI Gateway', 'Tencent Cloud'][face] : text([copy.tasks, copy.votes, copy.capabilityIndex][face], language)
+    const title = category.id === 'usage' ? text([copy.dailyUsage, copy.dailyShare, copy.cumulativeShare][face], language) : text([copy.tasks, copy.votes, copy.capabilityIndex][face], language)
     assert.equal(message.title, `${title}｜${text(copy.rankingSummary, language)}`)
     assert.ok(!message.title.includes(text(copy.tagline, language)))
     const shared = pagePreferences(Object.fromEntries(new URL('https://shared.example' + message.path).searchParams))
@@ -759,7 +759,7 @@ test('usage restores Tencent, keeps failures independent and recovers OpenRouter
   assert.equal(h.page.face.value, 2, 'Restored Tencent selection is retained')
   const loading = h.loadCategory()
   assert.equal(h.requests.length, 3)
-  assert.deepEqual(h.page.tabs.value, ['OpenRouter', 'Vercel AI Gateway', 'Tencent Cloud'])
+  assert.deepEqual(h.page.tabs.value, ['每日用量', '每日占比', '累计占比'])
   h.requests[0].options.success({ statusCode: 200, data: { board: null, configurationRequired: true } })
   h.requests[0].options.complete()
   h.respond(1, { sourceUpdatedAt: '2026-10-22T00:00:00Z', entries: [{ rank: 1, name: 'DeepSeek V4.1 Flash', score: 16.3389, organization: 'DeepSeek' }] })

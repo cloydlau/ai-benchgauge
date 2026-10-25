@@ -886,8 +886,9 @@ sealed partial class MainWindow
     string SourceLens(Board board) => board.Kind switch
     {
         "artificialAnalysis" => Tr("Task benchmarks", "任务测评", "任務測評"),
-        "cloudbaseUsage" or "vercelUsage" => Tr("Token share", "用量占比", "用量佔比"),
-        "openRouterUsage" => Tr("Usage ranking", "用量排行", "用量排行"),
+        "cloudbaseUsage" => Tr("Cumulative share", "累计占比", "累計佔比"),
+        "vercelUsage" => Tr("Daily share", "每日占比", "每日佔比"),
+        "openRouterUsage" => Tr("Daily usage", "每日用量", "每日用量"),
         "epochECI" => Tr("Calibrated tests", "难度校准", "難度校準"),
         "arenaText" => Tr("User votes", "用户盲测", "使用者盲測"),
         "artificialAnalysisCodingAgent" => Tr("Task completion", "任务完成率", "任務完成率"),

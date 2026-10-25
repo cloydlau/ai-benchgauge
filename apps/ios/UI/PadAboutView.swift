@@ -14,6 +14,21 @@ private enum SourceIconCache {
 }
 
 @MainActor
+struct SourceBrandIcon: View {
+    let sourceID: String
+    let dark: Bool
+    var size: CGFloat = 24
+
+    var body: some View {
+        if let icon = SourceIconCache.images[sourceID + (dark ? "-dark" : "")] {
+            Image(decorative: icon, scale: 3).renderingMode(.original)
+                .resizable().scaledToFit().frame(width: size, height: size)
+                .accessibilityHidden(true)
+        }
+    }
+}
+
+@MainActor
 private final class PadAboutState: ObservableObject {
     // Command Line Tools do not ship SwiftUIMacros, so this stays an
     // ObservableObject instead of @State, matching the rest of the pad UI.
@@ -35,9 +50,6 @@ struct PadAboutView<Brand: View>: View {
     var vercelSourceNote: String? = nil
     var openRouterSourceNote: String? = nil
     private let content = PadAboutContent.load()
-    private static var sourceIcons: [String: CGImage] {
-        SourceIconCache.images
-    }
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -146,11 +158,7 @@ struct PadAboutView<Brand: View>: View {
         return HStack(spacing: 8) {
             Button { copyLink(source.url) } label: {
                 HStack(spacing: 10) {
-                    if let icon = Self.sourceIcons[source.id + (dark ? "-dark" : "")] {
-                        Image(decorative: icon, scale: 3).renderingMode(.original)
-                            .resizable().scaledToFit().frame(width: 24, height: 24)
-                            .frame(width: 28, height: 28).accessibilityHidden(true)
-                    }
+                    SourceBrandIcon(sourceID: source.id, dark: dark).frame(width: 28, height: 28)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(source.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(.primary)
                             .lineLimit(titleLines).minimumScaleFactor(0.85).truncationMode(.tail)

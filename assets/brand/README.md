@@ -43,6 +43,8 @@ Official leaderboard-source marks live separately in [`partners/`](partners/READ
 Their provenance and rights remain distinct from the BenchGauge artwork. Run
 `node Scripts/source-logos.mjs` to synchronize Apple exports; the mini-program
 build renders the same canonical assets into its package.
+Both mobile clients reuse these marks in About and before the source-tab
+captions in Usage, General, Coding, Image and Video.
 
 Wordmark letters use neutral steel/silver reflection bands at 0%, 42%, 50% and
 100% of their height: `#303945` / `#8894A2` / `#414D5C` / `#6C7888` on light

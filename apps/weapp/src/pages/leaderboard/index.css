@@ -73,6 +73,20 @@
 .source-selection { position: absolute; z-index: 1; left: 0; top: 0; bottom: 0; width: calc(50% - 6rpx); border-radius: 16rpx; pointer-events: none; transition-property: transform, background-color; transition-duration: 420ms; transition-timing-function: ease-in-out; }
 .source-tab { position: relative; z-index: 2; flex: 1; min-height: 42px; display: flex; align-items: center; justify-content: center; font-size: 24rpx; font-weight: 600; border-radius: 16rpx; color: var(--muted); background: transparent; transition: color 420ms ease-in-out; }
 .source-tab.active { color: var(--source-selected-foreground, var(--accent)); }
+.source-tab { gap: 10rpx; min-width: 0; }
+.source-tab-logo { display: block; flex: none; box-sizing: content-box; width: 28rpx; height: 28rpx; padding: 4rpx; border-radius: 8rpx; background: transparent; }
+.source-tab.active .source-tab-logo { background: var(--card); }
+.source-tab-label { min-width: 0; }
+/* Keep wrapped English words beside the icon rather than centered in a wide text box. */
+.locale-en .source-tab { padding: 0 10rpx; }
+.locale-en .source-tab-label { text-align: left; }
+/* Compact the English header before allowing the date/search group to wrap on narrow screens. */
+.locale-en .source-heading-details { gap: 8rpx; }
+.locale-en .source-heading-actions { gap: 0; }
+.locale-en .model-heading .source-heading { font-size: 18rpx; }
+.locale-en .times { font-size: 16rpx; }
+.locale-en .model-filter-toggle { width: 22px; }
+
 @media (prefers-reduced-motion: reduce) { .source-tabs, .source-selection, .source-tab { transition-duration: 0ms !important; } }
 .boards { height: 100%; min-height: 0; width: 100%; position: relative; perspective: 1200rpx; perspective-origin: center; transition: opacity 420ms ease-out, transform 420ms ease-out; }
 .cube-launch-hint { position: absolute; z-index: 5; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 158rpx); transform: translateX(-50%); display: flex; align-items: center; gap: 20rpx; padding: 18rpx 28rpx; border: 1rpx solid var(--line); border-radius: 999rpx; background: var(--card); color: var(--muted); font-size: 22rpx; white-space: nowrap; pointer-events: none; box-shadow: 0 4rpx 20rpx rgba(32,38,47,.08); }
@@ -93,17 +107,17 @@
 /* Rank text starts at 4rpx margin + 2rpx padding + (44rpx - 2 × 19rpx) / 2. */
 .metadata { display: flex; align-items: center; gap: 16rpx; padding: 24rpx 6rpx 12rpx 9rpx; }
 .summary { flex: 1; min-width: 0; padding: 0; color: var(--muted); text-align: left; font-size: 22rpx; line-height: 1.5; }
-/* Match the heading's visible glyph center with one small group correction;
-   shifting the date text again would compound this offset. */
-.times { position: relative; top: .025em; color: var(--muted); display: flex; justify-content: flex-start; white-space: nowrap; gap: 8rpx; flex-shrink: 0; text-align: left; align-items: center; font-size: 18rpx; line-height: 1.25; }
+/* Match the small timestamp's visible glyph center to the source heading.
+   Apply the same correction to the date, caption and reflection. */
+.times { position: relative; top: .1em; color: var(--muted); display: flex; justify-content: flex-start; white-space: nowrap; gap: 8rpx; flex-shrink: 0; text-align: left; align-items: center; font-size: 18rpx; line-height: 1.25; }
 .time-copy { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 4rpx; }
 .time-row { display: flex; align-items: center; justify-content: flex-start; gap: 7rpx; }
 .time-label { font: inherit; }
 .time-caption { position: relative; min-width: 12px; min-height: 12px; display: flex; align-items: center; font: inherit; }
 .time-caption-loading .time-label { visibility: hidden; }
-/* Center the ring on the text's visible glyphs. Keep this correction outside
-   the animated transform so rotation cannot change its vertical position. */
-.time-loading { position: absolute; left: 0; top: calc(50% + .025em); width: .75em; height: .75em; box-sizing: border-box; margin-top: -.375em; border: .1em solid currentColor; border-right-color: transparent; border-radius: 50%; animation: time-loading-spin 700ms linear infinite; }
+/* Keep a slight optical lift within the reserved caption, close to the digits' center.
+   Keep the correction outside the animated transform so rotation stays stable. */
+.time-loading { position: absolute; left: 0; top: calc(50% - .025em); width: .75em; height: .75em; box-sizing: border-box; margin-top: -.375em; border: .1em solid currentColor; border-right-color: transparent; border-radius: 50%; animation: time-loading-spin 700ms linear infinite; }
 @keyframes time-loading-spin { to { transform: rotate(360deg); } }
 .time-source, .time-fetched { color: var(--muted); opacity: .82; }
 .time-value { font-variant-numeric: tabular-nums; }
@@ -134,7 +148,7 @@
 .source-heading-actions { display: flex; align-items: center; gap: 2rpx; flex-shrink: 0; }
 .source-heading-details { display: flex; flex-wrap: wrap; align-items: center; min-width: 0; gap: 4rpx 12rpx; }
 .model-heading .source-heading { flex: 0 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.model-filter-toggle { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 28px; min-height: 28px; padding: 0; color: var(--source-accent); }
+.model-filter-toggle { display: flex; flex-shrink: 0; align-items: center; justify-content: flex-start; box-sizing: border-box; width: 28px; min-height: 28px; padding: 0 0 0 3px; color: var(--source-accent); }
 .model-search-open .table-head-content { opacity: 0; pointer-events: none; }
 .model-search { position: absolute; top: 0; height: 28px; box-sizing: border-box; border-radius: 12rpx; overflow: hidden; opacity: 0; pointer-events: none; background: var(--card); transition: left .32s cubic-bezier(.4,0,.2,1), right .32s cubic-bezier(.4,0,.2,1), opacity .22s ease, background-color .25s ease; }
 .model-search-open .model-search { opacity: 1; pointer-events: auto; background: var(--bg); }

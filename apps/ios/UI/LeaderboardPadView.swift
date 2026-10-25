@@ -413,9 +413,16 @@ public struct LeaderboardPadView: View {
         HStack(spacing: 6) {
             ForEach(Array(store.category.boardKinds.enumerated()), id: \.offset) { index, kind in
                 Button { turnCube(to: index) } label: {
-                    Text(kind.isUsage ? kind.sourcePrefix : LeaderboardPresentation.explanation(kind, language: store.language))
-                        .font(.caption.weight(.semibold))
-                        .lineLimit(2).frame(maxWidth: .infinity, minHeight: 38)
+                    HStack(spacing: 5) {
+                        if let sourceID = SourceTabTheme.sourceID(for: kind) {
+                            SourceBrandIcon(sourceID: sourceID, dark: colorScheme == .dark, size: 14)
+                                .padding(2)
+                                .background(selectedIndex == index ? Color.padBackground : Color.clear,
+                                    in: RoundedRectangle(cornerRadius: 4))
+                        }
+                        Text(LeaderboardPresentation.sourceTabTitle(kind, language: store.language))
+                            .font(.caption.weight(.semibold)).lineLimit(2)
+                    }.frame(maxWidth: .infinity, minHeight: 38)
                         .foregroundStyle(selectedIndex == index ? sourceTabColor(palette.foreground) : Color.secondary)
                         .contentShape(Rectangle())
                 }.buttonStyle(.plain).disabled(store.category.boardKinds.count == 1).accessibilityIdentifier("face-\(index)")
@@ -1339,7 +1346,8 @@ private struct PadBoardCard: View {
                 Button(action: openModelSearch) {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 12))
-                        .frame(width: 28, height: 28).contentShape(Rectangle())
+                        .padding(.leading, 3)
+                        .frame(width: 28, height: 28, alignment: .leading).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(sourceAccent)
