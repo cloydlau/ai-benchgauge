@@ -1419,7 +1419,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         let timeWidth = (time.text as NSString).size(withAttributes: [.font: timeFont]).width
         return ceil((titled as NSString).size(withAttributes: [
             .font: titleFont
-        ]).width + ((" · " + summary.emphasis) as NSString).size(withAttributes: [
+        ]).width + ((summary.emphasis + " · ") as NSString).size(withAttributes: [
             .font: NSFont.systemFont(ofSize: 10)
         ]).width + timeWidth + 18)
     }
@@ -1669,12 +1669,16 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         let summaryFont = NSFont.systemFont(ofSize: 10)
         let available = max(0, nameRect.width - 10)
         let titleWidth = (title as NSString).size(withAttributes: [.font: titleFont]).width
-        // Preserve the source identity before the license name and explanation.
-        let visibleTitle = titleWidth > available
-            ? title.replacingOccurrences(of: "Artificial Analysis", with: "AA") : title
+        let explanation = NSAttributedString(string: summary.emphasis + " · ",
+            attributes: [.font: summaryFont, .foregroundColor: tint])
+        // Keep the introduction first while retaining the source in narrow columns.
+        let visibleTitle = explanation.size().width + titleWidth > available ? compactTitle : title
         let text = NSMutableAttributedString(string: visibleTitle, attributes: [
             .font: titleFont, .foregroundColor: tint
         ])
+        if explanation.size().width + text.size().width <= available {
+            text.insert(explanation, at: 0)
+        }
         let license = licenseName.map { " · " + $0 }
         let licenseWidth = license.map { ($0 as NSString).size(withAttributes: [.font: titleFont]).width } ?? 0
         let showsLicense = license != nil && text.size().width + licenseWidth <= available
@@ -1682,12 +1686,6 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             text.append(NSAttributedString(string: license, attributes: [
                 .font: titleFont, .foregroundColor: tint
             ]))
-        }
-        let explanation = NSAttributedString(string: " · " + summary.emphasis,
-            attributes: [.font: summaryFont, .foregroundColor: tint])
-        // Drop the explanation before the license name. Hide both extras when the license does not fit.
-        if (license == nil || showsLicense), text.size().width + explanation.size().width <= available {
-            text.append(explanation)
         }
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineBreakMode = .byTruncatingTail

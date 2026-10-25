@@ -617,20 +617,21 @@ sealed partial class MainWindow
                     size, PanelInk, VisualTreeHelper.GetDpi(this).PixelsPerDip).WidthIncludingTrailingWhitespace;
                 var title = BoardTitle(board);
                 var available = summary.ActualWidth;
-                if (available > 0 && Measure(title, 11, FontWeights.SemiBold) > available)
+                var lens = SourceLens(board) + " · ";
+                var lensWidth = Measure(lens, 10, FontWeights.Normal);
+                if (available > 0 && lensWidth + Measure(title, 11, FontWeights.SemiBold) > available)
                     title = title.Replace("Artificial Analysis", "AA", StringComparison.Ordinal);
                 var license = board.Kind is "epochECI" or "openRouterUsage" or "vercelUsage" || ArenaAttribution.Applies(board) ? " · CC BY 4.0" : "";
-                var lens = " · " + SourceLens(board);
                 var titleWidth = Measure(title, 11, FontWeights.SemiBold);
+                var showsLens = lensWidth + titleWidth <= available;
                 var licenseWidth = license.Length == 0 ? 0 : Measure(license, 11, FontWeights.SemiBold);
-                var showsLicense = license.Length > 0 && titleWidth + licenseWidth <= available;
+                var showsLicense = license.Length > 0 && (showsLens ? lensWidth : 0) + titleWidth + licenseWidth <= available;
                 summary.Inlines.Clear();
+                if (showsLens)
+                    summary.Inlines.Add(new TextRun(lens) { Foreground = BoardTint(board.Kind), FontSize = 10, FontWeight = FontWeights.Normal });
                 summary.Inlines.Add(new TextRun(title) { Foreground = BoardTint(board.Kind) });
                 if (showsLicense)
                     summary.Inlines.Add(new TextRun(license) { Foreground = BoardTint(board.Kind) });
-                if ((license.Length == 0 || showsLicense)
-                    && titleWidth + (showsLicense ? licenseWidth : 0) + Measure(lens, 10, FontWeights.Normal) <= available)
-                    summary.Inlines.Add(new TextRun(lens) { Foreground = BoardTint(board.Kind), FontSize = 10, FontWeight = FontWeights.Normal });
             }
             summary.SizeChanged += (_, _) => UpdateHeading();
             UpdateHeading();
