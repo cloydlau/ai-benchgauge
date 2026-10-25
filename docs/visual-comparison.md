@@ -2690,3 +2690,44 @@ Evidence: `work/source-tab-slide/verification.json`, `before.css`/`before.js`, `
 Vercel and Tencent headers now always use the stored snapshot retrieval timestamp and the localized Refreshed caption. Vercel's upstream UTC day remains data coverage and is stated explicitly in source help; Tencent's sampled Beijing-time-day methodology and unavailable full dates remain there. Help clarifies that retrieval time does not imply a new upstream update. Other sources' genuine publication-time preference, timestamp formatting and loading-caption slots remain. Swift shared presentation covers iOS/macOS; equivalent mini-program and Windows paths use the same rule without changing upstream metadata.
 
 Evidence: `work/usage-refresh-time/verification.json`, `fixture.json`, `native-before/`, `native-after/`, `iPhone.xcresult`, `ios-attachments/manifest.json` and build/test logs. Five shared presentation/source-help tests, 77 mini-program controller tests, its production build, Windows shared logic and the WPF cross-build pass. The native iOS test passes in Chinese/light and English/dark, retaining eight originals: both headers show retrieval time, Vercel's deliberately earlier UTC day appears in source help, and Tencent's sampling explanation stays separate. Reviewed four iOS originals. macOS produces twelve originals each before/after with the same fixture and 980×720-point viewport on macOS 27.0.1 at actual 1× scale. Reviewed Chinese/light and English/dark settled pairs: the statistics labels have been replaced with complete retrieval timestamps without overlap. Existing fitting can omit compact descriptive header text on desktop and substantially truncate duplicate English source titles on iOS; full source titles remain in source tabs. The first before-capture attempt used a wrong fixed build path; final evidence is the successful rerun using the actual bin path. No Windows native capture/CI visual artifact, protected release approval, WeChat runtime review/upload or physical iOS installation is claimed. WeChat tooling still reports expired login.
+
+
+### 2026-10-25 — Mini-program timestamp spinner optical alignment
+
+The timestamp ring used a full 1em diameter, which exceeded the digits’ visible height even with centered layout. Reduced it to .75em with a .1em stroke and moved its center down .075em. The correction is independent of the rotating transform; the hidden caption still reserves its original width and height. At the simulator’s 9px font size, the ring is 6.75px and its center moves down approximately .67px.
+
+Evidence: `work/weapp-timestamp-alignment/verification.json`, paired `before-*` / `after-*` native DevTools PNGs, CSS snapshots and build logs. Reviewed Chinese publication/light and English retrieval/dark timestamp fixtures across idle, loading and settled states, including magnified loading crops. After-state date/caption bounds are identical in all three phases. The first before/Chinese idle geometry query timed out after recompilation; loading/settled queries and all after queries succeeded. Fixtures inject presentation data only; they do not verify request timing or complete language/theme switching. The iPhone 12/13 mini preset reports a 375×812 viewport and pixel ratio 3; actual unoptimized DevTools screenshots are 308×666 at the current simulator display scale. No physical iOS/Android visual verification or upload is claimed. The final production build and runtime module/assets validation pass. The simulator was recompiled back to the final source and normal page state.
+
+
+### 2026-10-25 — Mini-program heading/date optical centering
+
+The source heading and timestamp already share a line-box center. The smaller date glyphs can nevertheless appear slightly higher than the bold heading. Apply a .05em relative vertical offset to the complete timestamp (approximately .45px at the 9px simulator font size); the caption, spinner and reflection move together. Heading/search positions, reserved caption dimensions and loading layout remain unchanged.
+
+Evidence: `work/weapp-heading-time-alignment/` retains source snapshots, native DevTools before/after frames, geometry and build results. The fixtures exercise a Chinese publication caption/light appearance and English retrieval caption/dark appearance in idle, loading and settled states. They inject timestamp presentation, not whole-app locale/theme selection or live requests. The simulator preset is 375×812, while captures at its current display scale are 308×666. That reduced screenshot raster quantizes subpixel text changes, so it is not evidence of exact glyph-center equality on a physical phone. The final build and runtime-module/assets validation pass. No physical-device verification or upload is claimed.
+
+
+## xAI inactive plan wording — 2026-10-25
+
+xAI inactive subscriptions, including confirmed expired plans with retained dates,
+now use the same `未订购` / `未訂購` / `Not subscribed` message as Kimi, GLM and
+Qwen. The shared message replaces the extra expired-label branch. Existing
+dimmed styling, ordering, date retention, entitlement checks and renewal recovery
+remain in place. The shared xAI regression expectations and native fixture are
+synchronized with that presentation.
+
+Ignored `work/xai-not-subscribed/` retains 54 before and 54 after native Mac
+frames, source/binary/fixture hashes and `review.json`. Both builds use the same
+fixture, 900×720-point content viewport, three languages, both appearances and
+shown/refreshed/settled checkpoints on macOS 27.0.1 (26A434), actual 1× backing
+scale. All 18 refreshed/settled pairs in each phase are identical. Reviewed
+originals show the shorter inactive label and complete retained date. Active and
+unverified states retain their distinct labels. Windows WPF screenshots, actual
+Windows DPI coverage and a source-matched CI visual artifact are unavailable on
+this Mac; no Windows visual verification or protected release approval is claimed.
+
+The complete standard coverage gate passed for current inputs with no skipped checks;
+its receipt is retained at `work/xai-not-subscribed/full-test-receipt.json`.
+Windows Release cross-compilation also passes with zero warnings and errors.
+The managed Mac Release build and signature verification pass; the local app was
+restarted successfully. Build/restart logs and the delivered binary hash are
+retained with the same ignored evidence. This is local delivery, not a published release.
