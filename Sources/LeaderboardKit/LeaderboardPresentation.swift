@@ -187,26 +187,47 @@ public enum LeaderboardPresentation {
     /// Statistical coverage dates stay in source help; share-usage headers show
     /// retrieval time. Other sources prefer publication time, then successful fetch.
     public static func sourceTime(_ board: Leaderboard?, language: AppLanguage,
-                                  timeZone: TimeZone = .current, includesYear: Bool = true) -> (text: String, isSourceTime: Bool) {
-        let parts = sourceTimeParts(board, language: language, timeZone: timeZone, includesYear: includesYear)
+                                  timeZone: TimeZone = .current, includesYear: Bool = true,
+                                  now: Date = Date()) -> (text: String, isSourceTime: Bool) {
+        let parts = sourceTimeParts(board, language: language, timeZone: timeZone, includesYear: includesYear, now: now)
         return ("\(parts.value) \(parts.caption)", parts.isSourceTime)
     }
 
     /// Keep the timestamp and its status separate so a loading indicator can
     /// replace the caption without parsing localized presentation text.
     public static func sourceTimeParts(_ board: Leaderboard?, language: AppLanguage,
-                                       timeZone: TimeZone = .current, includesYear: Bool = true)
+                                       timeZone: TimeZone = .current, includesYear: Bool = true, now: Date = Date())
         -> (value: String, caption: String, isSourceTime: Bool) {
+        guard board?.kind.isShareUsage != true, let updated = board?.sourceUpdatedAt else {
+            let fetched = board.map { calendarTimestamp($0.fetchedAt, language: language, timeZone: timeZone, now: now) } ?? "—"
+            return (fetched, language.text("Refreshed", "刷新"), false)
+        }
+        let dataset = ArenaAttribution.applies(board)
+        let value = calendarTimestamp(updated, language: language,
+            timeZone: dataset ? TimeZone(secondsFromGMT: 0)! : timeZone,
+            now: now, dateOnly: dataset, includesYear: includesYear)
+        return (value, language.text("Published", "发布"), true)
+    }
+
+    /// Compare natural days in the displayed timezone, including DST boundaries.
+    public static func calendarTimestamp(_ date: Date, language: AppLanguage, timeZone: TimeZone = .current,
+                                         now: Date = Date(), dateOnly: Bool = false, includesYear: Bool = false) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: date),
+                                           to: calendar.startOfDay(for: now)).day
         let formatter = DateFormatter()
         formatter.locale = language.locale
         formatter.timeZone = timeZone
-        formatter.dateFormat = "M/d HH:mm"
-        guard board?.kind.isShareUsage != true, let updated = board?.sourceUpdatedAt else {
-            let fetched = board.map { formatter.string(from: $0.fetchedAt) } ?? "—"
-            return (fetched, language.text("Refreshed", "刷新"), false)
+        if let days, (0...3).contains(days) {
+            let label = language.text(["Today", "Yesterday", "2 days ago", "3 days ago"][days],
+                                      ["今天", "昨天", "前天", "大前天"][days])
+            if dateOnly { return label }
+            formatter.dateFormat = "HH:mm"
+            return label + " " + formatter.string(from: date)
         }
-        if ArenaAttribution.applies(board) { formatter.dateFormat = includesYear ? "yyyy-MM-dd" : "M/d"; formatter.timeZone = TimeZone(secondsFromGMT: 0) }
-        return (formatter.string(from: updated), language.text("Published", "发布"), true)
+        formatter.dateFormat = dateOnly ? (includesYear ? "yyyy-MM-dd" : "M/d") : "M/d HH:mm"
+        return formatter.string(from: date)
     }
 
     public static func sourceTimeHelp(_ board: Leaderboard?, language: AppLanguage) -> String {

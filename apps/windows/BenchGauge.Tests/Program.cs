@@ -69,6 +69,27 @@ foreach (var language in new[] { "en", "zh", "zh-Hant" })
         throw new Exception("Do not invent unpublished statistical dates");
 }
 
+// Every client uses the same midnight, month/year and daylight-saving boundaries.
+var calendarRoot = new DirectoryInfo(AppContext.BaseDirectory);
+while (calendarRoot != null && !File.Exists(Path.Combine(calendarRoot.FullName, "Tests/fixtures/calendar-timestamps.json")))
+    calendarRoot = calendarRoot.Parent;
+if (calendarRoot == null) throw new Exception("Calendar timestamp fixture is missing");
+using (var calendarFixture = JsonDocument.Parse(File.ReadAllText(Path.Combine(calendarRoot.FullName, "Tests/fixtures/calendar-timestamps.json"))))
+    foreach (var sample in calendarFixture.RootElement.GetProperty("cases").EnumerateArray())
+        foreach (var language in new[] { "en", "zh", "zh-Hant" })
+        {
+            var stamp = DateTimeOffset.Parse(sample.GetProperty("date").GetString()!);
+            var now = DateTimeOffset.Parse(sample.GetProperty("now").GetString()!);
+            var zone = TimeZoneInfo.FindSystemTimeZoneById(sample.GetProperty("timeZone").GetString()!);
+            var dateOnly = sample.TryGetProperty("dateOnly", out var only) && only.GetBoolean();
+            var includesYear = sample.TryGetProperty("includesYear", out var year) && year.GetBoolean();
+            var actual = new BoardTimestamp(stamp, true).FormatValue(now, language, zone, dateOnly, includesYear);
+            if (actual != sample.GetProperty(language == "en" ? "en" : "zh").GetString())
+                throw new Exception($"Incorrect calendar timestamp: {sample.GetProperty("name").GetString()}, {language}: {actual}");
+        }
+if (new BoardTimestamp(null, false).FormatValue(timestampFetch, "zh") != "—")
+    throw new Exception("Missing timestamps must remain unknown");
+
 // Model distributions retain unknowns and the China policy without score weighting.
 var distributionEntries = new[] {
     new Entry(1, "A", 9999, "Maker", "US", null, null, null, null, "closed"),

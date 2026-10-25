@@ -285,3 +285,22 @@ test('complete model and company lists include rows beyond twenty and five hundr
   assert.equal(companies.length, 601)
   assert.equal(companies.at(-1).rank, 601)
 })
+
+test('timestamp dates use calendar days through three days ago, then the existing date format', () => {
+  const fixture = JSON.parse(readFileSync(new URL('../../../Tests/fixtures/calendar-timestamps.json', import.meta.url), 'utf8'))
+  const originalZone = process.env.TZ
+  try {
+    for (const sample of fixture.cases) {
+      process.env.TZ = sample.timeZone
+      // Mini-program Arena headers have always omitted the year.
+      if (sample.includesYear) continue
+      for (const language of ['en', 'zh-CN', 'zh-TW']) {
+        assert.equal(formatTime(sample.date, language, new Date(sample.now), { dateOnly: sample.dateOnly, utc: sample.dateOnly }),
+          language === 'en' ? sample.en : sample.zh, `${sample.name}, ${language}`)
+      }
+    }
+  } finally {
+    if (originalZone === undefined) delete process.env.TZ
+    else process.env.TZ = originalZone
+  }
+})

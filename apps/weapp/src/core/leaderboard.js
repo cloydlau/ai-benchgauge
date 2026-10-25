@@ -52,10 +52,16 @@ export function countryOptions(board, language, selected = 'all') {
     label: code === 'unknown' ? text(copy.unknown, language) : `${countryFlag(code)} ${countryName(code, language)}` }))]
 }
 
-export function formatTime(value) {
+export function formatTime(value, language = 'en', now = new Date(), { dateOnly = false, utc = false } = {}) {
   const date = new Date(value)
   if (!value || !Number.isFinite(date.getTime())) return '—'
-  return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  const part = (date, name) => date[`get${utc ? 'UTC' : ''}${name}`]()
+  const dayNumber = date => Date.UTC(part(date, 'FullYear'), part(date, 'Month'), part(date, 'Date')) / 86400000
+  const days = dayNumber(new Date(now)) - dayNumber(date)
+  const label = days >= 0 && days <= 3
+    ? (language === 'en' ? ['Today', 'Yesterday', '2 days ago', '3 days ago'] : ['今天', '昨天', '前天', '大前天'])[days]
+    : `${part(date, 'Month') + 1}/${part(date, 'Date')}`
+  return dateOnly ? label : `${label} ${String(part(date, 'Hours')).padStart(2, '0')}:${String(part(date, 'Minutes')).padStart(2, '0')}`
 }
 export function scoreShareText(score, leaderScore) {
   if (!Number.isFinite(score) || score < 0 || !Number.isFinite(leaderScore) || leaderScore <= 0) return ''

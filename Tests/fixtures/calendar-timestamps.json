@@ -1,0 +1,112 @@
+{
+  "cases": [
+    {
+      "name": "today",
+      "now": "2026-10-25T00:01:00+08:00",
+      "date": "2026-10-25T00:00:00+08:00",
+      "timeZone": "Asia/Shanghai",
+      "zh": "今天 00:00",
+      "en": "Today 00:00"
+    },
+    {
+      "name": "midnight",
+      "now": "2026-10-25T00:01:00+08:00",
+      "date": "2026-10-24T23:59:00+08:00",
+      "timeZone": "Asia/Shanghai",
+      "zh": "昨天 23:59",
+      "en": "Yesterday 23:59"
+    },
+    {
+      "name": "two-days",
+      "now": "2026-10-25T00:01:00+08:00",
+      "date": "2026-10-23T22:00:00+08:00",
+      "timeZone": "Asia/Shanghai",
+      "zh": "前天 22:00",
+      "en": "2 days ago 22:00"
+    },
+    {
+      "name": "three-days",
+      "now": "2026-10-25T00:01:00+08:00",
+      "date": "2026-10-22T23:59:00+08:00",
+      "timeZone": "Asia/Shanghai",
+      "zh": "大前天 23:59",
+      "en": "3 days ago 23:59"
+    },
+    {
+      "name": "four-days",
+      "now": "2026-10-25T00:01:00+08:00",
+      "date": "2026-10-21T23:59:00+08:00",
+      "timeZone": "Asia/Shanghai",
+      "zh": "10/21 23:59",
+      "en": "10/21 23:59"
+    },
+    {
+      "name": "future",
+      "now": "2026-10-25T00:01:00+08:00",
+      "date": "2026-10-26T12:00:00+08:00",
+      "timeZone": "Asia/Shanghai",
+      "zh": "10/26 12:00",
+      "en": "10/26 12:00"
+    },
+    {
+      "name": "month-boundary",
+      "now": "2026-11-01T00:01:00+08:00",
+      "date": "2026-10-31T23:59:00+08:00",
+      "timeZone": "Asia/Shanghai",
+      "zh": "昨天 23:59",
+      "en": "Yesterday 23:59"
+    },
+    {
+      "name": "year-boundary",
+      "now": "2027-01-01T00:01:00+08:00",
+      "date": "2026-12-29T23:59:00+08:00",
+      "timeZone": "Asia/Shanghai",
+      "zh": "大前天 23:59",
+      "en": "3 days ago 23:59"
+    },
+    {
+      "name": "spring-short-day",
+      "now": "2026-03-11T00:01:00-07:00",
+      "date": "2026-03-07T23:59:00-08:00",
+      "timeZone": "America/Los_Angeles",
+      "zh": "3/7 23:59",
+      "en": "3/7 23:59"
+    },
+    {
+      "name": "fall-long-day",
+      "now": "2026-11-04T23:59:00-08:00",
+      "date": "2026-11-01T00:00:00-07:00",
+      "timeZone": "America/Los_Angeles",
+      "zh": "大前天 00:00",
+      "en": "3 days ago 00:00"
+    },
+    {
+      "name": "utc-dataset-day",
+      "now": "2026-10-25T00:01:00+08:00",
+      "date": "2026-10-23T23:00:00-02:00",
+      "timeZone": "UTC",
+      "zh": "今天",
+      "en": "Today",
+      "dateOnly": true
+    },
+    {
+      "name": "utc-dataset-old",
+      "now": "2026-10-25T00:01:00+08:00",
+      "date": "2026-10-19T23:00:00-02:00",
+      "timeZone": "UTC",
+      "zh": "10/20",
+      "en": "10/20",
+      "dateOnly": true
+    },
+    {
+      "name": "utc-dataset-year",
+      "now": "2026-10-25T00:01:00+08:00",
+      "date": "2026-10-19T23:00:00-02:00",
+      "timeZone": "UTC",
+      "zh": "2026-10-20",
+      "en": "2026-10-20",
+      "dateOnly": true,
+      "includesYear": true
+    }
+  ]
+}

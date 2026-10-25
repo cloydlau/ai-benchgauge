@@ -38,10 +38,12 @@ import Testing
 @Test func vercelShowsRetrievalTimeSeparatelyFromItsUTCStatisticDay() {
     let day = ISO8601DateFormatter().date(from: "2026-10-22T00:00:00Z")!
     let fetched = ISO8601DateFormatter().date(from: "2026-10-24T12:34:00Z")!
+    // Keep the absolute-date branch independent of the day this test runs.
+    let now = fetched.addingTimeInterval(4 * 86400)
     for offset in [-7.0, 0, 7] {
         let board = Leaderboard(kind: .vercelUsage, title: "Vercel AI Gateway",
             sourceUpdatedAt: day.addingTimeInterval(offset * 86400), fetchedAt: fetched, entries: [])
-        let labels = LeaderboardPresentation.sourceTime(board, language: .english, timeZone: TimeZone(secondsFromGMT: -10 * 3600)!)
+        let labels = LeaderboardPresentation.sourceTime(board, language: .english, timeZone: TimeZone(secondsFromGMT: -10 * 3600)!, now: now)
         #expect(labels.text == "10/24 02:34 Refreshed")
         #expect(!labels.isSourceTime)
         #expect(LeaderboardPresentation.sourceTimeHelp(board, language: .english).hasSuffix("Refreshed"))

@@ -107,7 +107,8 @@ test('timestamp polish follows load completion, thirty-second cadence and page v
   globalThis.__benchHooks.unload(); assert.equal(card().polishing, false)
 })
 
-test('headers and help select only source time, falling back to fetch time when absent', async () => {
+test('headers and help select only source time, falling back to fetch time when absent', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-25T06:00:00Z') })
   const fetchedAt = '2026-10-22T12:00:00Z'
   for (const language of ['en', 'zh-CN', 'zh-TW']) {
     for (const sourceUpdatedAt of [undefined, '2026-10-21T12:00:00Z', fetchedAt, '2026-10-23T12:00:00Z']) {
@@ -122,7 +123,8 @@ test('headers and help select only source time, falling back to fetch time when 
         const opposite = isSource ? 'updated' : 'published'
         assert.equal(card.timeLabel, text(copy[label], language))
         assert.equal(card.isSourceTime, !!isSource)
-        assert.equal(card.time, isSource && card.kind === 'arenaText' ? `${new Date(sourceUpdatedAt).getUTCMonth() + 1}/${new Date(sourceUpdatedAt).getUTCDate()}` : formatTime(isSource ? sourceUpdatedAt : fetchedAt))
+        assert.equal(card.time, formatTime(isSource ? sourceUpdatedAt : fetchedAt, language, new Date(),
+          { dateOnly: isSource && card.kind === 'arenaText', utc: isSource && card.kind === 'arenaText' }))
         assert.equal(card.timeAccessibility, `${card.time} ${card.timeLabel}`)
         assert.doesNotMatch(card.timeAccessibility, /Fetched|抓取|擷取|Data updated|数据更新|資料更新|数据发布|資料發佈/)
         assert.equal('fetched' in card || 'updated' in card, false, 'Do not bridge a second timestamp')
@@ -737,7 +739,7 @@ test('usage headers show retrieval time while source help retains statistical co
     await loading
     for (const kind of ['vercelUsage', 'cloudbaseUsage']) {
       const card = h.page.cards.value.find(item => item.kind === kind)
-      assert.equal(card.time, formatTime(fetchedAt))
+      assert.equal(card.time, formatTime(fetchedAt, language))
       assert.equal(card.timeLabel, text(copy.updated, language))
       assert.equal(card.isSourceTime, false)
       h.page.sourceHelp(event({ kind }))
@@ -2068,4 +2070,28 @@ test('bottom category icons and selected label follow the active source and live
     }
   }
   globalThis.__benchHooks.unload()
+})
+
+
+test('recent header dates remain localized through loading and source help', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-25T06:00:00Z') })
+  const originalZone = process.env.TZ
+  process.env.TZ = 'Asia/Shanghai'
+  try {
+    const h = setup({ language: 'zh-CN' }), loading = h.loadCategory()
+    h.respond(0, { sourceUpdatedAt: '2026-10-25T01:00:00Z' })
+    h.respond(1, { sourceUpdatedAt: '2026-10-22T00:00:00Z', sourceNote: 'https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset' })
+    h.respond(2, { sourceUpdatedAt: '2026-10-21T01:00:00Z' })
+    await loading
+    assert.deepEqual(h.page.cards.value.map(card => card.time), ['今天 09:00', '大前天', '10/21 09:00'])
+    for (const card of h.page.cards.value) {
+      assert.ok(card.timeAccessibility.startsWith(card.time))
+      h.page.sourceHelp(event({ kind: card.kind }))
+      assert.ok(h.modals.at(-1).content.includes(card.time))
+    }
+    globalThis.__benchHooks.unload()
+  } finally {
+    if (originalZone === undefined) delete process.env.TZ
+    else process.env.TZ = originalZone
+  }
 })

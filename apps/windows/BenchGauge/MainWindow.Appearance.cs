@@ -443,10 +443,9 @@ sealed partial class MainWindow
     {
         var time = BoardTimestamp.For(board);
         var dataset = time.IsSourceTime && ArenaAttribution.Applies(board);
-        var value = dataset
-            ? time.Value?.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
-            : time.Value?.ToLocalTime().ToString("M/d HH:mm", CultureInfo.InvariantCulture);
-        return (time.Caption(value ?? "—", prefs.Language), time.IsSourceTime);
+        var value = time.FormatValue(DateTimeOffset.UtcNow, prefs.Language,
+            dataset ? TimeZoneInfo.Utc : TimeZoneInfo.Local, dateOnly: dataset, includesYear: true);
+        return (time.Caption(value, prefs.Language), time.IsSourceTime);
     }
     string BoardTimeHelp(Board board)
     {

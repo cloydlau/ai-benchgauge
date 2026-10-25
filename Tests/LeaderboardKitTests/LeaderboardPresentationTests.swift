@@ -179,3 +179,36 @@ import LeaderboardKit
     #expect(filtered.count == 22)
     #expect(filtered.last?.organization == "Maker 44")
 }
+
+@Test func timestampsUseCalendarDaysThroughThreeDaysAgo() throws {
+    struct Sample: Decodable {
+        let name: String; let now: String; let date: String; let timeZone: String
+        let zh: String; let en: String; let dateOnly: Bool?; let includesYear: Bool?
+    }
+    struct Fixture: Decodable { let cases: [Sample] }
+    let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        .appending(path: "fixtures/calendar-timestamps.json")
+    let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
+    let parser = ISO8601DateFormatter()
+    for sample in fixture.cases {
+        let date = try #require(parser.date(from: sample.date))
+        let now = try #require(parser.date(from: sample.now))
+        let zone = try #require(TimeZone(identifier: sample.timeZone))
+        for language in AppLanguage.allCases {
+            let expected = language == .english ? sample.en : sample.zh
+            #expect(LeaderboardPresentation.calendarTimestamp(date, language: language, timeZone: zone,
+                now: now, dateOnly: sample.dateOnly ?? false, includesYear: sample.includesYear ?? false) == expected,
+                "\(sample.name), \(language)")
+        }
+    }
+    let now = try #require(parser.date(from: "2026-10-25T00:01:00+08:00"))
+    let published = try #require(parser.date(from: "2026-10-24T23:59:00+08:00"))
+    let zone = try #require(TimeZone(identifier: "Asia/Shanghai"))
+    for kind in [LeaderboardKind.artificialAnalysis, .vercelUsage, .cloudbaseUsage] {
+        let board = Leaderboard(kind: kind, title: "Fixture", sourceUpdatedAt: published,
+            fetchedAt: now, entries: [])
+        let parts = LeaderboardPresentation.sourceTimeParts(board, language: .chinese, timeZone: zone, now: now)
+        #expect(parts.value == (kind.isShareUsage ? "今天 00:01" : "昨天 23:59"))
+        #expect(parts.isSourceTime == !kind.isShareUsage)
+    }
+}

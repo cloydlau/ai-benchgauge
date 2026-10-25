@@ -462,8 +462,7 @@ definePage(query => {
     const isSourceTime = !['vercelUsage', 'cloudbaseUsage'].includes(kind) && Number.isFinite(Date.parse(board?.sourceUpdatedAt))
     const value = isSourceTime ? board.sourceUpdatedAt : board?.fetchedAt
     const dataset = isSourceTime && isArenaDatasetBoard(board)
-    const day = dataset ? new Date(value) : null
-    return { time: day ? `${day.getUTCMonth() + 1}/${day.getUTCDate()}` : formatTime(value),
+    return { time: formatTime(value, language.value, new Date(), { dateOnly: dataset, utc: dataset }),
       timeLabel: tr(isSourceTime ? 'published' : 'updated'), isSourceTime }
   }
   const cards = computed(() => visibleCards.value.map(({ kind, entries, leaderScore, totalCount }, index) => {
