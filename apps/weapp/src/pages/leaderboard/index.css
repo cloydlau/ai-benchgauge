@@ -93,13 +93,17 @@
 /* Rank text starts at 4rpx margin + 2rpx padding + (44rpx - 2 × 19rpx) / 2. */
 .metadata { display: flex; align-items: center; gap: 16rpx; padding: 24rpx 6rpx 12rpx 9rpx; }
 .summary { flex: 1; min-width: 0; padding: 0; color: var(--muted); text-align: left; font-size: 22rpx; line-height: 1.5; }
-.times { position: relative; color: var(--muted); display: flex; justify-content: flex-start; white-space: nowrap; gap: 8rpx; flex-shrink: 0; text-align: left; align-items: center; font-size: 18rpx; line-height: 1.25; }
+/* The smaller date glyphs sit optically above the heading despite centered
+   line boxes. Move the whole timestamp, including its caption and spinner. */
+.times { position: relative; top: .05em; color: var(--muted); display: flex; justify-content: flex-start; white-space: nowrap; gap: 8rpx; flex-shrink: 0; text-align: left; align-items: center; font-size: 18rpx; line-height: 1.25; }
 .time-copy { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 4rpx; }
 .time-row { display: flex; align-items: center; justify-content: flex-start; gap: 7rpx; }
 .time-label { font: inherit; }
 .time-caption { position: relative; min-width: 12px; min-height: 12px; display: flex; align-items: center; font: inherit; }
 .time-caption-loading .time-label { visibility: hidden; }
-.time-loading { position: absolute; left: 0; top: 50%; width: 1em; height: 1em; box-sizing: border-box; margin-top: -.5em; border: .125em solid currentColor; border-right-color: transparent; border-radius: 50%; animation: time-loading-spin 700ms linear infinite; }
+/* Match the digits' visible height, not the full em box. Keep the small optical
+   downward correction in the position so rotation cannot change alignment. */
+.time-loading { position: absolute; left: 0; top: calc(50% + .075em); width: .75em; height: .75em; box-sizing: border-box; margin-top: -.375em; border: .1em solid currentColor; border-right-color: transparent; border-radius: 50%; animation: time-loading-spin 700ms linear infinite; }
 @keyframes time-loading-spin { to { transform: rotate(360deg); } }
 .time-source, .time-fetched { color: var(--muted); opacity: .82; }
 .time-value { font-variant-numeric: tabular-nums; }
