@@ -201,7 +201,7 @@ importers:
         version: 5.6.3(@oxc-project/types@0.153.0)(jiti@2.7.0)(lightningcss@1.33.0)(rolldown@1.2.13)(tailwindcss@4.3.3)(vite@8.3.4(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
       weapp-vite:
         specifier: 7.5.0
-        version: 7.5.0(@babel/core@8.0.9)(@modelcontextprotocol/server@2.3.1)(@oxc-project/types@0.153.0)(crossws@0.4.16(srvx@1.0.6))(esbuild@0.28.2)(jiti@2.7.0)(lightningcss@1.33.0)(miniprogram-api-typings@5.2.3)(oxc-resolver@11.24.2)(srvx@1.0.6)(tailwindcss@4.3.3)(yaml@2.9.1)
+        version: 7.5.0(@babel/core@8.0.9)(@modelcontextprotocol/server@2.4.0)(@oxc-project/types@0.153.0)(crossws@0.4.16(srvx@1.0.7))(esbuild@0.28.2)(jiti@2.7.0)(lightningcss@1.33.0)(miniprogram-api-typings@5.2.3)(oxc-resolver@11.24.2)(srvx@1.0.7)(tailwindcss@4.3.3)(yaml@2.9.1)
 
 packages:
 
@@ -1312,11 +1312,11 @@ packages:
     resolution: {integrity: sha512-IkO+/KEUvwbVpiURZg+P7zF74z5Jxe0UgJxVni+RtoHQ6IZieXaO02kmadomap/q+l6bc/jdPGGqTjhuZnuz1Q==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
 
-  '@hono/node-server@1.19.17':
-    resolution: {integrity: sha512-dSneS5qhiauZWGDCeK4o695Xd9nUNjviSZCMQrj10eetr8Uln1ucn6bbphOM6UynAMMtNIzZNSpL9vnASJwrPQ==}
-    engines: {node: '>=18.14.1'}
+  '@hono/node-server@2.1.5':
+    resolution: {integrity: sha512-MgP/I06GdvsilDspMk/qmRzpk8LOUStP6jFAbSRi40W09DhoyUn+Mj7eyKICPqeYKybOjVFLVIAQzvu1bfIa7Q==}
+    engines: {node: '>=20'}
     peerDependencies:
-      hono: ^4
+      hono: ^4 || ^5.0.0-0
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -1543,22 +1543,22 @@ packages:
   '@mini-types/my@3.0.14':
     resolution: {integrity: sha512-aEgmM+rbEvEzTvqltCFRAg/h6KKs14M1y+FrOkz+hn2EyNpOVPesUzTjbRhSiFFsE3WdfBh54lHNYBahAmHq7w==}
 
-  '@modelcontextprotocol/client@2.3.1':
-    resolution: {integrity: sha512-mIGZXpHsjnZ6lD+gD/WCMpR5k8yVQQ8nNFH1N0Srf7AvnwTUMYD6pvTY8ng2+He5FfV7YMZLmrjL7cLa/cc3dQ==}
+  '@modelcontextprotocol/client@2.4.0':
+    resolution: {integrity: sha512-LgrD2OphHuG12vfKFKz6SOnq7bKHQmhGJIAYdD+MZBn2npHEyry6uD8zvktodtl5CQM85MO0anUyD9JwmUmxww==}
     engines: {node: '>=20'}
 
-  '@modelcontextprotocol/core@2.3.1':
-    resolution: {integrity: sha512-laVmIhPGpWi7rG9q+0UigblRN0Hws/Yjlb6qLFtVqryXVLkc4h+yN8z731POD2LnAGQlFe7/tXhUm7Bi0YB91g==}
+  '@modelcontextprotocol/core@2.4.0':
+    resolution: {integrity: sha512-z8QBKqdfXLPzkLQuG4xp8hrVEMm1PZ1IgxMN2sMbJiFiAKOWXnAzogXn2W4aqIBlP1ea6U5yiqVquvUNM1Cj6Q==}
     engines: {node: '>=20'}
 
-  '@modelcontextprotocol/node@2.1.1':
-    resolution: {integrity: sha512-EY92OAXN2xYL7tNS/MVsWJW1v8VHAPwl9B4Ca3pCrjmvqyC+S1C/6UHsMxF2GoFPraS5Yyg56vFz9brVpFojMA==}
+  '@modelcontextprotocol/node@2.1.2':
+    resolution: {integrity: sha512-IIcIqBpr6NCQQs5DgJTgvbSOAw+3iaR/uquqg+e0nXCdudfjPg/80x0TseUnQx14AUAtE4fsJCEpJKPyb6WPVA==}
     engines: {node: '>=20'}
     peerDependencies:
-      '@modelcontextprotocol/server': ^2.3.0
+      '@modelcontextprotocol/server': ^2.4.0
 
-  '@modelcontextprotocol/server@2.3.1':
-    resolution: {integrity: sha512-e59MfWuSssj6DoQ96JCTqdW1AXT5/XtnTl0WWd6MU1Ka434fFUGGosCLJbGNySDhHGvxQWoRWK137FXYFkYNWw==}
+  '@modelcontextprotocol/server@2.4.0':
+    resolution: {integrity: sha512-rgR9yxSaAJ+bcsi/XroT/S2AfPiIWloXAnrdfYSCms9ivVju0ishu/wW0J21Ho6+ZOR1r7RyeRbjiRuF87ix5Q==}
     engines: {node: '>=20'}
 
   '@napi-rs/wasm-runtime@1.2.5':
@@ -3926,8 +3926,8 @@ packages:
     resolution: {integrity: sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==}
     engines: {node: '>=0.10.0'}
 
-  srvx@1.0.6:
-    resolution: {integrity: sha512-QeTKgAhk8OSsfeq60bl3wuVs9PmBftzmk7owBInA/F1YQne+TRw0UcPymNpURldAmx8hfmM2PNNGH/zgo3GpLA==}
+  srvx@1.0.7:
+    resolution: {integrity: sha512-8h30Qy2cpYkcXgByHNpV4+jp609bU3ic7MqnfyLQ2Fpa8BgjIaI2zfsDKAIbwm8DcYDrCLqm5izF5KeL2nxdvg==}
     engines: {node: '>=20.16.0'}
     hasBin: true
 
@@ -5186,32 +5186,32 @@ snapshots:
     dependencies:
       postcss: 8.5.31
 
-  '@devframes/agentic@1.2.3(crossws@0.4.16(srvx@1.0.6))(devframe@1.2.3)':
+  '@devframes/agentic@1.2.3(crossws@0.4.16(srvx@1.0.7))(devframe@1.2.3)':
     dependencies:
-      '@modelcontextprotocol/client': 2.3.1
-      '@modelcontextprotocol/server': 2.3.1
-      devframe: 1.2.3(@devframes/agentic@1.2.3)(cac@7.1.0)(srvx@1.0.6)
-      h3: 2.0.8(crossws@0.4.16(srvx@1.0.6))
+      '@modelcontextprotocol/client': 2.4.0
+      '@modelcontextprotocol/server': 2.4.0
+      devframe: 1.2.3(@devframes/agentic@1.2.3)(cac@7.1.0)(srvx@1.0.7)
+      h3: 2.0.8(crossws@0.4.16(srvx@1.0.7))
       pathe: 2.0.3
     transitivePeerDependencies:
       - crossws
       - ocache
 
-  '@devframes/hub-ui@1.2.3(@devframes/hub@1.2.3(@devframes/agentic@1.2.3)(crossws@0.4.16(srvx@1.0.6))(devframe@1.2.3))(devframe@1.2.3)':
+  '@devframes/hub-ui@1.2.3(@devframes/hub@1.2.3(@devframes/agentic@1.2.3)(crossws@0.4.16(srvx@1.0.7))(devframe@1.2.3))(devframe@1.2.3)':
     dependencies:
-      '@devframes/hub': 1.2.3(@devframes/agentic@1.2.3)(crossws@0.4.16(srvx@1.0.6))(devframe@1.2.3)
-      devframe: 1.2.3(@devframes/agentic@1.2.3)(cac@7.1.0)(srvx@1.0.6)
+      '@devframes/hub': 1.2.3(@devframes/agentic@1.2.3)(crossws@0.4.16(srvx@1.0.7))(devframe@1.2.3)
+      devframe: 1.2.3(@devframes/agentic@1.2.3)(cac@7.1.0)(srvx@1.0.7)
 
-  '@devframes/hub@1.2.3(@devframes/agentic@1.2.3)(crossws@0.4.16(srvx@1.0.6))(devframe@1.2.3)':
+  '@devframes/hub@1.2.3(@devframes/agentic@1.2.3)(crossws@0.4.16(srvx@1.0.7))(devframe@1.2.3)':
     dependencies:
       destr: 2.0.5
-      devframe: 1.2.3(@devframes/agentic@1.2.3)(cac@7.1.0)(srvx@1.0.6)
-      h3: 2.0.8(crossws@0.4.16(srvx@1.0.6))
+      devframe: 1.2.3(@devframes/agentic@1.2.3)(cac@7.1.0)(srvx@1.0.7)
+      h3: 2.0.8(crossws@0.4.16(srvx@1.0.7))
       pathe: 2.0.3
       tinyexec: 1.3.1
       zigpty: 0.2.1
     optionalDependencies:
-      '@devframes/agentic': 1.2.3(crossws@0.4.16(srvx@1.0.6))(devframe@1.2.3)
+      '@devframes/agentic': 1.2.3(crossws@0.4.16(srvx@1.0.7))(devframe@1.2.3)
     transitivePeerDependencies:
       - crossws
       - ocache
@@ -5347,7 +5347,7 @@ snapshots:
       '@eslint/core': 1.2.1
       levn: 0.4.1
 
-  '@hono/node-server@1.19.17(hono@4.13.13)':
+  '@hono/node-server@2.1.5(hono@4.13.13)':
     dependencies:
       hono: 4.13.13
 
@@ -5520,9 +5520,9 @@ snapshots:
 
   '@mini-types/my@3.0.14': {}
 
-  '@modelcontextprotocol/client@2.3.1':
+  '@modelcontextprotocol/client@2.4.0':
     dependencies:
-      '@modelcontextprotocol/core': 2.3.1
+      '@modelcontextprotocol/core': 2.4.0
       cross-spawn: 7.0.6
       eventsource: 3.0.7
       eventsource-parser: 3.1.1
@@ -5530,19 +5530,19 @@ snapshots:
       pkce-challenge: 5.0.1
       zod: 4.6.7
 
-  '@modelcontextprotocol/core@2.3.1':
+  '@modelcontextprotocol/core@2.4.0':
     dependencies:
       zod: 4.6.7
 
-  '@modelcontextprotocol/node@2.1.1(@modelcontextprotocol/server@2.3.1)':
+  '@modelcontextprotocol/node@2.1.2(@modelcontextprotocol/server@2.4.0)':
     dependencies:
-      '@hono/node-server': 1.19.17(hono@4.13.13)
-      '@modelcontextprotocol/server': 2.3.1
+      '@hono/node-server': 2.1.5(hono@4.13.13)
+      '@modelcontextprotocol/server': 2.4.0
       hono: 4.13.13
 
-  '@modelcontextprotocol/server@2.3.1':
+  '@modelcontextprotocol/server@2.4.0':
     dependencies:
-      '@modelcontextprotocol/core': 2.3.1
+      '@modelcontextprotocol/core': 2.4.0
       zod: 4.6.7
 
   '@napi-rs/wasm-runtime@1.2.5(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)':
@@ -6329,8 +6329,8 @@ snapshots:
 
   '@weapp-vite/mcp@2.0.0':
     dependencies:
-      '@modelcontextprotocol/node': 2.1.1(@modelcontextprotocol/server@2.3.1)
-      '@modelcontextprotocol/server': 2.3.1
+      '@modelcontextprotocol/node': 2.1.2(@modelcontextprotocol/server@2.4.0)
+      '@modelcontextprotocol/server': 2.4.0
       '@weapp-core/constants': 0.3.1
       '@weapp-vite/acceptance': 0.1.0
       '@weapp-vite/devtools-runtime': 0.5.0
@@ -6615,9 +6615,9 @@ snapshots:
       shebang-command: 2.0.0
       which: 2.0.2
 
-  crossws@0.4.16(srvx@1.0.6):
+  crossws@0.4.16(srvx@1.0.7):
     optionalDependencies:
-      srvx: 1.0.6
+      srvx: 1.0.7
 
   css-blank-pseudo@8.0.2(postcss@8.5.31):
     dependencies:
@@ -6653,14 +6653,14 @@ snapshots:
 
   detect-libc@2.1.2: {}
 
-  devframe@1.2.3(@devframes/agentic@1.2.3)(cac@7.1.0)(srvx@1.0.6):
+  devframe@1.2.3(@devframes/agentic@1.2.3)(cac@7.1.0)(srvx@1.0.7):
     dependencies:
-      crossws: 0.4.16(srvx@1.0.6)
-      h3: 2.0.8(crossws@0.4.16(srvx@1.0.6))
+      crossws: 0.4.16(srvx@1.0.7)
+      h3: 2.0.8(crossws@0.4.16(srvx@1.0.7))
       nostics: 1.3.0
       pathe: 2.0.3
     optionalDependencies:
-      '@devframes/agentic': 1.2.3(crossws@0.4.16(srvx@1.0.6))(devframe@1.2.3)
+      '@devframes/agentic': 1.2.3(crossws@0.4.16(srvx@1.0.7))(devframe@1.2.3)
       cac: 7.1.0
     transitivePeerDependencies:
       - ocache
@@ -6916,12 +6916,12 @@ snapshots:
 
   graceful-fs@4.2.11: {}
 
-  h3@2.0.8(crossws@0.4.16(srvx@1.0.6)):
+  h3@2.0.8(crossws@0.4.16(srvx@1.0.7)):
     dependencies:
       rou3: 1.0.0
-      srvx: 1.0.6
+      srvx: 1.0.7
     optionalDependencies:
-      crossws: 0.4.16(srvx@1.0.6)
+      crossws: 0.4.16(srvx@1.0.7)
 
   hashery@1.5.1:
     dependencies:
@@ -7741,7 +7741,7 @@ snapshots:
 
   source-map-js@1.2.2: {}
 
-  srvx@1.0.6: {}
+  srvx@1.0.7: {}
 
   strip-final-newline@4.0.0: {}
 
@@ -7877,7 +7877,7 @@ snapshots:
 
   weapp-ide-cli@6.2.0:
     dependencies:
-      '@modelcontextprotocol/server': 2.3.1
+      '@modelcontextprotocol/server': 2.4.0
       '@weapp-core/logger': 3.1.9
       '@weapp-core/shared': 3.2.8
       '@weapp-vite/devtools-runtime': 0.5.0
@@ -7945,16 +7945,16 @@ snapshots:
       - supports-color
       - tsx
 
-  weapp-vite@7.5.0(@babel/core@8.0.9)(@modelcontextprotocol/server@2.3.1)(@oxc-project/types@0.153.0)(crossws@0.4.16(srvx@1.0.6))(esbuild@0.28.2)(jiti@2.7.0)(lightningcss@1.33.0)(miniprogram-api-typings@5.2.3)(oxc-resolver@11.24.2)(srvx@1.0.6)(tailwindcss@4.3.3)(yaml@2.9.1):
+  weapp-vite@7.5.0(@babel/core@8.0.9)(@modelcontextprotocol/server@2.4.0)(@oxc-project/types@0.153.0)(crossws@0.4.16(srvx@1.0.7))(esbuild@0.28.2)(jiti@2.7.0)(lightningcss@1.33.0)(miniprogram-api-typings@5.2.3)(oxc-resolver@11.24.2)(srvx@1.0.7)(tailwindcss@4.3.3)(yaml@2.9.1):
     dependencies:
       '@babel/plugin-transform-modules-commonjs': 8.0.1(@babel/core@8.0.9)
       '@babel/preset-env': 8.0.7(@babel/core@8.0.9)
       '@babel/preset-typescript': 8.0.7(@babel/core@8.0.9)
-      '@devframes/agentic': 1.2.3(crossws@0.4.16(srvx@1.0.6))(devframe@1.2.3)
-      '@devframes/hub': 1.2.3(@devframes/agentic@1.2.3)(crossws@0.4.16(srvx@1.0.6))(devframe@1.2.3)
-      '@devframes/hub-ui': 1.2.3(@devframes/hub@1.2.3(@devframes/agentic@1.2.3)(crossws@0.4.16(srvx@1.0.6))(devframe@1.2.3))(devframe@1.2.3)
+      '@devframes/agentic': 1.2.3(crossws@0.4.16(srvx@1.0.7))(devframe@1.2.3)
+      '@devframes/hub': 1.2.3(@devframes/agentic@1.2.3)(crossws@0.4.16(srvx@1.0.7))(devframe@1.2.3)
+      '@devframes/hub-ui': 1.2.3(@devframes/hub@1.2.3(@devframes/agentic@1.2.3)(crossws@0.4.16(srvx@1.0.7))(devframe@1.2.3))(devframe@1.2.3)
       '@jridgewell/remapping': 2.3.5
-      '@modelcontextprotocol/node': 2.1.1(@modelcontextprotocol/server@2.3.1)
+      '@modelcontextprotocol/node': 2.1.2(@modelcontextprotocol/server@2.4.0)
       '@typescript-eslint/parser': 8.72.0(eslint@10.13.0(jiti@2.7.0))(typescript@6.0.3)
       '@vercel/detect-agent': 1.2.7
       '@volar/typescript': 2.4.30(typescript@6.0.3)
@@ -7980,7 +7980,7 @@ snapshots:
       cac: 7.1.0
       chokidar: 5.0.0
       comment-json: 5.0.0
-      devframe: 1.2.3(@devframes/agentic@1.2.3)(cac@7.1.0)(srvx@1.0.6)
+      devframe: 1.2.3(@devframes/agentic@1.2.3)(cac@7.1.0)(srvx@1.0.7)
       dotenv: 18.0.9
       dotenv-expand: 1000.0.0
       eslint: 10.13.0(jiti@2.7.0)
