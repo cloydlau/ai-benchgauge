@@ -182,7 +182,8 @@ test('a busy temporary cache is reported and reclaimed by a later finished task'
 test('native operations queue, time out and honor abort without stealing active locks', async t => {
   const f = fixture(t), events = [], logs = []
   const first = await f.lock()
-  const waiting = f.lock({ state: () => 'alive', waitMs: 30, log: text => logs.push(text) }).then(lock => { events.push('second'); return lock })
+  // Queue acquisition must not expire if filesystem work or timer delivery is slow.
+  const waiting = f.lock({ state: () => 'alive', waitMs: 30, now: () => 0, log: text => logs.push(text) }).then(lock => { events.push('second'); return lock })
   await new Promise(accept => setTimeout(accept, 5)); assert.deepEqual(events, [])
   first.release(); const second = await waiting
   assert.equal(logs.length, 1); assert.deepEqual(events, ['second'])
