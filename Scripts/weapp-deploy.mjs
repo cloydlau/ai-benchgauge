@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
+import { appendFileSync, copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ci } from './calmmit.mjs'
@@ -10,6 +10,7 @@ import { createAutoVersion } from '../apps/weapp/scripts/version.mjs'
 
 const { readUploadConfig, createUploadConfigMonitor } = await ci.load('deployment-credentials')
 const { createWatchSession } = await ci.load('deployment-watch')
+const { runWechatCiScript, writeSuccessfulPublish } = await ci.load('wechat-ci')
 const { checkPrivacyGuide } = await ci.load('privacy-guide')
 const root = ci.root
 const receiptPath = join(root, 'apps/weapp/.last-publish')
@@ -33,10 +34,11 @@ export const sourcePaths = [
   'Sources/LeaderboardKit/Resources/ModelDetailLabels.json',
   'Sources/LeaderboardKit/Resources/SourceTabThemes.json',
   'fc/models-dev-license.txt',
-  'Tests/fixtures/model-details.json',
+  'Tests/fixtures/model-details.json', 'Tests/fixtures/calendar-timestamps.json',
   'fc/arena-attribution.json',
   'LICENSE', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml',
-  'Scripts/weapp-deploy.mjs', 'Scripts/sync-privacy-guide.mjs', 'privacy-guide.json',
+  'Scripts/weapp-deploy.mjs', 'Scripts/calmmit.mjs', 'calmmit.config.json',
+  'Scripts/sync-privacy-guide.mjs', 'privacy-guide.json',
 ]
 
 export function inputSnapshot(repo = root, paths = sourcePaths) {
@@ -112,25 +114,23 @@ async function upload() {
     // npm runs the exact package scripts against the existing locked binaries;
     // pnpm's pre-run dependency sync cannot operate on this isolated symlink tree.
     const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
-    await run(npm, ['--prefix', join(stage, 'apps/weapp'), 'test'])
+    await run(npm, ['--prefix', join(stage, 'apps/weapp'), 'test'], {
+      env: { ...process.env, CALMMIT_PATH: ci.library },
+    })
     await run(npm, ['--prefix', join(stage, 'apps/weapp'), 'run', 'build'], {
-      env: { ...process.env, MP_VERSION: version, BENCHGAUGE_INVESTMENT_ROOT: root },
+      env: { ...process.env, CALMMIT_PATH: ci.library, MP_VERSION: version, BENCHGAUGE_INVESTMENT_ROOT: root },
     })
     if (sourceSignature(inputSnapshot()) !== signature) throw new Error('构建期间源码发生变化，等待下一轮上传')
     const current = readUploadConfig(root)
     if (!current.ready || current.signature !== config.signature) throw new Error('上传配置或密钥发生变化，等待下一轮上传')
-    const runtime = join(root, 'apps/weapp/ci-runtime')
-    const binary = join(runtime, 'node_modules/node/bin', process.platform === 'win32' ? 'node.exe' : 'node')
-    if (!existsSync(binary) || !existsSync(join(runtime, 'node_modules/miniprogram-ci/package.json'))) {
-      await run(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['ci', '--prefix', runtime, '--no-audit', '--no-fund'])
-    }
-    // Dependency installation may take minutes. Revalidate immediately before uploading.
-    if (sourceSignature(inputSnapshot()) !== signature || readUploadConfig(root).signature !== config.signature) throw new Error('源码或上传配置已更新，等待下一轮上传')
-    // Preloading also covers Workers; a version-specific Web Storage flag fails on Node 20.
-    await run(binary, ['--require', join(root, 'apps/weapp/scripts/ci-compat.cjs'), join(root, 'apps/weapp/scripts/upload.mjs'), join(stage, 'apps/weapp'), config.appid, config.privateKeyPath, version])
-    const receipt = { schemaVersion: 1, status: 'success', publishedAt: Date.now(), version, sourceSignature: signature }
-    writeFileSync(`${receiptPath}.tmp`, `${JSON.stringify(receipt, null, 2)}\n`)
-    renameSync(`${receiptPath}.tmp`, receiptPath)
+    await runWechatCiScript({
+      root: root, execute: run, script: join(root, 'apps/weapp/scripts/upload.mjs'),
+      args: [join(stage, 'apps/weapp'), config.appid, config.privateKeyPath, version],
+      beforeRun() {
+        if (sourceSignature(inputSnapshot()) !== signature || readUploadConfig(root).signature !== config.signature) throw new Error('源码或上传配置已更新，等待下一轮上传')
+      },
+    })
+    writeSuccessfulPublish(join(root, 'apps/weapp/.last-publish'), { version, sourceSignature: signature })
     log(`微信上传成功，版本 ${version}`)
   } finally {
     rmSync(stage, { recursive: true, force: true })

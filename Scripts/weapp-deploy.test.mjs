@@ -11,6 +11,34 @@ import { join } from 'node:path'
 import { ci } from './calmmit.mjs'
 import { sourcePaths, inputSnapshot, sourceSignature, stageInputs, needsUpload, readReceipt } from './weapp-deploy.mjs'
 
+test('isolated upload retains the calendar fixture and resolves the shared version generator outside its checkout', t => {
+  const root = mkdtempSync(join(tmpdir(), 'benchgauge-version-stage-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  const inputs = ['Tests/fixtures/calendar-timestamps.json', 'Scripts/calmmit.mjs', 'calmmit.config.json', 'apps/weapp/scripts/version.mjs']
+  for (const relative of [...inputs, 'node_modules/.fixture', 'apps/weapp/node_modules/.fixture']) {
+    const target = join(root, relative)
+    mkdirSync(join(target, '..'), { recursive: true })
+    if (inputs.includes(relative)) copyFileSync(new URL(`../${relative}`, import.meta.url), target)
+    else writeFileSync(target, '')
+  }
+  const snapshot = inputSnapshot(root), signature = sourceSignature(snapshot)
+  const stage = join(root, 'stage')
+  stageInputs(root, stage, snapshot)
+  assert.deepEqual(JSON.parse(readFileSync(join(stage, inputs[0]), 'utf8')), JSON.parse(readFileSync(join(root, inputs[0]), 'utf8')))
+  const result = spawnSync(process.execPath, ['--input-type=module', '--eval', `
+    import { createAutoVersion } from ${JSON.stringify(pathToFileURL(join(stage, inputs[3])).href)};
+    console.log(createAutoVersion(new Date('2026-10-24T16:00:00Z')));
+  `], { cwd: stage, env: { ...process.env, CALMMIT_PATH: ci.library }, encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stdout + result.stderr)
+  assert.equal(result.stdout.trim(), '20261025')
+  for (const relative of inputs) {
+    const original = readFileSync(join(root, relative))
+    writeFileSync(join(root, relative), Buffer.concat([original, Buffer.from('\n')]))
+    assert.notEqual(sourceSignature(inputSnapshot(root)), signature, relative)
+    writeFileSync(join(root, relative), original)
+  }
+})
+
 test('isolated upload loads shared domain and chart statistics and detects their updates', async t => {
   const root = mkdtempSync(join(tmpdir(), 'benchgauge-domain-stage-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
@@ -164,7 +192,7 @@ function isolatedUploader(t, mode = 'success') {
   writeFileSync(join(root, 'package.json'), '{"type":"module"}')
   copyFileSync(new URL('./weapp-deploy.mjs', import.meta.url), join(root, 'Scripts/weapp-deploy.mjs'))
   copyFileSync(new URL('../apps/weapp/scripts/version.mjs', import.meta.url), join(root, 'apps/weapp/scripts/version.mjs'))
-  copyFileSync(new URL('../apps/weapp/scripts/ci-compat.cjs', import.meta.url), join(root, 'apps/weapp/scripts/ci-compat.cjs'))
+  writeFileSync(join(root, 'apps/weapp/ci-runtime/package-lock.json'), JSON.stringify({ packages: Object.fromEntries(['node', 'miniprogram-ci', 'form-data'].map(name => [`node_modules/${name}`, { version: 'fixture' }])) }))
   writeFileSync(join(root, 'apps/weapp/src/page.js'), 'initial')
   writeFileSync(join(root, 'privacy-guide.json'), '{"items":[]}')
   writeFileSync(join(root, 'Scripts/node-executable.mjs'), 'export const nodeExecutable=()=>process.execPath')
@@ -172,14 +200,14 @@ function isolatedUploader(t, mode = 'success') {
   writeFileSync(join(root, 'Scripts/calmmit.mjs'), `
 export const state={ready:true,polls:0,scheduled:[],stops:0,session:null,configCalls:0};
 const config=()=>{const n=++state.configCalls,mode=process.env.UPLOAD_MODE;return{ready:state.ready&&mode!=='not-ready'&&!(mode==='config-unready'&&n===2),reason:'fixture credentials unavailable',signature:(mode==='config-rotation'&&n>=2||mode==='late-config'&&n>=3)?'rotated':'first',keyChangedAt:0,appid:'fixture-appid',privateKeyPath:'fixture-private-key'}};
-export const ci={root:${JSON.stringify(root)},load:async name=>name==='privacy-guide'?import(${JSON.stringify(pathToFileURL(join(ci.library, 'src/privacy-guide.mjs')).href)}):name==='deployment-credentials'?{readUploadConfig:config,createUploadConfigMonitor:options=>({initial:options.readConfig(),poll(){state.polls++;if(state.pollError)throw Error('fixture monitor');options.readConfig()}})}:{createWatchSession:options=>{state.session=options;return{schedule:(...args)=>state.scheduled.push(args),stop(){state.stops++}}}}};
+export const ci={root:${JSON.stringify(root)},load:async name=>['privacy-guide','wechat-ci'].includes(name)?import(${JSON.stringify(pathToFileURL(join(ci.library, 'src/')).href)}+name+'.mjs'):name==='deployment-credentials'?{readUploadConfig:config,createUploadConfigMonitor:options=>({initial:options.readConfig(),poll(){state.polls++;if(state.pollError)throw Error('fixture monitor');options.readConfig()}})}:{createWatchSession:options=>{state.session=options;return{schedule:(...args)=>state.scheduled.push(args),stop(){state.stops++}}}}};
 `)
   const installRuntime = () => {
     mkdirSync(join(root, 'apps/weapp/ci-runtime/node_modules/node/bin'), { recursive: true })
     mkdirSync(join(root, 'apps/weapp/ci-runtime/node_modules/miniprogram-ci'), { recursive: true })
     symlinkSync(process.execPath, join(root, 'apps/weapp/ci-runtime/node_modules/node/bin/node'))
     symlinkSync(process.execPath, join(root, 'apps/weapp/ci-runtime/node_modules/node/bin/node.exe'))
-    writeFileSync(join(root, 'apps/weapp/ci-runtime/node_modules/miniprogram-ci/package.json'), '{}')
+    for (const name of ['node', 'miniprogram-ci', 'form-data']) { mkdirSync(join(root, 'apps/weapp/ci-runtime/node_modules', name), { recursive: true }); writeFileSync(join(root, 'apps/weapp/ci-runtime/node_modules', name, 'package.json'), JSON.stringify({ version: 'fixture' })) }
   }
   if (!['runtime-install', 'late-config', 'late-source', 'windows'].includes(mode)) installRuntime()
   const npm = `#!${process.execPath}
@@ -188,7 +216,7 @@ fs.appendFileSync('events',JSON.stringify(args)+'\\n');
 if(args.includes('build'))fs.writeFileSync('build-version',process.env.MP_VERSION||'');
 if(mode==='build-failed'&&args.includes('build'))process.exit(2);
 if(args.includes('build')&&mode==='build-source')fs.writeFileSync('apps/weapp/src/page.js','changed');
-if(args.includes('ci')){const runtime=args[args.indexOf('--prefix')+1];fs.mkdirSync(path.join(runtime,'node_modules/node/bin'),{recursive:true});fs.mkdirSync(path.join(runtime,'node_modules/miniprogram-ci'),{recursive:true});for(const n of ['node','node.exe'])fs.symlinkSync(process.execPath,path.join(runtime,'node_modules/node/bin',n));fs.writeFileSync(path.join(runtime,'node_modules/miniprogram-ci/package.json'),'{}');if(mode==='late-source')fs.writeFileSync('apps/weapp/src/page.js','late change')}
+if(args.includes('ci')){const runtime=args[args.indexOf('--prefix')+1];fs.mkdirSync(path.join(runtime,'node_modules/node/bin'),{recursive:true});fs.mkdirSync(path.join(runtime,'node_modules/miniprogram-ci'),{recursive:true});for(const n of ['node','node.exe'])fs.symlinkSync(process.execPath,path.join(runtime,'node_modules/node/bin',n));for(const name of ['node','miniprogram-ci','form-data']){fs.mkdirSync(path.join(runtime,'node_modules',name),{recursive:true});fs.writeFileSync(path.join(runtime,'node_modules',name,'package.json'),JSON.stringify({version:'fixture'}))};if(mode==='late-source')fs.writeFileSync('apps/weapp/src/page.js','late change')}
 `
   writeFileSync(join(root, 'bin/npm'), npm, { mode: 0o755 })
   symlinkSync(join(root,'bin/npm'),join(root,'bin/npm.cmd'))
