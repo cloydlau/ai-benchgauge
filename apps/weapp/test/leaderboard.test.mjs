@@ -40,9 +40,29 @@ test('model search combines name tokens with existing filters, keeps ranks and t
   assert.deepEqual(visibleRows(source, { query: '  ALPHA  pro ' }).map(row => [row.rank, row.name, row.scoreShare]), [[2, 'Alpha Pro', '80%']])
   assert.deepEqual(visibleRows(source, { query: 'alpha', openness: 'open' }).map(row => row.rank), [2])
   assert.equal(visibleRows(source, { query: 'Maker' }).length, 0)
-  assert.deepEqual(visibleRows(source, { grouping: 'company', query: 'nothing' }), visibleRows(source, { grouping: 'company' }))
+  assert.deepEqual(visibleRows(source, { grouping: 'company', query: 'nothing' }), [])
   assert.equal(visibleRows(source, { query: ' \n ' }).length, 4)
   assert.equal(modelNameMatches('Café Ａlpha 中文模型', ' cafe alpha 中文 '), true)
+})
+
+test('company name search follows aggregation and preserves ranks, scores and complete members', () => {
+  const source = board([
+    entry(1, 'Leader', 100, 'OpenAI', { openness: 'closed', developerCountry: { key: 'openai', countryCode: 'US' } }),
+    entry(2, 'Beta', 80, 'DeepSeek', { openness: 'open', developerCountry: { key: 'deepseek', countryCode: 'CN' } }),
+    entry(3, 'Gamma', 70, 'DeepSeek', { openness: 'closed', developerCountry: { key: 'deepseek', countryCode: 'CN' } }),
+  ])
+  const original = structuredClone(source)
+  const [result] = visibleRows(source, { grouping: 'company', query: ' DEEP seek ' })
+  assert.deepEqual([result.rank, result.name, result.score, result.scoreShare, result.fillPercent], [2, 'DeepSeek', 80, '80%', 80])
+  assert.deepEqual(result.components.map(member => member.name), ['Beta', 'Gamma'])
+  assert.deepEqual(visibleRows(source, { grouping: 'company', query: 'Beta' }), [], 'Search company names rather than member model names')
+  assert.deepEqual(visibleRows(source, { grouping: 'company', country: 'US', query: 'DeepSeek' }), [])
+  assert.equal(visibleRows(source, { grouping: 'company', country: 'CN', query: 'DeepSeek' })[0].score, 80)
+  assert.equal(visibleRows(source, { grouping: 'company', openness: 'closed', query: 'DeepSeek' })[0].score, 70)
+  const [usage] = visibleRows({ ...source, kind: 'openRouterUsage' }, { grouping: 'company', query: 'DeepSeek' })
+  assert.equal(usage.score, 150, 'Usage search retains the sum of every member')
+  assert.equal(usage.components.length, 2)
+  assert.deepEqual(source, original)
 })
 
 test('score shares round consistently and omit leaders, near ties and invalid baselines', () => {

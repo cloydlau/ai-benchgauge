@@ -195,6 +195,70 @@ test('one live model query survives source/category/company switches and clearin
   globalThis.__benchHooks.unload()
 })
 
+test('company search opens, filters all sources and retains an independent query across grouping and category switches', async () => {
+  const h = setup({}, 30)
+  const loading = h.loadCategory(); h.respondCategory(); await loading
+  h.page.inputModelSearch({ detail: { value: 'Model 29' } })
+  h.page.selectGrouping(event({ id: 'company' }))
+  assert.equal(h.page.modelSearchQuery.value, '')
+  assert.ok(h.page.cards.value.every(card => card.count === 30))
+  const initialRequests = h.requests.length
+  h.page.openModelSearch()
+  await new Promise(resolve => setTimeout(resolve, 30))
+  assert.equal(h.page.modelSearchVisible.value, true)
+  h.page.inputModelSearch({ detail: { value: 'MAKER 28' } })
+  assert.ok(h.page.cards.value.every(card => card.count === 1 && card.rows[0].rank === 28 && card.rows[0].name === 'Maker 28' && card.filtered))
+  assert.equal(h.requests.length, initialRequests, 'Company filtering stays local')
+  h.page.selectFace(event({ index: 1 }))
+  assert.equal(h.page.modelSearchQuery.value, 'MAKER 28')
+  h.page.selectGrouping(event({ id: 'model' }))
+  assert.equal(h.page.modelSearchVisible.value, false)
+  assert.equal(h.page.modelSearchQuery.value, 'Model 29')
+  assert.equal(h.page.cards.value[0].rows[0].name, 'Model 29')
+  h.page.selectGrouping(event({ id: 'company' }))
+  assert.equal(h.page.modelSearchQuery.value, 'MAKER 28')
+  h.page.selectCategory(event({ id: 'coding' })); h.respondCategory()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  assert.ok(h.page.cards.value.every(card => card.count === 1 && card.rows[0].name === 'Maker 28'))
+  h.page.openModelSearch()
+  await new Promise(resolve => setTimeout(resolve, 30))
+  h.page.inputModelSearch({ detail: { value: 'no such company' } })
+  assert.ok(h.page.cards.value.every(card => card.count === 0 && card.filtered && card.height > 0))
+  h.page.clearModelSearch()
+  assert.equal(h.page.modelSearchVisible.value, true)
+  assert.ok(h.page.cards.value.every(card => card.count === 30))
+  h.page.inputModelSearch({ detail: { value: 'Maker 28' } })
+  h.page.closeModelSearch()
+  assert.equal(h.page.modelSearchQuery.value, '')
+  assert.equal(h.page.modelSearchVisible.value, false)
+  h.page.inputModelSearch({ detail: { value: 'Maker 28' } })
+  h.page.clearFilters()
+  assert.equal(h.page.modelSearchQuery.value, '')
+  h.page.selectGrouping(event({ id: 'model' }))
+  assert.equal(h.page.modelSearchQuery.value, '', 'Global reset also clears the retained model query')
+  assert.ok(h.page.cards.value.every(card => card.count === 30))
+  globalThis.__benchHooks.unload()
+})
+
+test('switching grouping cancels company search while its starting bounds are still pending', async () => {
+  const h = setup()
+  h.page.selectGrouping(event({ id: 'company' }))
+  let measured
+  const createSelectorQuery = wx.createSelectorQuery
+  wx.createSelectorQuery = () => {
+    const query = { select: () => ({ boundingClientRect: () => query }), exec: callback => { measured = callback } }
+    return query
+  }
+  h.page.openModelSearch()
+  wx.createSelectorQuery = createSelectorQuery
+  h.page.selectGrouping(event({ id: 'model' }))
+  measured([])
+  await new Promise(resolve => setTimeout(resolve, 40))
+  assert.equal(h.page.modelSearchVisible.value, false)
+  assert.equal(h.page.modelSearchFocused.value, false)
+  globalThis.__benchHooks.unload()
+})
+
 test('blur retains a nonempty search and its results without restoring keyboard focus', async () => {
   const h = setup({}, 1000)
   const loading = h.loadCategory(); h.respondCategory(); await loading

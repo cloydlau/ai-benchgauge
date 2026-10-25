@@ -25,10 +25,12 @@ definePage(query => {
   const grouping = ref(initial.grouping)
   const expandedBoards = ref({})
   const configurationRequired = ref({})
+  // Share the input interaction while retaining a separate query per grouping.
+  const searchQueries = { model: '', company: '' }
   const modelSearchQuery = ref('')
   const modelSearchOpen = ref(false)
   const modelSearchFocused = ref(false)
-  const modelSearchVisible = computed(() => grouping.value === 'model' && modelSearchOpen.value)
+  const modelSearchVisible = computed(() => modelSearchOpen.value)
   const searchOrigins = ref({})
   let searchFocusTimer, searchExpandTimer, searchBlurTimer, searchSerial = 0
   let clearingModelSearch = false
@@ -477,14 +479,14 @@ definePage(query => {
       expansionLabel: expandedBoards.value[kind] ? tr('showLess') : tr('showAll').replace('{count}', totalCount), distribution: distributions.value[kind],
       // Keep the editing header pinned when a query reduces a long list to a
       // few rows; native scroll views otherwise clamp their offset to zero.
-      height: Math.max(entries.length * geometry.value.rowHeight, (modelSearchVisible.value || grouping.value === 'model' && !!modelSearchQuery.value.trim())
+      height: Math.max(entries.length * geometry.value.rowHeight, (modelSearchVisible.value || !!modelSearchQuery.value.trim())
         ? Math.max(0, (viewports[kind] || geometry.value.viewportHeight) - geometry.value.rowHeight - (entries.length ? 0 : 200)) : 0),
       rowHeight: geometry.value.rowHeight,
       rows: renderRows(kind, entries, range, leaderScore),
       searchStyle: modelSearchVisible.value ? 'left:0px;right:0px;' : searchOrigins.value[kind] || 'left:50%;right:50%;',
       scoreLabel: ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? tr('tokenShare') : kind === 'openRouterUsage' ? tr('tokens') : tr('score'),
       pendingConfiguration: !!configurationRequired.value[kind],
-      hasBoard: !!board, filtered: filter.country !== 'all' || filter.openness !== 'all' || grouping.value === 'model' && !!modelSearchQuery.value.trim(),
+      hasBoard: !!board, filtered: filter.country !== 'all' || filter.openness !== 'all' || !!modelSearchQuery.value.trim(),
       countryFiltered: filter.country !== 'all', sourceFiltered: filter.openness !== 'all',
       loading: !!refreshing.value[kind],
       polishing: polishingKind.value === kind,
@@ -749,7 +751,13 @@ definePage(query => {
     expandedBoards.value = {}; category.value = id; face.value = Math.min(face.value, current.value.kinds.length - 1); cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1; rowRenderers.clear(); resetScroll(); persist(); autoRefresh()
     syncTimestampPolish()
   }
-  function selectGrouping(event) { blurModelSearch(); stopCube(); entrancePlayed = true; grouping.value = event.currentTarget.dataset.id; expandedBoards.value = {}; resetScroll(); persist() }
+  function selectGrouping(event) {
+    blurModelSearch(); stopCube(); entrancePlayed = true
+    searchQueries[grouping.value] = modelSearchQuery.value
+    grouping.value = event.currentTarget.dataset.id
+    modelSearchQuery.value = searchQueries[grouping.value] || ''
+    expandedBoards.value = {}; resetScroll(); persist()
+  }
   function selectFace(event) {
     if (Date.now() < suppressTapUntil) return
     const destination = Number(event.currentTarget.dataset.index)
@@ -795,6 +803,7 @@ definePage(query => {
       tr(mode === 'country' ? 'country' : 'source'))
   }
   function clearFilters() {
+    searchQueries.model = searchQueries.company = ''
     modelSearchQuery.value = ''
     setFilters({ country: 'all', openness: 'all' }); persist()
   }
@@ -845,12 +854,12 @@ definePage(query => {
     if (!modelSearchFocused.value) deferModelSearchBlur()
   }
   function openModelSearch() {
-    if (grouping.value !== 'model' || cubeBusy.value || backgroundLocked.value) return
+    if (cubeBusy.value || backgroundLocked.value) return
     stopCube(); entrancePlayed = true
     clearTimeout(searchBlurTimer)
     const serial = ++searchSerial
     const expand = () => {
-      if (!alive || serial !== searchSerial || grouping.value !== 'model') return
+      if (!alive || serial !== searchSerial) return
       modelSearchOpen.value = true
       clearTimeout(searchFocusTimer)
       searchFocusTimer = setTimeout(() => {

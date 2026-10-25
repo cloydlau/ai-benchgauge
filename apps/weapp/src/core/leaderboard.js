@@ -116,7 +116,9 @@ export function rankedEntries(board, { grouping = 'model', country = 'all', open
   country = normalizedCountryCode(country) ?? country
   const entries = (board?.entries || []).filter(entry => (country === 'all' || countryCode(entry) === country)
     && (openness === 'all' || (resolvedOpenness(entry) || 'unknown') === openness))
-  return grouping === 'company' ? companyRows(entries, { summingUsage: ['openRouterUsage', 'vercelUsage', 'cloudbaseUsage'].includes(board?.kind) }) : entries.filter(entry => modelNameMatches(entry.name, query))
+  const ranked = grouping === 'company'
+    ? companyRows(entries, { summingUsage: ['openRouterUsage', 'vercelUsage', 'cloudbaseUsage'].includes(board?.kind) }) : entries
+  return ranked.filter(entry => modelNameMatches(entry.name, query))
 }
 export function visibleRows(board, { grouping = 'model', country = 'all', openness = 'all', query = '', dark = false, language = 'en', category = 'general' } = {}) {
   const leaderScore = rankedEntries(board, { grouping, country, openness })[0]?.score

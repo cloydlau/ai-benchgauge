@@ -56,7 +56,7 @@
                 <view wx:if="{{card.polishing}}" class="time-row time-polish {{card.isSourceTime ? 'time-source' : 'time-fetched'}}" aria-hidden="true"><text class="time-value">{{card.time}}</text><view class="time-caption"><text class="time-label">{{card.timeLabel}}</text></view></view>
               </view>
             </view>
-            <button wx:if="{{grouping === 'model'}}" id="model-filter-{{card.kind}}" class="model-filter-toggle" data-kind="{{card.kind}}" bindtap="openModelSearch" aria-label="{{labels.searchModels}}"><van-icon name="search" size="13px" /></button>
+            <button id="model-filter-{{card.kind}}" class="model-filter-toggle" data-kind="{{card.kind}}" bindtap="openModelSearch" aria-label="{{grouping === 'company' ? labels.searchCompanies : labels.searchModels}}"><van-icon name="search" size="13px" /></button>
             </view>
             </view>
             </view>
@@ -71,8 +71,8 @@
           <view class="model-search" style="{{card.searchStyle}}" aria-hidden="{{!modelSearchVisible}}">
             <view class="model-search-content">
               <van-icon name="search" size="14px" />
-              <input wx:if="{{modelSearchVisible}}" class="model-search-input" value="{{modelSearchQuery}}" placeholder="{{labels.searchModels}}" placeholder-class="model-search-placeholder"
-                focus="{{modelSearchFocused && card.index === face}}" disabled="{{card.index !== face}}" confirm-type="done" bindinput="inputModelSearch" bindfocus="focusModelSearch" bindblur="deferModelSearchBlur" bindconfirm="deferModelSearchBlur" aria-label="{{labels.searchModels}}" />
+              <input wx:if="{{modelSearchVisible}}" class="model-search-input" value="{{modelSearchQuery}}" placeholder="{{grouping === 'company' ? labels.searchCompanies : labels.searchModels}}" placeholder-class="model-search-placeholder"
+                focus="{{modelSearchFocused && card.index === face}}" disabled="{{card.index !== face}}" confirm-type="done" bindinput="inputModelSearch" bindfocus="focusModelSearch" bindblur="deferModelSearchBlur" bindconfirm="deferModelSearchBlur" aria-label="{{grouping === 'company' ? labels.searchCompanies : labels.searchModels}}" />
               <button wx:if="{{modelSearchQuery}}" class="model-search-clear" bindtouchstart="beginModelSearchClear" bindtouchcancel="cancelModelSearchClear" bindtap="clearModelSearch" aria-label="{{labels.clearSearch}}"><van-icon name="clear" size="13px" /></button>
               <button class="model-search-cancel" bindtap="closeModelSearch">{{labels.cancel}}</button>
             </view>
