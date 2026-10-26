@@ -14,7 +14,7 @@
 
 ## 授权核实
 
-[官方 Data API 文档](https://openrouter.ai/docs/cookbook/administration/data-api)明确将这些端点返回的聚合数据以 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 授权，允许署名后的复制、再分发、改编和商业使用。该授权不包括个人、客户级用量或未由这些端点发布的数据。应用保留来源指定的引用行 `Source: OpenRouter (openrouter.ai/rankings), as of <meta.as_of>.`、`Licensed under CC BY 4.0.`、许可链接、统计日、变更说明及原始 `meta`。离线快照、帮助及图片导出保留这些信息。独立应用，不表示获得 OpenRouter 背书。
+[官方 Data API 文档](https://openrouter.ai/docs/cookbook/administration/data-api)明确将这些端点返回的聚合数据以 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 授权，允许署名后的复制、再分发、改编和商业使用。该授权不包括个人、客户级用量或未由这些端点发布的数据。应用保留来源指定的引用行 `Source: OpenRouter (openrouter.ai/rankings), as of <meta.as_of>.`、`Licensed under CC BY 4.0.`、许可链接、统计日、变更说明及原始 `meta`。离线快照、帮助及图片导出保留这些信息。
 
 榜单正文只展示简洁的来源入口，不在展开按钮下或表格旁常显英文原始说明。小程序和 iOS 的“关于 → OpenRouter → CC BY 4.0”弹窗展示当前缓存的完整来源署名、统计口径和本地化协议；没有缓存时仍可离线查看来源及完整协议，不伪造统计时间。Mac 在“开源声明”内点击 OpenRouter 协议展开查看。原始说明继续随快照缓存并保留在图片导出中。
 

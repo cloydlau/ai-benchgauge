@@ -1,6 +1,6 @@
 # Arena 官方数据集迁移
 
-核对日期：2026-10-19。来源为 [Arena 官方公告](https://arena.ai/blog/arena-leaderboard-dataset)、[官方数据集及说明](https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset)和其原始 Parquet 文件。数据集声明为 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)；应用独立运营，不暗示 Arena 背书。许可范围不扩大到官网图片、商标或旧网页抓取内容。
+核对日期：2026-10-19。来源为 [Arena 官方公告](https://arena.ai/blog/arena-leaderboard-dataset)、[官方数据集及说明](https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset)和其原始 Parquet 文件。数据集声明为 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)。许可范围不扩大到官网图片、商标或旧网页抓取内容。
 
 ## 口径与实测快照
 

@@ -3,8 +3,8 @@
   "sourceURL": "https://epoch.ai/eci",
   "licenseURL": "https://creativecommons.org/licenses/by/4.0/",
   "changes": {
-    "en": "Presented with filtering, company aggregation, display rounding and supplemented/normalized metadata. Original ECI scores are retained. Independent app; no Epoch AI endorsement.",
-    "zh": "本应用提供筛选、公司聚合、分数四舍五入显示及元数据补充与规范化，保留原始 ECI 分数。独立应用，无 Epoch AI 背书。",
-    "zh-Hant": "本應用提供篩選、公司彙總、分數四捨五入顯示及中繼資料補充與規範化，保留原始 ECI 分數。獨立應用，無 Epoch AI 背書。"
+    "en": "Presented with filtering, company aggregation, display rounding and supplemented/normalized metadata. Original ECI scores are retained.",
+    "zh": "本应用提供筛选、公司聚合、分数四舍五入显示及元数据补充与规范化，保留原始 ECI 分数。",
+    "zh-Hant": "本應用提供篩選、公司彙總、分數四捨五入顯示及中繼資料補充與規範化，保留原始 ECI 分數。"
   }
 }
