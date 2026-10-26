@@ -1360,7 +1360,7 @@ private struct PadBoardCard: View {
         }.padding(.horizontal, columnPadding).padding(.top, 12).padding(.bottom, 6)
     }
     private var sourceHeading: some View {
-        Text(kind.sourceLinkTitle)
+        Text(LeaderboardPresentation.columnTitle(kind, language: language))
             .font(columnHeaderFont.weight(.semibold))
             .foregroundStyle(sourceAccent)
             .lineLimit(1).minimumScaleFactor(0.8)

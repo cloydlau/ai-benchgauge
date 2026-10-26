@@ -45,3 +45,5 @@
 发现并修复移动英文标题的确定差异：原生旧 `EnglishBrandArtwork` 只将字符串索引大于 1 的字形加入路径，遗漏索引 1 的 I；A 未设置倾斜。小程序已有相应排版优化。本轮移动端改用同源几何；桌面标题的排版差异另行保留。
 
 代码核对确认 iOS 已有模型搜索、全局筛选、三点下拉刷新、来源标志和关于页等对应实现，不能据此断言全部小程序优化都已逐帧对齐。它们此前的具体验收范围见 `apps/ios/README.md` 和 `docs/visual-comparison.md`。另发现小程序最新的公司名称搜索尚未同步，本轮补齐 iOS 并验证分组独立关键词、聚合后筛选和导出快照。非空查询失焦时小程序保留输入框，iOS 延续原生收起输入框并保留结果的既有交互；这项差异明确保留。原生验收结果见 iOS README。未进行全应用、全平台的完整视觉审计。
+
+Artificial Analysis 的综合、编程、文生图、文生视频榜单表头统一显示 `Artificial Analysis`，三语一致，不追加分类后缀；分类由现有分类导航表达。小程序使用 catalog 标题，Apple 表头共用 `LeaderboardPresentation.columnTitle`，Windows 使用 `BoardTitle`。保留时间完整内容、来源说明及官方链接。

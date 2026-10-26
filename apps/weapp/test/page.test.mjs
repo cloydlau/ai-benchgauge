@@ -1341,7 +1341,7 @@ test('actual filter/settings handlers share source filters, react to theme, copy
   assert.ok(h.page.dark.value)
   assert.deepEqual(h.page.tabs.value, ['Task benchmarks', 'User votes', 'Calibrated tests'])
   h.page.selectCategory(event({ id: 'image' }))
-  assert.equal(h.page.cards.value[0].title, 'Artificial Analysis Text to Image')
+  assert.equal(h.page.cards.value[0].title, 'Artificial Analysis')
   h.respondCategory(); await new Promise(resolve => setImmediate(resolve))
   h.page.selectCategory(event({ id: 'general' }))
   h.page.cubeStart({ touches: [{ clientX: 180, clientY: 300 }] })

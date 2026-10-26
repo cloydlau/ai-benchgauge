@@ -405,7 +405,7 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
                 show(kind)
                 let heading = app.staticTexts["source-heading-\(kind)"]
                 XCTAssertTrue(heading.waitForExistence(timeout: 5))
-                XCTAssertEqual(heading.label, kind == "artificialAnalysis" ? "Artificial Analysis" : "Artificial Analysis 编程")
+                XCTAssertEqual(heading.label, "Artificial Analysis")
                 if UIDevice.current.userInterfaceIdiom == .phone {
                     let coding = kind == "artificialAnalysisCodingAgent"
                     XCTAssertEqual(app.buttons["face-0"].label, coding ? (chinese ? "任务完成率" : "Task completion") : (chinese ? "任务测评" : "Task benchmarks"))
