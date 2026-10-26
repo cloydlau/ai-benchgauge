@@ -1331,9 +1331,13 @@ private struct PadBoardCard: View {
     }
     @ViewBuilder private var sourceHeadingDetails: some View {
         if isImage { sourceHeading }
+        else if language == .english {
+            VStack(alignment: .leading, spacing: 2) {
+                sourceHeading
+                sourceHeadingActions
+            }
+        }
         else {
-            // Dates keep their full width; a long heading takes the remaining
-            // space and truncates instead of moving the actions to another row.
             HStack(alignment: .center, spacing: 6) {
                 sourceHeading
                 sourceHeadingActions

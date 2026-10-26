@@ -428,8 +428,13 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
                 if let times {
                     XCTAssertGreaterThanOrEqual(heading.frame.minY - summary.frame.maxY, 8)
                     XCTAssertGreaterThan(heading.frame.width, 0, "Long headings retain visible space")
-                    XCTAssertGreaterThanOrEqual(times.frame.minX, heading.frame.maxX, "The date stays beside the heading")
-                    XCTAssertEqual(heading.frame.midY, times.frame.midY, accuracy: 1)
+                    if chinese {
+                        XCTAssertGreaterThanOrEqual(times.frame.minX, heading.frame.maxX)
+                        XCTAssertEqual(heading.frame.midY, times.frame.midY, accuracy: 1)
+                    } else {
+                        XCTAssertGreaterThanOrEqual(times.frame.minY, heading.frame.maxY, "English dates occupy the fixed second row")
+                        XCTAssertEqual(times.frame.minX, heading.frame.minX, accuracy: 1)
+                    }
                     let search = app.buttons["model-filter-\(kind)"]
                     XCTAssertTrue(search.exists)
                     XCTAssertGreaterThanOrEqual(search.frame.minX, times.frame.maxX)
@@ -1256,19 +1261,21 @@ final class LeaderboardPhoneTests: XCTestCase {
         let header = app.descendants(matching: .any)["column-header-artificialAnalysis"]
         let trigger = app.buttons["model-filter-artificialAnalysis"]
         XCTAssertTrue(header.waitForExistence(timeout: 5))
+        let heading = app.staticTexts["source-heading-artificialAnalysis"]
+        func contentFrame() -> CGRect { dark ? trigger.frame : heading.frame.union(trigger.frame) }
         let ordinaryHeight = header.frame.height
-        let ordinaryOffset = trigger.frame.midY - header.frame.midY
+        let ordinaryOffset = contentFrame().midY - header.frame.midY
         XCTAssertEqual(ordinaryOffset, -2, accuracy: 1, "Ordinary header keeps its existing top/bottom spacing")
         capture(prefix + "-normal")
         viewport.swipeUp()
         XCTAssertLessThanOrEqual(header.frame.minY, viewport.frame.minY + 1)
         XCTAssertEqual(header.frame.height, ordinaryHeight, accuracy: 1)
         capture(prefix + "-pinned")
-        print("[pinned-header] normalHeight=\(ordinaryHeight) normalOffset=\(ordinaryOffset) pinnedHeight=\(header.frame.height) pinnedOffset=\(trigger.frame.midY - header.frame.midY)")
-        XCTAssertEqual(trigger.frame.midY, header.frame.midY, accuracy: 1,
+        print("[pinned-header] normalHeight=\(ordinaryHeight) normalOffset=\(ordinaryOffset) pinnedHeight=\(header.frame.height) pinnedOffset=\(contentFrame().midY - header.frame.midY)")
+        XCTAssertEqual(contentFrame().midY, header.frame.midY, accuracy: 1,
             "Pinned header must center its content without changing height")
         let country = app.buttons["country-artificialAnalysis"]
-        XCTAssertEqual(country.frame.midY, trigger.frame.midY, accuracy: 1)
+        XCTAssertEqual(country.frame.midY, contentFrame().midY, accuracy: 1)
         trigger.tap()
         let input = app.textFields["model-search-input-artificialAnalysis"]
         XCTAssertTrue(input.waitForExistence(timeout: 5))
@@ -2165,9 +2172,14 @@ final class TimestampLoadingLayoutTests: XCTestCase {
                     let heading = app.staticTexts["source-heading-\(kind)"]
                     XCTAssertTrue(time.waitForExistence(timeout: 5))
                     Thread.sleep(forTimeInterval: 0.4)
-                    XCTAssertGreaterThanOrEqual(time.frame.minX, heading.frame.maxX)
-                    XCTAssertEqual(heading.frame.midY, time.frame.midY, accuracy: 1,
-                        "Cached and loading timestamps stay on the heading's line")
+                    if dark {
+                        XCTAssertGreaterThanOrEqual(time.frame.minY, heading.frame.maxY)
+                        XCTAssertEqual(time.frame.minX, heading.frame.minX, accuracy: 1,
+                            "English timestamps keep their fixed second row while loading")
+                    } else {
+                        XCTAssertGreaterThanOrEqual(time.frame.minX, heading.frame.maxX)
+                        XCTAssertEqual(heading.frame.midY, time.frame.midY, accuracy: 1)
+                    }
                     XCTAssertEqual(time.value as? String ?? "", loading ? (dark ? "Loading" : "加载中") : "")
                     XCTAssertTrue(app.buttons["name-\(kind)-1"].exists, "Cached rows remain visible while loading")
                     let geometry = CGRect(x: time.frame.minX - heading.frame.minX,
@@ -2228,7 +2240,12 @@ final class UsageTimestampTests: XCTestCase {
                 let heading = app.staticTexts["source-heading-\(kind)"]
                 XCTAssertTrue(time.waitForExistence(timeout: 5))
                 XCTAssertEqual(time.label, expected, "The header uses retrieval time, not the statistics day")
-                XCTAssertEqual(time.frame.midY, heading.frame.midY, accuracy: 1)
+                if dark {
+                    XCTAssertGreaterThanOrEqual(time.frame.minY, heading.frame.maxY)
+                    XCTAssertEqual(time.frame.minX, heading.frame.minX, accuracy: 1)
+                } else {
+                    XCTAssertEqual(time.frame.midY, heading.frame.midY, accuracy: 1)
+                }
                 let header = XCTAttachment(screenshot: app.screenshot())
                 header.name = "usage-refresh-\(dark ? "en-dark" : "zh-light")-\(kind)-header"
                 header.lifetime = .keepAlways; add(header)

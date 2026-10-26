@@ -80,10 +80,10 @@
 /* Keep wrapped English words beside the icon rather than centered in a wide text box. */
 .locale-en .source-tab { padding: 0 10rpx; }
 .locale-en .source-tab-label { text-align: left; }
-/* Compact the English header before allowing the date/search group to wrap on narrow screens. */
-.locale-en .source-heading-details { gap: 8rpx; }
+/* English always reserves separate rows for the board name and date/search. */
+.locale-en .source-heading-details { flex-direction: column; flex-wrap: nowrap; align-items: flex-start; width: 100%; gap: 4rpx; }
 .locale-en .source-heading-actions { gap: 0; }
-.locale-en .model-heading .source-heading { font-size: 18rpx; }
+.locale-en .model-heading .source-heading { font-size: 18rpx; max-width: 100%; }
 .locale-en .times { font-size: 16rpx; }
 .locale-en .model-filter-toggle { width: 22px; }
 
