@@ -114,9 +114,10 @@
    Apply the same correction to the date, caption and reflection. */
 .times { position: relative; top: .1em; color: var(--muted); display: flex; justify-content: flex-start; white-space: nowrap; gap: 8rpx; flex-shrink: 0; text-align: left; align-items: center; font-size: 18rpx; line-height: 1.25; }
 .time-copy { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 4rpx; }
-.time-row { display: flex; align-items: center; justify-content: flex-start; gap: 7rpx; }
+.time-row { position: relative; display: flex; align-items: center; justify-content: flex-start; gap: 7rpx; }
 .time-label { font: inherit; }
-.times .time-value, .times .time-label { text-decoration: underline; text-underline-offset: .15em; }
+/* Draw one line across the date, inter-word gap and reserved loading caption. */
+.time-row::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: currentColor; pointer-events: none; }
 .time-caption { position: relative; min-width: 12px; min-height: 12px; display: flex; align-items: center; font: inherit; }
 .time-caption-loading .time-label { visibility: hidden; }
 /* Keep a slight optical lift within the reserved caption, close to the digits' center.

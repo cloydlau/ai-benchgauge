@@ -1272,14 +1272,14 @@ private struct PadBoardCard: View {
         let parts = LeaderboardPresentation.sourceTimeParts(board, language: language, includesYear: isImage)
         let loading = !isImage && isRefreshing
         return HStack(spacing: 0) {
-            Text(parts.value).underline(!isImage)
+            Text(parts.value)
             if !parts.caption.isEmpty || !isImage {
                 Text(" ")
                 Group {
                     if parts.caption.isEmpty {
                         Color.clear.frame(width: 12, height: 12)
                     } else {
-                        Text(parts.caption).underline(!isImage).opacity(loading ? 0 : 1)
+                        Text(parts.caption).opacity(loading ? 0 : 1)
                     }
                 }
                 .overlay(alignment: .leading) {
@@ -1293,6 +1293,12 @@ private struct PadBoardCard: View {
         }.font(.system(size: timeFontSize, weight: time.isSourceTime ? .medium : .regular))
         .foregroundStyle(secondaryForeground).monospacedDigit()
         .multilineTextAlignment(.trailing).lineLimit(1).fixedSize()
+        .overlay(alignment: .bottom) {
+            if !isImage {
+                Rectangle().fill(secondaryForeground).frame(height: 0.5)
+                    .offset(y: 1).allowsHitTesting(false)
+            }
+        }
         .modifier(TimestampPolish(ready: !isImage && !isRefreshing && board != nil && kind != .cloudbaseUsage, revision: polishRevision))
         .accessibilityElement(children: .ignore)
         .accessibilityAddTraits(.isStaticText)
