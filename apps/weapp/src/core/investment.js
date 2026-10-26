@@ -3,7 +3,6 @@ import { MEAN_MONTH_MS, calculateCosts } from '../generated/cost-calculation.js'
 
 const count = value => String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 
-// Reference budgets from Watrek's PRODUCT_COSTS, restricted to services used here.
 // Infrastructure/certification are annual budgets; tokens accumulate over development time.
 // BenchGauge's first commit (5b79092), rather than Watrek's development start.
 const DEVELOPMENT_STARTED_AT = Date.parse('2026-09-21T17:09:38+08:00')
@@ -12,12 +11,15 @@ export const investmentSchedule = { startedAt: DEVELOPMENT_STARTED_AT, meanMonth
 
 const costGroups = [
   { id: 'infrastructure', title: ['Infrastructure', '基础设施', '基礎設施'], items: [
-    { id: 'server', amount: 1200, title: ['Cloud services', '云服务', '雲端服務'],
-      body: ['Runs shared leaderboard queries and synchronization.', '支撑共享榜单查询与同步服务的日常运行。', '支撐共用榜單查詢與同步服務的日常運作。'] },
-    { id: 'storage', amount: 400, title: ['Object storage', '对象存储', '物件儲存'],
-      body: ['Stores leaderboard snapshots, model and company metadata, and icons.', '存放榜单快照、模型与厂商资料及图标。', '存放榜單快照、模型與廠商資料及圖示。'] },
-    { id: 'logs', amount: 600, title: ['Service logs', '运行日志', '執行日誌'],
-      body: ['Supports troubleshooting; cost varies with log volume and retention.', '用于排查服务异常，费用随日志量与留存周期浮动。', '用於排查服務異常，費用隨日誌量與保留週期浮動。'] },
+    { id: 'server', amount: 600, title: ['Cloud services', '云服务', '雲端服務'],
+      body: ['For leaderboard updates, data queries and synchronization.',
+        '用于榜单更新、数据查询和同步。', '用於榜單更新、資料查詢和同步。'] },
+    { id: 'storage', amount: 100, title: ['Object storage', '对象存储', '物件儲存'],
+      body: ['For leaderboard snapshots, model information and icons.',
+        '用于保存榜单快照、模型资料和图标。', '用於儲存榜單快照、模型資料和圖示。'] },
+    { id: 'logs', amount: 100, title: ['Service logs', '运行日志', '執行日誌'],
+      body: ['For service monitoring, troubleshooting and routine maintenance.',
+        '用于运行监测、问题排查和日常维护。', '用於執行監測、問題排查和日常維護。'] },
   ] },
   { id: 'platform', title: ['Platform certification', '平台认证', '平台認證'], items: [
     { id: 'weapp', amount: 300, title: ['Mini-program certification', '小程序认证', '小程式認證'],
@@ -60,9 +62,9 @@ export function investmentContent(stats, language, { now = Date.now() } = {}) {
       '提交次數按版本控制工具累計；程式碼行數統計各端應用、共用元件與服務的已追蹤文字，不含依賴、產生的檔案和二進位檔案。',
     ], language),
     budgetTitle: text(['Budgets and accumulated investment', '预算与累计投入', '預算與累計投入'], language),
-    budgetIntro: text(['Infrastructure and certification are annual estimates. Amounts are in CNY and are estimates, not actual bills; usage affects costs.',
-      '基础设施与认证为年度预算。金额单位为人民币元，非实际账单，随用量浮动。',
-      '基礎設施與認證為年度預算。金額單位為人民幣元，非實際帳單，隨用量浮動。'], language),
+    budgetIntro: text(['Infrastructure and platform certification are annual budgets; AI token costs accumulate over development time. Amounts are estimates in CNY, not actual bills.',
+      '基础设施与平台认证为年度预算，词元按开发时间累计。金额单位为人民币元，均为估算，非实际账单。',
+      '基礎設施與平台認證為年度預算，詞元按開發時間累計。金額單位為人民幣元，均為估算，非實際帳單。'], language),
     groups, total, totalText: money(total),
     totalTitle: text(['Estimated total', '估算合计', '估算合計'], language),
     costNote: text(['Labor, data maintenance and operations are not yet included in this total. Engineering counters are not converted to monetary costs.',

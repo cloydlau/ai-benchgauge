@@ -21,13 +21,28 @@ export function nonnegativeInteger(value) {
   return Math.max(0, Math.round(Number(value) || 0))
 }
 
+// Estimates are no finer than hundreds of CNY; projects may choose a coarser unit.
+// Keep unknown costs distinct from zero; engineering counters use nonnegativeInteger.
+export function estimatedCost(value, roundingUnit = 100) {
+  if (!Number.isSafeInteger(roundingUnit) || roundingUnit < 100 || roundingUnit % 100 !== 0)
+    throw new RangeError('Cost estimates must use hundreds or coarser units')
+  if (value == null) return value
+  const amount = Number(value)
+  return Number.isFinite(amount) ? Math.ceil(Math.max(0, amount) / roundingUnit) * roundingUnit : 0
+}
+
 export function costItemAmount(item, months) {
-  return item.monthlyAmount == null ? item.amount : months * item.monthlyAmount
+  // Accumulate first, rather than inflating every month independently.
+  return estimatedCost(
+    item.monthlyAmount == null ? item.amount : months * item.monthlyAmount,
+    item.roundingUnit ?? 100,
+  )
 }
 
 export function sumAmounts(amounts, normalize = false) {
   return amounts.reduce(
-    (sum, amount) => sum + (normalize ? nonnegativeInteger(amount) : (amount ?? 0)),
+    (sum, amount) =>
+      sum + (normalize ? nonnegativeInteger(estimatedCost(amount)) : (estimatedCost(amount) ?? 0)),
     0,
   )
 }

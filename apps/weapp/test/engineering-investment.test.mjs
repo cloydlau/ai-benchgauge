@@ -77,8 +77,12 @@ test('investment content localizes counters, budget estimates and excluded expen
     assert.equal(content.metrics[0].label, commits)
     assert.match(content.costNote, note)
     assert.equal(content.groups.length, 3)
-    assert.equal(content.total, 4500)
-    assert.ok(content.totalText.endsWith('¥4,500'))
+    assert.ok(content.groups[0].items.every(item => item.body.length > 0))
+    assert.deepEqual(content.groups.find(group => group.id === 'infrastructure').items.map(item => [item.id, item.amount]), [
+      ['server', 600], ['storage', 100], ['logs', 100],
+    ])
+    assert.equal(content.total, 3100)
+    assert.ok(content.totalText.endsWith('¥3,100'))
   }
 })
 
@@ -86,7 +90,7 @@ test('budgets include applicable Watrek items and development-to-date tokens wit
   const content = investmentContent({ commitCount: 10, codeLineCount: 100 }, 'zh-CN', { now: Date.parse('2026-10-16T12:00:00+08:00') })
   const items = content.groups.flatMap(group => group.items)
   assert.deepEqual(items.map(item => item.id), ['server', 'storage', 'logs', 'weapp', 'tokens', 'staff', 'data', 'operations'])
-  assert.deepEqual(content.groups.map(group => group.amount), [2200, 300, 2000])
+  assert.deepEqual(content.groups.map(group => group.amount), [800, 300, 2000])
   assert.equal(items.find(item => item.id === 'tokens').amount, 2000)
   assert.deepEqual(items.filter(item => item.amount === null).map(item => item.amountText), ['暂未核算', '暂未核算', '暂未核算'])
   assert.equal(content.total, items.reduce((sum, item) => sum + (item.amount ?? 0), 0))
@@ -110,7 +114,7 @@ test('token investment follows Watrek month rounding from BenchGauge development
     const group = content.groups.find(group => group.id === 'development')
     assert.equal(group.items.find(item => item.id === 'tokens').amount, expected)
     assert.equal(group.amount, expected)
-    assert.equal(content.total, 2500 + expected)
+    assert.equal(content.total, 1100 + expected)
     assert.equal(content.totalTitle, '估算合计')
   }
 })

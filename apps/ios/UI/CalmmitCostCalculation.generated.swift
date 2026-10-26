@@ -9,11 +9,18 @@ enum CalmmitCostCalculation {
         return max(0, Int(floor((now - startedAt) / meanMonthMilliseconds + 0.5)))
     }
 
-    static func itemAmount(_ amount: Int?, monthlyAmount: Int?, months: Int) -> Int? {
-        monthlyAmount.map { $0 * months } ?? amount
+    static func estimatedCost(_ amount: Int?, roundingUnit: Int = 100) -> Int? {
+        precondition(roundingUnit >= 100 && roundingUnit % 100 == 0)
+        guard let amount else { return nil }
+        let nonnegative = max(0, amount)
+        return (nonnegative / roundingUnit + (nonnegative % roundingUnit == 0 ? 0 : 1)) * roundingUnit
+    }
+
+    static func itemAmount(_ amount: Int?, monthlyAmount: Int?, months: Int, roundingUnit: Int = 100) -> Int? {
+        estimatedCost(monthlyAmount.map { $0 * months } ?? amount, roundingUnit: roundingUnit)
     }
 
     static func sumAmounts(_ amounts: [Int?]) -> Int {
-        amounts.reduce(0) { $0 + ($1 ?? 0) }
+        amounts.reduce(0) { $0 + (estimatedCost($1) ?? 0) }
     }
 }
