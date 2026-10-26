@@ -1611,7 +1611,10 @@ private struct PadBoardCard: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         if compact { Text(LeaderboardPresentation.title(kind, language: language)).font(.headline).fixedSize(horizontal: false, vertical: true) }
-                        Text(sourceDetails)
+                        ForEach(Array(sourceDetails.components(separatedBy: "\n\n").enumerated()), id: \.offset) { _, paragraph in
+                            Text(paragraph).textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                         Text(kind.sourceURL.absoluteString)
                             .font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
                         Button(detail.sourceLinkCopied ? tr("Copied", "已复制") : tr("Copy link", "复制链接")) {
@@ -1658,7 +1661,7 @@ private struct PadBoardCard: View {
     }
 
     private var sourceDetails: String {
-        LeaderboardPresentation.sourceHelp(kind, language: language, board: board)
+        LeaderboardPresentation.sourceHelp(kind, language: language, board: board, includesAgreement: true)
     }
 
     private func entryRow(_ entry: LeaderboardEntry, rank: Int) -> some View {

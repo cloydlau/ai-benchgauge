@@ -1,3 +1,4 @@
+import { sourceAgreement } from '../src/core/source-agreement.js'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { registerHooks } from 'node:module'
@@ -128,8 +129,9 @@ test('headers and help select only source time, falling back to fetch time when 
         assert.equal(card.timeAccessibility, `${card.time} ${card.timeLabel}`)
         assert.doesNotMatch(card.timeAccessibility, /Fetched|抓取|擷取|Data updated|数据更新|資料更新|数据发布|資料發佈/)
         assert.equal('fetched' in card || 'updated' in card, false, 'Do not bridge a second timestamp')
+        h.page.closeSourceNotice()
         h.page.sourceHelp(event({ kind: card.kind }))
-        const content = h.modals.at(-1).content
+        const content = h.page.sourceNotice.value.content
         assert.ok(content.includes(`${card.time} ${card.timeLabel}`))
         assert.ok(!content.includes(`${card.time} ${text(copy[opposite], language)}`))
       }
@@ -427,7 +429,11 @@ test('all custom overlays lock the page and native boards without disabling popu
     assert.ok(board.includes(`${attribute}="{{!backgroundLocked && (!cubeDragging || face !== card.index)}}"`))
   }
   const overlays = template.match(/<van-(?:dialog|action-sheet|popup)\b[^>]*>/g)
-  assert.equal(overlays.length, 4)
+  assert.equal(overlays.length, 5)
+  assert.match(template, /<scroll-view[^>]*scroll-y[^>]*class="source-notice-scroll"/)
+  assert.match(template, /bindconfirm="copySourceLink" bindcancel="closeSourceNotice" bindclose="closeSourceNotice"/)
+  assert.match(template, /cancel-button-text="OK" confirm-button-text="\{\{labels.copyLink\}\}"/)
+
   // Intercepting touchstart on Vant's host swallows native taps on its choices
   // and buttons. The board bindings above provide the background scroll lock.
   for (const overlay of overlays) assert.doesNotMatch(overlay, /catch:touchstart/)
@@ -465,6 +471,8 @@ test('company, filter, settings and help overlays block gestures and refresh whi
   h.page.cubeStart(touch(280, 200)); h.page.cubeMove(touch(270, 200))
   h.page.quotaHelp(); await checkLocked()
   h.page.closeFeatureHelp(); assert.equal(h.page.backgroundLocked.value, false)
+  h.page.sourceHelp(event({ kind })); await checkLocked()
+  h.page.closeSourceNotice(); assert.equal(h.page.backgroundLocked.value, false)
   assert.equal(h.page.backToTop.value, true)
   // Dismissing one overlay cannot unlock another overlay that is still open.
   h.page.rowDetails(event({ kind, rank: 51 })); h.page.quotaHelp()
@@ -828,8 +836,9 @@ test('usage headers show retrieval time while source help retains statistical co
       assert.equal(card.time, formatTime(fetchedAt, language))
       assert.equal(card.timeLabel, text(copy.updated, language))
       assert.equal(card.isSourceTime, false)
+      h.page.closeSourceNotice()
       h.page.sourceHelp(event({ kind }))
-      const content = h.modals.at(-1).content
+      const content = h.page.sourceNotice.value.content
       assert.ok(content.includes(text(copy.timeExplanation, language)))
       if (kind === 'vercelUsage') {
         assert.match(content, /2026-10-22/)
@@ -876,11 +885,13 @@ test('usage restores Tencent, keeps failures independent and recovers OpenRouter
   assert.deepEqual(h.page.cards.value.slice(1).map(card => card.rows), siblings)
   assert.equal(h.page.cards.value[0].pendingConfiguration, false)
   assert.equal(h.page.cards.value[0].rows[0].scoreText, '99.00B')
+  h.page.closeSourceNotice()
   h.page.sourceHelp(event({ kind: 'openRouterUsage' }))
-  assert.ok(!h.modals.at(-1).content.includes(notice))
+  assert.ok(h.page.sourceNotice.value.content.includes(notice))
+  h.page.closeSourceNotice()
   h.page.sourceHelp(event({ kind: 'vercelUsage' }))
-  assert.ok(h.modals.at(-1).content.includes('缓存'))
-  assert.ok(h.modals.at(-1).content.includes('https://vercel.com/ai-gateway/leaderboards/models'))
+  assert.ok(h.page.sourceNotice.value.content.includes('缓存'))
+  assert.ok(h.page.sourceNotice.value.content.includes('https://vercel.com/ai-gateway/leaderboards/models'))
   globalThis.__benchHooks.unload()
 })
 
@@ -1269,6 +1280,26 @@ test('each switch style follows drags, settles tab switches, preserves source bo
   }
 })
 
+test('Arena source help includes the full localized dataset agreement only for dataset snapshots', async () => {
+  for (const language of ['en', 'zh-CN', 'zh-TW']) {
+    const h = setup({ language }), loading = h.loadCategory()
+    const sourceNote = 'https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset'
+    h.requests.forEach((_, index) => h.respond(index, { sourceNote }))
+    await loading
+    const requests = h.requests.length
+    h.page.closeSourceNotice()
+    h.page.sourceHelp(event({ kind: 'arenaText' }))
+    assert.ok(h.page.sourceNotice.value.content.includes(sourceAgreement('arenaText', { kind: 'arenaText', sourceNote }, language)))
+    assert.ok(h.page.sourceNotice.value.content.includes(language === 'en' ? 'Section 8 -- Interpretation.' : language === 'zh-CN' ? '第八条 解释' : '第8條 解釋'))
+    h.page.closeSourceNotice()
+    h.page.sourceHelp(event({ kind: 'artificialAnalysis' }))
+    assert.ok(!h.page.sourceNotice.value.content.includes('CC BY'))
+    assert.equal(h.requests.length, requests, 'Opening complete terms must not fetch another snapshot')
+    assert.equal(h.clipboard.length, 0)
+    globalThis.__benchHooks.unload()
+  }
+})
+
 test('board headings show localized introductions and copy official links only on explicit confirmation', () => {
   const template = readFileSync(new URL('../src/pages/leaderboard/index.wxml', import.meta.url), 'utf8')
   assert.match(template, /class="source-heading"[^>]*bindtap="sourceHelp"/)
@@ -1277,21 +1308,26 @@ test('board headings show localized introductions and copy official links only o
     for (const card of h.page.cards.value) {
       const previousCopies = h.clipboard.length
       h.page.sourceHelp(event({ kind: card.kind }))
-      const modal = h.modals.at(-1)
+      const modal = h.page.sourceNotice.value
       assert.equal(modal.title, card.title)
+      const agreement = sourceAgreement(card.kind, undefined, language)
+      if (agreement) assert.ok(modal.content.includes(agreement), 'Source help includes its complete offline agreement')
       assert.ok(modal.content.includes(text(boards[card.kind].methodology || boards[card.kind].summaries, language)))
       assert.ok(modal.content.includes(boards[card.kind].url))
-      assert.equal(modal.confirmText, text(['Copy', '复制链接', '複製連結'], language))
-      assert.equal(modal.cancelText, 'OK')
+      assert.equal(modal.open, true)
       assert.equal(h.clipboard.length, previousCopies, 'Opening the introduction must not copy anything')
-      modal.success({ cancel: true })
+      h.page.closeSourceNotice()
+      assert.equal(h.page.sourceNotice.value.open, false)
       assert.equal(h.clipboard.length, previousCopies, 'Closing the introduction must not copy anything')
-      modal.success({ confirm: true })
+      h.page.sourceHelp(event({ kind: card.kind }))
+      h.page.copySourceLink()
+      assert.equal(h.page.sourceNotice.value.open, false)
       assert.equal(h.clipboard.at(-1), boards[card.kind].url)
     }
     h.page.sourceHelp(event({ kind: 'invalid' }))
     assert.equal(h.clipboard.length, category.kinds.length)
-    assert.equal(h.modals.length, category.kinds.length)
+    assert.equal(h.page.sourceNotice.value.open, false)
+    assert.equal(h.modals.length, 0)
     globalThis.__benchHooks.unload()
   }
 })
@@ -1303,16 +1339,16 @@ test('board-heading introductions ignore cube drags and accidental taps immediat
   const touch = (x, y) => ({ touches: [{ clientX: x, clientY: y }] })
   h.page.cubeStart(touch(250, 200)); h.page.cubeMove(touch(210, 202))
   h.page.sourceHelp(event({ kind }))
-  assert.equal(h.modals.length, 0)
+  assert.equal(h.page.sourceNotice.value.open, false)
   h.page.cubeCancel(); t.mock.timers.tick(24); t.mock.timers.tick(441)
   assert.equal(h.page.cubeBusy.value, false)
   h.page.sourceHelp(event({ kind }))
-  assert.equal(h.modals.length, 0)
+  assert.equal(h.page.sourceNotice.value.open, false)
   t.mock.timers.tick(36)
   h.page.sourceHelp(event({ kind }))
-  assert.equal(h.modals.length, 1)
+  assert.equal(h.page.sourceNotice.value.open, true)
   assert.deepEqual(h.clipboard, [])
-  h.modals[0].success({ confirm: true })
+  h.page.copySourceLink()
   assert.deepEqual(h.clipboard, [boards[kind].url])
   globalThis.__benchHooks.unload()
 })
@@ -2347,8 +2383,9 @@ test('recent header dates remain localized through loading and source help', asy
     assert.deepEqual(h.page.cards.value.map(card => card.time), ['今天 09:00', '大前天', '10/21 09:00'])
     for (const card of h.page.cards.value) {
       assert.ok(card.timeAccessibility.startsWith(card.time))
+      h.page.closeSourceNotice()
       h.page.sourceHelp(event({ kind: card.kind }))
-      assert.ok(h.modals.at(-1).content.includes(card.time))
+      assert.ok(h.page.sourceNotice.value.content.includes(card.time))
     }
     globalThis.__benchHooks.unload()
   } finally {

@@ -160,7 +160,7 @@ public enum LeaderboardPresentation {
     }
 
     public static func sourceHelp(_ kind: LeaderboardKind, language: AppLanguage, board: Leaderboard?,
-                                  includesFetchTime: Bool = true) -> String {
+                                  includesFetchTime: Bool = true, includesAgreement: Bool = false) -> String {
         var parts = [sourceSummary(kind, language: language), language.text("Scores are not directly comparable across lists", "各榜分数不直接互比")]
         if kind == .openRouterUsage {
             parts = [sourceSummary(kind, language: language), language.text("Top 50 public models; excludes private and zero-data-retention traffic. Provider tokenizers differ. Company totals cover listed models only.", "展示公开流量前 50 名，排除私有及零数据留存流量；各供应商分词方式不同。公司用量仅汇总榜内模型。")]
@@ -182,9 +182,25 @@ public enum LeaderboardPresentation {
         }
         if !kind.isUsage, let note = board?.sourceNote, !note.isEmpty { parts.append(note) }
         var help = parts.joined(separator: language.text(". ", "。"))
-        if kind == .epochECI { help += "\n\n" + EpochAttribution.fullText(language: language) }
+        if kind == .epochECI && !includesAgreement { help += "\n\n" + EpochAttribution.fullText(language: language) }
         if includesFetchTime { help += language.text(". ", "。") + sourceTimeHelp(board, language: language) }
+        if includesAgreement, let agreement = sourceAgreement(kind, language: language, board: board) {
+            help += "\n\n" + agreement
+        }
         return help
+    }
+
+    /// Complete offline terms for the selected source; never infer a data license.
+    public static func sourceAgreement(_ kind: LeaderboardKind, language: AppLanguage, board: Leaderboard?) -> String? {
+        switch kind {
+        case .openRouterUsage: return CCBYLicense.openRouterText(sourceNote: board?.sourceNote, language: language)
+        case .vercelUsage: return CCBYLicense.vercelText(sourceNote: board?.sourceNote, language: language)
+        case .cloudbaseUsage: return CloudBaseAttribution.text(sourceNote: board?.sourceNote, language: language)
+        case .epochECI: return EpochAttribution.fullText(language: language) + "\n\n" + CCBYLicense.text(language: language)
+        default:
+            guard board?.kind == kind, ArenaAttribution.applies(board) else { return nil }
+            return ArenaAttribution.fullText(language: language) + "\n\n" + CCBYLicense.text(language: language)
+        }
     }
 
     /// Statistical coverage dates stay in source help; share-usage headers show

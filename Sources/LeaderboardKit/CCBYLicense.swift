@@ -1,7 +1,6 @@
 import Foundation
 
-/// Official CC BY 4.0 text. Attribution notices stay separate so the about-page
-/// license dialog can show the license itself, not the credit or endorsement line.
+/// Official CC BY 4.0 text, combined with source attribution in leaderboard help.
 public enum CCBYLicense {
     struct Document: Decodable, Sendable {
         let canonicalURL: String

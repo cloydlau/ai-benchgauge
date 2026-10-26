@@ -2116,6 +2116,34 @@ final class LeaderboardAboutParityTests: XCTestCase {
         if app.state != .notRunning { app.terminate() }
         if XCUIDevice.shared.orientation != .portrait { XCUIDevice.shared.orientation = .portrait }
     }
+    func testSourceNameSheetContainsOfflineLicense() {
+        for chinese in [true, false] {
+            app.launchArguments = ["--ui-testing", "--reduce-motion"] + (chinese ? ["--preview-zh"] : ["--dark"])
+            app.launch()
+            XCTAssertTrue(app.buttons["about"].waitForExistence(timeout: 10))
+            if app.buttons["face-1"].exists { app.buttons["face-1"].tap() }
+            let arena = app.buttons["source-help-arenaText"]
+            XCTAssertTrue(arena.waitForExistence(timeout: 5))
+            arena.tap()
+            let copy = app.buttons["copy-source-link-arenaText"]
+            XCTAssertTrue(copy.waitForExistence(timeout: 5))
+            copy.tap()
+            XCTAssertEqual(copy.label, chinese ? "已复制" : "Copied")
+            app.buttons[chinese ? "完成" : "Done"].tap()
+            if app.buttons["face-2"].exists { app.buttons["face-2"].tap() }
+            let source = app.buttons["source-help-epochECI"]
+            XCTAssertTrue(source.waitForExistence(timeout: 10))
+            source.tap()
+            let notice = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", chinese ? "第一条" : "Section 1")).firstMatch
+            XCTAssertTrue(notice.waitForExistence(timeout: 5))
+            XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Epoch AI")).firstMatch.exists)
+            XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "https://creativecommons.org/licenses/by/4.0/")).firstMatch.exists)
+            app.buttons[chinese ? "完成" : "Done"].tap()
+            XCTAssertTrue(source.waitForExistence(timeout: 3))
+            app.terminate()
+        }
+    }
+
     func testAboutContentCostsLinksAndNotices() {
         for chinese in [true, false] {
             let theme = chinese ? "zh-light" : "en-dark"
@@ -2303,7 +2331,7 @@ final class UsageTimestampTests: XCTestCase {
                     XCTAssertTrue(explanation.label.contains("2023-11-12"))
                     XCTAssertTrue(explanation.label.contains("UTC"))
                 } else {
-                    XCTAssertTrue(explanation.label.contains(dark ? "sampled Beijing-time days" : "抽样统计日"))
+                    XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", dark ? "sampled Beijing-time days" : "抽样统计日")).firstMatch.exists)
                 }
                 let help = XCTAttachment(screenshot: app.screenshot())
                 help.name = "usage-refresh-\(dark ? "en-dark" : "zh-light")-\(kind)-help"

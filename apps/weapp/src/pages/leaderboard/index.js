@@ -1,5 +1,5 @@
-import { epochAttribution } from '../../core/epoch-attribution.js'
-import { arenaAttribution, isArenaDatasetBoard } from '../../core/arena-attribution.js'
+import { sourceAgreement } from '../../core/source-agreement.js'
+import { isArenaDatasetBoard } from '../../core/arena-attribution.js'
 import { definePage, ref, computed, onLoad, onReady, onShow, onHide, onUnload, onShareAppMessage, onResize } from '@vue-mini/core'
 import { boards, categories, categoryFor, copy, text, languages, boardTitle, hasOwn, desktopDownloadURL } from '../../core/catalog.js'
 import { rankedEntries, rowView, countryCode, countryName, countryFlag, countryFlagImage, countryOptions, formatTime } from '../../core/leaderboard.js'
@@ -402,11 +402,12 @@ definePage(query => {
   const emptyCapture = () => ({ open: false, path: '', saving: false, saved: false })
   const capture = ref(emptyCapture())
   const showingFeatureHelp = ref(false)
+  const sourceNotice = ref({ open: false, title: '', content: '', url: '' })
   const companyDetails = ref({ open: false, name: '', content: '', members: [] })
   // Vant locks its mask, but touches inside popup content can still reach a
   // native scroll-view underneath. Lock every board as well as the page root.
   const backgroundLocked = computed(() => sheet.value.open || companyDetails.value.open
-    || showingFeatureHelp.value || capture.value.open || capturing.value)
+    || showingFeatureHelp.value || sourceNotice.value.open || capture.value.open || capturing.value)
   const lastAttempt = {}
   let alive = true
 
@@ -973,13 +974,13 @@ definePage(query => {
     wx.showModal({ title: tr('unknownCountryTitle'), content: tr('unknownCountryExplanation'), showCancel: false, confirmText: 'OK' })
   }
   function sourceHelp(event) {
-    if (cubeBusy.value || Date.now() < suppressTapUntil) return
+    if (cubeBusy.value || backgroundLocked.value || Date.now() < suppressTapUntil) return
     const kind = event.currentTarget.dataset.kind
     if (!hasOwn(boards, kind)) return
     const board = snapshots.value[kind]
     const formerName = kind.startsWith('arena') || kind === 'codeArenaWebDev'
       ? `${text(['Formerly LMSYS Chatbot Arena / LMArena', '原 LMSYS Chatbot Arena / LMArena', '原 LMSYS Chatbot Arena / LMArena'], language.value)}\n\n` : ''
-    const dataset = isArenaDatasetBoard(board)
+    const agreement = sourceAgreement(kind, board, language.value)
     const time = boardTime(board, kind)
     const times = `${time.time} ${time.timeLabel}`
     const refreshOnly = ['vercelUsage', 'cloudbaseUsage'].includes(kind)
@@ -987,11 +988,17 @@ definePage(query => {
       ? `${text(['Statistical day (UTC): ', '统计日期（UTC）：', '統計日期（UTC）：'], language.value)}${new Date(board.sourceUpdatedAt).toISOString().slice(0, 10)}\n\n` : ''
     const sampled = kind === 'cloudbaseUsage' ? `${text(boards[kind].summaries, language.value)}\n\n` : ''
     const refreshMeaning = refreshOnly ? `\n${tr('timeExplanation')}` : ''
-    wx.showModal({ title: boardTitle(kind, language.value),
-      content: `${formerName}${day}${sampled}${text(boards[kind].methodology || boards[kind].summaries, language.value)}\n\n${times}${refreshMeaning}\n\n${boards[kind].url}${kind === 'epochECI' ? `\n\n${epochAttribution(language.value).fullText}` : ''}${dataset ? `\n\n${arenaAttribution(language.value).fullText}` : ''}`,
-      showCancel: true, cancelText: 'OK', confirmText: text(['Copy', '复制链接', '複製連結'], language.value),
-      success: result => { if (result.confirm) copyText(boards[kind].url) } })
+    sourceNotice.value = { open: true, title: boardTitle(kind, language.value),
+      content: `${formerName}${day}${sampled}${text(boards[kind].methodology || boards[kind].summaries, language.value)}\n\n${times}${refreshMeaning}\n\n${boards[kind].url}${agreement ? `\n\n${agreement}` : ''}`,
+      url: boards[kind].url }
   }
+  function closeSourceNotice() { sourceNotice.value = { ...sourceNotice.value, open: false } }
+  function copySourceLink() {
+    if (!sourceNotice.value.open) return
+    copyText(sourceNotice.value.url)
+    closeSourceNotice()
+  }
+
   function timeHelp() {
     if (cubeBusy.value || Date.now() < suppressTapUntil) return
     wx.showModal({ title: tr('timeExplanationTitle'), content: tr('timeExplanation'), showCancel: false, confirmText: 'OK' })
@@ -1133,7 +1140,7 @@ definePage(query => {
   const refreshTap = event => refreshKind(event.currentTarget.dataset.kind)
   return { labels, subtitleParts, brandTitle, groupingControl, categoryItems, categoryIndex, categoryThemeStyle, category, grouping, face, dark, cards, tabs, sourceTabIcons, backToTop, skeletonRows,
     modelSearchQuery, modelSearchVisible, modelSearchFocused, openModelSearch, inputModelSearch, beginModelSearchClear, cancelModelSearchClear, clearModelSearch, closeModelSearch, blurModelSearch, deferModelSearchBlur, focusModelSearch,
-    statusBar, navHeight, headerTop, capsuleWidth, sheet, backgroundLocked,
+    statusBar, navHeight, headerTop, capsuleWidth, sheet, backgroundLocked, sourceNotice, closeSourceNotice, copySourceLink,
     cubeFaces, sourceSelection, sourceTabIndex, sourceTabsStyle, sourceTabsExtent, sourceTabWidth, sourceTabItems, cubeViewportStyle,
     cubePosition, cubeDuration, cubeBusy, cubeDragging, entranceStyle, entranceHintVisible, boardTransition,
     cubeStart, cubeMove, cubeEnd, cubeCancel, tabStart, tabMove, tabEnd, cancelTabDrag, attributeHint,

@@ -365,6 +365,10 @@ foreach (var language in new[] { "en", "zh", "zh-Hant" }) {
         throw new Exception("Vercel offline credit and localized full license must be bundled");
     if (!UsageLicense.Text("vercelUsage", "Cached Vercel date", language).StartsWith("Cached Vercel date\n\n"))
         throw new Exception("Vercel agreement must retain the current snapshot provenance");
+    var license = UsageLicense.FullLicense(language);
+    if (!fallback.EndsWith(license) || !UsageLicense.Text("openRouterUsage", "Current OpenRouter credit", language).EndsWith(license)
+        || !UsageLicense.Text("openRouterUsage", "Current OpenRouter credit", language).StartsWith("Current OpenRouter credit\n\n"))
+        throw new Exception("Source-name agreements must include the complete localized offline license and their own credit");
 }
 usageVisibility.BoardSelections["usage"] = ["cloudbaseUsage"];
 if (!usageVisibility.VisibleBoardKinds().SequenceEqual(new[] { "cloudbaseUsage" })) throw new Exception("Restored Tencent selection must be retained");

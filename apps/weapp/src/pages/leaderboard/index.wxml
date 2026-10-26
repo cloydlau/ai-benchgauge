@@ -172,6 +172,16 @@
       </view>
     </view>
   </van-dialog>
+  <van-dialog id="source-notice" show="{{sourceNotice.open}}" title="{{sourceNotice.title}}" use-slot
+    show-cancel-button cancel-button-text="OK" confirm-button-text="{{labels.copyLink}}"
+    confirm-button-color="{{dark ? '#d1dce8' : '#414d5c'}}" cancel-button-color="{{dark ? '#f2f5fa' : '#20262f'}}"
+    close-on-click-overlay="{{true}}"
+    custom-style="background:var(--card);color:var(--ink);--button-default-background-color:var(--card);"
+    bindconfirm="copySourceLink" bindcancel="closeSourceNotice" bindclose="closeSourceNotice">
+    <scroll-view wx:if="{{sourceNotice.open}}" scroll-y class="source-notice-scroll">
+      <text class="source-notice-text" selectable>{{sourceNotice.content}}</text>
+    </scroll-view>
+  </van-dialog>
   <van-dialog show="{{showingFeatureHelp}}" title="{{labels.featureDetails}}" message="{{quotaHelpContent}}"
     show-cancel-button confirm-button-text="{{labels.desktopLink}}" cancel-button-text="{{labels.gotIt}}"
     confirm-button-color="{{dark ? '#f2f5fa' : '#20262f'}}" cancel-button-color="{{dark ? '#d1dce8' : '#414d5c'}}"

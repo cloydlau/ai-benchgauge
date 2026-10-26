@@ -669,7 +669,11 @@ sealed partial class MainWindow
             UpdateHeading();
             summary.Cursor = Cursors.Hand;
             summary.MouseLeftButtonUp += (_, _) => ShowInformationDialog(BoardTitle(board),
-                sourceDescription + (string.IsNullOrEmpty(board.Url) ? "" : "\n\n" + board.Url), board.Url);
+                sourceDescription + (string.IsNullOrEmpty(board.Url) ? "" : "\n\n" + board.Url)
+                    + (board.Kind is "openRouterUsage" or "vercelUsage" or "cloudbaseUsage"
+                        ? "\n\n" + UsageLicense.Text(board.Kind, board.SourceNote, prefs.Language)
+                        : board.Kind == "epochECI" ? "\n\n" + EpochAttribution.FullText(prefs.Language) + "\n\n" + UsageLicense.FullLicense(prefs.Language)
+                        : ArenaAttribution.Applies(board) ? "\n\n" + UsageLicense.FullLicense(prefs.Language) : ""), board.Url);
             var heading = new Grid();
             heading.ColumnDefinitions.Add(new ColumnDefinition());
             heading.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });

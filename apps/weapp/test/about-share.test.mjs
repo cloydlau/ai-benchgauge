@@ -2,10 +2,13 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { registerHooks } from 'node:module'
 import { pagePreferences, sharePath } from '../src/core/share-state.js'
-import { copy, text } from '../src/core/catalog.js'
+import { leaderboardSources, copy, text } from '../src/core/catalog.js'
 import { arenaAttribution } from '../src/core/arena-attribution.js'
 import { epochAttribution } from '../src/core/epoch-attribution.js'
 import { ccByLicense } from '../src/core/cc-by-4.0.js'
+import { sourceAgreement } from '../src/core/source-agreement.js'
+import { readCachedBoard } from '../src/services/boards.js'
+import { readFileSync } from 'node:fs'
 
 const registration = registerHooks({
   resolve(specifier, context, next) {
@@ -123,14 +126,11 @@ test('OpenRouter agreement reads current offline attribution on demand with loca
       getAppBaseInfo: () => ({ theme: 'light' }),
       request: () => assert.fail('Opening an agreement must work offline'),
     }
-    const about = globalThis.aboutFactory({})
-    assert.equal(about.licenseNotice.value.text, '')
-    const open = () => about.openLicense({ currentTarget: { dataset: { id: 'openRouter' } } })
-    cachedNote = note; open()
-    assert.equal(about.licenseNotice.value.text, `${note}\n\n${ccByLicense(language).text}`)
-    about.closeLicense(); assert.equal(about.licenseNotice.value.open, false)
-    cachedNote = note.replace('06:00:00Z', '07:00:00Z'); open()
-    assert.ok(about.licenseNotice.value.text.startsWith(cachedNote))
+    const agreement = () => sourceAgreement('openRouterUsage', readCachedBoard(wx, 'openRouterUsage'), language)
+    cachedNote = note
+    assert.equal(agreement(), `${note}\n\n${ccByLicense(language).text}`)
+    cachedNote = note.replace('06:00:00Z', '07:00:00Z')
+    assert.ok(agreement().startsWith(cachedNote))
   }
 })
 
@@ -167,12 +167,11 @@ test('Vercel agreement opens the current cached credit offline and never borrows
       getWindowInfo: () => ({ statusBarHeight: 24 }), getAppBaseInfo: () => ({ theme: 'light' }),
       request: () => assert.fail('License opens offline'),
     }
-    const about = globalThis.aboutFactory({})
-    const open = () => about.openLicense({ currentTarget: { dataset: { id: 'vercel' } } })
-    open(); assert.equal(about.licenseNotice.value.text, `${note}\n\n${ccByLicense(language).text}`)
-    about.closeLicense(); note = 'Updated Vercel credit'; open()
-    assert.ok(about.licenseNotice.value.text.startsWith(note)); assert.ok(!about.licenseNotice.value.text.includes('Wrong source credit'))
-    note = ''; open(); assert.ok(about.licenseNotice.value.text.includes('© 2026 Vercel'))
+    const agreement = () => sourceAgreement('vercelUsage', readCachedBoard(wx, 'vercelUsage'), language)
+    assert.equal(agreement(), `${note}\n\n${ccByLicense(language).text}`)
+    note = 'Updated Vercel credit'
+    assert.ok(agreement().startsWith(note)); assert.ok(!agreement().includes('Wrong source credit'))
+    note = ''; assert.ok(agreement().includes('© 2026 Vercel'))
   }
 })
 
@@ -191,19 +190,17 @@ test('Tencent keeps its source link without an invented license or separate noti
       getWindowInfo: () => ({ statusBarHeight: 24 }), getAppBaseInfo: () => ({ theme: 'light' }),
       request: () => assert.fail('Source metadata must remain offline'),
     }
-    const about = globalThis.aboutFactory({})
-    const source = about.items.find(item => item.id === 'cloudbase')
+    const source = leaderboardSources.find(item => item.id === 'cloudbase')
     assert.equal(source.title, 'Tencent Cloud')
     assert.equal(source.url, 'https://docs.cloudbase.net/ai/announcement/model-token-volume')
-    assert.equal(source.license, false)
-    assert.equal(source.licenseLabel, '')
-    about.openLicense({ currentTarget: { dataset: { id: 'cloudbase' } } })
-    assert.equal(about.licenseNotice.value.open, false)
-    assert.equal(about.licenseNotice.value.text, '')
-    about.openLicense({ currentTarget: { dataset: { id: 'vercel' } } })
-    assert.equal(about.licenseNotice.value.open, true)
-    assert.ok(about.licenseNotice.value.text.includes('Other platform credit'))
-    assert.ok(!about.licenseNotice.value.text.includes('Tencent sampled period'))
-    about.closeLicense(); assert.equal(about.licenseNotice.value.open, false)
+    const notice = sourceAgreement('cloudbaseUsage', readCachedBoard(wx, 'cloudbaseUsage'), language)
+    assert.ok(notice.includes('Tencent sampled period'))
+    assert.ok(!notice.includes(ccByLicense(language).text))
+    assert.ok(!notice.includes('creativecommons.org/licenses/'))
+    const vercel = sourceAgreement('vercelUsage', readCachedBoard(wx, 'vercelUsage'), language)
+    assert.ok(vercel.includes('Other platform credit'))
+    assert.ok(!vercel.includes('Tencent sampled period'))
+    const about = globalThis.aboutFactory({})
+    assert.equal(about.openLicense, undefined)
   }
 })

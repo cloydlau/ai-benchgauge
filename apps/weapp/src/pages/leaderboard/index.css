@@ -283,3 +283,6 @@
 .single-source { justify-content: center; background: transparent; }
 .single-source .source-selection { display: none; }
 .single-source .source-tab { flex: 0 1 auto; color: var(--ink); cursor: default; }
+
+.source-notice-scroll { box-sizing: border-box; height: 55vh; }
+.source-notice-text { display: block; padding: 8px 24px 24px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.75; text-align: left; }

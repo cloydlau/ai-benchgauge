@@ -550,6 +550,7 @@ struct LeaderboardView: View {
                     polishReady: !state.isRefreshing && !screenshot.isCapturing && state.snapshot.boards[kind] != nil && kind != .cloudbaseUsage,
                     polishRevision: state.timestampPolishRevision,
                     help: LeaderboardPresentation.columnTitle(kind, language: language) + "\n" + LeaderboardPresentation.sourceHelp(kind, language: language, board: state.snapshot.boards[kind]),
+                    sourceDetails: LeaderboardPresentation.sourceHelp(kind, language: language, board: state.snapshot.boards[kind], includesAgreement: true),
                     country: state.countryFilters[kind] ?? .all,
                     countryOptions: countryOptions(for: kind), openness: state.opennessFilters[kind] ?? .all)
             }, language: language,
@@ -1095,6 +1096,7 @@ private struct BoardHeaderConfiguration {
     let polishReady: Bool
     let polishRevision: Int
     let help: String
+    let sourceDetails: String
     let country: LeaderboardCountryFilter
     let countryOptions: [LeaderboardCountryFilter]
     let openness: LeaderboardOpennessFilter
@@ -1454,7 +1456,26 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             if let window {
                 let alert = NSAlert()
                 alert.messageText = LeaderboardPresentation.columnTitle(board.kind, language: language)
-                alert.informativeText = board.help + "\n\n" + board.kind.sourceURL.absoluteString
+                let content = board.sourceDetails + "\n\n" + board.kind.sourceURL.absoluteString
+                let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 480, height: 360))
+                scroll.hasVerticalScroller = true
+                scroll.drawsBackground = false
+                let text = NSTextView(frame: scroll.bounds)
+                text.isEditable = false
+                text.isSelectable = true
+                text.drawsBackground = false
+                text.font = .systemFont(ofSize: 13)
+                text.textColor = .labelColor
+                text.minSize = NSSize(width: 0, height: scroll.contentSize.height)
+                text.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+                text.isVerticallyResizable = true
+                text.isHorizontallyResizable = false
+                text.autoresizingMask = [.width]
+                text.textContainer?.containerSize = NSSize(width: scroll.contentSize.width, height: CGFloat.greatestFiniteMagnitude)
+                text.textContainer?.widthTracksTextView = true
+                text.string = content
+                scroll.documentView = text
+                alert.accessoryView = scroll
                 alert.addButton(withTitle: "OK")
                 alert.addButton(withTitle: language.text("Copy link", "复制链接"))
                 alert.beginSheetModal(for: window) { response in
