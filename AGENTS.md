@@ -1,5 +1,13 @@
 # Development and release checks
 
+## Cross-platform product changes
+
+用户提出产品行为、视觉、文案、品牌或数据规则的改动时，默认按跨端产品改动执行，覆盖小程序、iPhone、iPad、macOS、Windows 及各端图片导出的相关消费者；不要等用户逐端点名。明确限定平台的请求按限定执行。共享目标应在相关端同一轮落实；保留有理由的平台交互差异，不能把目录不同当作只改单端的理由。PC 和移动端按空间、输入方式和原生能力分别适配，常规适配自主完成；只有是否适用或产品取舍确实无法确定时，才提出具体人工决策并继续处理确定项。共用默认原则维护在 Calmmit AGENTS.md。
+
+先按 [docs/cross-platform.md](docs/cross-platform.md) 查消费者、共用来源和现有验收，再动手。优先共享数据、规则、资源和可复现生成入口，避免复制参数。修改共用来源后同步所有导出副本；已有自动检查不得绕过。新增长期跨端能力时同步该表及相关检查。
+
+完成时逐项说明本次涉及的端、实现与验证状态，未覆盖的平台或待安装版本必须直说；代码检查、编译、模拟器截图、真机安装分别报告。不能以某端存在相似代码推断行为或视觉已经验收。默认只支持确认的共同目标，不能为追求一致删除平台专有能力。
+
 Leaderboard country policy: normalize Hong Kong (`HK`), Macao (`MO`) and Taiwan (`TW`) to China (`CN`). Use China's flag and country label for rows, company aggregation, filters, exports, cached metadata and shared links. Apply the shared `fc/leaderboard-policy.json` rule to upstream data and preserve this behavior in every client.
 
 For changes to a desktop interface, obtain real Windows WPF and Mac AppKit / SwiftUI screenshots using the same fixture and content viewport. Follow [docs/visual-comparison.md](docs/visual-comparison.md).
