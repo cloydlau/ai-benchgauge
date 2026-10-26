@@ -11,11 +11,12 @@ import { shouldAutoRefresh } from '../../core/freshness.js'
 import { createTimestampPolish } from '../../core/timestamp-polish.js'
 import { rowGeometry, resolveRowWindow, createRowRenderer } from '../../core/row-window.js'
 import { exportScreenshot, removeScreenshot, saveScreenshotImage } from '../../services/screenshot.js'
-import { cubeIndex, cubeTarget, cubeNavigation, cubeRenderedFace, cubeFaceStyle, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll, isBackSwipe } from '../../core/cube.js'
+import { cubeIndex, cubeTarget, cubeNavigation, cubeRenderedFace, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll, isBackSwipe } from '../../core/cube.js'
 import { createBrandMeasurer, createSubtitleMeasurer } from '../../core/brand-title.js'
 import { pagePreferences, sharePath, systemLanguage } from '../../core/share-state.js'
 import { purchaseLinks, preferredPurchaseLink } from '../../core/purchase-links.js'
 import { visibleBoardKinds, normalizeBoardSelections, selectedBoardFace } from '../../core/board-selection.js'
+import { boardFaceStyle, normalizeBoardTransition } from '../../core/board-transition.js'
 
 definePage(query => {
   const saved = (() => { try { return wx.getStorageSync('benchgauge.preferences') || {} } catch { return {} } })()
@@ -24,6 +25,7 @@ definePage(query => {
   const languageMode = ref(initial.languageMode)
   const category = ref(initial.category)
   const boardSelections = ref(initial.boardSelections || {})
+  const boardTransition = ref(normalizeBoardTransition(initial.boardTransition))
   const grouping = ref(initial.grouping)
   const expandedBoards = ref({})
   const configurationRequired = ref({})
@@ -90,8 +92,8 @@ definePage(query => {
   const cubeFaces = computed(() => current.value.kinds.map((_, index) => {
     const position = cubeRenderedFace(index, cubeOrigin.value, cubeDirection.value, current.value.kinds.length)
     const displayed = cubeWaiting.value ? cubeOrigin.value : cubePosition.value
-    return { style: cubeFaceStyle(position, displayed, cubeDuration.value, cubeBusy.value, cubeOrigin.value, cubeDirection.value),
-      shade: Math.abs(position - displayed) * 0.18 }
+    return { style: boardFaceStyle(boardTransition.value, position, displayed, cubeDuration.value, cubeBusy.value, cubeOrigin.value, cubeDirection.value),
+      shade: boardTransition.value === 'cube' ? Math.abs(position - displayed) * 0.18 : 0 }
   }))
   const sourceDragIndex = ref(null)
   const categoryDragIndex = ref(null)
@@ -652,6 +654,7 @@ definePage(query => {
   function preferencesSnapshot() {
     return { language: language.value, languageMode: languageMode.value, category: category.value, grouping: grouping.value,
       face: face.value, theme: theme.value, appearance: sharedAppearance.value, filters: filters.value,
+      ...(boardTransition.value !== 'cube' ? { boardTransition: boardTransition.value } : {}),
       ...(Object.keys(boardSelections.value).length ? { boardSelections: boardSelections.value } : {}) }
   }
   function persist() {
@@ -739,7 +742,10 @@ definePage(query => {
   onShow(() => {
     pageVisible = true
     updateTheme()
-    const latest = (() => { try { return normalizeBoardSelections(wx.getStorageSync('benchgauge.preferences')?.boardSelections) } catch { return boardSelections.value } })()
+    const latestSaved = (() => { try { return wx.getStorageSync('benchgauge.preferences') || {} } catch { return preferencesSnapshot() } })()
+    const nextTransition = normalizeBoardTransition(latestSaved.boardTransition)
+    if (nextTransition !== boardTransition.value) { stopCube(); boardTransition.value = nextTransition }
+    const latest = normalizeBoardSelections(latestSaved.boardSelections)
     if (JSON.stringify(latest) !== JSON.stringify(boardSelections.value)) {
       const nextFace = selectedBoardFace(category.value, face.value, boardSelections.value, latest)
       stopCube(); boardSelections.value = latest; face.value = nextFace
@@ -1129,7 +1135,7 @@ definePage(query => {
     modelSearchQuery, modelSearchVisible, modelSearchFocused, openModelSearch, inputModelSearch, beginModelSearchClear, cancelModelSearchClear, clearModelSearch, closeModelSearch, blurModelSearch, deferModelSearchBlur, focusModelSearch,
     statusBar, navHeight, headerTop, capsuleWidth, sheet, backgroundLocked,
     cubeFaces, sourceSelection, sourceTabIndex, sourceTabsStyle, sourceTabsExtent, sourceTabWidth, sourceTabItems, cubeViewportStyle,
-    cubePosition, cubeDuration, cubeBusy, cubeDragging, entranceStyle, entranceHintVisible,
+    cubePosition, cubeDuration, cubeBusy, cubeDragging, entranceStyle, entranceHintVisible, boardTransition,
     cubeStart, cubeMove, cubeEnd, cubeCancel, tabStart, tabMove, tabEnd, cancelTabDrag, attributeHint,
     selectCategory, selectGrouping, selectFace, changeFace, scroll, top, filterMenu, toggleRanking,
     clearFilters, preferences, sheetSelect, closeSheet, sourceHelp, timeHelp, countryHelp, copyPurchaseLink, rowDetails, companyDetails, closeCompanyDetails, copyCompanyName, about, openSettings,

@@ -1,4 +1,24 @@
 import SwiftUI
+import LeaderboardKit
+
+public enum LeaderboardSwitchStyle: String, CaseIterable, Sendable {
+    case cube, slide, fade
+    public init(saved: String?) { self = saved.flatMap(Self.init(rawValue:)) ?? .cube }
+    func title(_ language: AppLanguage) -> String {
+        switch self {
+        case .cube: language.text("Cube", "魔方")
+        case .slide: language.text("Slide", "滑动")
+        case .fade: language.text("Crossfade", "淡入淡出")
+        }
+    }
+    func subtitle(_ language: AppLanguage) -> String {
+        switch self {
+        case .cube: language.text("Depth & rotation", "立体翻转")
+        case .slide: language.text("Smooth & direct", "顺滑推进")
+        case .fade: language.text("Soft & subtle", "轻柔交融")
+        }
+    }
+}
 
 @MainActor
 final class LeaderboardCubeState: ObservableObject {
@@ -154,6 +174,7 @@ struct CubeFace: AnimatableModifier {
     let face: Int
     let width: CGFloat
     let reduceMotion: Bool
+    var style: LeaderboardSwitchStyle = .cube
     nonisolated var animatableData: Double {
         get { position }
         set { position = newValue }
@@ -168,14 +189,15 @@ struct CubeFace: AnimatableModifier {
             .overlayPreferenceValue(LeaderboardRankFrames.self) { frames in
                 // Each face can have a different scroll position. Its tab spacer
                 // is empty space, so shade only from its own content's top edge.
-                Rectangle().fill(.black.opacity(reduceMotion ? 0 : abs(distance) * 0.18))
+                Rectangle().fill(.black.opacity(reduceMotion || style != .cube ? 0 : abs(distance) * 0.18))
                     .padding(.top, max(0, frames[0]?.minY ?? LeaderboardCubeScrollState.contentTopInset))
                     .allowsHitTesting(false)
             }
-            .rotation3DEffect(.degrees(flat ? 0 : distance * 90), axis: (x: 0, y: 1, z: 0),
-                              anchor: flat ? .center : (distance < 0 ? .trailing : .leading), perspective: flat ? 0 : 0.65)
-            .offset(x: flat ? 0 : width * distance)
-            .opacity(reduceMotion ? max(0, 1 - abs(distance)) : (abs(distance) >= 0.999 ? 0 : 1))
+            .rotation3DEffect(.degrees(flat || style != .cube ? 0 : distance * 90), axis: (x: 0, y: 1, z: 0),
+                              anchor: flat ? .center : (distance < 0 ? .trailing : .leading), perspective: flat || style != .cube ? 0 : 0.65)
+            .offset(x: reduceMotion ? 0 : style == .fade ? distance * 12 : style == .slide ? width * distance : flat ? 0 : width * distance)
+            .scaleEffect(style == .fade && !reduceMotion ? 1 - min(1, abs(distance)) * 0.025 : 1)
+            .opacity(reduceMotion || style == .fade ? max(0, 1 - abs(distance)) : (abs(distance) >= 0.999 ? 0 : 1))
             .zIndex(1 - abs(distance))
     }
 }

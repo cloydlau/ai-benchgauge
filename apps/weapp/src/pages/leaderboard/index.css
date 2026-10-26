@@ -98,6 +98,13 @@
 .board-face { position: absolute; top: var(--cube-top); left: 0; width: 100%; height: calc(100% - var(--cube-top)); overflow: hidden; background: var(--bg); backface-visibility: hidden; transition-property: transform, top, height; transition-timing-function: ease-in-out; }
 .board-scroll { position: relative; top: calc(0px - var(--cube-top)); height: calc(100% + var(--cube-top)); overflow-anchor: none; transition: top var(--cube-layout-duration) ease-in-out, height var(--cube-layout-duration) ease-in-out; }
 .cube-shade { position: absolute; inset: 0; background: #000; pointer-events: none; transition-property: opacity; transition-timing-function: ease-in-out; }
+.transition-slide .board-face { transition-timing-function: cubic-bezier(.22,.68,0,1); }
+.transition-fade .board-face { transition-property: transform, opacity, top, height; transition-timing-function: ease-in-out; }
+@media (prefers-reduced-motion: reduce) {
+  .boards { transform: none !important; transition: none !important; }
+  .boards .board-face { transform: none !important; opacity: var(--face-opacity) !important; transition-property: opacity; transition-duration: 180ms !important; }
+  .boards .cube-shade { display: none; }
+}
 .pull-refresh-status { position: absolute; z-index: 3; top: 0; left: 0; right: 0; height: 55px; display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--muted); pointer-events: none; transition: opacity 180ms ease-out; }
 .pull-refresh-status.restoring { opacity: 0; }
 .pull-refresh-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: refresh-dot 900ms ease-in-out infinite; }

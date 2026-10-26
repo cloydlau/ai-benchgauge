@@ -44,6 +44,14 @@ const rankingSummary = ['Task benchmarks show results; blind user votes show the
 
 export const copy = {
   preferences: ['Settings', '设置', '設定'],
+  boardTransition: ['Switch animation', '切换动效', '切換動效'],
+  boardTransitionHint: ['For swipes and tab switches in the single-board view.', '用于单榜视图的左右滑动与标签切换。', '用於單榜檢視的左右滑動與標籤切換。'],
+  transitionCube: ['Cube', '魔方', '魔方'],
+  transitionSlide: ['Slide', '滑动', '滑動'],
+  transitionFade: ['Crossfade', '淡入淡出', '淡入淡出'],
+  transitionCubeHint: ['Depth & rotation', '立体翻转', '立體翻轉'],
+  transitionSlideHint: ['Smooth & direct', '顺滑推进', '順滑推進'],
+  transitionFadeHint: ['Soft & subtle', '轻柔交融', '輕柔交融'],
   displayedBoards: ['Leaderboards', '显示榜单', '顯示榜單'],
   boardSelectionHint: ['Keep at least one leaderboard in each category.', '每个分类至少保留一个榜单。', '每個分類至少保留一個榜單。'],
   resetBoards: ['Reset', '重置', '重設'],

@@ -271,6 +271,11 @@ public struct LeaderboardPadView: View {
             }
         }
         .onChange(of: usesReducedMotion) { cancelCubeEntrance() }
+        .onChange(of: store.boardTransition) {
+            cancelCubeEntrance()
+            var transaction = Transaction(); transaction.disablesAnimations = true
+            withTransaction(transaction) { cube.finishTurn() }
+        }
         .onChange(of: store.category) { resetComparison() }
         .onChange(of: store.grouping) { resetComparison() }
         .onChange(of: store.boardSelections) {
@@ -739,7 +744,7 @@ public struct LeaderboardPadView: View {
                             }
                     }))
                 .background(Color.padBackground)
-                .modifier(CubeFace(position: cube.position, face: LeaderboardCube.renderedFace(index, origin: cube.origin, direction: cube.direction, count: store.visibleBoardKinds.count), width: size.width, reduceMotion: usesReducedMotion))
+                .modifier(CubeFace(position: cube.position, face: LeaderboardCube.renderedFace(index, origin: cube.origin, direction: cube.direction, count: store.visibleBoardKinds.count), width: size.width, reduceMotion: usesReducedMotion, style: store.boardTransition))
                 .disabled(index != cube.face || cube.dragging || cube.turning)
                 .allowsHitTesting(index == cube.face && !cube.dragging && !cube.turning)
                 .accessibilityHidden(index != cube.face || cube.dragging)

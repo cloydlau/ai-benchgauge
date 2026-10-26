@@ -15,3 +15,39 @@
 .settings-check { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 7px; }
 .settings-check.is-selected { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 .required-board .settings-check { opacity: .45; }
+.motion-section { margin-bottom: 44rpx; }
+.motion-heading { display: block; font-size: 36rpx; font-weight: 600; margin-bottom: 8rpx; }
+.motion-section .settings-hint { margin-bottom: 22rpx; }
+.motion-options { display: flex; gap: 16rpx; }
+.motion-option { flex: 1; min-width: 0; padding: 0 14rpx 20rpx; border: 2rpx solid var(--line); border-radius: 22rpx; background: var(--card); text-align: left; overflow: hidden; transition: border-color 180ms ease, box-shadow 180ms ease; }
+.motion-option.is-selected { border-color: var(--blue); box-shadow: 0 4rpx 18rpx rgba(22,117,220,.10); }
+.motion-preview { height: 154rpx; margin: 0 -14rpx 8rpx; position: relative; perspective: 380rpx; overflow: hidden; }
+.motion-preview-glow { position: absolute; width: 130rpx; height: 110rpx; left: 50%; top: 22rpx; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(ellipse, rgba(22,117,220,.13), transparent 72%); }
+.motion-sheet { position: absolute; width: 90rpx; height: 110rpx; top: 24rpx; left: calc(50% - 45rpx); padding: 16rpx 12rpx; border-radius: 12rpx; border: 1rpx solid rgba(22,117,220,.28); box-shadow: 0 6rpx 16rpx rgba(32,58,90,.08); background: var(--card); color: var(--blue); backface-visibility: hidden; }
+.motion-sheet-back { color: #2b9c89; border-color: rgba(43,156,137,.32); }
+.motion-mini-title { width: 28rpx; height: 7rpx; margin-bottom: 14rpx; background: currentColor; border-radius: 3rpx; opacity: .8; }
+.motion-mini-line { height: 4rpx; margin-top: 9rpx; background: currentColor; border-radius: 3rpx; opacity: .24; }
+.motion-mini-line.short { width: 72%; }
+.motion-cube .motion-sheet-front { transform: translateX(-23rpx) rotateY(-32deg); transform-origin: right center; }
+.motion-cube .motion-sheet-back { transform: translateX(67rpx) rotateY(58deg); transform-origin: left center; }
+.motion-slide .motion-sheet-front { transform: translateX(-14rpx); }
+.motion-slide .motion-sheet-back { transform: translateX(52rpx); opacity: .65; }
+.motion-fade .motion-sheet-front { transform: translateX(-10rpx) scale(.98); opacity: .65; }
+.motion-fade .motion-sheet-back { transform: translateX(12rpx); opacity: .45; }
+.motion-option-name { display: flex; align-items: center; justify-content: space-between; gap: 4rpx; font-size: 24rpx; font-weight: 600; white-space: nowrap; }
+.motion-radio { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24rpx; height: 24rpx; border: 1rpx solid var(--line); border-radius: 50%; }
+.is-selected .motion-radio { color: var(--card); background: var(--blue); border-color: var(--blue); }
+.motion-option-hint { display: block; margin-top: 7rpx; font-size: 20rpx; line-height: 1.4; color: var(--muted); }
+.is-selected .motion-cube .motion-sheet-front { animation: preview-cube-front 1.15s cubic-bezier(.22,.68,0,1) both; }
+.is-selected .motion-cube .motion-sheet-back { animation: preview-cube-back 1.15s cubic-bezier(.22,.68,0,1) both; }
+.is-selected .motion-slide .motion-sheet-front { animation: preview-slide-front 1.15s cubic-bezier(.22,.68,0,1) both; }
+.is-selected .motion-slide .motion-sheet-back { animation: preview-slide-back 1.15s cubic-bezier(.22,.68,0,1) both; }
+.is-selected .motion-fade .motion-sheet-front { animation: preview-fade-front 1.15s ease both; }
+.is-selected .motion-fade .motion-sheet-back { animation: preview-fade-back 1.15s ease both; }
+@keyframes preview-cube-front { 0%, 15% { transform: none; } 80%, 100% { transform: translateX(-90rpx) rotateY(-90deg); } }
+@keyframes preview-cube-back { 0%, 15% { transform: translateX(90rpx) rotateY(90deg); } 80%, 100% { transform: none; } }
+@keyframes preview-slide-front { 0%, 15% { transform: none; } 80%, 100% { transform: translateX(-150rpx); } }
+@keyframes preview-slide-back { 0%, 15% { transform: translateX(150rpx); opacity: 1; } 80%, 100% { transform: none; opacity: 1; } }
+@keyframes preview-fade-front { 0%, 15% { transform: none; opacity: 1; } 80%, 100% { transform: translateX(-8rpx) scale(.975); opacity: 0; } }
+@keyframes preview-fade-back { 0%, 15% { transform: translateX(8rpx) scale(.975); opacity: 0; } 80%, 100% { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .motion-option { transition: none; } .motion-option .motion-sheet { animation: none !important; } }

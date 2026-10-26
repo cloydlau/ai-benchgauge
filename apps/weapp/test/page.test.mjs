@@ -1228,6 +1228,40 @@ test('native scroll commands are explicit, repeatable and discard superseded or 
   assert.equal(commands.length, 1)
 })
 
+test('each switch style follows drags, settles tab switches, preserves source boundaries and reloads the setting on return', t => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 1000 })
+  for (const style of ['cube', 'slide', 'fade']) {
+    const saved = { boardTransition: style, grouping: 'company' }
+    const h = setup(saved)
+    assert.equal(h.page.boardTransition.value, style)
+    const touch = (x, y) => ({ touches: [{ clientX: x, clientY: y }] })
+    h.page.cubeStart(touch(280, 200)); h.page.cubeMove(touch(130, 202))
+    const faces = h.page.cubeFaces.value
+    assert.ok(h.page.cubePosition.value > 0 && h.page.cubePosition.value < 1)
+    assert.equal(h.page.cubeDragging.value, true)
+    if (style === 'cube') assert.match(faces[0].style, /rotateY/)
+    else assert.ok(faces.every(face => !face.style.includes('rotateY') && face.shade === 0))
+    h.page.cubeEnd(); t.mock.timers.tick(24); t.mock.timers.tick(501)
+    assert.equal(h.page.face.value, 1)
+    assert.equal(h.page.cubeBusy.value, false)
+    h.page.selectFace(event({ index: 2 })); t.mock.timers.tick(24); t.mock.timers.tick(501)
+    assert.equal(h.page.face.value, 2)
+    assert.equal(h.writes.at(-1).value.boardTransition ?? 'cube', style)
+    assert.equal(h.page.grouping.value, 'company')
+    h.page.cubeStart(touch(280, 200)); h.page.cubeMove(touch(40, 202)); h.page.cubeEnd()
+    assert.equal(h.page.category.value, 'coding')
+    assert.equal(h.page.face.value, 0)
+    const next = style === 'fade' ? 'cube' : 'fade'
+    saved.boardTransition = next
+    globalThis.__benchHooks.show()
+    assert.equal(h.page.boardTransition.value, next)
+    assert.equal(h.page.cubeBusy.value, false)
+    assert.equal(h.page.category.value, 'coding')
+    assert.equal(h.page.face.value, 0)
+    globalThis.__benchHooks.unload()
+  }
+})
+
 test('board headings show localized introductions and copy official links only on explicit confirmation', () => {
   const template = readFileSync(new URL('../src/pages/leaderboard/index.wxml', import.meta.url), 'utf8')
   assert.match(template, /class="source-heading"[^>]*bindtap="sourceHelp"/)

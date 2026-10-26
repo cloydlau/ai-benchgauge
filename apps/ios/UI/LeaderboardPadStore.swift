@@ -22,6 +22,7 @@ public final class LeaderboardPadStore: ObservableObject {
         }
     }
     @Published public var appearance: String { didSet { defaults.set(appearance, forKey: "mobileAppearance") } }
+    @Published public var boardTransition: LeaderboardSwitchStyle { didSet { defaults.set(boardTransition.rawValue, forKey: "mobileBoardTransition") } }
     @Published public var selectedSource: Int { didSet { defaults.set(selectedSource, forKey: "mobileSelectedSource") } }
     @Published public private(set) var boardSelections: [String: [String]]
     public var visibleBoardKinds: [LeaderboardKind] { boardKinds(for: category) }
@@ -77,6 +78,7 @@ public final class LeaderboardPadStore: ObservableObject {
         self.grouping = GroupingPreference.load(from: defaults)
         self.language = AppLanguage.load(from: defaults)
         self.appearance = defaults.string(forKey: "mobileAppearance") ?? "system"
+        self.boardTransition = LeaderboardSwitchStyle(saved: defaults.string(forKey: "mobileBoardTransition"))
         let selections = defaults.dictionary(forKey: "mobileBoardSelections") as? [String: [String]] ?? [:]
         self.boardSelections = selections
         self.selectedSource = min(max(0, defaults.integer(forKey: "mobileSelectedSource")),
@@ -122,6 +124,7 @@ public final class LeaderboardPadStore: ObservableObject {
         grouping = source.grouping
         language = source.language
         appearance = source.appearance
+        boardTransition = source.boardTransition
         selectedSource = source.selectedSource
         boardSelections = source.boardSelections
         filters = source.filters

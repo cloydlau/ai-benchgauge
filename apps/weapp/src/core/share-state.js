@@ -1,6 +1,7 @@
 import { boards, categories, hasOwn, languages } from './catalog.js'
 import { normalizedCountryCode } from '../../../../fc/domain.mjs'
 import { visibleBoardKinds, normalizeBoardSelections } from './board-selection.js'
+import { normalizeBoardTransition } from './board-transition.js'
 
 const groupings = ['model', 'company']
 const themes = ['system', 'light', 'dark']
@@ -49,6 +50,7 @@ export function normalizePreferences(value, locale) {
     appearance: theme === 'system' && appearances.includes(value.appearance) ? value.appearance : null,
     filters: normalizeFilters(value.filters, category, face, boardSelections),
     ...(Object.keys(boardSelections).length ? { boardSelections } : {}),
+    ...(normalizeBoardTransition(value.boardTransition) !== 'cube' ? { boardTransition: value.boardTransition } : {}),
   }
 }
 
@@ -76,7 +78,11 @@ export function readSharedPreferences(query = {}) {
 
 export function pagePreferences(query = {}, saved = {}, locale) {
   const shared = readSharedPreferences(query)
-  if (shared) return { ...shared, fromShare: true }
+  // Motion is a local preference; opening a shared board must not replace it.
+  if (shared) {
+    const localMotion = normalizeBoardTransition(saved?.boardTransition)
+    return { ...shared, ...(localMotion !== 'cube' ? { boardTransition: localMotion } : {}), fromShare: true }
+  }
   const preferences = normalizePreferences(saved, locale)
   // Retain older category/face links and the about page's language/theme links.
   if (validCategory(query.category)) preferences.category = query.category
