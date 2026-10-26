@@ -88,12 +88,12 @@ import SwiftUI
 }
 #endif
 
-@Test func desktopColumnTitlesIdentifyEachBoardInEveryLanguage() {
+@Test func columnTitlesOmitRedundantArtificialAnalysisCategoriesInEveryLanguage() {
     let expected: [(LeaderboardKind, String, String, String)] = [
-        (.artificialAnalysisCodingAgent, "Artificial Analysis Coding", "Artificial Analysis 编程", "Artificial Analysis 編程"),
-        (.artificialAnalysisTextToImage, "Artificial Analysis Text to Image", "Artificial Analysis 文生图", "Artificial Analysis 文生圖"),
+        (.artificialAnalysisCodingAgent, "Artificial Analysis", "Artificial Analysis", "Artificial Analysis"),
+        (.artificialAnalysisTextToImage, "Artificial Analysis", "Artificial Analysis", "Artificial Analysis"),
         (.arenaTextToImage, "Text to Image Arena", "Arena 文生图", "Arena 文生圖"),
-        (.artificialAnalysisTextToVideo, "Artificial Analysis Text to Video", "Artificial Analysis 文生视频", "Artificial Analysis 文生影片"),
+        (.artificialAnalysisTextToVideo, "Artificial Analysis", "Artificial Analysis", "Artificial Analysis"),
         (.arenaTextToVideo, "Text to Video Arena", "Arena 文生视频", "Arena 文生影片")]
     for (kind, english, chinese, traditional) in expected {
         #expect(LeaderboardPresentation.columnTitle(kind, language: .english) == english)
