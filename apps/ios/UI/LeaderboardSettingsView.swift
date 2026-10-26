@@ -17,7 +17,7 @@ struct LeaderboardSettingsView: View {
                             let selected = store.boardTransition == style
                             Button { store.boardTransition = style } label: {
                                 VStack(alignment: .leading, spacing: 6) {
-                                    BoardSwitchPreview(style: style, selected: selected)
+                                    BoardSwitchPreview(style: style)
                                     HStack(spacing: 3) {
                                         Text(style.title(store.language)).font(.system(size: 12, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
                                         Spacer(minLength: 0)
@@ -69,7 +69,7 @@ struct LeaderboardSettingsView: View {
                                     Text(LeaderboardPresentation.columnTitle(kind, language: store.language))
                                         .foregroundStyle(.primary).frame(maxWidth: .infinity, alignment: .leading)
                                     Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                                        .foregroundStyle(selected ? Color.accentColor : Color.secondary)
+                                        .foregroundStyle(selected ? Color.green : Color.secondary)
                                         .opacity(required ? 0.45 : 1)
                                 }.padding(.vertical, 4).contentShape(Rectangle())
                             }
@@ -98,9 +98,9 @@ struct LeaderboardSettingsView: View {
 
 private struct BoardSwitchPreview: View {
     let style: LeaderboardSwitchStyle
-    let selected: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var progress: CGFloat = 0.3
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var progress: Double = 0
 
     private func sheet(_ tint: Color) -> some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -117,21 +117,22 @@ private struct BoardSwitchPreview: View {
         ZStack {
             Ellipse().fill(Color.accentColor.opacity(0.08)).frame(width: 85, height: 65).blur(radius: 7)
             sheet(.teal)
-                .rotation3DEffect(.degrees(style == .cube ? (1 - progress) * 90 : 0), axis: (x: 0, y: 1, z: 0), anchor: .leading, perspective: 0.4)
-                .offset(x: style == .fade ? (1 - progress) * 8 : (1 - progress) * 48)
-                .opacity(style == .fade ? progress : 1)
+                .modifier(CubeFace(position: progress, face: 1, width: 48, reduceMotion: false, style: style, shadeTopInset: 0))
             sheet(.accentColor)
-                .rotation3DEffect(.degrees(style == .cube ? -progress * 90 : 0), axis: (x: 0, y: 1, z: 0), anchor: .trailing, perspective: 0.4)
-                .offset(x: style == .fade ? -progress * 8 : -progress * 48)
-                .opacity(style == .fade ? 1 - progress : progress >= 0.999 ? 0 : 1)
+                .modifier(CubeFace(position: progress, face: 0, width: 48, reduceMotion: false, style: style, shadeTopInset: 0))
         }.frame(maxWidth: .infinity).frame(height: 84).clipped().accessibilityHidden(true)
-            .task(id: "\(selected)-\(reduceMotion)") {
+            .task(id: "\(reduceMotion)-\(scenePhase)") {
                 var transaction = Transaction(); transaction.disablesAnimations = true
-                withTransaction(transaction) { progress = selected && !reduceMotion ? 0 : 0.3 }
-                guard selected, !reduceMotion else { return }
-                try? await Task.sleep(for: .milliseconds(120))
-                guard !Task.isCancelled else { return }
-                withAnimation(.easeInOut(duration: 1.05)) { progress = 1 }
+                withTransaction(transaction) { progress = reduceMotion ? 0.3 : 0 }
+                guard !reduceMotion, scenePhase == .active else { return }
+                while !Task.isCancelled {
+                    withTransaction(transaction) { progress = 0 }
+                    do { try await Task.sleep(for: .milliseconds(300)) } catch { return }
+                    guard !Task.isCancelled else { return }
+                    withAnimation(.easeInOut(duration: 1.05)) { progress = 1 }
+                    // 300 ms at the start + 1,050 ms motion + 1,650 ms at the end.
+                    do { try await Task.sleep(for: .milliseconds(2700)) } catch { return }
+                }
             }
     }
 }

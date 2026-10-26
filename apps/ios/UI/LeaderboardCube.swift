@@ -175,6 +175,7 @@ struct CubeFace: AnimatableModifier {
     let width: CGFloat
     let reduceMotion: Bool
     var style: LeaderboardSwitchStyle = .cube
+    var shadeTopInset: CGFloat? = nil
     nonisolated var animatableData: Double {
         get { position }
         set { position = newValue }
@@ -190,7 +191,7 @@ struct CubeFace: AnimatableModifier {
                 // Each face can have a different scroll position. Its tab spacer
                 // is empty space, so shade only from its own content's top edge.
                 Rectangle().fill(.black.opacity(reduceMotion || style != .cube ? 0 : abs(distance) * 0.18))
-                    .padding(.top, max(0, frames[0]?.minY ?? LeaderboardCubeScrollState.contentTopInset))
+                    .padding(.top, shadeTopInset ?? max(0, frames[0]?.minY ?? LeaderboardCubeScrollState.contentTopInset))
                     .allowsHitTesting(false)
             }
             .rotation3DEffect(.degrees(flat || style != .cube ? 0 : distance * 90), axis: (x: 0, y: 1, z: 0),

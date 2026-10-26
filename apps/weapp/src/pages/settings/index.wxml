@@ -1,4 +1,4 @@
-<view class="shell settings-page {{dark ? 'dark' : ''}}">
+<view class="shell settings-page {{dark ? 'dark' : ''}} {{previewRunning ? 'preview-running' : ''}}">
   <view class="settings-nav" style="padding-top:{{statusBar}}px;">
     <button class="tap settings-back" bindtap="back" aria-label="{{labels.back}}"><van-icon name="arrow-left" size="21px" /></button>
     <text>{{labels.preferences}}</text>
@@ -11,8 +11,8 @@
         <button wx:for="{{transitionOptions}}" wx:key="id" class="motion-option {{boardTransition === item.id ? 'is-selected' : ''}}" data-id="{{item.id}}" bindtap="selectTransition" role="radio" aria-checked="{{boardTransition === item.id}}" aria-label="{{item.title}} · {{item.hint}}">
           <view class="motion-preview motion-{{item.id}}" aria-hidden="true">
             <view class="motion-preview-glow" />
-            <view class="motion-sheet motion-sheet-back"><view class="motion-mini-title" /><view class="motion-mini-line" /><view class="motion-mini-line short" /><view class="motion-mini-line" /></view>
-            <view class="motion-sheet motion-sheet-front"><view class="motion-mini-title" /><view class="motion-mini-line" /><view class="motion-mini-line short" /><view class="motion-mini-line" /></view>
+            <view class="motion-sheet motion-sheet-back" style="{{previewFaces[item.id][1].style}}"><view class="motion-mini-title" /><view class="motion-mini-line" /><view class="motion-mini-line short" /><view class="motion-mini-line" /><view class="motion-shade" style="{{previewFaces[item.id][1].shade}}" /></view>
+            <view class="motion-sheet motion-sheet-front" style="{{previewFaces[item.id][0].style}}"><view class="motion-mini-title" /><view class="motion-mini-line" /><view class="motion-mini-line short" /><view class="motion-mini-line" /><view class="motion-shade" style="{{previewFaces[item.id][0].shade}}" /></view>
           </view>
           <view class="motion-option-name"><text>{{item.title}}</text><view class="motion-radio"><van-icon wx:if="{{boardTransition === item.id}}" name="success" size="10px" /></view></view>
           <text class="motion-option-hint">{{item.hint}}</text>
@@ -24,7 +24,7 @@
     <view wx:for="{{groups}}" wx:for-item="group" wx:key="id" class="settings-group">
       <text class="settings-category">{{group.title}}</text>
       <view class="settings-options">
-        <button wx:for="{{group.boards}}" wx:key="kind" class="settings-board {{item.disabled ? 'required-board' : ''}}" data-category="{{group.id}}" data-kind="{{item.kind}}" bindtap="toggleBoard" disabled="{{item.disabled}}" role="checkbox" aria-checked="{{item.selected}}" aria-label="{{item.title}}">
+        <button wx:for="{{group.boards}}" wx:key="kind" class="settings-board {{item.disabled ? 'required-board' : ''}}" hover-class="none" data-category="{{group.id}}" data-kind="{{item.kind}}" bindtap="toggleBoard" disabled="{{item.disabled}}" role="checkbox" aria-checked="{{item.selected}}" aria-label="{{item.title}}">
           <image class="settings-logo" src="{{item.icon}}" mode="aspectFit" aria-hidden="true" />
           <text class="settings-board-title">{{item.title}}</text>
           <view class="settings-check {{item.selected ? 'is-selected' : ''}}" aria-hidden="true"><van-icon wx:if="{{item.selected}}" name="success" size="14px" /></view>

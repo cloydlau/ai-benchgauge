@@ -3,6 +3,7 @@ import test from 'node:test'
 import { registerHooks } from 'node:module'
 import { readFileSync } from 'node:fs'
 import { categories } from '../src/core/catalog.js'
+import { boardFaceStyle } from '../src/core/board-transition.js'
 
 const registration = registerHooks({
   resolve(specifier, context, next) {
@@ -14,6 +15,10 @@ const registration = registerHooks({
       export const definePage = factory => { globalThis.__settingsFactory = factory }
       export const ref = value => ({ value })
       export const computed = getter => ({ get value() { return getter() } })
+      export const onReady = hook => { globalThis.__settingsHooks.ready = hook }
+      export const onShow = hook => { globalThis.__settingsHooks.show = hook }
+      export const onHide = hook => { globalThis.__settingsHooks.hide = hook }
+      export const onUnload = hook => { globalThis.__settingsHooks.unload = hook }
     ` }
   },
 })
@@ -31,10 +36,75 @@ function setup(saved = {}) {
     navigateBack: () => { backs++ }, reLaunch: options => { launched = options.url },
   }
   globalThis.getCurrentPages = () => [1, 2]
+  const hooks = globalThis.__settingsHooks = {}
   const page = globalThis.__settingsFactory({})
   const toggle = (category, kind) => page.toggleBoard({ currentTarget: { dataset: { category, kind } } })
-  return { page, toggle, colors, stored: () => stored, backs: () => backs, launched: () => launched }
+  return { page, hooks, toggle, colors, stored: () => stored, backs: () => backs, launched: () => launched }
 }
+
+test('motion preview waits for the first render, stops when hidden and restarts on return', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const { page, hooks } = setup()
+  assert.equal(page.previewRunning.value, false)
+  hooks.show()
+  assert.equal(page.previewRunning.value, false, 'The initial onShow precedes the first completed render')
+  hooks.ready()
+  assert.equal(page.previewRunning.value, true)
+  const start = page.previewFaces.value
+  t.mock.timers.tick(299)
+  assert.deepEqual(page.previewFaces.value, start)
+  t.mock.timers.tick(1)
+  const end = page.previewFaces.value
+  for (const style of ['cube', 'slide', 'fade']) assert.notDeepEqual(end[style], start[style])
+  t.mock.timers.tick(2699)
+  assert.deepEqual(page.previewFaces.value, end)
+  t.mock.timers.tick(1)
+  assert.deepEqual(page.previewFaces.value, start, 'All previews restart after exactly three seconds')
+  t.mock.timers.tick(300)
+  hooks.hide()
+  assert.equal(page.previewRunning.value, false)
+  assert.deepEqual(page.previewFaces.value, start)
+  t.mock.timers.tick(6000)
+  assert.deepEqual(page.previewFaces.value, start, 'Hidden pages cancel all pending motion')
+  hooks.show()
+  assert.equal(page.previewRunning.value, true)
+  assert.deepEqual(page.previewFaces.value, start)
+  t.mock.timers.tick(300)
+  assert.deepEqual(page.previewFaces.value, end)
+  hooks.unload()
+  assert.equal(page.previewRunning.value, false)
+  t.mock.timers.tick(6000)
+  assert.deepEqual(page.previewFaces.value, start)
+})
+
+test('all previews animate with live board transforms without selection, and choosing a style preserves their cycle', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const { page, hooks, stored } = setup()
+  hooks.ready()
+  assert.equal(stored().boardTransition, undefined, 'Autoplay does not write an animation preference')
+  for (const [elapsed, position, duration] of [[0, 0, 0], [300, 1, 1050]]) {
+    t.mock.timers.tick(elapsed)
+    for (const style of ['cube', 'slide', 'fade']) for (const face of [0, 1]) {
+      assert.equal(page.previewFaces.value[style][face].style, boardFaceStyle(style, face, position, duration, true))
+      assert.equal(page.previewFaces.value[style][face].shade,
+        `opacity:${style === 'cube' ? Math.abs(face - position) * 0.18 : 0};transition-duration:${duration}ms;`)
+    }
+  }
+  const end = page.previewFaces.value
+  for (const id of ['slide', 'fade', 'cube']) {
+    page.selectTransition({ currentTarget: { dataset: { id } } })
+    assert.equal(page.boardTransition.value, id)
+    assert.equal(stored().boardTransition ?? 'cube', id)
+    assert.deepEqual(page.previewFaces.value, end, 'Choosing an animation must not restart the demonstrations')
+  }
+  t.mock.timers.tick(2699)
+  assert.deepEqual(page.previewFaces.value, end)
+  t.mock.timers.tick(1)
+  for (const style of ['cube', 'slide', 'fade']) for (const face of [0, 1]) {
+    assert.equal(page.previewFaces.value[style][face].style, boardFaceStyle(style, face, 0, 0, true))
+  }
+  hooks.unload()
+})
 
 test('settings immediately persists independent category selections, protects the last board and resets all', () => {
   const h = setup({ category: 'general', face: 2, theme: 'dark', language: 'zh-TW', grouping: 'company' })
