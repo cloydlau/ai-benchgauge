@@ -550,10 +550,17 @@ test('loading skeletons cover the viewport at startup and after tall or landscap
 })
 
 test('subtitle help offers dismissal and copies the desktop link only on its link action in every language', () => {
+  const template = readFileSync(new URL('../src/pages/leaderboard/index.wxml', import.meta.url), 'utf8')
+  const dialog = template.match(/<van-dialog show="\{\{showingFeatureHelp\}\}"[\s\S]*?\/>/)?.[0]
+  assert.ok(dialog)
+  assert.match(dialog, /cancel-button-text="\{\{labels.gotIt\}\}"/)
+  assert.match(dialog, /confirm-button-text="\{\{labels.desktopLink\}\}"/)
+  assert.match(dialog, /bindcancel="closeFeatureHelp"/)
+  assert.match(dialog, /bindconfirm="copyDesktopLink"/)
   for (const [language, title, gotIt, desktopLink] of [
-    ['en', 'Multiple leaderboards & quota tracking', 'Got it', 'PC link'],
-    ['zh-CN', '多榜对照 & 余量追踪', '我知道了', 'PC 端链接'],
-    ['zh-TW', '多榜對照 & 餘量追蹤', '我知道了', 'PC 端連結'],
+    ['en', 'Multiple leaderboards & quota tracking', 'OK', 'PC link'],
+    ['zh-CN', '多榜对照 & 余量追踪', 'OK', 'PC 端链接'],
+    ['zh-TW', '多榜對照 & 餘量追蹤', 'OK', 'PC 端連結'],
   ]) {
     const h = setup({ language })
     h.page.quotaHelp()

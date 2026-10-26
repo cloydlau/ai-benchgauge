@@ -173,10 +173,10 @@
     </view>
   </van-dialog>
   <van-dialog show="{{showingFeatureHelp}}" title="{{labels.featureDetails}}" message="{{quotaHelpContent}}"
-    show-cancel-button confirm-button-text="{{labels.gotIt}}" cancel-button-text="{{labels.desktopLink}}"
-    confirm-button-color="{{dark ? '#d1dce8' : '#414d5c'}}" cancel-button-color="{{dark ? '#f2f5fa' : '#20262f'}}"
+    show-cancel-button confirm-button-text="{{labels.desktopLink}}" cancel-button-text="{{labels.gotIt}}"
+    confirm-button-color="{{dark ? '#f2f5fa' : '#20262f'}}" cancel-button-color="{{dark ? '#d1dce8' : '#414d5c'}}"
     custom-style="background:var(--card);color:var(--ink);--dialog-has-title-message-text-color:var(--muted);--button-default-background-color:var(--card);"
-    bindconfirm="closeFeatureHelp" bindcancel="copyDesktopLink" bindclose="closeFeatureHelp" />
+    bindconfirm="copyDesktopLink" bindcancel="closeFeatureHelp" bindclose="closeFeatureHelp" />
   <canvas id="leaderboard-export" type="2d" class="export-canvas" aria-hidden="true" />
   <!-- capture-panel already includes the bottom safe area; avoid a second strip below it. -->
   <van-popup show="{{capture.open}}" position="bottom" round safe-area-inset-bottom="{{false}}" bindclose="closeCapture" close-on-click-overlay="{{!capture.saving}}" custom-class="capture-popup {{dark ? 'dark-sheet' : ''}}">
