@@ -9,11 +9,23 @@ public final class LeaderboardPadStore: ObservableObject {
     @Published public private(set) var refreshing: Set<LeaderboardKind> = []
     @Published public private(set) var timestampPolishRevisions: [LeaderboardKind: Int] = [:]
     @Published public var category: LeaderboardCategory { didSet { CategoryPreference.save(category, to: defaults) } }
-    @Published public var grouping: LeaderboardGrouping { didSet { rowPresentations.removeAll(); GroupingPreference.save(grouping, to: defaults) } }
+    @Published public var grouping: LeaderboardGrouping {
+        didSet {
+            if grouping != oldValue {
+                searchQueries[oldValue] = modelSearchQuery
+                modelSearchQuery = searchQueries[grouping] ?? ""
+                modelSearchPresented = false
+                modelSearchEditing = false
+            }
+            rowPresentations.removeAll()
+            GroupingPreference.save(grouping, to: defaults)
+        }
+    }
     @Published public var appearance: String { didSet { defaults.set(appearance, forKey: "mobileAppearance") } }
     @Published public var selectedSource: Int { didSet { defaults.set(selectedSource, forKey: "mobileSelectedSource") } }
     @Published public var language: AppLanguage { didSet { rowPresentations.removeAll(); language.save(to: defaults) } }
-    // One transient model filter follows every source/category. Companies ignore it.
+    // Each grouping retains its own transient query across all sources/categories.
+    private var searchQueries: [LeaderboardGrouping: String] = [:]
     @Published public var modelSearchQuery = "" { didSet { rowPresentations.removeAll() } }
     @Published public var modelSearchPresented = false
     @Published public var modelSearchEditing = false
@@ -91,7 +103,12 @@ public final class LeaderboardPadStore: ObservableObject {
         selectedSource = source.selectedSource
         filters = source.filters
         opennessFilters = source.opennessFilters
+        searchQueries = source.searchQueries
         modelSearchQuery = source.modelSearchQuery
+    }
+    public func clearSearchQueries() {
+        searchQueries.removeAll()
+        modelSearchQuery = ""
     }
     public func countryFilter(for kind: LeaderboardKind) -> LeaderboardCountryFilter { filters[kind] ?? .all }
     public func opennessFilter(for kind: LeaderboardKind) -> LeaderboardOpennessFilter { opennessFilters[kind] ?? .all }

@@ -13,6 +13,7 @@ struct MobileModelSearchBar: View {
     let focus: FocusState<Bool>.Binding
     let kind: LeaderboardKind
     let language: AppLanguage
+    let grouping: LeaderboardGrouping
     let pinned: Bool
     let close: () -> Void
 
@@ -20,7 +21,8 @@ struct MobileModelSearchBar: View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                 .accessibilityHidden(true)
-            TextField(language.text("Search models", "搜索模型"), text: $query)
+            TextField(language.text(grouping == .company ? "Search companies" : "Search models",
+                grouping == .company ? "搜索公司" : "搜索模型"), text: $query)
                 .foregroundStyle(.primary)
                 .textFieldStyle(.plain)
                 .focused(focus)

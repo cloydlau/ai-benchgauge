@@ -1247,7 +1247,7 @@ final class LeaderboardPhoneTests: XCTestCase {
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         app.segmentedControls["grouping"].buttons[dark ? "公司" : "Companies"].tap()
         XCTAssertFalse(app.textFields["model-search-input-arenaText"].exists)
-        XCTAssertFalse(app.buttons["model-filter-arenaText"].exists)
+        XCTAssertTrue(app.buttons["model-filter-arenaText"].exists)
         XCTAssertTrue(app.buttons["name-arenaText-1"].waitForExistence(timeout: 5))
         capture(prefix + "-companies")
         app.segmentedControls["grouping"].buttons[dark ? "模型" : "Models"].tap()

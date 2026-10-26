@@ -15,7 +15,7 @@ import LeaderboardKit
     }
 }
 
-@MainActor @Test func modelSearchIsSharedAcrossBoardsAndCategoriesButNeverFiltersCompanies() throws {
+@MainActor @Test func groupingSearchesKeepIndependentQueriesAcrossBoardsCategoriesAndExports() throws {
     let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: directory) }
     let cache = LeaderboardCache(fileURL: directory.appending(path: "boards.json"))
@@ -50,6 +50,15 @@ import LeaderboardKit
     #expect(searched === store.rowPresentation(for: .arenaText))
     store.grouping = .company
     #expect(store.rowPresentation(for: .arenaText).rows.count == 3)
+    #expect(store.modelSearchQuery.isEmpty)
+    store.modelSearchQuery = "maker ONE"
+    let companies = store.rowPresentation(for: .arenaText)
+    #expect(companies.rows.map(\.name) == ["Maker One"])
+    #expect(companies.rows.map(\.rank) == [2])
+    #expect(companies.leaderScore == 100)
+    let frozen = LeaderboardPadStore(exporting: store)
+    #expect(frozen.rowPresentation(for: .arenaText).rows.map(\.name) == ["Maker One"])
+    #expect(frozen.modelSearchQuery == "maker ONE")
     store.grouping = .model
     #expect(store.rowPresentation(for: .arenaText).rows.map(\.rank) == [2])
     store.modelSearchQuery = "Alpha"
@@ -59,6 +68,19 @@ import LeaderboardKit
     #expect(store.rowPresentation(for: .arenaText).rows.isEmpty)
     store.modelSearchQuery = ""
     #expect(store.rowPresentation(for: .arenaText).rows.map(\.rank) == [1, 3])
+    store.grouping = .company
+    #expect(store.modelSearchQuery == "maker ONE")
+    #expect(store.rowPresentation(for: .arenaText).rows.isEmpty)
+    store.setOpennessFilter(.all, for: .arenaText)
+    #expect(store.rowPresentation(for: .arenaText).rows.map(\.name) == ["Maker One"])
+    store.clearSearchQueries()
+    #expect(store.modelSearchQuery.isEmpty)
+    store.grouping = .model
+    #expect(store.modelSearchQuery.isEmpty)
+    #expect(store.rowPresentation(for: .arenaText).rows.count == 3)
+    let relaunched = LeaderboardPadStore(defaults: defaults, cache: cache)
+    #expect(relaunched.modelSearchQuery.isEmpty)
+
 }
 
 @MainActor @Test func longBoardPresentationIsReusedUntilDataOrFiltersChange() throws {

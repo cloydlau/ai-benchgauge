@@ -703,7 +703,7 @@ public struct LeaderboardPadView: View {
             }
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: store.modelSearchQuery) { _, _ in
-                    guard store.grouping == .model, cube.scroll.canReturnToTop else { return }
+                    guard cube.scroll.canReturnToTop else { return }
                     var transaction = Transaction(); transaction.disablesAnimations = true
                     withTransaction(transaction) { proxy.scrollTo("model-header-\(kind.rawValue)", anchor: .top) }
                 }
@@ -830,7 +830,7 @@ public struct LeaderboardPadView: View {
             modelSearchEditing: $store.modelSearchEditing,
             isRefreshing: store.refreshing.contains(kind), polishRevision: store.timestampPolishRevisions[kind, default: 0], isImage: isImage, compact: compact, denseColumns: denseColumns, exportScheme: exportScheme,
             selectCountry: { store.setCountryFilter($0, for: kind); resetComparison() },
-            clearFilters: { store.modelSearchQuery = ""; store.setCountryFilter(.all, for: kind); store.setOpennessFilter(.all, for: kind); resetComparison() },
+            clearFilters: { store.clearSearchQueries(); store.setCountryFilter(.all, for: kind); store.setOpennessFilter(.all, for: kind); resetComparison() },
             selectOpenness: { store.setOpennessFilter($0, for: kind); resetComparison() }, openModel: { entry in
                 cancelCubeEntrance()
                 // A simultaneous cube drag can also release a name button.
@@ -1237,7 +1237,7 @@ private struct PadBoardCard: View {
         .onChange(of: modelSearchQuery) { _, _ in rankingExpanded = false }
         .onDisappear { endSearchEditing() }
     }
-    private var searchVisible: Bool { !isImage && grouping == .model && modelSearchPresented }
+    private var searchVisible: Bool { !isImage && modelSearchPresented }
     // Redistribute the same 12-point inset when pinned, keeping the rows below stationary.
     private var headerTopPadding: CGFloat { headerPinned ? 6 : 4 }
     private var headerBottomPadding: CGFloat { headerPinned ? 6 : 8 }
@@ -1252,7 +1252,7 @@ private struct PadBoardCard: View {
         searchFocusTask = Task { @MainActor in
             do { try await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 320)) }
             catch { return }
-            guard modelSearchPresented, grouping == .model, isEnabled else { return }
+            guard modelSearchPresented, isEnabled else { return }
             searchFocused = true
         }
     }
@@ -1342,7 +1342,7 @@ private struct PadBoardCard: View {
     private var sourceHeadingActions: some View {
         HStack(alignment: .center, spacing: 2) {
             timestamp
-            if grouping == .model {
+            if !isImage {
                 Button(action: openModelSearch) {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 12))
@@ -1351,7 +1351,8 @@ private struct PadBoardCard: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(sourceAccent)
-                .accessibilityLabel(tr("Search models", "搜索模型"))
+                .accessibilityLabel(tr(grouping == .company ? "Search companies" : "Search models",
+                    grouping == .company ? "搜索公司" : "搜索模型"))
                 .accessibilityIdentifier("model-filter-\(kind.rawValue)")
                 .anchorPreference(key: MobileModelSearchOrigin.self, value: .bounds) { $0 }
             }
@@ -1424,11 +1425,11 @@ private struct PadBoardCard: View {
                 .accessibilityHidden(searchVisible)
             }
                 .overlayPreferenceValue(MobileModelSearchOrigin.self) { anchor in
-                    if let anchor, !isImage && grouping == .model {
+                    if let anchor, !isImage {
                         GeometryReader { geometry in
                             let origin = geometry[anchor]
                             MobileModelSearchBar(query: $modelSearchQuery, focus: $searchFocused,
-                                kind: kind, language: language,
+                                kind: kind, language: language, grouping: grouping,
                                 pinned: headerPinned,
                                 close: closeModelSearch)
                                 .padding(.top, headerTopPadding).padding(.bottom, headerBottomPadding)
@@ -1467,7 +1468,7 @@ private struct PadBoardCard: View {
                 VStack(spacing: 12) {
                     Image(systemName: "chart.bar").font(.title2)
                     Text(tr("No matching entries", "暂无符合条件的模型"))
-                    if filter != .all || opennessFilter != .all || grouping == .model && !modelSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if filter != .all || opennessFilter != .all || !modelSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         Button(tr("Clear filters", "清除筛选"), action: clearFilters)
                             .accessibilityIdentifier("clear-filters-\(kind.rawValue)")
                     }
@@ -1543,7 +1544,7 @@ private struct PadBoardCard: View {
                 LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                     cardMetadata
                     Section {
-                        if searchVisible || grouping == .model && !modelSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        if searchVisible || !modelSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             VStack(spacing: 0) { cardRows }
                                 .frame(minHeight: max(0, skeletonHeight - 50), alignment: .top)
                         } else { cardRows }

@@ -14,7 +14,8 @@ final class PadRowPresentation {
          openness: LeaderboardOpennessFilter, language: AppLanguage, modelQuery: String = "") {
         let unsearched = LeaderboardPresentation.rows(board, grouping: grouping, filter: country, openness: openness)
         leaderScore = unsearched.first?.score
-        rows = grouping == .company ? unsearched : unsearched.filter { LeaderboardPresentation.modelNameMatches($0.name, query: modelQuery) }
+        let matches = LeaderboardPresentation.modelNameMatcher(modelQuery)
+        rows = unsearched.filter { matches($0.name) }
         scoreWidthReference = rows.map {
             LeaderboardPresentation.scoreText($0.score, kind: board?.kind ?? .artificialAnalysis)
         }.max { $0.count < $1.count } ?? "0.0"
