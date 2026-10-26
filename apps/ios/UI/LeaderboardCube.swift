@@ -40,7 +40,7 @@ final class LeaderboardCubeState: ObservableObject {
         entranceProgress = 0
         origin = face
         direction = face == 0 ? 1 : -1
-        position = reduceMotion ? Double(face) : Double(face) + (face == 0 ? 0.18 : -0.18)
+        position = reduceMotion ? Double(face) : Double(face) + (face == 0 ? 0.06 : -0.06)
         return entranceSerial
     }
     func isCurrentEntrance(_ serial: Int) -> Bool {

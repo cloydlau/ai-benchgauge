@@ -471,7 +471,7 @@ public struct LeaderboardPadView: View {
         if arguments.contains("--cube-entrance-preview") {
             guard cube.beginEntrance(reduceMotion: usesReducedMotion) != nil else { return }
             cube.entranceProgress = 1
-            if !usesReducedMotion { cube.position = Double(cube.face) + (cube.face == 0 ? 0.28 : -0.28) }
+            if !usesReducedMotion { cube.position = Double(cube.face) + (cube.face == 0 ? 0.10 : -0.10) }
             return
         }
         guard !arguments.contains("--cube-preview"), !arguments.contains("--arena-preview"),
@@ -483,7 +483,7 @@ public struct LeaderboardPadView: View {
             guard let serial = cube.beginEntrance(reduceMotion: usesReducedMotion) else { return }
             withAnimation(.smooth(duration: 0.42)) {
                 cube.entranceProgress = 1
-                if !usesReducedMotion { cube.position = Double(cube.face) + (cube.face == 0 ? 0.28 : -0.28) }
+                if !usesReducedMotion { cube.position = Double(cube.face) + (cube.face == 0 ? 0.10 : -0.10) }
             }
             try await Task.sleep(for: .milliseconds(550))
             guard cube.isCurrentEntrance(serial) else { return }
@@ -562,8 +562,8 @@ public struct LeaderboardPadView: View {
             .compositingGroup()
             .id(cube.generation)
             .opacity(0.65 + cube.entranceProgress * 0.35)
-            .scaleEffect(usesReducedMotion ? 1 : 0.985 + cube.entranceProgress * 0.015)
-            .offset(y: usesReducedMotion ? 0 : (1 - cube.entranceProgress) * 12)
+            .scaleEffect(usesReducedMotion ? 1 : 0.995 + cube.entranceProgress * 0.005)
+            .offset(y: usesReducedMotion ? 0 : (1 - cube.entranceProgress) * 4)
             .clipped()
             .overlay(alignment: .top) {
                 cubeSelector.modifier(PadCubeSourceTabs(scroll: cube.scroll))
