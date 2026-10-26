@@ -117,7 +117,8 @@ export async function runTestGate({ root = testRoot, env = process.env, test = (
   const guardedRepair = first => first.coverageCollectionRetried
     ? { completed: false, attempted: false, summary: '覆盖率采集重试仍未通过，保留日志并停止' }
     : repair(first)
-  const result = await repairTests({ runTests: checkedTest, repairWithAi: guardedRepair,
+  const result = await repairTests({ root, runTests: checkedTest, repairWithAi: guardedRepair,
+    repairFixtures: env.TEST_AUTO_REPAIR === '0' ? () => null : undefined,
     protectedSignature: () => testInputSignature(root, env, { includeSources: false }) })
   if (result.status !== 0 && result.attemptedAi) writeFileSync(statePath, JSON.stringify({ signature: testInputSignature(root, env) }) + '\n')
   if (result.error) console.error(`[test] ${result.error}`)
