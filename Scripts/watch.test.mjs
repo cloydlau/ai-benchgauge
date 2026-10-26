@@ -603,6 +603,60 @@ test('a failed commit stays visible after a successful rebuild without looping',
   assert.doesNotMatch(fixture.output(), /【已完成】/)
 })
 
+test('an external commit clears an old failure without another save or commit attempt', async t => {
+  const f = watcherFixture(t, { gitWork: true, commitFails: true,
+    env: { APP_AUTODEPLOY: '0', COMMIT_PUSH: '0', WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' } })
+  await waitUntil(f, () => f.output().includes('⚠【需人工介入】'))
+  const attempts = f.events().filter(event => event === 'commit').length
+  writeFileSync(join(f.root, 'commit.done'), 'done')
+  await waitUntil(f, () => /【已完成】.*外部流程完成/.test(f.output()))
+  assert.equal(f.events().filter(event => event === 'commit').length, attempts)
+  assert.doesNotMatch(f.output().trim().split('\n').at(-1), /需人工介入/)
+})
+
+test('an externally committed app rebuild settles without restoring the previous commit warning', async t => {
+  const f = watcherFixture(t, { gitWork: true, commitFails: true,
+    env: { COMMIT_PUSH: '0', WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' } })
+  await waitUntil(f, () => f.output().includes('⚠【需人工介入】'))
+  writeFileSync(join(f.root, 'commit.done'), 'done')
+  writeFileSync(join(f.root, 'head'), 'external-commit')
+  await waitUntil(f, () => /【已完成】.*本轮流程完成/.test(f.output()))
+  assert.ok(f.events().filter(event => event === 'restart').length >= 2)
+  assert.equal(f.events().filter(event => event === 'commit').length, 1)
+  assert.doesNotMatch(f.output().trim().split('\n').at(-1), /需人工介入/)
+})
+
+test('an external push clears the failed push warning without retrying the push', async t => {
+  const f = watcherFixture(t, { gitWork: true,
+    env: { WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' }, setup(root) {
+      const file = join(root, 'bin/git')
+      writeFileSync(file, readFileSync(file, 'utf8').replace('echo push >> events; touch push.done', 'echo push >> events; exit 2'))
+    } })
+  await waitUntil(f, () => /需人工介入.*推送失败/.test(f.output()))
+  const attempts = f.events().filter(event => event === 'push').length
+  writeFileSync(join(f.root, 'push.done'), 'done')
+  await waitUntil(f, () => /【已完成】.*外部流程完成/.test(f.output()))
+  assert.equal(f.events().filter(event => event === 'push').length, attempts)
+})
+
+test('resolving only one Git failure does not hide the other unresolved failure', async t => {
+  for (const resolvedFirst of ['commit', 'push']) {
+    const f = watcherFixture(t, { gitWork: true, commitFails: true,
+      env: { APP_AUTODEPLOY: '0', WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200' }, setup(root) {
+        const file = join(root, 'bin/git')
+        writeFileSync(file, readFileSync(file, 'utf8').replace('echo push >> events; touch push.done', 'echo push >> events; exit 2'))
+      } })
+    await waitUntil(f, () => /需人工介入.*提交失败/.test(f.output()))
+    writeFileSync(join(f.root, `${resolvedFirst}.done`), 'done')
+    await new Promise(resolve => setTimeout(resolve, 450))
+    assert.doesNotMatch(f.output(), /【已完成】/)
+    writeFileSync(join(f.root, `${resolvedFirst === 'commit' ? 'push' : 'commit'}.done`), 'done')
+    await waitUntil(f, () => /【已完成】.*外部流程完成/.test(f.output()))
+    assert.equal(f.events().filter(event => event === 'commit').length, 1)
+    assert.equal(f.events().filter(event => event === 'push').length, 1)
+  }
+})
+
 test('startup retries a transient test lock without waiting for another edit', async (t) => {
   const fixture = watcherFixture(t, {
     gitWork: true, initiallyBusy: true,

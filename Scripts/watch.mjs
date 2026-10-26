@@ -700,6 +700,10 @@ async function main() {
     const sourceMoved = latest !== builtSignature && latest !== failedSignature
     const gitMoved = commitEnabled && latestGit && latestGit !== failedCommitSignature
     const latestAhead = pushEnabled ? unpushedState() : null
+    // A manual commit/push may finish while this watcher is validating or
+    // deploying. Old failures no longer describe the current Git state.
+    if (latestGit === '') failedCommitSignature = null
+    if (latestAhead?.state === 'synced') failedPushSignature = null
     if (latestAhead && latestAhead.state !== 'ahead') lastAheadSignature = ''
     const aheadMoved = latestAhead?.state === 'ahead'
       && latestAhead.signature
@@ -841,6 +845,10 @@ async function main() {
     }
     const nextGit = gitStatusSignature()
     const nextAhead = pushEnabled ? unpushedState() : null
+    const resolvedGitFailure = (nextGit === '' && Boolean(failedCommitSignature))
+      || (nextAhead?.state === 'synced' && Boolean(failedPushSignature))
+    if (nextGit === '') failedCommitSignature = null
+    if (nextAhead?.state === 'synced') failedPushSignature = null
     const nextHead = deployEnabled ? currentHead() : null
     const headMoved = Boolean(nextHead && nextHead !== lastHead)
     const appCommitChanged = headMoved && Boolean(undeployedAppCommit())
@@ -852,7 +860,13 @@ async function main() {
       && nextAhead.signature !== lastAheadSignature
       && nextAhead.signature !== failedPushSignature
     if (nextAhead && nextAhead.state !== 'ahead') lastAheadSignature = ''
-    if (!sourceChanged && !gitChanged && !aheadChanged && !appCommitChanged) return
+    if (!sourceChanged && !gitChanged && !aheadChanged && !appCommitChanged) {
+      if (resolvedGitFailure && !busy && timer === null && !failedSignature && !failedTestSignature
+        && !failedCommitSignature && !failedPushSignature) {
+        reportStatus('done', '提交或推送已由外部流程完成，继续监听')
+      }
+      return
+    }
     if (sourceChanged) lastSignature = next
     if (nextGit != null && nextGit !== failedCommitSignature) lastGitSignature = nextGit
     if (aheadChanged) lastAheadSignature = nextAhead.signature
