@@ -11,10 +11,11 @@ import { shouldAutoRefresh } from '../../core/freshness.js'
 import { createTimestampPolish } from '../../core/timestamp-polish.js'
 import { rowGeometry, resolveRowWindow, createRowRenderer } from '../../core/row-window.js'
 import { exportScreenshot, removeScreenshot, saveScreenshotImage } from '../../services/screenshot.js'
-import { cubeIndex, cubeTarget, cubeRenderedFace, cubeFaceStyle, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll, isBackSwipe } from '../../core/cube.js'
+import { cubeIndex, cubeTarget, cubeNavigation, cubeRenderedFace, cubeFaceStyle, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll, isBackSwipe } from '../../core/cube.js'
 import { createBrandMeasurer, createSubtitleMeasurer } from '../../core/brand-title.js'
 import { pagePreferences, sharePath, systemLanguage } from '../../core/share-state.js'
 import { purchaseLinks, preferredPurchaseLink } from '../../core/purchase-links.js'
+import { visibleBoardKinds, normalizeBoardSelections, selectedBoardFace } from '../../core/board-selection.js'
 
 definePage(query => {
   const saved = (() => { try { return wx.getStorageSync('benchgauge.preferences') || {} } catch { return {} } })()
@@ -22,6 +23,7 @@ definePage(query => {
   const language = ref(initial.language)
   const languageMode = ref(initial.languageMode)
   const category = ref(initial.category)
+  const boardSelections = ref(initial.boardSelections || {})
   const grouping = ref(initial.grouping)
   const expandedBoards = ref({})
   const configurationRequired = ref({})
@@ -38,7 +40,7 @@ definePage(query => {
   const sourceTabsHeight = ref(42)
   const sourceTabsOffset = ref(0)
   const cubeClipTop = ref(null)
-  const sourceTabsExtent = computed(() => sourceTabsHeight.value + 8)
+  const sourceTabsExtent = computed(() => current.value.kinds.length > 1 ? sourceTabsHeight.value + 8 : 0)
   const cubeViewportStyle = computed(() => `--cube-top:${cubeClipTop.value ?? Math.max(0, sourceTabsExtent.value - sourceTabsOffset.value)}px;--cube-layout-duration:${cubeDuration.value}ms;`)
   // Keep the tab transition armed while cube faces are prepared at 0ms.
   // Separate native style updates must never move the highlight with a 0ms duration.
@@ -97,9 +99,10 @@ definePage(query => {
   // the outgoing face until the cube's actual CSS transition starts as well.
   const sourceTabIndex = computed(() => sourceDragIndex.value ?? (cubeBusy.value && cubeDuration.value === 0 ? cubeOrigin.value : face.value))
   const selectedSourceTheme = computed(() => sourceTabTheme(current.value.kinds[sourceTabIndex.value], dark.value))
+  const sourceTabWidth = computed(() => `calc((100% - ${(current.value.kinds.length - 1) * 12}rpx) / ${current.value.kinds.length})`)
   const sourceSelection = computed(() => {
     const position = sourceTabIndex.value
-    return `width:calc((100% - ${(current.value.kinds.length - 1) * 12}rpx) / ${current.value.kinds.length});transform:translateX(${position * 100}%) translateX(${position * 12}rpx);background-color:${selectedSourceTheme.value.background};`
+    return `width:${sourceTabWidth.value};transform:translateX(${position * 100}%) translateX(${position * 12}rpx);background-color:${selectedSourceTheme.value.background};`
   })
   let tabGesture
   let tabSerial = 0
@@ -241,7 +244,7 @@ definePage(query => {
     cubeDragging.value = false
     entranceProgress.value = 1; entranceHintVisible.value = false
     clearTimeout(cubeTimer); clearTimeout(entranceTimer)
-    if (!cubeBusy.value && destination === face.value && cubePosition.value === destination) { gesture = null; return }
+    if (!cubeBusy.value && destination === face.value && cubePosition.value === destination) { stopCube(); return }
     const direction = position === face.value ? cubeDirection.value : Math.sign(position - face.value)
     cubeClipTop.value ??= Math.max(0, sourceTabsExtent.value - sourceTabsOffset.value)
     if (cubeWaiting.value) cubePosition.value = cubeOrigin.value
@@ -277,7 +280,7 @@ definePage(query => {
   function touchPoint(event) { return event.touches?.[0] || event.changedTouches?.[0] }
   function cubeStart(event) {
     const point = touchPoint(event)
-    if (current.value.kinds.length < 2 || !point || event.touches?.length > 1 || backgroundLocked.value || modelSearchFocused.value) return
+    if (!point || event.touches?.length > 1 || backgroundLocked.value || modelSearchFocused.value) return
     stopCube(); entrancePlayed = true
     // A new touch takes ownership from any queued programmatic navigation.
     scrollRequests.clear(); cancelSourceTabsSync()
@@ -298,7 +301,15 @@ definePage(query => {
     cubeClipTop.value ??= Math.max(0, sourceTabsExtent.value - sourceTabsOffset.value)
     suppressTapUntil = Date.now() + 400
     const direction = gesture.position < gesture.face ? -1 : 1
-    if (!cubeBusy.value || direction !== cubeDirection.value) prepareCubeFace(cubeIndex(gesture.face + direction, current.value.kinds.length))
+    const destination = gesture.face + direction
+    if (destination < 0 || destination >= current.value.kinds.length) {
+      // Hold the last board flat: never preview the opposite end of this tab.
+      cubePosition.value = gesture.face; cubeBusy.value = false; cubeDuration.value = 0
+      cubeWaiting.value = false; preparedScroll = null
+      cubeOrigin.value = gesture.face; cubeDirection.value = direction
+      return
+    }
+    if (!cubeBusy.value || direction !== cubeDirection.value) prepareCubeFace(destination)
     else cubeDuration.value = 0
     cubeOrigin.value = gesture.face; cubeDirection.value = direction
     cubeBusy.value = true; cubePosition.value = gesture.position
@@ -306,6 +317,12 @@ definePage(query => {
   function cubeEnd() {
     if (gesture?.axis === 'horizontal') {
       const position = cubeDestination(gesture, cubeWidth, Date.now())
+      const next = cubeNavigation(categories.findIndex(item => item.id === category.value), position, categories.map(item => visibleBoardKinds(item.id, boardSelections.value).length))
+      if (categories[next.category].id !== category.value) {
+        suppressTapUntil = Date.now() + 500
+        changeCategory(categories[next.category].id, next.face)
+        return
+      }
       turnCube(position, position)
     }
     else gesture = null
@@ -318,6 +335,7 @@ definePage(query => {
     if (entrancePlayed || !alive || !pageReady || !pageVisible
       || !current.value.kinds.every(kind => snapshots.value[kind]?.entries.length)) return
     entrancePlayed = true
+    if (current.value.kinds.length < 2) return
     entranceTimer = setTimeout(() => {
       if (!alive || !pageVisible || gesture) return
       cubeOrigin.value = face.value; cubeDirection.value = face.value ? -1 : 1
@@ -424,9 +442,12 @@ definePage(query => {
     icon: `/assets/categories/${item.id}-${selectedSourceTheme.value.accent.slice(1)}.png` })))
   const categoryIndex = computed(() => categoryDragIndex.value ?? categories.findIndex(item => item.id === category.value))
   const categoryThemeStyle = computed(() => `--category-accent:${selectedSourceTheme.value.accent};`)
-  const current = computed(() => categoryFor(category.value))
+  const current = computed(() => ({ ...categoryFor(category.value), kinds: visibleBoardKinds(category.value, boardSelections.value) }))
   const sourceTabIcons = computed(() => current.value.kinds.map(kind => sourceTabLogo(kind, dark.value)))
   const tabs = computed(() => current.value.kinds.map(kind => kind === 'openRouterUsage' ? tr('dailyUsage') : kind === 'cloudbaseUsage' ? tr('cumulativeShare') : kind === 'vercelUsage' ? tr('dailyShare') : kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
+  // Retain each slot's geometry while replacing its source identity and label.
+  const sourceTabItems = computed(() => current.value.kinds.map((kind, index) => ({ index,
+    content: [{ kind, label: tabs.value[index], icon: sourceTabIcons.value[index] }] })))
   const filterFor = kind => ({ country: 'all', openness: 'all', ...filters.value[kind] })
   const countriesFor = kind => countryOptions({ entries: Object.values(snapshots.value).flatMap(board => board?.entries || []) }, language.value, filterFor(kind).country)
   function setFilters(filter) {
@@ -630,7 +651,8 @@ definePage(query => {
 
   function preferencesSnapshot() {
     return { language: language.value, languageMode: languageMode.value, category: category.value, grouping: grouping.value,
-      face: face.value, theme: theme.value, appearance: sharedAppearance.value, filters: filters.value }
+      face: face.value, theme: theme.value, appearance: sharedAppearance.value, filters: filters.value,
+      ...(Object.keys(boardSelections.value).length ? { boardSelections: boardSelections.value } : {}) }
   }
   function persist() {
     try { wx.setStorageSync('benchgauge.preferences', preferencesSnapshot()) } catch { /* Preferences are optional. */ }
@@ -716,6 +738,15 @@ definePage(query => {
   onReady(() => { pageReady = true; measureSourceTabs(); playEntrance(); syncTimestampPolish() })
   onShow(() => {
     pageVisible = true
+    updateTheme()
+    const latest = (() => { try { return normalizeBoardSelections(wx.getStorageSync('benchgauge.preferences')?.boardSelections) } catch { return boardSelections.value } })()
+    if (JSON.stringify(latest) !== JSON.stringify(boardSelections.value)) {
+      const nextFace = selectedBoardFace(category.value, face.value, boardSelections.value, latest)
+      stopCube(); boardSelections.value = latest; face.value = nextFace
+      cubePosition.value = nextFace; cubeOrigin.value = nextFace
+      expandedBoards.value = {}; rowRenderers.clear(); resetScroll(); measureSourceTabs(); measureLists()
+      persist(); autoRefresh()
+    }
     syncTimestampPolish()
     syncSourceTabsAfterScroll(current.value.kinds[face.value])
     if (languageMode.value === 'system') {
@@ -746,9 +777,9 @@ definePage(query => {
     }
     changeCategory(id)
   }
-  function changeCategory(id) {
+  function changeCategory(id, destination = face.value) {
     blurModelSearch(); stopCube(); entrancePlayed = true
-    expandedBoards.value = {}; category.value = id; face.value = Math.min(face.value, current.value.kinds.length - 1); cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1; rowRenderers.clear(); resetScroll(); persist(); autoRefresh()
+    expandedBoards.value = {}; category.value = id; face.value = Math.min(destination, current.value.kinds.length - 1); cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1; rowRenderers.clear(); resetScroll(); persist(); autoRefresh()
     syncTimestampPolish()
   }
   function selectGrouping(event) {
@@ -1090,6 +1121,7 @@ definePage(query => {
     } else wx.showToast({ title: tr('savedImages'), icon: 'success' })
   }
   const about = () => wx.navigateTo({ url: sharePath(preferencesSnapshot(), dark.value ? 'dark' : 'light', '/pages/about/index') })
+  const openSettings = () => { blurModelSearch(); stopCube(); persist(); wx.navigateTo({ url: '/pages/settings/index' }) }
   const quotaHelpContent = computed(() => tr('quotaHelp'))
   const quotaHelp = () => { stopCube(); entrancePlayed = true; showingFeatureHelp.value = true }
   const closeFeatureHelp = () => { showingFeatureHelp.value = false }
@@ -1098,11 +1130,11 @@ definePage(query => {
   return { labels, subtitleParts, brandTitle, groupingControl, categoryItems, categoryIndex, categoryThemeStyle, category, grouping, face, dark, cards, tabs, sourceTabIcons, backToTop, skeletonRows,
     modelSearchQuery, modelSearchVisible, modelSearchFocused, openModelSearch, inputModelSearch, beginModelSearchClear, cancelModelSearchClear, clearModelSearch, closeModelSearch, blurModelSearch, deferModelSearchBlur, focusModelSearch,
     statusBar, navHeight, headerTop, capsuleWidth, sheet, backgroundLocked,
-    cubeFaces, sourceSelection, sourceTabIndex, sourceTabsStyle, sourceTabsExtent, cubeViewportStyle,
+    cubeFaces, sourceSelection, sourceTabIndex, sourceTabsStyle, sourceTabsExtent, sourceTabWidth, sourceTabItems, cubeViewportStyle,
     cubePosition, cubeDuration, cubeBusy, cubeDragging, entranceStyle, entranceHintVisible,
     cubeStart, cubeMove, cubeEnd, cubeCancel, tabStart, tabMove, tabEnd, cancelTabDrag, attributeHint,
     selectCategory, selectGrouping, selectFace, changeFace, scroll, top, filterMenu, toggleRanking,
-    clearFilters, preferences, sheetSelect, closeSheet, sourceHelp, timeHelp, countryHelp, copyBoardTitle, copyPurchaseLink, rowDetails, companyDetails, closeCompanyDetails, copyCompanyName, about,
+    clearFilters, preferences, sheetSelect, closeSheet, sourceHelp, timeHelp, countryHelp, copyBoardTitle, copyPurchaseLink, rowDetails, companyDetails, closeCompanyDetails, copyCompanyName, about, openSettings,
     quotaHelp, quotaHelpContent, showingFeatureHelp, closeFeatureHelp, copyDesktopLink, refreshTap, autoRefresh, pullRefresh, pullRefreshing, pullRefreshKind, finishPullRefresh,
     capturing, capture, screenshot, closeCapture, previewScreenshot, saveScreenshot }
 }, { canShareToOthers: true })

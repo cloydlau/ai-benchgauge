@@ -3,6 +3,47 @@ import Testing
 import LeaderboardKit
 @testable import LeaderboardPadUI
 
+@MainActor @Test func mobileBoardSettingsPersistKeepOneAndResetWithoutChangingTheSelectedBoard() throws {
+    let name = "board-settings-\(UUID())"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    CategoryPreference.save(.general, to: defaults)
+    defaults.set(2, forKey: "mobileSelectedSource")
+    let store = LeaderboardPadStore(defaults: defaults)
+    #expect(store.selectedKind == .epochECI)
+    store.toggleBoard(.artificialAnalysis, in: .general)
+    #expect(store.selectedKind == .epochECI && store.selectedSource == 1)
+    store.toggleBoard(.arenaText, in: .general)
+    #expect(store.visibleBoardKinds == [.epochECI] && store.selectedSource == 0)
+    store.toggleBoard(.epochECI, in: .general)
+    #expect(store.visibleBoardKinds == [.epochECI])
+    store.toggleBoard(.artificialAnalysisCodingAgent, in: .coding)
+    #expect(store.boardKinds(for: .coding) == [.codeArenaWebDev])
+    #expect(store.visibleBoardKinds == [.epochECI])
+    let restored = LeaderboardPadStore(defaults: defaults)
+    #expect(restored.visibleBoardKinds == [.epochECI] && restored.selectedKind == .epochECI)
+    let frozen = LeaderboardPadStore(exporting: restored)
+    #expect(frozen.boardSelections == restored.boardSelections)
+    #expect(frozen.visibleBoardKinds == [.epochECI])
+    restored.resetBoardSelections()
+    #expect(restored.selectedKind == .epochECI && restored.selectedSource == 2)
+    #expect(restored.visibleBoardKinds == LeaderboardCategory.general.boardKinds)
+    #expect(restored.boardKinds(for: .coding) == LeaderboardCategory.coding.boardKinds)
+    restored.toggleBoard(.epochECI, in: .general)
+    #expect(restored.selectedKind == .arenaText && restored.selectedSource == 1)
+}
+
+@MainActor @Test func mobileBoardSettingsRepairAnEmptyOrRetiredSelectionInEveryCategory() throws {
+    let name = "obsolete-board-settings-\(UUID())"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    defaults.set(["general": [], "coding": ["retired"]], forKey: "mobileBoardSelections")
+    let store = LeaderboardPadStore(defaults: defaults)
+    for category in LeaderboardCategory.allCases {
+        #expect(store.boardKinds(for: category) == category.boardKinds)
+    }
+}
+
 @MainActor @Test func rapidUnchangedRefreshStillSignalsTimestampPolish() async throws {
     let name = "timestamp-polish-\(UUID())"
     let defaults = try #require(UserDefaults(suiteName: name))

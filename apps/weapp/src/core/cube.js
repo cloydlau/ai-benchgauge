@@ -5,6 +5,16 @@ export function cubeTarget(face, destination, count) {
   return Math.abs(distance) * 2 > count ? target + (distance > 0 ? -count : count) : target
 }
 
+// Sources are linear within a tab; only the category tabs wrap.
+export function cubeNavigation(category, destination, counts) {
+  if (destination < 0) {
+    category = cubeIndex(category - 1, counts.length)
+    return { category, face: counts[category] - 1 }
+  }
+  if (destination >= counts[category]) return { category: cubeIndex(category + 1, counts.length), face: 0 }
+  return { category, face: destination }
+}
+
 export function cubeRenderedFace(index, origin, direction, count) {
   if (index === origin) return origin
   return index === cubeIndex(origin + direction, count) ? origin + direction : origin + direction * 2

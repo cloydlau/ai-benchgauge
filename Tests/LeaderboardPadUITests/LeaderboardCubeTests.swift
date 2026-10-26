@@ -199,7 +199,7 @@ import Foundation
     #expect(LeaderboardCube.target(face: 0, destination: 1, count: 2) == 1)
     #expect(LeaderboardCube.normalized(-7, count: 3) == 2)
     #expect(LeaderboardCube.normalized(3, count: 0) == 0)
-    #expect(LeaderboardCube.position(face: 0, translation: -300, width: 300, count: 1) == 0)
+    #expect(LeaderboardCube.position(face: 0, translation: -300, width: 300, count: 1) == 1)
 }
 
 @Test @MainActor func completedOrInterruptedWrapRebasesAndIgnoresStaleCompletions() {
@@ -219,4 +219,20 @@ import Foundation
     let serial = cube.beginEntrance(reduceMotion: false)!
     #expect(cube.origin == 2 && cube.direction == -1 && cube.position > 1.5)
     cube.finishEntrance(serial)
+}
+
+@Test func cubeNavigatesLinearSourcesAndCircularCategories() {
+    let counts = [3, 3, 2, 1, 2]
+    for category in counts.indices {
+        for face in 0..<counts[category] {
+            for direction in -1...1 {
+                let destination = face + direction
+                let next = LeaderboardCube.navigation(category: category, destination: destination, counts: counts)
+                let expected = destination < 0 ? (category + counts.count - 1) % counts.count
+                    : destination >= counts[category] ? (category + 1) % counts.count : category
+                #expect(next.category == expected)
+                #expect(next.face == (destination < 0 ? counts[expected] - 1 : destination >= counts[category] ? 0 : destination))
+            }
+        }
+    }
 }

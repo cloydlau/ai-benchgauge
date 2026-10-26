@@ -106,7 +106,7 @@ enum LeaderboardCube {
         return abs(y) >= 8 ? .vertical : .undecided
     }
     static func position(face: Int, translation: Double, width: Double, count: Int = 2) -> Double {
-        guard width > 0, count > 1 else { return Double(face) }
+        guard width > 0, count > 0 else { return Double(face) }
         return min(Double(face + 1), max(Double(face - 1), Double(face) - translation / width))
     }
     static func destination(face: Int, translation: Double, predicted: Double, width: Double, count: Int = 2) -> Int {
@@ -118,11 +118,19 @@ enum LeaderboardCube {
         let count = max(1, count)
         return ((face % count) + count) % count
     }
-    /// Tab taps take the shortest route; swipes pass their signed virtual target.
+    /// Explicit source tab taps take the shortest route; boundary swipes navigate categories.
     static func target(face: Int, destination: Int, count: Int) -> Int {
         let target = normalized(destination, count: count)
         let distance = target - face
         return abs(distance) * 2 > count ? target + (distance > 0 ? -count : count) : target
+    }
+    static func navigation(category: Int, destination: Int, counts: [Int]) -> (category: Int, face: Int) {
+        if destination < 0 {
+            let previous = normalized(category - 1, count: counts.count)
+            return (previous, counts[previous] - 1)
+        }
+        if destination >= counts[category] { return (normalized(category + 1, count: counts.count), 0) }
+        return (category, destination)
     }
     /// Keep outgoing/incoming hosts on fixed adjacent sides throughout a turn.
     /// Two-source categories need this direction to disambiguate the same neighbour.

@@ -4,6 +4,20 @@ import { boards, categories, languages } from '../src/core/catalog.js'
 import { normalizePreferences, pagePreferences, readSharedPreferences, sharePath } from '../src/core/share-state.js'
 
 const queryFor = path => Object.fromEntries(new URL('https://shared.example' + path).searchParams)
+test('shared selections restore exactly the visible boards and repair empty or outdated saved choices', () => {
+  const preferences = { category: 'general', face: 0, language: 'zh-CN', boardSelections: { general: ['epochECI'], coding: ['codeArenaWebDev'] },
+    filters: { epochECI: { country: 'CN', openness: 'open' } } }
+  const query = queryFor(sharePath(preferences, 'light'))
+  assert.equal(JSON.parse(query.state).f, 2, 'Older receivers still open Epoch when they ignore visibility settings')
+  const restored = readSharedPreferences(query)
+  assert.deepEqual(restored.boardSelections, preferences.boardSelections)
+  assert.equal(restored.face, 0)
+  assert.equal(restored.filters.epochECI.country, 'CN')
+  assert.deepEqual(normalizePreferences({ boardSelections: { general: [], coding: ['retired'] } }).boardSelections, undefined)
+  const legacy = readSharedPreferences(queryFor(sharePath({ category: 'general', face: 2 }, 'light')))
+  assert.equal(legacy.face, 2)
+  assert.equal(legacy.boardSelections, undefined)
+})
 test('every category, grouping, source, language and appearance survives sharing', () => {
   const filters = Object.fromEntries(Object.keys(boards).map((kind, index) => [kind, {
     country: index % 2 ? 'unknown' : 'SG', openness: ['all', 'open', 'closed', 'unknown'][index % 4],

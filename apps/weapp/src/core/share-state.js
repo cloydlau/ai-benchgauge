@@ -1,5 +1,6 @@
 import { boards, categories, hasOwn, languages } from './catalog.js'
 import { normalizedCountryCode } from '../../../../fc/domain.mjs'
+import { visibleBoardKinds, normalizeBoardSelections } from './board-selection.js'
 
 const groupings = ['model', 'company']
 const themes = ['system', 'light', 'dark']
@@ -9,9 +10,9 @@ const isObject = value => value !== null && typeof value === 'object' && !Array.
 const validCategory = value => categories.some(category => category.id === value)
 const validCountry = value => typeof value === 'string' && /^(all|unknown|[A-Z]{2})$/.test(value)
 
-function normalizeFilters(value, category, face) {
+function normalizeFilters(value, category, face, selections) {
   // Migrate older per-board/category preferences from the visible board.
-  const kind = categories.find(group => group.id === category).kinds[face]
+  const kind = visibleBoardKinds(category, selections)[face]
   const filter = isObject(value) && hasOwn(value, kind) && isObject(value[kind]) ? value[kind] : {}
   const country = validCountry(filter.country) ? normalizedCountryCode(filter.country) ?? filter.country : 'all'
   const openness = opennessValues.includes(filter.openness) ? filter.openness : 'all'
@@ -34,7 +35,8 @@ export function normalizePreferences(value, locale) {
   // keep following the host language even when another setting is saved.
   const manualLanguage = languages.includes(value.language) && value.languageMode !== 'system'
   const category = validCategory(value.category) ? value.category : 'general'
-  const face = Math.max(0, Math.min(categories.find(item => item.id === category).kinds.length - 1, Number.isInteger(Number(value.face)) ? Number(value.face) : 0))
+  const boardSelections = normalizeBoardSelections(value.boardSelections)
+  const face = Math.max(0, Math.min(visibleBoardKinds(category, boardSelections).length - 1, Number.isInteger(Number(value.face)) ? Number(value.face) : 0))
   return {
     category,
     grouping: groupings.includes(value.grouping) ? value.grouping : 'model',
@@ -45,7 +47,8 @@ export function normalizePreferences(value, locale) {
     // A system-theme share starts with the sender's appearance, until the
     // receiver changes their system appearance or chooses an appearance option.
     appearance: theme === 'system' && appearances.includes(value.appearance) ? value.appearance : null,
-    filters: normalizeFilters(value.filters, category, face),
+    filters: normalizeFilters(value.filters, category, face, boardSelections),
+    ...(Object.keys(boardSelections).length ? { boardSelections } : {}),
   }
 }
 
@@ -63,8 +66,11 @@ export function readSharedPreferences(query = {}) {
       const pair = hasOwn(state.x, kind) ? state.x[kind] : null
       if (Array.isArray(pair) && pair.length === 2) filters[kind] = { country: pair[0], openness: pair[1] }
     }
-    return normalizePreferences({ category: state.c, grouping: state.g, face: state.f,
-      language: state.l, theme: state.t, appearance: state.a, filters })
+    const selections = normalizeBoardSelections(state.b)
+    const kind = categories.find(item => item.id === state.c).kinds[state.f]
+    const face = Math.max(0, visibleBoardKinds(state.c, selections).indexOf(kind))
+    return normalizePreferences({ category: state.c, grouping: state.g, face,
+      language: state.l, theme: state.t, appearance: state.a, filters, boardSelections: state.b })
   } catch { return null }
 }
 
@@ -76,18 +82,23 @@ export function pagePreferences(query = {}, saved = {}, locale) {
   if (validCategory(query.category)) preferences.category = query.category
   if (groupings.includes(query.grouping)) preferences.grouping = query.grouping
   if (/^[0-2]$/.test(query.face)) preferences.face = Number(query.face)
-  preferences.face = Math.min(preferences.face, categories.find(item => item.id === preferences.category).kinds.length - 1)
+  preferences.face = Math.min(preferences.face, visibleBoardKinds(preferences.category, preferences.boardSelections).length - 1)
   if (languages.includes(query.language)) { preferences.language = query.language; preferences.languageMode = 'manual' }
   if (themes.includes(query.theme)) { preferences.theme = query.theme; preferences.appearance = null }
-  preferences.filters = normalizeFilters(saved.filters, preferences.category, preferences.face)
+  preferences.filters = normalizeFilters(saved.filters, preferences.category, preferences.face, preferences.boardSelections)
   return { ...preferences, fromShare: false }
 }
 
 export function sharePath(value, appearance, path = '/pages/leaderboard/index') {
   const preferences = normalizePreferences(value)
   const actualAppearance = appearances.includes(appearance) ? appearance : preferences.theme === 'dark' ? 'dark' : 'light'
-  const state = { v: 1, c: preferences.category, g: preferences.grouping, f: preferences.face,
+  // Keep the original catalog index in links, so older clients still open the
+  // correct board when they do not understand the optional visibility snapshot.
+  const kind = visibleBoardKinds(preferences.category, preferences.boardSelections)[preferences.face]
+  const face = categories.find(item => item.id === preferences.category).kinds.indexOf(kind)
+  const state = { v: 1, c: preferences.category, g: preferences.grouping, f: face,
     l: preferences.language, t: preferences.theme, a: actualAppearance,
+    ...(preferences.boardSelections ? { b: preferences.boardSelections } : {}),
     // All-default filters are deliberately omitted. The complete snapshot
     // replaces receiver preferences, so omission resets that board's filters.
     x: Object.fromEntries(Object.entries(preferences.filters).map(([kind, filter]) => [kind, [filter.country, filter.openness]])) }

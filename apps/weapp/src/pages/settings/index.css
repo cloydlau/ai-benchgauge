@@ -1,0 +1,17 @@
+.settings-page { min-height: 100vh; padding: 0 28rpx calc(env(safe-area-inset-bottom) + 40rpx); }
+.settings-nav { display: flex; align-items: center; gap: 12rpx; font-size: 26rpx; font-weight: 600; }
+.settings-back { width: 36px; }
+.settings-main { max-width: 560px; margin: 20rpx auto 0; }
+.settings-heading { display: flex; align-items: center; justify-content: space-between; font-size: 36rpx; font-weight: 600; }
+.reset-boards { font-size: 24rpx; font-weight: 400; color: var(--blue); padding: 0 8rpx; }
+.settings-hint { display: block; margin: 0 0 32rpx; font-size: 24rpx; color: var(--muted); line-height: 1.6; }
+.settings-group + .settings-group { margin-top: 30rpx; }
+.settings-category { display: block; padding: 0 20rpx 12rpx; color: var(--muted); font-size: 24rpx; }
+.settings-options { padding: 0 20rpx; border-radius: 20rpx; background: var(--card); }
+.settings-board { display: flex; align-items: center; gap: 20rpx; width: 100%; min-height: 52px; padding: 20rpx 0; text-align: left; }
+.settings-board + .settings-board { border-top: 1rpx solid var(--line); }
+.settings-logo { flex-shrink: 0; width: 26px; height: 26px; }
+.settings-board-title { flex: 1; min-width: 0; font-size: 26rpx; line-height: 1.45; }
+.settings-check { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 7px; }
+.settings-check.is-selected { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.required-board .settings-check { opacity: .45; }

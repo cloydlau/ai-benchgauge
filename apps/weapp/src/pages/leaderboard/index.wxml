@@ -17,12 +17,14 @@
     </view>
   </view>
   <view class="board-stage">
-  <view class="source-tabs " role="tablist" style="{{sourceTabsStyle}}" data-tabs="source" bindtouchstart="tabStart" catchtouchmove="tabMove" bindtouchend="tabEnd" bindtouchcancel="cancelTabDrag">
+  <view class="source-tabs {{tabs.length < 2 ? 'is-hidden' : ''}}" role="tablist" aria-hidden="{{tabs.length < 2}}" style="{{sourceTabsStyle}}" data-tabs="source" bindtouchstart="tabStart" catchtouchmove="tabMove" bindtouchend="tabEnd" bindtouchcancel="cancelTabDrag">
     <view class="source-selection" style="{{sourceSelection}}" aria-hidden="true" />
-    <button wx:for="{{tabs}}" wx:key="*this" class="source-tab source-{{index}} {{sourceTabIndex === index ? 'active' : ''}}"
+    <button wx:for="{{sourceTabItems}}" wx:key="index" class="source-tab source-{{index}} {{sourceTabIndex === index ? 'active' : ''}}" style="width:{{sourceTabWidth}};"
       data-index="{{index}}" bindtap="selectFace" role="tab" aria-selected="{{sourceTabIndex === index}}">
-      <image class="source-tab-logo" src="{{sourceTabIcons[index]}}" mode="aspectFit" aria-hidden="true" />
-      <text class="source-tab-label">{{item}}</text>
+      <view wx:for="{{item.content}}" wx:for-item="content" wx:key="kind" class="source-tab-content">
+        <image class="source-tab-logo" src="{{content.icon}}" mode="aspectFit" aria-hidden="true" />
+        <text class="source-tab-label">{{content.label}}</text>
+      </view>
     </button>
   </view>
   <view class="boards" style="{{entranceStyle}}{{cubeViewportStyle}}" bindtouchstart="cubeStart" bindtouchmove="cubeMove" bindtouchend="cubeEnd" bindtouchcancel="cubeCancel">
@@ -137,6 +139,7 @@
         <view class="footer safe-bottom {{backToTop ? 'with-back-top' : ''}}">
           <button class="tap" bindtap="about">{{labels.about}}</button>
           <view class="footer-actions">
+            <button class="tap settings-entry" bindtap="openSettings" aria-label="{{labels.preferences}}"><van-icon name="setting-o" size="18px" /></button>
             <button class="tap" data-mode="language" bindtap="preferences" aria-label="{{labels.language}}"><text class="language-symbol">文/A</text></button>
             <button class="tap" data-mode="theme" bindtap="preferences" aria-label="{{labels.theme}}"><view class="theme-symbol" aria-hidden="true" /></button>
           </view>

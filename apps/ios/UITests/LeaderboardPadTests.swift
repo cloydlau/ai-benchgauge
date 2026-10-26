@@ -1427,30 +1427,69 @@ final class LeaderboardPhoneTests: XCTestCase {
             app.terminate()
         }
     }
-    func testCubeWrapsForwardAndBackwardWithoutMovingTheViewport() {
+    func testBoardSettingsKeepOneHideTabsAndReset() {
+        app.launch()
+        waitForFace("artificialAnalysis")
+        func openSettings() {
+            let button = app.buttons["settings"].firstMatch
+            for _ in 0..<12 {
+                if button.isHittable { break }
+                app.scrollViews.firstMatch.swipeUp()
+            }
+            XCTAssertTrue(button.isHittable)
+            button.tap()
+            XCTAssertTrue(app.otherElements["settings-page"].waitForExistence(timeout: 5))
+        }
+        openSettings()
+        let first = app.buttons["board-setting-artificialAnalysis"]
+        for _ in 0..<6 {
+            if first.isHittable { break }
+            app.scrollViews.firstMatch.swipeUp()
+        }
+        first.tap()
+        app.buttons["board-setting-arenaText"].tap()
+        XCTAssertFalse(app.buttons["board-setting-epochECI"].isEnabled)
+        app.buttons["settings-done"].tap()
+        waitForFace("epochECI")
+        XCTAssertFalse(app.buttons["face-0"].exists)
+        XCTAssertFalse(app.buttons["face-1"].exists)
+        swipe(left: true)
+        waitForFace("artificialAnalysisCodingAgent")
+        swipe(left: false)
+        waitForFace("epochECI")
+        openSettings()
+        let reset = app.buttons["reset-boards"]
+        for _ in 0..<6 {
+            if reset.isHittable { break }
+            app.scrollViews.firstMatch.swipeDown()
+        }
+        reset.tap()
+        app.buttons["settings-done"].tap()
+        waitForFace("epochECI")
+        let top = app.buttons["leaderboard-back-to-top"]
+        if top.isHittable { top.tap() }
+        XCTAssertTrue(app.buttons["face-2"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["face-2"].isSelected)
+    }
+    func testCubeCrossesCategoriesAndOnlyCategoryTabsWrap() {
         app.launch()
         waitForFace("artificialAnalysis")
         let viewport = app.otherElements["cube-viewport"].frame
-        for kind in ["arenaText", "epochECI", "artificialAnalysis", "arenaText", "epochECI", "artificialAnalysis"] {
+        let sequence = ["artificialAnalysis", "arenaText", "epochECI", "artificialAnalysisCodingAgent",
+            "codeArenaWebDev", "artificialAnalysisTextToImage", "arenaTextToImage",
+            "artificialAnalysisTextToVideo", "arenaTextToVideo", "openRouterUsage", "vercelUsage", "cloudbaseUsage"]
+        for kind in Array(sequence.dropFirst()) + [sequence[0]] {
             swipe(left: true)
             waitForFace(kind)
             XCTAssertEqual(app.otherElements["cube-viewport"].frame, viewport)
         }
-        capture("iphone-cube-wrap-forward")
-        for kind in ["epochECI", "arenaText", "artificialAnalysis"] {
+        capture("iphone-cube-category-forward")
+        for kind in Array(sequence.dropFirst().reversed()) + [sequence[0]] {
             swipe(left: false)
             waitForFace(kind)
+            XCTAssertEqual(app.otherElements["cube-viewport"].frame, viewport)
         }
-        capture("iphone-cube-wrap-backward")
-        app.otherElements["category"].buttons["Coding"].tap()
-        waitForFace("artificialAnalysisCodingAgent")
-        for kind in ["codeArenaWebDev", "artificialAnalysisCodingAgent", "codeArenaWebDev", "artificialAnalysisCodingAgent"] {
-            swipe(left: true)
-            waitForFace(kind)
-        }
-        swipe(left: false)
-        waitForFace("codeArenaWebDev")
-        capture("iphone-cube-two-sources-wrap")
+        capture("iphone-cube-category-backward")
     }
     func testSwipeAndTapBothFacesThenRefresh() {
         app.launch()

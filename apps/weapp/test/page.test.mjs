@@ -1596,44 +1596,165 @@ test('a board shorter than the viewport opens its tab space together with the ro
   assert.equal(h.page.backToTop.value, false)
 })
 
-test('cube wraps indefinitely in both directions, keeps rank and rebases its animation after each seam', async t => {
+test('cube traverses every source and category in both directions, only wrapping category tabs', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const touch = x => ({ touches: [{ clientX: x, clientY: 200 }] })
-  for (const category of ['general', 'coding']) for (const direction of [-1, 1]) {
-    const count = category === 'general' ? 3 : 2
-    const h = setup({ category, face: direction > 0 ? count - 1 : 0 }, 1000)
+  const expand = h => h.page.cards.value.filter(card => card.hasMore && !card.expanded)
+    .forEach(card => h.page.toggleRanking(event({ kind: card.kind })))
+  const sequence = categories.flatMap(item => item.kinds.map((kind, face) => ({ category: item.id, face, kind })))
+  for (const direction of [-1, 1]) {
+    let index = direction > 0 ? 0 : sequence.length - 1
+    const initial = sequence[index], h = setup(initial, 1000)
     const loading = h.loadCategory(); h.respondCategory(); await loading
-    expandRankings(h)
-    const kind = h.page.cards.value[h.page.face.value].kind
-    h.page.scroll({ currentTarget: { dataset: { kind } }, detail: { scrollTop: 2400 } })
-    for (let turn = 0; turn < count * 2; turn++) {
-      const origin = h.page.face.value, next = (origin + direction + count) % count
+    expand(h)
+    for (let turn = 0; turn < sequence.length * 2; turn++) {
+      const origin = sequence[index]
+      const next = sequence[(index + direction + sequence.length) % sequence.length]
+      const boundary = origin.category !== next.category
+      const kind = origin.kind
+      h.page.cubeStart(touch(180))
+      h.page.scroll({ currentTarget: { dataset: { kind } }, detail: { scrollTop: 2400 } })
       h.page.cubeStart(touch(180)); h.page.cubeMove(touch(180 - direction * 240))
       assert.equal(h.page.cubeDragging.value, true)
-      assert.equal(h.page.cubeBusy.value, true)
-      assert.equal(h.scrolls.at(-1).top, 2400)
-      assert.ok(h.page.cards.value[next].rows.some(row => row.rank === 51))
+      if (boundary) {
+        assert.equal(h.page.cubePosition.value, origin.face, 'Boundary holds the current board flat')
+        assert.equal(h.page.cubeBusy.value, false)
+      } else {
+        assert.equal(h.page.cubeBusy.value, true)
+        assert.equal(h.scrolls.at(-1).top, 2400, `${direction} ${turn} ${kind} -> ${next.kind}: ${h.page.cards.value[next.face].shownCount} rows`)
+        assert.ok(h.page.cards.value[next.face].rows.some(row => row.rank === 51))
+      }
       h.page.cubeEnd()
-      assert.equal(h.page.face.value, next)
-      assert.equal(h.writes.filter(write => write.key === 'benchgauge.preferences').at(-1).value.face, next)
-      t.mock.timers.tick(24)
-      assert.equal(h.page.cubePosition.value, origin + direction)
-      assert.match(h.page.cubeFaces.value[next].style, /transform:none/)
-      t.mock.timers.tick(440)
-      assert.equal(h.page.cubePosition.value, next)
+      assert.equal(h.page.category.value, next.category)
+      assert.equal(h.page.face.value, next.face)
+      const saved = h.writes.filter(write => write.key === 'benchgauge.preferences').at(-1).value
+      assert.equal(saved.category, next.category); assert.equal(saved.face, next.face)
+      t.mock.timers.tick(24); t.mock.timers.tick(440)
+      assert.equal(h.page.cubePosition.value, next.face)
       assert.equal(h.page.cubeBusy.value, false)
-      assert.match(h.page.cubeFaces.value[next].style, /transform:none.*pointer-events:auto/)
+      assert.match(h.page.cubeFaces.value[next.face].style, /transform:none.*pointer-events:auto/)
+      h.respondCategory(); await new Promise(resolve => setImmediate(resolve)); expand(h)
+      index = (index + direction + sequence.length) % sequence.length
     }
     globalThis.__benchHooks.unload()
   }
 })
 
-test('cancelled and reversed boundary drags cannot commit a wrap or let an old timer overwrite navigation', t => {
+test('short or cancelled boundary drags leave the category and its flat board unchanged', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  const touch = x => ({ touches: [{ clientX: x, clientY: 200 }] })
+  for (const item of categories) for (const direction of [-1, 1]) for (const cancel of [false, true]) {
+    const face = direction > 0 ? item.kinds.length - 1 : 0
+    const h = setup({ category: item.id, face })
+    h.page.cubeStart(touch(180))
+    t.mock.timers.tick(200)
+    h.page.cubeMove(touch(180 - direction * (cancel ? 240 : 40)))
+    t.mock.timers.tick(200)
+    if (cancel) h.page.cubeCancel()
+    else h.page.cubeEnd()
+    t.mock.timers.tick(1000)
+    assert.equal(h.page.category.value, item.id)
+    assert.equal(h.page.face.value, face)
+    assert.equal(h.page.cubePosition.value, face)
+    assert.equal(h.page.cubeBusy.value, false)
+    assert.equal(h.page.cubeDragging.value, false)
+    globalThis.__benchHooks.unload()
+  }
+})
+
+test('settings visibility survives reload, hides the single-source tab space and navigates categories using visible counts', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const boardSelections = Object.fromEntries(categories.map(item => [item.id, [item.kinds.at(-1)]]))
+  const touch = x => ({ touches: [{ clientX: x, clientY: 200 }] })
+  for (const direction of [-1, 1]) {
+    let index = 1
+    const h = setup({ category: 'general', face: 2, boardSelections })
+    for (let turn = 0; turn < categories.length * 2; turn++) {
+      assert.equal(h.page.cards.value.length, 1)
+      assert.equal(h.page.cards.value[0].kind, categories[index].kinds.at(-1))
+      assert.equal(h.page.face.value, 0)
+      assert.equal(h.page.sourceTabsExtent.value, 0)
+      assert.match(h.page.cubeViewportStyle.value, /--cube-top:0px/)
+      h.page.cubeStart(touch(180)); h.page.cubeMove(touch(180 - direction * 240)); h.page.cubeEnd()
+      index = (index + direction + categories.length) % categories.length
+      assert.equal(h.page.category.value, categories[index].id)
+      assert.equal(h.page.entranceHintVisible.value, false)
+    }
+    globalThis.__benchHooks.unload()
+  }
+  const template = readFileSync(new URL('../src/pages/leaderboard/index.wxml', import.meta.url), 'utf8')
+  assert.match(template, /class="source-tabs \{\{tabs.length < 2 \? 'is-hidden' : ''\}\}"/)
+  assert.match(template, /aria-hidden="\{\{tabs.length < 2\}\}"/)
+  assert.doesNotMatch(template, /wx:if="[^"]*" class="source-tabs /, 'Keep the indicator mounted to animate count changes')
+  assert.match(template, /bindtap="openSettings"/)
+})
+
+test('source tabs keep valid geometry and source identities through category, count and palette changes', () => {
+  const preferences = { category: 'general', face: 2 }
+  const h = setup(preferences)
+  try {
+    for (const dark of [false, true]) {
+      h.theme(dark ? 'dark' : 'light')
+      for (const category of categories) {
+        h.page.selectCategory(event({ id: category.id }))
+        for (const count of [...new Set([1, 2, category.kinds.length])].filter(count => count <= category.kinds.length)) {
+          preferences.boardSelections = { [category.id]: category.kinds.slice(0, count) }
+          globalThis.__benchHooks.show()
+          const selectedKind = h.page.cards.value[h.page.sourceTabIndex.value].kind
+          assert.equal(h.page.sourceTabItems.value.length, count)
+          assert.deepEqual(h.page.sourceTabItems.value.map(item => item.content[0].kind), category.kinds.slice(0, count))
+          assert.deepEqual(h.page.sourceTabItems.value.map(item => item.index), Array.from({ length: count }, (_, i) => i))
+          assert.ok(h.page.sourceTabItems.value.every(item => item.content[0].label && item.content[0].icon))
+          assert.equal(h.page.sourceTabWidth.value, `calc((100% - ${(count - 1) * 12}rpx) / ${count})`)
+          assert.ok(h.page.sourceSelection.value.includes(`width:${h.page.sourceTabWidth.value};`))
+          assert.ok(h.page.sourceSelection.value.includes(`background-color:${sourceTabTheme(selectedKind, dark).background};`))
+          assert.equal(h.page.sourceTabsExtent.value, count === 1 ? 0 : 50)
+          assert.equal(/pointer-events:none/.test(h.page.sourceTabsStyle.value), count === 1)
+        }
+      }
+    }
+  } finally { globalThis.__benchHooks.unload() }
+})
+
+test('source tab styling interpolates geometry with color and disables every added animation for reduced motion', () => {
+  const styles = readFileSync(new URL('../src/pages/leaderboard/index.css', import.meta.url), 'utf8')
+  assert.match(styles, /\.source-selection\s*\{[^}]*transition-property:\s*width, transform, background-color;/)
+  assert.match(styles, /\.source-tab\s*\{[^}]*transition:\s*width 420ms ease-in-out, color 420ms ease-in-out;/)
+  assert.match(styles, /prefers-reduced-motion:\s*reduce[^\n]*\.source-tab-logo[^\n]*transition-delay:\s*0ms[^\n]*\.source-tab-content\s*\{\s*animation:\s*none;/)
+  const template = readFileSync(new URL('../src/pages/leaderboard/index.wxml', import.meta.url), 'utf8')
+  assert.match(template, /wx:for="\{\{sourceTabItems\}\}" wx:key="index"/)
+  assert.match(template, /wx:for-item="content" wx:key="kind"/)
+})
+
+test('returning from settings preserves the active source when hiding siblings or resetting', () => {
+  const preferences = { category: 'general', face: 2 }
+  const h = setup(preferences)
+  const show = () => globalThis.__benchHooks.show()
+  assert.equal(h.page.cards.value[h.page.face.value].kind, 'epochECI')
+  preferences.boardSelections = { general: ['epochECI'] }
+  show()
+  assert.equal(h.page.face.value, 0)
+  assert.equal(h.page.cards.value.length, 1)
+  assert.equal(h.page.cards.value[0].kind, 'epochECI')
+  delete preferences.boardSelections
+  show()
+  assert.equal(h.page.face.value, 2)
+  assert.equal(h.page.cards.value.length, 3)
+  assert.equal(h.page.sourceTabsExtent.value, 50)
+  preferences.boardSelections = { general: ['arenaText'] }
+  show()
+  assert.equal(h.page.face.value, 0)
+  assert.equal(h.page.cards.value[0].kind, 'arenaText')
+  globalThis.__benchHooks.unload()
+})
+
+test('cancelled and reversed boundary drags cannot switch categories or let an old timer overwrite navigation', t => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const h = setup(), touch = x => ({ touches: [{ clientX: x, clientY: 200 }] })
   h.page.cubeStart(touch(180)); h.page.cubeMove(touch(300)); h.page.cubeCancel()
   t.mock.timers.tick(24); t.mock.timers.tick(440)
   assert.equal(h.page.face.value, 0); assert.equal(h.page.cubePosition.value, 0)
+  assert.equal(h.page.category.value, 'general')
   h.page.cubeStart(touch(180)); h.page.cubeMove(touch(300)); h.page.cubeMove(touch(-60)); h.page.cubeEnd()
   assert.equal(h.page.face.value, 1, 'Reversing before release uses the final direction')
   t.mock.timers.tick(24)
@@ -1642,7 +1763,7 @@ test('cancelled and reversed boundary drags cannot commit a wrap or let an old t
   t.mock.timers.tick(24); t.mock.timers.tick(440)
   assert.equal(h.page.cubePosition.value, 0)
   h.page.cubeStart(touch(180)); h.page.cubeMove(touch(420)); h.page.cubeEnd()
-  assert.equal(h.page.face.value, 2)
+  assert.equal(h.page.category.value, 'usage'); assert.equal(h.page.face.value, 2)
   globalThis.__benchHooks.hide()
   t.mock.timers.tick(400)
   assert.equal(h.page.cubePosition.value, 2); assert.equal(h.page.cubeBusy.value, false)

@@ -23,6 +23,25 @@ public final class LeaderboardPadStore: ObservableObject {
     }
     @Published public var appearance: String { didSet { defaults.set(appearance, forKey: "mobileAppearance") } }
     @Published public var selectedSource: Int { didSet { defaults.set(selectedSource, forKey: "mobileSelectedSource") } }
+    @Published public private(set) var boardSelections: [String: [String]]
+    public var visibleBoardKinds: [LeaderboardKind] { boardKinds(for: category) }
+    public func boardKinds(for category: LeaderboardCategory) -> [LeaderboardKind] {
+        DesktopBoardSelection.kinds(for: category, saved: boardSelections[category.rawValue])
+    }
+    public func toggleBoard(_ kind: LeaderboardKind, in category: LeaderboardCategory) {
+        let next = DesktopBoardSelection.toggling(kind, in: category, saved: boardSelections[category.rawValue])
+        guard next != boardKinds(for: category).map(\.rawValue) else { return }
+        var selections = boardSelections
+        selections[category.rawValue] = next
+        setBoardSelections(selections)
+    }
+    public func resetBoardSelections() { setBoardSelections([:]) }
+    private func setBoardSelections(_ selections: [String: [String]]) {
+        let kind = selectedKind
+        boardSelections = selections
+        selectedSource = visibleBoardKinds.firstIndex(of: kind) ?? min(max(0, selectedSource), visibleBoardKinds.count - 1)
+        defaults.set(boardSelections, forKey: "mobileBoardSelections")
+    }
     @Published public var language: AppLanguage { didSet { rowPresentations.removeAll(); language.save(to: defaults) } }
     // Each grouping retains its own transient query across all sources/categories.
     private var searchQueries: [LeaderboardGrouping: String] = [:]
@@ -58,7 +77,10 @@ public final class LeaderboardPadStore: ObservableObject {
         self.grouping = GroupingPreference.load(from: defaults)
         self.language = AppLanguage.load(from: defaults)
         self.appearance = defaults.string(forKey: "mobileAppearance") ?? "system"
-        self.selectedSource = min(max(0, defaults.integer(forKey: "mobileSelectedSource")), initialCategory.boardKinds.count - 1)
+        let selections = defaults.dictionary(forKey: "mobileBoardSelections") as? [String: [String]] ?? [:]
+        self.boardSelections = selections
+        self.selectedSource = min(max(0, defaults.integer(forKey: "mobileSelectedSource")),
+            DesktopBoardSelection.kinds(for: initialCategory, saved: selections[initialCategory.rawValue]).count - 1)
         for kind in LeaderboardKind.allCases {
             if let raw = defaults.string(forKey: "openness.\(kind.rawValue)") {
                 opennessFilters[kind] = LeaderboardOpennessFilter(rawValue: raw)
@@ -101,6 +123,7 @@ public final class LeaderboardPadStore: ObservableObject {
         language = source.language
         appearance = source.appearance
         selectedSource = source.selectedSource
+        boardSelections = source.boardSelections
         filters = source.filters
         opennessFilters = source.opennessFilters
         searchQueries = source.searchQueries
@@ -143,7 +166,7 @@ public final class LeaderboardPadStore: ObservableObject {
     }
 
     public var selectedKind: LeaderboardKind {
-        category.boardKinds[min(max(0, selectedSource), category.boardKinds.count - 1)]
+        visibleBoardKinds[min(max(0, selectedSource), visibleBoardKinds.count - 1)]
     }
 
     public func refresh(kind: LeaderboardKind? = nil, force: Bool = false, now: Date = Date()) async {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { cubeIndex, cubeTarget, cubeRenderedFace, cubeFaceStyle, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll } from '../src/core/cube.js'
+import { cubeIndex, cubeNavigation, cubeTarget, cubeRenderedFace, cubeFaceStyle, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll } from '../src/core/cube.js'
 
 test('left-edge right swipes yield to navigation for the entire gesture without moving or projecting a turn', () => {
   for (const count of [2, 3]) for (let face = 0; face < count; face++) {
@@ -154,4 +154,21 @@ test('cyclic two- and three-source cubes keep both hosts on adjacent hinges acro
   assert.equal(cubeTarget(0, 2, 3), -1)
   assert.equal(cubeTarget(0, 1, 2), 1)
   assert.equal(cubeTarget(1, 0, 2), 0)
+})
+
+test('source boundaries move between categories and only categories wrap, including a single-source tab', () => {
+  const counts = [3, 3, 2, 1, 2]
+  for (let category = 0; category < counts.length; category++) {
+    for (let face = 0; face < counts[category]; face++) {
+      assert.deepEqual(cubeNavigation(category, face, counts), { category, face })
+      for (const direction of [-1, 1]) {
+        const destination = face + direction
+        const next = cubeNavigation(category, destination, counts)
+        const expectedCategory = destination < 0 ? (category + counts.length - 1) % counts.length
+          : destination >= counts[category] ? (category + 1) % counts.length : category
+        assert.equal(next.category, expectedCategory)
+        assert.equal(next.face, destination < 0 ? counts[expectedCategory] - 1 : destination >= counts[category] ? 0 : destination)
+      }
+    }
+  }
 })

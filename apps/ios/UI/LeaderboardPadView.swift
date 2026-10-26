@@ -16,6 +16,7 @@ private final class PadPresentationState: ObservableObject {
     @Published var showingQuotaTrackingHelp = false
     @Published var pairScrolled = false
     @Published var showingAbout = false
+    @Published var showingSettings = false
     @Published var selectedModel: LeaderboardEntry?
     @Published var showingCapture = false
     @Published var generatingCapture = false
@@ -186,7 +187,7 @@ public struct LeaderboardPadView: View {
 
     public var body: some View {
         GeometryReader { geometry in
-            let layout = MobileLeaderboardLayout(width: geometry.size.width, boardCount: store.category.boardKinds.count)
+            let layout = MobileLeaderboardLayout(width: geometry.size.width, boardCount: store.visibleBoardKinds.count)
             Group {
                 if layout.usesCube {
                     VStack(alignment: .leading, spacing: 12) {
@@ -216,8 +217,8 @@ public struct LeaderboardPadView: View {
         .background { Color.padBackground.ignoresSafeArea() }
         .overlay(alignment: .bottom) {
             MobileCategoryBar(category: $store.category, language: store.language,
-                accent: sourceTabColor(SourceTabTheme.palette(for: store.category.boardKinds[
-                    min(max(0, sourceDragIndex ?? cube.face), store.category.boardKinds.count - 1)],
+                accent: sourceTabColor(SourceTabTheme.palette(for: store.visibleBoardKinds[
+                    min(max(0, sourceDragIndex ?? cube.face), store.visibleBoardKinds.count - 1)],
                     dark: colorScheme == .dark).accent), select: cancelCubeEntrance)
                 .padding(.bottom, 8)
         }
@@ -241,6 +242,7 @@ public struct LeaderboardPadView: View {
         // Keep the floating categories at the screen bottom, underneath the keyboard.
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .sheet(isPresented: $presentation.showingAbout) { aboutSheet }
+        .sheet(isPresented: $presentation.showingSettings) { LeaderboardSettingsView(store: store) }
         .sheet(item: $presentation.selectedModel) { entry in
             ModelDetailsView(entry: entry, language: store.language,
                 copyName: { name in copyName(name); return true }, close: { presentation.selectedModel = nil })
@@ -270,6 +272,11 @@ public struct LeaderboardPadView: View {
         .onChange(of: usesReducedMotion) { cancelCubeEntrance() }
         .onChange(of: store.category) { resetComparison() }
         .onChange(of: store.grouping) { resetComparison() }
+        .onChange(of: store.boardSelections) {
+            cube.face = store.selectedSource
+            sourceDragIndex = nil
+            resetComparison()
+        }
         .environment(\.locale, store.language.locale)
         .preferredColorScheme(store.appearance == "dark" ? .dark : store.appearance == "light" ? .light : nil)
     }
@@ -371,18 +378,11 @@ public struct LeaderboardPadView: View {
     }
 
     @ViewBuilder private var cubeSelector: some View {
-        if store.category == .usage && store.category.boardKinds.count == 1 {
-            HStack(spacing: 8) {
-                Text("OpenRouter").font(.caption.weight(.semibold))
-                Text(LeaderboardPresentation.explanation(.openRouterUsage, language: store.language)).font(.caption)
-            }.foregroundStyle(Color.primary).frame(maxWidth: .infinity, minHeight: 38)
-                .background(Color.padBackground).accessibilityIdentifier("usage-source")
-        } else {
-        let selectedIndex = min(max(0, sourceDragIndex ?? cube.face), store.category.boardKinds.count - 1)
-        let selectedKind = store.category.boardKinds[selectedIndex]
+        let selectedIndex = min(max(0, sourceDragIndex ?? cube.face), store.visibleBoardKinds.count - 1)
+        let selectedKind = store.visibleBoardKinds[selectedIndex]
         let palette = SourceTabTheme.palette(for: selectedKind, dark: colorScheme == .dark)
         HStack(spacing: 6) {
-            ForEach(Array(store.category.boardKinds.enumerated()), id: \.offset) { index, kind in
+            ForEach(Array(store.visibleBoardKinds.enumerated()), id: \.offset) { index, kind in
                 Button { turnCube(to: index) } label: {
                     HStack(spacing: 5) {
                         if let sourceID = SourceTabTheme.sourceID(for: kind) {
@@ -393,18 +393,19 @@ public struct LeaderboardPadView: View {
                         }
                         Text(LeaderboardPresentation.sourceTabTitle(kind, language: store.language))
                             .font(.caption.weight(.semibold)).lineLimit(2)
-                    }.frame(maxWidth: .infinity, minHeight: 38)
+                    }.id(kind).transition(.opacity)
+                        .frame(maxWidth: .infinity, minHeight: 38)
                         .foregroundStyle(selectedIndex == index ? sourceTabColor(palette.foreground) : Color.secondary)
                         .contentShape(Rectangle())
-                }.buttonStyle(.plain).disabled(store.category.boardKinds.count == 1).accessibilityIdentifier("face-\(index)")
+                }.buttonStyle(.plain).disabled(store.visibleBoardKinds.count == 1).accessibilityIdentifier("face-\(index)")
                     .accessibilityAddTraits(cube.face == index ? .isSelected : [])
             }
         }
-        .modifier(MobileTabDrag(count: store.category.boardKinds.count, preview: $sourceDragIndex,
-            enabled: store.category.boardKinds.count > 1 && !cube.turning && !store.modelSearchEditing, begin: cancelCubeEntrance) { turnCube(to: $0) })
+        .modifier(MobileTabDrag(count: store.visibleBoardKinds.count, preview: $sourceDragIndex,
+            enabled: store.visibleBoardKinds.count > 1 && !cube.turning && !store.modelSearchEditing, begin: cancelCubeEntrance) { turnCube(to: $0) })
         .background(alignment: .leading) {
             GeometryReader { geometry in
-                let count = store.category.boardKinds.count
+                let count = store.visibleBoardKinds.count
                 let tabWidth = (geometry.size.width - CGFloat(count - 1) * 6) / CGFloat(count)
                 RoundedRectangle(cornerRadius: 8)
                     .fill(sourceTabColor(palette.background))
@@ -416,8 +417,17 @@ public struct LeaderboardPadView: View {
         .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
         // Keep the rotating faces' shading behind the stationary tab bar.
         .background(Color.padBackground)
-        .animation(usesReducedMotion ? nil : .timingCurve(0.22, 0.7, 0.2, 1, duration: 0.32), value: cube.face)
-        }
+        // Retain the same background through category/count changes so its
+        // width, position and brand fill can interpolate together.
+        .frame(height: store.visibleBoardKinds.count > 1 ? 38 : 0)
+        .opacity(store.visibleBoardKinds.count > 1 ? 1 : 0)
+        .clipped()
+        .allowsHitTesting(store.visibleBoardKinds.count > 1)
+        .accessibilityHidden(store.visibleBoardKinds.count < 2)
+        .animation(usesReducedMotion ? nil : .easeInOut(duration: 0.42), value: selectedIndex)
+        .animation(usesReducedMotion ? nil : .easeInOut(duration: 0.42), value: store.visibleBoardKinds)
+        .animation(usesReducedMotion ? nil : .easeInOut(duration: 0.42), value: palette.background)
+        .animation(usesReducedMotion ? nil : .easeInOut(duration: 0.42), value: palette.foreground)
     }
     private func sourceTabColor(_ hex: String) -> Color {
         let value = UInt32(hex.dropFirst(), radix: 16) ?? 0
@@ -430,7 +440,7 @@ public struct LeaderboardPadView: View {
         cube.generation += 1
         var transaction = Transaction(); transaction.disablesAnimations = true
         withTransaction(transaction) {
-            cube.face = min(cube.face, store.category.boardKinds.count - 1)
+            cube.face = min(cube.face, store.visibleBoardKinds.count - 1)
             cube.finishTurn()
             store.selectedSource = cube.face
         }
@@ -439,7 +449,7 @@ public struct LeaderboardPadView: View {
         cancelCubeEntrance()
         var transaction = Transaction(); transaction.disablesAnimations = true
         if cube.turning { withTransaction(transaction) { cube.finishTurn() } }
-        let count = store.category.boardKinds.count
+        let count = store.visibleBoardKinds.count
         let target = position ?? LeaderboardCube.target(face: cube.face, destination: face, count: count)
         if !cube.dragging { cube.origin = cube.face }
         if target != cube.origin { cube.direction = target > cube.origin ? 1 : -1 }
@@ -455,8 +465,24 @@ public struct LeaderboardPadView: View {
             withTransaction(transaction) { cube.finishTurn(serial) }
         }
     }
+    private func navigateCube(to target: Int) {
+        let categories = LeaderboardCategory.allCases
+        let next = LeaderboardCube.navigation(category: categories.firstIndex(of: store.category)!,
+            destination: target, counts: categories.map { store.boardKinds(for: $0).count })
+        guard categories[next.category] != store.category else {
+            turnCube(to: target, position: target)
+            return
+        }
+        var transaction = Transaction(); transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            store.category = categories[next.category]
+            cube.face = next.face
+            cube.finishTurn()
+            store.selectedSource = next.face
+        }
+    }
     private var cubeContentReady: Bool {
-        store.category.boardKinds.allSatisfy { !(store.snapshot.boards[$0]?.entries.isEmpty ?? true) }
+        store.visibleBoardKinds.allSatisfy { !(store.snapshot.boards[$0]?.entries.isEmpty ?? true) }
     }
     private func cancelCubeEntrance() {
         // Do not touch an ordinary drag/turn after the introduction has ended.
@@ -465,6 +491,7 @@ public struct LeaderboardPadView: View {
         withTransaction(transaction) { cube.finishEntrance() }
     }
     private func playCubeEntrance() async {
+        guard store.visibleBoardKinds.count > 1 else { cube.finishEntrance(); return }
         guard cubeContentReady, scenePhase == .active else { return }
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
@@ -525,7 +552,7 @@ public struct LeaderboardPadView: View {
     private func cubeBoards(bottomInset: CGFloat) -> some View {
         GeometryReader { geometry in
             ZStack(alignment: .topLeading) {
-                ForEach(Array(store.category.boardKinds.enumerated()), id: \.element) { index, kind in
+                ForEach(Array(store.visibleBoardKinds.enumerated()), id: \.element) { index, kind in
                     cubeFace(kind, index: index, size: geometry.size, bottomInset: bottomInset)
                 }
             }
@@ -536,20 +563,21 @@ public struct LeaderboardPadView: View {
                 }
                 .onChanged { value in
                     cancelCubeEntrance()
-                    guard store.category.boardKinds.count > 1, !cube.turning, !store.modelSearchEditing else { return }
+                    guard !cube.turning, !store.modelSearchEditing else { return }
                     guard LeaderboardCube.dragAxis(current: cubeDragAxis, x: value.translation.width, y: value.translation.height) == .horizontal else { return }
                     cube.origin = cube.face
                     cube.direction = value.translation.width > 0 ? -1 : 1
                     cube.dragging = true
                     if !usesReducedMotion {
-                        cube.position = LeaderboardCube.position(face: cube.face, translation: value.translation.width, width: geometry.size.width, count: store.category.boardKinds.count)
+                        let position = LeaderboardCube.position(face: cube.face, translation: value.translation.width, width: geometry.size.width, count: store.visibleBoardKinds.count)
+                        cube.position = min(Double(store.visibleBoardKinds.count - 1), max(0, position))
                     }
                 }
                 .onEnded { value in
                     guard cube.dragging else { return }
                     let target = LeaderboardCube.destination(face: cube.face, translation: value.translation.width,
-                        predicted: value.predictedEndTranslation.width, width: geometry.size.width, count: store.category.boardKinds.count)
-                    turnCube(to: target, position: target)
+                        predicted: value.predictedEndTranslation.width, width: geometry.size.width, count: store.visibleBoardKinds.count)
+                    navigateCube(to: target)
                 })
             .onChange(of: cubeDragAxis) { _, axis in
                 // GestureState also resets on cancellation, so the next touch
@@ -581,12 +609,12 @@ public struct LeaderboardPadView: View {
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("cube-viewport")
             .accessibilityLabel(LeaderboardPresentation.title(store.category, language: store.language))
-            .accessibilityValue(store.category.boardKinds[min(cube.face, store.category.boardKinds.count - 1)].sourceLinkTitle)
+            .accessibilityValue(store.visibleBoardKinds[min(cube.face, store.visibleBoardKinds.count - 1)].sourceLinkTitle)
             .accessibilityHint(tr("Scroll vertically to explore; switch boards horizontally.", "上下滚动查看，左右切换榜单。"))
             .accessibilityAdjustableAction { direction in
                 switch direction {
-                case .increment: turnCube(to: cube.face + 1, position: cube.face + 1)
-                case .decrement: turnCube(to: cube.face - 1, position: cube.face - 1)
+                case .increment: navigateCube(to: cube.face + 1)
+                case .decrement: navigateCube(to: cube.face - 1)
                 @unknown default: break
                 }
             }
@@ -619,7 +647,7 @@ public struct LeaderboardPadView: View {
                         }
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 0), spacing: MobileLeaderboardLayout.spacing, alignment: .top), count: layout.columns),
                               alignment: .leading, spacing: MobileLeaderboardLayout.spacing) {
-                        ForEach(store.category.boardKinds, id: \.self) { kind in
+                        ForEach(store.visibleBoardKinds, id: \.self) { kind in
                             boardCard(kind, denseColumns: layout.usesCompactColumns, viewportHeight: viewportHeight)
                                 .task { await store.refresh(kind: kind) }
                         }
@@ -656,7 +684,9 @@ public struct LeaderboardPadView: View {
         return ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
-                    Color.clear.frame(height: LeaderboardCubeScrollState.contentTopInset - 10).id(PadComparisonScrollTarget.top)
+                    if store.visibleBoardKinds.count > 1 {
+                        Color.clear.frame(height: LeaderboardCubeScrollState.contentTopInset - 10)
+                    }
                     boardCard(kind, compact: true, viewportHeight: size.height)
                         .background {
                             GeometryReader { geometry in
@@ -668,8 +698,9 @@ public struct LeaderboardPadView: View {
                     LeaderboardDistributionCharts(entries: store.snapshot.boards[kind]?.entries ?? [], language: store.language)
                     compactFooter
                 }
+                .id(PadComparisonScrollTarget.top)
                 .padding(.bottom, bottomInset + PadBottomControls.footerPadding)
-                .modifier(pullRefreshAttachment(kind, topSpacer: LeaderboardCubeScrollState.contentTopInset,
+                .modifier(pullRefreshAttachment(kind, topSpacer: store.visibleBoardKinds.count > 1 ? LeaderboardCubeScrollState.contentTopInset : 0,
                     enabled: index == cube.face && !cube.dragging && !cube.turning && !cube.entranceActive))
             }
                 .scrollDismissesKeyboard(.interactively)
@@ -707,7 +738,7 @@ public struct LeaderboardPadView: View {
                             }
                     }))
                 .background(Color.padBackground)
-                .modifier(CubeFace(position: cube.position, face: LeaderboardCube.renderedFace(index, origin: cube.origin, direction: cube.direction, count: store.category.boardKinds.count), width: size.width, reduceMotion: usesReducedMotion))
+                .modifier(CubeFace(position: cube.position, face: LeaderboardCube.renderedFace(index, origin: cube.origin, direction: cube.direction, count: store.visibleBoardKinds.count), width: size.width, reduceMotion: usesReducedMotion))
                 .disabled(index != cube.face || cube.dragging || cube.turning)
                 .allowsHitTesting(index == cube.face && !cube.dragging && !cube.turning)
                 .accessibilityHidden(index != cube.face || cube.dragging)
@@ -730,7 +761,7 @@ public struct LeaderboardPadView: View {
     }
     private var distributionPanels: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 240), spacing: 12, alignment: .top)], alignment: .leading, spacing: 12) {
-            ForEach(store.category.boardKinds, id: \.self) { kind in
+            ForEach(store.visibleBoardKinds, id: \.self) { kind in
                 LeaderboardDistributionCharts(entries: store.snapshot.boards[kind]?.entries ?? [], language: store.language,
                     boardTitle: LeaderboardPresentation.columnTitle(kind, language: store.language))
             }
@@ -742,6 +773,9 @@ public struct LeaderboardPadView: View {
             Button { presentation.showingAbout = true } label: {
                 Text(tr("About", "关于")).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
             }.accessibilityIdentifier("about")
+            Button { cancelCubeEntrance(); store.modelSearchEditing = false; presentation.showingSettings = true } label: {
+                Image(systemName: "gearshape").frame(width: 44, height: 44).contentShape(Rectangle())
+            }.accessibilityLabel(tr("Settings", "设置")).accessibilityIdentifier("settings")
             Spacer(minLength: 8)
             #if os(iOS)
             PhoneMenuButton(title: "文/A", identifier: "language-menu",
@@ -784,11 +818,11 @@ public struct LeaderboardPadView: View {
     @ViewBuilder private func boardPair(wide: Bool, isImage: Bool = false, exportScheme: ColorScheme? = nil, pageRows: Range<Int>? = nil, viewportHeight: CGFloat = 900) -> some View {
         if wide {
             HStack(alignment: .top, spacing: 12) {
-                ForEach(store.category.boardKinds, id: \.self) { kind in boardCard(kind, isImage: isImage, exportScheme: exportScheme, viewportHeight: viewportHeight, pageRows: pageRows) }
+                ForEach(store.visibleBoardKinds, id: \.self) { kind in boardCard(kind, isImage: isImage, exportScheme: exportScheme, viewportHeight: viewportHeight, pageRows: pageRows) }
             }
         } else {
             VStack(spacing: 12) {
-                ForEach(store.category.boardKinds, id: \.self) { kind in boardCard(kind, isImage: isImage, exportScheme: exportScheme, viewportHeight: viewportHeight, pageRows: pageRows) }
+                ForEach(store.visibleBoardKinds, id: \.self) { kind in boardCard(kind, isImage: isImage, exportScheme: exportScheme, viewportHeight: viewportHeight, pageRows: pageRows) }
             }
         }
     }
@@ -816,7 +850,7 @@ public struct LeaderboardPadView: View {
         Button { Task { await prepareScreenshotPreview() } } label: {
             screenshotLabel(compact: compact).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
         }
-            .disabled(presentation.generatingCapture || presentation.savingScreenshot || !store.category.boardKinds.contains { store.snapshot.boards[$0] != nil })
+            .disabled(presentation.generatingCapture || presentation.savingScreenshot || !store.visibleBoardKinds.contains { store.snapshot.boards[$0] != nil })
             .accessibilityLabel(tr("Screenshot", "截图")).accessibilityIdentifier("share")
         #else
         Button { copyScreenshot() } label: { screenshotLabel(compact: compact) }
@@ -836,19 +870,20 @@ public struct LeaderboardPadView: View {
                 Text(tr(store.grouping == .model ? "Models" : "Companies", store.grouping == .model ? "模型" : "公司"))
                 Text(LeaderboardPresentation.title(store.category, language: store.language))
                 Spacer()
-                Text(tr("UPDATED", "更新时间") + " " + LeaderboardPresentation.rankingUpdated(store.snapshot,
+                Text(tr("UPDATED", "更新时间") + " " + LeaderboardPresentation.rankingUpdated(
+                    LeaderboardSnapshot(boards: store.snapshot.boards.filter { store.visibleBoardKinds.contains($0.key) }),
                     category: store.category, language: store.language)).font(.caption).foregroundStyle(secondary)
             }
             boardPair(wide: width >= 760, isImage: true, exportScheme: scheme, pageRows: pageRows)
             if store.category == .usage {
-                Text(store.category.boardKinds.compactMap { store.snapshot.boards[$0]?.sourceNote }.joined(separator: "\n\n")).font(.system(size: 11)).foregroundStyle(secondary).fixedSize(horizontal: false, vertical: true)
+                Text(store.visibleBoardKinds.compactMap { store.snapshot.boards[$0]?.sourceNote }.joined(separator: "\n\n")).font(.system(size: 11)).foregroundStyle(secondary).fixedSize(horizontal: false, vertical: true)
             }
-            if store.category.boardKinds.contains(.epochECI) {
+            if store.visibleBoardKinds.contains(.epochECI) {
                 Text(EpochAttribution.fullText(language: store.language))
                     .font(.system(size: 11)).foregroundStyle(secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            if store.category.boardKinds.contains(where: { ArenaAttribution.applies(store.snapshot.boards[$0]) }) {
+            if store.visibleBoardKinds.contains(where: { ArenaAttribution.applies(store.snapshot.boards[$0]) }) {
                 Text(ArenaAttribution.fullText(language: store.language))
                     .font(.system(size: 11)).foregroundStyle(secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -885,7 +920,7 @@ public struct LeaderboardPadView: View {
     }
     func screenshotPageRanges(pageSize: Int = 24) -> [Range<Int>] {
         let size = max(1, pageSize)
-        let count = store.category.boardKinds.map { store.rowPresentation(for: $0).rows.count }.max() ?? 0
+        let count = store.visibleBoardKinds.map { store.rowPresentation(for: $0).rows.count }.max() ?? 0
         return stride(from: 0, to: max(1, count), by: size).map { $0..<min(count, $0 + size) }
     }
     #if os(iOS)

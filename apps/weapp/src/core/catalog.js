@@ -43,6 +43,10 @@ const rankingSummary = ['Task benchmarks show results; blind user votes show the
   '任務測評看成績，使用者盲測看體驗，難度校準看實力。']
 
 export const copy = {
+  preferences: ['Settings', '设置', '設定'],
+  displayedBoards: ['Leaderboards', '显示榜单', '顯示榜單'],
+  boardSelectionHint: ['Keep at least one leaderboard in each category.', '每个分类至少保留一个榜单。', '每個分類至少保留一個榜單。'],
+  resetBoards: ['Reset', '重置', '重設'],
   usageDay: ['Data', '数据', '資料'],
   tokenShare: ['Share', '占比', '佔比'],
   usageShareSum: ['Sum of listed model shares only.', '仅汇总榜内模型的用量占比。', '僅彙總榜內模型的用量佔比。'],

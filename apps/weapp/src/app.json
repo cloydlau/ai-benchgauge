@@ -1,5 +1,5 @@
 {
-  "pages": ["pages/leaderboard/index", "pages/about/index", "pages/model/index"],
+  "pages": ["pages/leaderboard/index", "pages/about/index", "pages/model/index", "pages/settings/index"],
   "window": {
     "navigationStyle": "custom",
     "navigationBarTitleText": "AI 天梯",
