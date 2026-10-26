@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { copy, text, languages, desktopDownloadURL, repositoryURL, leaderboardSources } from '../apps/weapp/src/core/catalog.js'
 import { engineeringInvestment } from '../apps/weapp/scripts/engineering-investment.mjs'
+import { aboutPlatforms } from '../apps/weapp/src/core/about-platforms.js'
 
 // Load client calculations after the shared runtime has been synchronized.
 const { investmentContent, investmentSchedule } = await import('../apps/weapp/src/core/investment.js')
@@ -13,6 +14,7 @@ export function iosAboutContent(stats) {
     desktopDownloadURL, repositoryURL, sources: leaderboardSources, schedule: investmentSchedule,
     languages: Object.fromEntries(languages.map(language => [language, {
       descriptionLines: text(copy.description, language).match(/[^。.]+[。.]?/g).map(line => line.trim()),
+      platforms: aboutPlatforms(language),
       investment: investmentContent(stats, language, { now: investmentSchedule.startedAt }),
     }])),
   }

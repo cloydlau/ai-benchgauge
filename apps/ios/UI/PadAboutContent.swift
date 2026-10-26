@@ -18,7 +18,26 @@ struct PadAboutContent: Decodable, Sendable {
     }
     struct Copy: Decodable, Sendable {
         let descriptionLines: [String]
+        let platforms: Platforms
         let investment: Investment
+    }
+    struct Platforms: Decodable, Sendable {
+        struct Platform: Decodable, Identifiable, Sendable {
+            let id: String
+            let name: String
+            let status: String
+            let statusLabel: String
+            let featureText: String
+            let prWelcome: Bool
+            let url: String?
+        }
+        let title: String
+        let contributeLabel: String
+        let copyLinkLabel: String
+        let downloadLabel: String
+        let prWelcomeLabel: String
+        let repositoryURL: String
+        let items: [Platform]
     }
     struct Investment: Decodable, Sendable {
         struct Metric: Decodable, Identifiable, Sendable {

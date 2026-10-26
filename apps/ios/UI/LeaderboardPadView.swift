@@ -357,10 +357,7 @@ public struct LeaderboardPadView: View {
     }
     private var aboutSheet: some View {
         PadAboutView(language: store.language, brand: appTitle(fontSize: 24),
-                     copyLink: copyName, dismiss: { presentation.showingAbout = false },
-                     cloudbaseSourceNote: store.snapshot.boards[.cloudbaseUsage]?.sourceNote,
-                     vercelSourceNote: store.snapshot.boards[.vercelUsage]?.sourceNote,
-                     openRouterSourceNote: store.snapshot.boards[.openRouterUsage]?.sourceNote)
+                     copyLink: copyName, dismiss: { presentation.showingAbout = false })
         .overlay(alignment: .bottom) {
             if let note = presentation.note { Text(note).font(.footnote).padding(12).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8)).padding(20) }
         }

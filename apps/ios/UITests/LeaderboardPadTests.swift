@@ -984,7 +984,7 @@ final class LeaderboardPadTests: XCTestCase {
         app.buttons["Done"].tap()
         scrollToFooter()
         app.buttons["about"].tap()
-        XCTAssertTrue(app.buttons["desktop-download"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["about-platform-download-macos"].waitForExistence(timeout: 5))
         for _ in 0..<8 {
             if app.buttons["open-source-notices"].isHittable { break }
             app.scrollViews["about-scroll"].swipeUp()
@@ -2056,7 +2056,7 @@ final class LeaderboardMobileParityTests: XCTestCase {
             XCTAssertTrue(app.buttons["appearance-menu"].exists)
             XCTAssertFalse(app.buttons["share"].exists, "The mobile screenshot entry is temporarily hidden")
             app.buttons["about"].tap()
-            XCTAssertTrue(app.buttons["desktop-download"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons["about-platform-download-macos"].waitForExistence(timeout: 5))
             XCTAssertTrue(app.staticTexts["about-version"].exists)
             capture(chinese ? "parity-about-zh-light" : "parity-about-en-dark")
             app.buttons[chinese ? "完成" : "Done"].tap()
@@ -2154,28 +2154,45 @@ final class LeaderboardAboutParityTests: XCTestCase {
             let scroll = app.scrollViews["about-scroll"]
             XCTAssertTrue(scroll.waitForExistence(timeout: 5))
             XCTAssertTrue(app.staticTexts["about-version"].exists)
-            XCTAssertTrue(app.buttons["about-source-artificialAnalysis"].isHittable)
-            XCTAssertTrue(app.buttons["about-source-arena"].isHittable)
+            XCTAssertFalse(app.buttons["about-source-artificialAnalysis"].exists)
+            XCTAssertFalse(app.buttons["about-source-arena"].exists)
             capture("about-" + theme + "-top")
-            XCTAssertTrue(app.buttons["about-contribute"].isHittable)
+            XCTAssertFalse(app.buttons["desktop-download"].exists)
+            for (id, status, features, welcomesPR) in [
+                ("weapp", chinese ? "已上线" : "Live", chinese ? "榜单" : "Leaderboards", false),
+                ("ios", chinese ? "开发中" : "In development", chinese ? "榜单" : "Leaderboards", true),
+                ("ipad", chinese ? "开发中" : "In development", chinese ? "榜单" : "Leaderboards", true),
+                ("android", chinese ? "暂无" : "Unavailable", "", true),
+                ("harmony", chinese ? "暂无" : "Unavailable", "", true),
+                ("macos", chinese ? "已上线" : "Live", chinese ? "榜单 · 余量" : "Leaderboards · Quota", false),
+                ("windows", chinese ? "开发中" : "In development", chinese ? "榜单 · 余量" : "Leaderboards · Quota", true),
+            ] {
+                let row = app.otherElements["about-platform-" + id]
+                reveal(row, in: scroll)
+                if !features.isEmpty { XCTAssertTrue(row.staticTexts[features].exists) }
+                let pr = app.buttons["about-platform-pr-" + id]
+                XCTAssertEqual(pr.exists, welcomesPR)
+                if id == "macos" {
+                    let download = app.buttons["about-platform-download-macos"]
+                    XCTAssertTrue(download.label.contains(status))
+                    download.tap()
+                    XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "https://github.com/cloydlau/ai-benchgauge/releases/latest")).firstMatch.waitForExistence(timeout: 3))
+                } else {
+                    XCTAssertEqual(app.staticTexts["about-platform-status-" + id].label, status)
+                }
+                if welcomesPR {
+                    XCTAssertTrue(pr.label.contains("PR welcome"))
+                    pr.tap()
+                    XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label == %@", (chinese ? "已复制 " : "Copied ") + "https://github.com/cloydlau/ai-benchgauge")).firstMatch.waitForExistence(timeout: 3))
+                }
+            }
+            reveal(app.buttons["about-contribute"], in: scroll)
             app.buttons["about-contribute"].tap()
             XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label == %@", (chinese ? "已复制 " : "Copied ") + "https://github.com/cloydlau/ai-benchgauge")).firstMatch.waitForExistence(timeout: 3))
-            app.buttons["desktop-download"].tap()
-            XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "https://github.com/cloydlau/ai-benchgauge/releases/latest")).firstMatch.waitForExistence(timeout: 3))
-            app.buttons["about-source-arena"].tap()
-            XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "https://arena.ai/leaderboard")).firstMatch.waitForExistence(timeout: 3))
-            XCTAssertTrue(app.buttons["about-license-arena"].label.contains("CC BY 4.0"))
-            XCTAssertTrue(app.buttons["about-license-epoch"].label.contains("CC BY 4.0"))
-            XCTAssertFalse(app.buttons["about-license-arena"].label.contains(chinese ? "复制链接" : "Copy link"))
-            XCTAssertFalse(app.buttons["about-license-epoch"].label.contains(chinese ? "复制链接" : "Copy link"))
+            capture("about-" + theme + "-platforms")
+            XCTAssertFalse(app.buttons["about-license-epoch"].exists)
+            XCTAssertFalse(app.buttons["about-license-arena"].exists)
             XCTAssertFalse(app.buttons["about-license-artificialAnalysis"].exists)
-            app.buttons["about-license-epoch"].tap()
-            let licenseNotice = app.staticTexts["about-license-notice"]
-            XCTAssertTrue(licenseNotice.waitForExistence(timeout: 3))
-            XCTAssertTrue(licenseNotice.label.contains(chinese ? "第一条" : "Section 1"))
-            XCTAssertFalse(licenseNotice.label.contains(chinese ? "无 Epoch AI 背书" : "no Epoch AI endorsement"))
-            app.buttons[chinese ? "知道了" : "Got it"].tap()
-            XCTAssertTrue(app.buttons["about-license-epoch"].waitForExistence(timeout: 3))
             let infrastructure = app.buttons["about-cost-infrastructure"]
             reveal(infrastructure, in: scroll)
             XCTAssertEqual(infrastructure.value as? String, chinese ? "已收起" : "Collapsed")

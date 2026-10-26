@@ -37,7 +37,6 @@ private final class PadAboutState: ObservableObject {
     @Published var modelsDevNoticeExpanded = false
     @Published var categoryIconNoticeExpanded = false
     @Published var sourceMarkNoticeExpanded = false
-    @Published var licenseSourceID: String?
 }
 
 @MainActor
@@ -46,9 +45,6 @@ struct PadAboutView<Brand: View>: View {
     let brand: Brand
     let copyLink: (String) -> Void
     let dismiss: () -> Void
-    var cloudbaseSourceNote: String? = nil
-    var vercelSourceNote: String? = nil
-    var openRouterSourceNote: String? = nil
     private let content = PadAboutContent.load()
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -87,31 +83,18 @@ struct PadAboutView<Brand: View>: View {
         }
         .tint(accent)
         .accessibilityIdentifier("about-page")
-        .accessibilityHidden(about.licenseSourceID != nil)
-        .overlay {
-            if let sourceID = about.licenseSourceID {
-                licenseDialog(sourceID)
-            }
-        }
     }
 
     private func main(_ content: PadAboutContent, copy: PadAboutContent.Copy) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            hero(copy.descriptionLines, repositoryURL: content.repositoryURL)
-            quota(content.desktopDownloadURL)
-            Text(tr("Data sources", "数据来源")).font(.system(size: 14, weight: .semibold))
-                .padding(.leading, 4).padding(.top, 17).padding(.bottom, 11)
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(content.sources) { source in
-                    sourceCard(source)
-                }
-            }
+            hero(copy.descriptionLines)
+            platforms(copy.platforms)
             investment(copy.investment, months: content.schedule.months(at: Date()))
                 .padding(14).aboutCard(outline: outline).padding(.top, 14)
             notices.padding(.horizontal, 4).padding(.top, 17)
         }
     }
-    private func hero(_ lines: [String], repositoryURL: String) -> some View {
+    private func hero(_ lines: [String]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .bottom, spacing: 4) { brand; version }
@@ -121,7 +104,6 @@ struct PadAboutView<Brand: View>: View {
                 ForEach(lines, id: \.self) { Text($0).fixedSize(horizontal: false, vertical: true) }
             }
             .font(.system(size: 13)).lineSpacing(5).foregroundStyle(.secondary).padding(.top, 14)
-            contribute(repositoryURL).padding(.top, 2)
             HStack(spacing: 3) {
                 Capsule().fill(accent).frame(width: 20, height: 2.5)
                 Capsule().fill(accent.opacity(0.55)).frame(width: 11, height: 2.5)
@@ -135,64 +117,68 @@ struct PadAboutView<Brand: View>: View {
             .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(outline, lineWidth: 0.5))
             .fixedSize().accessibilityIdentifier("about-version")
     }
-    private func quota(_ url: String) -> some View {
-        Button { copyLink(url) } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "desktopcomputer").font(.system(size: 15))
-                    .frame(width: 28, height: 28).background(Color.padCard, in: RoundedRectangle(cornerRadius: 8))
-                Text(tr("Quota lookup", "余量查询")).font(.system(size: 14, weight: .semibold))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Text(tr("PC", "PC 端")).font(.system(size: 12))
-                Image(systemName: "link").font(.system(size: 13))
-            }.foregroundStyle(accent).padding(.horizontal, 12).padding(.vertical, 11)
-                .frame(minHeight: 50)
-                .background(accent.opacity(dark ? 0.16 : 0.08), in: RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(accent.opacity(0.12), lineWidth: 0.5))
-                .contentShape(RoundedRectangle(cornerRadius: 12))
-        }.buttonStyle(.plain).accessibilityIdentifier("desktop-download")
-            .accessibilityLabel(tr("Quota lookup · PC · Copy link", "余量查询 · PC 端 · 复制链接"))
+    private func platformTint(_ status: String) -> Color {
+        status == "live" ? .green : status == "development" ? .orange : .secondary
     }
-    private func sourceCard(_ source: PadAboutContent.Source) -> some View {
-        let showsLicense = source.id == "vercel" || source.id == "arena" || source.id == "epoch" || source.id == "openRouter"
-        let titleLines = dynamicTypeSize.isAccessibilitySize ? 2 : 1
-        return HStack(spacing: 8) {
-            Button { copyLink(source.url) } label: {
+    private func platforms(_ content: PadAboutContent.Platforms) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(content.title).font(.system(size: 15, weight: .semibold)).padding(.vertical, 12)
+            ForEach(content.items) { platform in
+                Divider()
                 HStack(spacing: 10) {
-                    SourceBrandIcon(sourceID: source.id, dark: dark).frame(width: 28, height: 28)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(source.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(.primary)
-                            .lineLimit(titleLines).minimumScaleFactor(0.85).truncationMode(.tail)
-                        Text(source.domain).font(.system(size: 11)).foregroundStyle(.secondary)
-                            .lineLimit(1).minimumScaleFactor(0.8).truncationMode(.tail)
-                    }.frame(maxWidth: .infinity, alignment: .leading)
-                }.contentShape(Rectangle())
-            }.buttonStyle(.plain)
-                .accessibilityIdentifier("about-source-" + source.id)
-                .accessibilityLabel(source.title + " · " + tr("Copy link", "复制链接"))
-            if showsLicense {
-                Button { about.licenseSourceID = source.id } label: {
-                    Text("CC BY 4.0").font(.system(size: 12, weight: .medium)).foregroundStyle(accent)
-                        .lineLimit(1).minimumScaleFactor(0.8)
-                        .padding(.horizontal, 2)
-                        .frame(minHeight: 32)
-                        .contentShape(Rectangle())
-                }.buttonStyle(.plain)
-                    .accessibilityIdentifier("about-license-" + source.id)
-                    .accessibilityLabel(source.title + " · CC BY 4.0 · " + tr("View license", "查看协议"))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(platform.name).font(.system(size: 14, weight: .medium))
+                        if !platform.featureText.isEmpty {
+                            Text(platform.featureText).font(.system(size: 11)).foregroundStyle(.secondary)
+                        }
+                    }.fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(alignment: .trailing, spacing: 0) {
+                        if platform.status == "live", let url = platform.url {
+                            Button { copyLink(url) } label: {
+                                HStack(spacing: 3) {
+                                    platformStatus(platform)
+                                    Image(systemName: "link").font(.system(size: 10))
+                                }.frame(minHeight: 36).contentShape(Rectangle())
+                            }.buttonStyle(.plain).foregroundStyle(platformTint(platform.status))
+                                .accessibilityIdentifier("about-platform-download-" + platform.id)
+                                .accessibilityLabel(platform.name + " · " + platform.statusLabel + " · " + content.downloadLabel)
+                        } else {
+                            platformStatus(platform)
+                        }
+                        if platform.prWelcome, let url = platform.url {
+                            Button { copyLink(url) } label: {
+                                HStack(spacing: 3) {
+                                    Text(content.prWelcomeLabel)
+                                    Image(systemName: "link").font(.system(size: 9))
+                                }.font(.system(size: 11)).frame(minHeight: 36).contentShape(Rectangle())
+                            }.buttonStyle(.plain).foregroundStyle(accent)
+                                .accessibilityIdentifier("about-platform-pr-" + platform.id)
+                                .accessibilityLabel(platform.name + " · " + content.prWelcomeLabel + " · " + content.copyLinkLabel)
+                        }
+                    }.fixedSize(horizontal: !dynamicTypeSize.isAccessibilitySize, vertical: true)
+                }.padding(.vertical, 7).frame(minHeight: 52)
+                    .accessibilityElement(children: .contain).accessibilityIdentifier("about-platform-" + platform.id)
             }
-            Button { copyLink(source.url) } label: {
-                Image(systemName: "link").font(.system(size: 12)).foregroundStyle(.secondary)
-                    .frame(width: 28, height: 32)
-                    .contentShape(Rectangle())
-            }.buttonStyle(.plain)
-                .accessibilityHidden(true)
-        }
-        .padding(.leading, 12).padding(.trailing, 8)
-        .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
-        .frame(height: dynamicTypeSize.isAccessibilitySize ? nil : 56)
-        .aboutCard(outline: outline)
+            Divider()
+            Button { copyLink(content.repositoryURL) } label: {
+                HStack {
+                    Text(content.contributeLabel).underline()
+                    Spacer()
+                    Image(systemName: "link")
+                }.font(.system(size: 12)).frame(minHeight: 48).contentShape(Rectangle())
+            }.buttonStyle(.plain).foregroundStyle(accent).accessibilityIdentifier("about-contribute")
+                .accessibilityLabel(content.contributeLabel + " · " + content.copyLinkLabel)
+        }.padding(.horizontal, 12).aboutCard(outline: outline)
+            .accessibilityElement(children: .contain).accessibilityIdentifier("about-platforms")
     }
-
+    private func platformStatus(_ platform: PadAboutContent.Platforms.Platform) -> some View {
+        Text(platform.statusLabel).font(.system(size: 10, weight: .medium))
+            .padding(.horizontal, 6).padding(.vertical, 3)
+            .foregroundStyle(platformTint(platform.status))
+            .background(platformTint(platform.status).opacity(dark ? 0.16 : 0.08), in: RoundedRectangle(cornerRadius: 4))
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("about-platform-status-" + platform.id)
+    }
     private func investment(_ investment: PadAboutContent.Investment, months: Int) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(investment.title).font(.system(size: 15, weight: .semibold)).padding(.bottom, 11)
@@ -338,60 +324,9 @@ struct PadAboutView<Brand: View>: View {
         }
     }
     private var noticeTitle: some View { Text(tr("Third-party licenses", "第三方许可")).font(.system(size: 14, weight: .semibold)) }
-    private func contribute(_ url: String) -> some View {
-        Button { copyLink(url) } label: {
-            HStack(spacing: 5) { Text(tr("Contribute code", "贡献代码")).underline(); Image(systemName: "link") }
-                .font(.system(size: 12)).frame(minHeight: 44)
-        }.buttonStyle(.plain).foregroundStyle(accent).accessibilityIdentifier("about-contribute")
-            .accessibilityLabel(tr("AI BenchGauge · Contribute code · Copy link", "AI 天梯 · 贡献代码 · 复制链接"))
-    }
     private func note(_ text: String) -> some View {
         Text(text).font(.system(size: 11)).lineSpacing(4).foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
-    }
-    private func licenseDialog(_ sourceID: String) -> some View {
-        let notice = sourceID == "openRouter"
-            ? CCBYLicense.openRouterText(sourceNote: openRouterSourceNote, language: language)
-            : sourceID == "vercel" ? CCBYLicense.vercelText(sourceNote: vercelSourceNote, language: language) : CCBYLicense.text(language: language)
-        return ZStack {
-            Color.black.opacity(dark ? 0.48 : 0.32).ignoresSafeArea()
-                .onTapGesture { about.licenseSourceID = nil }
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 12) {
-                Text("CC BY 4.0").font(.system(size: 16, weight: .semibold))
-                    .accessibilityIdentifier("about-license-dialog-" + sourceID)
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 10) {
-                        ForEach(Array(notice.components(separatedBy: "\n\n").enumerated()), id: \.offset) { _, paragraph in
-                            licenseParagraph(paragraph)
-                        }
-                    }
-                }.frame(maxHeight: dynamicTypeSize.isAccessibilitySize ? 360 : 440)
-                Button("OK") { about.licenseSourceID = nil }
-                    .font(.system(size: 15, weight: .semibold)).foregroundStyle(accent)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(accent.opacity(dark ? 0.16 : 0.08), in: RoundedRectangle(cornerRadius: 10))
-                    .accessibilityIdentifier("about-license-dismiss")
-            }
-            .padding(16).frame(maxWidth: 440)
-            .background(Color.padCard, in: RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(outline, lineWidth: 0.5))
-            .shadow(color: .black.opacity(0.12), radius: 18, y: 6)
-            .padding(.horizontal, 28)
-        }
-    }
-
-    @ViewBuilder
-    private func licenseParagraph(_ paragraph: String) -> some View {
-        let body = Text(paragraph).font(.system(size: 13)).lineSpacing(4).foregroundStyle(.secondary)
-            .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        // Keep the section heading separately identifiable; the full deed is too long for one accessibility label.
-        if paragraph.contains("Section 1") || paragraph.contains("第一条") || paragraph.contains("第1條") {
-            body.accessibilityIdentifier("about-license-notice")
-        } else {
-            body
-        }
     }
 }
 

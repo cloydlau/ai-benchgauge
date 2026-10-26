@@ -23,33 +23,25 @@
 .hero-rule view { width: 40rpx; height: 5rpx; border-radius: 4rpx; background: var(--accent); }
 .hero-rule view + view { width: 22rpx; background: var(--accent); opacity: .55; }
 
-.quota-card { display: flex; align-items: center; gap: 20rpx; width: 100%; min-height: 100rpx; padding: 22rpx 24rpx; border: 1rpx solid var(--line); border-radius: 24rpx; background: var(--active); text-align: left; }
-.quota-icon { display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; width: 56rpx; height: 56rpx; border-radius: 16rpx; color: var(--accent); background: var(--card); }
-.pc-screen { width: 28rpx; height: 19rpx; border: 1.5px solid currentColor; border-radius: 3rpx; }
-.pc-stand { width: 14rpx; height: 7rpx; border-bottom: 1.5px solid currentColor; }
-.quota-title { flex: 1; min-width: 0; font-size: 26rpx; font-weight: 600; }
-.quota-action { display: flex; align-items: center; gap: 12rpx; flex-shrink: 0; color: var(--accent); font-size: 22rpx; }
-.quota-card:active, .source-license:active, .source-license-active { opacity: .72; }
-
-.about-section { margin-top: 34rpx; }
 .section-title { display: block; margin-bottom: 22rpx; color: var(--ink); font-weight: 600; font-size: 27rpx; line-height: 1.4; }
-.sources-section > .section-title { margin-left: 8rpx; }
-/* One source per row, one shared height. WeChat treats view height as min-height
-   and ignores max-height, so a wrapped title used to grow only the long card. */
-.source-list { display: flex; flex-direction: column; gap: 12rpx; }
-.source-row { display: flex; align-items: center; box-sizing: border-box; height: 112rpx; overflow: hidden; padding-left: 18rpx; border: 1rpx solid var(--about-outline); border-radius: 22rpx; background: var(--card); box-shadow: var(--about-shadow); }
-.source-main { display: flex; align-items: center; flex: 1; height: 100%; min-width: 0; gap: 16rpx; }
-.source-main-active { opacity: .72; }
-.source-logo { display: block; flex: none; width: 48rpx; height: 48rpx; }
-.source-copy { flex: 1; min-width: 0; overflow: hidden; }
-.source-name, .source-domain { display: block; width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.source-name { height: 36rpx; color: var(--ink); font-size: 26rpx; font-weight: 600; line-height: 36rpx; }
-.source-domain { height: 30rpx; margin-top: 2rpx; color: var(--muted); font-size: 20rpx; line-height: 30rpx; }
-.source-license { display: flex; align-items: center; flex: none; height: 100%; margin-left: 8rpx; padding: 0 4rpx 0 12rpx; color: var(--accent); font-size: 22rpx; line-height: 32rpx; white-space: nowrap; }
-.source-license text { text-decoration: underline; text-underline-offset: 4rpx; }
-.source-link-mark { display: flex; align-items: center; justify-content: center; flex: none; width: 64rpx; height: 100%; color: var(--muted); }
-
 .about-card { margin-top: 28rpx; padding: 28rpx; border: 1rpx solid var(--about-outline); border-radius: 24rpx; background: var(--card); box-shadow: var(--about-shadow); }
+.platforms-card { margin-top: 0; padding: 0 24rpx; }
+.platforms-title { margin: 0; padding: 24rpx 0 18rpx; }
+.platform-row { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; min-height: 104rpx; padding: 14rpx 0; border-top: 1rpx solid var(--line); }
+.platform-details { flex: 1; min-width: 0; }
+.platform-name { display: block; color: var(--ink); font-size: 26rpx; font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; }
+.platform-features { display: block; margin-top: 5rpx; color: var(--muted); font-size: 21rpx; line-height: 1.5; }
+.platform-state { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+.platform-status { display: inline-flex; align-items: center; gap: 6rpx; padding: 5rpx 12rpx; border-radius: 8rpx; font-size: 20rpx; line-height: 1.5; white-space: nowrap; }
+.platform-status-live { color: #287446; background: #eaf5ed; }
+.platform-status-development { color: #8b611a; background: #faf1df; }
+.platform-status-unavailable { color: var(--muted); background: var(--about-inset); }
+.dark .platform-status-live { color: #95d7a6; background: #243d2d; }
+.dark .platform-status-development { color: #e6c07c; background: #403622; }
+.platform-download { min-height: 36px; }
+.platform-pr { display: inline-flex; align-items: center; gap: 6rpx; min-height: 36px; padding: 0; color: var(--accent); font-size: 21rpx; line-height: 1.5; }
+.platform-download:active, .platform-pr:active { opacity: .72; }
+.contribute-link.platform-contribute { display: flex; justify-content: space-between; width: 100%; margin: 0; padding: 14rpx 0; border-top: 1rpx solid var(--line); }
 .investment-heading { display: block; color: var(--muted); font-size: 22rpx; line-height: 1.5; }
 .investment-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14rpx; margin: 18rpx 0; }
 .investment-metric { min-width: 0; padding: 22rpx 20rpx; border-radius: 16rpx; background: var(--about-inset); }
@@ -88,11 +80,7 @@
 
 @media (max-width: 340px) {
   .about-card { padding: 24rpx; }
-  .quota-card { gap: 14rpx; }
+  .platforms-card { padding: 0 20rpx; }
   .cost-total { padding: 18rpx; }
   .cost-total-value { font-size: 29rpx; }
 }
-
-
-.license-notice { box-sizing: border-box; max-height: 60vh; }
-.license-notice-text { display: block; padding: 8px 24px 24px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.75; text-align: left; }

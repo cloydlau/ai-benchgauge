@@ -1,12 +1,9 @@
 import { computed, definePage, ref, onShareAppMessage } from '@vue-mini/core'
-import { leaderboardSources, desktopDownloadURL, repositoryURL, copy, text } from '../../core/catalog.js'
+import { desktopDownloadURL, repositoryURL, copy, text } from '../../core/catalog.js'
 import { createBrandMeasurer } from '../../core/brand-title.js'
 import { pagePreferences, sharePath } from '../../core/share-state.js'
-import { epochAttribution } from '../../core/epoch-attribution.js'
-import { arenaAttribution } from '../../core/arena-attribution.js'
-import { ccByLicense, openRouterLicense, vercelLicense } from '../../core/cc-by-4.0.js'
-import { readCachedBoard } from '../../services/boards.js'
 import { investmentContent } from '../../core/investment.js'
+import { aboutPlatforms } from '../../core/about-platforms.js'
 
 definePage(query => {
   const saved = (() => { try { return wx.getStorageSync('benchgauge.preferences') || {} } catch { return {} } })()
@@ -37,19 +34,6 @@ definePage(query => {
   }
   const notices = __THIRD_PARTY_NOTICES__.map(item => ({ ...item,
     title: item.name || text([`Third-party notice ${item.number}`, `第三方软件声明 ${item.number}`, `第三方軟體聲明 ${item.number}`], language) }))
-  const attributions = { vercel: { license: "CC BY 4.0" }, openRouter: { license: "CC BY 4.0" }, arena: arenaAttribution(language), epoch: epochAttribution(language) }
-  const licenseText = ccByLicense(language).text
-  const items = leaderboardSources.map(item => ({ ...item,
-    domain: item.url.split('/')[2], icon: `/assets/source-logos/${item.id}${dark ? '-dark' : ''}.png`,
-    license: Boolean(attributions[item.id]), licenseLabel: attributions[item.id] ? attributions[item.id].license || "CC BY 4.0" : "" }))
-  const licenseNotice = ref({ open: false, text: '' })
-  const openLicense = event => {
-    const id = event.currentTarget.dataset.id
-    if (!attributions[id] || !items.some(item => item.id === id)) return
-    licenseNotice.value = { open: true, title: attributions[id].license || "CC BY 4.0", text: id === 'openRouter'
-      ? openRouterLicense(readCachedBoard(wx, 'openRouterUsage')?.sourceNote, language) : id === 'vercel' ? vercelLicense(readCachedBoard(wx, 'vercelUsage')?.sourceNote, language) : licenseText }
-  }
-  const closeLicense = () => { licenseNotice.value = { ...licenseNotice.value, open: false } }
   const back = () => {
     if (!preferences.fromShare && getCurrentPages().length > 1) wx.navigateBack()
     else wx.reLaunch({ url: sharePath(preferences, dark ? 'dark' : 'light') })
@@ -60,16 +44,11 @@ definePage(query => {
     const id = event.currentTarget.dataset.id
     if (notices.some(item => item.id === id)) notice.value = notice.value === id ? '' : id
   }
-  return { labels, brandTitle, dark, statusBar, items, version: __APP_VERSION__,
+  return { labels, brandTitle, dark, statusBar, version: __APP_VERSION__,
     back, copyLink, notices, notice, toggleNotice, desktopDownloadURL, repositoryURL, investment, costGroups, toggleCostGroup,
-    licenseNotice, openLicense, closeLicense,
-    viewLicenseLabel: text(['View license', '查看协议', '查看協議'], language),
+    platforms: aboutPlatforms(language),
     description: labels.description,
     descriptionLines: labels.description.match(/[^。.]+[。.]?/g).map(line => line.trim()),
-    desktopTitle: text(['Quota lookup', '余量查询', '餘量查詢'], language),
-    desktopDownloadLabel: text(['PC', 'PC 端', 'PC 端'], language),
-    contributeLabel: text(['Contribute code', '贡献代码', '貢獻程式碼'], language),
-    sourcesTitle: text(['Data sources', '数据来源', '資料來源'], language),
     noticesIntro: text(['Third-party software and data follow their original licenses. Tap to read the full copyright and license text.',
       '第三方软件及数据分别遵循其原始许可证。点按查看完整版权与许可文本。', '第三方軟體及資料分別遵循其原始授權條款。點按查看完整版權與授權文字。'], language),
     noticesTitle: text(['Third-party licenses', '第三方许可', '第三方授權'], language),
