@@ -94,6 +94,7 @@ private struct PadRankingScrollTracking: ViewModifier {
 private final class PadBoardDetail: ObservableObject {
     @Published var selectedCompany: CompanyStanding?
     @Published var showingSource = false
+    @Published var showingTimeExplanation = false
 }
 
 private enum PadNameTop: AlignmentID {
@@ -1236,14 +1237,14 @@ private struct PadBoardCard: View {
         let parts = LeaderboardPresentation.sourceTimeParts(board, language: language, includesYear: isImage)
         let loading = !isImage && isRefreshing
         return HStack(spacing: 0) {
-            Text(parts.value)
+            Text(parts.value).underline(!isImage)
             if !parts.caption.isEmpty || !isImage {
                 Text(" ")
                 Group {
                     if parts.caption.isEmpty {
                         Color.clear.frame(width: 12, height: 12)
                     } else {
-                        Text(parts.caption).opacity(loading ? 0 : 1)
+                        Text(parts.caption).underline(!isImage).opacity(loading ? 0 : 1)
                     }
                 }
                 .overlay(alignment: .leading) {
@@ -1272,8 +1273,17 @@ private struct PadBoardCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("source-summary-\(kind.rawValue)")
     }
-    private var timestamp: some View {
-        timeLabels.help(LeaderboardPresentation.sourceTimeHelp(board, language: language))
+    @ViewBuilder private var timestamp: some View {
+        if isImage {
+            timeLabels
+        } else {
+            timeLabels
+                .contentShape(Rectangle())
+                .onTapGesture { detail.showingTimeExplanation = true }
+                .accessibilityAction { detail.showingTimeExplanation = true }
+                .accessibilityHint(LeaderboardPresentation.sourceTimeExplanationTitle(language: language))
+                .help(LeaderboardPresentation.sourceTimeHelp(board, language: language))
+        }
     }
     @ViewBuilder private var sourceMetadata: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -1540,6 +1550,11 @@ private struct PadBoardCard: View {
     }
     private var interactiveCard: some View {
         cardContent
+        .alert(LeaderboardPresentation.sourceTimeExplanationTitle(language: language), isPresented: $detail.showingTimeExplanation) {
+            Button(tr("OK", "知道了"), role: .cancel) { }
+        } message: {
+            Text(LeaderboardPresentation.sourceTimeExplanation(language: language))
+        }
         .sheet(isPresented: $detail.showingSource) {
             NavigationStack {
                 ScrollView {

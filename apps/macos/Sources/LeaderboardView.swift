@@ -1353,6 +1353,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
     private var menuKind: LeaderboardKind?
     private var polishSchedules: [LeaderboardKind: TimestampPolishSchedule] = [:]
     private var polishRevisions: [LeaderboardKind: Int] = [:]
+    private var timeRects: [LeaderboardKind: NSRect] = [:]
     private var polishTimer: Timer?
     private var fixedPolishPhase: Double? {
         ProcessInfo.processInfo.environment["BENCHGAUGE_TIMESTAMP_POLISH_PHASE"].flatMap(Double.init)
@@ -1440,6 +1441,17 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         guard !showsSkeleton else { return }
         let point = convert(event.locationInWindow, from: nil)
         let column = column(at: point)
+        if column > 0, (column - 1) % 4 == 0, boards.indices.contains((column - 1) / 4) {
+            let board = boards[(column - 1) / 4]
+            if timeRects[board.kind]?.contains(point) == true, let window {
+                let alert = NSAlert()
+                alert.messageText = LeaderboardPresentation.sourceTimeExplanationTitle(language: language)
+                alert.informativeText = LeaderboardPresentation.sourceTimeExplanation(language: language)
+                alert.addButton(withTitle: language.text("OK", "知道了"))
+                alert.beginSheetModal(for: window)
+                return
+            }
+        }
         guard column > 0, boards.indices.contains((column - 1) / 4),
               [1, 2].contains((column - 1) % 4) else {
             super.mouseDown(with: event)
@@ -1480,6 +1492,12 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         NSMenu.popUpContextMenu(menu, with: event, for: self)
     }
 
+    override func resetCursorRects() {
+        super.resetCursorRects()
+        guard !showsSkeleton else { return }
+        for rect in timeRects.values { addCursorRect(rect, cursor: .pointingHand) }
+    }
+
     @objc private func selectOpenness(_ sender: NSMenuItem) {
         guard let menuKind, LeaderboardOpennessFilter.allCases.indices.contains(sender.tag) else { return }
         onOpennessFilter?(menuKind, LeaderboardOpennessFilter.allCases[sender.tag])
@@ -1499,6 +1517,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         NSColor(calibratedWhite: dark ? 0.14 : 0.97, alpha: 0.96).setFill()
         bounds.fill(using: .copy)
 
+        timeRects.removeAll(keepingCapacity: true)
         for index in tableView.tableColumns.indices where !tableView.tableColumns[index].isHidden {
             let rect = headerRect(ofColumn: index)
             guard index > 0, boards.indices.contains((index - 1) / 4) else {
@@ -1520,7 +1539,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
                     licenseName: board.licenseName, summary: board.summary,
                     time: board.time, tint: tint,
                     polishPhase: board.polishReady ? (fixedPolishPhase ?? polishSchedules[board.kind]?.phase(at: ProcessInfo.processInfo.systemUptime)) : nil,
-                    in: rect)
+                    in: rect, kind: board.kind)
             case 1: drawCountryHeader(selected: board.country, in: rect)
             case 2: drawFilterHeader(title: ModelOpenness.columnTitle(language: language), active: board.openness != .all, in: rect)
             default: tableView.tableColumns[index].headerCell.draw(withFrame: rect, in: self)
@@ -1529,6 +1548,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
 
         NSColor.separatorColor.setFill()
         NSRect(x: 0, y: isFlipped ? bounds.height - 1 : 0, width: bounds.width, height: 1).fill()
+        window?.invalidateCursorRects(for: self)
     }
 
     private static var placeholderColor: NSColor {
@@ -1630,11 +1650,13 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         time: (text: String, isSourceTime: Bool),
         tint: NSColor,
         polishPhase: Double?,
-        in rect: NSRect
+        in rect: NSRect,
+        kind: LeaderboardKind
     ) {
         let timeFont = NSFont.monospacedDigitSystemFont(ofSize: 8, weight: time.isSourceTime ? .semibold : .regular)
         let timeAttributes: [NSAttributedString.Key: Any] = [.font: timeFont,
-            .foregroundColor: time.isSourceTime ? tint : NSColor.secondaryLabelColor]
+            .foregroundColor: time.isSourceTime ? tint : NSColor.secondaryLabelColor,
+            .underlineStyle: NSUnderlineStyle.single.rawValue]
         let timeSize = (time.text as NSString).size(withAttributes: timeAttributes)
         let timeWidth = ceil(timeSize.width)
         let titleRect = NSTableHeaderCell(textCell: "").titleRect(forBounds: rect)
@@ -1647,6 +1669,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         let timeY = stacked ? (isFlipped ? rect.maxY - timeSize.height - 3 : rect.minY + 3)
             : titleRect.midY - timeSize.height / 2
         let timeOrigin = NSPoint(x: rect.maxX - timeSize.width - 5, y: timeY)
+        timeRects[kind] = NSRect(origin: timeOrigin, size: timeSize).insetBy(dx: -3, dy: -3).intersection(rect)
         (time.text as NSString).draw(at: timeOrigin, withAttributes: timeAttributes)
         if let polishPhase, let context = NSGraphicsContext.current?.cgContext {
             context.saveGState()

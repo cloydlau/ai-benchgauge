@@ -50,7 +50,7 @@
             <view class="source-heading-details">
             <button class="source-heading" data-kind="{{card.kind}}" bindtap="copyBoardTitle" aria-label="{{labels.copyName}} {{card.title}}">{{card.title}}</button>
             <view class="source-heading-actions">
-            <view class="times" aria-label="{{card.timeAccessibility}}" aria-busy="{{card.loading}}">
+            <view class="times" aria-role="button" bindtap="timeHelp" aria-label="{{card.timeAccessibility}} · {{labels.timeExplanationTitle}}" aria-busy="{{card.loading}}">
               <view class="time-copy">
                 <view class="time-row {{card.isSourceTime ? 'time-source' : 'time-fetched'}}"><text class="time-value">{{card.time}}</text><view class="time-caption {{card.loading ? 'time-caption-loading' : ''}}"><text class="time-label">{{card.timeLabel}}</text><view wx:if="{{card.loading}}" class="time-loading" aria-hidden="true" /></view></view>
                 <view wx:if="{{card.polishing}}" class="time-row time-polish {{card.isSourceTime ? 'time-source' : 'time-fetched'}}" aria-hidden="true"><text class="time-value">{{card.time}}</text><view class="time-caption"><text class="time-label">{{card.timeLabel}}</text></view></view>

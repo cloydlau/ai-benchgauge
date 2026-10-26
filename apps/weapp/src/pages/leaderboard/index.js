@@ -947,10 +947,14 @@ definePage(query => {
     const day = kind === 'vercelUsage' && Number.isFinite(Date.parse(board?.sourceUpdatedAt))
       ? `${text(['Statistical day (UTC): ', '统计日期（UTC）：', '統計日期（UTC）：'], language.value)}${new Date(board.sourceUpdatedAt).toISOString().slice(0, 10)}\n\n` : ''
     const sampled = kind === 'cloudbaseUsage' ? `${text(boards[kind].summaries, language.value)}\n\n` : ''
-    const refreshMeaning = refreshOnly ? `\n${text(['Refresh time records when we retrieved this snapshot; it does not indicate a new source update.', '刷新时间仅表示我们取得这份数据的时间，不代表来源数据刚刚更新。', '刷新時間僅表示我們取得這份資料的時間，不代表來源資料剛剛更新。'], language.value)}` : ''
+    const refreshMeaning = refreshOnly ? `\n${tr('timeExplanation')}` : ''
     wx.showModal({ title: boardTitle(kind, language.value),
       content: `${formerName}${day}${sampled}${text(boards[kind].methodology || boards[kind].summaries, language.value)}\n\n${times}${refreshMeaning}\n\n${boards[kind].url}${kind === 'epochECI' ? `\n\n${epochAttribution(language.value).fullText}` : ''}${dataset ? `\n\n${arenaAttribution(language.value).fullText}` : ''}`,
       showCancel: false })
+  }
+  function timeHelp() {
+    if (cubeBusy.value || Date.now() < suppressTapUntil) return
+    wx.showModal({ title: tr('timeExplanationTitle'), content: tr('timeExplanation'), showCancel: false })
   }
   function copyText(data) {
     wx.setClipboardData({ data, success: () => wx.showToast({ title: tr('copied'), icon: 'success' }) })
@@ -1098,7 +1102,7 @@ definePage(query => {
     cubePosition, cubeDuration, cubeBusy, cubeDragging, entranceStyle, entranceHintVisible,
     cubeStart, cubeMove, cubeEnd, cubeCancel, tabStart, tabMove, tabEnd, cancelTabDrag, attributeHint,
     selectCategory, selectGrouping, selectFace, changeFace, scroll, top, filterMenu, toggleRanking,
-    clearFilters, preferences, sheetSelect, closeSheet, sourceHelp, countryHelp, copyBoardTitle, copyPurchaseLink, rowDetails, companyDetails, closeCompanyDetails, copyCompanyName, about,
+    clearFilters, preferences, sheetSelect, closeSheet, sourceHelp, timeHelp, countryHelp, copyBoardTitle, copyPurchaseLink, rowDetails, companyDetails, closeCompanyDetails, copyCompanyName, about,
     quotaHelp, quotaHelpContent, showingFeatureHelp, closeFeatureHelp, copyDesktopLink, refreshTap, autoRefresh, pullRefresh, pullRefreshing, pullRefreshKind, finishPullRefresh,
     capturing, capture, screenshot, closeCapture, previewScreenshot, saveScreenshot }
 }, { canShareToOthers: true })

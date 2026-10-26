@@ -74,6 +74,11 @@ export const copy = {
   distributionBasis: ['All models on this board · counts, not scores', '按全榜模型数量统计，不按分数加权', '按全榜模型數量統計，不按分數加權'],
   noModels: ['No model data yet', '暂无模型数据', '暫無模型資料'], other: ['Other', '其他', '其他'],
   published: ['Published', '发布', '發佈'], updated: ['Refreshed', '刷新', '刷新'], refresh: ['Refresh', '刷新', '重新整理'],
+  timeExplanationTitle: ['Time labels', '时间说明', '時間說明'],
+  timeExplanation: [
+    'Leaderboard data is updated in real time. There are two types of time labels:\n\nPublished: When a leaderboard provides a publication time, that time is displayed.\n\nRefreshed: When a leaderboard does not provide a publication time, the most recent data refresh time is displayed.',
+    '榜单数据实时更新。时间标记分为两种：\n\n发布：榜单提供了发布时间，展示其发布时间。\n\n刷新：榜单未提供发布时间，展示数据最近一次刷新的时间。',
+    '榜單資料即時更新。時間標記分為兩種：\n\n發佈：榜單提供了發佈時間，展示其發佈時間。\n\n刷新：榜單未提供發佈時間，展示資料最近一次刷新的時間。'],
   loading: ['Loading shared rankings…', '正在读取共享榜单…', '正在讀取共享榜單…'],
   empty: ['No matching entries', '暂无符合筛选的条目', '暫無符合篩選的項目'],
   noBoard: ['No shared snapshot yet', '暂未取得共享榜单', '暫未取得共享榜單'],

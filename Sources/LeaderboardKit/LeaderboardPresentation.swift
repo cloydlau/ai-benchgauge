@@ -180,7 +180,7 @@ public enum LeaderboardPresentation {
             parts.insert(language.text("Statistical day (UTC): ", "统计日期（UTC）：") + formatter.string(from: date), at: 1)
         }
         if kind.isShareUsage {
-            parts.append(language.text("Refresh time records when we retrieved this snapshot; it does not indicate a new source update.", "刷新时间仅表示我们取得这份数据的时间，不代表来源数据刚刚更新。"))
+            parts.append(sourceTimeExplanation(language: language))
         }
         if !kind.isUsage, let note = board?.sourceNote, !note.isEmpty { parts.append(note) }
         var help = parts.joined(separator: language.text(". ", "。"))
@@ -233,6 +233,16 @@ public enum LeaderboardPresentation {
         }
         formatter.dateFormat = dateOnly ? (includesYear ? "yyyy-MM-dd" : "M/d") : "M/d HH:mm"
         return formatter.string(from: date)
+    }
+
+    public static func sourceTimeExplanationTitle(language: AppLanguage) -> String {
+        language.text("Time labels", "时间说明")
+    }
+
+    public static func sourceTimeExplanation(language: AppLanguage) -> String {
+        language.text(
+            "Leaderboard data is updated in real time. There are two types of time labels:\n\nPublished: When a leaderboard provides a publication time, that time is displayed.\n\nRefreshed: When a leaderboard does not provide a publication time, the most recent data refresh time is displayed.",
+            "榜单数据实时更新。时间标记分为两种：\n\n发布：榜单提供了发布时间，展示其发布时间。\n\n刷新：榜单未提供发布时间，展示数据最近一次刷新的时间。")
     }
 
     public static func sourceTimeHelp(_ board: Leaderboard?, language: AppLanguage) -> String {

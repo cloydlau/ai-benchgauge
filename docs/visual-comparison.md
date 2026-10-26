@@ -1,3 +1,21 @@
+## Timestamp explanation — 2026-10-26
+
+All four clients underline the displayed time and its Published / Refreshed
+caption. Activating the time opens a localized explanation of both labels and
+states that leaderboard data is updated in real time; it does not refresh the
+board. Statistical coverage remains in the existing source details. The Apple
+mobile interface shares the explanation for iPhone and iPad. Static exports
+retain the existing timestamp policy without adding a dialog operation.
+
+180 mini-program tests and its production build pass. Windows shared tests and
+the WPF Release cross-build pass. macOS Debug compilation passes using the
+managed temporary build entry. These are code/build results, not native visual
+or installed-client acceptance. New native before/after captures, a matching
+Windows CI artifact, WeChat runtime verification and protected release approval
+are unavailable in this run. Full Xcode is not installed, so iPhone/iPad native
+build and interaction tests could not run; updated native assertions await that
+environment. No client installation or mini-program upload is claimed.
+
 ## Refresh timestamp caption — 2026-10-23
 
 Fetch-time captions and their timestamp details now read “Refreshed / 刷新” on

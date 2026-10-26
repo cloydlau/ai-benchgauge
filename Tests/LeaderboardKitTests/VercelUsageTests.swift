@@ -53,7 +53,7 @@ import Testing
         let help = LeaderboardPresentation.sourceHelp(.vercelUsage, language: language, board: board)
         #expect(help.contains("2026-10-22"))
         #expect(help.contains(language.text("Statistical day (UTC)", "统计日期（UTC）")))
-        #expect(help.contains(language.text("does not indicate a new source update", "不代表来源数据刚刚更新")))
+        #expect(help.contains(LeaderboardPresentation.sourceTimeExplanation(language: language)))
     }
     let unknown = Leaderboard(kind: .vercelUsage, title: "Vercel", fetchedAt: fetched, entries: [])
     #expect(!LeaderboardPresentation.sourceTime(unknown, language: .chinese).isSourceTime)

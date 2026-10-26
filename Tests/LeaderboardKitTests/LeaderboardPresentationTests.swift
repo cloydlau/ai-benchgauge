@@ -2,6 +2,18 @@ import Foundation
 import Testing
 import LeaderboardKit
 
+@Test func timestampExplanationCoversBothLabelsAndRealTimeUpdatesInEveryLanguage() {
+    for language in AppLanguage.allCases {
+        let explanation = LeaderboardPresentation.sourceTimeExplanation(language: language)
+        #expect(!LeaderboardPresentation.sourceTimeExplanationTitle(language: language).isEmpty)
+        #expect(explanation.contains(language.text("updated in real time", "实时更新")))
+        #expect(explanation.contains(language.text("provides a publication time", "提供了发布时间")))
+        #expect(explanation.contains(language.text("does not provide a publication time", "未提供发布时间")))
+        #expect(!explanation.contains("抓取"))
+        #expect(!explanation.contains("retrieved"))
+    }
+}
+
 @Test func usageCaptionsDistinguishDailyAndCumulativeCoverageAcrossClientsAndLanguages() {
     let captions: [(LeaderboardKind, String, String, String)] = [
         (.cloudbaseUsage, "Cumulative share", "累计占比", "累計佔比"),

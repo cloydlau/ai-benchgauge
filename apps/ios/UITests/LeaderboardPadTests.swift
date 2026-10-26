@@ -445,6 +445,13 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
                     XCTAssertFalse(times.label.contains("2026"))
                     let label = times.label
                     times.tap()
+                    let explanation = app.alerts[chinese ? "时间说明" : "Time labels"]
+                    XCTAssertTrue(explanation.waitForExistence(timeout: 5))
+                    let message = explanation.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: " ")
+                    XCTAssertTrue(message.contains(chinese ? "榜单数据实时更新" : "updated in real time"))
+                    XCTAssertTrue(message.contains(chinese ? "未提供发布时间" : "does not provide a publication time"))
+                    XCTAssertFalse(message.contains("抓取"))
+                    explanation.buttons[chinese ? "知道了" : "OK"].tap()
                     XCTAssertEqual(times.label, label)
                     XCTAssertFalse(app.buttons["refresh"].exists)
                     if UIDevice.current.userInterfaceIdiom == .phone {
@@ -2250,7 +2257,7 @@ final class UsageTimestampTests: XCTestCase {
                 header.name = "usage-refresh-\(dark ? "en-dark" : "zh-light")-\(kind)-header"
                 header.lifetime = .keepAlways; add(header)
                 app.buttons["source-help-\(kind)"].tap()
-                let marker = dark ? "Refresh time records" : "刷新时间仅表示"
+                let marker = dark ? "updated in real time" : "榜单数据实时更新"
                 let explanation = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", marker)).firstMatch
                 XCTAssertTrue(explanation.waitForExistence(timeout: 5))
                 if kind == "vercelUsage" {

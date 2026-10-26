@@ -794,6 +794,21 @@ test('every category and source shares the current page title and only the local
   }
 })
 
+test('timestamp help explains both labels in all languages without refreshing data', async () => {
+  for (const language of ['en', 'zh-CN', 'zh-TW']) {
+    const h = setup({ language })
+    const requests = h.requests.length
+    h.page.timeHelp()
+    assert.deepEqual(h.modals.at(-1), {
+      title: text(copy.timeExplanationTitle, language),
+      content: text(copy.timeExplanation, language), showCancel: false,
+    })
+    assert.equal(h.requests.length, requests)
+    assert.doesNotMatch(h.modals.at(-1).content, /抓取|擷取|retriev|fetch/i)
+    globalThis.__benchHooks.unload()
+  }
+})
+
 test('usage headers show retrieval time while source help retains statistical coverage', async () => {
   const fetchedAt = '2026-10-24T12:34:00Z'
   for (const language of ['en', 'zh-CN', 'zh-TW']) {
@@ -808,7 +823,7 @@ test('usage headers show retrieval time while source help retains statistical co
       assert.equal(card.isSourceTime, false)
       h.page.sourceHelp(event({ kind }))
       const content = h.modals.at(-1).content
-      assert.match(content, language === 'en' ? /does not indicate a new source update/ : language === 'zh-TW' ? /不代表來源資料剛剛更新/ : /不代表来源数据刚刚更新/)
+      assert.ok(content.includes(text(copy.timeExplanation, language)))
       if (kind === 'vercelUsage') {
         assert.match(content, /2026-10-22/)
         assert.match(content, /UTC/)

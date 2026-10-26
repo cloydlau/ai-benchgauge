@@ -603,7 +603,7 @@ sealed partial class MainWindow
                     + (board.Kind == "cloudbaseUsage" ? "\n" + Tr("Sampled-period text token shares, including cache hits; model families only. Full dates and absolute volumes unavailable.", "抽样统计日文本 token 累计占比，含缓存命中；按模型系列汇总，未公开完整日期或绝对用量。", "抽樣統計日文字 token 累計佔比，含快取命中；按模型系列彙總，未公開完整日期或絕對用量。") : "")
                     + (board.Kind == "vercelUsage" ? "\n" + Tr("Daily data uses UTC 00:00 to 00:00 the next day (08:00 to 08:00 the next day in Beijing). Text token shares include cached and reasoning tokens. Company shares sum listed models only; no absolute volumes are published.", "按 UTC 当天 00:00 至次日 00:00 统计，对应北京时间当天 08:00 至次日 08:00。文本 token 用量占比包含缓存及推理 token；公司只汇总榜内模型，不提供绝对用量。", "按 UTC 當天 00:00 至次日 00:00 統計，對應北京時間當天 08:00 至次日 08:00。文字 token 用量佔比包含快取及推理 token；公司只彙總榜內模型，不提供絕對用量。") : "")
                     + (BoardTimestamp.StatisticalDay(board, prefs.Language) is { } statisticalDay ? "\n" + statisticalDay : "")
-                    + (board.Kind is "vercelUsage" or "cloudbaseUsage" ? "\n" + Tr("Refresh time records when we retrieved this snapshot; it does not indicate a new source update.", "刷新时间仅表示我们取得这份数据的时间，不代表来源数据刚刚更新。", "刷新時間僅表示我們取得這份資料的時間，不代表來源資料剛剛更新。") : "")
+                    + (board.Kind is "vercelUsage" or "cloudbaseUsage" ? "\n" + BoardTimestamp.Explanation(prefs.Language) : "")
                     + (ArenaAttribution.Applies(board) ? "\n" + ArenaAttribution.FullText(prefs.Language) : "") };
             CenterTextInk(summary);
             summary.FontSize = 11;
@@ -642,6 +642,7 @@ sealed partial class MainWindow
             var time = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 5, 0) };
             var sourceTime = Caption(selectedTime.Text, selectedTime.IsSourceTime ? BoardTint(board.Kind) : PanelMuted, 8.5, numeric: true);
             sourceTime.FontWeight = selectedTime.IsSourceTime ? FontWeights.SemiBold : FontWeights.Normal;
+            sourceTime.TextDecorations = TextDecorations.Underline;
             if (!timestampPolishClocks.TryGetValue(board.Kind, out var polishClock))
                 timestampPolishClocks[board.Kind] = polishClock = new TimestampPolishClock();
             polishClock.Update(!VisibleBoardsLoading && board.Kind != "cloudbaseUsage" && selectedTime.Text != "—");
@@ -649,8 +650,10 @@ sealed partial class MainWindow
             timestampPolishViews.Add(polishedTime);
             time.Children.Add(polishedTime);
             time.ToolTip = BoardTimeHelp(board);
+            var timeButton = new Button { Content = time, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Padding = new Thickness(0), Cursor = Cursors.Hand };
+            timeButton.Click += (_, _) => MessageBox.Show(this, BoardTimestamp.Explanation(prefs.Language), BoardTimestamp.ExplanationTitle(prefs.Language), MessageBoxButton.OK, MessageBoxImage.Information);
             heading.Children.Add(summary);
-            Grid.SetColumn(time, 1); heading.Children.Add(time);
+            Grid.SetColumn(timeButton, 1); heading.Children.Add(timeButton);
             AddCell(headings, heading, column);
             AddCell(headings, OpennessPicker(board), column + 2);
             AddCell(headings, CountryPicker(board), column + 1);

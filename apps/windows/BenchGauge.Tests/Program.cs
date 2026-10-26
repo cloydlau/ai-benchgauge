@@ -6,6 +6,16 @@ using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Security;
 
+foreach (var language in new[] { "en", "zh", "zh-Hant", "zh-TW" })
+{
+    var explanation = BoardTimestamp.Explanation(language);
+    if (string.IsNullOrEmpty(BoardTimestamp.ExplanationTitle(language)) ||
+        !explanation.Contains(language == "en" ? "updated in real time" : language == "zh" ? "实时更新" : "即時更新") ||
+        !explanation.Contains(language == "en" ? "does not provide a publication time" : language == "zh" ? "未提供发布时间" : "未提供發佈時間") ||
+        explanation.Contains("抓取") || explanation.Contains("retrieved"))
+        throw new Exception("Timestamp help must explain publication and fallback refresh labels in every language");
+}
+
 // The shared brand catalog covers exact category IDs, independent of column positions.
 foreach (var kinds in new[] {
     new[] { "artificialAnalysis", "artificialAnalysisCodingAgent", "artificialAnalysisTextToImage", "artificialAnalysisTextToVideo" },
