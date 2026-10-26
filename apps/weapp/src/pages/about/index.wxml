@@ -14,31 +14,26 @@
       <view class="about-description">
         <text wx:for="{{descriptionLines}}" wx:key="*this" class="about-description-line">{{item}}</text>
       </view>
-      <button class="contribute-link" data-url="{{repositoryURL}}" bindtap="copyLink" aria-label="{{labels.name}} · {{contributeLabel}} · {{labels.copyLink}}">
-        <text>{{contributeLabel}}</text><van-icon name="link-o" size="14px" />
-      </button>
       <view class="hero-rule" aria-hidden="true"><view /><view /></view>
     </view>
-    <button class="quota-card" data-url="{{desktopDownloadURL}}" bindtap="copyLink" aria-label="{{desktopTitle}} · {{desktopDownloadLabel}} · {{labels.copyLink}}">
-      <view class="quota-icon" aria-hidden="true"><view class="pc-screen" /><view class="pc-stand" /></view>
-      <text class="quota-title">{{desktopTitle}}</text>
-      <view class="quota-action"><text>{{desktopDownloadLabel}}</text><van-icon name="link-o" size="16px" /></view>
-    </button>
-    <view class="about-section sources-section">
-      <text class="section-title">{{sourcesTitle}}</text>
-      <view class="source-list">
-        <view wx:for="{{items}}" wx:key="id" class="source-row source-{{item.id}}">
-          <view class="source-main" hover-class="source-main-active" data-url="{{item.url}}" bindtap="copyLink" aria-role="button" aria-label="{{item.title}} · {{labels.copyLink}}">
-            <image class="source-logo" src="{{item.icon}}" mode="aspectFit" aria-hidden="true" />
-            <view class="source-copy">
-              <view class="source-name">{{item.title}}</view>
-              <view class="source-domain">{{item.domain}}</view>
-            </view>
-          </view>
-          <view wx:if="{{item.license}}" class="source-license" hover-class="source-license-active" data-id="{{item.id}}" bindtap="openLicense" aria-role="button" aria-label="{{item.title}} · {{item.licenseLabel}} · {{viewLicenseLabel}}"><text>{{item.licenseLabel}}</text></view>
-          <view class="source-link-mark" hover-class="source-main-active" data-url="{{item.url}}" bindtap="copyLink" aria-hidden="true"><van-icon name="link-o" size="16px" /></view>
+    <view class="about-card platforms-card">
+      <text class="section-title platforms-title">{{platforms.title}}</text>
+      <view wx:for="{{platforms.items}}" wx:key="id" class="platform-row">
+        <view class="platform-details">
+          <text class="platform-name">{{item.name}}</text>
+          <text wx:if="{{item.featureText}}" class="platform-features">{{item.featureText}}</text>
+        </view>
+        <view class="platform-state">
+          <button wx:if="{{item.status === 'live' && item.url}}" class="platform-status platform-status-{{item.status}} platform-download" data-url="{{item.url}}" bindtap="copyLink" aria-label="{{item.name}} · {{item.statusLabel}} · {{platforms.downloadLabel}}">
+            <text>{{item.statusLabel}}</text><van-icon name="link-o" size="12px" />
+          </button>
+          <text wx:else class="platform-status platform-status-{{item.status}}">{{item.statusLabel}}</text>
+          <button wx:if="{{item.prWelcome}}" class="platform-pr" data-url="{{item.url}}" bindtap="copyLink" aria-label="{{item.name}} · {{platforms.prWelcomeLabel}} · {{platforms.copyLinkLabel}}">{{platforms.prWelcomeLabel}}<van-icon name="link-o" size="11px" /></button>
         </view>
       </view>
+      <button class="contribute-link platform-contribute" data-url="{{platforms.repositoryURL}}" bindtap="copyLink" aria-label="{{platforms.contributeLabel}} · {{platforms.copyLinkLabel}}">
+        <text>{{platforms.contributeLabel}}</text><van-icon name="link-o" size="14px" />
+      </button>
     </view>
     <view class="about-card investment-card">
       <text class="section-title">{{investment.title}}</text>
@@ -81,14 +76,4 @@
       </view>
     </view>
   </view>
-  <van-dialog show="{{licenseNotice.open}}" title="{{licenseNotice.title || 'CC BY 4.0'}}" use-slot
-    confirm-button-text="OK"
-    confirm-button-color="{{dark ? '#d1dce8' : '#414d5c'}}"
-    close-on-click-overlay="{{true}}"
-    custom-style="background:var(--card);color:var(--ink);--dialog-has-title-message-text-color:var(--muted);--button-default-background-color:var(--card);"
-    bindconfirm="closeLicense" bindclose="closeLicense">
-    <scroll-view scroll-y class="license-notice">
-      <text class="license-notice-text" selectable>{{licenseNotice.text}}</text>
-    </scroll-view>
-  </van-dialog>
 </view>

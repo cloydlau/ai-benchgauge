@@ -16,14 +16,19 @@
 | 桌面标题与图标 | `assets/brand/`、`Scripts/brand-assets.swift`、`Scripts/ios-icon.swift` | Mac `EnglishBrandTitle` / `ChineseBrandTitle`；Windows WPF 标题。桌面标题保留原生基线 / 字体布局，移动标题使用独立的紧凑字距；正式图标和标题网络图仍共源。遵循 `docs/visual-comparison.md` 的双桌面截图要求 |
 | OpenAI 套餐与额外额度 | Core `CCSwitchQuotaParsers` / `AccountQuotaFormatting`、`OpenAIManagedQuotaSource` | macOS 余量条与菜单栏、Windows 共享引擎余量条与托盘；任一套餐窗口耗尽时显示 credits 余额，无限 / 未返回数字分别显示状态，缺少 credits 则保留百分比。缓存与路由投影保留余额；`OpenAICreditsTests` 和三语双主题 `openAICredits` 原生截图场景。小程序、iPhone/iPad 及榜单图片导出当前不展示账号余量，不新增该能力 |
 | 模型 / 公司排行、地区与开源规则 | `fc/domain.mjs`、`fc/leaderboard-policy.json`、`fc/brand-catalog.json`、`Scripts/generate-leaderboard-policy.mjs` | `Sources/LeaderboardKit`、小程序 `core/leaderboard.js`、Windows 共享引擎；同时检查筛选、公司聚合、离线缓存和图片导出 |
-| 来源标志、主题与关于页 | `assets/brand/partners/`、`Scripts/source-logos.mjs`、`Sources/LeaderboardKit/Resources/SourceTabThemes.json` | 小程序榜单 / 关于 / 导出，iOS 来源标签 / 关于 / 导出，Mac / Windows 标题与来源说明；深浅色和离线资源分别验收 |
+| 来源标志、主题与关于页 | `assets/brand/partners/`、`Scripts/source-logos.mjs`、`Sources/LeaderboardKit/Resources/SourceTabThemes.json` | 小程序榜单 / 导出，iOS 来源标签 / 导出，Mac / Windows 标题与来源说明；深浅色和离线资源分别验收 |
 | 表头榜单简介 | Kit `LeaderboardPresentation.sourceHelp` / `LeaderboardKind.sourceURL`、小程序 `core/catalog.js`、Windows 既有来源说明与 URL | 小程序、iPhone/iPad、macOS、Windows 点击表头名称打开该榜单简介，展示官方链接并提供显式复制链接操作；打开或关闭简介不写剪贴板。小程序 `page.test.mjs` 核对三语、全部类别、两种分组、复制与手势防误触；静态图片保留标题，不增加交互 |
 | 发布时间、刷新时间和刷新反馈 | 共享 Kit 时间策略、小程序 `core/freshness.js`、`Tests/fixtures/calendar-timestamps.json` | 小程序榜单与 Canvas、iOS `LeaderboardPadView` 与导出、Mac / Windows 时间文案。移动下拉检查起始 / 加载 / 完成三态；桌面保留原生刷新交互 |
 | 搜索、筛选与来源切换 | Kit 排行投影 / 过滤策略、小程序 `pages/leaderboard/index.js`、iOS `LeaderboardPadStore` / `LeaderboardPadView` | 两移动端分别搜索模型名 / 聚合后的公司名并保留独立关键词，核对搜索清除、空结果、来源 / 类别 / 公司切换、筛选保留和导出；魔方来源不循环，越过末榜进入下一类别首榜，越过首榜进入上一类别末榜，仅类别首尾循环；桌面核对对应筛选与投影，平台专属交互不硬搬 |
 | 文案、许可与应用说明 | `config/app.json`、`Scripts/sync-app-description.mjs`、共享 Kit 本地化与离线许可 | 三种语言；各端主界面、关于、导出与应用元数据。不能只更新一个语言或一处显示 |
 | 显示榜单 | Kit `DesktopBoardSelection`、小程序 `core/board-selection.js`；各端按分类保存 | 小程序设置页、iPhone/iPad `LeaderboardSettingsView`、桌面既有榜单选择器。默认全选，每类至少一榜，移动设置的重置恢复全部；移动单榜隐藏顶部 tabs 及占位，魔方跨分类按可见来源计数；排行、分布图、刷新和导出仅消费可见榜单，小程序分享保留显示选择 |
 | 切换动效 | 小程序 `core/board-transition.js`、Apple `LeaderboardSwitchStyle` / `CubeFace` | 小程序与 iPhone/iPad 设置提供魔方、滑动、淡入淡出预览卡，默认魔方并本地持久保存；用于单榜视图的手势和标签切换，共用来源边界、跨分类导航、滚动对齐。分享保留接收方动效偏好，显示榜单重置不重置动效。减少动态效果时改为轻量淡入淡出并停用预览动画。iPad 宽屏和 Mac / Windows 的并列榜单保持原布局，静态导出无动效。JS `board-transition` / `settings` / `share-state` / `page` 测试及 Apple `LeaderboardCubeTests` 覆盖 |
+| 各端进展与贡献 | 小程序 `core/about-platforms.js` → `Scripts/ios-about.mjs` | 小程序与 iPhone/iPad 关于页，替换原 “余量查询” 卡片；固定七端功能及状态，开发中/暂无显示可复制仓库链接的 PR welcome，贡献代码入口位于模块底部。macOS 已上线状态提供下载链接；桌面 About 和图片导出没有原移动卡片，不新增模块 |
 | 成本与工程投入 | Calmmit `cost-calculation.mjs`、`engineering-investment.mjs`、`resources/CostCalculation.swift` | 小程序与 iPhone/iPad 关于页。构建入口同步 JS / Swift 计算适配器；Git 统计、月份取整、按月累计和合计由 Calmmit 维护，项目预算、文案与 UI 独立维护。桌面及图片导出当前没有该成本区 |
+
+基础设施年度预算见 [预算说明](infrastructure-budget.md)。金额估算不细于百元，允许项目采用千元、万元等更粗粒度；各移动端从同一份预算定义生成金额与说明。费用为估算，非实际账单。
+
+“各端进展” 验证（2026-10-26）：小程序 200 项测试及构建通过；iPhone/iPad 共用生成数据三语一致性检查与 Swift 源码语法检查通过，UI 用例已改为逐行核对七端功能、状态、PR 链接和 macOS 下载入口。当前 Mac 锁屏阻止开发者工具界面检查；未取得本次原生截图，未运行 iPhone/iPad UI 测试或完成真机安装验收。macOS/Windows 的运行界面与图片导出不涉及本次移动关于页替换。
 
 移动设置的 “显示榜单” 勾选状态使用绿色，小程序搭配白色勾号，iPhone/iPad 使用系统绿色；未选中维持中性色，最后一个必选榜单维持禁用弱化样式。
 

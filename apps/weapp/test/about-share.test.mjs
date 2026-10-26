@@ -47,38 +47,22 @@ test('about-page menu forwarding and cold-start back navigation retain the origi
   const about = globalThis.aboutFactory(query)
   assert.equal(about.repositoryURL, 'https://github.com/cloydlau/ai-benchgauge')
   assert.equal(about.desktopDownloadURL, about.repositoryURL + '/releases/latest')
-  assert.deepEqual(about.items.map(item => [item.id, item.license]), [
-    ['cloudbase', false],
-    ['vercel', true],
-    ['openRouter', true],
-    ['artificialAnalysis', false],
-    ['arena', true],
-    ['epoch', true],
-  ])
-  assert.ok(about.items.filter(item => item.license).every(item => item.licenseLabel === "CC BY 4.0"))
-  assert.equal(about.licenseNotice.value.open, false)
-  about.openLicense({ currentTarget: { dataset: { id: 'unknown' } } })
-  assert.equal(about.licenseNotice.value.open, false)
-  assert.equal(about.licenseNotice.value.text, '')
-  about.openLicense({ currentTarget: { dataset: { id: 'epoch' } } })
-  assert.equal(about.licenseNotice.value.open, true)
-  assert.equal(about.licenseNotice.value.text, ccByLicense('en').text)
-  assert.notEqual(about.licenseNotice.value.text, epochAttribution('en').fullText)
-  const opened = { ...about.licenseNotice.value }
-  about.openLicense({ currentTarget: { dataset: { id: 'unknown' } } })
-  assert.deepEqual(about.licenseNotice.value, opened)
-  about.closeLicense()
-  assert.equal(about.licenseNotice.value.open, false)
-  assert.equal(about.licenseNotice.value.text, ccByLicense('en').text)
-  about.openLicense({ currentTarget: { dataset: { id: 'arena' } } })
-  assert.equal(about.licenseNotice.value.text, ccByLicense('en').text)
-  assert.equal(about.licenseNotice.value.text, opened.text)
-  assert.notEqual(about.licenseNotice.value.text, arenaAttribution('en').fullText)
-  about.openLicense({ currentTarget: { dataset: { id: 'openRouter' } } })
-  assert.ok(about.licenseNotice.value.text.includes('Source: OpenRouter (openrouter.ai/rankings).'))
-  assert.ok(about.licenseNotice.value.text.endsWith(ccByLicense('en').text))
-  about.closeLicense()
-  assert.equal(about.licenseNotice.value.open, false)
+  assert.equal(about.items, undefined)
+  assert.equal(about.openLicense, undefined)
+  const template = readFileSync(new URL('../src/pages/about/index.wxml', import.meta.url), 'utf8')
+  assert.ok(!template.includes('sources-section'))
+  assert.ok(!template.includes('licenseNotice'))
+  assert.equal(sourceAgreement('unknown'), '')
+  assert.equal(sourceAgreement('artificialAnalysis'), '')
+  assert.equal(sourceAgreement('arenaText'), '', 'Legacy Arena data must not inherit the dataset license')
+  const arena = { kind: 'arenaText', sourceNote: arenaAttribution('en').sourceURL }
+  for (const [kind, board, credit] of [['epochECI', null, epochAttribution('en')], ['arenaText', arena, arenaAttribution('en')]]) {
+    const agreement = sourceAgreement(kind, board, 'en')
+    assert.equal(agreement, `${credit.fullText}\n\n${ccByLicense('en').text}`)
+    assert.notEqual(agreement, credit.fullText)
+  }
+  assert.ok(sourceAgreement('openRouterUsage').includes('Source: OpenRouter (openrouter.ai/rankings).'))
+  assert.ok(sourceAgreement('openRouterUsage').endsWith(ccByLicense('en').text))
   assert.equal(globalThis.aboutConfig.canShareToOthers, true)
   assert.equal(about.dark, true)
   assert.equal(about.labels.about, 'About')
@@ -149,6 +133,53 @@ test('about descriptions and share titles reuse common localized copy', () => {
     assert.equal(title, `${about.labels.about}｜${text(copy.rankingSummary, language)}`)
     assert.ok(!title.includes(text(copy.tagline, language)))
     assert.ok(about.description.includes(text(copy.tagline, language)))
+  }
+})
+
+test('About lists the requested seven platforms and moves contribution into their module', () => {
+  const template = readFileSync(new URL('../src/pages/about/index.wxml', import.meta.url), 'utf8')
+  const hero = template.slice(template.indexOf('<view class="about-hero">'), template.indexOf('<view class="about-card platforms-card">'))
+  const module = template.slice(template.indexOf('<view class="about-card platforms-card">'), template.indexOf('<view class="about-card investment-card">'))
+  assert.ok(!template.includes('quota-card'))
+  assert.ok(!hero.includes('contribute-link'))
+  assert.match(module, /wx:for="\{\{platforms.items\}\}"/)
+  assert.match(module, /wx:if="\{\{item.prWelcome\}\}"/)
+  assert.match(module, /class="contribute-link platform-contribute"/)
+  const expected = [
+    ['weapp', 'live', 1, false], ['ios', 'development', 1, true], ['ipad', 'development', 1, true],
+    ['android', 'unavailable', 0, true], ['harmony', 'unavailable', 0, true],
+    ['macos', 'live', 2, false], ['windows', 'development', 2, true],
+  ]
+  for (const language of ['en', 'zh-CN', 'zh-TW']) {
+    const copies = []
+    globalThis.wx = {
+      getStorageSync: () => ({ language }), getWindowInfo: () => ({ statusBarHeight: 24 }),
+      getAppBaseInfo: () => ({ theme: 'light' }),
+      setClipboardData: ({ data }) => copies.push(data),
+    }
+    const about = globalThis.aboutFactory({})
+    assert.deepEqual(about.platforms.items.map(item => [item.id, item.status, item.features.length, item.prWelcome]), expected)
+    assert.equal(about.platforms.prWelcomeLabel, 'PR welcome')
+    for (const platform of about.platforms.items) {
+      assert.ok(platform.name && platform.statusLabel)
+      assert.equal(platform.featureText, platform.features.join(' · '))
+      if (platform.prWelcome) assert.equal(platform.url, about.repositoryURL)
+      if (platform.id === 'macos') assert.equal(platform.url, about.desktopDownloadURL)
+      if (platform.id === 'weapp') assert.equal(platform.url, null)
+      if (platform.url) {
+        about.copyLink({ currentTarget: { dataset: { url: platform.url } } })
+        assert.equal(copies.at(-1), platform.url)
+      }
+    }
+    about.copyLink({ currentTarget: { dataset: { url: about.platforms.repositoryURL } } })
+    assert.equal(copies.at(-1), about.repositoryURL)
+    assert.equal(copies.length, 7)
+    if (language === 'zh-CN') {
+      assert.deepEqual(about.platforms.items.map(item => [item.name, item.statusLabel, item.featureText]), [
+        ['微信小程序', '已上线', '榜单'], ['iOS', '开发中', '榜单'], ['iPad', '开发中', '榜单'],
+        ['安卓', '暂无', ''], ['鸿蒙', '暂无', ''], ['macOS', '已上线', '榜单 · 余量'], ['Windows', '开发中', '榜单 · 余量'],
+      ])
+    }
   }
 })
 
