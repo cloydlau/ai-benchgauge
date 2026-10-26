@@ -12,7 +12,8 @@ struct PadAboutContent: Decodable, Sendable {
         let startedAt: Double
         let meanMonthMilliseconds: Double
         func months(at date: Date) -> Int {
-            max(0, Int(floor((date.timeIntervalSince1970 * 1000 - startedAt) / meanMonthMilliseconds + 0.5)))
+            CalmmitCostCalculation.developmentMonths(startedAt: startedAt,
+                now: date.timeIntervalSince1970 * 1000, meanMonthMilliseconds: meanMonthMilliseconds)
         }
     }
     struct Copy: Decodable, Sendable {
@@ -31,13 +32,13 @@ struct PadAboutContent: Decodable, Sendable {
             let body: String
             let amount: Int?
             let monthlyAmount: Int?
-            func amount(months: Int) -> Int? { monthlyAmount.map { $0 * months } ?? amount }
+            func amount(months: Int) -> Int? { CalmmitCostCalculation.itemAmount(amount, monthlyAmount: monthlyAmount, months: months) }
         }
         struct Group: Decodable, Identifiable, Sendable {
             let id: String
             let title: String
             let items: [Item]
-            func amount(months: Int) -> Int { items.reduce(0) { $0 + ($1.amount(months: months) ?? 0) } }
+            func amount(months: Int) -> Int { CalmmitCostCalculation.sumAmounts(items.map { $0.amount(months: months) }) }
         }
         let title: String
         let engineeringTitle: String
@@ -48,7 +49,7 @@ struct PadAboutContent: Decodable, Sendable {
         let groups: [Group]
         let totalTitle: String
         let costNote: String
-        func total(months: Int) -> Int { groups.reduce(0) { $0 + $1.amount(months: months) } }
+        func total(months: Int) -> Int { CalmmitCostCalculation.sumAmounts(groups.map { $0.amount(months: months) }) }
     }
     let desktopDownloadURL: String
     let repositoryURL: String

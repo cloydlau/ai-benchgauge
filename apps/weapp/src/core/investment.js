@@ -1,4 +1,5 @@
 import { text } from './catalog.js'
+import { MEAN_MONTH_MS, calculateCosts } from '../generated/cost-calculation.js'
 
 const count = value => String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 
@@ -6,13 +7,9 @@ const count = value => String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 // Infrastructure/certification are annual budgets; tokens accumulate over development time.
 // BenchGauge's first commit (5b79092), rather than Watrek's development start.
 const DEVELOPMENT_STARTED_AT = Date.parse('2026-09-21T17:09:38+08:00')
-const MEAN_MONTH_MS = (365.2425 / 12) * 24 * 60 * 60 * 1000
 const TOKEN_COST_PER_MONTH = 2000
 export const investmentSchedule = { startedAt: DEVELOPMENT_STARTED_AT, meanMonthMilliseconds: MEAN_MONTH_MS }
 
-function developmentMonths(now) {
-  return Number.isFinite(now) ? Math.max(0, Math.round((now - DEVELOPMENT_STARTED_AT) / MEAN_MONTH_MS)) : 0
-}
 const costGroups = [
   { id: 'infrastructure', title: ['Infrastructure', '基础设施', '基礎設施'], items: [
     { id: 'server', amount: 1200, title: ['Cloud services', '云服务', '雲端服務'],
@@ -43,15 +40,13 @@ const costGroups = [
 export function investmentContent(stats, language, { now = Date.now() } = {}) {
   const money = amount => amount == null ? text(['Not totaled', '暂未核算', '暫未核算'], language)
     : `${text(['~¥', '约¥', '約¥'], language)}${count(amount)}`
-  const groups = costGroups.map(group => {
-    const items = group.items.map(item => {
-      const amount = item.monthlyAmount == null ? item.amount : developmentMonths(now) * item.monthlyAmount
-      return { ...item, amount, title: text(item.title, language), body: text(item.body, language), amountText: money(amount) }
-    })
-    const amount = items.reduce((sum, item) => sum + (item.amount ?? 0), 0)
-    return { id: group.id, title: text(group.title, language), amount, amountText: money(amount), items }
-  })
-  const total = groups.reduce((sum, group) => sum + group.amount, 0)
+  const calculated = calculateCosts(costGroups, { startedAt: DEVELOPMENT_STARTED_AT, now })
+  const groups = calculated.groups.map(group => ({
+    id: group.id, title: text(group.title, language), amount: group.amount, amountText: money(group.amount),
+    items: group.items.map(item => ({ ...item, title: text(item.title, language),
+      body: text(item.body, language), amountText: money(item.amount) })),
+  }))
+  const total = calculated.total
   return {
     title: text(['Costs and investment', '成本与投入', '成本與投入'], language),
     engineeringTitle: text(['Engineering investment', '工程投入', '工程投入'], language),

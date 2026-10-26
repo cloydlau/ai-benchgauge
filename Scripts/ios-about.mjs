@@ -1,8 +1,10 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { copy, text, languages, desktopDownloadURL, repositoryURL, leaderboardSources } from '../apps/weapp/src/core/catalog.js'
-import { investmentContent, investmentSchedule } from '../apps/weapp/src/core/investment.js'
 import { engineeringInvestment } from '../apps/weapp/scripts/engineering-investment.mjs'
+
+// Load client calculations after the shared runtime has been synchronized.
+const { investmentContent, investmentSchedule } = await import('../apps/weapp/src/core/investment.js')
 
 // Native About uses the mini-program's copy and cost definitions. Monthly
 // investment is recalculated on-device; engineering counters are build-time data.

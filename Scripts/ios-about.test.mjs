@@ -3,6 +3,11 @@ import test from 'node:test'
 import { iosAboutContent } from './ios-about.mjs'
 import { copy, text } from '../apps/weapp/src/core/catalog.js'
 import { investmentContent, investmentSchedule } from '../apps/weapp/src/core/investment.js'
+import { syncInvestmentRuntime } from '../apps/weapp/scripts/engineering-investment.mjs'
+
+test('mini-program and native cost adapters match the configured Calmmit source', () => {
+  assert.deepEqual(syncInvestmentRuntime({ check: true }), [])
+})
 
 test('iOS About exports the same localized descriptions, metrics and cost definitions as the mini-program', () => {
   const stats = { commitCount: 1234, codeLineCount: 56789 }
