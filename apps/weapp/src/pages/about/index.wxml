@@ -19,20 +19,16 @@
     <view class="about-card platforms-card">
       <text class="section-title platforms-title">{{platforms.title}}</text>
       <view wx:for="{{platforms.items}}" wx:key="id" class="platform-row">
-        <view class="platform-details">
-          <text class="platform-name">{{item.name}}</text>
-          <text wx:if="{{item.featureText}}" class="platform-features">{{item.featureText}}</text>
+        <view class="platform-icon platform-icon-{{item.id}}" aria-hidden="true">
+          <image wx:if="{{item.id === 'weapp'}}" class="platform-wechat" src="/assets/source-logos/wechat{{dark ? '-dark' : ''}}.png" mode="aspectFit" />
+          <view wx:else class="platform-device"><view /><view /></view>
         </view>
-        <view class="platform-state">
-          <button wx:if="{{item.status === 'live' && item.url}}" class="platform-status platform-status-{{item.status}} platform-download" data-url="{{item.url}}" bindtap="copyLink" aria-label="{{item.name}} · {{item.statusLabel}} · {{platforms.downloadLabel}}">
-            <text>{{item.statusLabel}}</text><van-icon name="link-o" size="12px" />
-          </button>
-          <text wx:else class="platform-status platform-status-{{item.status}}">{{item.statusLabel}}</text>
-          <button wx:if="{{item.prWelcome}}" class="platform-pr" data-url="{{item.url}}" bindtap="copyLink" aria-label="{{item.name}} · {{platforms.prWelcomeLabel}} · {{platforms.copyLinkLabel}}">{{platforms.prWelcomeLabel}}<van-icon name="link-o" size="11px" /></button>
-        </view>
+        <view class="platform-name"><text>{{item.name}}</text><text wx:if="{{item.note}}" class="platform-note">{{item.note}}</text></view>
+        <text wx:if="{{item.featureText}}" class="platform-features">{{item.featureText}}</text>
+        <text class="platform-status platform-status-{{item.status}}">{{item.statusLabel}}</text>
       </view>
-      <button class="contribute-link platform-contribute" data-url="{{platforms.repositoryURL}}" bindtap="copyLink" aria-label="{{platforms.contributeLabel}} · {{platforms.copyLinkLabel}}">
-        <text>{{platforms.contributeLabel}}</text><van-icon name="link-o" size="14px" />
+      <button class="platform-contribute" data-url="{{platforms.repositoryURL}}" bindtap="copyLink" aria-label="{{platforms.contributeLabel}} · {{platforms.copyLinkLabel}}">
+        <van-icon name="friends-o" size="16px" /><text>{{platforms.contributeLabel}}</text><van-icon name="arrow" size="12px" />
       </button>
     </view>
     <view class="about-card investment-card">

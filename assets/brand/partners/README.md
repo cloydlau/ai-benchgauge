@@ -29,3 +29,8 @@ the runtime exports as new source images. Keep native `scaledToFit` and WeChat
 Source tabs use the same theme-specific exports on a small neutral surface so
 the original marks remain visible over selected brand colors. All board kinds
 resolve their source identity through the shared `SourceTabThemes.json` catalog.
+
+The `wechat/` subdirectory separately holds the Tabler WeChat outline used in
+the About platform list. It is not a leaderboard source or official vendor
+artwork. The same exporter generates its 54×54 neutral theme variants for both
+mobile clients; see `wechat/README.md` for provenance and the bundled MIT notice.

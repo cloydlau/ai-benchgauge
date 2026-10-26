@@ -2158,36 +2158,33 @@ final class LeaderboardAboutParityTests: XCTestCase {
             XCTAssertFalse(app.buttons["about-source-arena"].exists)
             capture("about-" + theme + "-top")
             XCTAssertFalse(app.buttons["desktop-download"].exists)
-            for (id, status, features, welcomesPR) in [
-                ("weapp", chinese ? "已上线" : "Live", chinese ? "榜单" : "Leaderboards", false),
-                ("ios", chinese ? "开发中" : "In development", chinese ? "榜单" : "Leaderboards", true),
-                ("ipad", chinese ? "开发中" : "In development", chinese ? "榜单" : "Leaderboards", true),
-                ("android", chinese ? "暂无" : "Unavailable", "", true),
-                ("harmony", chinese ? "暂无" : "Unavailable", "", true),
-                ("macos", chinese ? "已上线" : "Live", chinese ? "榜单 · 余量" : "Leaderboards · Quota", false),
-                ("windows", chinese ? "开发中" : "In development", chinese ? "榜单 · 余量" : "Leaderboards · Quota", true),
+            for (id, status, features) in [
+                ("weapp", chinese ? "已上线" : "Live", chinese ? "榜单" : "Leaderboards"),
+                ("ios", chinese ? "开发中" : "In development", chinese ? "榜单" : "Leaderboards"),
+                ("ipad", chinese ? "开发中" : "In development", chinese ? "榜单" : "Leaderboards"),
+                ("android", chinese ? "暂无" : "Unavailable", ""),
+                ("harmony", chinese ? "暂无" : "Unavailable", ""),
+                ("macos", chinese ? "已上线" : "Live", chinese ? "榜单 · 余量" : "Leaderboards · Quota"),
+                ("windows", chinese ? "开发中" : "In development", chinese ? "榜单 · 余量" : "Leaderboards · Quota"),
             ] {
                 let row = app.otherElements["about-platform-" + id]
                 reveal(row, in: scroll)
                 if !features.isEmpty { XCTAssertTrue(row.staticTexts[features].exists) }
-                let pr = app.buttons["about-platform-pr-" + id]
-                XCTAssertEqual(pr.exists, welcomesPR)
-                if id == "macos" {
-                    let download = app.buttons["about-platform-download-macos"]
-                    XCTAssertTrue(download.label.contains(status))
-                    download.tap()
-                    XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "https://github.com/cloydlau/ai-benchgauge/releases/latest")).firstMatch.waitForExistence(timeout: 3))
-                } else {
-                    XCTAssertEqual(app.staticTexts["about-platform-status-" + id].label, status)
+                if id == "ios" {
+                    XCTAssertTrue(row.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", chinese ? "（含 iPhone Duo）" : "(incl. iPhone Duo)")).firstMatch.exists)
                 }
-                if welcomesPR {
-                    XCTAssertTrue(pr.label.contains("PR welcome"))
-                    pr.tap()
-                    XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label == %@", (chinese ? "已复制 " : "Copied ") + "https://github.com/cloydlau/ai-benchgauge")).firstMatch.waitForExistence(timeout: 3))
+                XCTAssertFalse(app.buttons["about-platform-pr-" + id].exists)
+                XCTAssertFalse(app.buttons["about-platform-download-" + id].exists)
+                let statusText = app.staticTexts["about-platform-status-" + id]
+                XCTAssertEqual(statusText.label, status)
+                if !features.isEmpty {
+                    XCTAssertEqual(row.staticTexts[features].frame.midY, statusText.frame.midY, accuracy: 3, "Features and status must share one line")
                 }
             }
-            reveal(app.buttons["about-contribute"], in: scroll)
-            app.buttons["about-contribute"].tap()
+            let contribute = app.buttons["about-contribute"]
+            reveal(contribute, in: scroll)
+            XCTAssertTrue(contribute.label.contains(chinese ? "欢迎贡献代码" : "PR welcome"))
+            contribute.tap()
             XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label == %@", (chinese ? "已复制 " : "Copied ") + "https://github.com/cloydlau/ai-benchgauge")).firstMatch.waitForExistence(timeout: 3))
             capture("about-" + theme + "-platforms")
             XCTAssertFalse(app.buttons["about-license-epoch"].exists)

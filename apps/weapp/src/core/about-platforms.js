@@ -1,4 +1,4 @@
-import { text, desktopDownloadURL, repositoryURL } from './catalog.js'
+import { text, repositoryURL } from './catalog.js'
 
 // Product availability is explicitly maintained, not inferred from build targets.
 const platforms = [
@@ -20,18 +20,15 @@ const features = { boards: ['Leaderboards', '榜单', '榜單'], quota: ['Quota'
 export function aboutPlatforms(language) {
   return {
     title: text(['Platforms', '各端进展', '各端進展'], language),
-    contributeLabel: text(['Contribute code', '贡献代码', '貢獻程式碼'], language),
     copyLinkLabel: text(['Copy link', '复制链接', '複製連結'], language),
-    downloadLabel: text(['Copy download link', '复制下载链接', '複製下載連結'], language),
-    prWelcomeLabel: 'PR welcome',
+    contributeLabel: text(['PR welcome', '欢迎贡献代码', '歡迎貢獻程式碼'], language),
     repositoryURL,
     items: platforms.map(platform => ({
       id: platform.id, name: text(platform.names, language),
+      note: platform.id === 'ios' ? text(['(incl. iPhone Duo)', '（含 iPhone Duo）', '（含 iPhone Duo）'], language) : '',
       status: platform.status, statusLabel: text(statuses[platform.status], language),
       features: platform.features.map(feature => text(features[feature], language)),
       featureText: platform.features.map(feature => text(features[feature], language)).join(' · '),
-      prWelcome: platform.status !== 'live',
-      url: platform.status !== 'live' ? repositoryURL : platform.id === 'macos' ? desktopDownloadURL : null,
     })),
   }
 }

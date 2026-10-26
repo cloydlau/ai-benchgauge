@@ -4,7 +4,7 @@ import LeaderboardKit
 
 @MainActor
 private enum SourceIconCache {
-    static let images: [String: CGImage] = ["cloudbase", "vercel", "openRouter", "artificialAnalysis", "arena", "epoch"]
+    static let images: [String: CGImage] = ["cloudbase", "vercel", "openRouter", "artificialAnalysis", "arena", "epoch", "wechat"]
         .flatMap { [$0, $0 + "-dark"] }.reduce(into: [:]) { images, name in
             guard let url = Bundle.module.url(forResource: name, withExtension: "png", subdirectory: "SourceLogos"),
                   let source = CGImageSourceCreateWithURL(url as CFURL, nil),
@@ -125,60 +125,85 @@ struct PadAboutView<Brand: View>: View {
             Text(content.title).font(.system(size: 15, weight: .semibold)).padding(.vertical, 12)
             ForEach(content.items) { platform in
                 Divider()
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(platform.name).font(.system(size: 14, weight: .medium))
-                        if !platform.featureText.isEmpty {
-                            Text(platform.featureText).font(.system(size: 11)).foregroundStyle(.secondary)
+                HStack(alignment: .center, spacing: 8) {
+                    platformIcon(platform.id).foregroundStyle(.secondary)
+                        .frame(width: 20, height: 24).accessibilityHidden(true)
+                    HStack(alignment: .center, spacing: 0) {
+                        Text(platform.name).font(.system(size: 12, weight: .medium))
+                        if !platform.note.isEmpty {
+                            Text(platform.note).font(.system(size: 9)).foregroundStyle(.secondary)
                         }
-                    }.fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
-                    VStack(alignment: .trailing, spacing: 0) {
-                        if platform.status == "live", let url = platform.url {
-                            Button { copyLink(url) } label: {
-                                HStack(spacing: 3) {
-                                    platformStatus(platform)
-                                    Image(systemName: "link").font(.system(size: 10))
-                                }.frame(minHeight: 36).contentShape(Rectangle())
-                            }.buttonStyle(.plain).foregroundStyle(platformTint(platform.status))
-                                .accessibilityIdentifier("about-platform-download-" + platform.id)
-                                .accessibilityLabel(platform.name + " · " + platform.statusLabel + " · " + content.downloadLabel)
-                        } else {
-                            platformStatus(platform)
-                        }
-                        if platform.prWelcome, let url = platform.url {
-                            Button { copyLink(url) } label: {
-                                HStack(spacing: 3) {
-                                    Text(content.prWelcomeLabel)
-                                    Image(systemName: "link").font(.system(size: 9))
-                                }.font(.system(size: 11)).frame(minHeight: 36).contentShape(Rectangle())
-                            }.buttonStyle(.plain).foregroundStyle(accent)
-                                .accessibilityIdentifier("about-platform-pr-" + platform.id)
-                                .accessibilityLabel(platform.name + " · " + content.prWelcomeLabel + " · " + content.copyLinkLabel)
-                        }
-                    }.fixedSize(horizontal: !dynamicTypeSize.isAccessibilitySize, vertical: true)
-                }.padding(.vertical, 7).frame(minHeight: 52)
+                    }
+                    .lineLimit(1).minimumScaleFactor(0.8)
+                    .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
+                    .accessibilityElement(children: .combine)
+                    if !platform.featureText.isEmpty {
+                        Text(platform.featureText).font(.system(size: 10)).foregroundStyle(.secondary)
+                            .lineLimit(1).fixedSize()
+                    }
+                    platformStatus(platform).frame(width: language == .english ? 90 : 48, alignment: .trailing)
+                }.frame(minHeight: 48)
                     .accessibilityElement(children: .contain).accessibilityIdentifier("about-platform-" + platform.id)
             }
             Divider()
             Button { copyLink(content.repositoryURL) } label: {
-                HStack {
-                    Text(content.contributeLabel).underline()
-                    Spacer()
-                    Image(systemName: "link")
-                }.font(.system(size: 12)).frame(minHeight: 48).contentShape(Rectangle())
-            }.buttonStyle(.plain).foregroundStyle(accent).accessibilityIdentifier("about-contribute")
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.left.forwardslash.chevron.right").font(.system(size: 12))
+                    Text(content.contributeLabel).font(.system(size: 12))
+                    Image(systemName: "chevron.right").font(.system(size: 9))
+                }.frame(maxWidth: .infinity, minHeight: 48).contentShape(Rectangle())
+            }.buttonStyle(.plain).foregroundStyle(accent)
+                .accessibilityIdentifier("about-contribute")
                 .accessibilityLabel(content.contributeLabel + " · " + content.copyLinkLabel)
         }.padding(.horizontal, 12).aboutCard(outline: outline)
             .accessibilityElement(children: .contain).accessibilityIdentifier("about-platforms")
     }
+    @ViewBuilder
+    private func platformIcon(_ id: String) -> some View {
+        switch id {
+        case "weapp":
+            if let icon = SourceIconCache.images["wechat"] {
+                Image(decorative: icon, scale: 3).renderingMode(.template)
+                    .resizable().scaledToFit().frame(width: 18, height: 18)
+            }
+        case "ios":
+            Image(systemName: "iphone").resizable().scaledToFit().frame(width: 10.5, height: 16)
+        case "ipad": Image(systemName: "ipad")
+        case "android":
+            Canvas { context, size in
+                let scale = min(size.width, size.height) / 24
+                context.scaleBy(x: scale, y: scale)
+                // The full outline (including antennae) spans y=3...17.
+                context.translateBy(x: 0, y: 2)
+                var head = Path()
+                head.addArc(center: CGPoint(x: 12, y: 13), radius: 9, startAngle: .degrees(180), endAngle: .degrees(0), clockwise: false)
+                head.addLine(to: CGPoint(x: 21, y: 17)); head.addLine(to: CGPoint(x: 3, y: 17)); head.closeSubpath()
+                context.stroke(head, with: .foreground, style: StrokeStyle(lineWidth: 1.3, lineCap: .round, lineJoin: .round))
+                var antenna = Path()
+                antenna.move(to: CGPoint(x: 5, y: 3)); antenna.addLine(to: CGPoint(x: 8, y: 7))
+                antenna.move(to: CGPoint(x: 19, y: 3)); antenna.addLine(to: CGPoint(x: 16, y: 7))
+                context.stroke(antenna, with: .foreground, style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
+                for x in [8.0, 16.0] {
+                    context.fill(Path(ellipseIn: CGRect(x: x - 0.8, y: 11, width: 1.6, height: 1.6)), with: .foreground)
+                }
+            }.frame(width: 18, height: 18)
+        case "harmony":
+            VStack(spacing: 2) {
+                Circle().strokeBorder(lineWidth: 1.2).frame(width: 13, height: 13)
+                Capsule().frame(width: 12, height: 1.2)
+            }
+        case "macos": Image(systemName: "laptopcomputer")
+        default: Image(systemName: "square.grid.2x2")
+        }
+    }
     private func platformStatus(_ platform: PadAboutContent.Platforms.Platform) -> some View {
-        Text(platform.statusLabel).font(.system(size: 10, weight: .medium))
+        Text(platform.statusLabel).font(.system(size: 9, weight: .medium))
+            .foregroundStyle(platformTint(platform.status)).lineLimit(1).fixedSize()
             .padding(.horizontal, 6).padding(.vertical, 3)
-            .foregroundStyle(platformTint(platform.status))
-            .background(platformTint(platform.status).opacity(dark ? 0.16 : 0.08), in: RoundedRectangle(cornerRadius: 4))
-            .fixedSize(horizontal: false, vertical: true)
+            .background(platformTint(platform.status).opacity(0.1), in: RoundedRectangle(cornerRadius: 4))
             .accessibilityIdentifier("about-platform-status-" + platform.id)
     }
+
     private func investment(_ investment: PadAboutContent.Investment, months: Int) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(investment.title).font(.system(size: 15, weight: .semibold)).padding(.bottom, 11)

@@ -136,19 +136,23 @@ test('about descriptions and share titles reuse common localized copy', () => {
   }
 })
 
-test('About lists the requested seven platforms and moves contribution into their module', () => {
+test('About lists seven icon rows with a single contribution footer and no platform links', () => {
   const template = readFileSync(new URL('../src/pages/about/index.wxml', import.meta.url), 'utf8')
   const hero = template.slice(template.indexOf('<view class="about-hero">'), template.indexOf('<view class="about-card platforms-card">'))
   const module = template.slice(template.indexOf('<view class="about-card platforms-card">'), template.indexOf('<view class="about-card investment-card">'))
   assert.ok(!template.includes('quota-card'))
   assert.ok(!hero.includes('contribute-link'))
   assert.match(module, /wx:for="\{\{platforms.items\}\}"/)
-  assert.match(module, /wx:if="\{\{item.prWelcome\}\}"/)
-  assert.match(module, /class="contribute-link platform-contribute"/)
+  assert.match(module, /class="platform-icon platform-icon-\{\{item.id\}\}"/)
+  assert.equal((module.match(/class="platform-contribute"/g) || []).length, 1)
+  assert.ok(module.indexOf('class="platform-contribute"') > module.indexOf('wx:for="{{platforms.items}}"'))
+  assert.ok(!module.includes('item.url'))
+  assert.ok(!module.includes('platform-download'))
+  assert.ok(!module.includes('platform-pr'))
   const expected = [
-    ['weapp', 'live', 1, false], ['ios', 'development', 1, true], ['ipad', 'development', 1, true],
-    ['android', 'unavailable', 0, true], ['harmony', 'unavailable', 0, true],
-    ['macos', 'live', 2, false], ['windows', 'development', 2, true],
+    ['weapp', 'live', 1], ['ios', 'development', 1], ['ipad', 'development', 1],
+    ['android', 'unavailable', 0], ['harmony', 'unavailable', 0],
+    ['macos', 'live', 2], ['windows', 'development', 2],
   ]
   for (const language of ['en', 'zh-CN', 'zh-TW']) {
     const copies = []
@@ -158,22 +162,18 @@ test('About lists the requested seven platforms and moves contribution into thei
       setClipboardData: ({ data }) => copies.push(data),
     }
     const about = globalThis.aboutFactory({})
-    assert.deepEqual(about.platforms.items.map(item => [item.id, item.status, item.features.length, item.prWelcome]), expected)
-    assert.equal(about.platforms.prWelcomeLabel, 'PR welcome')
+    assert.deepEqual(about.platforms.items.map(item => [item.id, item.status, item.features.length]), expected)
+    assert.equal(about.platforms.contributeLabel, { en: 'PR welcome', 'zh-CN': '欢迎贡献代码', 'zh-TW': '歡迎貢獻程式碼' }[language])
+    assert.equal(about.platforms.items.find(item => item.id === 'ios').note, language === 'en' ? '(incl. iPhone Duo)' : '（含 iPhone Duo）')
     for (const platform of about.platforms.items) {
       assert.ok(platform.name && platform.statusLabel)
       assert.equal(platform.featureText, platform.features.join(' · '))
-      if (platform.prWelcome) assert.equal(platform.url, about.repositoryURL)
-      if (platform.id === 'macos') assert.equal(platform.url, about.desktopDownloadURL)
-      if (platform.id === 'weapp') assert.equal(platform.url, null)
-      if (platform.url) {
-        about.copyLink({ currentTarget: { dataset: { url: platform.url } } })
-        assert.equal(copies.at(-1), platform.url)
-      }
+      assert.equal(platform.url, undefined)
+      assert.equal(platform.prWelcome, undefined)
     }
+    assert.equal(about.platforms.repositoryURL, about.repositoryURL)
     about.copyLink({ currentTarget: { dataset: { url: about.platforms.repositoryURL } } })
-    assert.equal(copies.at(-1), about.repositoryURL)
-    assert.equal(copies.length, 7)
+    assert.deepEqual(copies, [about.repositoryURL])
     if (language === 'zh-CN') {
       assert.deepEqual(about.platforms.items.map(item => [item.name, item.statusLabel, item.featureText]), [
         ['微信小程序', '已上线', '榜单'], ['iOS', '开发中', '榜单'], ['iPad', '开发中', '榜单'],

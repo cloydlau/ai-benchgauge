@@ -23,12 +23,21 @@
 | 文案、许可与应用说明 | `config/app.json`、`Scripts/sync-app-description.mjs`、共享 Kit 本地化与离线许可 | 三种语言；各端主界面、关于、导出与应用元数据。不能只更新一个语言或一处显示 |
 | 显示榜单 | Kit `DesktopBoardSelection`、小程序 `core/board-selection.js`；各端按分类保存 | 小程序设置页、iPhone/iPad `LeaderboardSettingsView`、桌面既有榜单选择器。默认全选，每类至少一榜，移动设置的重置恢复全部；移动单榜隐藏顶部 tabs 及占位，魔方跨分类按可见来源计数；排行、分布图、刷新和导出仅消费可见榜单，小程序分享保留显示选择 |
 | 切换动效 | 小程序 `core/board-transition.js`、Apple `LeaderboardSwitchStyle` / `CubeFace` | 小程序与 iPhone/iPad 设置提供魔方、滑动、淡入淡出预览卡，默认魔方并本地持久保存；用于单榜视图的手势和标签切换，共用来源边界、跨分类导航、滚动对齐。分享保留接收方动效偏好，显示榜单重置不重置动效。减少动态效果时改为轻量淡入淡出并停用预览动画。iPad 宽屏和 Mac / Windows 的并列榜单保持原布局，静态导出无动效。JS `board-transition` / `settings` / `share-state` / `page` 测试及 Apple `LeaderboardCubeTests` 覆盖 |
-| 各端进展与贡献 | 小程序 `core/about-platforms.js` → `Scripts/ios-about.mjs` | 小程序与 iPhone/iPad 关于页，替换原 “余量查询” 卡片；固定七端功能及状态，开发中/暂无显示可复制仓库链接的 PR welcome，贡献代码入口位于模块底部。macOS 已上线状态提供下载链接；桌面 About 和图片导出没有原移动卡片，不新增模块 |
+| 模型详情 | Kit `ModelDetails` / `ModelDetailsView`、小程序 `core/model-details.js`；Windows 消费共享引擎的详情投影 | 小程序、iPhone/iPad、macOS、Windows：优先展示限额与能力卡片，模型资料、服务商价格和来源可展开查看，保留全部字段与显式复制操作；滚动后提供返回顶部。同步时间按设备本地时区显示 `yyyy-MM-dd HH:mm:ss`，保留秒数；固定截图夹具使用 UTC。图片导出不包含交互详情页 |
+| 各端进展与贡献 | 小程序 `core/about-platforms.js` → `Scripts/ios-about.mjs`；微信图形 `assets/brand/partners/wechat/logo.svg` → `Scripts/source-logos.mjs` | 小程序与 iPhone/iPad 关于页，替换原 “余量查询” 卡片；固定七端功能及状态，每端单行显示图标、名称、功能和状态 Tag（无圆点）；七端图标统一为中性灰线框样式，微信保留品牌双气泡与四个圆点；iOS 标注 “（含 iPhone Duo）”。列表下方统一显示可复制仓库链接的 “欢迎贡献代码”（英文 PR welcome），各端无独立链接，macOS 状态同样使用 Tag；桌面 About 和图片导出没有原移动卡片，不新增模块 |
 | 成本与工程投入 | Calmmit `cost-calculation.mjs`、`engineering-investment.mjs`、`resources/CostCalculation.swift` | 小程序与 iPhone/iPad 关于页。构建入口同步 JS / Swift 计算适配器；Git 统计、月份取整、按月累计和合计由 Calmmit 维护，项目预算、文案与 UI 独立维护。桌面及图片导出当前没有该成本区 |
 
 基础设施年度预算见 [预算说明](infrastructure-budget.md)。金额估算不细于百元，允许项目采用千元、万元等更粗粒度；各移动端从同一份预算定义生成金额与说明。费用为估算，非实际账单。
 
-“各端进展” 验证（2026-10-26）：小程序 200 项测试及构建通过；iPhone/iPad 共用生成数据三语一致性检查与 Swift 源码语法检查通过，UI 用例已改为逐行核对七端功能、状态、PR 链接和 macOS 下载入口。当前 Mac 锁屏阻止开发者工具界面检查；未取得本次原生截图，未运行 iPhone/iPad UI 测试或完成真机安装验收。macOS/Windows 的运行界面与图片导出不涉及本次移动关于页替换。
+文案与金额精度修正验证（2026-10-26）：小程序 200 项测试及构建、iOS 三语生成数据 2 项检查通过；Swift 粗粒度金额计算实际编译运行 9 项断言通过，iOS 内容模型语法检查通过。Calmmit 前台/后台 review 与公共计算相关 85 项测试通过，产品文案规则已核对两条实际提示入口。千元、万元等更粗金额单位可按项目指定，UI 不展示该内部配置。未运行移动 UI 测试或完成真机安装验收。
+
+金额粒度规则验证（2026-10-26）：Calmmit 公共计算与生成适配 6 项测试通过；AI 天梯小程序 200 项测试及构建、iOS 数据生成 2 项检查通过，Swift 金额计算实际编译运行的 13 项断言通过。Watrek / Weaveo 生成适配同步，核心包分别 283 / 433 项测试通过，Weaveo 小程序 828 项测试通过，均通过原有覆盖率要求。本轮未运行 iPhone/iPad UI 测试或真机安装；桌面与图片导出不含此投入金额模块。
+
+“各端进展” 验证（2026-10-26）：小程序 200 项测试及构建通过；已通过 CUA 核对当前仓库 `apps/weapp` 的微信开发者工具实际关于页，七端图标、单行信息及底部统一贡献入口均可见，macOS 无独立链接。iPhone/iPad 共用生成数据三语一致性检查与 Swift 源码语法检查通过，UI 用例已改为逐行核对七端功能与状态、确认无独立链接，并核对底部统一贡献入口。补跑 Apple 共用 UI 模块实际编译时，当前 Command Line Tools 缺少 `SwiftUIMacros.StateMacro` 插件，编译失败；未运行 iPhone/iPad UI 测试或完成真机安装验收。macOS/Windows 的运行界面与图片导出不涉及本次移动关于页替换。
+
+七端图标线框统一验证（2026-10-26）：小程序微信改为双线框气泡，Android 改为空心轮廓并保留眼睛与天线，Windows 改为线框窗格；iPhone/iPad 共用视图同步 Android 与 Windows 的线框样式，其余已有线框图标保留。小程序 201 项测试及构建、iOS 生成数据 2 项检查与 Swift 语法检查通过。当前未提供可调用的官方微信开发者工具 MCP，CUA 两次读取开发者工具窗口均返回截图失败，因此本轮尚未完成小程序实际界面及深浅主题截图验收；当前仅安装 Command Line Tools，未完成 iPhone/iPad 完整构建、模拟器 UI 验收或真机安装。桌面与图片导出无此平台列表，不涉及本次图标调整。
+
+微信图形辨识度修正（2026-10-26）：用 Tabler `brand-wechat` 线框源图替换普通聊天气泡及 SF Symbols 双气泡，保留大小双气泡、相反方向的尾部和四个圆点。小程序与 iPhone/iPad 共用 PNG 导出，原生以模板模式继承系统次要文字色，小程序使用现有深浅主题中性灰；MIT 许可随资源打包。24 项相关测试、共享资源一致性检查、小程序构建与 Swift 语法检查通过，已查看实际生成的 PNG；此资源核对不代表运行界面验收。CUA 仍因 ScreenCaptureKit 捕捉失败无法获取小程序窗口，iPhone/iPad 完整构建、模拟器 UI 和真机安装仍未完成；桌面与导出不含此列表。
 
 移动设置的 “显示榜单” 勾选状态使用绿色，小程序搭配白色勾号，iPhone/iPad 使用系统绿色；未选中维持中性色，最后一个必选榜单维持禁用弱化样式。
 
@@ -67,3 +76,9 @@
 代码核对确认 iOS 已有模型搜索、全局筛选、三点下拉刷新、来源标志和关于页等对应实现，不能据此断言全部小程序优化都已逐帧对齐。它们此前的具体验收范围见 `apps/ios/README.md` 和 `docs/visual-comparison.md`。另发现小程序最新的公司名称搜索尚未同步，本轮补齐 iOS 并验证分组独立关键词、聚合后筛选和导出快照。非空查询失焦时小程序保留输入框，iOS 延续原生收起输入框并保留结果的既有交互；这项差异明确保留。原生验收结果见 iOS README。未进行全应用、全平台的完整视觉审计。
 
 Artificial Analysis 的综合、编程、文生图、文生视频榜单表头统一显示 `Artificial Analysis`，三语一致，不追加分类后缀；分类由现有分类导航表达。小程序使用 catalog 标题，Apple 表头共用 `LeaderboardPresentation.columnTitle`，Windows 使用 `BoardTitle`。保留时间完整内容、来源说明及官方链接。
+
+模型详情与状态 Tag 验证（2026-10-26）：小程序 201 项测试及构建通过，覆盖本地时间格式、时区跨日、秒数、折叠状态与返回顶部；Swift 时间格式 5 项实际运行断言通过。Windows WPF Release 交叉编译零警告/错误，共享测试通过。Apple 共享详情模块在独立清单下完成编译，但原生测试受当前工具链缺失 `TestingMacros` 影响；完整 Apple UI 构建仍受缺少 `SwiftUIMacros.StateMacro` 阻塞。微信开发者工具 CUA 再次出现 ScreenCaptureKit -3811，尚未完成本轮界面截图、iPhone/iPad UI 测试及双桌面视觉验收；未安装或发布客户端版本。
+
+微信平台图标线宽修正（2026-10-26）：原始 Tabler SVG 保持不变，共用导出器将 24 单位坐标内的描边从 2 调整为 4/3，因此 18pt / 36rpx 显示时由约 1.5pt 减为 1pt；小程序及 iPhone/iPad 的浅深色 PNG 同步。2 项来源导出测试、6 项关于页检查、导出一致性检查及小程序完整生产构建通过。小程序全量测试停在既有清空搜索手势用例，本轮已中止自己的测试进程，未宣称全量通过。官方开发者工具 project_list / 状态检查持续未响应，备用 CUA 窗口捕获报 ScreenCaptureKit -3811，未完成模拟器截图验收；iPhone/iPad 本轮仅同步资源，未运行原生 UI 验收或真机安装。macOS/Windows 与图片导出没有此平台列表，不涉及。
+
+关于页平台图标垂直居中修正（2026-10-26）：小程序名称与 iOS 小字号备注改为各自居中，和图标共用 40rpx 行内高度；安卓按包含天线的可见范围下移 2rpx，鸿蒙按包含底线的范围上移 2.5rpx。iPhone/iPad 共用视图将名称与备注分开居中并共用 24pt 行内高度，iPhone 图标使用显式缩放框，安卓 Canvas 按完整轮廓居中；鸿蒙原生 VStack 已将圆环与底线一起计入布局。6 项关于页检查、小程序生产构建及 Swift 源码语法检查通过。开发者工具状态检查仍无响应，未完成模拟器截图验收；当前仅有 Command Line Tools，未运行 iPhone/iPad 原生构建、UI 验收或真机安装。桌面与图片导出不含该平台列表，不涉及。

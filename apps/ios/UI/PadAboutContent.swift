@@ -25,17 +25,14 @@ struct PadAboutContent: Decodable, Sendable {
         struct Platform: Decodable, Identifiable, Sendable {
             let id: String
             let name: String
+            let note: String
             let status: String
             let statusLabel: String
             let featureText: String
-            let prWelcome: Bool
-            let url: String?
         }
         let title: String
-        let contributeLabel: String
         let copyLinkLabel: String
-        let downloadLabel: String
-        let prWelcomeLabel: String
+        let contributeLabel: String
         let repositoryURL: String
         let items: [Platform]
     }
