@@ -50,7 +50,7 @@
             <text class="rank-cell">{{labels.rank}}</text>
             <view class="model-heading">
             <view class="source-heading-details">
-            <button class="source-heading" data-kind="{{card.kind}}" bindtap="copyBoardTitle" aria-label="{{labels.copyName}} {{card.title}}">{{card.title}}</button>
+            <button class="source-heading" data-kind="{{card.kind}}" bindtap="sourceHelp" aria-label="{{card.title}}">{{card.title}}</button>
             <view class="source-heading-actions">
             <view class="times" aria-role="button" bindtap="timeHelp" aria-label="{{card.timeAccessibility}} · {{labels.timeExplanationTitle}}" aria-busy="{{card.loading}}">
               <view class="time-copy">

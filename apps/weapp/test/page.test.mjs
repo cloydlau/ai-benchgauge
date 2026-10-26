@@ -801,7 +801,7 @@ test('timestamp help explains both labels in all languages without refreshing da
     h.page.timeHelp()
     assert.deepEqual(h.modals.at(-1), {
       title: text(copy.timeExplanationTitle, language),
-      content: text(copy.timeExplanation, language), showCancel: false,
+      content: text(copy.timeExplanation, language), showCancel: false, confirmText: 'OK',
     })
     assert.equal(h.requests.length, requests)
     assert.doesNotMatch(h.modals.at(-1).content, /抓取|擷取|retriev|fetch/i)
@@ -833,7 +833,8 @@ test('usage headers show retrieval time while source help retains statistical co
   }
 })
 
-test('usage restores Tencent, keeps failures independent and recovers OpenRouter configuration', async () => {
+test('usage restores Tencent, keeps failures independent and recovers OpenRouter configuration', async t => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: Date.now() })
   const h = setup({ category: 'usage', language: 'zh-CN', face: 2 })
   assert.equal(h.page.face.value, 2, 'Restored Tencent selection is retained')
   const loading = h.loadCategory()
@@ -862,6 +863,7 @@ test('usage restores Tencent, keeps failures independent and recovers OpenRouter
   assert.equal(h.requests.length, 4)
   const siblings = h.page.cards.value.slice(1).map(card => card.rows)
   const notice = 'Source: OpenRouter · Licensed under CC BY 4.0.'
+  t.mock.timers.tick(24); t.mock.timers.tick(501) // Settle the source switch before opening its introduction.
   h.respond(3, { sourceNote: notice })
   await retry
   assert.deepEqual(h.page.cards.value.slice(1).map(card => card.rows), siblings)
@@ -1226,33 +1228,51 @@ test('native scroll commands are explicit, repeatable and discard superseded or 
   assert.equal(commands.length, 1)
 })
 
-test('board headings copy their complete localized titles across categories and grouping modes', () => {
+test('board headings show localized introductions and copy official links only on explicit confirmation', () => {
+  const template = readFileSync(new URL('../src/pages/leaderboard/index.wxml', import.meta.url), 'utf8')
+  assert.match(template, /class="source-heading"[^>]*bindtap="sourceHelp"/)
   for (const language of ['en', 'zh-CN', 'zh-TW']) for (const category of categories) for (const grouping of ['model', 'company']) {
     const h = setup({ language, category: category.id, grouping })
-    for (const card of h.page.cards.value) h.page.copyBoardTitle(event({ kind: card.kind }))
-    assert.deepEqual(h.clipboard, h.page.cards.value.map(card => card.title))
-    h.page.copyBoardTitle(event({ kind: 'invalid' }))
+    for (const card of h.page.cards.value) {
+      const previousCopies = h.clipboard.length
+      h.page.sourceHelp(event({ kind: card.kind }))
+      const modal = h.modals.at(-1)
+      assert.equal(modal.title, card.title)
+      assert.ok(modal.content.includes(text(boards[card.kind].methodology || boards[card.kind].summaries, language)))
+      assert.ok(modal.content.includes(boards[card.kind].url))
+      assert.equal(modal.confirmText, text(['Copy', '复制链接', '複製連結'], language))
+      assert.equal(modal.cancelText, 'OK')
+      assert.equal(h.clipboard.length, previousCopies, 'Opening the introduction must not copy anything')
+      modal.success({ cancel: true })
+      assert.equal(h.clipboard.length, previousCopies, 'Closing the introduction must not copy anything')
+      modal.success({ confirm: true })
+      assert.equal(h.clipboard.at(-1), boards[card.kind].url)
+    }
+    h.page.sourceHelp(event({ kind: 'invalid' }))
     assert.equal(h.clipboard.length, category.kinds.length)
-    assert.equal(h.modals.length, 0)
+    assert.equal(h.modals.length, category.kinds.length)
     globalThis.__benchHooks.unload()
   }
 })
 
-test('board-heading copy ignores cube drags and accidental taps immediately after a swipe', t => {
+test('board-heading introductions ignore cube drags and accidental taps immediately after a swipe', t => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 1000 })
   const h = setup()
   const kind = h.page.cards.value[0].kind
   const touch = (x, y) => ({ touches: [{ clientX: x, clientY: y }] })
   h.page.cubeStart(touch(250, 200)); h.page.cubeMove(touch(210, 202))
-  h.page.copyBoardTitle(event({ kind }))
-  assert.deepEqual(h.clipboard, [])
+  h.page.sourceHelp(event({ kind }))
+  assert.equal(h.modals.length, 0)
   h.page.cubeCancel(); t.mock.timers.tick(24); t.mock.timers.tick(441)
   assert.equal(h.page.cubeBusy.value, false)
-  h.page.copyBoardTitle(event({ kind }))
-  assert.deepEqual(h.clipboard, [])
+  h.page.sourceHelp(event({ kind }))
+  assert.equal(h.modals.length, 0)
   t.mock.timers.tick(36)
-  h.page.copyBoardTitle(event({ kind }))
-  assert.deepEqual(h.clipboard, [h.page.cards.value[0].title])
+  h.page.sourceHelp(event({ kind }))
+  assert.equal(h.modals.length, 1)
+  assert.deepEqual(h.clipboard, [])
+  h.modals[0].success({ confirm: true })
+  assert.deepEqual(h.clipboard, [boards[kind].url])
   globalThis.__benchHooks.unload()
 })
 

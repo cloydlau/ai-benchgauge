@@ -95,6 +95,7 @@ private struct PadRankingScrollTracking: ViewModifier {
 private final class PadBoardDetail: ObservableObject {
     @Published var selectedCompany: CompanyStanding?
     @Published var showingSource = false
+    @Published var sourceLinkCopied = false
     @Published var showingTimeExplanation = false
 }
 
@@ -1358,6 +1359,10 @@ private struct PadBoardCard: View {
             .font(columnHeaderFont.weight(.semibold))
             .foregroundStyle(sourceAccent)
             .lineLimit(1).minimumScaleFactor(0.8)
+            .contentShape(Rectangle())
+            .onTapGesture { if !isImage { detail.showingSource = true } }
+            .accessibilityAddTraits(isImage ? [] : .isButton)
+            .accessibilityAction { if !isImage { detail.showingSource = true } }
             .accessibilityIdentifier("source-heading-\(kind.rawValue)")
     }
     private var sourceHeadingActions: some View {
@@ -1592,7 +1597,7 @@ private struct PadBoardCard: View {
     private var interactiveCard: some View {
         cardContent
         .alert(LeaderboardPresentation.sourceTimeExplanationTitle(language: language), isPresented: $detail.showingTimeExplanation) {
-            Button(tr("OK", "知道了"), role: .cancel) { }
+            Button("OK", role: .cancel) { }
         } message: {
             Text(LeaderboardPresentation.sourceTimeExplanation(language: language))
         }
@@ -1602,6 +1607,18 @@ private struct PadBoardCard: View {
                     VStack(alignment: .leading, spacing: 12) {
                         if compact { Text(LeaderboardPresentation.title(kind, language: language)).font(.headline).fixedSize(horizontal: false, vertical: true) }
                         Text(sourceDetails)
+                        Text(kind.sourceURL.absoluteString)
+                            .font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
+                        Button(detail.sourceLinkCopied ? tr("Copied", "已复制") : tr("Copy link", "复制链接")) {
+                            #if os(iOS)
+                            UIPasteboard.general.string = kind.sourceURL.absoluteString
+                            #else
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(kind.sourceURL.absoluteString, forType: .string)
+                            #endif
+                            detail.sourceLinkCopied = true
+                        }
+                        .accessibilityIdentifier("copy-source-link-\(kind.rawValue)")
                     }.frame(maxWidth: .infinity, alignment: .leading).padding(24)
                 }
                     .navigationTitle(compact ? kind.sourceLinkTitle : LeaderboardPresentation.title(kind, language: language))
@@ -1609,6 +1626,7 @@ private struct PadBoardCard: View {
                     .navigationBarTitleDisplayMode(.inline)
                     #endif
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button(tr("Done", "完成")) { detail.showingSource = false } } }
+                    .onAppear { detail.sourceLinkCopied = false }
             }
         }
         .sheet(isPresented: Binding(get: { detail.selectedCompany != nil }, set: { if !$0 { detail.selectedCompany = nil } })) {

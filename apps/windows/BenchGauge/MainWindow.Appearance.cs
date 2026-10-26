@@ -479,6 +479,39 @@ sealed partial class MainWindow
         }
         return new Border { Child = grid, Width = width, Height = 22, Background = PanelSurface, BorderBrush = PanelLine, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5) };
     }
+    void ShowTimeExplanation() => ShowInformationDialog(BoardTimestamp.ExplanationTitle(prefs.Language), BoardTimestamp.Explanation(prefs.Language));
+    void ShowInformationDialog(string title, string content, string? copyLink = null)
+    {
+        // A system MessageBox localizes its OK button to the Windows language.
+        var dialog = new Window { Owner = this, Title = title,
+            Width = 460, Height = 360, MaxHeight = SystemParameters.WorkArea.Height,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner, ShowInTaskbar = false,
+            Background = PanelBackground, Foreground = PanelInk, FontFamily = FontFamily, FontSize = 13 };
+        var layout = new DockPanel { Margin = new Thickness(20) };
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 16, 0, 0) };
+        if (!string.IsNullOrEmpty(copyLink))
+        {
+            var copy = Button(Tr("Copy link", "复制链接", "複製連結"), () => { });
+            copy.Click += (_, _) => {
+                try { Clipboard.SetText(copyLink); copy.Content = Tr("Copied", "已复制", "已複製"); }
+                catch (System.Runtime.InteropServices.COMException) { copy.ToolTip = Tr("Copy failed", "复制失败", "複製失敗"); }
+            };
+            copy.MinHeight = 30; actions.Children.Add(copy);
+        }
+        var confirm = Button("OK", dialog.Close);
+        confirm.IsDefault = true; confirm.IsCancel = true;
+        confirm.MinWidth = 80; confirm.MinHeight = 30;
+        confirm.HorizontalAlignment = HorizontalAlignment.Right;
+        actions.Children.Add(confirm);
+        DockPanel.SetDock(actions, Dock.Bottom); layout.Children.Add(actions);
+        layout.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Content = new TextBlock { Text = content, TextWrapping = TextWrapping.Wrap } });
+        dialog.Content = layout;
+        modalOpen = true;
+        try { dialog.ShowDialog(); }
+        finally { modalOpen = false; _ = Dispatcher.BeginInvoke(TryPresentPreparedUpdate); }
+    }
     Button QuietButton(string text, Action action) => Quiet(Button(text, action));
     Button QuietButton(string text, Func<Task> action) => Quiet(Button(text, action));
     Button Quiet(Button button) { button.Padding = new Thickness(2, 0, 2, 0); button.Margin = new Thickness(0); button.Foreground = PanelMuted; return button; }
@@ -592,19 +625,19 @@ sealed partial class MainWindow
         {
             var board = pair[i]; var column = 1 + i * 4;
             AddCell(headings, Center(Caption(board.Kind is "vercelUsage" or "cloudbaseUsage" ? Tr("Share", "占比", "佔比") : board.Kind == "openRouterUsage" ? Tr("Tokens", "用量", "用量") : Tr("Score", "分数", "分數"), PanelInk)), column + 3);
-            var summary = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 9,
-                FontFamily = new FontFamily("Segoe UI"),
-                Margin = new Thickness(5, 0, 4, 0), ToolTip = board.Error ?? BoardTitle(board) + "\n"
+            var sourceDescription = BoardTitle(board) + "\n"
                     + (board.Kind.StartsWith("arena") || board.Kind == "codeArenaWebDev"
                         ? Tr("Formerly LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena") + "\n" : "")
-                    + SourceLens(board) + "\n" + (board.Kind == "openRouterUsage"
+                    + SourceIntroduction(board) + "\n" + (board.Kind == "openRouterUsage"
                         ? Tr("Latest complete UTC day · input + output tokens · 1B = 1 billion tokens. Top 50 public models; excludes private and zero-data-retention traffic. Provider tokenizers differ. Company totals cover listed models only.", "最近完整 UTC 日输入与输出 token 用量；1B = 十亿 token。展示公开流量前 50 名，排除私有及零数据留存流量；各供应商分词方式不同。公司用量仅汇总榜内模型。", "最近完整 UTC 日輸入與輸出 token 用量；1B = 十億 token。展示公開流量前 50 名，排除私有及零資料留存流量；各供應商分詞方式不同。公司用量僅彙總榜內模型。")
                         : Tr("Scores are not directly comparable across lists", "各榜分数不直接互比", "各榜分數不直接互比"))
                     + (board.Kind == "cloudbaseUsage" ? "\n" + Tr("Sampled-period text token shares, including cache hits; model families only. Full dates and absolute volumes unavailable.", "抽样统计日文本 token 累计占比，含缓存命中；按模型系列汇总，未公开完整日期或绝对用量。", "抽樣統計日文字 token 累計佔比，含快取命中；按模型系列彙總，未公開完整日期或絕對用量。") : "")
                     + (board.Kind == "vercelUsage" ? "\n" + Tr("Daily data uses UTC 00:00 to 00:00 the next day (08:00 to 08:00 the next day in Beijing). Text token shares include cached and reasoning tokens. Company shares sum listed models only; no absolute volumes are published.", "按 UTC 当天 00:00 至次日 00:00 统计，对应北京时间当天 08:00 至次日 08:00。文本 token 用量占比包含缓存及推理 token；公司只汇总榜内模型，不提供绝对用量。", "按 UTC 當天 00:00 至次日 00:00 統計，對應北京時間當天 08:00 至次日 08:00。文字 token 用量佔比包含快取及推理 token；公司只彙總榜內模型，不提供絕對用量。") : "")
                     + (BoardTimestamp.StatisticalDay(board, prefs.Language) is { } statisticalDay ? "\n" + statisticalDay : "")
                     + (board.Kind is "vercelUsage" or "cloudbaseUsage" ? "\n" + BoardTimestamp.Explanation(prefs.Language) : "")
-                    + (ArenaAttribution.Applies(board) ? "\n" + ArenaAttribution.FullText(prefs.Language) : "") };
+                    + (ArenaAttribution.Applies(board) ? "\n" + ArenaAttribution.FullText(prefs.Language) : "");
+            var summary = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 9,
+                FontFamily = new FontFamily("Segoe UI"), Margin = new Thickness(5, 0, 4, 0), ToolTip = board.Error ?? sourceDescription };
             CenterTextInk(summary);
             summary.FontSize = 11;
             summary.FontWeight = FontWeights.SemiBold;
@@ -634,7 +667,9 @@ sealed partial class MainWindow
             }
             summary.SizeChanged += (_, _) => UpdateHeading();
             UpdateHeading();
-            if (!string.IsNullOrEmpty(board.Url)) { summary.Cursor = Cursors.Hand; summary.MouseLeftButtonUp += (_, _) => Open(board.Url); }
+            summary.Cursor = Cursors.Hand;
+            summary.MouseLeftButtonUp += (_, _) => ShowInformationDialog(BoardTitle(board),
+                sourceDescription + (string.IsNullOrEmpty(board.Url) ? "" : "\n\n" + board.Url), board.Url);
             var heading = new Grid();
             heading.ColumnDefinitions.Add(new ColumnDefinition());
             heading.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -651,7 +686,7 @@ sealed partial class MainWindow
             time.Children.Add(polishedTime);
             time.ToolTip = BoardTimeHelp(board);
             var timeButton = new Button { Content = time, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Padding = new Thickness(0), Cursor = Cursors.Hand };
-            timeButton.Click += (_, _) => MessageBox.Show(this, BoardTimestamp.Explanation(prefs.Language), BoardTimestamp.ExplanationTitle(prefs.Language), MessageBoxButton.OK, MessageBoxImage.Information);
+            timeButton.Click += (_, _) => ShowTimeExplanation();
             heading.Children.Add(summary);
             Grid.SetColumn(timeButton, 1); heading.Children.Add(timeButton);
             AddCell(headings, heading, column);
@@ -885,6 +920,19 @@ sealed partial class MainWindow
         "artificialAnalysisTextToVideo" => Tr("Artificial Analysis Text to Video", "Artificial Analysis 文生视频", "Artificial Analysis 文生影片"),
         "arenaTextToVideo" => Tr("Text to Video Arena", "Arena 文生视频", "Arena 文生影片"),
         _ => board.Title,
+    };
+    string SourceIntroduction(Board board) => board.Kind switch
+    {
+        "artificialAnalysis" => Tr("Combines standardized tests across several abilities.", "汇总多项标准化测试，适合看综合能力。", "彙總多項標準化測試，適合看綜合能力。"),
+        "epochECI" => Tr("Estimates general capability from benchmark results, accounting for difficulty and discrimination.", "结合不同测试的难度与区分度，估计模型的综合能力。", "結合不同測試的難度與區分度，估計模型的綜合能力。"),
+        "arenaText" => Tr("People compare anonymous answers to real prompts.", "真实提问下盲选回答，贴近用户偏好。", "真實提問下盲選回答，貼近使用者偏好。"),
+        "artificialAnalysisCodingAgent" => Tr("Scores coding agents on software engineering tasks.", "通过软件工程任务，检验编程智能体的完成能力。", "透過軟體工程任務，檢驗程式設計智能體的完成能力。"),
+        "codeArenaWebDev" => Tr("People pick the better result from paired web builds.", "用户盲选网页成品，侧重实际观感。", "使用者盲選網頁成品，側重實際觀感。"),
+        "artificialAnalysisTextToImage" => Tr("Blind votes across a balanced set of image use cases.", "按用途均衡选题，盲选图片质量。", "按用途均衡選題，盲選圖片品質。"),
+        "arenaTextToImage" => Tr("People vote on images made from their own prompts.", "用户自由出题并盲选，贴近日常审美。", "使用者自由出題並盲選，貼近日常審美。"),
+        "artificialAnalysisTextToVideo" => Tr("Blind votes on videos made with comparable settings.", "相同提示词、统一设置下盲选视频质量。", "相同提示詞、統一設定下盲選影片品質。"),
+        "arenaTextToVideo" => Tr("People vote on paired videos from real prompts.", "用户自由出题并盲选，贴近日常偏好。", "使用者自由出題並盲選，貼近日常偏好。"),
+        _ => SourceLens(board),
     };
     string SourceLens(Board board) => board.Kind switch
     {

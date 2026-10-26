@@ -967,7 +967,9 @@ definePage(query => {
     wx.showModal({ title: tr('unknownCountryTitle'), content: tr('unknownCountryExplanation'), showCancel: false, confirmText: 'OK' })
   }
   function sourceHelp(event) {
+    if (cubeBusy.value || Date.now() < suppressTapUntil) return
     const kind = event.currentTarget.dataset.kind
+    if (!hasOwn(boards, kind)) return
     const board = snapshots.value[kind]
     const formerName = kind.startsWith('arena') || kind === 'codeArenaWebDev'
       ? `${text(['Formerly LMSYS Chatbot Arena / LMArena', '原 LMSYS Chatbot Arena / LMArena', '原 LMSYS Chatbot Arena / LMArena'], language.value)}\n\n` : ''
@@ -981,11 +983,12 @@ definePage(query => {
     const refreshMeaning = refreshOnly ? `\n${tr('timeExplanation')}` : ''
     wx.showModal({ title: boardTitle(kind, language.value),
       content: `${formerName}${day}${sampled}${text(boards[kind].methodology || boards[kind].summaries, language.value)}\n\n${times}${refreshMeaning}\n\n${boards[kind].url}${kind === 'epochECI' ? `\n\n${epochAttribution(language.value).fullText}` : ''}${dataset ? `\n\n${arenaAttribution(language.value).fullText}` : ''}`,
-      showCancel: false })
+      showCancel: true, cancelText: 'OK', confirmText: text(['Copy', '复制链接', '複製連結'], language.value),
+      success: result => { if (result.confirm) copyText(boards[kind].url) } })
   }
   function timeHelp() {
     if (cubeBusy.value || Date.now() < suppressTapUntil) return
-    wx.showModal({ title: tr('timeExplanationTitle'), content: tr('timeExplanation'), showCancel: false })
+    wx.showModal({ title: tr('timeExplanationTitle'), content: tr('timeExplanation'), showCancel: false, confirmText: 'OK' })
   }
   function copyText(data) {
     wx.setClipboardData({ data, success: () => wx.showToast({ title: tr('copied'), icon: 'success' }) })
@@ -1004,11 +1007,6 @@ definePage(query => {
     wx.setClipboardData({ data: link.url,
       success: () => wx.showToast({ title: tr('copied'), icon: 'none' }),
       fail: () => wx.showToast({ title: tr('copyLinkFailed'), icon: 'none' }) })
-  }
-  function copyBoardTitle(event) {
-    if (cubeBusy.value || Date.now() < suppressTapUntil) return
-    const card = cards.value.find(card => card.kind === event.currentTarget.dataset.kind)
-    if (card) copyText(card.title)
   }
   function rowDetails(event) {
     if (cubeBusy.value || Date.now() < suppressTapUntil) return
@@ -1134,7 +1132,7 @@ definePage(query => {
     cubePosition, cubeDuration, cubeBusy, cubeDragging, entranceStyle, entranceHintVisible,
     cubeStart, cubeMove, cubeEnd, cubeCancel, tabStart, tabMove, tabEnd, cancelTabDrag, attributeHint,
     selectCategory, selectGrouping, selectFace, changeFace, scroll, top, filterMenu, toggleRanking,
-    clearFilters, preferences, sheetSelect, closeSheet, sourceHelp, timeHelp, countryHelp, copyBoardTitle, copyPurchaseLink, rowDetails, companyDetails, closeCompanyDetails, copyCompanyName, about, openSettings,
+    clearFilters, preferences, sheetSelect, closeSheet, sourceHelp, timeHelp, countryHelp, copyPurchaseLink, rowDetails, companyDetails, closeCompanyDetails, copyCompanyName, about, openSettings,
     quotaHelp, quotaHelpContent, showingFeatureHelp, closeFeatureHelp, copyDesktopLink, refreshTap, autoRefresh, pullRefresh, pullRefreshing, pullRefreshKind, finishPullRefresh,
     capturing, capture, screenshot, closeCapture, previewScreenshot, saveScreenshot }
 }, { canShareToOthers: true })

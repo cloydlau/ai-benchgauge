@@ -1447,8 +1447,22 @@ private final class SourceTableHeaderView: NSTableHeaderView {
                 let alert = NSAlert()
                 alert.messageText = LeaderboardPresentation.sourceTimeExplanationTitle(language: language)
                 alert.informativeText = LeaderboardPresentation.sourceTimeExplanation(language: language)
-                alert.addButton(withTitle: language.text("OK", "知道了"))
+                alert.addButton(withTitle: "OK")
                 alert.beginSheetModal(for: window)
+                return
+            }
+            if let window {
+                let alert = NSAlert()
+                alert.messageText = LeaderboardPresentation.columnTitle(board.kind, language: language)
+                alert.informativeText = board.help + "\n\n" + board.kind.sourceURL.absoluteString
+                alert.addButton(withTitle: "OK")
+                alert.addButton(withTitle: language.text("Copy link", "复制链接"))
+                alert.beginSheetModal(for: window) { response in
+                    if response == .alertSecondButtonReturn {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(board.kind.sourceURL.absoluteString, forType: .string)
+                    }
+                }
                 return
             }
         }
