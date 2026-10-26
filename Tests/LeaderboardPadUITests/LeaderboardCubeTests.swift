@@ -3,6 +3,25 @@ import Combine
 import Foundation
 @testable import LeaderboardPadUI
 
+@MainActor @Test func switchStyleDefaultsPersistsAndSurvivesVisibilityResetAndExport() throws {
+    let name = "switch-style-\(UUID())"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    #expect(LeaderboardSwitchStyle.allCases == [.cube, .slide, .fade])
+    for invalid in [nil, "", "retired"] { #expect(LeaderboardSwitchStyle(saved: invalid) == .cube) }
+    let store = LeaderboardPadStore(defaults: defaults)
+    #expect(store.boardTransition == .cube)
+    for style in LeaderboardSwitchStyle.allCases {
+        store.boardTransition = style
+        #expect(defaults.string(forKey: "mobileBoardTransition") == style.rawValue)
+        let restored = LeaderboardPadStore(defaults: defaults)
+        #expect(restored.boardTransition == style)
+        #expect(LeaderboardPadStore(exporting: restored).boardTransition == style)
+        restored.resetBoardSelections()
+        #expect(restored.boardTransition == style)
+    }
+}
+
 @Test func cubeScrollIntentAndBounds() {
     #expect(!LeaderboardCube.isHorizontal(x: 30, y: 80))
     #expect(!LeaderboardCube.isHorizontal(x: 30, y: 30))

@@ -72,3 +72,28 @@ test('settings supports both back navigation and a directly opened page', () => 
   assert.match(template, /bindtap="reset"/)
   assert.match(template, /aria-checked="\{\{item.selected\}\}"/)
 })
+
+test('motion cards default to cube, persist immediately and stay independent of board visibility and its reset', () => {
+  const h = setup({ category: 'general', face: 2, language: 'en', grouping: 'company', theme: 'dark' })
+  assert.equal(h.page.boardTransition.value, 'cube')
+  assert.deepEqual(h.page.transitionOptions.map(option => option.id), ['cube', 'slide', 'fade'])
+  assert.ok(h.page.transitionOptions.every(option => option.title && option.hint))
+  for (const style of ['slide', 'fade', 'cube']) {
+    h.page.selectTransition({ currentTarget: { dataset: { id: style } } })
+    assert.equal(h.page.boardTransition.value, style)
+    assert.equal(h.stored().boardTransition ?? 'cube', style)
+    assert.equal(h.stored().face, 2)
+    assert.equal(h.stored().grouping, 'company')
+    assert.equal(h.stored().theme, 'dark')
+  }
+  h.page.selectTransition({ currentTarget: { dataset: { id: 'fade' } } })
+  h.toggle('general', 'artificialAnalysis')
+  assert.equal(h.stored().boardTransition, 'fade')
+  h.page.reset()
+  assert.equal(h.stored().boardTransition, 'fade', 'The board visibility reset only resets visibility')
+  const saved = h.stored()
+  h.page.selectTransition({ currentTarget: { dataset: { id: 'invalid' } } })
+  assert.equal(h.stored(), saved)
+  for (const style of ['cube', 'slide', 'fade']) assert.equal(setup({ boardTransition: style }).page.boardTransition.value, style)
+  assert.equal(setup({ boardTransition: 'retired' }).page.boardTransition.value, 'cube')
+})

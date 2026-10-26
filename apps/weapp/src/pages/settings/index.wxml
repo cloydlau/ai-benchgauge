@@ -4,6 +4,21 @@
     <text>{{labels.preferences}}</text>
   </view>
   <view class="settings-main">
+    <view class="motion-section">
+      <text class="motion-heading">{{labels.boardTransition}}</text>
+      <text class="settings-hint">{{labels.boardTransitionHint}}</text>
+      <view class="motion-options" role="radiogroup" aria-label="{{labels.boardTransition}}">
+        <button wx:for="{{transitionOptions}}" wx:key="id" class="motion-option {{boardTransition === item.id ? 'is-selected' : ''}}" data-id="{{item.id}}" bindtap="selectTransition" role="radio" aria-checked="{{boardTransition === item.id}}" aria-label="{{item.title}} · {{item.hint}}">
+          <view class="motion-preview motion-{{item.id}}" aria-hidden="true">
+            <view class="motion-preview-glow" />
+            <view class="motion-sheet motion-sheet-back"><view class="motion-mini-title" /><view class="motion-mini-line" /><view class="motion-mini-line short" /><view class="motion-mini-line" /></view>
+            <view class="motion-sheet motion-sheet-front"><view class="motion-mini-title" /><view class="motion-mini-line" /><view class="motion-mini-line short" /><view class="motion-mini-line" /></view>
+          </view>
+          <view class="motion-option-name"><text>{{item.title}}</text><view class="motion-radio"><van-icon wx:if="{{boardTransition === item.id}}" name="success" size="10px" /></view></view>
+          <text class="motion-option-hint">{{item.hint}}</text>
+        </button>
+      </view>
+    </view>
     <view class="settings-heading"><text>{{labels.displayedBoards}}</text><button class="tap reset-boards" bindtap="reset">{{labels.resetBoards}}</button></view>
     <text class="settings-hint">{{labels.boardSelectionHint}}</text>
     <view wx:for="{{groups}}" wx:for-item="group" wx:key="id" class="settings-group">

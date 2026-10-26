@@ -4,6 +4,17 @@ import { boards, categories, languages } from '../src/core/catalog.js'
 import { normalizePreferences, pagePreferences, readSharedPreferences, sharePath } from '../src/core/share-state.js'
 
 const queryFor = path => Object.fromEntries(new URL('https://shared.example' + path).searchParams)
+test('motion is validated and retained locally when opening or forwarding a shared leaderboard', () => {
+  for (const style of ['cube', 'slide', 'fade', 'retired', undefined]) {
+    const expected = ['slide', 'fade'].includes(style) ? style : 'cube'
+    assert.equal(normalizePreferences({ boardTransition: style }).boardTransition ?? 'cube', expected)
+    const query = queryFor(sharePath({ category: 'image', boardTransition: 'slide' }, 'light'))
+    assert.equal(query.state.includes('boardTransition'), false)
+    const restored = pagePreferences(query, { boardTransition: style })
+    assert.equal(restored.boardTransition ?? 'cube', expected)
+    assert.equal(restored.category, 'image')
+  }
+})
 test('shared selections restore exactly the visible boards and repair empty or outdated saved choices', () => {
   const preferences = { category: 'general', face: 0, language: 'zh-CN', boardSelections: { general: ['epochECI'], coding: ['codeArenaWebDev'] },
     filters: { epochECI: { country: 'CN', openness: 'open' } } }
