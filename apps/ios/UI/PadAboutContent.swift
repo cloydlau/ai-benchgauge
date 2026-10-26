@@ -51,7 +51,8 @@ struct PadAboutContent: Decodable, Sendable {
             let body: String
             let amount: Int?
             let monthlyAmount: Int?
-            func amount(months: Int) -> Int? { CalmmitCostCalculation.itemAmount(amount, monthlyAmount: monthlyAmount, months: months) }
+            let roundingUnit: Int?
+            func amount(months: Int) -> Int? { CalmmitCostCalculation.itemAmount(amount, monthlyAmount: monthlyAmount, months: months, roundingUnit: roundingUnit ?? 100) }
         }
         struct Group: Decodable, Identifiable, Sendable {
             let id: String
