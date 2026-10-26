@@ -176,6 +176,21 @@ public struct ParsedBalance: Equatable, Sendable {
     }
 }
 
+/// Additional Codex credits, not money or a percentage of the subscription.
+public struct OpenAICredits: Codable, Equatable, Sendable {
+    public let hasCredits: Bool
+    public let unlimited: Bool
+    public let balance: Double?
+
+    public init(hasCredits: Bool, unlimited: Bool, balance: Double?) {
+        self.hasCredits = hasCredits
+        self.unlimited = unlimited
+        self.balance = balance.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil }
+    }
+
+    public var isUsable: Bool { unlimited || (hasCredits && (balance.map { $0 > 0 } ?? true)) }
+}
+
 public enum ProviderQuotaParseResult: Equatable, Sendable {
     case windows([ParsedQuotaWindow])
     case balances([ParsedBalance])
@@ -211,6 +226,7 @@ public struct AccountQuotaChip: Identifiable, Equatable, Sendable {
     public let status: Status
     /// A previous successful value retained after a failed refresh.
     public let isStale: Bool
+    public let credits: OpenAICredits?
 
     public init(
         id: String,
@@ -220,7 +236,8 @@ public struct AccountQuotaChip: Identifiable, Equatable, Sendable {
         kind: CCSwitchQuotaKind,
         isCurrent: Bool,
         status: Status,
-        isStale: Bool = false
+        isStale: Bool = false,
+        credits: OpenAICredits? = nil
     ) {
         self.id = id
         self.shortName = shortName
@@ -230,6 +247,7 @@ public struct AccountQuotaChip: Identifiable, Equatable, Sendable {
         self.isCurrent = isCurrent
         self.status = status
         self.isStale = isStale
+        self.credits = credits
     }
 }
 
@@ -318,6 +336,7 @@ public enum AccountQuotaFormatting {
     /// the menu bar empty or behind the number the panel already shows.
     public static func compactMenuBarQuota(for chip: AccountQuotaChip) -> String? {
         guard xaiUnavailableState(chip) == nil else { return nil }
+        if usesOpenAICredits(chip), let credits = chip.credits { return creditsText(credits) }
         switch chip.status {
         case let .windows(windows):
             for name in ["five_hour", "seven_day", "weekly_limit", "monthly"] {
@@ -360,6 +379,7 @@ public enum AccountQuotaFormatting {
     /// Monetary balances and dates are not quota percentages.
     public static func lowestRemainingPercent(for chip: AccountQuotaChip) -> Double? {
         guard xaiUnavailableState(chip) == nil else { return nil }
+        if usesOpenAICredits(chip) { return nil }
         switch chip.status {
         case let .windows(windows):
             return windows.filter {
@@ -378,6 +398,7 @@ public enum AccountQuotaFormatting {
     /// Use the healthiest funded wallet, excluding empty wallets when another
     /// has money. Individual displayed balances retain their own color.
     public static func colorLevel(for chip: AccountQuotaChip) -> Double? {
+        if usesOpenAICredits(chip) { return chip.credits?.isUsable == false ? 0 : nil }
         guard case let .balances(balances) = chip.status else {
             return lowestRemainingPercent(for: chip)
         }
@@ -422,6 +443,7 @@ public enum AccountQuotaFormatting {
     /// balance remains.
     public static func isExhausted(_ chip: AccountQuotaChip) -> Bool {
         guard xaiUnavailableState(chip) == nil else { return false }
+        if usesOpenAICredits(chip), let credits = chip.credits { return !credits.isUsable }
         switch chip.status {
         case let .windows(windows):
             return windows.contains { window in
@@ -444,6 +466,7 @@ public enum AccountQuotaFormatting {
     /// exhaustion retains its existing warning presentation.
     public static func isDimmed(_ chip: AccountQuotaChip) -> Bool {
         if xaiUnavailableState(chip) == .inactive { return true }
+        if usesOpenAICredits(chip), let credits = chip.credits { return !credits.isUsable }
         switch chip.status {
         case let .note(text, _), let .message(text):
             return text == AccountQuotaMessage.glmNoCodingPlan || text == AccountQuotaMessage.qwenNoPlan
@@ -703,6 +726,7 @@ public enum AccountQuotaFormatting {
 
     private static func billingPriority(_ chip: AccountQuotaChip) -> Int {
         if let state = xaiUnavailableState(chip) { return state == .inactive ? 3 : 5 }
+        if usesOpenAICredits(chip), let credits = chip.credits { return credits.isUsable ? 1 : 4 }
         // Classify unavailable results before provider kind, otherwise a failed
         // plan looks usable and a failed wallet looks funded.
         switch chip.status {
@@ -771,6 +795,12 @@ public enum AccountQuotaFormatting {
     }
 
     public static func runs(for chip: AccountQuotaChip, now: Date) -> [QuotaTextRun] {
+        if usesOpenAICredits(chip), let credits = chip.credits, case let .windows(windows) = chip.status {
+            var runs = [QuotaTextRun(text: creditsText(credits), tone: credits.isUsable ? .secondary : .red)]
+            let date = windowRuns(windows.filter { $0.name == ParsedQuotaWindow.planExpiryName }, kind: chip.kind, now: now)
+            if !date.isEmpty { appendSeparator(&runs); runs += date }
+            return runs
+        }
         switch chip.status {
         case .pending:
             return [QuotaTextRun(text: AccountQuotaMessage.querying, tone: .secondary)]
@@ -811,6 +841,10 @@ public enum AccountQuotaFormatting {
         }
         if chip.isCurrent {
             lines.append("当前供应商")
+        }
+        if chip.kind == .officialNote, let credits = chip.credits, case .windows = chip.status {
+            lines.append(creditsText(credits))
+            lines.append("套餐额度用尽后，可使用剩余额度继续工作；额度不是美元或套餐剩余百分比。")
         }
         if chip.kind == .officialNote, chip.status == .message(AccountQuotaMessage.reauthRequired) {
             lines.append(AccountQuotaMessage.openAIReauthorizeHelp)
@@ -923,6 +957,22 @@ public enum AccountQuotaFormatting {
     private static func remainingPercent(utilization: Double) -> Double {
         guard utilization.isFinite else { return 100 }
         return min(100, max(0, 100 - utilization))
+    }
+
+    /// Only switch after an included pool is actually depleted. Rounded 0%
+    /// and a missing/malformed credits field do not establish depletion/funds.
+    public static func usesOpenAICredits(_ chip: AccountQuotaChip) -> Bool {
+        guard chip.kind == .officialNote, chip.credits != nil, case let .windows(windows) = chip.status else { return false }
+        let usage = windows.filter { $0.name != ParsedQuotaWindow.planExpiryName }
+        return usage.isEmpty || usage.contains { $0.utilization.isFinite && $0.utilization >= 100 }
+    }
+
+    private static func creditsText(_ credits: OpenAICredits) -> String {
+        if credits.unlimited { return "额度不限" }
+        guard let balance = credits.balance else { return credits.hasCredits ? "额度可用" : "额度 0" }
+        if balance > 0 && balance < 0.01 { return "额度 <0.01" }
+        let text = balanceAmountText(balance)
+        return "额度 " + (text.hasSuffix(".00") ? String(text.dropLast(3)) : text)
     }
 
     /// All quota surfaces show at most one decimal place, omitting trailing .0.

@@ -89,7 +89,7 @@ public struct CodexModelConfiguration: Equatable, Sendable {
         let display = chips.map { chip in
             AccountQuotaChip(id: chip.id, shortName: chip.shortName, modelName: chip.modelName,
                 websiteURL: chip.websiteURL, kind: chip.kind, isCurrent: chip.id == selectedID,
-                status: chip.status, isStale: chip.isStale)
+                status: chip.status, isStale: chip.isStale, credits: chip.credits)
         }
         return AccountQuotaFormatting.menuBarText(forChips: display, currentModelName: model)
     }

@@ -418,7 +418,8 @@ actor Engine {
                     kind: $0.kind,
                     isCurrent: $0.isCurrent,
                     status: $0.status,
-                    isStale: true
+                    isStale: true,
+                    credits: $0.credits
                 )
             }
         case .records(let records):
@@ -434,7 +435,8 @@ actor Engine {
                 AccountQuotaChip(id: target.id, shortName: target.shortName, modelName: target.modelName,
                                  websiteURL: target.websiteURL,
                                  kind: target.kind, isCurrent: target.isCurrent,
-                                 status: prior[target.id]?.status ?? .pending, isStale: prior[target.id]?.isStale ?? false)
+                                 status: prior[target.id]?.status ?? .pending, isStale: prior[target.id]?.isStale ?? false,
+                                 credits: prior[target.id]?.credits)
             }
             if client == nil { client = AccountQuotaClient(officialQuotaSource: official) }
             if list.contains(where: { $0.kind == .xaiOAuth }) {

@@ -20,6 +20,7 @@ enum NativeVisualCapture {
         let id: String; let name: String; let isCurrent: Bool; let runs: [Run]; let status: String?; let modelName: String?; let failureReason: String?; let baseURL: String?
         let windows: [Window]?
         let balances: [Balance]?
+        let credits: OpenAICredits?
     }
     struct State: Decodable { let boards: [Board]; let quotas: [Quota]; let quotaUpdatedAt: String? }
     struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String?; let codexModel: String?; let codexProvider: String?; let codexBaseURL: String?; let taskCounts: CodexTaskCounts?; let refreshedTaskCounts: CodexTaskCounts?; let codexDesktopRunning: Bool?; let refreshedCodexDesktopRunning: Bool?; let showsCodexTaskStatus: Bool?; let refreshedShowsCodexTaskStatus: Bool?; let officialAccountChecking: Bool?; let sources: [String: LeaderboardOpennessFilter]?; let countries: [String: String]?; let grouping: LeaderboardGrouping?; let category: LeaderboardCategory?; let comparisonKind: LeaderboardKind?; let selectedBoards: [LeaderboardKind]?; let refreshedSelectedBoards: [LeaderboardKind]?; let rowCount: Int?; let searchQuery: String? }
@@ -91,7 +92,7 @@ enum NativeVisualCapture {
                 }
             }
             return AccountQuotaChip(id: quota.id, shortName: quota.name, modelName: quota.modelName, websiteURL: nil,
-                kind: kinds[quota.name] ?? .kimi, isCurrent: quota.isCurrent, status: status)
+                kind: kinds[quota.name] ?? .kimi, isCurrent: quota.isCurrent, status: status, credits: quota.credits)
         }
         let chips = fixture.state.quotas.map(chip)
         var metadata: [[String: String]] = []
@@ -134,7 +135,7 @@ enum NativeVisualCapture {
                 let stale = test.scenario == "freshnessStale"
                 let shownChips = stale ? visibleChips.map { chip in
                     AccountQuotaChip(id: chip.id, shortName: chip.shortName, websiteURL: chip.websiteURL,
-                                     kind: chip.kind, isCurrent: chip.isCurrent, status: chip.status, isStale: true)
+                                     kind: chip.kind, isCurrent: chip.isCurrent, status: chip.status, isStale: true, credits: chip.credits)
                 } : visibleChips
                 func apply(refreshed: Bool = false, phase: Int = 0) {
                     let loadingScenario = test.scenario.hasPrefix("usageLoading")

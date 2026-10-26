@@ -321,6 +321,10 @@ static class VisualTests
 
     static string FixtureQuotaText(string text, string language) => (language, text) switch
     {
+        ("en", "额度 120.50") => "credits 120.50", ("zh-Hant", "额度 120.50") => "額度 120.50",
+        ("en", "额度不限") => "Unlimited credits", ("zh-Hant", "额度不限") => "額度不限",
+        ("en", "额度可用") => "Credits available", ("zh-Hant", "额度可用") => "額度可用",
+        ("en", "额度 0") => "credits 0", ("zh-Hant", "额度 0") => "額度 0",
         ("en", "登录失效") => "Login expired", ("en", "查询中") => "Checking",
         ("en", "查询失败") => "Query failed", ("zh-Hant", "查询失败") => "查詢失敗",
         ("en", "未订购") => "Not subscribed", ("zh-Hant", "未订购") => "未訂購",

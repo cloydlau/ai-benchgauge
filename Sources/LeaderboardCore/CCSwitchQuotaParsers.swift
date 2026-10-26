@@ -12,10 +12,7 @@ public enum CCSwitchQuotaParsers {
     /// Account-only app-server response. Select the Codex bucket explicitly;
     /// other metered limits must not replace the account's coding quota.
     public static func parseOpenAIAppServer(_ data: Data) -> ProviderQuotaParseResult {
-        guard let body = jsonObject(data) else { return .rejected }
-        let byID = body["rateLimitsByLimitId"] as? [String: Any]
-        let limit = (byID?["codex"] as? [String: Any]) ?? (body["rateLimits"] as? [String: Any])
-        guard let limit, (limit["limitId"] as? String).map({ $0 == "codex" }) ?? true else { return .rejected }
+        guard let limit = openAIAppServerLimit(data) else { return .rejected }
         let windows = ["primary", "secondary"].compactMap { key -> ParsedQuotaWindow? in
             guard let window = limit[key] as? [String: Any],
                   let used = jsonDouble(window["usedPercent"]), used.isFinite else { return nil }
@@ -27,6 +24,27 @@ public enum CCSwitchQuotaParsers {
             )
         }
         return .windows(windows)
+    }
+
+    private static func openAIAppServerLimit(_ data: Data) -> [String: Any]? {
+        guard let body = jsonObject(data) else { return nil }
+        let byID = body["rateLimitsByLimitId"] as? [String: Any]
+        let limit = (byID?["codex"] as? [String: Any]) ?? (body["rateLimits"] as? [String: Any])
+        guard let limit, (limit["limitId"] as? String).map({ $0 == "codex" }) ?? true else { return nil }
+        return limit
+    }
+
+    public static func parseOpenAICredits(_ data: Data, appServer: Bool = false) -> OpenAICredits? {
+        let container = appServer ? openAIAppServerLimit(data) : jsonObject(data)
+        guard let credits = container?["credits"] as? [String: Any],
+              let has = credits[appServer ? "hasCredits" : "has_credits"], CCSwitchJSON.isBoolean(has),
+              let unlimited = credits["unlimited"], CCSwitchJSON.isBoolean(unlimited) else { return nil }
+        let balance: Double?
+        if let raw = credits["balance"], !(raw is NSNull) {
+            guard let amount = jsonDouble(raw), amount.isFinite, amount >= 0 else { return nil }
+            balance = amount
+        } else { balance = nil }
+        return OpenAICredits(hasCredits: has as? Bool == true, unlimited: unlimited as? Bool == true, balance: balance)
     }
 
     /// Parses the Codex official `backend-api/wham/usage` response.

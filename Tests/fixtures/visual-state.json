@@ -3599,6 +3599,30 @@
       "selectedBoards": [
         "artificialAnalysis"
       ]
+    },
+    {
+      "id": "openai-credits-en",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "scenario": "openAICredits",
+      "mode": "panel"
+    },
+    {
+      "id": "openai-credits-zh",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "scenario": "openAICredits",
+      "mode": "panel"
+    },
+    {
+      "id": "openai-credits-zh-Hant",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "scenario": "openAICredits",
+      "mode": "panel"
     }
   ],
   "quotaScenarios": {
@@ -5065,6 +5089,188 @@
           }
         ],
         "status": "pending"
+      }
+    ],
+    "openAICredits": [
+      {
+        "id": "openai-plan",
+        "name": "OpenAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "5h 80% · 7d 80%",
+            "light": "#6FA357",
+            "dark": "#A6CE70"
+          }
+        ],
+        "modelName": null,
+        "credits": {
+          "hasCredits": true,
+          "unlimited": false,
+          "balance": 120.5
+        },
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 20,
+            "resetsAt": "2026-09-29T04:30:00Z"
+          },
+          {
+            "name": "weekly_limit",
+            "utilization": 20,
+            "resetsAt": "2026-10-01T00:00:00Z"
+          }
+        ],
+        "isDimmed": false
+      },
+      {
+        "id": "openai-credits",
+        "name": "OpenAI",
+        "isCurrent": true,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "额度 120.50",
+            "light": "#737373",
+            "dark": "#B0B0B0"
+          }
+        ],
+        "modelName": null,
+        "credits": {
+          "hasCredits": true,
+          "unlimited": false,
+          "balance": 120.5
+        },
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 100,
+            "resetsAt": "2026-09-29T04:30:00Z"
+          },
+          {
+            "name": "weekly_limit",
+            "utilization": 20,
+            "resetsAt": "2026-10-01T00:00:00Z"
+          }
+        ],
+        "isDimmed": false
+      },
+      {
+        "id": "openai-unlimited",
+        "name": "OpenAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "额度不限",
+            "light": "#737373",
+            "dark": "#B0B0B0"
+          }
+        ],
+        "modelName": null,
+        "credits": {
+          "hasCredits": true,
+          "unlimited": true,
+          "balance": null
+        },
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 100,
+            "resetsAt": "2026-09-29T04:30:00Z"
+          },
+          {
+            "name": "weekly_limit",
+            "utilization": 20,
+            "resetsAt": "2026-10-01T00:00:00Z"
+          }
+        ],
+        "isDimmed": false
+      },
+      {
+        "id": "openai-unknown",
+        "name": "OpenAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "额度可用",
+            "light": "#737373",
+            "dark": "#B0B0B0"
+          }
+        ],
+        "modelName": null,
+        "credits": {
+          "hasCredits": true,
+          "unlimited": false,
+          "balance": null
+        },
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 100,
+            "resetsAt": "2026-09-29T04:30:00Z"
+          },
+          {
+            "name": "weekly_limit",
+            "utilization": 20,
+            "resetsAt": "2026-10-01T00:00:00Z"
+          }
+        ],
+        "isDimmed": false
+      },
+      {
+        "id": "openai-empty",
+        "name": "OpenAI",
+        "isCurrent": false,
+        "isStale": false,
+        "help": "Synthetic test data; no account access",
+        "url": null,
+        "canConnect": false,
+        "connection": null,
+        "runs": [
+          {
+            "text": "额度 0",
+            "light": "#E5534B",
+            "dark": "#FF736C"
+          }
+        ],
+        "modelName": null,
+        "credits": {
+          "hasCredits": false,
+          "unlimited": false,
+          "balance": 0
+        },
+        "windows": [
+          {
+            "name": "five_hour",
+            "utilization": 100,
+            "resetsAt": "2026-09-29T04:30:00Z"
+          },
+          {
+            "name": "weekly_limit",
+            "utilization": 20,
+            "resetsAt": "2026-10-01T00:00:00Z"
+          }
+        ],
+        "isDimmed": true
       }
     ]
   },

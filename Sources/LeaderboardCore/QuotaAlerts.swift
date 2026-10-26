@@ -52,7 +52,8 @@ public enum QuotaAlerts {
         guard chip.isCurrent || hasAutoRenewingPlan(chip.status), isConclusive(chip.status) else { return [] }
         let subjects = subjects(for: chip)
         var alerts: [QuotaAlert] = []
-        if let alert = lowRemainingAlert(chip: chip, subjects: subjects) {
+        let hasUsableCredits = AccountQuotaFormatting.usesOpenAICredits(chip) && chip.credits?.isUsable == true
+        if !hasUsableCredits, let alert = lowRemainingAlert(chip: chip, subjects: subjects) {
             alerts.append(alert)
         }
         if let alert = expiringAlert(chip: chip, subjects: subjects, now: now) {

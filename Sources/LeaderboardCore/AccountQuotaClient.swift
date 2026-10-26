@@ -666,7 +666,7 @@ public actor AccountQuotaClient {
             return chip(target, .failed)
         }
         guard case let .windows(quotaWindows) = CCSwitchQuotaParsers.parseOpenAI(response.body),
-              !quotaWindows.isEmpty else {
+              !quotaWindows.isEmpty || CCSwitchQuotaParsers.parseOpenAICredits(response.body) != nil else {
             return chip(target, .failed)
         }
         var windows = quotaWindows
@@ -686,7 +686,8 @@ public actor AccountQuotaClient {
             websiteURL: target.websiteURL,
             kind: target.kind,
             isCurrent: target.isCurrent,
-            status: .windows(windows)
+            status: .windows(windows),
+            credits: CCSwitchQuotaParsers.parseOpenAICredits(response.body)
         )
     }
 
@@ -895,7 +896,8 @@ public actor AccountQuotaClient {
                 kind: chip.kind,
                 isCurrent: chip.isCurrent,
                 status: prior.status,
-                isStale: true
+                isStale: true,
+                credits: prior.credits
             )
         case .pending, .note, .message:
             return chip

@@ -1,3 +1,34 @@
+## OpenAI additional credits — 2026-10-26
+
+macOS and the Windows shared engine retain Codex credits from both direct usage
+and app-server responses. Once an included window reaches 100% used, the quota
+strip and menu/tray summary show the remaining credits instead of the depleted
+plan percentage. Unlimited credits and an available balance without a number
+have explicit labels. Missing or invalid credits preserve the old percentage
+behavior. Original windows and reset times remain in help. Funded credits avoid
+false exhaustion and low-plan notifications; zero credits use the existing
+empty-wallet dimmed style and retain exhaustion notifications. iPhone/iPad,
+the mini-program and leaderboard image exports do not display account quotas.
+
+The shared `openAICredits` fixture covers plan quota, funded credits, unlimited,
+unquantified and empty credits in English, Simplified and Traditional Chinese.
+Ignored `work/openai-credits/` retains the same-fixture native Mac before/after
+captures (18 frames each, 950×720 content points, actual backing scale 2×), OS,
+fixture/source/binary hashes and verification logs. Representative Chinese and
+English light/dark and Traditional dark frames were reviewed: quota labels fit,
+funded providers stay active and the English add-model button wraps normally.
+All shown/refreshed/settled frames are stable within each case.
+
+404 core tests in 59 suites pass, including seven new credit tests, using an
+isolated manifest with the actual shared sources and full core test target.
+The ordinary full Swift package test command is blocked by the Command Line
+Tools SDK missing SwiftUI macro plugins; no full-package pass is claimed.
+Mac application/shared bridge Debug builds, Windows shared tests and Windows
+WPF Release cross-compilation pass (zero Windows warnings/errors). Native
+Windows screenshots, actual Windows DPI and a source-matched CI visual artifact
+are unavailable on this Mac. No installed-client acceptance or release approval
+is claimed; this task has not installed a new client.
+
 ## Timestamp explanation — 2026-10-26
 
 All four clients underline the displayed time and its Published / Refreshed

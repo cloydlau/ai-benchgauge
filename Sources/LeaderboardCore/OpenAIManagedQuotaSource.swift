@@ -212,7 +212,8 @@ public actor OpenAIManagedQuotaSource: OfficialAccountQuotaSource {
                 quota = try await server.request("account/rateLimits/read", params: params([:]))
             }
             await server.stop()
-            guard case var .windows(windows) = CCSwitchQuotaParsers.parseOpenAIAppServer(quota), !windows.isEmpty else {
+            let credits = CCSwitchQuotaParsers.parseOpenAICredits(quota, appServer: true)
+            guard case var .windows(windows) = CCSwitchQuotaParsers.parseOpenAIAppServer(quota), !windows.isEmpty || credits != nil else {
                 return chip(target, status: .message(AccountQuotaMessage.queryFailed))
             }
             // The account service returns usage resets, not subscription end.
@@ -230,7 +231,7 @@ public actor OpenAIManagedQuotaSource: OfficialAccountQuotaSource {
                ) {
                 windows.append(expiry)
             }
-            return chip(target, status: .windows(windows))
+            return chip(target, status: .windows(windows), credits: credits)
         } catch is CancellationError {
             await server.stop()
             throw CancellationError()
@@ -247,9 +248,9 @@ public actor OpenAIManagedQuotaSource: OfficialAccountQuotaSource {
         }
     }
 
-    private func chip(_ target: CCSwitchQuotaTarget, status: AccountQuotaChip.Status) -> AccountQuotaChip {
+    private func chip(_ target: CCSwitchQuotaTarget, status: AccountQuotaChip.Status, credits: OpenAICredits? = nil) -> AccountQuotaChip {
         AccountQuotaChip(id: target.id, shortName: target.shortName, modelName: target.modelName,
                          websiteURL: target.websiteURL,
-                         kind: target.kind, isCurrent: target.isCurrent, status: status)
+                         kind: target.kind, isCurrent: target.isCurrent, status: status, credits: credits)
     }
 }

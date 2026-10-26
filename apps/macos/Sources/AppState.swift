@@ -844,7 +844,7 @@ final class AppState: ObservableObject {
                 guard let result = refreshed[chip.id] else { return chip }
                 return AccountQuotaChip(id: chip.id, shortName: chip.shortName, modelName: chip.modelName,
                     websiteURL: chip.websiteURL, kind: chip.kind, isCurrent: chip.isCurrent,
-                    status: result.status, isStale: result.isStale)
+                    status: result.status, isStale: result.isStale, credits: result.credits)
             }
             let now = Date()
             self.quotaUpdatedAt = QuotaFreshness.updatedAt(afterRefreshing: chips, previous: self.quotaUpdatedAt, now: now)
@@ -942,7 +942,8 @@ final class AppState: ObservableObject {
                     kind: target.kind,
                     isCurrent: target.isCurrent,
                     status: existing.status,
-                    isStale: existing.isStale
+                    isStale: existing.isStale,
+                    credits: existing.credits
                 )
             }
             return .placeholder(for: target)
