@@ -13,12 +13,12 @@ struct MobileBrandSizingTests {
                 #expect(sizing.scale > 0 && sizing.scale <= 1)
                 #expect(sizing.scale >= previous)
                 #expect(abs(sizing.titleFontSize / sizing.baseTitleFontSize - sizing.subtitleFontSize / sizing.baseSubtitleFontSize) < 0.0001)
-                let heading = BrandTitleMetrics.layoutWidth(language: language, fontSize: sizing.titleFontSize)
+                let heading = MobileBrandMetrics.layoutWidth(language: language, fontSize: sizing.titleFontSize)
                     + sizing.subtitleWidth + sizing.titleCaptionSpacing
                 #expect(heading + controls + MobileBrandSizing.controlsSpacing <= width + 0.01)
                 #expect(sizing.showsSubtitle == (language != .english))
                 let expectedInkHeight: CGFloat = 30 * (language == .english ? 0.8 : 0.85) * sizing.scale
-                #expect(abs(BrandTitleMetrics.inkHeight(language: language, fontSize: sizing.titleFontSize) - expectedInkHeight) < 0.001)
+                #expect(abs(MobileBrandMetrics.inkHeight(language: language, fontSize: sizing.titleFontSize) - expectedInkHeight) < 0.001)
                 previous = sizing.scale
             }
             #expect(previous == 1)

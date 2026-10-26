@@ -1,41 +1,24 @@
 import { brandGlyphs } from './brand-glyphs.js'
 
-export const brandLogoAspect = 142 / 166
+import { brandBaseSize, brandLayouts } from './brand-layouts.js'
+export { brandLogoAspect } from './brand-layouts.js'
 export const brandLogoSource = dark => `/assets/header-logo${dark ? '-dark' : ''}.png`
 
-// Native iOS font outlines give both the view and exported Canvas the same ink
-// bounds on every platform, including the first offline render.
+// Both mobile clients consume the same precomputed geometry and offline paths.
 export function brandTitleLayout(_context, name, fontSize) {
-  const english = name === 'AI BenchGauge', scale = fontSize / 21
-  const keys = english ? ['en-I', 'en-name'] : ['zh-I', 'zh-tian', 'zh-ti']
-  const logoHeight = brandGlyphs[keys[0]].height * scale, logoWidth = logoHeight * brandLogoAspect
-  const logoSlant = english ? 31 : 0, logoShear = Math.tan(logoSlant * Math.PI / 180)
-  const height = Math.max(...keys.map(key => brandGlyphs[key].height * scale))
-  // The network's weight sits below its box center. Lift AI together slightly
-  // against the script wordmark, whose outer bounds include long descenders.
-  const initialsLift = english ? fontSize * 0.07 : 0
-  // Match A to I's box bottom; the previous extra lift made A look too high.
-  const logoTop = (height - logoHeight) / 2 - initialsLift
-  const gap = (english ? 0.6 : 2.5) * scale
-  // Kern into the transparent upper-right corner of the triangular A rather
-  // than reserving the full sheared rectangle between the two initials.
-  const logoInkWidth = logoWidth + logoHeight * logoShear
-  let x = english ? Math.max(logoWidth + logoHeight * logoShear * 0.35,
-    logoWidth * 0.7 + logoHeight * logoShear) : logoInkWidth
-  const glyphs = keys.map((key, index) => {
-    const part = brandGlyphs[key], width = part.width * scale, glyphHeight = part.height * scale
-    x += english && index === 1 ? fontSize * 0.27 : gap
-    const y = (height - glyphHeight) / 2 - (english && index === 0 ? initialsLift : 0)
-    const glyph = { key, text: part.text, x, y, width, height: glyphHeight,
-      source: `/assets/brand-glyphs/${key}`,
-      style: `left:${x}px;top:${y}px;width:${width}px;height:${glyphHeight}px;` }
-    x += width
-    return glyph
+  const layout = brandLayouts[name === 'AI BenchGauge' ? 'english' : 'chinese']
+  const scale = fontSize / brandBaseSize
+  const title = Object.fromEntries(Object.entries(layout).filter(([, value]) => typeof value === 'number')
+    .map(([key, value]) => [key, ['logoShear', 'logoSlant'].includes(key) ? value : value * scale]))
+  const glyphs = layout.glyphs.map(part => {
+    const { key } = part, { text } = brandGlyphs[key]
+    const x = part.x * scale, y = part.y * scale, width = part.width * scale, height = part.height * scale
+    return { key, text, x, y, width, height, source: `/assets/brand-glyphs/${key}`,
+      style: `left:${x}px;top:${y}px;width:${width}px;height:${height}px;` }
   })
-  return { width: x, height, scale, logoWidth, logoHeight, logoTop, logoShear, logoInkWidth, glyphs,
-    style: `width:${x}px;height:${height}px;`,
-    logoStyle: `width:${logoWidth}px;height:${logoHeight}px;top:${logoTop}px;`
-      + (english ? `transform-origin:left bottom;transform:skewX(-${logoSlant}deg);` : '') }
+  return { ...title, scale, glyphs, style: `width:${title.width}px;height:${title.height}px;`,
+    logoStyle: `width:${title.logoWidth}px;height:${title.logoHeight}px;top:${title.logoTop}px;`
+      + (title.logoSlant ? `transform-origin:left bottom;transform:skewX(-${title.logoSlant}deg);` : '') }
 }
 
 export function createBrandMeasurer() {

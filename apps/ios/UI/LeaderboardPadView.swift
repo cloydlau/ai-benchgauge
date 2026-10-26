@@ -143,7 +143,6 @@ public struct LeaderboardPadView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @ScaledMetric(relativeTo: .body) private var englishTitleFontSize: CGFloat = 21
     @StateObject private var presentation = PadPresentationState()
     public static let repositoryURL = URL(string: "https://github.com/cloydlau/ai-benchgauge")!
     private let appStoreURL: URL?
@@ -304,20 +303,11 @@ public struct LeaderboardPadView: View {
         #endif
     }
     private func mobileBrandTitle(size: CGFloat) -> some View {
-        let ink = store.language == .english ? Self.textInkBounds(store.language.appName,
-            font: CTFontCreateWithName("SnellRoundhand-Bold" as CFString, size, nil)) : nil
-        let inkHeight = BrandTitleMetrics.inkHeight(language: store.language, fontSize: size)
-        return Group {
-                if store.language == .english { appTitle(fontSize: size) }
-                else { appTitle.scaleEffect(size / 21, anchor: .leading)
-                    .frame(width: BrandTitleMetrics.layoutWidth(language: store.language, fontSize: size), alignment: .leading) }
-        }.frame(height: 44)
-                .alignmentGuide(.padTitleInkTop) { dimensions in
-                    ink.map { dimensions[.firstTextBaseline] - $0.maxY } ?? (dimensions.height - inkHeight) / 2
-                }
-                .alignmentGuide(.padTitleInkBottom) { dimensions in
-                    ink.map { dimensions[.firstTextBaseline] - $0.minY } ?? (dimensions.height + inkHeight) / 2
-                }
+        let inkHeight = MobileBrandMetrics.inkHeight(language: store.language, fontSize: size)
+        return appTitle(fontSize: size)
+            .frame(height: 44)
+                .alignmentGuide(.padTitleInkTop) { dimensions in (dimensions.height - inkHeight) / 2 }
+                .alignmentGuide(.padTitleInkBottom) { dimensions in (dimensions.height + inkHeight) / 2 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(store.language.appName)
                 .accessibilityAddTraits(.isStaticText)
@@ -362,28 +352,8 @@ public struct LeaderboardPadView: View {
         }
         .accessibilityIdentifier("about-page")
     }
-    private var appTitle: some View { appTitle(fontSize: englishTitleFontSize) }
     @ViewBuilder private func appTitle(fontSize: CGFloat) -> some View {
-        let title = store.language.appName
-        if store.language == .english {
-            EnglishBrandTitle(fontSize: fontSize)
-                .alignmentGuide(.bottom) { dimensions in
-                    Self.textInkBottom(dimensions, text: title,
-                        font: CTFontCreateWithName("SnellRoundhand-Bold" as CFString, fontSize, nil))
-                }
-        } else {
-            ChineseBrandTitle()
-        }
-    }
-    nonisolated private static func textInkBounds(_ text: String, font: CTFont) -> CGRect {
-        let attributed = NSAttributedString(string: text,
-            attributes: [NSAttributedString.Key(kCTFontAttributeName as String): font])
-        return CTLineGetBoundsWithOptions(CTLineCreateWithAttributedString(attributed), .useGlyphPathBounds)
-    }
-    nonisolated private static func textInkBottom(_ dimensions: ViewDimensions, text: String, font: CTFont) -> CGFloat {
-        let ink = textInkBounds(text, font: font)
-        guard !ink.isNull, !ink.isEmpty else { return dimensions[.bottom] }
-        return dimensions[.firstTextBaseline] - ink.minY
+        MobileBrandTitle(language: store.language, fontSize: fontSize)
     }
 
     private var groupingPicker: some View {

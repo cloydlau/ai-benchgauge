@@ -19,6 +19,7 @@ The older gauge artwork and its generation scripts have been removed.
 | --- | --- |
 | `logo.png` | Approved rendered application-icon master |
 | `design.json` | Master-artwork reference, material and small-mark geometry |
+| `mobile-title.json` | Canonical offline mobile wordmark outlines, A slant and spacing; shared by WeChat and iOS |
 | `app-icon.svg` | Self-contained wrapper embedding the approved raster artwork |
 | `mark.svg` | Transparent small-mark vector adaptation with silver reflection bands |
 | `app-icon-ios.png` | Opaque 1024 px iPhone / iPad artwork; the OS applies its icon mask |
@@ -52,6 +53,12 @@ surfaces and `#F5F7FA` / `#A5AFBC` / `#E0E6EE` / `#8D99A8` on dark surfaces.
 Apple titles, mini-program SVGs and Canvas exports use the same stops. Windows
 keeps its native neutral text styling and consumes the same header PNGs.
 Regenerate the mini-program's matching wordmark SVGs with `swift Scripts/weapp-brand-glyphs.swift`.
+Then run `node Scripts/sync-mobile-brand.mjs` to export the canonical mobile
+geometry and outlines to both clients. `--check` rejects stale copies in the
+ordinary script test suite. The iOS header, About and image exports use
+`MobileBrandTitle`; WeChat SVG / Canvas use the same geometry. Do not edit
+`Resources/Brand/mobile-title.json`, `brand-glyphs.js` or `brand-layouts.js`
+directly. See [cross-platform checks](../../docs/cross-platform.md).
 
 ## Application theme
 

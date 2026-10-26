@@ -21,9 +21,9 @@ struct MobileBrandSizing {
         showsSubtitle = language != .english
         // Match the mini-program's title ink height relative to its 30pt control.
         let inkHeight: CGFloat = 30 * (showsSubtitle ? 0.85 : 0.8)
-        baseTitleFontSize = 32 * inkHeight / BrandTitleMetrics.inkHeight(language: language, fontSize: 32)
+        baseTitleFontSize = 32 * inkHeight / MobileBrandMetrics.inkHeight(language: language, fontSize: 32)
         baseSubtitleFontSize = min(11, (inkHeight - 4) / 2)
-        let titleWidth = BrandTitleMetrics.layoutWidth(language: language, fontSize: baseTitleFontSize)
+        let titleWidth = MobileBrandMetrics.layoutWidth(language: language, fontSize: baseTitleFontSize)
         let descriptor = CTFontDescriptorCreateWithAttributes([
             kCTFontTraitsAttribute: [kCTFontWeightTrait: 0.23]
         ] as CFDictionary)

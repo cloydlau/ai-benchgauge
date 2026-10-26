@@ -481,6 +481,77 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
         let dark = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); dark.name = "mobile-dark-footer"; dark.lifetime = .keepAlways; add(dark)
     }
 
+    func testIndependentCompanySearch() {
+        app.launchArguments = ["--ui-testing", "--offline", "--full-board", "--reduce-motion"]
+        app.launchEnvironment["BENCHGAUGE_UI_MODEL_ENTRIES"] = #"""
+        [{"rank":1,"name":"Leader","score":100,"organization":"Alpha Labs"},
+         {"rank":2,"name":"Alpha Pro","score":80,"organization":"Maker One"},
+         {"rank":3,"name":"Alpha Mini","score":70,"organization":"Maker Two"}]
+        """#
+        app.launch()
+        let trigger = app.buttons["model-filter-artificialAnalysis"]
+        XCTAssertTrue(trigger.waitForExistence(timeout: 10))
+        trigger.tap()
+        let input = app.textFields["model-search-input-artificialAnalysis"]
+        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        input.typeText("Alpha\n")
+        XCTAssertFalse(app.buttons["name-artificialAnalysis-1"].exists)
+        let grouping = app.segmentedControls["grouping"]
+        grouping.buttons["Companies"].tap()
+        XCTAssertTrue(app.buttons["name-artificialAnalysis-1"].waitForExistence(timeout: 5))
+        XCTAssertEqual(trigger.label, "Search companies")
+        trigger.tap()
+        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        input.typeText("maker ONE\n")
+        XCTAssertTrue(app.buttons["name-artificialAnalysis-2"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["name-artificialAnalysis-1"].exists)
+        XCTAssertFalse(app.buttons["name-artificialAnalysis-3"].exists)
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "independent-company-search"; shot.lifetime = .keepAlways; add(shot)
+        grouping.buttons["Models"].tap()
+        trigger.tap()
+        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        XCTAssertEqual(input.value as? String, "Alpha")
+        grouping.buttons["Companies"].tap()
+        trigger.tap()
+        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        XCTAssertEqual(input.value as? String, "maker ONE")
+        app.buttons["model-search-cancel-artificialAnalysis"].tap()
+        XCTAssertTrue(app.buttons["name-artificialAnalysis-1"].waitForExistence(timeout: 5))
+    }
+
+    func testSharedMobileWordmarkInEveryLanguageAndTheme() {
+        for language in ["en", "zh", "zh-Hant"] {
+            for dark in [false, true] {
+                app.launchArguments = ["--ui-testing", "--offline", "--reduce-motion"]
+                    + (language == "en" ? [] : ["--preview-zh"])
+                    + (dark ? ["--dark"] : [])
+                app.launch()
+                if language == "zh-Hant" {
+                    for _ in 0..<6 { app.swipeUp() }
+                    app.buttons["language-menu"].tap()
+                    app.buttons["繁中"].tap()
+                    for _ in 0..<6 { app.swipeDown() }
+                }
+                for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+                    XCUIDevice.shared.orientation = orientation
+                    let brand = app.staticTexts["brand-title"]
+                    XCTAssertTrue(brand.waitForExistence(timeout: 10))
+                    Thread.sleep(forTimeInterval: 0.7)
+                    XCTAssertEqual(brand.label, language == "en" ? "AI BenchGauge" : "AI 天梯")
+                    XCTAssertGreaterThan(brand.frame.width, 50)
+                    XCTAssertGreaterThanOrEqual(brand.frame.minX, app.frame.minX)
+                    XCTAssertLessThanOrEqual(brand.frame.maxX, app.segmentedControls["grouping"].frame.minX)
+                    let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+                    attachment.name = "mobile-wordmark-\(language)-\(dark ? "dark" : "light")-\(orientation == .portrait ? "portrait" : "landscape")"
+                    attachment.lifetime = .keepAlways; add(attachment)
+                }
+                XCUIDevice.shared.orientation = .portrait
+                app.terminate()
+            }
+        }
+    }
+
     func testTaglineSubtitleFitsAndOpensHelp() {
         for chinese in [true, false] {
             app.launchArguments = ["--ui-testing", "--offline", "--reduce-motion"]
