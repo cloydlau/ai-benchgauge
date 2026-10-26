@@ -76,15 +76,15 @@ test('details retain future facts, false and zero values, independent prices, sa
 test('model page receives the selected entry and only its copy icon writes the original name', async () => {
   const { registerHooks } = await import('node:module'), { readFile } = await import('node:fs/promises')
   const { entry } = JSON.parse(await readFile(new URL('../../../Tests/fixtures/model-details.json', import.meta.url)))
-  let factory, receive, clipboard = [], toast = []
-  globalThis.__modelFactory = fn => { factory = fn }
+  let factory, receive, onScroll, scrolls = [], clipboard = [], toast = []
+  globalThis.__modelFactory = fn => { factory = fn }; globalThis.__modelScroll = fn => { onScroll = fn }
   const hooks = registerHooks({
     resolve(s, c, next) { return s === '@vue-mini/core' ? { url: 'test:model-vue', shortCircuit: true } : next(s, c) },
-    load(url, c, next) { return url === 'test:model-vue' ? { format: 'module', shortCircuit: true, source: `export const definePage = fn => globalThis.__modelFactory(fn); export const ref = value => ({value}); export const computed = fn => ({get value(){return fn()}})` } : next(url, c) },
+    load(url, c, next) { return url === 'test:model-vue' ? { format: 'module', shortCircuit: true, source: `export const onPageScroll = fn => globalThis.__modelScroll(fn); export const definePage = fn => globalThis.__modelFactory(fn); export const ref = value => ({value}); export const computed = fn => ({get value(){return fn()}})` } : next(url, c) },
   })
   try { await import('../src/pages/model/index.js') } finally { hooks.deregister() }
   globalThis.wx = { getStorageSync: () => ({ language: 'en', languageMode: 'manual' }), getAppBaseInfo: () => ({ language: 'en' }),
-    getWindowInfo: () => ({ statusBarHeight: 24 }), setClipboardData: o => { clipboard.push(o.data); o.success() }, showToast: o => toast.push(o.title), navigateBack() {} }
+    getWindowInfo: () => ({ statusBarHeight: 24 }), setClipboardData: o => { clipboard.push(o.data); o.success() }, showToast: o => toast.push(o.title), navigateBack() {}, pageScrollTo: o => scrolls.push(o) }
   const page = factory({}, { getOpenerEventChannel: () => ({ on: (event, fn) => { assert.equal(event, 'modelDetails'); receive = fn } }) })
   assert.deepEqual(page.sections.value, [])
   receive({ entry }); assert.ok(page.sections.value.length > 5); assert.deepEqual(clipboard, [])
@@ -92,5 +92,26 @@ test('model page receives the selected entry and only its copy icon writes the o
   page.toggle({ currentTarget: { dataset: { id: offer.id } } }); assert.equal(page.sections.value.find(s => s.id === offer.id).expanded, true)
   page.copyName(); assert.deepEqual(clipboard, [entry.name]); assert.equal(page.copied.value, true); assert.deepEqual(toast, ['Copied'])
   page.copyLink({ currentTarget: { dataset: { url: 'javascript:alert(1)' } } }); assert.equal(clipboard.length, 1)
+  onScroll({ scrollTop: 600 }); assert.equal(page.backToTop.value, true)
+  page.top(); assert.deepEqual(scrolls, [{ scrollTop: 0, duration: 250 }])
+  onScroll({ scrollTop: 0 }); assert.equal(page.backToTop.value, false)
+  assert.equal(page.sections.value.find(s => s.id === 'general').expanded, false)
+  assert.equal(page.sections.value.find(s => s.id === 'limits').expanded, true)
+  delete globalThis.__modelScroll
   delete globalThis.__modelFactory
+})
+
+
+test('model sync time uses a full local calendar timestamp with seconds and handles offsets', async () => {
+  const { modelSyncTime } = await import('../src/core/model-details.js')
+  const zone = process.env.TZ
+  try {
+    process.env.TZ = 'Asia/Shanghai'
+    assert.equal(modelSyncTime('2025-04-01T04:00:01.564Z'), '2025-04-01 12:00:01')
+    assert.equal(modelSyncTime('2024-02-29T23:59:59-05:00'), '2024-03-01 12:59:59')
+    process.env.TZ = 'UTC'
+    assert.equal(modelSyncTime('2025-04-01T12:00:01+08:00'), '2025-04-01 04:00:01')
+    assert.equal(modelSyncTime('invalid'), 'invalid')
+    assert.equal(modelSyncTime(undefined), '—')
+  } finally { if (zone === undefined) delete process.env.TZ; else process.env.TZ = zone }
 })
