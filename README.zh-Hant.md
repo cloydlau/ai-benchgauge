@@ -1,6 +1,6 @@
 # AI 天梯
 
-[Logo / 品牌资源](assets/brand/README.md) · [PNG](assets/brand/logo.png)
+<a href="assets/brand/README.md"><img src="assets/brand/logo.png" alt="AI 天梯標誌" width="96" height="96"></a>
 
 *AI Benchmarks & Quotas — who's on top, how much you've got left.*
 

@@ -1,6 +1,6 @@
 # AI BenchGauge
 
-[Logo / 品牌资源](assets/brand/README.md) · [PNG](assets/brand/logo.png)
+<a href="assets/brand/README.md"><img src="assets/brand/logo.png" alt="AI BenchGauge logo" width="96" height="96"></a>
 
 **English** | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-Hant.md)
 
