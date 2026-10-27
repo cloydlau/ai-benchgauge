@@ -19,7 +19,28 @@ struct PadAboutContent: Decodable, Sendable {
     struct Copy: Decodable, Sendable {
         let descriptionLines: [String]
         let platforms: Platforms
+        let artwork: Artwork
         let investment: Investment
+    }
+    struct Artwork: Decodable, Sendable {
+        struct Credit: Decodable, Identifiable, Sendable {
+            let id: String
+            let role: String
+            let name: String
+            let url: URL
+            let detail: String
+            let workURL: URL?
+        }
+        let image: String
+        let sourceURL: URL
+        let width: Double
+        let height: Double
+        let title: String
+        let caption: String
+        let alt: String
+        let previewLabel: String
+        let sourceLabel: String
+        let credits: [Credit]
     }
     struct Platforms: Decodable, Sendable {
         struct Platform: Decodable, Identifiable, Sendable {

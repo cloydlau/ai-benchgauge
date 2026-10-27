@@ -51,6 +51,12 @@ export async function renderPlatformIcons(sharp) {
       .resize(54, 54).png().toBuffer()
     assets.push({ name: `wechat${suffix}.png`, source })
   }
+  const weibo = readFileSync(resolve(partners, 'weibo/logo.svg'), 'utf8')
+  for (const [suffix, color] of [['', '#687382'], ['-dark', '#a2acba']]) {
+    const source = await sharp(Buffer.from(weibo.replace('<svg ', `<svg fill="${color}" `)))
+      .resize(54, 54).png().toBuffer()
+    assets.push({ name: `weibo${suffix}.png`, source })
+  }
   return assets
 }
 

@@ -26,8 +26,15 @@
 | 模型详情 | Kit `ModelDetails` / `ModelDetailsView`、小程序 `core/model-details.js`；Windows 消费共享引擎的详情投影 | 小程序、iPhone/iPad、macOS、Windows：优先展示限额与能力卡片，模型资料、服务商价格和来源可展开查看，保留全部字段与显式复制操作；滚动后提供返回顶部。同步时间按设备本地时区显示 `yyyy-MM-dd HH:mm:ss`，保留秒数；固定截图夹具使用 UTC。图片导出不包含交互详情页 |
 | 各端进展与贡献 | 小程序 `core/about-platforms.js` → `Scripts/ios-about.mjs`；微信图形 `assets/brand/partners/wechat/logo.svg` → `Scripts/source-logos.mjs` | 小程序与 iPhone/iPad 关于页，替换原 “余量查询” 卡片；固定七端功能及状态，每端单行显示图标、名称、功能和状态 Tag（无圆点）；七端图标统一为中性灰线框样式，微信保留品牌双气泡与四个圆点；iOS 标注 “（含 iPhone Duo）”。列表下方统一显示可复制仓库链接的 “欢迎贡献代码”（英文 PR welcome），各端无独立链接，macOS 状态同样使用 Tag；桌面 About 和图片导出没有原移动卡片，不新增模块 |
 | 成本与工程投入 | Calmmit `cost-calculation.mjs`、`engineering-investment.mjs`、`resources/CostCalculation.swift` | 小程序与 iPhone/iPad 关于页。构建入口同步 JS / Swift 计算适配器；Git 统计、月份取整、按月累计和合计由 Calmmit 维护，项目预算、文案与 UI 独立维护。桌面及图片导出当前没有该成本区 |
+| 关于页 AI 合影 | `assets/about/ai-models-group-portrait.jpg`、小程序 `core/about-artwork.js` → `Scripts/ios-about.mjs` | 小程序与 iPhone/iPad 关于页简介下方完整展示合影；署名改编作者 tombkeeper（个人主页及原帖）和历史原图摄影者 Benjamin Couprie（1927 年第五届索尔维会议，附原图来源）。作者名使用下划线，原帖使用链接图标，不另加可见的链接操作文案；小程序点按复制对应地址，原生直接打开。支持大图预览。小程序构建同尺寸 quality 86 JPEG，iOS 项目从同一目录打包原图；三语、深浅色及窄屏分别检查。桌面只有许可窗口，没有独立关于页；榜单图片导出不包含关于页内容 |
 
 基础设施年度预算见 [预算说明](infrastructure-budget.md)。金额估算不细于百元，允许项目采用千元、万元等更粗粒度；各移动端从同一份预算定义生成金额与说明。费用为估算，非实际账单。
+
+关于页 AI 合影验证（2026-10-27）：原始随机文件名改为 `assets/about/ai-models-group-portrait.jpg`，原图 SHA-256 不变。小程序生产构建及 8 项关于页/生成内容检查通过，另核对三语图片预览调用、出处复制、生成数据一致性与 iOS 项目资源路径；小程序图片 311,458 字节，完整产物 1,974,208 字节，低于 2 MiB。Swift 关于页源码语法检查及 2 项项目生成检查通过。使用实际卡片 CSS/文案的浏览器排版夹具核对 320/375px、浅深色，无裁图或溢出；这不是微信原生运行截图。官方微信 MCP 当前未提供，CUA 捕捉返回 ScreenCaptureKit -3811；iOS 构建入口确认本机缺少完整 Xcode SDK，未完成微信模拟器、iPhone/iPad 原生 UI 或真机安装验收。桌面及榜单图片导出没有对应关于页消费者，不涉及；未上传或发布版本。
+
+合影署名修正（2026-10-27）：按用户要求改为 tombkeeper 的个人主页署名，保留单独的原帖图标；补充 Benjamin Couprie 及 1927 年第五届索尔维会议历史原图来源。作者名加下划线，不再显示平台名称或 “复制出处链接” 操作文案。小程序构建、8 项关于页/生成内容检查、三语署名与三类链接目标核对及 Swift 源码语法检查通过；iPhone/iPad 消费同一份署名数据。320/375px 浅深色浏览器排版已查看，未完成新的微信或 iOS 原生运行/安装验收；桌面及图片导出不涉及。预览及检查记录保存在忽略目录 `work/about-artwork-preview/`。
+
+微博图标补充（2026-10-27）：tombkeeper 原帖入口改用 Simple Icons 微博图标，小程序和 iPhone/iPad 共用本地浅深色 PNG；原生大图工具栏同步使用该图标。作者名下划线及两级作者出处保留。10 项相关测试、资源一致性检查、小程序构建及 Swift 语法检查通过；已查看生成图标。主包 1,979,944 字节，低于 2 MiB。既有生成器重导出的 14 张 PNG 仅有编码/元数据变化，逐张解码确认像素不变。未完成新的微信/iOS 原生 UI 或安装验收，桌面和榜单图片导出不涉及。
 
 文案与金额精度修正验证（2026-10-26）：小程序 200 项测试及构建、iOS 三语生成数据 2 项检查通过；Swift 粗粒度金额计算实际编译运行 9 项断言通过，iOS 内容模型语法检查通过。Calmmit 前台/后台 review 与公共计算相关 85 项测试通过，产品文案规则已核对两条实际提示入口。千元、万元等更粗金额单位可按项目指定，UI 不展示该内部配置。未运行移动 UI 测试或完成真机安装验收。
 

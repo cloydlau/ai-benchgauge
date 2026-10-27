@@ -3,6 +3,7 @@ import { dirname } from 'node:path'
 import { copy, text, languages, desktopDownloadURL, repositoryURL, leaderboardSources } from '../apps/weapp/src/core/catalog.js'
 import { engineeringInvestment } from '../apps/weapp/scripts/engineering-investment.mjs'
 import { aboutPlatforms } from '../apps/weapp/src/core/about-platforms.js'
+import { aboutArtwork } from '../apps/weapp/src/core/about-artwork.js'
 
 // Load client calculations after the shared runtime has been synchronized.
 const { investmentContent, investmentSchedule } = await import('../apps/weapp/src/core/investment.js')
@@ -15,6 +16,7 @@ export function iosAboutContent(stats) {
     languages: Object.fromEntries(languages.map(language => [language, {
       descriptionLines: text(copy.description, language).match(/[^。.]+[。.]?/g).map(line => line.trim()),
       platforms: aboutPlatforms(language),
+      artwork: aboutArtwork(language),
       investment: investmentContent(stats, language, { now: investmentSchedule.startedAt }),
     }])),
   }

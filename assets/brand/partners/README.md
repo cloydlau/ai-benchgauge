@@ -34,3 +34,7 @@ The `wechat/` subdirectory separately holds the Tabler WeChat outline used in
 the About platform list. It is not a leaderboard source or official vendor
 artwork. The same exporter generates its 54×54 neutral theme variants for both
 mobile clients; see `wechat/README.md` for provenance and the bundled MIT notice.
+
+`weibo/` contains the Simple Icons Sina Weibo mark (CC0 1.0) for the artwork
+attribution's original-post link. Both mobile clients use the same neutral PNG
+exports; see `weibo/README.md` for source and licensing details.

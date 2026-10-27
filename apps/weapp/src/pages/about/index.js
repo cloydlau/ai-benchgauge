@@ -4,11 +4,14 @@ import { createBrandMeasurer } from '../../core/brand-title.js'
 import { pagePreferences, sharePath } from '../../core/share-state.js'
 import { investmentContent } from '../../core/investment.js'
 import { aboutPlatforms } from '../../core/about-platforms.js'
+import { aboutArtwork } from '../../core/about-artwork.js'
 
 definePage(query => {
   const saved = (() => { try { return wx.getStorageSync('benchgauge.preferences') || {} } catch { return {} } })()
   const preferences = pagePreferences(query, saved, wx.getAppBaseInfo?.().language)
   const language = preferences.language
+  const artwork = aboutArtwork(language)
+  const previewArtwork = () => wx.previewImage({ current: artwork.image, urls: [artwork.image] })
   const labels = Object.fromEntries(Object.keys(copy).map(key => [key, text(copy[key], language)]))
   const dark = preferences.theme === 'dark' || (preferences.theme === 'system'
     && (preferences.appearance || wx.getAppBaseInfo?.().theme) === 'dark')
@@ -44,7 +47,7 @@ definePage(query => {
     const id = event.currentTarget.dataset.id
     if (notices.some(item => item.id === id)) notice.value = notice.value === id ? '' : id
   }
-  return { labels, brandTitle, dark, statusBar, version: __APP_VERSION__,
+  return { labels, brandTitle, dark, statusBar, version: __APP_VERSION__, artwork, previewArtwork,
     back, copyLink, notices, notice, toggleNotice, desktopDownloadURL, repositoryURL, investment, costGroups, toggleCostGroup,
     platforms: aboutPlatforms(language),
     description: labels.description,

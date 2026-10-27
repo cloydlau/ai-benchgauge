@@ -4,7 +4,7 @@ import LeaderboardKit
 
 @MainActor
 private enum SourceIconCache {
-    static let images: [String: CGImage] = ["cloudbase", "vercel", "openRouter", "artificialAnalysis", "arena", "epoch", "wechat"]
+    static let images: [String: CGImage] = ["cloudbase", "vercel", "openRouter", "artificialAnalysis", "arena", "epoch", "wechat", "weibo"]
         .flatMap { [$0, $0 + "-dark"] }.reduce(into: [:]) { images, name in
             guard let url = Bundle.module.url(forResource: name, withExtension: "png", subdirectory: "SourceLogos"),
                   let source = CGImageSourceCreateWithURL(url as CFURL, nil),
@@ -37,6 +37,16 @@ private final class PadAboutState: ObservableObject {
     @Published var modelsDevNoticeExpanded = false
     @Published var categoryIconNoticeExpanded = false
     @Published var sourceMarkNoticeExpanded = false
+    @Published var artworkExpanded = false
+}
+
+@MainActor
+private enum AboutArtworkImage {
+    static let image: CGImage? = {
+        guard let url = Bundle.main.url(forResource: "ai-models-group-portrait", withExtension: "jpg", subdirectory: "about"),
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        return CGImageSourceCreateImageAtIndex(source, 0, nil)
+    }()
 }
 
 @MainActor
@@ -83,15 +93,103 @@ struct PadAboutView<Brand: View>: View {
         }
         .tint(accent)
         .accessibilityIdentifier("about-page")
+        .sheet(isPresented: $about.artworkExpanded) {
+            if let content, let image = AboutArtworkImage.image {
+                let artwork = content.copy(language: language).artwork
+                NavigationStack {
+                    Image(decorative: image, scale: 1).resizable().scaledToFit()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(.black)
+                        .accessibilityLabel(artwork.alt)
+                        .navigationTitle(artwork.title)
+                        #if os(iOS)
+                        .navigationBarTitleDisplayMode(.inline)
+                        #endif
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button(tr("Done", "完成")) { about.artworkExpanded = false }
+                            }
+                            ToolbarItem(placement: .confirmationAction) {
+                                Link(destination: artwork.sourceURL) { SourceBrandIcon(sourceID: "weibo", dark: dark, size: 18) }
+                                    .accessibilityLabel(artwork.sourceLabel)
+                            }
+                        }
+                }.tint(accent)
+            }
+        }
     }
 
     private func main(_ content: PadAboutContent, copy: PadAboutContent.Copy) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             hero(copy.descriptionLines)
+            artworkCard(copy.artwork).padding(.bottom, 14)
             platforms(copy.platforms)
             investment(copy.investment, months: content.schedule.months(at: Date()))
                 .padding(14).aboutCard(outline: outline).padding(.top, 14)
             notices.padding(.horizontal, 4).padding(.top, 17)
+        }
+    }
+    @ViewBuilder
+    private func artworkCard(_ artwork: PadAboutContent.Artwork) -> some View {
+        if let image = AboutArtworkImage.image {
+            VStack(alignment: .leading, spacing: 0) {
+                Button { about.artworkExpanded = true } label: {
+                    Image(decorative: image, scale: 1).resizable().scaledToFit()
+                        .aspectRatio(artwork.width / artwork.height, contentMode: .fit)
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                }.buttonStyle(.plain)
+                    .accessibilityLabel(artwork.alt + " · " + artwork.previewLabel)
+                    .accessibilityIdentifier("about-artwork-preview")
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        Text(artwork.title).font(.system(size: 15, weight: .semibold))
+                        Spacer(minLength: 6)
+                        Button { about.artworkExpanded = true } label: {
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                .font(.system(size: 12)).frame(minWidth: 44, minHeight: 44, alignment: .trailing)
+                                .contentShape(Rectangle())
+                        }.buttonStyle(.plain).foregroundStyle(.secondary)
+                            .accessibilityLabel(artwork.previewLabel)
+                    }
+                    Text(artwork.caption).font(.system(size: 12)).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true).padding(.bottom, 12)
+                    Divider()
+                    artworkCredits(artwork).padding(.top, 4).padding(.bottom, 6)
+                }.padding(.horizontal, 13).padding(.top, 6)
+            }
+            .background(Color.padCard)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(outline, lineWidth: 0.5))
+            .accessibilityElement(children: .contain).accessibilityIdentifier("about-artwork")
+        }
+    }
+    private func artworkCredits(_ artwork: PadAboutContent.Artwork) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(artwork.credits) { credit in
+                HStack(alignment: .center, spacing: 9) {
+                    Text(credit.role).font(.system(size: 10)).foregroundStyle(.secondary)
+                        .frame(width: 32, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Link(destination: credit.url) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(credit.name).underline().font(.system(size: 11, weight: .medium))
+                            if !credit.detail.isEmpty {
+                                Text(credit.detail).font(.system(size: 10)).foregroundStyle(.secondary)
+                            }
+                        }.fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }.foregroundStyle(accent)
+                        .accessibilityIdentifier("about-artwork-credit-" + credit.id)
+                    if let url = credit.workURL {
+                        Link(destination: url) {
+                            SourceBrandIcon(sourceID: "weibo", dark: dark, size: 16)
+                                .frame(minWidth: 44, minHeight: 44, alignment: .trailing).contentShape(Rectangle())
+                        }.foregroundStyle(accent).accessibilityLabel(artwork.sourceLabel + " · " + credit.name)
+                    }
+                }
+            }
         }
     }
     private func hero(_ lines: [String]) -> some View {
