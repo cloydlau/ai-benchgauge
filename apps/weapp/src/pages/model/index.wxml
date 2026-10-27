@@ -5,20 +5,26 @@
   </view>
   <view class="model-main">
     <view class="model-heading">
+      <view class="model-mark" aria-hidden="true"><van-icon name="apps-o" size="25px" /></view>
       <text class="model-title" selectable>{{entry.name || labels.details}}</text>
       <button wx:if="{{entry.name}}" id="copy-model-name" class="copy-name tap" bindtap="copyName" aria-label="{{copied ? labels.copied : labels.copy}}">
         <van-icon wx:if="{{copied}}" name="success" size="22px" />
         <view wx:else class="copy-glyph" aria-hidden="true"><view></view><view></view></view>
       </button>
     </view>
+    <view wx:if="{{entry.modelMetadata}}" class="model-badges">
+      <text wx:if="{{entry.modelMetadata.license}}" class="model-badge">{{entry.modelMetadata.license}}</text>
+      <text wx:if="{{entry.modelMetadata.releaseDate}}" class="model-badge">{{entry.modelMetadata.releaseDate}}</text>
+    </view>
+    <text wx:if="{{description}}" class="model-description">{{description}}</text>
     <view wx:if="{{!sections.length}}" class="missing">{{labels.missing}}</view>
-    <view wx:for="{{sections}}" wx:for-item="section" wx:key="id" class="detail-section">
-      <button wx:if="{{section.summary}}" class="provider-heading" data-id="{{section.id}}" bindtap="toggle" aria-expanded="{{section.expanded}}">
+    <view wx:for="{{sections}}" wx:for-item="section" wx:key="id" class="detail-section detail-section-{{section.id}} {{section.expanded ? 'is-expanded' : ''}}">
+      <button class="provider-heading" hover-class="none" data-id="{{section.id}}" bindtap="toggle" aria-expanded="{{section.expanded}}">
+        <view class="section-icon" aria-hidden="true"><van-icon name="{{section.icon}}" size="18px" /></view>
         <view class="provider-title"><text class="section-title">{{section.title}}</text><text class="provider-summary">{{section.summary}}</text></view>
-        <van-icon name="{{section.expanded ? 'arrow-up' : 'arrow-down'}}" size="16px" />
+        <van-icon name="{{section.expanded ? 'arrow-up' : 'arrow-down'}}" size="12px" />
       </button>
-      <text wx:else class="section-title">{{section.title}}</text>
-      <view wx:if="{{section.expanded}}" class="detail-rows">
+      <view wx:if="{{section.expanded}}" class="detail-rows detail-{{section.layout}}">
         <view wx:for="{{section.rows}}" wx:for-item="row" wx:key="index" class="detail-row">
           <text wx:if="{{row.label}}" class="detail-label">{{row.label}}</text>
           <button wx:if="{{row.url}}" class="detail-link" data-url="{{row.url}}" bindtap="copyLink" aria-label="{{row.value}}">
@@ -29,4 +35,5 @@
       </view>
     </view>
   </view>
+  <button wx:if="{{backToTop}}" class="model-back-top tap" bindtap="top" aria-label="{{labels.backToTop}}"><van-icon name="back-top" size="20px" /></button>
 </view>

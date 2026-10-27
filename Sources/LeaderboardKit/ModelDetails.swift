@@ -12,6 +12,18 @@ public struct ModelDetailSection: Codable, Equatable, Sendable, Identifiable {
     public let rows: [ModelDetailRow]
 }
 public enum ModelDetails {
+    public static func syncTime(_ value: String, timeZone: TimeZone = .current) -> String {
+        let parser = ISO8601DateFormatter()
+        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let fractional = parser.date(from: value)
+        parser.formatOptions = [.withInternetDateTime]
+        guard let date = fractional ?? parser.date(from: value) else { return value.isEmpty ? "—" : value }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return formatter.string(from: date)
+    }
     private static let labels: [String: [String]] = {
         let executableResource = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent().appendingPathComponent("ModelDetailLabels.json")
         return loadLabels(at: try? BundledResource.url("ModelDetailLabels", extension: "json", executable: executableResource))
@@ -32,12 +44,12 @@ public enum ModelDetails {
         guard let data = try? JSONEncoder().encode(value) else { return [:] }
         return (try? JSONDecoder().decode([String: ModelDetailValue].self, from: data)) ?? [:]
     }
-    public static func sections(for entry: LeaderboardEntry, language: AppLanguage) -> [ModelDetailSection] {
+    public static func sections(for entry: LeaderboardEntry, language: AppLanguage, timeZone: TimeZone = .current) -> [ModelDetailSection] {
         let formatter = NumberFormatter(); formatter.locale = Locale(identifier: "en_US")
         formatter.numberStyle = .decimal; formatter.maximumFractionDigits = 12
-        return sections(for: entry, language: language, formatter: formatter)
+        return sections(for: entry, language: language, formatter: formatter, timeZone: timeZone)
     }
-    static func sections(for entry: LeaderboardEntry, language: AppLanguage, formatter: NumberFormatter) -> [ModelDetailSection] {
+    static func sections(for entry: LeaderboardEntry, language: AppLanguage, formatter: NumberFormatter, timeZone: TimeZone = .current) -> [ModelDetailSection] {
         guard let model = entry.modelMetadata, model.source == "models.dev" else { return [] }
         let tr: (String) -> String = { text($0, language: language) }
         func scalar(_ value: ModelDetailValue, money: Bool = false) -> String? {
@@ -102,7 +114,7 @@ public enum ModelDetails {
             add("provider-\(index)", offer.providerName, values, summary: summary)
         }
         add("source", tr("provenance"), [ModelDetailRow(label: tr("source"), value: "models.dev · MIT", url: "https://models.dev"),
-            ModelDetailRow(label: tr("fetchedAt"), value: model.fetchedAt, url: nil), ModelDetailRow(label: "", value: tr("licenseNote"), url: nil)])
+            ModelDetailRow(label: tr("fetchedAt"), value: syncTime(model.fetchedAt, timeZone: timeZone), url: nil), ModelDetailRow(label: "", value: tr("licenseNote"), url: nil)])
         return result
     }
 }

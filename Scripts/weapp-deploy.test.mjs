@@ -220,7 +220,7 @@ if(args.includes('ci')){const runtime=args[args.indexOf('--prefix')+1];fs.mkdirS
 `
   writeFileSync(join(root, 'bin/npm'), npm, { mode: 0o755 })
   symlinkSync(join(root,'bin/npm'),join(root,'bin/npm.cmd'))
-  writeFileSync(join(root, 'apps/weapp/scripts/upload.mjs'), `import{appendFileSync}from'node:fs';appendFileSync('events',JSON.stringify(['upload',...process.argv.slice(2)])+'\n');if(process.env.UPLOAD_MODE==='upload-failed')process.exit(3)` .replace("+'\n'", "+'\\n'"))
+  writeFileSync(join(root, 'apps/weapp/scripts/upload.mjs'), `import{appendFileSync}from'node:fs';appendFileSync(${JSON.stringify(join(root, 'events'))},JSON.stringify(['upload',...process.argv.slice(2)])+'\n');if(process.env.UPLOAD_MODE==='upload-failed')process.exit(3)` .replace("+'\n'", "+'\\n'"))
   const hook = join(root, 'hook.cjs')
   writeFileSync(hook, `
 const fs=require('node:fs'),cp=require('node:child_process');

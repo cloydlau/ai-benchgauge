@@ -490,6 +490,32 @@ test('the running watcher loads corrected resident dependencies without a new te
   assert.match(f.output(),/监听逻辑已更新/)
 })
 
+test('resident reload releases the watcher lock and upload watcher before replacing the process', async t => {
+  const f = watcherFixture(t, { env: { WATCH_POLL_MS: '200' }, setup(root) {
+    writeFileSync(join(root, 'Scripts/weapp-deploy.mjs'), `import {writeFileSync} from 'node:fs'
+export async function startWeappUploadWatch() { return () => writeFileSync('upload-stopped', 'yes') }
+`)
+    const hook = join(root, 'reload-preload.cjs')
+    writeFileSync(hook, `const fs = require('node:fs')
+process.execve = () => {
+  fs.writeFileSync('reload-cleanup.json', JSON.stringify({
+    lockExists: fs.existsSync('.git/benchgauge-watch.lock'),
+    uploadStopped: fs.existsSync('upload-stopped')
+  }))
+  process.exit(0)
+}
+`)
+    return { NODE_OPTIONS: (process.env.NODE_OPTIONS || '') + ' --require ' + hook }
+  } })
+  await waitUntil(f, () => f.output().includes('等待源码变更'))
+  const dependency = join(f.root, 'Scripts/weapp-deploy.mjs')
+  writeFileSync(dependency, readFileSync(dependency, 'utf8') + '\n// trigger resident reload\n')
+  assert.equal(await f.exited, 0)
+  assert.deepEqual(JSON.parse(readFileSync(join(f.root, 'reload-cleanup.json'), 'utf8')), {
+    lockExists: false, uploadStopped: true,
+  })
+})
+
 test('saves observed while the gate is busy stay queued until the newest version is checked',async t=>{
   const f=watcherFixture(t,{env:{WATCH_DEBOUNCE_MS:'0',WATCH_THROTTLE_MS:'0',WATCH_POLL_MS:'200'},setup(root){
     writeFileSync(join(root,'Scripts/test-repair.mjs'),`import{appendFileSync,readFileSync,existsSync}from'node:fs'

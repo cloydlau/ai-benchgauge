@@ -69,7 +69,7 @@ test('actual CI and commit adapters use the live library and honor disabled nati
   assert.match(checked.stdout, /fixture lint passed/)
   assert.doesNotMatch(checked.stdout, /\[tests\]/)
   assert.equal(spawnSync('git', ['init', '-q'], { cwd: root, env }).status, 0)
-  const committed = run(['Scripts/commit.mjs', '-m', 'feat: 添加接入测试'])
+  const committed = run(['Scripts/commit.mjs', '-m', 'feat: add integration tests for the shared library'])
   assert.equal(committed.status, 0, committed.stdout + committed.stderr)
   const identity = spawnSync('git', ['log', '-1', '--format=%an|%cn'], {
     cwd: root,

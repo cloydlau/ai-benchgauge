@@ -199,7 +199,7 @@ test('deployment CLI rejects failed checks, source changes and cloud errors with
     ['missing-config', null, [], /Create/], ['validation-failed', role, [], /failed/],
     ['validation-changed', role, [], /during validation/], ['npm-failed', role, [], /failed/],
     ['packaging-changed', role, [], /during packaging/],
-    ['missing-credentials', { ...role, credentialsFile: undefined }, [], /Missing Alibaba/],
+    ['missing-credentials', { ...role, credentialsFile: undefined }, [], /Missing deployment credentials/],
     ['identity-failed', role, [], /IdentityFailed/], ['opaque-failure', role, [], /Deployment failed/],
     ['no-bucket', { roleArn: role.roleArn, credentialsFile: 'credentials.env' }, [], /existing OSS/],
     ['no-runtime', { bucket: role.bucket, credentialsFile: 'credentials.env' }, [], /runtime credential/],

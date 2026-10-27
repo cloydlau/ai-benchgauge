@@ -38,11 +38,27 @@ export async function renderSourceLogos(sharp) {
   return assets
 }
 
+// The platform row uses Tabler's recognizable WeChat outline, not a pair of
+// generic chat symbols. Both clients consume the same theme-specific exports.
+export async function renderPlatformIcons(sharp) {
+  // A 24-unit outline at 18pt needs 4/3 units for a 1pt stroke, matching the
+  // neighboring platform icons (2rpx in WeChat, about 1pt on Apple).
+  const template = readFileSync(resolve(partners, 'wechat/logo.svg'), 'utf8')
+    .replace('stroke-width="2"', `stroke-width="${4 / 3}"`)
+  const assets = []
+  for (const [suffix, color] of [['', '#687382'], ['-dark', '#a2acba']]) {
+    const source = await sharp(Buffer.from(template.replaceAll('currentColor', color)))
+      .resize(54, 54).png().toBuffer()
+    assets.push({ name: `wechat${suffix}.png`, source })
+  }
+  return assets
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const sharp = createRequire(new URL('../fc/package.json', import.meta.url))('sharp')
   const check = process.argv.includes('--check')
   if (!check) mkdirSync(exportsDirectory, { recursive: true })
-  for (const { name, source } of await renderSourceLogos(sharp)) {
+  for (const { name, source } of [...await renderSourceLogos(sharp), ...await renderPlatformIcons(sharp)]) {
     const destination = resolve(exportsDirectory, name)
     if (check) {
       if (!readFileSync(destination).equals(source)) throw new Error(`Stale source mark export: ${name}`)

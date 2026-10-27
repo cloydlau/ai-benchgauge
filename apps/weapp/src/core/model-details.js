@@ -3,6 +3,12 @@ import labels from '../../../../Sources/LeaderboardKit/Resources/ModelDetailLabe
 export const detailText = (key, language = 'en') => labels[key]?.[language === 'en' ? 0 : ['zh-Hant', 'zh-TW'].includes(language) ? 2 : 1] ?? key.replaceAll('_', ' ')
 export const safeDetailURL = value => typeof value === 'string' && /^https:\/\/[^\s/?#@]+(?:[/?#]|$)/i.test(value) ? value : null
 const number = value => value.toLocaleString('en-US', { maximumFractionDigits: 12 })
+export function modelSyncTime(value) {
+  const date = new Date(value)
+  if (!Number.isFinite(date.getTime())) return value || '—'
+  const pad = n => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
 export function modelDetailSections(entry, language = 'en') {
   const model = entry?.modelMetadata
   if (model?.source !== 'models.dev') return []
@@ -52,6 +58,6 @@ export function modelDetailSections(entry, language = 'en') {
     add(`provider-${i}`, offer.providerName, values, summary)
   }
   add('source', tr('provenance'), [{ label: tr('source'), value: 'models.dev · MIT', url: 'https://models.dev' },
-    { label: tr('fetchedAt'), value: model.fetchedAt, url: null }, { label: '', value: tr('licenseNote'), url: null }])
+    { label: tr('fetchedAt'), value: modelSyncTime(model.fetchedAt), url: null }, { label: '', value: tr('licenseNote'), url: null }])
   return result
 }

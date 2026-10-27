@@ -73,6 +73,15 @@ import LeaderboardKit
     }
     let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: root.appending(path: "fixtures/visual-state.json")))
     for language in AppLanguage.allCases {
-        #expect(ModelDetails.sections(for: fixture.state.boards[0].entries[0], language: language) == fixture.modelDetails[language.rawValue])
+        #expect(ModelDetails.sections(for: fixture.state.boards[0].entries[0], language: language, timeZone: .gmt) == fixture.modelDetails[language.rawValue])
     }
+}
+
+@Test func modelSyncTimeUsesFullLocalCalendarAndSeconds() {
+    let zone = TimeZone(identifier: "Asia/Shanghai")!
+    #expect(ModelDetails.syncTime("2025-04-01T04:00:01.564Z", timeZone: zone) == "2025-04-01 12:00:01")
+    #expect(ModelDetails.syncTime("2024-02-29T23:59:59-05:00", timeZone: zone) == "2024-03-01 12:59:59")
+    #expect(ModelDetails.syncTime("2025-04-01T12:00:01+08:00", timeZone: .gmt) == "2025-04-01 04:00:01")
+    #expect(ModelDetails.syncTime("invalid", timeZone: zone) == "invalid")
+    #expect(ModelDetails.syncTime("", timeZone: zone) == "—")
 }

@@ -8,7 +8,7 @@ import sourceThemes from '../../Sources/LeaderboardKit/Resources/SourceTabThemes
 import sharp from 'sharp'
 import { engineeringInvestment } from './scripts/engineering-investment.mjs'
 import { createAutoVersion } from './scripts/version.mjs'
-import { renderSourceLogos } from '../../Scripts/source-logos.mjs'
+import { renderSourceLogos, renderPlatformIcons } from '../../Scripts/source-logos.mjs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 // The native clients remain the authority for the shared-service address.
@@ -69,7 +69,7 @@ export default defineConfig({
         const emit = (fileName, path) => this.emitFile({ type: 'asset', fileName, source: readFileSync(path) })
         emit('assets/header-logo.png', resolve(root, 'assets/brand/header-logo.png'))
         emit('assets/header-logo-dark.png', resolve(root, 'assets/brand/header-logo-dark.png'))
-        for (const { name, source } of await renderSourceLogos(sharp)) {
+        for (const { name, source } of [...await renderSourceLogos(sharp), ...await renderPlatformIcons(sharp)]) {
           this.emitFile({ type: 'asset', fileName: `assets/source-logos/${name}`, source })
         }
         for (const name of readdirSync(new URL('assets/brand-glyphs/', import.meta.url)).filter(name => name.endsWith('.svg'))) {

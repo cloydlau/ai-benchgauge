@@ -69,7 +69,7 @@ function credentials(file) {
   })) : {};
   const accessKeyId = process.env.ALIBABA_CLOUD_ACCESS_KEY_ID ?? values.ALIBABA_CLOUD_ACCESS_KEY_ID;
   const accessKeySecret = process.env.ALIBABA_CLOUD_ACCESS_KEY_SECRET ?? values.ALIBABA_CLOUD_ACCESS_KEY_SECRET;
-  if (!accessKeyId || !accessKeySecret) throw new Error('Missing Alibaba Cloud RAM credentials in the local environment');
+  if (!accessKeyId || !accessKeySecret) throw new Error('Missing deployment credentials in the local environment');
   return { accessKeyId, accessKeySecret };
 }
 const runtimeFiles = ['package.json', 'package-lock.json', 'bootstrap', 'server.mjs', 'service.mjs', 'domain.mjs', 'parser.mjs', 'openrouter-usage.mjs', 'vercel-usage.mjs', 'cloudbase-usage.mjs', 'epoch-eci.mjs', 'arena-dataset.mjs', 'arena-collector.mjs', 'arena-attribution.json', 'models-dev.mjs', 'models-dev-license.txt', 'model-openness.mjs', 'source-logos.mjs', 'oss-store.mjs', 'brands.mjs', 'brand-catalog.json', 'leaderboard-policy.json', 'countries.mjs', 'country-catalog.json'];

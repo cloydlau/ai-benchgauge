@@ -25,17 +25,14 @@ struct PadAboutContent: Decodable, Sendable {
         struct Platform: Decodable, Identifiable, Sendable {
             let id: String
             let name: String
+            let note: String
             let status: String
             let statusLabel: String
             let featureText: String
-            let prWelcome: Bool
-            let url: String?
         }
         let title: String
-        let contributeLabel: String
         let copyLinkLabel: String
-        let downloadLabel: String
-        let prWelcomeLabel: String
+        let contributeLabel: String
         let repositoryURL: String
         let items: [Platform]
     }
@@ -51,7 +48,12 @@ struct PadAboutContent: Decodable, Sendable {
             let body: String
             let amount: Int?
             let monthlyAmount: Int?
-            func amount(months: Int) -> Int? { CalmmitCostCalculation.itemAmount(amount, monthlyAmount: monthlyAmount, months: months) }
+            let roundingUnit: Int?
+            init(id: String, title: String, body: String, amount: Int?, monthlyAmount: Int?, roundingUnit: Int? = nil) {
+                self.id = id; self.title = title; self.body = body
+                self.amount = amount; self.monthlyAmount = monthlyAmount; self.roundingUnit = roundingUnit
+            }
+            func amount(months: Int) -> Int? { CalmmitCostCalculation.itemAmount(amount, monthlyAmount: monthlyAmount, months: months, roundingUnit: roundingUnit ?? 100) }
         }
         struct Group: Decodable, Identifiable, Sendable {
             let id: String
