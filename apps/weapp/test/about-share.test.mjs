@@ -63,8 +63,7 @@ test('contributor cloud sits beside engineering counters, expands and selects wi
     assert.ok(engineering.indexOf('class="contributor-mini"') > engineering.indexOf('class="investment-metrics"'))
     assert.ok(!template.includes('contributors-card'))
     assert.match(template, /bind:close="closeContributors"/)
-    about.copyLink({ currentTarget: { dataset: { url: about.selectedContributor.value.url } } })
-    assert.deepEqual(copies, ['https://github.com/owner/repo/commit/abc'])
+    assert.doesNotMatch(template, /class="contributor-link"|selectedContributor\.url/)
   } finally { globalThis.__CONTRIBUTOR_CIRCLES__ = { nodes: [] } }
 })
 

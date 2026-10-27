@@ -2199,7 +2199,7 @@ final class LeaderboardAboutParityTests: XCTestCase {
             XCTAssertTrue(contributor.exists)
             contributor.tap()
             XCTAssertTrue(app.staticTexts["Cloyd Lau"].exists)
-            XCTAssertTrue(app.buttons["about-contributor-link"].exists)
+            XCTAssertFalse(app.buttons["about-contributor-link"].exists)
             capture("about-" + theme + "-contributors")
             app.buttons[chinese ? "完成" : "Done"].firstMatch.tap()
             reveal(infrastructure, in: scroll)

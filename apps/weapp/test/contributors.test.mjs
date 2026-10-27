@@ -16,7 +16,8 @@ test('localized clients retain Calmmit geometry, monograms and offline avatar pa
     assert.equal(content.nodes[0].style, 'left:30%;top:30%;width:40%;height:40%;')
     assert.equal(content.nodes[1].avatar, '/assets/logos/openai.png')
     assert.equal(content.nodes[1].x, snapshot.nodes[1].x)
-    assert.ok(content.note && content.hint && content.copyLabel && content.expandLabel && content.closeLabel)
+    assert.ok(content.note && content.hint && content.expandLabel && content.closeLabel)
+    assert.equal(Object.hasOwn(content, 'copyLabel'), false)
   }
   assert.deepEqual(contributorsContent(null, 'en').nodes, [])
   assert.equal(snapshot.nodes[1].avatar, 'assets/logos/openai.png')

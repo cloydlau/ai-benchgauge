@@ -118,7 +118,6 @@
         <block wx:if="{{selectedContributor}}">
           <text class="contributor-selected-name">{{selectedContributor.name}}</text>
           <text class="investment-note">{{selectedContributor.countLabel}}</text>
-          <button wx:if="{{selectedContributor.url}}" class="contributor-link" data-url="{{selectedContributor.url}}" bindtap="copyLink" aria-label="{{contributors.copyLabel}}"><van-icon name="link-o" size="16px" /></button>
         </block>
         <text wx:else class="investment-note">{{contributors.hint}}</text>
       </view>

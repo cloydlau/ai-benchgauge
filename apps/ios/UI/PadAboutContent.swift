@@ -40,7 +40,6 @@ struct PadAboutContent: Decodable, Sendable {
         let title: String
         let note: String
         let hint: String
-        let copyLabel: String
         let expandLabel: String
         let closeLabel: String
         let nodes: [Node]

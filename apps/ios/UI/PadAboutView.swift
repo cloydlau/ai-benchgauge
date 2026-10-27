@@ -445,13 +445,6 @@ struct PadAboutView<Brand: View>: View {
                 if let selected = content.nodes.first(where: { $0.id == about.selectedContributorID }) {
                     Text(selected.name).font(.system(size: 12, weight: .medium))
                     Text(selected.countLabel).font(.system(size: 11)).foregroundStyle(.secondary)
-                    if !selected.url.isEmpty {
-                        Button { copyLink(selected.url) } label: {
-                            Image(systemName: "link").frame(width: 44, height: 44)
-                        }.buttonStyle(.plain).foregroundStyle(accent)
-                            .accessibilityLabel(content.copyLabel)
-                            .accessibilityIdentifier("about-contributor-link")
-                    }
                 } else {
                     Text(content.hint).font(.system(size: 11)).foregroundStyle(.secondary)
                 }

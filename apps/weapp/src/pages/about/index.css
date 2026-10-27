@@ -130,7 +130,6 @@
 .contributor-name { position: absolute; left: 6%; right: 6%; bottom: 8%; font-size: 18rpx; line-height: 1.2; text-align: center; white-space: nowrap; }
 .contributor-detail { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10rpx 16rpx; min-height: 48px; text-align: center; }
 .contributor-selected-name { min-width: 0; overflow-wrap: anywhere; font-size: 23rpx; font-weight: 500; }
-.contributor-link { display: flex; align-items: center; justify-content: center; width: 44px; min-height: 44px; margin: 0; padding: 0; color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .contributor-circle { transition: none; } }
 
 .notices { margin-top: 34rpx; padding: 26rpx 8rpx 0; border: 0; border-top: 1rpx solid var(--line); border-radius: 0; background: transparent; box-shadow: none; }
