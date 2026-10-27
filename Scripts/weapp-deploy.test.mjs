@@ -11,6 +11,24 @@ import { join } from 'node:path'
 import { ci } from './calmmit.mjs'
 import { sourcePaths, inputSnapshot, sourceSignature, stageInputs, needsUpload, readReceipt } from './weapp-deploy.mjs'
 
+test('isolated upload retains the About artwork and detects image updates', t => {
+  const root = mkdtempSync(join(tmpdir(), 'benchgauge-about-artwork-stage-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  for (const path of ['assets/about', 'node_modules', 'apps/weapp/node_modules']) mkdirSync(join(root, path), { recursive: true })
+  writeFileSync(join(root, 'apps/weapp/package.json'), '{}')
+  const relative = 'assets/about/ai-models-group-portrait.jpg'
+  const original = readFileSync(new URL(`../${relative}`, import.meta.url))
+  writeFileSync(join(root, relative), original)
+  const snapshot = inputSnapshot(root), signature = sourceSignature(snapshot)
+  assert.ok(snapshot.has(relative), 'About artwork must be included in the isolated upload')
+  const stage = join(root, 'stage')
+  stageInputs(root, stage, snapshot)
+  assert.deepEqual(readFileSync(join(stage, relative)), original)
+  assert.equal(sourceSignature(inputSnapshot(stage)), signature)
+  writeFileSync(join(root, relative), Buffer.concat([original, Buffer.from('\n')]))
+  assert.notEqual(sourceSignature(inputSnapshot(root)), signature, 'Artwork edits must queue another upload')
+})
+
 test('isolated upload retains the calendar fixture and resolves the shared version generator outside its checkout', t => {
   const root = mkdtempSync(join(tmpdir(), 'benchgauge-version-stage-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))

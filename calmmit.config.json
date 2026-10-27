@@ -139,6 +139,7 @@
           "assets/brand/header-logo-dark.png",
           "assets/brand/partners",
           "assets/logos",
+          "assets/about",
           "apps/ios/UI/Resources/CategoryIcons",
           "Sources/LeaderboardKit/SharedLeaderboardConfiguration.swift",
           "config/app.json",

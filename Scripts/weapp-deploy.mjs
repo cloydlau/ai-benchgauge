@@ -25,7 +25,7 @@ export const sourcePaths = [
   'fc/domain.mjs', 'fc/distributions.mjs', 'fc/brand-catalog.json', 'fc/leaderboard-policy.json', 'fc/country-catalog.json',
   'fc/purchase-links.json', 'Scripts/generate-purchase-links.mjs', 'Scripts/source-logos.mjs',
   'Sources/LeaderboardKit/PurchaseLinkData.generated.swift',
-  'assets/brand/header-logo.png', 'assets/brand/header-logo-dark.png', 'assets/brand/partners', 'assets/logos',
+  'assets/brand/header-logo.png', 'assets/brand/header-logo-dark.png', 'assets/brand/partners', 'assets/logos', 'assets/about',
   'apps/ios/UI/Resources/CategoryIcons',
   'Sources/LeaderboardKit/SharedLeaderboardConfiguration.swift', 'config/app.json',
   'Sources/LeaderboardKit/Resources/Fonts/SlideFont-OFL.txt',
