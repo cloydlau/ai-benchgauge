@@ -107,13 +107,13 @@
 .cost-note { margin-top: 18rpx; }
 
 .investment-engineering { margin: 18rpx 0; }
-.investment-engineering.has-contributors { display: flex; align-items: flex-end; gap: 12rpx; }
+.investment-engineering.has-contributors { position: relative; display: flex; align-items: flex-end; padding-right: calc(27% + 12rpx); }
 .investment-engineering .investment-metrics { margin: 0; }
 .has-contributors .investment-metrics { flex: 1; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12rpx; }
 .has-contributors .investment-metric { padding: 16rpx; }
 .has-contributors .investment-label { white-space: nowrap; }
-.contributor-mini { position: relative; flex: 0 0 27%; align-self: stretch; min-width: 0; min-height: 0; margin: 0; padding: 0; color: var(--muted); }
-.contributor-mini .contributor-field { position: absolute; right: 0; bottom: 0; width: auto; height: 100%; max-width: 100%; padding-top: 0; aspect-ratio: 1; margin: 0; }
+.contributor-mini { position: absolute; right: 0; bottom: 0; width: 27%; min-width: 0; margin: 0; padding: 0; color: var(--muted); }
+.contributor-mini .contributor-field { margin: 0; }
 .contributor-mini .contributor-initial { font-size: 12rpx; }
 .contributor-expand { position: absolute; right: 4rpx; bottom: 4rpx; }
 .contributors-expanded { padding: 32rpx; }

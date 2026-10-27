@@ -29,7 +29,7 @@
 | 模型详情 | Kit `ModelDetails` / `ModelDetailsView`、小程序 `core/model-details.js`；Windows 消费共享引擎的详情投影 | 小程序、iPhone/iPad、macOS、Windows：优先展示限额与能力卡片，模型资料、服务商价格和来源可展开查看，保留全部字段与显式复制操作；滚动后提供返回顶部。同步时间按设备本地时区显示 `yyyy-MM-dd HH:mm:ss`，保留秒数；固定截图夹具使用 UTC。图片导出不包含交互详情页 |
 | 各端进展与贡献 | 小程序 `core/about-platforms.js` → `Scripts/ios-about.mjs`；微信图形 `assets/brand/partners/wechat/logo.svg` → `Scripts/source-logos.mjs` | 小程序与 iPhone/iPad 关于页，替换原 “余量查询” 卡片；固定七端功能及状态，每端单行显示图标、名称、功能和状态 Tag（无圆点）；七端图标统一为中性灰线框样式，微信保留品牌双气泡与四个圆点；iPad 平台名称三语均显示为 iPadOS，iOS 标注 “（含 iPhone Duo）”。列表下方统一显示可复制仓库链接的 “欢迎贡献代码”（英文 PR welcome），各端无独立链接，macOS 状态同样使用 Tag；桌面 About 和图片导出没有原移动卡片，不新增模块 |
 | 成本与工程投入 | Calmmit `cost-calculation.mjs`、`engineering-investment.mjs`、`resources/CostCalculation.swift` | 小程序与 iPhone/iPad 关于页。构建入口同步 JS / Swift 计算适配器；Git 统计、月份取整、按月累计和合计由 Calmmit 维护，项目预算、文案与 UI 独立维护。桌面及图片导出当前没有该成本区 |
-| 贡献者圆团 | Calmmit `contributor-circles.mjs` → `Scripts/contributor-circles.mjs`、小程序 `core/contributors.js` → `Scripts/ios-about.mjs` | 小程序与 iPhone/iPad 关于页，提交次数、代码行数、圆团从左至右同一行排列，缩窄前两项为圆团留出宽度；行高由数字卡片决定，圆团在行内等比缩小并底边对齐，不参与撑高；点按放大后可选择贡献者查看次数，详情仅显示姓名与提交次数。按 Git 作者名保留模型版本，使用本地标志，Cloyd Lau 默认字母 C。统计、归一化圆形布局与自包含 SVG 图片生成由 Calmmit 共用，产品端只呈现布局。桌面及榜单图片导出没有该关于区，不新增模块 |
+| 贡献者圆团 | Calmmit `contributor-circles.mjs` → `Scripts/contributor-circles.mjs`、小程序 `core/contributors.js` → `Scripts/ios-about.mjs` | 小程序与 iPhone/iPad 关于页，提交次数、代码行数、圆团从左至右同一行排列，缩窄前两项为圆团留出宽度；行高由数字卡片决定，圆团保持原尺寸、底边对齐并向上超出数字行，不参与撑高；点按放大后可选择贡献者查看次数，详情仅显示姓名与提交次数。按 Git 作者名保留模型版本，使用本地标志，Cloyd Lau 默认字母 C。统计、归一化圆形布局与自包含 SVG 图片生成由 Calmmit 共用，产品端只呈现布局。桌面及榜单图片导出没有该关于区，不新增模块 |
 | 关于页 AI 合影 | `assets/about/ai-models-group-portrait.jpg`、小程序 `core/about-artwork.js` → `Scripts/ios-about.mjs` | 小程序与 iPhone/iPad 关于页简介下方完整展示合影；署名改编作者 tombkeeper（作品原帖）和历史原图摄影者 Benjamin Couprie（1927 年第五届索尔维会议，附原图来源）。作者名使用下划线，图标置于姓名前且与姓名共用同一个出处链接，不另加可见的链接操作文案；小程序点按复制对应地址，原生直接打开。支持大图预览。小程序构建同尺寸 quality 86 JPEG，iOS 项目从同一目录打包原图；三语、深浅色及窄屏分别检查。桌面只有许可窗口，没有独立关于页；榜单图片导出不包含关于页内容 |
 
 基础设施年度预算见 [预算说明](infrastructure-budget.md)。金额估算不细于百元，允许项目采用千元、万元等更粗粒度；各移动端从同一份预算定义生成金额与说明。费用为估算，非实际账单。
@@ -138,3 +138,5 @@ Artificial Analysis 的综合、编程、文生图、文生视频榜单表头统
 贡献者详情去除链接（2026-10-27）：按用户要求删除 “x 次提交” 右侧的复制链接按钮，小程序及 iPhone/iPad 同步；保留姓名、提交次数和头像选择，清理专用文案及样式。12 项关于页与共享内容检查、小程序生产构建、Swift 源码和 UI 用例语法检查通过，原生 UI 用例同步为确认按钮不存在。本轮未运行微信或 iPhone/iPad 原生界面验收及安装；桌面及榜单图片导出不含对应详情。
 
 贡献者圆团限制行高（2026-10-27）：按用户要求，由提交次数和代码行数卡片决定原有行高，圆团不能撑高整行。小程序圆团脱离内部普通流，在拉伸至行高的按钮中按高度等比缩放并靠右下对齐；iPhone/iPad 保留零高占位列，在原有数字行上叠加圆团，边长取列宽与实际行高的较小值。320/375/560px、三语浅深色共 18 种浏览器排版均确认显示或隐藏圆团时行高一致，圆团保持正圆、未超出行高且底边对齐；小程序生产构建及 Swift 语法检查通过。微信及 iPhone/iPad 原生界面运行和安装本轮未验收；桌面及榜单图片导出没有对应消费者。
+
+贡献者圆团原尺寸修正（2026-10-27）：用户澄清圆团不得缩小。小程序恢复原有 27% 列宽和正圆大小，整个按钮绝对定位于数字行右下方，预留横向空间，允许圆团向上超出而不参与行高计算；完整按钮点击区域随圆团保持原大小。iPhone/iPad 继续使用叠加布局，移除以行高限制圆团边长，恢复由第三列宽度确定原尺寸。320/375/560px、三语浅深色共 18 种浏览器排版确认原尺寸及完整点击区域保留、数字行高不变、正圆和底边对齐；已查看浅色预览。小程序生产构建及 Swift 语法检查通过；微信和 iPhone/iPad 原生界面运行及安装本轮未验收。
