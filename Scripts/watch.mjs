@@ -23,6 +23,7 @@ import { ci } from './calmmit.mjs'
 import { startWeappUploadWatch } from './weapp-deploy.mjs'
 
 const { workflowStatus } = await ci.load('workflow-status')
+const { createRepositoryActivity } = await ci.load('ai-activity')
 const reportStatus = (state, message) => console.log(`\n[watch] ${workflowStatus(state, message)}`)
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -460,6 +461,7 @@ export async function restartApp(notification = deployedNotification(), head = r
 }
 
 async function main() {
+  let observedActivityTicket = null
   let debounceMs
   let throttleMs
   let pollMs
@@ -487,6 +489,7 @@ async function main() {
   }
 
   process.on('exit', () => watchLock.release())
+  const activity = process.env.CALMMIT_COMMIT_TRIGGER === 'idle' ? null : createRepositoryActivity({ root })
   mkdirSync(join(root, 'work'), { recursive: true })
   writeFileSync(join(root, 'work', 'watch-runtime.json'), JSON.stringify({
     pid: process.pid, runtime: loadedRuntime, loadedAt: new Date().toISOString(),
@@ -535,14 +538,19 @@ async function main() {
     return pushEnabled ? '原子提交并推送，并在源码变化时重建重启' : '原子提交，并在源码变化时重建重启'
   }
 
-  function schedule(reason, at, { retryPush = false } = {}) {
+  function schedule(reason, at, { retryPush = false, retryCommit = false } = {}) {
     if (retryPush) failedPushSignature = null
     lastChangeAt = at
+    const activityState = activity?.snapshot() || { blocked: false, ready: false, ticket: '' }
+    if (activity && commitEnabled && (activityState.blocked || !activityState.ready)) {
+      clearTimer()
+      return
+    }
     if (busy) {
       console.log(`[watch] ${reason}，当前正在提交、推送或构建，结束后再调度`)
       return
     }
-    const wait = nextWaitMs({
+    const wait = retryCommit ? 1000 : activityState.ready ? 0 : nextWaitMs({
       now: Date.now(),
       lastChangeAt,
       lastRunAt,
@@ -551,17 +559,21 @@ async function main() {
     })
     clearTimer()
     const eta = new Date(Date.now() + wait).toLocaleTimeString('zh-CN', { hour12: false })
-    reportStatus('waiting', `${reason}，将于 ${eta} ${actionLabel()}（防抖 ${Math.round(debounceMs / 1000)} 秒，节流 ${Math.round(throttleMs / 1000)} 秒）`)
+    reportStatus('waiting', activityState.ready ? `${reason}，本仓库 AI 回合已完成，立即${actionLabel()}`
+      : `${reason}，将于 ${eta} ${actionLabel()}（防抖 ${Math.round(debounceMs / 1000)} 秒，节流 ${Math.round(throttleMs / 1000)} 秒）`)
     timer = setTimeout(runScheduled, wait)
   }
 
   async function runScheduled() {
     timer = null
+    const activityState = activity?.snapshot() || { blocked: false, ready: false, ticket: '' }
+    if (activity && commitEnabled && (activityState.blocked || !activityState.ready)) return
     const builtSignature = signature(snapshot())
     const gitSignature = gitStatusSignature()
     busy = true
     lastRunAt = Date.now()
     let commitStatus = 0
+    let retryValidation = false
     let rebuiltOk = true
     let attemptedRebuild = false
     try {
@@ -578,7 +590,8 @@ async function main() {
         lastSignature = signature(snapshot())
         lastGitSignature = gitStatusSignature()
         if (tested.status === 75 || lastSignature !== builtSignature || lastGitSignature !== gitSignature) {
-          schedule('测试期间有新变更，重新验证', Date.now())
+          retryValidation = true
+          schedule('测试期间有新变更，重新验证', Date.now(), { retryCommit: tested.status === 75 })
         } else {
           failedTestSignature = testSignature
           reportStatus('manual', `测试失败，已停止提交、推送和重建；等待下次保存；日志：${tested.logPath}`)
@@ -590,6 +603,7 @@ async function main() {
       lastTestPass = tested.signature
       if (signature(snapshot()) !== builtSignature || gitStatusSignature() !== gitSignature) {
         busy = false
+        retryValidation = true
         schedule('检查期间有新变更，重新验证', Date.now())
         return
       }
@@ -620,7 +634,8 @@ async function main() {
       }
       if (phoneOk && commitEnabled && gitSignature && gitSignature !== failedCommitSignature) {
         console.log('[watch] 开始原子提交…')
-        const commitEnv = { COMMIT_REQUIRE_LOCK: '1', BENCHGAUGE_TEST_PASS: tested.signature }
+        const commitEnv = { COMMIT_REQUIRE_LOCK: '1', BENCHGAUGE_TEST_PASS: tested.signature,
+          ...(activity ? { CALMMIT_AI_COMMIT_TICKET: activityState.ticket, CALMMIT_INTERNAL: '1' } : {}) }
         if (pushEnabled) commitEnv.COMMIT_PUSH = '0'
         const committed = await runNode(join(root, 'Scripts', 'commit.mjs'), commitEnv)
         commitStatus = committed.status
@@ -645,7 +660,8 @@ async function main() {
         console.log('[watch] 这一版提交已失败，等待下次保存')
       }
 
-      if (phoneOk && pushEnabled) {
+      if (phoneOk && pushEnabled && (!activity || (!activity.snapshot().blocked
+        && activity.snapshot().ticket === activityState.ticket))) {
         const ahead = unpushedState()
         if (ahead.state === 'no-upstream') {
           if (!warnedNoUpstream) {
@@ -688,6 +704,8 @@ async function main() {
       console.error(`[watch] ${error.message}`)
       await notify(false, '自动任务失败', error.message)
       rebuiltOk = false
+    } finally {
+      if (activity && commitStatus !== 75 && !retryValidation) activity.acknowledge(activityState.ticket)
     }
     busy = false
     const latestHead = currentHead()
@@ -714,6 +732,7 @@ async function main() {
       schedule(commitStatus === 75 ? '提交锁被占用，稍后重试'
         : appCommitMoved ? '检测到已提交的应用变更' : '运行期间有新变更', Date.now(), {
         retryPush: sourceMoved || gitMoved,
+        retryCommit: commitStatus === 75,
       })
     } else if (failedCommitSignature || failedPushSignature || !rebuiltOk) {
       const failure = failedCommitSignature ? '提交失败或改动未提交；日志：.git/commit-last.log'
@@ -799,7 +818,7 @@ async function main() {
   }
   const ahead = initialAhead.state === 'ahead'
   console.log(commitEnabled
-    ? `[watch] 监听 Sources/、Tests/、Scripts/ 和构建配置；测试通过后自动原子提交${pushEnabled ? '、推送' : ''}；Ctrl-C 停止。`
+    ? `[watch] 监听 Sources/、Tests/、Scripts/ 和构建配置；本仓库最后一个 AI 回合完成后立即检查、原子提交${pushEnabled ? '、推送' : ''}；Ctrl-C 停止。`
     : '[watch] 监听 Sources/、Tests/、Scripts/ 和构建配置；测试通过后重建重启；Ctrl-C 停止。不自动提交。')
   // 最后输出真实工作流状态；关闭部署不能阻断启动时的提交或推送。
   if (initialMoved || (!started && initialTest.status === 75)) {
@@ -820,6 +839,14 @@ async function main() {
   }
 
   const poll = setInterval(() => {
+    const activityState = activity?.snapshot() || { blocked: false, ready: false, ticket: '' }
+    if (!busy && activityState.ready && activityState.ticket !== observedActivityTicket) {
+      observedActivityTicket = activityState.ticket
+      failedCommitSignature = null
+      failedTestSignature = null
+      failedSignature = null
+      schedule('本仓库最后一个 AI 回合已完成', Date.now(), { retryPush: true })
+    }
     let next
     try {
       next = signature(snapshot())
