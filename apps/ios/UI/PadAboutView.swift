@@ -141,22 +141,11 @@ struct PadAboutView<Brand: View>: View {
                 }.buttonStyle(.plain)
                     .accessibilityLabel(artwork.alt + " · " + artwork.previewLabel)
                     .accessibilityIdentifier("about-artwork-preview")
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: 7) {
-                        Text(artwork.title).font(.system(size: 14, weight: .semibold)).fixedSize()
-                        Text(artwork.caption).font(.system(size: 11)).foregroundStyle(.secondary)
-                            .lineLimit(1).minimumScaleFactor(0.8)
-                        Spacer(minLength: 0)
-                        Button { about.artworkExpanded = true } label: {
-                            Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                .font(.system(size: 12)).frame(minWidth: 44, minHeight: 44, alignment: .trailing)
-                                .contentShape(Rectangle())
-                        }.buttonStyle(.plain).foregroundStyle(.secondary)
-                            .accessibilityLabel(artwork.previewLabel)
-                    }
-                    Divider()
-                    artworkCredits(artwork).padding(.top, 4).padding(.bottom, 6)
-                }.padding(.horizontal, 13).padding(.top, 6)
+                HStack(alignment: .center, spacing: 12) {
+                    artworkTitle(artwork.title)
+                    artworkCredits(artwork)
+                }.frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 13).padding(.vertical, 8)
             }
             .background(Color.padCard)
             .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -164,39 +153,35 @@ struct PadAboutView<Brand: View>: View {
             .accessibilityElement(children: .contain).accessibilityIdentifier("about-artwork")
         }
     }
+    private func artworkTitle(_ title: String) -> some View {
+        Text(title).font(.system(size: 22, weight: .semibold))
+            .lineLimit(1).minimumScaleFactor(0.75)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 28, alignment: .leading)
+    }
     private func artworkCredits(_ artwork: PadAboutContent.Artwork) -> some View {
-        HStack(alignment: .center, spacing: 5) {
+        VStack(alignment: .leading, spacing: 0) {
             ForEach(artwork.credits) { credit in
-                if credit.id != artwork.credits.first?.id {
-                    Text("·").font(.system(size: 10)).foregroundStyle(.secondary).accessibilityHidden(true)
-                }
                 HStack(alignment: .center, spacing: 4) {
-                    Text(credit.role).font(.system(size: 10)).foregroundStyle(.secondary)
-                        .fixedSize()
+                    Text(credit.role).font(.system(size: 8)).foregroundStyle(.secondary)
+                        .frame(width: 22, alignment: .leading)
                     Link(destination: credit.url) {
-                        Text(credit.name).underline().font(.system(size: 10, weight: .medium))
-                            .lineLimit(1).minimumScaleFactor(0.8)
-                            .frame(minHeight: 44, alignment: .leading)
-                            .contentShape(Rectangle())
-                    }.foregroundStyle(accent)
-                        .accessibilityLabel(credit.role + " · " + credit.name + (credit.detail.isEmpty ? "" : " · " + credit.detail))
-                        .accessibilityIdentifier("about-artwork-credit-" + credit.id)
-                    if let url = credit.workURL {
-                        Link(destination: url) {
+                        HStack(alignment: .center, spacing: 3) {
                             SourceBrandIcon(sourceID: credit.sourceIcon, dark: dark,
-                                            size: credit.sourceIcon == "solvay" && dark ? 14 : 16)
+                                            size: credit.sourceIcon == "solvay" && dark ? 7 : 9)
                                 .padding(credit.sourceIcon == "solvay" && dark ? 1 : 0)
                                 .background(credit.sourceIcon == "solvay" && dark
                                             ? Color(red: 241 / 255, green: 238 / 255, blue: 232 / 255) : .clear,
-                                            in: RoundedRectangle(cornerRadius: 2))
-                                .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
-                                .padding(.horizontal, -10)
-                        }.foregroundStyle(accent).accessibilityLabel(credit.workLabel)
-                    }
+                                            in: RoundedRectangle(cornerRadius: 1.5))
+                            Text(credit.name).underline().font(.system(size: 9, weight: .medium))
+                                .lineLimit(1).fixedSize()
+                        }.frame(height: 14, alignment: .center).contentShape(Rectangle())
+                    }.foregroundStyle(accent)
+                        .accessibilityLabel(credit.role + " · " + credit.name + (credit.detail.isEmpty ? "" : " · " + credit.detail))
+                        .accessibilityIdentifier("about-artwork-credit-" + credit.id)
                 }
             }
-            Spacer(minLength: 0)
-        }
+        }.fixedSize()
     }
     private func hero(_ lines: [String]) -> some View {
         VStack(alignment: .leading, spacing: 0) {

@@ -15,5 +15,5 @@ International Solvay Institutes; no repository MIT license is asserted.
 
 `Scripts/source-logos.mjs` exports proportion-preserving 54×54 PNGs in the
 original colors for both mobile clients and themes. The About photo credit
-links the photographer's name to the original photograph record and this
-avatar to the official conference gallery. The mark is bundled for offline use.
+places this avatar before the photographer's name in one shared link to the
+original photograph record. The mark is bundled for offline use.

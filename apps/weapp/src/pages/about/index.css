@@ -28,21 +28,19 @@
 .artwork-card { margin: 0 0 28rpx; overflow: hidden; border: 1rpx solid var(--about-outline); border-radius: 24rpx; background: var(--card); box-shadow: var(--about-shadow); }
 .artwork-preview { position: relative; display: block; width: 100%; height: 0; padding: 0; overflow: hidden; background: var(--about-inset); border-radius: 0; }
 .artwork-image { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
-.artwork-caption { padding: 12rpx 26rpx 0; }
-.artwork-heading { display: flex; align-items: center; gap: 14rpx; min-width: 0; white-space: nowrap; }
-.artwork-title { flex-shrink: 0; color: var(--ink); font-size: 28rpx; font-weight: 600; letter-spacing: .5rpx; line-height: 1.5; }
-.artwork-expand { display: flex; align-items: center; justify-content: flex-end; min-width: 44px; min-height: 44px; color: var(--muted); }
-.artwork-note { flex: 1; min-width: 0; overflow: hidden; color: var(--muted); font-size: 22rpx; line-height: 1.7; text-overflow: ellipsis; }
-.artwork-credits { display: flex; align-items: center; gap: 10rpx; padding: 2rpx 0 6rpx; border-top: 1rpx solid var(--line); white-space: nowrap; }
-.artwork-credit-row { display: flex; align-items: center; gap: 8rpx; min-width: 0; color: var(--muted); font-size: 20rpx; line-height: 1.6; }
-.artwork-credit-row + .artwork-credit-row { flex: 1; }
-.artwork-credit-row + .artwork-credit-row::before { content: '·'; margin-right: 6rpx; color: var(--muted); }
-.artwork-credit-role { flex-shrink: 0; font-size: 20rpx; }
-.artwork-credit-person { min-width: 0; min-height: 44px; padding: 10rpx 0; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
-.artwork-credit-name { color: var(--accent); font-weight: 500; text-decoration: underline; text-underline-offset: 4rpx; }
-.artwork-credit-link { display: flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: 44px; min-height: 44px; margin: 0 -20rpx; color: var(--accent); }
-.artwork-source-icon { display: block; width: 32rpx; height: 32rpx; }
-.dark .artwork-source-icon-solvay { box-sizing: border-box; padding: 2rpx; border-radius: 4rpx; background: #f1eee8; }
+.artwork-caption { display: flex; align-items: center; justify-content: space-between; gap: 24rpx; padding: 16rpx 26rpx; }
+.artwork-title { display: flex; align-items: center; flex: 1; min-width: 0; height: 56rpx; color: var(--ink); font-size: 44rpx; font-weight: 600; line-height: 1; white-space: nowrap; }
+.artwork-credits { display: flex; flex-direction: column; margin-left: auto; }
+.artwork-credit-row { display: grid; grid-template-columns: 44rpx auto; align-items: center; column-gap: 8rpx; color: var(--muted); }
+.artwork-credit-role { font-size: 16rpx; line-height: 1; }
+.artwork-credit-person { display: flex; align-items: center; gap: 6rpx; min-width: 0; height: 28rpx; padding: 0; font-size: 18rpx; line-height: 1; text-align: left; white-space: nowrap; }
+.artwork-credit-name { display: block; color: var(--accent); font-weight: 500; text-decoration: underline; text-underline-offset: 4rpx; }
+.artwork-source-icon { display: block; flex-shrink: 0; width: 18rpx; height: 18rpx; }
+.dark .artwork-source-icon-solvay { box-sizing: border-box; padding: 2rpx; border-radius: 3rpx; background: #f1eee8; }
+@media (max-width: 360px) {
+  .artwork-caption { gap: 16rpx; }
+  .artwork-title { font-size: 34rpx; }
+}
 /* Keep each platform on one baseline; contribution is a single footer action. */
 .platforms-card { margin-top: 0; padding: 0 24rpx 4rpx; }
 .platforms-title { margin: 0; padding: 24rpx 0 18rpx; }

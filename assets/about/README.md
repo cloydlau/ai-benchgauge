@@ -4,7 +4,7 @@
 `53899d01ly1iig29uw7f5j214y0tnkjl.jpg`，保留原始图片字节。
 
 - 改编作者：[tombkeeper](https://weibo.com/u/1401527553)，依用户指定署名；
-  [作品原帖](https://weibo.com/1401527553/RouFUDfWK)。作者名链接个人主页，旁边的链接图标指向作品原帖。
+  [作品原帖](https://weibo.com/1401527553/RouFUDfWK)。作者名前的微博图标与作者名合为一个链接，指向作品原帖。
 - 历史原图：**Benjamin Couprie** 摄，**1927 年第五届索尔维会议合影**，
   Institut International de Physique Solvay，布鲁塞尔。
   [原图及来源记录](https://commons.wikimedia.org/wiki/File:Solvay_conference_1927.jpg)；
