@@ -11,7 +11,7 @@ import { shouldAutoRefresh } from '../../core/freshness.js'
 import { createTimestampPolish } from '../../core/timestamp-polish.js'
 import { rowGeometry, resolveRowWindow, createRowRenderer } from '../../core/row-window.js'
 import { exportScreenshot, removeScreenshot, saveScreenshotImage } from '../../services/screenshot.js'
-import { cubeIndex, cubeTarget, cubeNavigation, cubeRenderedFace, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll, isBackSwipe } from '../../core/cube.js'
+import { cubeIndex, cubeTarget, cubeNavigation, cubeRenderedFace, cubeTabPosition, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll, isBackSwipe } from '../../core/cube.js'
 import { createBrandMeasurer, createSubtitleMeasurer } from '../../core/brand-title.js'
 import { pagePreferences, sharePath, systemLanguage } from '../../core/share-state.js'
 import { purchaseLinks, preferredPurchaseLink } from '../../core/purchase-links.js'
@@ -97,14 +97,19 @@ definePage(query => {
   }))
   const sourceDragIndex = ref(null)
   const categoryDragIndex = ref(null)
-  // The logical destination starts loading immediately. Keep the visual tab at
-  // the outgoing face until the cube's actual CSS transition starts as well.
+  // The logical destination starts loading immediately. Selected labels wait
+  // for the visual turn; the background below follows its fractional progress.
   const sourceTabIndex = computed(() => sourceDragIndex.value ?? (cubeBusy.value && cubeDuration.value === 0 ? cubeOrigin.value : face.value))
   const selectedSourceTheme = computed(() => sourceTabTheme(current.value.kinds[sourceTabIndex.value], dark.value))
   const sourceTabWidth = computed(() => `calc((100% - ${(current.value.kinds.length - 1) * 12}rpx) / ${current.value.kinds.length})`)
   const sourceSelection = computed(() => {
-    const position = sourceTabIndex.value
-    return `width:${sourceTabWidth.value};transform:translateX(${position * 100}%) translateX(${position * 12}rpx);background-color:${selectedSourceTheme.value.background};`
+    const tracking = sourceDragIndex.value == null && cubeBusy.value && !entranceHintVisible.value
+    const position = tracking ? cubeTabPosition(cubeWaiting.value ? cubeOrigin.value : cubePosition.value,
+      cubeOrigin.value, cubeDirection.value, current.value.kinds.length) : sourceTabIndex.value
+    // Finger tracking has no easing; preparation, catch-up and release use the
+    // very same duration as the visible faces, including a cancelled turn.
+    const motion = tracking ? `--source-position-duration:${cubeDuration.value}ms;--source-position-easing:${boardTransition.value === 'slide' ? 'cubic-bezier(.22,.68,0,1)' : 'ease-in-out'};` : ''
+    return `width:${sourceTabWidth.value};transform:translateX(${position * 100}%) translateX(${position * 12}rpx);background-color:${selectedSourceTheme.value.background};${motion}`
   })
   let tabGesture
   let tabSerial = 0

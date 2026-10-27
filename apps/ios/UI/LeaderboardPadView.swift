@@ -382,6 +382,11 @@ public struct LeaderboardPadView: View {
 
     @ViewBuilder private var cubeSelector: some View {
         let selectedIndex = min(max(0, sourceDragIndex ?? cube.face), store.visibleBoardKinds.count - 1)
+        // Follow the same fractional position and animation transaction as the
+        // faces. Keep the entrance hint and direct tab previews independent.
+        let selectionPosition = sourceDragIndex == nil && (cube.dragging || cube.turning)
+            ? LeaderboardCube.tabPosition(cube.position, origin: cube.origin, direction: cube.direction,
+                count: store.visibleBoardKinds.count) : Double(selectedIndex)
         let selectedKind = store.visibleBoardKinds[selectedIndex]
         let palette = SourceTabTheme.palette(for: selectedKind, dark: colorScheme == .dark)
         HStack(spacing: 6) {
@@ -413,7 +418,7 @@ public struct LeaderboardPadView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(sourceTabColor(palette.background))
                     .frame(width: tabWidth)
-                    .offset(x: CGFloat(selectedIndex) * (tabWidth + 6))
+                    .offset(x: CGFloat(selectionPosition) * (tabWidth + 6))
             }
             .allowsHitTesting(false)
         }

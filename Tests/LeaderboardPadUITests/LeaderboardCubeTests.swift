@@ -32,6 +32,24 @@ import Foundation
     #expect(LeaderboardCube.position(face: 1, translation: 150, width: 300) == 0.5)
     #expect(LeaderboardCube.position(face: 1, translation: 150, width: 0) == 1)
 }
+
+@Test func sourceIndicatorTracksFractionalCubeTravelAndShortRoutes() {
+    for count in [2, 3] {
+        for origin in 0..<count {
+            for direction in [-1, 1] {
+                for progress in [0.0, 0.1, 0.25, 0.5, 0.75, 1.0] {
+                    let next = LeaderboardCube.normalized(origin + direction, count: count)
+                    #expect(abs(LeaderboardCube.tabPosition(Double(origin) + Double(direction) * progress,
+                        origin: origin, direction: direction, count: count)
+                        - (Double(origin) + Double(next - origin) * progress)) < 1e-9)
+                }
+            }
+        }
+    }
+    #expect(LeaderboardCube.tabPosition(-0.4, origin: 0, direction: 1, count: 3) == 0)
+    #expect(LeaderboardCube.tabPosition(2.4, origin: 0, direction: 1, count: 3) == 1)
+    #expect(LeaderboardCube.tabPosition(0.4, origin: 0, direction: 1, count: 1) == 0)
+}
 @Test func cubeSnapsOrCompletesQuickFlicksInBothDirections() {
     #expect(LeaderboardCube.destination(face: 0, translation: -80, predicted: -90, width: 300) == 0)
     #expect(LeaderboardCube.destination(face: 0, translation: -80, predicted: -200, width: 300) == 1)
