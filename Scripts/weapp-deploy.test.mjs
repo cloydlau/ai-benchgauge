@@ -11,6 +11,31 @@ import { join } from 'node:path'
 import { ci } from './calmmit.mjs'
 import { sourcePaths, inputSnapshot, sourceSignature, stageInputs, needsUpload, readReceipt } from './weapp-deploy.mjs'
 
+test('isolated upload includes the contributor adapter and tracks its changes outside the Git checkout', t => {
+  const root = mkdtempSync(join(tmpdir(), 'benchgauge-contributors-stage-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  const inputs = ['Scripts/contributor-circles.mjs', 'Scripts/calmmit.mjs', 'calmmit.config.json', 'apps/weapp/src/core/catalog.js']
+  for (const relative of inputs) {
+    const target = join(root, relative)
+    mkdirSync(join(target, '..'), { recursive: true })
+    copyFileSync(new URL(`../${relative}`, import.meta.url), target)
+  }
+  for (const path of ['node_modules', 'apps/weapp/node_modules']) mkdirSync(join(root, path), { recursive: true })
+  const files = inputSnapshot(root), signature = sourceSignature(files)
+  const stage = join(root, 'stage')
+  stageInputs(root, stage, files)
+  const result = spawnSync(process.execPath, ['--input-type=module', '--eval', `
+    import { contributorCircles } from ${JSON.stringify(pathToFileURL(join(stage, inputs[0])).href)};
+    const snapshot = contributorCircles(${JSON.stringify(ci.root)});
+    console.log(snapshot.nodes.find(node => node.name === 'Cloyd Lau').initial);
+  `], { cwd: stage, env: { ...process.env, CALMMIT_PATH: ci.library }, encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stdout + result.stderr)
+  assert.equal(result.stdout.trim(), 'C')
+  const adapter = join(root, inputs[0])
+  writeFileSync(adapter, readFileSync(adapter, 'utf8') + '\n')
+  assert.notEqual(sourceSignature(inputSnapshot(root)), signature)
+})
+
 test('isolated upload retains the About artwork and detects image updates', t => {
   const root = mkdtempSync(join(tmpdir(), 'benchgauge-about-artwork-stage-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))

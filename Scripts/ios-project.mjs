@@ -100,7 +100,7 @@ export function iosProject({ version, appStoreID = null, buildNumber = '1', team
 export function generateIOSProject(directory = root, options = {}) {
   const { version, appStoreID = null } = JSON.parse(readFileSync(join(directory, 'config/app.json'), 'utf8'))
   const aboutContentPath = writeIOSAbout(directory,
-    join(options.projectDirectory || join(directory, 'work/ios-about'), 'AboutContent.json'), options.engineeringStats)
+    join(options.projectDirectory || join(directory, 'work/ios-about'), 'AboutContent.json'), options.engineeringStats, options.contributorSnapshot)
   const generated = iosProject({ version, appStoreID, artworkDirectory: join(directory, 'assets/about'), ...options, aboutContentPath })
   const projectPath = join(options.projectDirectory || join(directory, 'apps/ios'), 'AI-BenchGauge.xcodeproj')
   mkdirSync(join(projectPath, 'xcshareddata/xcschemes'), { recursive: true })

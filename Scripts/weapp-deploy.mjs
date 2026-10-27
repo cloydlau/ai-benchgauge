@@ -37,7 +37,7 @@ export const sourcePaths = [
   'Tests/fixtures/model-details.json', 'Tests/fixtures/calendar-timestamps.json',
   'fc/arena-attribution.json',
   'LICENSE', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml',
-  'Scripts/weapp-deploy.mjs', 'Scripts/calmmit.mjs', 'calmmit.config.json',
+  'Scripts/weapp-deploy.mjs', 'Scripts/calmmit.mjs', 'Scripts/contributor-circles.mjs', 'calmmit.config.json',
   'Scripts/sync-privacy-guide.mjs', 'privacy-guide.json',
 ]
 

@@ -158,6 +158,7 @@
           "pnpm-workspace.yaml",
           "Scripts/weapp-deploy.mjs",
           "Scripts/calmmit.mjs",
+          "Scripts/contributor-circles.mjs",
           "calmmit.config.json",
           "Scripts/sync-privacy-guide.mjs",
           "privacy-guide.json"

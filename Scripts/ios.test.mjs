@@ -9,6 +9,8 @@ import { generateIOSProject, iosProject } from './ios-project.mjs'
 import { iosBuildPlan, iosSimulator } from './ios-build.mjs'
 
 const uuid = '00000000-0000-0000-0000-000000000001'
+const contributorSnapshot = { nodes: [{ id: 'owner', name: 'Cloyd Lau', count: 12,
+  avatar: '', initial: 'C', monochrome: false, url: '', x: 0.5, y: 0.5, r: 0.47 }] }
 test('generated iPad icon is opaque, 1024px and carries no private PNG metadata', { skip: process.platform !== 'darwin' }, (t) => {
   const directory = mkdtempSync(join(tmpdir(), 'ipad-icon-metadata-'))
   t.after(() => rmSync(directory, { recursive: true, force: true }))
@@ -118,9 +120,15 @@ test('App Store distribution uses the configured Apple ID and permits an unpubli
   mkdirSync(join(directory, 'config'), { recursive: true })
   for (const appStoreID of [null, '1234567890']) {
     writeFileSync(join(directory, 'config/app.json'), JSON.stringify({ version: '0.1.2', appStoreID }))
-    const path = generateIOSProject(directory, { engineeringStats: { commitCount: 12, codeLineCount: 345 } })
+    const path = generateIOSProject(directory, { engineeringStats: { commitCount: 12, codeLineCount: 345 }, contributorSnapshot })
     const project = readFileSync(join(path, 'project.pbxproj'), 'utf8')
     assert.ok(project.includes(`BENCHGAUGE_APP_STORE_ID = "${appStoreID ?? ''}"`))
+    const content = JSON.parse(readFileSync(join(directory, 'work/ios-about/AboutContent.json'), 'utf8'))
+    for (const copy of Object.values(content.languages)) {
+      assert.equal(copy.contributors.nodes.length, 1)
+      assert.equal(copy.contributors.nodes[0].initial, 'C')
+      assert.equal(copy.contributors.nodes[0].count, 12)
+    }
   }
   for (const appStoreID of ['', '0', '00123', 123, 'https://github.com/example', '123;OTHER=YES']) {
     assert.throws(() => iosProject({ version: '0.1.2', appStoreID }), /App Store ID/)
@@ -170,6 +178,7 @@ test('SDK build and family-specific UI checks are independently runnable', () =>
   mkdirSync(original, { recursive: true }); writeFileSync(join(original, 'project.pbxproj'), 'personal Xcode settings')
   const generated = generateIOSProject(directory, { projectDirectory: join(directory, 'work/ios-deploy/Project'),
     engineeringStats: { commitCount: 12, codeLineCount: 345 },
+    contributorSnapshot,
     sourceDirectory: join(directory, 'apps/ios'), packageDirectory: directory, logoDirectory: join(directory, 'assets/logos'),
     assetDirectory: join(directory, 'work/ios-deploy/Assets.xcassets'), team: 'ABCDEFGHIJ' })
   const project = readFileSync(join(generated, 'project.pbxproj'), 'utf8')

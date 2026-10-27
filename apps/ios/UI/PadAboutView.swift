@@ -38,6 +38,31 @@ private final class PadAboutState: ObservableObject {
     @Published var categoryIconNoticeExpanded = false
     @Published var sourceMarkNoticeExpanded = false
     @Published var artworkExpanded = false
+    @Published var artworkTitleWidth: CGFloat = 0
+    @Published var selectedContributorID: String?
+    @Published var hoveredContributorID: String?
+    @Published var contributorsExpanded = false
+}
+
+@MainActor
+private enum AboutContributorImages {
+    static var images: [String: CGImage] = [:]
+    static func image(for avatar: String) -> CGImage? {
+        if let image = images[avatar] { return image }
+        let file = (avatar as NSString).lastPathComponent as NSString
+        guard !avatar.isEmpty,
+              let url = Bundle.main.url(forResource: file.deletingPathExtension,
+                                        withExtension: file.pathExtension, subdirectory: "logos"),
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
+        images[avatar] = image
+        return image
+    }
+}
+
+private struct AboutArtworkTitleWidth: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 @MainActor
@@ -117,6 +142,22 @@ struct PadAboutView<Brand: View>: View {
                 }.tint(accent)
             }
         }
+        .sheet(isPresented: $about.contributorsExpanded) {
+            if let content {
+                let copy = content.copy(language: language).contributors
+                NavigationStack {
+                    ScrollView { contributors(copy).padding(16).frame(maxWidth: 560).frame(maxWidth: .infinity) }
+                        .background(Color.padBackground)
+                        .navigationTitle(copy.title)
+                        #if os(iOS)
+                        .navigationBarTitleDisplayMode(.inline)
+                        #endif
+                        .toolbar { ToolbarItem(placement: .confirmationAction) {
+                            Button(copy.closeLabel) { about.contributorsExpanded = false }
+                        } }
+                }.tint(accent)
+            }
+        }
     }
 
     private func main(_ content: PadAboutContent, copy: PadAboutContent.Copy) -> some View {
@@ -124,7 +165,7 @@ struct PadAboutView<Brand: View>: View {
             hero(copy.descriptionLines)
             artworkCard(copy.artwork).padding(.bottom, 14)
             platforms(copy.platforms)
-            investment(copy.investment, months: content.schedule.months(at: Date()))
+            investment(copy.investment, months: content.schedule.months(at: Date()), contributors: copy.contributors)
                 .padding(14).aboutCard(outline: outline).padding(.top, 14)
             notices.padding(.horizontal, 4).padding(.top, 17)
         }
@@ -154,19 +195,26 @@ struct PadAboutView<Brand: View>: View {
         }
     }
     private func artworkTitle(_ artwork: PadAboutContent.Artwork) -> some View {
-        ViewThatFits(in: .horizontal) {
+        GeometryReader { geometry in
             artworkTitleStack(artwork, size: 20)
-            artworkTitleStack(artwork, size: 15)
-            artworkTitleStack(artwork, size: 13)
-        }.frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: 28)
+                .background {
+                    GeometryReader { title in
+                        Color.clear.preference(key: AboutArtworkTitleWidth.self, value: title.size.width)
+                    }
+                }
+                .scaleEffect(min(1, max(0, geometry.size.width) / max(1, about.artworkTitleWidth)), anchor: .leading)
+                .opacity(about.artworkTitleWidth > 0 ? 1 : 0)
+        }.frame(height: 28)
+            .onPreferenceChange(AboutArtworkTitleWidth.self) { width in
+                if about.artworkTitleWidth != width { about.artworkTitleWidth = width }
+            }
     }
     private func artworkTitleStack(_ artwork: PadAboutContent.Artwork, size: CGFloat) -> some View {
         HStack(alignment: .bottom, spacing: 4) {
             Text(artwork.title).font(.system(size: size, weight: .semibold))
                 .lineLimit(1).fixedSize().frame(height: size)
-            Text(artwork.caption).font(.system(size: 7)).foregroundStyle(.secondary)
-                .lineLimit(1).fixedSize().frame(height: 7)
+            Text(artwork.caption).font(.system(size: size / 2)).foregroundStyle(.secondary)
+                .lineLimit(1).fixedSize().frame(height: size / 2)
         }.fixedSize(horizontal: true, vertical: false).frame(height: 28)
     }
     private func artworkCredits(_ artwork: PadAboutContent.Artwork) -> some View {
@@ -303,21 +351,28 @@ struct PadAboutView<Brand: View>: View {
             .accessibilityIdentifier("about-platform-status-" + platform.id)
     }
 
-    private func investment(_ investment: PadAboutContent.Investment, months: Int) -> some View {
+    private func investment(_ investment: PadAboutContent.Investment, months: Int, contributors: PadAboutContent.Contributors) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(investment.title).font(.system(size: 15, weight: .semibold)).padding(.bottom, 11)
             Text(investment.engineeringTitle).font(.system(size: 12)).foregroundStyle(.secondary)
-            LazyVGrid(columns: columns, spacing: 7) {
-                ForEach(investment.metrics) { metric in
+            let metrics = ForEach(investment.metrics) { metric in
                     VStack(alignment: .leading, spacing: 5) {
                         Text(metric.value).font(.system(size: 24, weight: .semibold)).monospacedDigit()
                             .minimumScaleFactor(0.7).lineLimit(1)
                         Text(metric.label).font(.system(size: 11)).foregroundStyle(.secondary)
+                            .lineLimit(1).minimumScaleFactor(0.75)
                     }.frame(maxWidth: .infinity, alignment: .leading).padding(11)
                         .background(inset, in: RoundedRectangle(cornerRadius: 8))
                         .accessibilityElement(children: .contain).accessibilityIdentifier("about-metric-" + metric.id)
-                }
-            }.padding(.vertical, 9)
+            }
+            if contributors.nodes.isEmpty {
+                LazyVGrid(columns: columns, spacing: 7) { metrics }.padding(.vertical, 9)
+            } else {
+                HStack(alignment: .bottom, spacing: 8) {
+                    metrics
+                    self.contributors(contributors, compact: true).frame(maxWidth: .infinity)
+                }.padding(.vertical, 9)
+            }
             note(investment.note)
             Divider().padding(.top, 14).padding(.bottom, 13)
             Text(investment.budgetTitle).font(.system(size: 12)).foregroundStyle(.secondary)
@@ -336,6 +391,87 @@ struct PadAboutView<Brand: View>: View {
             note(investment.costNote).padding(.top, 9)
         }
     }
+    private func contributors(_ content: PadAboutContent.Contributors, compact: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if !compact {
+                Text(content.title).font(.system(size: 15, weight: .semibold)).padding(.bottom, 5)
+                    .accessibilityIdentifier("about-contributors")
+                note(content.note)
+            }
+            GeometryReader { geometry in
+                let width = geometry.size.width
+                ZStack(alignment: .topLeading) {
+                    ForEach(content.nodes) { node in
+                        let diameter = width * node.r * 2
+                        let selected = about.selectedContributorID == node.id
+                        Button {
+                            if compact { about.contributorsExpanded = true }
+                            else { about.selectedContributorID = node.id }
+                        } label: {
+                            ZStack {
+                                Circle().fill(inset)
+                                contributorMark(node, diameter: diameter, labeled: !compact && diameter > 105)
+                                if !compact && diameter > 105 {
+                                    Text(node.name).font(.system(size: 11)).lineLimit(1)
+                                        .minimumScaleFactor(0.85)
+                                        .frame(width: diameter * 0.88)
+                                        .offset(y: diameter * 0.4)
+                                }
+                            }.frame(width: diameter, height: diameter).contentShape(Circle())
+                                .overlay { if selected { Circle().strokeBorder(.secondary, lineWidth: 1.5) } }
+                        }.buttonStyle(.plain).foregroundStyle(.primary)
+                            .scaleEffect(about.hoveredContributorID == node.id ? 1.12 : 1)
+                            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: about.hoveredContributorID)
+                            .onHover { about.hoveredContributorID = $0 ? node.id : nil }
+                            .position(x: width * node.x, y: width * node.y)
+                            .zIndex(selected || about.hoveredContributorID == node.id ? 1 : 0)
+                            .accessibilityLabel(node.name + " · " + node.countLabel)
+                            .accessibilityIdentifier("about-contributor-" + node.name)
+                    }
+                }
+            }.aspectRatio(1, contentMode: .fit)
+                .overlay(alignment: .bottomTrailing) {
+                    if compact {
+                        Button { about.contributorsExpanded = true } label: {
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                .font(.system(size: 11)).frame(width: 44, height: 44)
+                        }.buttonStyle(.plain).foregroundStyle(.secondary)
+                            .accessibilityLabel(content.expandLabel)
+                            .accessibilityIdentifier("about-contributors-expand")
+                    }
+                }
+            if !compact { HStack(spacing: 8) {
+                Spacer(minLength: 0)
+                if let selected = content.nodes.first(where: { $0.id == about.selectedContributorID }) {
+                    Text(selected.name).font(.system(size: 12, weight: .medium))
+                    Text(selected.countLabel).font(.system(size: 11)).foregroundStyle(.secondary)
+                    if !selected.url.isEmpty {
+                        Button { copyLink(selected.url) } label: {
+                            Image(systemName: "link").frame(width: 44, height: 44)
+                        }.buttonStyle(.plain).foregroundStyle(accent)
+                            .accessibilityLabel(content.copyLabel)
+                            .accessibilityIdentifier("about-contributor-link")
+                    }
+                } else {
+                    Text(content.hint).font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }.frame(minHeight: 44).accessibilityElement(children: .contain)
+                .accessibilityIdentifier("about-contributor-detail") }
+        }
+    }
+    @ViewBuilder
+    private func contributorMark(_ node: PadAboutContent.Contributors.Node, diameter: CGFloat, labeled: Bool) -> some View {
+        if let image = AboutContributorImages.image(for: node.avatar) {
+            let logo = Image(decorative: image, scale: 1).resizable().scaledToFit()
+                .frame(width: diameter * 0.68, height: diameter * 0.68)
+                .offset(y: labeled ? -diameter * 0.04 : 0)
+            if dark && node.monochrome { logo.colorInvert() } else { logo }
+        } else {
+            Text(node.initial).font(.system(size: min(24, diameter * 0.45), weight: .medium))
+        }
+    }
+
     private func costGroup(_ group: PadAboutContent.Investment.Group, months: Int) -> some View {
         let expanded = about.expandedGroups.contains(group.id)
         return VStack(alignment: .leading, spacing: 0) {

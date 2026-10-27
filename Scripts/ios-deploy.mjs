@@ -96,7 +96,8 @@ export async function sourceFingerprint() {
   const source = await readSourceFingerprint(root, { revision: 'working-tree', paths: ['Sources', 'Tests', 'apps/ios/App', 'apps/ios/UI',
     'apps/ios/UITests', 'apps/macos/Sources', 'apps/windows', 'assets', 'config', 'Package.swift', 'Package.resolved',
     'Scripts', '.github', 'apps/weapp/src/core/catalog.js', 'apps/weapp/src/core/investment.js',
-    'apps/weapp/scripts/engineering-investment.mjs', 'calmmit.config.json', 'make-app.sh', 'test.sh', 'dev.sh', 'LICENSE'] })
+    'apps/weapp/scripts/engineering-investment.mjs', 'apps/weapp/src/core/contributors.js',
+    'calmmit.config.json', 'make-app.sh', 'test.sh', 'dev.sh', 'LICENSE'] })
   const config = configuration(deploymentPaths(root))
   return createHash('sha256').update(JSON.stringify([source, config?.device, config?.team, config?.developerDir])).digest('hex')
 }

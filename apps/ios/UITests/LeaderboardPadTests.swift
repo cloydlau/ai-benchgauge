@@ -2191,6 +2191,17 @@ final class LeaderboardAboutParityTests: XCTestCase {
             XCTAssertFalse(app.buttons["about-license-arena"].exists)
             XCTAssertFalse(app.buttons["about-license-artificialAnalysis"].exists)
             let infrastructure = app.buttons["about-cost-infrastructure"]
+            let contributorExpand = app.buttons["about-contributors-expand"]
+            reveal(contributorExpand, in: scroll)
+            contributorExpand.tap()
+            XCTAssertTrue(app.staticTexts["about-contributors"].waitForExistence(timeout: 3))
+            let contributor = app.buttons["about-contributor-Cloyd Lau"].firstMatch
+            XCTAssertTrue(contributor.exists)
+            contributor.tap()
+            XCTAssertTrue(app.staticTexts["Cloyd Lau"].exists)
+            XCTAssertTrue(app.buttons["about-contributor-link"].exists)
+            capture("about-" + theme + "-contributors")
+            app.buttons[chinese ? "完成" : "Done"].firstMatch.tap()
             reveal(infrastructure, in: scroll)
             XCTAssertEqual(infrastructure.value as? String, chinese ? "已收起" : "Collapsed")
             infrastructure.tap()

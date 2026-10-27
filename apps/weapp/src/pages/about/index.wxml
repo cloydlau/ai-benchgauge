@@ -21,7 +21,10 @@
         <image class="artwork-image" src="{{artwork.image}}" mode="aspectFit" aria-hidden="true" />
       </button>
       <view class="artwork-caption">
-        <view class="artwork-heading"><view class="artwork-title-stack"><text class="artwork-title">{{artwork.title}}</text><text class="artwork-subtitle">{{artwork.caption}}</text></view></view>
+        <view class="artwork-heading">
+          <view class="artwork-title-stack artwork-title-fit" style="transform:scale({{artworkTitleScale}});"><text class="artwork-title">{{artwork.title}}</text><text class="artwork-subtitle">{{artwork.caption}}</text></view>
+          <view class="artwork-title-stack artwork-title-measure" aria-hidden="true"><text class="artwork-title">{{artwork.title}}</text><text class="artwork-subtitle">{{artwork.caption}}</text></view>
+        </view>
         <view class="artwork-credits">
           <view wx:for="{{artwork.credits}}" wx:key="id" class="artwork-credit-row">
             <text class="artwork-credit-role">{{item.role}}</text>
@@ -52,11 +55,22 @@
       <text class="section-title">{{investment.title}}</text>
       <view class="investment-details">
         <text class="investment-heading">{{investment.engineeringTitle}}</text>
-        <view class="investment-metrics">
-          <view wx:for="{{investment.metrics}}" wx:key="id" class="investment-metric">
-            <text class="investment-value">{{item.value}}</text>
-            <text class="investment-label">{{item.label}}</text>
+        <view class="investment-engineering {{contributors.nodes.length ? 'has-contributors' : ''}}">
+          <view class="investment-metrics">
+            <view wx:for="{{investment.metrics}}" wx:key="id" class="investment-metric">
+              <text class="investment-value">{{item.value}}</text>
+              <text class="investment-label">{{item.label}}</text>
+            </view>
           </view>
+          <button wx:if="{{contributors.nodes.length}}" class="contributor-mini" bindtap="openContributors" hover-class="none" aria-label="{{contributors.expandLabel}}">
+            <view class="contributor-field" aria-hidden="true">
+              <view wx:for="{{contributors.nodes}}" wx:key="id" class="contributor-circle" style="{{item.style}}">
+                <image wx:if="{{item.avatar}}" class="contributor-logo {{item.monochrome ? 'contributor-monochrome' : ''}}" src="{{item.avatar}}" mode="aspectFit" />
+                <text wx:else class="contributor-initial">{{item.initial}}</text>
+              </view>
+            </view>
+            <view class="contributor-expand" aria-hidden="true"><van-icon name="enlarge" size="13px" /></view>
+          </button>
         </view>
         <text class="investment-note">{{investment.note}}</text>
         <text class="investment-heading budget-heading">{{investment.budgetTitle}}</text>
@@ -89,4 +103,25 @@
       </view>
     </view>
   </view>
+  <van-popup show="{{contributorsExpanded}}" position="center" round closeable bind:close="closeContributors" custom-style="width:90vw;max-width:560px;background:var(--card);color:var(--ink);">
+    <view class="contributors-expanded">
+      <text class="section-title">{{contributors.title}}</text>
+      <text class="investment-note">{{contributors.note}}</text>
+      <view class="contributor-field" aria-label="{{contributors.title}}">
+        <button wx:for="{{contributors.nodes}}" wx:key="id" class="contributor-circle {{item.r > 0.09 ? 'contributor-labeled' : ''}} {{selectedContributorID === item.id ? 'is-selected' : ''}}" style="{{item.style}}" data-id="{{item.id}}" bindtap="selectContributor" hover-class="contributor-pressed" aria-label="{{item.name}} · {{item.countLabel}}" aria-pressed="{{selectedContributorID === item.id}}">
+          <image wx:if="{{item.avatar}}" class="contributor-logo {{item.monochrome ? 'contributor-monochrome' : ''}}" src="{{item.avatar}}" mode="aspectFit" aria-hidden="true" />
+          <text wx:else class="contributor-initial" aria-hidden="true">{{item.initial}}</text>
+          <text wx:if="{{item.r > 0.09}}" class="contributor-name" aria-hidden="true">{{item.name}}</text>
+        </button>
+      </view>
+      <view class="contributor-detail" aria-live="polite">
+        <block wx:if="{{selectedContributor}}">
+          <text class="contributor-selected-name">{{selectedContributor.name}}</text>
+          <text class="investment-note">{{selectedContributor.countLabel}}</text>
+          <button wx:if="{{selectedContributor.url}}" class="contributor-link" data-url="{{selectedContributor.url}}" bindtap="copyLink" aria-label="{{contributors.copyLabel}}"><van-icon name="link-o" size="16px" /></button>
+        </block>
+        <text wx:else class="investment-note">{{contributors.hint}}</text>
+      </view>
+    </view>
+  </van-popup>
 </view>

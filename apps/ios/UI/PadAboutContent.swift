@@ -21,6 +21,29 @@ struct PadAboutContent: Decodable, Sendable {
         let platforms: Platforms
         let artwork: Artwork
         let investment: Investment
+        let contributors: Contributors
+    }
+    struct Contributors: Decodable, Sendable {
+        struct Node: Decodable, Identifiable, Sendable {
+            let id: String
+            let name: String
+            let count: Int
+            let countLabel: String
+            let avatar: String
+            let initial: String
+            let monochrome: Bool
+            let url: String
+            let x: Double
+            let y: Double
+            let r: Double
+        }
+        let title: String
+        let note: String
+        let hint: String
+        let copyLabel: String
+        let expandLabel: String
+        let closeLabel: String
+        let nodes: [Node]
     }
     struct Artwork: Decodable, Sendable {
         struct Credit: Decodable, Identifiable, Sendable {
