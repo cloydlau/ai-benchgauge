@@ -2648,8 +2648,8 @@ packages:
     peerDependencies:
       postcss: ^8.4
 
-  cssdb@8.12.0:
-    resolution: {integrity: sha512-A8/XPAtGymaiKrVU++Xxmu+277gNdjKH0876QFiEFufAyKPX7V/+jVynbfiN9b45Hz07iKO4b7oJuECFTl6YQQ==}
+  cssdb@8.12.1:
+    resolution: {integrity: sha512-PEs3M37NKHUDIyMHRv82LYKHudUhBSyDbK83yfZwtwxGauKuvE4Lvaf3e2IDu00PS91pX/QH37hEaTfZufFo5g==}
 
   cssesc@3.0.0:
     resolution: {integrity: sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==}
@@ -3200,8 +3200,8 @@ packages:
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
 
-  magic-string@1.4.3:
-    resolution: {integrity: sha512-z12OxmaPGE0F4xlpGdjuAUckipLpQlTAuAmyGhNoD7ODpYUzvDfvtxUbjM/jwznyP178oju/KDdyi220wNJ0RQ==}
+  magic-string@1.4.4:
+    resolution: {integrity: sha512-jQz9sVhrZuphH4NrAIHSgkDJCluQO7Ioi4KGRLa7aTUjAODQ13hENX0YIytqYE/rIkO485gQG2LeBxJaW53kkQ==}
 
   merge2@1.4.1:
     resolution: {integrity: sha512-8q7VEgMJW4J8tcfVPy8g09NcQwZdbwFEqhe/WZkoIzjn/3TGDwtOCYtXGxA3O8tPzpczCCDgv+P2P5y00ZJOOg==}
@@ -6051,7 +6051,7 @@ snapshots:
       esbuild: 0.28.2
       htmlparser2: 12.0.0
       lit: 3.3.3
-      magic-string: 1.4.3
+      magic-string: 1.4.4
       pathe: 2.0.3
       postcss: 8.5.31
       postcss-selector-parser: 7.1.7
@@ -6092,7 +6092,7 @@ snapshots:
       '@weapp-vite/ast': 7.6.0(rolldown@1.2.14)
       comment-json: 5.0.0
       lru-cache: 11.5.3
-      magic-string: 1.4.3
+      magic-string: 1.4.4
       merge: 2.1.1
       pathe: 2.0.3
       postcss: 8.5.31
@@ -6261,7 +6261,7 @@ snapshots:
     dependencies:
       postcss: 8.5.31
 
-  cssdb@8.12.0: {}
+  cssdb@8.12.1: {}
 
   cssesc@3.0.0: {}
 
@@ -6744,7 +6744,7 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  magic-string@1.4.3:
+  magic-string@1.4.4:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
 
@@ -7103,7 +7103,7 @@ snapshots:
       css-blank-pseudo: 8.0.2(postcss@8.5.31)
       css-has-pseudo: 8.0.2(postcss@8.5.31)
       css-prefers-color-scheme: 11.0.1(postcss@8.5.31)
-      cssdb: 8.12.0
+      cssdb: 8.12.1
       postcss: 8.5.31
       postcss-attribute-case-insensitive: 8.0.2(postcss@8.5.31)
       postcss-clamp: 4.1.0(postcss@8.5.31)
@@ -7501,7 +7501,7 @@ snapshots:
       htmlparser2: 12.0.0
       local-pkg: 1.2.1
       lru-cache: 11.5.3
-      magic-string: 1.4.3
+      magic-string: 1.4.4
       micromatch: 4.0.8
       oxc-parser: 0.154.0
       oxc-walker: 1.1.1(@oxc-project/types@0.154.0)(oxc-parser@0.154.0)(rolldown@1.2.14)
@@ -7574,7 +7574,7 @@ snapshots:
       htmlparser2: 12.0.0
       local-pkg: 1.2.1
       lru-cache: 11.5.3
-      magic-string: 1.4.3
+      magic-string: 1.4.4
       merge: 2.1.1
       obug: 3.0.0
       p-queue: 9.3.5

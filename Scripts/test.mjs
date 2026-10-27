@@ -201,6 +201,10 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
       // Commit workflows set this to 0 while running checks. Isolated watcher
       // fixtures must choose their own push policy rather than inherit it.
       delete childEnv.COMMIT_PUSH
+      // Isolated Git repositories need their own lock and AI activity ticket;
+      // the parent repository's commit authorization cannot apply to fixtures.
+      delete childEnv.COMMIT_REQUIRE_LOCK
+      delete childEnv.CALMMIT_AI_COMMIT_TICKET
       if (coverageDirectory) {
         childEnv.NODE_V8_COVERAGE = coverageDirectory
         childEnv.BENCHGAUGE_COVERAGE_DIRECTORY = coverageDirectory

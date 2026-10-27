@@ -69,6 +69,20 @@ test('first failed suite blocks subsequent suites and writes a failing report', 
   assert.equal(JSON.parse(readFileSync(join(root, 'work', 'test-results', 'latest.json'))).status, 1)
 })
 
+test('real test children do not inherit a parent commit lock or repository activity ticket', async t => {
+  const root = fixture(t)
+  const env = { ...process.env, COMMIT_REQUIRE_LOCK: '1', CALMMIT_AI_COMMIT_TICKET: 'parent-repository-ticket',
+    COMMIT_PUSH: '0', GIT_INDEX_FILE: join(root, 'parent-index'), BENCHGAUGE_TEST_PASS: 'parent-pass', TEST_FIXTURE_VALUE: 'keep' }
+  const original = { ...env }
+  const code = `const assert = require('node:assert/strict');
+    for (const key of ['COMMIT_REQUIRE_LOCK', 'CALMMIT_AI_COMMIT_TICKET', 'COMMIT_PUSH', 'GIT_INDEX_FILE', 'BENCHGAUGE_TEST_PASS'])
+      assert.equal(process.env[key], undefined, key);
+    assert.equal(process.env.TEST_FIXTURE_VALUE, 'keep');`
+  const result = await runTests({ root, logger, env, commands: [[process.execPath, ['-e', code]]] })
+  assert.equal(result.status, 0, readFileSync(result.logPath, 'utf8'))
+  assert.deepEqual(env, original, 'Only the test child environment may change')
+})
+
 test('mini-program business tests join the full offline gate and an empty suite is rejected', (t) => {
   const root = fixture(t)
   const directory = join(root, 'apps/weapp/test')
