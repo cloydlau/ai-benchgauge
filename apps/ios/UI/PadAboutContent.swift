@@ -36,6 +36,7 @@ struct PadAboutContent: Decodable, Sendable {
         let width: Double
         let height: Double
         let title: String
+        let caption: String
         let alt: String
         let previewLabel: String
         let sourceLabel: String

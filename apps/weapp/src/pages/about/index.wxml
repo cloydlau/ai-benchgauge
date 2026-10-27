@@ -21,7 +21,7 @@
         <image class="artwork-image" src="{{artwork.image}}" mode="aspectFit" aria-hidden="true" />
       </button>
       <view class="artwork-caption">
-        <text class="artwork-title">{{artwork.title}}</text>
+        <view class="artwork-heading"><view class="artwork-title-stack"><text class="artwork-title">{{artwork.title}}</text><text class="artwork-subtitle">{{artwork.caption}}</text></view></view>
         <view class="artwork-credits">
           <view wx:for="{{artwork.credits}}" wx:key="id" class="artwork-credit-row">
             <text class="artwork-credit-role">{{item.role}}</text>

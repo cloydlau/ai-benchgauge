@@ -9,6 +9,7 @@ export function aboutArtwork(language) {
     width: 1474,
     height: 1067,
     title: text(['Across a century', '跨世纪的同框', '跨世紀的同框'], language),
+    caption: '1927 × AI',
     alt: text(['AI models as illustrated characters in front of a historic group photograph',
       '历史合影前，DeepSeek、ChatGPT、Claude、Gemini、Grok、Kimi、GLM、Qwen 的拟人插画',
       '歷史合影前，DeepSeek、ChatGPT、Claude、Gemini、Grok、Kimi、GLM、Qwen 的擬人插畫'], language),

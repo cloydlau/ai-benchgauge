@@ -142,7 +142,7 @@ struct PadAboutView<Brand: View>: View {
                     .accessibilityLabel(artwork.alt + " · " + artwork.previewLabel)
                     .accessibilityIdentifier("about-artwork-preview")
                 HStack(alignment: .center, spacing: 12) {
-                    artworkTitle(artwork.title)
+                    artworkTitle(artwork)
                     artworkCredits(artwork)
                 }.frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 13).padding(.vertical, 8)
@@ -153,11 +153,21 @@ struct PadAboutView<Brand: View>: View {
             .accessibilityElement(children: .contain).accessibilityIdentifier("about-artwork")
         }
     }
-    private func artworkTitle(_ title: String) -> some View {
-        Text(title).font(.system(size: 22, weight: .semibold))
-            .lineLimit(1).minimumScaleFactor(0.75)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: 28, alignment: .leading)
+    private func artworkTitle(_ artwork: PadAboutContent.Artwork) -> some View {
+        ViewThatFits(in: .horizontal) {
+            artworkTitleStack(artwork, size: 20)
+            artworkTitleStack(artwork, size: 15)
+            artworkTitleStack(artwork, size: 13)
+        }.frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 28)
+    }
+    private func artworkTitleStack(_ artwork: PadAboutContent.Artwork, size: CGFloat) -> some View {
+        HStack(alignment: .bottom, spacing: 4) {
+            Text(artwork.title).font(.system(size: size, weight: .semibold))
+                .lineLimit(1).fixedSize().frame(height: size)
+            Text(artwork.caption).font(.system(size: 7)).foregroundStyle(.secondary)
+                .lineLimit(1).fixedSize().frame(height: 7)
+        }.fixedSize(horizontal: true, vertical: false).frame(height: 28)
     }
     private func artworkCredits(_ artwork: PadAboutContent.Artwork) -> some View {
         VStack(alignment: .leading, spacing: 0) {
