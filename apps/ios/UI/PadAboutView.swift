@@ -370,7 +370,14 @@ struct PadAboutView<Brand: View>: View {
             } else {
                 HStack(alignment: .bottom, spacing: 8) {
                     metrics
-                    self.contributors(contributors, compact: true).frame(maxWidth: .infinity)
+                    Color.clear.frame(maxWidth: .infinity).frame(height: 0)
+                }.overlay {
+                    GeometryReader { geometry in
+                        let side = max(0, min((geometry.size.width - 16) / 3, geometry.size.height))
+                        self.contributors(contributors, compact: true)
+                            .frame(width: side, height: side)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    }
                 }.padding(.vertical, 9)
             }
             note(investment.note)
