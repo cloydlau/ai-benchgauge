@@ -4,7 +4,7 @@ import LeaderboardKit
 
 @MainActor
 private enum SourceIconCache {
-    static let images: [String: CGImage] = ["cloudbase", "vercel", "openRouter", "artificialAnalysis", "arena", "epoch", "wechat", "weibo"]
+    static let images: [String: CGImage] = ["cloudbase", "vercel", "openRouter", "artificialAnalysis", "arena", "epoch", "wechat", "weibo", "solvay"]
         .flatMap { [$0, $0 + "-dark"] }.reduce(into: [:]) { images, name in
             guard let url = Bundle.module.url(forResource: name, withExtension: "png", subdirectory: "SourceLogos"),
                   let source = CGImageSourceCreateWithURL(url as CFURL, nil),
@@ -142,9 +142,11 @@ struct PadAboutView<Brand: View>: View {
                     .accessibilityLabel(artwork.alt + " · " + artwork.previewLabel)
                     .accessibilityIdentifier("about-artwork-preview")
                 VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        Text(artwork.title).font(.system(size: 15, weight: .semibold))
-                        Spacer(minLength: 6)
+                    HStack(spacing: 7) {
+                        Text(artwork.title).font(.system(size: 14, weight: .semibold)).fixedSize()
+                        Text(artwork.caption).font(.system(size: 11)).foregroundStyle(.secondary)
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                        Spacer(minLength: 0)
                         Button { about.artworkExpanded = true } label: {
                             Image(systemName: "arrow.up.left.and.arrow.down.right")
                                 .font(.system(size: 12)).frame(minWidth: 44, minHeight: 44, alignment: .trailing)
@@ -152,8 +154,6 @@ struct PadAboutView<Brand: View>: View {
                         }.buttonStyle(.plain).foregroundStyle(.secondary)
                             .accessibilityLabel(artwork.previewLabel)
                     }
-                    Text(artwork.caption).font(.system(size: 12)).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true).padding(.bottom, 12)
                     Divider()
                     artworkCredits(artwork).padding(.top, 4).padding(.bottom, 6)
                 }.padding(.horizontal, 13).padding(.top, 6)
@@ -165,31 +165,37 @@ struct PadAboutView<Brand: View>: View {
         }
     }
     private func artworkCredits(_ artwork: PadAboutContent.Artwork) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        HStack(alignment: .center, spacing: 5) {
             ForEach(artwork.credits) { credit in
-                HStack(alignment: .center, spacing: 9) {
+                if credit.id != artwork.credits.first?.id {
+                    Text("·").font(.system(size: 10)).foregroundStyle(.secondary).accessibilityHidden(true)
+                }
+                HStack(alignment: .center, spacing: 4) {
                     Text(credit.role).font(.system(size: 10)).foregroundStyle(.secondary)
-                        .frame(width: 32, alignment: .leading)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .fixedSize()
                     Link(destination: credit.url) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(credit.name).underline().font(.system(size: 11, weight: .medium))
-                            if !credit.detail.isEmpty {
-                                Text(credit.detail).font(.system(size: 10)).foregroundStyle(.secondary)
-                            }
-                        }.fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        Text(credit.name).underline().font(.system(size: 10, weight: .medium))
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                            .frame(minHeight: 44, alignment: .leading)
                             .contentShape(Rectangle())
                     }.foregroundStyle(accent)
+                        .accessibilityLabel(credit.role + " · " + credit.name + (credit.detail.isEmpty ? "" : " · " + credit.detail))
                         .accessibilityIdentifier("about-artwork-credit-" + credit.id)
                     if let url = credit.workURL {
                         Link(destination: url) {
-                            SourceBrandIcon(sourceID: "weibo", dark: dark, size: 16)
-                                .frame(minWidth: 44, minHeight: 44, alignment: .trailing).contentShape(Rectangle())
-                        }.foregroundStyle(accent).accessibilityLabel(artwork.sourceLabel + " · " + credit.name)
+                            SourceBrandIcon(sourceID: credit.sourceIcon, dark: dark,
+                                            size: credit.sourceIcon == "solvay" && dark ? 14 : 16)
+                                .padding(credit.sourceIcon == "solvay" && dark ? 1 : 0)
+                                .background(credit.sourceIcon == "solvay" && dark
+                                            ? Color(red: 241 / 255, green: 238 / 255, blue: 232 / 255) : .clear,
+                                            in: RoundedRectangle(cornerRadius: 2))
+                                .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+                                .padding(.horizontal, -10)
+                        }.foregroundStyle(accent).accessibilityLabel(credit.workLabel)
                     }
                 }
             }
+            Spacer(minLength: 0)
         }
     }
     private func hero(_ lines: [String]) -> some View {

@@ -21,15 +21,14 @@
         <image class="artwork-image" src="{{artwork.image}}" mode="aspectFit" aria-hidden="true" />
       </button>
       <view class="artwork-caption">
-        <view class="artwork-heading"><text class="artwork-title">{{artwork.title}}</text><button class="artwork-expand" bindtap="previewArtwork" aria-label="{{artwork.previewLabel}}"><van-icon name="expand-o" size="15px" /></button></view>
-        <text class="artwork-note">{{artwork.caption}}</text>
+        <view class="artwork-heading"><text class="artwork-title">{{artwork.title}}</text><text class="artwork-note">{{artwork.caption}}</text><button class="artwork-expand" bindtap="previewArtwork" aria-label="{{artwork.previewLabel}}"><van-icon name="expand-o" size="15px" /></button></view>
         <view class="artwork-credits">
           <view wx:for="{{artwork.credits}}" wx:key="id" class="artwork-credit-row">
             <text class="artwork-credit-role">{{item.role}}</text>
             <button class="artwork-credit-person" data-url="{{item.url}}" bindtap="copyLink" aria-label="{{item.role}} · {{item.name}} · {{item.detail}}">
-              <text class="artwork-credit-name">{{item.name}}</text><text wx:if="{{item.detail}}" class="artwork-credit-detail">{{item.detail}}</text>
+              <text class="artwork-credit-name">{{item.name}}</text>
             </button>
-            <button wx:if="{{item.workURL}}" class="artwork-credit-link" data-url="{{item.workURL}}" bindtap="copyLink" aria-label="{{artwork.sourceLabel}} · {{item.name}}"><image class="artwork-weibo-icon" src="/assets/source-logos/weibo{{dark ? '-dark' : ''}}.png" mode="aspectFit" aria-hidden="true" /></button>
+            <button wx:if="{{item.workURL}}" class="artwork-credit-link" data-url="{{item.workURL}}" bindtap="copyLink" aria-label="{{item.workLabel}}"><image class="artwork-source-icon artwork-source-icon-{{item.sourceIcon}}" src="/assets/source-logos/{{item.sourceIcon}}{{dark ? '-dark' : ''}}.png" mode="aspectFit" aria-hidden="true" /></button>
           </view>
         </view>
       </view>

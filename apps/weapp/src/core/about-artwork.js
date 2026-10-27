@@ -8,8 +8,8 @@ export function aboutArtwork(language) {
     sourceURL: 'https://weibo.com/1401527553/RouFUDfWK',
     width: 1474,
     height: 1067,
-    title: text(['The AI group portrait', 'AI 大合影', 'AI 大合影'], language),
-    caption: text(['Beyond the rankings, a little imagination.', '榜单之外，来点想象。', '榜單之外，來點想像。'], language),
+    title: text(['Across a century', '跨世纪的同框', '跨世紀的同框'], language),
+    caption: '1927 × AI',
     alt: text(['AI models as illustrated characters in front of a historic group photograph',
       '历史合影前，DeepSeek、ChatGPT、Claude、Gemini、Grok、Kimi、GLM、Qwen 的拟人插画',
       '歷史合影前，DeepSeek、ChatGPT、Claude、Gemini、Grok、Kimi、GLM、Qwen 的擬人插畫'], language),
@@ -18,11 +18,13 @@ export function aboutArtwork(language) {
     credits: [
       {
         id: 'adaptation',
-        role: text(['Remix', '改编', '改編'], language),
+        role: text(['Via', '出处', '出處'], language),
         name: 'tombkeeper',
         url: 'https://weibo.com/u/1401527553',
         detail: '',
         workURL: 'https://weibo.com/1401527553/RouFUDfWK',
+        sourceIcon: 'weibo',
+        workLabel: text(['Artwork by tombkeeper', 'tombkeeper 的作品原帖', 'tombkeeper 的作品原帖'], language),
       },
       {
         id: 'photograph',
@@ -30,7 +32,9 @@ export function aboutArtwork(language) {
         name: 'Benjamin Couprie',
         url: 'https://commons.wikimedia.org/wiki/File:Solvay_conference_1927.jpg',
         detail: text(['Fifth Solvay Conference, 1927', '1927 年第五届索尔维会议', '1927 年第五屆索爾維會議'], language),
-        workURL: null,
+        workURL: 'https://solvayinstitutes.be/home/conferences/pictures/',
+        sourceIcon: 'solvay',
+        workLabel: text(['Solvay Institutes · Official conference photographs', '索尔维研究所 · 官方会议相册', '索爾維研究所 · 官方會議相冊'], language),
       },
     ],
   }

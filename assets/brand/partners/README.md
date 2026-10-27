@@ -38,3 +38,7 @@ mobile clients; see `wechat/README.md` for provenance and the bundled MIT notice
 `weibo/` contains the Simple Icons Sina Weibo mark (CC0 1.0) for the artwork
 attribution's original-post link. Both mobile clients use the same neutral PNG
 exports; see `weibo/README.md` for source and licensing details.
+
+`solvay/` holds the official International Solvay Institutes avatar used beside
+the About artwork's historic-photo credit. The same exporter preserves its
+original colors in both themes; see `solvay/README.md` for provenance.

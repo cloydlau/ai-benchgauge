@@ -30,6 +30,8 @@ struct PadAboutContent: Decodable, Sendable {
             let url: URL
             let detail: String
             let workURL: URL?
+            let sourceIcon: String
+            let workLabel: String
         }
         let image: String
         let sourceURL: URL

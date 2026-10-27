@@ -49,3 +49,10 @@ https://github.com/simple-icons/simple-icons/blob/develop/icons/sinaweibo.svg
 CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/
 Project license: https://github.com/simple-icons/simple-icons/blob/develop/LICENSE.md
 The Weibo trademark remains the property of its owner.
+
+International Solvay Institutes avatar
+https://solvayinstitutes.be/
+Official conference gallery: https://solvayinstitutes.be/home/conferences/pictures/
+The mark belongs to the International Solvay Institutes and identifies the
+historic conference associated with the original photograph. Inclusion does
+not imply endorsement; this artwork is not covered by the repository MIT license.
