@@ -176,7 +176,7 @@ test('About lists seven icon rows with a single contribution footer and no platf
     assert.deepEqual(copies, [about.repositoryURL])
     if (language === 'zh-CN') {
       assert.deepEqual(about.platforms.items.map(item => [item.name, item.statusLabel, item.featureText]), [
-        ['微信小程序', '已上线', '榜单'], ['iOS', '开发中', '榜单'], ['iPad', '开发中', '榜单'],
+        ['微信小程序', '已上线', '榜单'], ['iOS', '开发中', '榜单'], ['iPadOS', '开发中', '榜单'],
         ['安卓', '暂无', ''], ['鸿蒙', '暂无', ''], ['macOS', '已上线', '榜单 · 余量'], ['Windows', '开发中', '榜单 · 余量'],
       ])
     }

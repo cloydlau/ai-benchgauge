@@ -4,7 +4,7 @@ import { text, repositoryURL } from './catalog.js'
 const platforms = [
   { id: 'weapp', names: ['WeChat Mini Program', '微信小程序', '微信小程式'], status: 'live', features: ['boards'] },
   { id: 'ios', names: ['iOS', 'iOS', 'iOS'], status: 'development', features: ['boards'] },
-  { id: 'ipad', names: ['iPad', 'iPad', 'iPad'], status: 'development', features: ['boards'] },
+  { id: 'ipad', names: ['iPadOS', 'iPadOS', 'iPadOS'], status: 'development', features: ['boards'] },
   { id: 'android', names: ['Android', '安卓', '安卓'], status: 'unavailable', features: [] },
   { id: 'harmony', names: ['HarmonyOS', '鸿蒙', '鴻蒙'], status: 'unavailable', features: [] },
   { id: 'macos', names: ['macOS', 'macOS', 'macOS'], status: 'live', features: ['boards', 'quota'] },

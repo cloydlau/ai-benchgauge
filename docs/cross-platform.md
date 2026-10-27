@@ -27,7 +27,7 @@
 分布图数值对齐验证（2026-10-27）：小程序 204 项测试及生产构建通过；官方 `wechatide-skill` 在规范项目的模拟器中确认 25 个百分比单元格均为 42px，同一图表内国家与源码数量的右边缘一致，实际截图覆盖 3.7%、33.3%、55.6% 等不同位数。macOS Debug 构建通过；相同夹具、视口及 2× backing scale 下，简中单榜、繁中窄三榜、英文双榜的深浅主题分别采集修改前后 shown / refreshed / settled，各 18 帧；检查 0.0%、5.0%、95.0%、100.0% 的对齐和窄布局，未见数值裁切。首帧前后像素一致；本次采集的刷新与稳定帧差异仅在右侧滚动条。截图、夹具、源码哈希、元数据与日志保留在忽略目录 `work/distribution-columns/`。Windows WPF Release 交叉编译零警告/错误，缺少 Windows 环境，未进行 WPF 原生截图验收或安装；iPhone/iPad 共用 Apple 修正，但本机缺少 Xcode，未进行 iOS 构建、模拟器或真机验收。未运行双桌面 CI 视觉对照或发布客户端。
 | 切换动效 | 小程序 `core/board-transition.js`、Apple `LeaderboardSwitchStyle` / `CubeFace` | 小程序与 iPhone/iPad 设置提供魔方、滑动、淡入淡出预览卡，默认魔方并本地持久保存；用于单榜视图的手势和标签切换，共用来源边界、跨分类导航、滚动对齐。分享保留接收方动效偏好，显示榜单重置不重置动效。减少动态效果时改为轻量淡入淡出并停用预览动画。iPad 宽屏和 Mac / Windows 的并列榜单保持原布局，静态导出无动效。JS `board-transition` / `settings` / `share-state` / `page` 测试及 Apple `LeaderboardCubeTests` 覆盖 |
 | 模型详情 | Kit `ModelDetails` / `ModelDetailsView`、小程序 `core/model-details.js`；Windows 消费共享引擎的详情投影 | 小程序、iPhone/iPad、macOS、Windows：优先展示限额与能力卡片，模型资料、服务商价格和来源可展开查看，保留全部字段与显式复制操作；滚动后提供返回顶部。同步时间按设备本地时区显示 `yyyy-MM-dd HH:mm:ss`，保留秒数；固定截图夹具使用 UTC。图片导出不包含交互详情页 |
-| 各端进展与贡献 | 小程序 `core/about-platforms.js` → `Scripts/ios-about.mjs`；微信图形 `assets/brand/partners/wechat/logo.svg` → `Scripts/source-logos.mjs` | 小程序与 iPhone/iPad 关于页，替换原 “余量查询” 卡片；固定七端功能及状态，每端单行显示图标、名称、功能和状态 Tag（无圆点）；七端图标统一为中性灰线框样式，微信保留品牌双气泡与四个圆点；iOS 标注 “（含 iPhone Duo）”。列表下方统一显示可复制仓库链接的 “欢迎贡献代码”（英文 PR welcome），各端无独立链接，macOS 状态同样使用 Tag；桌面 About 和图片导出没有原移动卡片，不新增模块 |
+| 各端进展与贡献 | 小程序 `core/about-platforms.js` → `Scripts/ios-about.mjs`；微信图形 `assets/brand/partners/wechat/logo.svg` → `Scripts/source-logos.mjs` | 小程序与 iPhone/iPad 关于页，替换原 “余量查询” 卡片；固定七端功能及状态，每端单行显示图标、名称、功能和状态 Tag（无圆点）；七端图标统一为中性灰线框样式，微信保留品牌双气泡与四个圆点；iPad 平台名称三语均显示为 iPadOS，iOS 标注 “（含 iPhone Duo）”。列表下方统一显示可复制仓库链接的 “欢迎贡献代码”（英文 PR welcome），各端无独立链接，macOS 状态同样使用 Tag；桌面 About 和图片导出没有原移动卡片，不新增模块 |
 | 成本与工程投入 | Calmmit `cost-calculation.mjs`、`engineering-investment.mjs`、`resources/CostCalculation.swift` | 小程序与 iPhone/iPad 关于页。构建入口同步 JS / Swift 计算适配器；Git 统计、月份取整、按月累计和合计由 Calmmit 维护，项目预算、文案与 UI 独立维护。桌面及图片导出当前没有该成本区 |
 | 关于页 AI 合影 | `assets/about/ai-models-group-portrait.jpg`、小程序 `core/about-artwork.js` → `Scripts/ios-about.mjs` | 小程序与 iPhone/iPad 关于页简介下方完整展示合影；署名改编作者 tombkeeper（作品原帖）和历史原图摄影者 Benjamin Couprie（1927 年第五届索尔维会议，附原图来源）。作者名使用下划线，图标置于姓名前且与姓名共用同一个出处链接，不另加可见的链接操作文案；小程序点按复制对应地址，原生直接打开。支持大图预览。小程序构建同尺寸 quality 86 JPEG，iOS 项目从同一目录打包原图；三语、深浅色及窄屏分别检查。桌面只有许可窗口，没有独立关于页；榜单图片导出不包含关于页内容 |
 
@@ -65,6 +65,8 @@
 文案与金额精度修正验证（2026-10-26）：小程序 200 项测试及构建、iOS 三语生成数据 2 项检查通过；Swift 粗粒度金额计算实际编译运行 9 项断言通过，iOS 内容模型语法检查通过。Calmmit 前台/后台 review 与公共计算相关 85 项测试通过，产品文案规则已核对两条实际提示入口。千元、万元等更粗金额单位可按项目指定，UI 不展示该内部配置。未运行移动 UI 测试或完成真机安装验收。
 
 金额粒度规则验证（2026-10-26）：Calmmit 公共计算与生成适配 6 项测试通过；AI 天梯小程序 200 项测试及构建、iOS 数据生成 2 项检查通过，Swift 金额计算实际编译运行的 13 项断言通过。Watrek / Weaveo 生成适配同步，核心包分别 283 / 433 项测试通过，Weaveo 小程序 828 项测试通过，均通过原有覆盖率要求。本轮未运行 iPhone/iPad UI 测试或真机安装；桌面与图片导出不含此投入金额模块。
+
+平台名称修正（2026-10-27）：共享平台清单将 iPad 改为 iPadOS，保留 `ipad` 内部标识，三语及小程序、iPhone/iPad 生成内容一致。8 项关于页检查、小程序生产构建及三语生成内容核对通过；未完成原生运行或安装验收。桌面及图片导出没有该列表，不涉及。
 
 “各端进展” 验证（2026-10-26）：小程序 200 项测试及构建通过；已通过 CUA 核对当前仓库 `apps/weapp` 的微信开发者工具实际关于页，七端图标、单行信息及底部统一贡献入口均可见，macOS 无独立链接。iPhone/iPad 共用生成数据三语一致性检查与 Swift 源码语法检查通过，UI 用例已改为逐行核对七端功能与状态、确认无独立链接，并核对底部统一贡献入口。补跑 Apple 共用 UI 模块实际编译时，当前 Command Line Tools 缺少 `SwiftUIMacros.StateMacro` 插件，编译失败；未运行 iPhone/iPad UI 测试或完成真机安装验收。macOS/Windows 的运行界面与图片导出不涉及本次移动关于页替换。
 
