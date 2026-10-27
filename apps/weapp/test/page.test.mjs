@@ -1949,7 +1949,7 @@ for (const face of [0, 1]) test(`first entrance reveals both faces, fades in and
   globalThis.__benchHooks.unload()
 })
 
-test('source tabs retain the selected board during the reveal and an unfinished drag', async t => {
+test('source tabs retain the entrance selection then track an unfinished drag and its release', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const h = setup(), loading = h.loadCategory()
   t.after(() => globalThis.__benchHooks.unload())
@@ -1960,7 +1960,7 @@ test('source tabs retain the selected board during the reveal and an unfinished 
   assert.equal(h.page.cubePosition.value, 0.10)
   assert.equal(h.page.sourceSelection.value, initialSelection)
   h.page.selectFace(event({ index: 1 }))
-  assert.equal(h.page.sourceSelection.value, initialSelection, 'Mounting the target cube face must not move the tab early')
+  assert.match(h.page.sourceSelection.value, /translateX\(0%\)/, 'Mounting the target cube face must not move the tab early')
   t.mock.timers.tick(24)
   const votedSelection = h.page.sourceSelection.value
   assert.match(votedSelection, /translateX\(100%\)/)
@@ -1970,12 +1970,68 @@ test('source tabs retain the selected board during the reveal and an unfinished 
   h.page.cubeMove({ touches: [{ clientX: 280, clientY: 200 }] })
   assert.ok(h.page.cubePosition.value < 0.5)
   assert.equal(h.page.face.value, 1)
-  assert.equal(h.page.sourceSelection.value, votedSelection)
+  assert.match(h.page.sourceSelection.value, new RegExp(`translateX\\(${h.page.cubePosition.value * 100}%\\)`))
+  assert.match(h.page.sourceSelection.value, /--source-position-duration:0ms;/)
+  const draggedSelection = h.page.sourceSelection.value.match(/transform:[^;]+;/)[0]
   h.page.cubeEnd()
   assert.equal(h.page.face.value, 0)
-  assert.equal(h.page.sourceSelection.value, votedSelection)
+  assert.ok(h.page.sourceSelection.value.includes(draggedSelection), 'Release starts from the finger-tracked position')
   t.mock.timers.tick(24)
+  assert.match(h.page.sourceSelection.value, /translateX\(0%\)/)
+  assert.match(h.page.sourceSelection.value, /--source-position-duration:420ms;/)
+  t.mock.timers.tick(440)
   assert.equal(h.page.sourceSelection.value, initialSelection)
+})
+
+test('source indicator follows every drag sample, reversal, release and cancellation with the face timing', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  const touch = x => ({ touches: [{ clientX: x, clientY: 200 }] })
+  for (const mode of ['cube', 'slide', 'fade']) for (const cancelled of [false, true]) {
+    const h = setup({ face: 1, boardTransition: mode })
+    h.page.cubeStart(touch(180))
+    for (const x of [140, 90, 180, 220, 290]) {
+      h.page.cubeMove(touch(x))
+      const position = h.page.cubePosition.value
+      const transform = h.page.sourceSelection.value.match(/transform:[^;]+;/)[0]
+      assert.equal(transform, `transform:translateX(${position * 100}%) translateX(${position * 12}rpx);`)
+      assert.match(h.page.sourceSelection.value, /--source-position-duration:0ms;/)
+    }
+    const transform = h.page.sourceSelection.value.match(/transform:[^;]+;/)[0]
+    if (cancelled) h.page.cubeCancel()
+    else h.page.cubeEnd()
+    assert.ok(h.page.sourceSelection.value.includes(transform), 'No jump to an integer tab before settling')
+    t.mock.timers.tick(24)
+    const target = cancelled ? 1 : 0
+    assert.equal(h.page.face.value, target)
+    assert.ok(h.page.sourceSelection.value.includes(`translateX(${target * 100}%)`))
+    assert.match(h.page.sourceSelection.value, /--source-position-duration:420ms;/)
+    assert.ok(h.page.sourceSelection.value.includes(`--source-position-easing:${mode === 'slide' ? 'cubic-bezier(.22,.68,0,1)' : 'ease-in-out'};`))
+    t.mock.timers.tick(440)
+    assert.ok(h.page.sourceSelection.value.includes(`translateX(${target * 100}%)`))
+    globalThis.__benchHooks.unload()
+  }
+})
+
+test('source indicator waits for native scroll preparation and shares the cube catch-up before tracking resumes', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  const h = setup({ face: 1 }, 0, {}, 'light', 'zh_CN', unequalBoards())
+  t.after(() => globalThis.__benchHooks.unload())
+  delayedNativeScroll({ artificialAnalysis: { scrollTop: 0, height: 721, scrollHeight: 1885 } })
+  const touch = x => ({ touches: [{ clientX: x, clientY: 200 }] })
+  h.page.cubeStart(touch(180)); h.page.cubeMove(touch(290))
+  assert.ok(h.page.cubePosition.value < 1)
+  assert.match(h.page.sourceSelection.value, /translateX\(100%\)/, 'Stay with the flat outgoing face while the hidden scroll view is pending')
+  assert.match(h.page.cubeFaces.value[1].style, /transform:none/)
+  t.mock.timers.tick(64)
+  assert.equal(h.page.cubeDuration.value, 120)
+  assert.ok(h.page.sourceSelection.value.includes(`translateX(${h.page.cubePosition.value * 100}%)`))
+  assert.match(h.page.sourceSelection.value, /--source-position-duration:120ms;/)
+  h.page.cubeMove(touch(310))
+  assert.match(h.page.sourceSelection.value, /--source-position-duration:0ms;/)
+  assert.ok(h.page.sourceSelection.value.includes(`translateX(${h.page.cubePosition.value * 100}%)`))
+  h.page.cubeCancel(); t.mock.timers.tick(24)
+  assert.match(h.page.sourceSelection.value, /translateX\(100%\)/)
+  assert.match(h.page.sourceSelection.value, /--source-position-duration:420ms;/)
 })
 
 test('source tab motion starts with the cube and uses its complete settle duration', async t => {
@@ -1987,6 +2043,8 @@ test('source tab motion starts with the cube and uses its complete settle durati
   assert.equal(h.page.face.value, 1, 'The destination may load before visual motion starts')
   assert.equal(h.page.sourceTabIndex.value, 0)
   assert.equal(h.page.cubePosition.value, 0)
+  assert.match(h.page.sourceSelection.value, /translateX\(0%\)/)
+  assert.match(h.page.sourceSelection.value, /--source-position-duration:0ms;/)
   assert.doesNotMatch(h.page.sourceTabsStyle.value, /--source-transition-duration:/, 'No 0ms tab style crosses the native bridge during preparation')
   t.mock.timers.tick(23)
   assert.equal(h.page.sourceTabIndex.value, 0)
@@ -1995,6 +2053,8 @@ test('source tab motion starts with the cube and uses its complete settle durati
   assert.equal(h.page.sourceTabIndex.value, 1)
   const duration = h.page.cubeDuration.value
   assert.equal(duration, 420)
+  assert.match(h.page.sourceSelection.value, /translateX\(100%\)/)
+  assert.match(h.page.sourceSelection.value, /--source-position-duration:420ms;/)
   assert.doesNotMatch(h.page.sourceTabsStyle.value, /--source-transition-duration:/, 'Tab motion remains armed independently of cube preparation')
   t.mock.timers.tick(320)
   assert.equal(h.page.cubeBusy.value, true, 'The old tab duration must not define the end of the shared transition')

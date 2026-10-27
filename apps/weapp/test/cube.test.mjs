@@ -1,6 +1,18 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { cubeIndex, cubeNavigation, cubeTarget, cubeRenderedFace, cubeFaceStyle, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll } from '../src/core/cube.js'
+import { cubeIndex, cubeNavigation, cubeTarget, cubeRenderedFace, cubeTabPosition, cubeFaceStyle, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll } from '../src/core/cube.js'
+
+test('source indicator maps fractional cube travel to tab slots in both directions and across short routes', () => {
+  for (const count of [2, 3]) for (let origin = 0; origin < count; origin++) {
+    for (const direction of [-1, 1]) for (const progress of [0, 0.1, 0.25, 0.5, 0.75, 1]) {
+      const next = cubeIndex(origin + direction, count)
+      assert.ok(Math.abs(cubeTabPosition(origin + direction * progress, origin, direction, count) - (origin + (next - origin) * progress)) < 1e-9)
+    }
+  }
+  assert.equal(cubeTabPosition(-0.4, 0, 1, 3), 0)
+  assert.equal(cubeTabPosition(2.4, 0, 1, 3), 1)
+  assert.equal(cubeTabPosition(0.4, 0, 1, 1), 0)
+})
 
 test('left-edge right swipes yield to navigation for the entire gesture without moving or projecting a turn', () => {
   for (const count of [2, 3]) for (let face = 0; face < count; face++) {

@@ -71,7 +71,7 @@
 .source-tabs { position: absolute; z-index: 4; top: 0; left: 0; right: 0; display: flex; gap: 12rpx; margin: 0 24rpx 8px; border-radius: 16rpx; background: var(--chip); will-change: transform; transition: transform 220ms cubic-bezier(.22,.7,.2,1), opacity 420ms ease-in-out, visibility 0ms; }
 .source-tabs.is-hidden { opacity: 0; visibility: hidden; transition-delay: 0ms, 0ms, 420ms; }
 .source-tabs-spacer { pointer-events: none; }
-.source-selection { position: absolute; z-index: 1; left: 0; top: 0; bottom: 0; border-radius: 16rpx; pointer-events: none; transition-property: width, transform, background-color; transition-duration: 420ms; transition-timing-function: ease-in-out; }
+.source-selection { position: absolute; z-index: 1; left: 0; top: 0; bottom: 0; border-radius: 16rpx; pointer-events: none; transition-property: width, transform, background-color; transition-duration: 420ms, var(--source-position-duration, 420ms), 420ms; transition-timing-function: ease-in-out, var(--source-position-easing, ease-in-out), ease-in-out; }
 .source-tab { position: relative; z-index: 2; flex: none; box-sizing: border-box; min-height: 42px; display: flex; align-items: center; justify-content: center; font-size: 24rpx; font-weight: 600; border-radius: 16rpx; color: var(--muted); background: transparent; transition: width 420ms ease-in-out, color 420ms ease-in-out; }
 .source-tab.active { color: var(--source-selected-foreground, var(--accent)); }
 .source-tab { min-width: 0; }
@@ -269,7 +269,10 @@
 .distribution-symbol { width:18px; flex:none; text-align:center; color:var(--muted); }
 .distribution-track { flex:1; min-width:24px; height:6px; border-radius:3px; overflow:hidden; background:rgba(127,137,153,.14); }
 .distribution-bar { height:100%; border-radius:3px; background:#718fbe; }
-.distribution-value { margin-left:auto; width:94px; flex:none; text-align:right; font-size:11px; }
+.distribution-value { display:flex; align-items:baseline; gap:3px; margin-left:auto; width:94px; flex:none; text-align:right; font-size:11px; white-space:nowrap; }
+.distribution-count { flex:1; min-width:0; text-align:right; }
+.distribution-separator { flex:none; }
+.distribution-percent { width:42px; flex:none; text-align:right; }
 .distribution-country .distribution-value { width:86px; }
 .distribution-source-heading { margin-top:20px; }
 .distribution-source-track { display:flex; height:10px; overflow:hidden; border-radius:5px; margin-bottom:10px; background:rgba(127,137,153,.14); }

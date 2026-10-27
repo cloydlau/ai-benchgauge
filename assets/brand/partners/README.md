@@ -34,3 +34,11 @@ The `wechat/` subdirectory separately holds the Tabler WeChat outline used in
 the About platform list. It is not a leaderboard source or official vendor
 artwork. The same exporter generates its 54×54 neutral theme variants for both
 mobile clients; see `wechat/README.md` for provenance and the bundled MIT notice.
+
+`weibo/` contains the full-color official Weibo favicon for the artwork
+attribution's original-post link. Both mobile clients use the same original-color PNG
+exports; see `weibo/README.md` for source and licensing details.
+
+`solvay/` holds the official International Solvay Institutes avatar used beside
+the About artwork's historic-photo credit. The same exporter preserves its
+original colors in both themes; see `solvay/README.md` for provenance.

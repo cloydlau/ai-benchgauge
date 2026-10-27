@@ -7,8 +7,10 @@ import { VantResolver } from 'weapp-vite/auto-import-components/resolvers'
 import sourceThemes from '../../Sources/LeaderboardKit/Resources/SourceTabThemes.json' with { type: 'json' }
 import sharp from 'sharp'
 import { engineeringInvestment } from './scripts/engineering-investment.mjs'
+import { contributorCircles } from '../../Scripts/contributor-circles.mjs'
 import { createAutoVersion } from './scripts/version.mjs'
 import { renderSourceLogos, renderPlatformIcons } from '../../Scripts/source-logos.mjs'
+import { aboutArtworkFile } from './src/core/about-artwork.js'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 // The native clients remain the authority for the shared-service address.
@@ -51,7 +53,8 @@ export default defineConfig({
   define: { __SHARED_ENDPOINT__: JSON.stringify(endpoint.replace(/\/$/, '')), __APP_VERSION__: JSON.stringify(version),
     __MIT_LICENSE__: JSON.stringify(readFileSync(resolve(root, 'LICENSE'), 'utf8')),
     __THIRD_PARTY_NOTICES__: JSON.stringify(publishedNotices),
-    __ENGINEERING_INVESTMENT__: JSON.stringify(engineeringInvestment(process.env.BENCHGAUGE_INVESTMENT_ROOT || root)) },
+    __ENGINEERING_INVESTMENT__: JSON.stringify(engineeringInvestment(process.env.BENCHGAUGE_INVESTMENT_ROOT || root)),
+    __CONTRIBUTOR_CIRCLES__: JSON.stringify(contributorCircles(process.env.BENCHGAUGE_INVESTMENT_ROOT || root)) },
   server: { watch: { usePolling: true, interval: 400, ignored: ['**/dist/**', '**/node_modules/**'] } },
   weapp: {
     srcRoot: './src',
@@ -69,6 +72,9 @@ export default defineConfig({
         const emit = (fileName, path) => this.emitFile({ type: 'asset', fileName, source: readFileSync(path) })
         emit('assets/header-logo.png', resolve(root, 'assets/brand/header-logo.png'))
         emit('assets/header-logo-dark.png', resolve(root, 'assets/brand/header-logo-dark.png'))
+        // Keep full image dimensions while staying below WeChat's main-package limit.
+        this.emitFile({ type: 'asset', fileName: `assets/about/${aboutArtworkFile}`,
+          source: await sharp(resolve(root, 'assets/about', aboutArtworkFile)).jpeg({ quality: 86, mozjpeg: true }).toBuffer() })
         for (const { name, source } of [...await renderSourceLogos(sharp), ...await renderPlatformIcons(sharp)]) {
           this.emitFile({ type: 'asset', fileName: `assets/source-logos/${name}`, source })
         }

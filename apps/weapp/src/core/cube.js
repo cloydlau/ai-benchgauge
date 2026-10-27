@@ -20,6 +20,13 @@ export function cubeRenderedFace(index, origin, direction, count) {
   return index === cubeIndex(origin + direction, count) ? origin + direction : origin + direction * 2
 }
 
+// The cube can take a short route across the last/first source. Interpolate
+// between the actual tab slots rather than exposing its unwrapped position.
+export function cubeTabPosition(position, origin, direction, count) {
+  const progress = Math.max(0, Math.min(1, (position - origin) * direction))
+  return origin + (cubeIndex(origin + direction, count) - origin) * progress
+}
+
 // Match the native App's edge-hinged, 90-degree faces. At rest the active
 // scroll-view has no transform, so its native hit testing stays ordinary.
 export function cubeFaceStyle(index, position, duration = 0, active = false, origin = 0, direction = 1) {

@@ -158,6 +158,11 @@ enum LeaderboardCube {
         if face == origin { return origin }
         return face == normalized(origin + direction, count: count) ? origin + direction : origin + direction * 2
     }
+    /// Map unwrapped cube travel to the actual source tab slots, including short routes.
+    static func tabPosition(_ position: Double, origin: Int, direction: Int, count: Int) -> Double {
+        let progress = min(1, max(0, (position - Double(origin)) * Double(direction)))
+        return Double(origin) + Double(normalized(origin + direction, count: count) - origin) * progress
+    }
     static func visibleRank(_ frames: [Int: LeaderboardRankFrame], height: CGFloat, topInset: CGFloat = 0) -> Int? {
         guard height > topInset else { return nil }
         let visible = frames.filter { $0.value.maxY > topInset && $0.value.minY < height }

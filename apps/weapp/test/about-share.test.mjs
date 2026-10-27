@@ -21,13 +21,92 @@ const registration = registerHooks({
         export const ref = value => ({ value })
         export const computed = read => ({ get value() { return read() } })
         export const onShareAppMessage = fn => { globalThis.aboutShare = fn }
+        export const onReady = fn => { globalThis.aboutReady = fn }
+        export const onResize = fn => { globalThis.aboutResize = fn }
+        export const onUnload = fn => { globalThis.aboutUnload = fn }
       `,
     }
   },
 })
 await import('../src/pages/about/index.js')
 registration.deregister()
+globalThis.__CONTRIBUTOR_CIRCLES__ = { nodes: [] }
 const queryFor = path => Object.fromEntries(new URL('https://shared.example' + path).searchParams)
+
+test('contributor cloud sits beside engineering counters, expands and selects without writing the clipboard', () => {
+  globalThis.__APP_VERSION__ = '0.0.0'; globalThis.__THIRD_PARTY_NOTICES__ = []
+  globalThis.__ENGINEERING_INVESTMENT__ = { commitCount: 3, codeLineCount: 100 }
+  globalThis.__CONTRIBUTOR_CIRCLES__ = { nodes: [{ id: 'owner', name: 'Cloyd Lau', count: 2,
+    avatar: '', initial: 'C', monochrome: false, url: 'https://github.com/owner/repo/commit/abc', x: 0.5, y: 0.5, r: 0.2 }] }
+  const copies = []
+  globalThis.wx = {
+    getStorageSync: () => ({ language: 'zh-CN' }), getWindowInfo: () => ({ statusBarHeight: 24 }),
+    getAppBaseInfo: () => ({ theme: 'light' }), setClipboardData: ({ data }) => copies.push(data),
+  }
+  try {
+    const about = globalThis.aboutFactory({})
+    assert.equal(about.contributors.nodes[0].initial, 'C')
+    assert.equal(about.contributorsExpanded.value, false)
+    assert.equal(about.selectedContributor.value, null)
+    about.openContributors()
+    assert.equal(about.contributorsExpanded.value, true)
+    about.selectContributor({ currentTarget: { dataset: { id: 'owner' } } })
+    assert.equal(about.selectedContributor.value.name, 'Cloyd Lau')
+    assert.equal(about.selectedContributor.value.countLabel, '2 次提交')
+    about.selectContributor({ currentTarget: { dataset: { id: 'missing' } } })
+    assert.equal(about.selectedContributorID.value, 'owner')
+    about.closeContributors()
+    assert.equal(about.contributorsExpanded.value, false)
+    assert.deepEqual(copies, [])
+    const template = readFileSync(new URL('../src/pages/about/index.wxml', import.meta.url), 'utf8')
+    const engineering = template.slice(template.indexOf('class="investment-engineering'), template.indexOf('{{investment.note}}'))
+    assert.ok(engineering.indexOf('class="contributor-mini"') > engineering.indexOf('class="investment-metrics"'))
+    assert.ok(!template.includes('contributors-card'))
+    assert.match(template, /bind:close="closeContributors"/)
+    assert.doesNotMatch(template, /class="contributor-link"|selectedContributor\.url/)
+  } finally { globalThis.__CONTRIBUTOR_CIRCLES__ = { nodes: [] } }
+})
+
+test('About artwork title fits measured space and recovers on resize without accepting stale measurements', () => {
+  globalThis.__APP_VERSION__ = '0.0.0'; globalThis.__THIRD_PARTY_NOTICES__ = []
+  globalThis.__ENGINEERING_INVESTMENT__ = { commitCount: 0, codeLineCount: 0 }
+  const ticks = [], measurements = [], selectors = []
+  globalThis.wx = {
+    getStorageSync: () => ({ language: 'en' }), getWindowInfo: () => ({ statusBarHeight: 24 }),
+    getAppBaseInfo: () => ({ theme: 'light' }), nextTick: callback => ticks.push(callback),
+    createSelectorQuery: () => {
+      const query = {
+        select: selector => { selectors.push(selector); return query },
+        boundingClientRect: () => query,
+        exec: callback => measurements.push(callback),
+      }
+      return query
+    },
+  }
+  const about = globalThis.aboutFactory({})
+  globalThis.aboutResize()
+  assert.equal(ticks.length, 0, 'Wait for the initial page layout')
+  globalThis.aboutReady(); ticks.shift()()
+  assert.deepEqual(selectors, ['.artwork-heading', '.artwork-title-measure'])
+  measurements.shift()([{ width: 150 }, { width: 200 }])
+  assert.equal(about.artworkTitleScale.value, 0.75)
+  globalThis.aboutResize(); ticks.shift()()
+  measurements.shift()([{ width: 300 }, { width: 200 }])
+  assert.equal(about.artworkTitleScale.value, 1, 'Restore natural size without enlarging above it')
+  globalThis.aboutResize(); ticks.shift()()
+  const stale = measurements.shift()
+  globalThis.aboutResize(); ticks.shift()()
+  measurements.shift()([{ width: 160 }, { width: 200 }])
+  stale([{ width: 20 }, { width: 200 }])
+  assert.equal(about.artworkTitleScale.value, 0.8, 'An older resize must not overwrite the latest size')
+  globalThis.aboutResize(); ticks.shift()()
+  const afterUnload = measurements.shift()
+  globalThis.aboutUnload()
+  afterUnload([{ width: 20 }, { width: 200 }])
+  globalThis.aboutResize()
+  assert.equal(ticks.length, 0)
+  assert.equal(about.artworkTitleScale.value, 0.8)
+})
 
 test('about-page menu forwarding and cold-start back navigation retain the originating leaderboard settings', () => {
   const preferences = { category: 'video', grouping: 'company', face: 1, language: 'en', theme: 'system',
@@ -176,7 +255,7 @@ test('About lists seven icon rows with a single contribution footer and no platf
     assert.deepEqual(copies, [about.repositoryURL])
     if (language === 'zh-CN') {
       assert.deepEqual(about.platforms.items.map(item => [item.name, item.statusLabel, item.featureText]), [
-        ['微信小程序', '已上线', '榜单'], ['iOS', '开发中', '榜单'], ['iPad', '开发中', '榜单'],
+        ['微信小程序', '已上线', '榜单'], ['iOS', '开发中', '榜单'], ['iPadOS', '开发中', '榜单'],
         ['安卓', '暂无', ''], ['鸿蒙', '暂无', ''], ['macOS', '已上线', '榜单 · 余量'], ['Windows', '开发中', '榜单 · 余量'],
       ])
     }

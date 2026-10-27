@@ -8,6 +8,18 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const partners = resolve(root, 'assets/brand/partners')
 const exportsDirectory = resolve(root, 'apps/ios/UI/Resources/SourceLogos')
 
+// Runtime sizes are explicit. Omit encoder-added density metadata so exports
+// also match the repository's sanitized PNGs without rewriting other marks.
+function withoutDensity(png) {
+  const chunks = [png.subarray(0, 8)]
+  for (let offset = 8; offset < png.length;) {
+    const end = offset + 12 + png.readUInt32BE(offset)
+    if (png.toString('ascii', offset + 4, offset + 8) !== 'pHYs') chunks.push(png.subarray(offset, end))
+    offset = end
+  }
+  return Buffer.concat(chunks)
+}
+
 // Canonical vendor artwork stays in assets/brand/partners. Every runtime PNG is
 // an aspect-preserving export, never a template tinted with the app's accent.
 export async function renderSourceLogos(sharp) {
@@ -31,7 +43,7 @@ export async function renderSourceLogos(sharp) {
       const source = await sharp(data).resize(84, 84, {
         fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 },
       }).png().toBuffer()
-      assets.push({ name: `${item.id}${dark ? '-dark' : ''}.png`, source })
+      assets.push({ name: `${item.id}${dark ? '-dark' : ''}.png`, source: withoutDensity(source) })
     }
   }
   assets.push({ name: 'NOTICE.txt', source: readFileSync(resolve(partners, 'NOTICE.txt')) })
@@ -49,8 +61,15 @@ export async function renderPlatformIcons(sharp) {
   for (const [suffix, color] of [['', '#687382'], ['-dark', '#a2acba']]) {
     const source = await sharp(Buffer.from(template.replaceAll('currentColor', color)))
       .resize(54, 54).png().toBuffer()
-    assets.push({ name: `wechat${suffix}.png`, source })
+    assets.push({ name: `wechat${suffix}.png`, source: withoutDensity(source) })
   }
+  // Use the official favicon's full colors in both themes.
+  const weibo = await sharp(resolve(partners, 'weibo/logo.png')).resize(54, 54).png().toBuffer()
+  for (const suffix of ['', '-dark']) assets.push({ name: `weibo${suffix}.png`, source: withoutDensity(weibo) })
+  // Preserve the official Solvay Institutes avatar's colors and proportions.
+  const solvay = await sharp(resolve(partners, 'solvay/logo.png'))
+    .resize(54, 54, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()
+  for (const suffix of ['', '-dark']) assets.push({ name: `solvay${suffix}.png`, source: withoutDensity(solvay) })
   return assets
 }
 

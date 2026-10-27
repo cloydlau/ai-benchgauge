@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { Writable } from 'node:stream'
 import { ci } from './calmmit.mjs'
+const { recordActivity } = await ci.load('ai-activity')
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -97,6 +98,13 @@ exit ${restartFails ? 1 : 0}
   if (gitWork) {
     mkdirSync(join(root, 'bin'))
     writeFileSync(join(root, 'bin', 'git'), `#!/bin/sh
+if test "$1" = --no-optional-locks; then shift; fi
+if test "$1" = rev-parse; then
+  case "$2" in
+    --show-toplevel) pwd; exit 0;;
+    --absolute-git-dir) printf '%s/.git\\n' "$PWD"; exit 0;;
+  esac
+fi
 case "$1" in
   status) test -f commit.done || printf ' M Sources/example.swift\\0';;
   rev-list) if test -f push.done; then echo '0 0'; else echo '0 1'; fi;;
@@ -144,7 +152,7 @@ esac
   const fixtureEnv = setup?.(root) || {}
   const child = spawn(process.execPath, [join(scripts, 'watch.mjs')], {
     cwd: root,
-    env: { ...process.env, WATCH_AUTOCOMMIT: gitWork ? '1' : '0', DESKTOP_NOTIFY: '0', ...env, ...fixtureEnv,
+    env: { ...process.env, CALMMIT_COMMIT_TRIGGER: 'idle', WATCH_AUTOCOMMIT: gitWork ? '1' : '0', DESKTOP_NOTIFY: '0', ...env, ...fixtureEnv,
       ...((gitWork || notificationAuthor != null) ? { PATH: join(root, 'bin') + ':' + process.env.PATH } : {}) },
     stdio: ['ignore', 'pipe', 'pipe'],
     detached: process.platform !== 'win32',
@@ -1049,3 +1057,92 @@ test('manual failure starts a separate status record after unterminated child ou
   assert.equal(dashboard.snapshot()[0].manual, true)
   assert.match(dashboard.snapshot()[0].message, /需人工介入.*测试失败/)
 })
+
+test('default event mode waits for both repo turns, then bypasses debounce and throttle for commit and push', async (t) => {
+  const f = watcherFixture(t, { gitWork: true,
+    env: { CALMMIT_COMMIT_TRIGGER: 'ai', WATCH_DEBOUNCE_MS: '60000', WATCH_THROTTLE_MS: '60000', WATCH_POLL_MS: '200', CODEX_HOME: '/nonexistent-codex-fixture' },
+    setup(root) {
+      assert.equal(spawnSync('git', ['init', '-q'], { cwd: root }).status, 0)
+      recordActivity(root, { session: 'one', turn: '1' })
+      recordActivity(root, { session: 'two', turn: '2' })
+    } })
+  await waitUntil(f, () => f.events().includes('restart'))
+  assert.equal(f.events().includes('commit'), false)
+  recordActivity(f.root, { session: 'one', turn: '1', status: 'completed' })
+  await new Promise((done) => setTimeout(done, 300))
+  assert.equal(f.events().includes('commit'), false)
+  recordActivity(f.root, { session: 'two', turn: '2', status: 'completed' })
+  await waitUntil(f, () => f.events().includes('push'))
+  assert.equal(f.events().filter((event) => event === 'commit').length, 1)
+  await waitUntil(f, () => existsSync(join(f.root, '.git/calmmit/ai-activity/acknowledged.json')))
+  assert.equal(existsSync(join(f.root, '.git/calmmit/ai-activity/acknowledged.json')), true)
+})
+
+test('a new conversation arriving after scheduling cancels the queued commit until that conversation ends', async (t) => {
+  const cli = fileURLToPath(new URL('../../calmmit/bin/calmmit.mjs', import.meta.url))
+  const f = watcherFixture(t, { gitWork: true,
+    env: { CALMMIT_COMMIT_TRIGGER: 'ai', WATCH_DEBOUNCE_MS: '60000', WATCH_THROTTLE_MS: '60000', WATCH_POLL_MS: '200', CODEX_HOME: '/nonexistent-codex-fixture' },
+    setup(root) {
+      assert.equal(spawnSync('git', ['init', '-q'], { cwd: root }).status, 0)
+      recordActivity(root, { session: 'first', turn: '1', status: 'completed' })
+      const preload = join(root, 'timer-preload.cjs')
+      // Inject the event at the timer boundary, preserving the production source
+      // byte for byte so real CLI execution and coverage use the same code.
+      writeFileSync(preload, `const fs = require('node:fs')
+const {execFileSync} = require('node:child_process')
+const timer = global.setTimeout
+const marker = ${JSON.stringify(join(root, 'late-started'))}
+global.setTimeout = (callback, ms, ...args) => timer(() => {
+  if (callback.name === 'runScheduled' && !fs.existsSync(marker)) {
+    execFileSync(process.execPath, [${JSON.stringify(cli)}, 'activity', 'begin', '--root', ${JSON.stringify(root)}, '--session', 'late', '--turn', '2'])
+    fs.writeFileSync(marker, 'started')
+  }
+  callback(...args)
+}, ms)
+`)
+      return { NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --require=${JSON.stringify(preload)}` }
+    } })
+  await waitUntil(f, () => existsSync(join(f.root, 'late-started')))
+  assert.equal(f.events().includes('commit'), false)
+  recordActivity(f.root, { session: 'late', turn: '2', status: 'completed' })
+  await waitUntil(f, () => f.events().includes('push'))
+  assert.equal(f.events().filter(event => event === 'commit').length, 1)
+  await waitUntil(f, () => existsSync(join(f.root, '.git/calmmit/ai-activity/acknowledged.json')))
+  assert.equal(existsSync(join(f.root, '.git/calmmit/ai-activity/acknowledged.json')), true)
+})
+
+for (const phase of ['commit', 'validation']) {
+  test(`AI completion remains pending across a temporary ${phase} lock and is acknowledged after recovery`, async (t) => {
+    const f = watcherFixture(t, { gitWork: true,
+      env: { CALMMIT_COMMIT_TRIGGER: 'ai', WATCH_DEBOUNCE_MS: '60000', WATCH_THROTTLE_MS: '60000', WATCH_POLL_MS: '200', CODEX_HOME: '/nonexistent-codex-fixture' },
+      setup(root) {
+        assert.equal(spawnSync('git', ['init', '-q'], { cwd: root }).status, 0)
+        recordActivity(root, { session: 'task', turn: '1', status: 'completed' })
+        if (phase === 'commit') {
+          writeFileSync(join(root, 'Scripts/commit.mjs'), `import {appendFileSync,existsSync,writeFileSync} from 'node:fs'
+appendFileSync('events','commit\\n')
+if (!existsSync('lock-retried')) { writeFileSync('lock-retried','yes'); process.exit(75) }
+writeFileSync('commit.done','done'); writeFileSync('head','fixture-head-2')
+`)
+        } else {
+          writeFileSync(join(root, 'Scripts/test-repair.mjs'), `import {appendFileSync,existsSync,readFileSync,writeFileSync} from 'node:fs'
+export async function runTestGate() {
+  appendFileSync('events','test\\n')
+  const count = existsSync('validation-count') ? Number(readFileSync('validation-count','utf8')) : 0
+  writeFileSync('validation-count', String(count + 1))
+  if (count === 1) { writeFileSync('lock-retried','yes'); return {status:75,signature:null} }
+  return {status:0,signature:'mock-pass'}
+}
+`)
+        }
+      } })
+    const acknowledgement = join(f.root, '.git/calmmit/ai-activity/acknowledged.json')
+    await waitUntil(f, () => f.output().includes(phase === 'commit' ? '提交锁被占用' : '测试期间有新变更'))
+    assert.equal(existsSync(acknowledgement), false)
+    await waitUntil(f, () => existsSync(acknowledgement))
+    assert.equal(existsSync(acknowledgement), true)
+    assert.equal(f.events().filter(event => event === 'commit').length, phase === 'commit' ? 2 : 1)
+    assert.equal(f.events().filter(event => event === 'push').length, 1)
+    assert.equal(f.output().includes('需人工介入'), false)
+  })
+}

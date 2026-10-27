@@ -23,6 +23,6 @@
     "tailwindcss": "4.3.3",
     "vant-tree-shaking": "1.0.4",
     "weapp-tailwindcss": "5.6.3",
-    "weapp-vite": "7.5.0"
+    "weapp-vite": "7.6.0"
   }
 }
