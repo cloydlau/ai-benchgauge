@@ -16,6 +16,17 @@ public struct LeaderboardDistributionCharts: View {
         guard let openness = ModelOpenness(rawValue: id) else { return Color.secondary.opacity(0.5) }
         return ModelOpennessBadge.tint(for: openness, dark: colorScheme == .dark)
     }
+    private func distributionValue(count: Int, percent: String) -> some View {
+        HStack(spacing: 3) {
+            Text("\(count)").frame(maxWidth: .infinity, alignment: .trailing)
+            Text("·")
+            Text(percent).frame(width: 42, alignment: .trailing)
+        }
+        .monospacedDigit().lineLimit(1).frame(width: 82)
+        .fixedSize(horizontal: true, vertical: false)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(count), \(percent)")
+    }
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let boardTitle { Text(boardTitle).font(.system(size: 11, weight: .semibold)).lineLimit(1) }
@@ -45,7 +56,7 @@ public struct LeaderboardDistributionCharts: View {
                                     Capsule().fill(Color.accentColor.opacity(0.75)).frame(width: geometry.size.width * slice.fraction)
                                 }
                             }.frame(minWidth: 24).frame(height: 6).accessibilityHidden(true)
-                            Text("\(slice.count) · \(slice.percent)").monospacedDigit().frame(width: 76, alignment: .trailing)
+                            distributionValue(count: slice.count, percent: slice.percent)
                         }
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("\(slice.countryName(language: language)), \(slice.count), \(slice.percent)")
@@ -74,7 +85,7 @@ public struct LeaderboardDistributionCharts: View {
                         }.frame(width: 18, height: 16).accessibilityHidden(true)
                         Text(slice.sourceName(language: language))
                         Spacer(minLength: 4)
-                        Text("\(slice.count) · \(slice.percent)").monospacedDigit()
+                        distributionValue(count: slice.count, percent: slice.percent)
                     }.accessibilityElement(children: .combine)
                 }
             }

@@ -10,6 +10,21 @@ using BenchGauge.Shared;
 namespace BenchGauge;
 sealed partial class MainWindow
 {
+    FrameworkElement DistributionValue(int count, string percent)
+    {
+        var value = new Grid { Width = 82, VerticalAlignment = VerticalAlignment.Center };
+        value.ColumnDefinitions.Add(new ColumnDefinition());
+        value.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(10) });
+        value.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });
+        var countText = Caption($"{count}", PanelMuted, 10, numeric: true);
+        countText.TextAlignment = TextAlignment.Right; value.Children.Add(countText);
+        var separator = Caption("·", PanelMuted, 10, numeric: true);
+        separator.TextAlignment = TextAlignment.Center; Grid.SetColumn(separator, 1); value.Children.Add(separator);
+        var percentText = Caption(percent, PanelMuted, 10, numeric: true);
+        percentText.TextAlignment = TextAlignment.Right; Grid.SetColumn(percentText, 2); value.Children.Add(percentText);
+        return value;
+    }
+
     FrameworkElement DistributionCountryIcon(string id)
     {
         var path = Path.Combine(AppContext.BaseDirectory, "flags", id.ToLowerInvariant() + ".png");
@@ -54,7 +69,7 @@ sealed partial class MainWindow
                 var bar = new Border { Background = Tint("#718FBE"), HorizontalAlignment = HorizontalAlignment.Left, CornerRadius = new CornerRadius(3) };
                 track.Children.Add(bar); track.SizeChanged += (_, _) => bar.Width = track.ActualWidth * slice.Fraction;
                 Grid.SetColumn(track, 1); row.Children.Add(track);
-                var value = Caption($"{slice.Count} · {slice.Percent}", PanelMuted, 10, numeric: true); value.TextAlignment = TextAlignment.Right; Grid.SetColumn(value, 2); row.Children.Add(value); panel.Children.Add(row);
+                var value = DistributionValue(slice.Count, slice.Percent); Grid.SetColumn(value, 2); row.Children.Add(value); panel.Children.Add(row);
             }
             var source = Heading(Tr("Source share", "源码占比", "原始碼占比"));
             System.Windows.Automation.AutomationProperties.SetAutomationId(source, "source-distribution-heading"); panel.Children.Add(source);
@@ -67,7 +82,7 @@ sealed partial class MainWindow
             panel.Children.Add(stacked);
             foreach (var slice in data.Sources) {
                 var row = new DockPanel { Height = 20 };
-                var value = Caption($"{slice.Count} · {slice.Percent}", PanelMuted, 10, numeric: true); DockPanel.SetDock(value, Dock.Right); row.Children.Add(value);
+                var value = DistributionValue(slice.Count, slice.Percent); DockPanel.SetDock(value, Dock.Right); row.Children.Add(value);
                 var icon = new Border { Child = slice.Id == "unknown" ? Center(Caption("?", PanelMuted, 11)) : OpennessBadge(slice.Id), Width = 18, Margin = new Thickness(0, 0, 6, 0) }; DockPanel.SetDock(icon, Dock.Left); row.Children.Add(icon);
                 row.Children.Add(Caption(slice.Id == "open" ? Tr("Open", "开源", "開源") : slice.Id == "closed" ? Tr("Closed", "闭源", "閉源") : Tr("Unknown", "未知"), PanelInk, 11)); panel.Children.Add(row);
             }
