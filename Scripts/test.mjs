@@ -85,13 +85,15 @@ export function testCommands(root = testRoot, { coreOnly = false, scriptsOnly = 
   if (!coreOnly) {
     const files = readdirSync(join(root, 'Scripts')).filter((name) => name.endsWith('.test.mjs')).sort().map((name) => join(root, 'Scripts', name))
     if (!files.length) throw new Error('未找到脚本测试，拒绝报告通过')
-    commands.push([node, ['--test', ...(coverage ? ['--experimental-test-coverage',
+    // CLI integration suites spawn their own Node/Git/Swift processes. Bound
+    // file concurrency so parallel dev watchers cannot starve their deadlines.
+    commands.push([node, ['--test', '--test-concurrency=2', ...(coverage ? ['--experimental-test-coverage',
       `--test-coverage-include=${join(root, 'Scripts', '*.mjs')}`, '--test-coverage-exclude=**/*.test.mjs'] : []), ...files]])
     const miniTests = join(root, 'apps/weapp/test')
     if (existsSync(miniTests)) {
       const files = readdirSync(miniTests).filter(name => name.endsWith('.test.mjs')).sort().map(name => join(miniTests, name))
       if (!files.length) throw new Error('未找到小程序测试，拒绝报告通过')
-      commands.push([node, ['--test', ...files]])
+      commands.push([node, ['--test', '--test-concurrency=2', ...files]])
     }
   }
   if (!scriptsOnly) {

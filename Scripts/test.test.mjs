@@ -78,6 +78,8 @@ test('mini-program business tests join the full offline gate and an empty suite 
   writeFileSync(join(directory, 'fixture.json'), '{}')
   const commands = testCommands(root, { swiftcPath: '/missing/swiftc' })
   assert.equal(commands.length, 3)
+  assert.ok(commands[0][1].includes('--test-concurrency=2'))
+  assert.ok(commands[1][1].includes('--test-concurrency=2'))
   assert.ok(commands[1][1].includes(join(directory, 'leaderboard.test.mjs')))
   assert.equal(testCommands(root, { coreOnly: true }).length, 1)
 })
