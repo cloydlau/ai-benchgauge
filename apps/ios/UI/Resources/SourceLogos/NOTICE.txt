@@ -44,11 +44,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-Sina Weibo attribution icon from Simple Icons
-https://github.com/simple-icons/simple-icons/blob/develop/icons/sinaweibo.svg
-CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/
-Project license: https://github.com/simple-icons/simple-icons/blob/develop/LICENSE.md
-The Weibo trademark remains the property of its owner.
+Official Weibo attribution icon
+https://weibo.com/favicon.ico
+The Weibo mark belongs to its respective owner. This full-color favicon
+identifies the original artwork post and does not imply endorsement.
+It is not covered by the repository MIT license.
 
 International Solvay Institutes avatar
 https://solvayinstitutes.be/

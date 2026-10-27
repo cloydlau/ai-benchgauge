@@ -63,12 +63,9 @@ export async function renderPlatformIcons(sharp) {
       .resize(54, 54).png().toBuffer()
     assets.push({ name: `wechat${suffix}.png`, source: withoutDensity(source) })
   }
-  const weibo = readFileSync(resolve(partners, 'weibo/logo.svg'), 'utf8')
-  for (const [suffix, color] of [['', '#687382'], ['-dark', '#a2acba']]) {
-    const source = await sharp(Buffer.from(weibo.replace('<svg ', `<svg fill="${color}" `)))
-      .resize(54, 54).png().toBuffer()
-    assets.push({ name: `weibo${suffix}.png`, source: withoutDensity(source) })
-  }
+  // Use the official favicon's full colors in both themes.
+  const weibo = await sharp(resolve(partners, 'weibo/logo.png')).resize(54, 54).png().toBuffer()
+  for (const suffix of ['', '-dark']) assets.push({ name: `weibo${suffix}.png`, source: withoutDensity(weibo) })
   // Preserve the official Solvay Institutes avatar's colors and proportions.
   const solvay = await sharp(resolve(partners, 'solvay/logo.png'))
     .resize(54, 54, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()
