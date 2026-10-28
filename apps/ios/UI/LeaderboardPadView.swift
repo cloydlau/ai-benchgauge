@@ -781,10 +781,10 @@ public struct LeaderboardPadView: View {
             Button { presentation.showingAbout = true } label: {
                 Text(tr("About", "关于")).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
             }.accessibilityIdentifier("about")
+            Spacer(minLength: 8)
             Button { cancelCubeEntrance(); store.modelSearchEditing = false; presentation.showingSettings = true } label: {
                 Image(systemName: "gearshape").frame(width: 44, height: 44).contentShape(Rectangle())
             }.accessibilityLabel(tr("Settings", "设置")).accessibilityIdentifier("settings")
-            Spacer(minLength: 8)
             #if os(iOS)
             PhoneMenuButton(title: "文/A", identifier: "language-menu",
                 items: AppLanguage.allCases.map { language in
