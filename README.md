@@ -8,7 +8,7 @@
 **Task benchmarks show results; blind user votes show the experience; difficulty-calibrated tests show overall capability. Compare leaderboards to make informed choices; track quotas to know where you stand.**
 <!-- app-description:end -->
 
-`macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `3 languages` · [MIT License](LICENSE)
+`macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `3 languages`
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/leaderboard-model-dark.png">
@@ -59,7 +59,6 @@ See [compatibility details, validation scope, and the Intel support assessment](
 | **CC Switch quotas** | Read the local CC Switch database, query supported providers, and show account quota status above the table. Percentage and monetary balance colors gradually change from green to red as the quota decreases. Monetary references are ¥0/10/30/100 and $0/2/5/20 for red/orange/yellow/green, with continuous transitions; hover for the currency's reference amounts. Codex does not need to be installed. |
 | **Quota recovery notifications** | Get a one-time notification when an exhausted provider becomes usable again—for example, after its 5-hour quota resets. Monitoring continues after switching providers and remembers exhaustion across app restarts. |
 | **Plan and API links** | Available plan and pay-as-you-go links appear only in company view. Simplified Chinese prefers mainland China sites; other interface languages prefer international sites. |
-| **License notices** | Footer links open a scrollable sheet for the app's MIT license and third-party notices, with full license text available offline. See the [notice inventory](docs/third-party-notices.md) for the current audit status. |
 | **Updates that stay out of the way** | Entering a board checks its publication time (or fetch time when absent) and refreshes it only when it is at least 24 hours old. Manual refresh joins any request already running for that board. No ranking polling timer runs; failed refreshes preserve the local cache. |
 | **Codex task counts (macOS)** | See running and completed-unread task counts in the menu bar, plus failures when present. Off by default; enable **Codex tasks** in the footer to show counts while the ChatGPT/Codex desktop app is running. Updates locally without model or quota API calls. |
 | **Codex model label** | Uses the most recently user-interacted local desktop chat's actual model/provider, excluding archived chats and subagents. Falls back to `config.toml` when session metadata is unavailable. macOS checks changes every two seconds; this is not foreground-tab detection. |

@@ -19,7 +19,7 @@ The older gauge artwork and its generation scripts have been removed.
 | --- | --- |
 | `logo.png` | Approved rendered application-icon master |
 | `design.json` | Master-artwork reference, material and small-mark geometry |
-| `mobile-title.json` | Canonical offline mobile wordmark outlines, A slant and spacing; shared by WeChat and iOS |
+| `mobile-title.json` | Canonical offline wordmark outlines, A slant and spacing; shared by WeChat, iOS and the English macOS / Windows titles |
 | `app-icon.svg` | Self-contained wrapper embedding the approved raster artwork |
 | `mark.svg` | Transparent small-mark vector adaptation with silver reflection bands |
 | `app-icon-ios.png` | Opaque 1024 px iPhone / iPad artwork; the OS applies its icon mask |
@@ -50,13 +50,16 @@ captions in Usage, General, Coding, Image and Video.
 Wordmark letters use neutral steel/silver reflection bands at 0%, 42%, 50% and
 100% of their height: `#303945` / `#8894A2` / `#414D5C` / `#6C7888` on light
 surfaces and `#F5F7FA` / `#A5AFBC` / `#E0E6EE` / `#8D99A8` on dark surfaces.
-Apple titles, mini-program SVGs and Canvas exports use the same stops. Windows
-keeps its native neutral text styling and consumes the same header PNGs.
+Apple titles, the Windows English title, mini-program SVGs and Canvas exports
+use the same stops. The Windows Chinese title keeps its native neutral text
+styling. All clients consume the same header PNGs.
 Regenerate the mini-program's matching wordmark SVGs with `swift Scripts/weapp-brand-glyphs.swift`.
-Then run `node Scripts/sync-mobile-brand.mjs` to export the canonical mobile
-geometry and outlines to both clients. `--check` rejects stale copies in the
+Then run `node Scripts/sync-mobile-brand.mjs` to export the canonical
+geometry and outlines to the clients. `--check` rejects stale copies in the
 ordinary script test suite. The iOS header, About and image exports use
-`MobileBrandTitle`; WeChat SVG / Canvas use the same geometry. Do not edit
+`MobileBrandTitle`; macOS `EnglishBrandTitle` reuses that component, and Windows
+embeds the generated JSON as `BrandWordmark.json` for `EnglishBrandArtwork`.
+WeChat SVG / Canvas use the same geometry. Do not edit
 `Resources/Brand/mobile-title.json`, `brand-glyphs.js` or `brand-layouts.js`
 directly. See [cross-platform checks](../../docs/cross-platform.md).
 

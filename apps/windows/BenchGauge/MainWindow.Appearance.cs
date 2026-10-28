@@ -95,8 +95,8 @@ sealed partial class MainWindow
     {
         static readonly BitmapImage LightBrandLogo = LoadBrandLogo("header-logo.png");
         static readonly BitmapImage DarkBrandLogo = LoadBrandLogo("header-logo-dark.png");
-        BitmapImage BrandLogo => spec.Foreground is SolidColorBrush brush && brush.Color.R + brush.Color.G + brush.Color.B > 384
-            ? DarkBrandLogo : LightBrandLogo;
+        bool DarkBrand => spec.Foreground is SolidColorBrush brush && brush.Color.R + brush.Color.G + brush.Color.B > 384;
+        BitmapImage BrandLogo => DarkBrand ? DarkBrandLogo : LightBrandLogo;
         static BitmapImage LoadBrandLogo(string name)
         {
             var image = new BitmapImage();
@@ -108,10 +108,12 @@ sealed partial class MainWindow
         public bool AlignInkTop { get; init; }
         public bool DimsAmpersand { get; init; }
         public double VisibleInkHeight => spec.Text == "AI 天梯"
-            ? BrandGlyphs().Max(glyph => glyph.Ink.Height) : Text().BuildGeometry(new Point()).Bounds.Height;
+            ? BrandGlyphs().Max(glyph => glyph.Ink.Height)
+            : spec.Text == "AI BenchGauge" ? EnglishBrandArtwork.Shared.Height * spec.FontSize / EnglishBrandArtwork.Shared.BaseSize
+            : Text().BuildGeometry(new Point()).Bounds.Height;
         public double VisibleInkTop {
             get {
-                if (spec.Text == "AI 天梯") return (ActualHeight - VisibleInkHeight) / 2;
+                if (spec.Text is "AI 天梯" or "AI BenchGauge") return (ActualHeight - VisibleInkHeight) / 2;
                 var bounds = Text().BuildGeometry(new Point()).Bounds;
                 var scale = VisualTreeHelper.GetDpi(this).DpiScaleY;
                 return bounds.Top + Math.Round((ActualHeight / 2 - bounds.Top - bounds.Height / 2) * scale,
@@ -163,6 +165,8 @@ sealed partial class MainWindow
         }
         protected override Size MeasureOverride(Size available)
         {
+            if (spec.Text == "AI BenchGauge")
+                return new Size(EnglishBrandArtwork.Shared.Width * spec.FontSize / EnglishBrandArtwork.Shared.BaseSize, 27);
             if (spec.Text == "AI 天梯")
             {
                 var glyphs = BrandGlyphs();
@@ -172,6 +176,11 @@ sealed partial class MainWindow
         }
         protected override void OnRender(DrawingContext drawing)
         {
+            if (spec.Text == "AI BenchGauge")
+            {
+                EnglishBrandArtwork.Shared.Draw(drawing, BrandLogo, DarkBrand, spec.FontSize, VisibleInkTop);
+                return;
+            }
             if (spec.Text == "AI 天梯")
             {
                 var glyphs = BrandGlyphs();
@@ -191,18 +200,6 @@ sealed partial class MainWindow
             var dpi = VisualTreeHelper.GetDpi(this);
             var offset = AlignInkTop ? -bounds.Top : Math.Round((ActualHeight / 2 - bounds.Top - bounds.Height / 2) * dpi.DpiScaleY,
                 MidpointRounding.AwayFromZero) / dpi.DpiScaleY;
-            if (spec.Text == "AI BenchGauge")
-            {
-                var next = new FormattedText("I", CultureInfo.GetCultureInfo(spec.Language.IetfLanguageTag), spec.FlowDirection,
-                    new Typeface(spec.FontFamily, spec.FontStyle, spec.FontWeight, spec.FontStretch), spec.FontSize,
-                    spec.Foreground, dpi.PixelsPerDip).BuildGeometry(new Point()).Bounds;
-                var nextOrigin = text.BuildHighlightGeometry(new Point(), 1, 1).Bounds.Left;
-                text.SetForegroundBrush(Brushes.Transparent, 0, 1);
-                var logoHeight = next.Height;
-                var logoWidth = logoHeight * BrandLogo.PixelWidth / BrandLogo.PixelHeight;
-                drawing.DrawImage(BrandLogo, new Rect(nextOrigin + next.Left - BrandGap - logoWidth,
-                    offset + next.Top, logoWidth, logoHeight));
-            }
             drawing.DrawText(text, new Point(0, offset));
         }
     }
@@ -481,6 +478,16 @@ sealed partial class MainWindow
     }
     void ShowTimeExplanation() => ShowInformationDialog(BoardTimestamp.ExplanationTitle(prefs.Language), BoardTimestamp.Explanation(prefs.Language));
     void ShowInformationDialog(string title, string content, string? copyLink = null)
+        => ShowInformationWindow(CreateInformationDialog(title, content, copyLink));
+
+    void ShowInformationWindow(Window dialog)
+    {
+        modalOpen = true;
+        try { dialog.ShowDialog(); }
+        finally { modalOpen = false; _ = Dispatcher.BeginInvoke(TryPresentPreparedUpdate); }
+    }
+
+    Window CreateInformationDialog(string title, string content, string? copyLink = null)
     {
         // A system MessageBox localizes its OK button to the Windows language.
         var dialog = new Window { Owner = this, Title = title,
@@ -506,12 +513,30 @@ sealed partial class MainWindow
         actions.Children.Add(confirm);
         DockPanel.SetDock(actions, Dock.Bottom); layout.Children.Add(actions);
         layout.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             Content = new TextBlock { Text = content, TextWrapping = TextWrapping.Wrap } });
         dialog.Content = layout;
-        modalOpen = true;
-        try { dialog.ShowDialog(); }
-        finally { modalOpen = false; _ = Dispatcher.BeginInvoke(TryPresentPreparedUpdate); }
+        return dialog;
     }
+    string BoardSourceDescription(Board board) => BoardTitle(board) + "\n"
+                    + (board.Kind.StartsWith("arena") || board.Kind == "codeArenaWebDev"
+                        ? Tr("Formerly LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena") + "\n" : "")
+                    + SourceIntroduction(board) + "\n" + (board.Kind == "openRouterUsage"
+                        ? Tr("Latest complete UTC day · input + output tokens · 1B = 1 billion tokens. Top 50 public models; excludes private and zero-data-retention traffic. Provider tokenizers differ. Company totals cover listed models only.", "最近完整 UTC 日输入与输出 token 用量；1B = 十亿 token。展示公开流量前 50 名，排除私有及零数据留存流量；各供应商分词方式不同。公司用量仅汇总榜内模型。", "最近完整 UTC 日輸入與輸出 token 用量；1B = 十億 token。展示公開流量前 50 名，排除私有及零資料留存流量；各供應商分詞方式不同。公司用量僅彙總榜內模型。")
+                        : Tr("Scores are not directly comparable across lists", "各榜分数不直接互比", "各榜分數不直接互比"))
+                    + (board.Kind == "cloudbaseUsage" ? "\n" + Tr("Sampled-period text token shares, including cache hits; model families only. Full dates and absolute volumes unavailable.", "抽样统计日文本 token 累计占比，含缓存命中；按模型系列汇总，未公开完整日期或绝对用量。", "抽樣統計日文字 token 累計佔比，含快取命中；按模型系列彙總，未公開完整日期或絕對用量。") : "")
+                    + (board.Kind == "vercelUsage" ? "\n" + Tr("Daily data uses UTC 00:00 to 00:00 the next day (08:00 to 08:00 the next day in Beijing). Text token shares include cached and reasoning tokens. Company shares sum listed models only; no absolute volumes are published.", "按 UTC 当天 00:00 至次日 00:00 统计，对应北京时间当天 08:00 至次日 08:00。文本 token 用量占比包含缓存及推理 token；公司只汇总榜内模型，不提供绝对用量。", "按 UTC 當天 00:00 至次日 00:00 統計，對應北京時間當天 08:00 至次日 08:00。文字 token 用量佔比包含快取及推理 token；公司只彙總榜內模型，不提供絕對用量。") : "")
+                    + (BoardTimestamp.StatisticalDay(board, prefs.Language) is { } statisticalDay ? "\n" + statisticalDay : "")
+                    + (board.Kind is "vercelUsage" or "cloudbaseUsage" ? "\n" + BoardTimestamp.Explanation(prefs.Language) : "")
+                    + (ArenaAttribution.Applies(board) ? "\n" + ArenaAttribution.FullText(prefs.Language) : "");
+
+    internal Window CreateSourceDetailsWindow(Board board) => CreateInformationDialog(BoardTitle(board),
+                BoardSourceDescription(board) + (string.IsNullOrEmpty(board.Url) ? "" : "\n\n" + board.Url)
+                    + (board.Kind is "openRouterUsage" or "vercelUsage" or "cloudbaseUsage"
+                        ? "\n\n" + UsageLicense.Text(board.Kind, board.SourceNote, prefs.Language)
+                        : board.Kind == "epochECI" ? "\n\n" + EpochAttribution.FullText(prefs.Language) + "\n\n" + UsageLicense.FullLicense(prefs.Language)
+                        : ArenaAttribution.Applies(board) ? "\n\n" + UsageLicense.FullLicense(prefs.Language) : ""), board.Url);
+
     Button QuietButton(string text, Action action) => Quiet(Button(text, action));
     Button QuietButton(string text, Func<Task> action) => Quiet(Button(text, action));
     Button Quiet(Button button) { button.Padding = new Thickness(2, 0, 2, 0); button.Margin = new Thickness(0); button.Foreground = PanelMuted; return button; }
@@ -534,13 +559,15 @@ sealed partial class MainWindow
         var line = new Grid { Height = 18, VerticalAlignment = VerticalAlignment.Center };
         line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); line.ColumnDefinitions.Add(new ColumnDefinition());
         var text = Caption("", quota.IsDimmed ? PanelMuted : PanelInk); text.Inlines.Clear(); text.ToolTip = quota.Help;
-        if (ProviderLogo(quota.Name) is { } key && Logo(key, 16) is { } image)
+        FrameworkElement providerMark;
+        if (SharedLogo(quota.LogoPNG, 16) is { } image)
         {
             if (quota.IsDimmed) { image.Source = Monochrome(image.Source); image.Opacity = 0.55; }
-            var mark = new Border { Child = image, Width = 18, Height = 18, VerticalAlignment = VerticalAlignment.Center,
-                Background = Brushes.White, CornerRadius = new CornerRadius(3), Margin = new Thickness(0, 0, 5, 0) };
-            AddCell(line, mark, 0);
+            providerMark = image;
         }
+        else providerMark = Center(Caption(string.IsNullOrWhiteSpace(quota.Initials) ? "?" : quota.Initials, Brushes.DimGray, 10));
+        AddCell(line, new Border { Child = providerMark, Width = 18, Height = 18, VerticalAlignment = VerticalAlignment.Center,
+            Background = Brushes.White, CornerRadius = new CornerRadius(3), Margin = new Thickness(0, 0, 5, 0) }, 0);
         text.Inlines.Add(new TextRun(quota.Name + "  ") { FontWeight = quota.IsCurrent ? FontWeights.SemiBold : FontWeights.Medium });
         foreach (var run in quota.Runs) text.Inlines.Add(new TextRun(run.Text) { Foreground = quota.IsDimmed ? PanelMuted : Tint(panelDark ? run.Dark : run.Light) });
         if (quota.IsStale) text.Inlines.Add(new TextRun(" · " + Tr("saved", "缓存", "快取")) { Foreground = PanelMuted });
@@ -570,13 +597,6 @@ sealed partial class MainWindow
         result.Freeze();
         return result;
     }
-    static string? ProviderLogo(string name)
-    {
-        var value = name.ToLowerInvariant();
-        foreach (var item in new[] { ("openai","openai"),("claude","anthropic"),("anthropic","anthropic"),("gemini","google"),("google","google"),("kimi","kimi"),("qwen","qwen"),("千问","qwen"),("deepseek","deepseek"),("glm","zai"),("grok","spacexai"),("xai","spacexai"),("智谱","zai") })
-            if (value.Contains(item.Item1)) return item.Item2;
-        return null;
-    }
     static Image? Logo(string key, double size)
     {
         var path = Path.Combine(AppContext.BaseDirectory, "logos", key + ".png");
@@ -584,9 +604,9 @@ sealed partial class MainWindow
             VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center } : null;
     }
 
-    FrameworkElement BrandLogo(Entry entry)
+    static Image? SharedLogo(string? encodedPNG, double size)
     {
-        if (entry.LogoPNG is { Length: <= 22000 } encoded)
+        if (encodedPNG is { Length: <= 22000 } encoded)
         {
             try
             {
@@ -598,13 +618,18 @@ sealed partial class MainWindow
                     using var stream = new MemoryStream(bytes, false);
                     var bitmap = new BitmapImage(); bitmap.BeginInit(); bitmap.CacheOption = BitmapCacheOption.OnLoad;
                     bitmap.DecodePixelWidth = 64; bitmap.StreamSource = stream; bitmap.EndInit(); bitmap.Freeze();
-                    return new Image { Source = bitmap, Width = 20, Height = 20, Stretch = Stretch.Uniform,
+                    return new Image { Source = bitmap, Width = size, Height = size, Stretch = Stretch.Uniform,
                         HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
                 }
             }
             catch (Exception error) when (error is FormatException or IOException or NotSupportedException or ArgumentException) { }
         }
-        if (entry.Logo is { } key && Logo(key, 20) is { } bundled) return bundled;
+        return null;
+    }
+
+    FrameworkElement BrandLogo(Entry entry)
+    {
+        if (SharedLogo(entry.LogoPNG, 20) is { } shared) return shared;
         var initial = entry.Initials;
         if (string.IsNullOrWhiteSpace(initial))
             initial = (string.IsNullOrWhiteSpace(entry.Organization) ? entry.Name : entry.Organization)
@@ -625,17 +650,7 @@ sealed partial class MainWindow
         {
             var board = pair[i]; var column = 1 + i * 4;
             AddCell(headings, Center(Caption(board.Kind is "vercelUsage" or "cloudbaseUsage" ? Tr("Share", "占比", "佔比") : board.Kind == "openRouterUsage" ? Tr("Tokens", "用量", "用量") : Tr("Score", "分数", "分數"), PanelInk)), column + 3);
-            var sourceDescription = BoardTitle(board) + "\n"
-                    + (board.Kind.StartsWith("arena") || board.Kind == "codeArenaWebDev"
-                        ? Tr("Formerly LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena") + "\n" : "")
-                    + SourceIntroduction(board) + "\n" + (board.Kind == "openRouterUsage"
-                        ? Tr("Latest complete UTC day · input + output tokens · 1B = 1 billion tokens. Top 50 public models; excludes private and zero-data-retention traffic. Provider tokenizers differ. Company totals cover listed models only.", "最近完整 UTC 日输入与输出 token 用量；1B = 十亿 token。展示公开流量前 50 名，排除私有及零数据留存流量；各供应商分词方式不同。公司用量仅汇总榜内模型。", "最近完整 UTC 日輸入與輸出 token 用量；1B = 十億 token。展示公開流量前 50 名，排除私有及零資料留存流量；各供應商分詞方式不同。公司用量僅彙總榜內模型。")
-                        : Tr("Scores are not directly comparable across lists", "各榜分数不直接互比", "各榜分數不直接互比"))
-                    + (board.Kind == "cloudbaseUsage" ? "\n" + Tr("Sampled-period text token shares, including cache hits; model families only. Full dates and absolute volumes unavailable.", "抽样统计日文本 token 累计占比，含缓存命中；按模型系列汇总，未公开完整日期或绝对用量。", "抽樣統計日文字 token 累計佔比，含快取命中；按模型系列彙總，未公開完整日期或絕對用量。") : "")
-                    + (board.Kind == "vercelUsage" ? "\n" + Tr("Daily data uses UTC 00:00 to 00:00 the next day (08:00 to 08:00 the next day in Beijing). Text token shares include cached and reasoning tokens. Company shares sum listed models only; no absolute volumes are published.", "按 UTC 当天 00:00 至次日 00:00 统计，对应北京时间当天 08:00 至次日 08:00。文本 token 用量占比包含缓存及推理 token；公司只汇总榜内模型，不提供绝对用量。", "按 UTC 當天 00:00 至次日 00:00 統計，對應北京時間當天 08:00 至次日 08:00。文字 token 用量佔比包含快取及推理 token；公司只彙總榜內模型，不提供絕對用量。") : "")
-                    + (BoardTimestamp.StatisticalDay(board, prefs.Language) is { } statisticalDay ? "\n" + statisticalDay : "")
-                    + (board.Kind is "vercelUsage" or "cloudbaseUsage" ? "\n" + BoardTimestamp.Explanation(prefs.Language) : "")
-                    + (ArenaAttribution.Applies(board) ? "\n" + ArenaAttribution.FullText(prefs.Language) : "");
+            var sourceDescription = BoardSourceDescription(board);
             var summary = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 9,
                 FontFamily = new FontFamily("Segoe UI"), Margin = new Thickness(5, 0, 4, 0), ToolTip = board.Error ?? sourceDescription };
             CenterTextInk(summary);
@@ -653,27 +668,17 @@ sealed partial class MainWindow
                 var lensWidth = Measure(lens, 10, FontWeights.Normal);
                 if (available > 0 && lensWidth + Measure(title, 11, FontWeights.SemiBold) > available)
                     title = title.Replace("Artificial Analysis", "AA", StringComparison.Ordinal);
-                var license = board.Kind is "epochECI" or "openRouterUsage" or "vercelUsage" || ArenaAttribution.Applies(board) ? " · CC BY 4.0" : "";
                 var titleWidth = Measure(title, 11, FontWeights.SemiBold);
                 var showsLens = lensWidth + titleWidth <= available;
-                var licenseWidth = license.Length == 0 ? 0 : Measure(license, 11, FontWeights.SemiBold);
-                var showsLicense = license.Length > 0 && (showsLens ? lensWidth : 0) + titleWidth + licenseWidth <= available;
                 summary.Inlines.Clear();
                 if (showsLens)
                     summary.Inlines.Add(new TextRun(lens) { Foreground = BoardTint(board.Kind), FontSize = 10, FontWeight = FontWeights.Normal });
                 summary.Inlines.Add(new TextRun(title) { Foreground = BoardTint(board.Kind) });
-                if (showsLicense)
-                    summary.Inlines.Add(new TextRun(license) { Foreground = BoardTint(board.Kind) });
             }
             summary.SizeChanged += (_, _) => UpdateHeading();
             UpdateHeading();
             summary.Cursor = Cursors.Hand;
-            summary.MouseLeftButtonUp += (_, _) => ShowInformationDialog(BoardTitle(board),
-                sourceDescription + (string.IsNullOrEmpty(board.Url) ? "" : "\n\n" + board.Url)
-                    + (board.Kind is "openRouterUsage" or "vercelUsage" or "cloudbaseUsage"
-                        ? "\n\n" + UsageLicense.Text(board.Kind, board.SourceNote, prefs.Language)
-                        : board.Kind == "epochECI" ? "\n\n" + EpochAttribution.FullText(prefs.Language) + "\n\n" + UsageLicense.FullLicense(prefs.Language)
-                        : ArenaAttribution.Applies(board) ? "\n\n" + UsageLicense.FullLicense(prefs.Language) : ""), board.Url);
+            summary.MouseLeftButtonUp += (_, _) => ShowInformationWindow(CreateSourceDetailsWindow(board));
             var heading = new Grid();
             heading.ColumnDefinitions.Add(new ColumnDefinition());
             heading.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -693,7 +698,16 @@ sealed partial class MainWindow
             timeButton.Click += (_, _) => ShowTimeExplanation();
             heading.Children.Add(summary);
             Grid.SetColumn(timeButton, 1); heading.Children.Add(timeButton);
-            AddCell(headings, heading, column);
+            if (i > 0)
+            {
+                var sourceHeading = new Grid();
+                sourceHeading.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
+                sourceHeading.ColumnDefinitions.Add(new ColumnDefinition());
+                AddCell(sourceHeading, Center(Caption(Tr("Rank", "排名", "排名"), PanelInk)), 0);
+                AddCell(sourceHeading, heading, 1);
+                AddCell(headings, sourceHeading, column);
+            }
+            else AddCell(headings, heading, column);
             AddCell(headings, OpennessPicker(board), column + 2);
             AddCell(headings, CountryPicker(board), column + 1);
         }
@@ -706,12 +720,25 @@ sealed partial class MainWindow
         {
             if (index == count) return DistributionPanels(pair);
             var row = TableGrid(pair.Length); row.Height = 32; row.Background = index % 2 == 0 ? PanelBackground : Tint(panelDark ? "#29292B" : "#F3F3F5");
-            AddCell(row, Rank(index + 1), 0);
+            if (entries.Length > 0 && index < entries[0].Length)
+                AddCell(row, RankCell(index + 1, entries[0][index].RankChange), 0);
+            else AddCell(row, Rank(index + 1), 0);
             for (var side = 0; side < entries.Length; side++)
             {
                 var column = 1 + side * 4;
                 if (index >= entries[side].Length) continue;
-                var entry = entries[side][index]; AddCell(row, ModelCell(entry, unsearched[side][0].Score, BoardTint(pair[side].Kind), pair[side].Kind is not ("vercelUsage" or "cloudbaseUsage")), column);
+                var entry = entries[side][index];
+                var model = ModelCell(entry, unsearched[side][0].Score, BoardTint(pair[side].Kind), pair[side].Kind is not ("vercelUsage" or "cloudbaseUsage"));
+                if (side > 0)
+                {
+                    var sourceRow = new Grid();
+                    sourceRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
+                    sourceRow.ColumnDefinitions.Add(new ColumnDefinition());
+                    AddCell(sourceRow, RankCell(index + 1, entry.RankChange), 0);
+                    AddCell(sourceRow, model, 1);
+                    AddCell(row, sourceRow, column);
+                }
+                else AddCell(row, model, column);
                 var score = new Grid();
                 score.Children.Add(Center(Caption((pair[side].Kind is "vercelUsage" or "cloudbaseUsage" ? (entry.Score > 0 && entry.Score < 0.01 ? "<0.01%" : entry.Score.ToString("0.00", CultureInfo.InvariantCulture) + "%") : pair[side].Kind == "openRouterUsage" && entry.Score > 0 && entry.Score < 0.01 ? "<0.01B" : entry.Score.ToString(pair[side].Kind == "openRouterUsage" ? "0.00\"B\"" : pair[side].Kind == "epochECI" ? "0.00" : "0.0", CultureInfo.InvariantCulture)), PanelMuted, 13, numeric: true)));
                 AddCell(row, score, column + 3);
@@ -825,11 +852,11 @@ sealed partial class MainWindow
     {
         if (rank > 3) return Center(Caption(rank.ToString(CultureInfo.InvariantCulture), PanelInk, 13, numeric: true));
         // The medal stays legible on Windows installations without color emoji.
-        var grid = new Grid { Width = 18, Height = 23, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
-        var ribbon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M 4,0 L 8,0 L 11,8 L 7,8 Z M 10,0 L 14,0 L 11,8 L 7,8 Z"), Fill = Tint(rank == 1 ? "#FFB900" : rank == 2 ? "#86A0A7" : "#E0783D") };
+        var grid = new Grid { Width = 22, Height = 22, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+        var ribbon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M 4,0 L 9,0 L 13,9 L 8,9 Z M 13,0 L 18,0 L 14,9 L 9,9 Z"), Fill = Tint(rank == 1 ? "#FFB900" : rank == 2 ? "#86A0A7" : "#E0783D") };
         grid.Children.Add(ribbon);
-        grid.Children.Add(new Border { Width = 13, Height = 13, CornerRadius = new CornerRadius(7), Background = Tint(rank == 1 ? "#F8BF24" : rank == 2 ? "#B8BEC4" : "#C78C5C"), VerticalAlignment = VerticalAlignment.Bottom,
-            Child = Center(Caption(rank.ToString(CultureInfo.InvariantCulture), Brushes.White, 9, numeric: true)) }); return grid;
+        grid.Children.Add(new Border { Width = 17, Height = 17, CornerRadius = new CornerRadius(9), Background = Tint(rank == 1 ? "#F8BF24" : rank == 2 ? "#B8BEC4" : "#C78C5C"), VerticalAlignment = VerticalAlignment.Bottom,
+            Child = Center(Caption(rank.ToString(CultureInfo.InvariantCulture), Brushes.White, 10, numeric: true)) }); return grid;
     }
     Brush BrandFill(string hex, string modelName)
     {
@@ -848,13 +875,45 @@ sealed partial class MainWindow
         channels = channels.Select(channel => (int)Math.Round(shade < 0 ? channel * (1 + shade) : channel + (255 - channel) * shade, MidpointRounding.AwayFromZero)).ToArray();
         return new SolidColorBrush(Color.FromRgb((byte)channels[0], (byte)channels[1], (byte)channels[2])) { Opacity = 0.34 };
     }
+    TextBlock RankMovement(RankChange? change)
+    {
+        var label = change?.IsNew == true ? Tr("New", "新", "新")
+            : change?.Delta is > 0 ? "↑" + change.Delta.Value.ToString(CultureInfo.InvariantCulture)
+            : change?.Delta is < 0 ? "↓" + (-(long)change.Delta.Value).ToString(CultureInfo.InvariantCulture) : "—";
+        var color = change?.IsNew == true ? Tint(panelDark ? "#89BBFF" : "#3276CA")
+            : change?.Delta is > 0 ? Tint(panelDark ? "#FF9292" : "#C24748")
+            : change?.Delta is < 0 ? Tint(panelDark ? "#73D7AE" : "#0F8561") : PanelMuted;
+        var badge = Caption(label, color, 8, numeric: true);
+        badge.LineHeight = 9; badge.LineStackingStrategy = LineStackingStrategy.BlockLineHeight;
+        return badge;
+    }
+    FrameworkElement RankCell(int rank, RankChange? change)
+    {
+        // Reserve both lines inside the existing 32-DIP row, with a clear gap.
+        var cell = new Grid { Height = 32, VerticalAlignment = VerticalAlignment.Center };
+        cell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(22) });
+        cell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1) });
+        cell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(9) });
+        var rankView = Rank(rank);
+        rankView.VerticalAlignment = VerticalAlignment.Center;
+        cell.Children.Add(rankView);
+        var movement = Center(RankMovement(change));
+        Grid.SetRow(movement, 2);
+        cell.Children.Add(movement);
+        return cell;
+    }
     FrameworkElement ModelCell(Entry entry, double leaderScore, Brush shareColor, bool showRelativeShare)
     {
         var row = new Grid { HorizontalAlignment = HorizontalAlignment.Left };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) }); row.ColumnDefinitions.Add(new ColumnDefinition());
         AddCell(row, new Border { Child = BrandLogo(entry), Width = 20, Height = 20, VerticalAlignment = VerticalAlignment.Center,
             Clip = new RectangleGeometry(new Rect(0, 0, 20, 20), 5, 5), Margin = new Thickness(0, 0, 4, 0) }, 0);
-        var name = Caption(entry.Name, PanelInk, 13); name.Margin = new Thickness(6, 0, 3, 0); AddCell(row, name, 1);
+        var name = Caption(entry.Name, PanelInk, 13); name.Margin = new Thickness(6, 0, 3, 0);
+        var movementName = new Grid { VerticalAlignment = VerticalAlignment.Center };
+        movementName.ColumnDefinitions.Add(new ColumnDefinition());
+        movementName.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        AddCell(movementName, name, 0);
+        AddCell(row, movementName, 1);
         if (entry.CodingURL is not null || entry.ApiURL is not null)
         {
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -1064,7 +1123,11 @@ sealed partial class MainWindow
         if (Logo("github", 13) is { } github) repository.Content = new System.Windows.Shapes.Rectangle { Width = 13, Height = 13, Fill = PanelMuted, OpacityMask = new ImageBrush(github.Source) };
         else repository.Content = "GitHub";
         left.Children.Add(repository);
-        left.Children.Add(Caption(" Cloyd Lau · ", PanelMuted, 10)); left.Children.Add(FooterButton("MIT License", () => ShowLicenses(false)));
+        left.Children.Add(Caption(" Cloyd Lau · ", PanelMuted, 10));
+        var applicationLicense = FooterButton(Tr("License", "许可证", "許可證"), () => ShowLicenses(false));
+        applicationLicense.ToolTip = ApplicationLicense.Name;
+        System.Windows.Automation.AutomationProperties.SetName(applicationLicense, ApplicationLicense.Name);
+        left.Children.Add(applicationLicense);
         left.Children.Add(Caption(" · ", PanelMuted, 10)); left.Children.Add(FooterButton(Tr("Open-source notices", "开源声明", "開源聲明"), () => ShowLicenses(true))); row.Children.Add(left);
         var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         right.Children.Add(DataSourcesMenu()); right.Children.Add(Caption(" · ", size: 10));

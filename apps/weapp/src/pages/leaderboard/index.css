@@ -202,6 +202,17 @@
 .with-purchase-links .model-logo { width: 30rpx; height: 30rpx; }
 .model-logo { width: 36rpx; height: 36rpx; flex-shrink: 0; }.initial { display: flex; align-items: center; justify-content: center; border-radius: 8rpx; background: #fff; color: #506070; font-size: 22rpx; font-weight: 600; }
 .model-name { font-size: 24rpx; line-height: 1.35; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; word-break: break-word; }
+.rank-stack { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4rpx; min-width: 0; }
+.rank-value { line-height: 1.2; }
+.rank-value.medal { font-size: 40rpx; line-height: 1; }
+.rank-change { flex-shrink: 0; font-size: 16rpx; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--muted); }
+.rank-change.long { font-size: 14rpx; }
+.rank-change.up { color: #c24748; }
+.rank-change.down { color: #0f8561; }
+.rank-change.new { color: #3276ca; }
+.dark .rank-change.up { color: #ff9292; }
+.dark .rank-change.down { color: #73d7ae; }
+.dark .rank-change.new { color: #89bbff; }
 .openness-cell { text-align: center; color: var(--muted); font-size: 20rpx; }.openness-icon { display: block; width: 26rpx; height: 26rpx; margin: auto; }.open-badge { display: inline-block; border-radius: 8rpx; padding: 6rpx 8rpx; background: rgba(20,145,102,.1); color: #188966; font-size: 18rpx; line-height: 1.2; }
 .dark .open-badge { color: #6bd2aa; }
 .country-cell { font-size: 26rpx; text-align: center; }
@@ -228,6 +239,7 @@
 .reset-button { color: var(--accent); border: 1rpx solid var(--line); border-radius: 12rpx; padding: 12rpx 24rpx; }
 .footer { display: flex; align-items: center; justify-content: space-between; padding-top: 12rpx; margin: 0 28rpx; color: var(--muted); font-size: 21rpx; }
 .footer { padding-bottom: calc(env(safe-area-inset-bottom) + 260rpx); }
+.about-entry { box-sizing: border-box; min-width: 44px; padding: 0 12rpx; }
 .language-symbol { font-size: 24rpx; font-weight: 600; }
 .footer-actions { display: flex; gap: 6rpx; }.footer-actions .tap { width: 44px; }
 .back-top { position: fixed; z-index: 90; right: 30rpx; bottom: calc(env(safe-area-inset-bottom) + 148rpx); width: 42px; height: 42px; border-radius: 50%; box-shadow: 0 6rpx 24rpx rgba(0,0,0,.12); background: var(--card); color: var(--accent); display: none; justify-content: center; align-items: center; }

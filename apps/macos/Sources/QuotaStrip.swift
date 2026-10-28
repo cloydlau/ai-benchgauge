@@ -12,6 +12,7 @@ import LeaderboardCore
 /// uses its official account service through the app's connection controller.
 struct QuotaStrip: View {
     let chips: [AccountQuotaChip]
+    let providerLogos: [String: Data]
     let language: AppLanguage
     let onConnectQwen: () -> Void
     let onConnectOpenAI: (AccountQuotaChip) -> Void
@@ -29,6 +30,7 @@ struct QuotaStrip: View {
                 ForEach(AccountQuotaFormatting.sortedChips(chips)) { chip in
                     QuotaChipView(
                         chip: chip,
+                        logoPNG: providerLogos[LeaderboardQuotaProviders.organizationKey(for: chip.kind)],
                         now: context.date,
                         language: language,
                         onConnectQwen: needsQwenConnection(chip) ? onConnectQwen : nil,
@@ -83,6 +85,7 @@ private struct QuotaChipView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     let chip: AccountQuotaChip
+    let logoPNG: Data?
     let now: Date
     let language: AppLanguage
     let onConnectQwen: (() -> Void)?
@@ -242,33 +245,26 @@ private struct QuotaChipView: View {
         return chip.shortName.hasPrefix(base) ? String(chip.shortName.dropFirst(base.count)) : ""
     }
 
-    @ViewBuilder
     private var logo: some View {
-        if let image = bundledLogo {
-            Image(nsImage: image)
-                .resizable()
-                .interpolation(.high)
-                .scaledToFit()
-                .padding(0.5)
-                .frame(width: 16, height: 16)
-                .background(.white, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                        .strokeBorder(.quaternary, lineWidth: 0.5)
-                )
-                .accessibilityHidden(true)
+        Group {
+            if let image = sharedLogo {
+                Image(nsImage: image).resizable().interpolation(.high).scaledToFit().padding(0.5)
+            } else {
+                Text(LeaderboardQuotaProviders.logoInitial(for: chip.kind))
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.black.opacity(0.65))
+            }
         }
+        .frame(width: 16, height: 16)
+        .background(.white, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous).strokeBorder(.quaternary, lineWidth: 0.5))
+        .accessibilityHidden(true)
     }
 
-    private var bundledLogo: NSImage? {
-        guard let key = OrganizationLogoCatalog.bundledLogoKey(forOrganization: organizationName),
-              let resourceURL = Bundle.main.resourceURL else { return nil }
-        let url = resourceURL.appending(path: "logos/\(key).png")
-        guard let image = NSImage(contentsOf: url) else { return nil }
+    private var sharedLogo: NSImage? {
+        guard let logoPNG, let image = ModelLogoImageCache.shared.image(data: logoPNG) else { return nil }
         guard isDimmed || isExhausted,
               let original = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return image }
-        // Rasterize the monochrome mark so native captures and the live view
-        // both render it without depending on a compositing-only color effect.
         let filtered = CIImage(cgImage: original).applyingFilter("CIColorControls", parameters: [kCIInputSaturationKey: 0])
         guard let gray = Self.logoImageContext.createCGImage(filtered, from: filtered.extent) else { return image }
         return NSImage(cgImage: gray, size: image.size)
@@ -292,23 +288,6 @@ private struct QuotaChipView: View {
 
     private var exhaustedAccent: Color {
         remainingQuotaColor(0, dark: colorScheme == .dark)
-    }
-
-    private var organizationName: String {
-        switch chip.kind {
-        case .officialNote: "OpenAI"
-        case .kimi: "Kimi"
-        case .deepseek: "DeepSeek"
-        case .qwen: "Qwen"
-        case .xaiOAuth: "xAI"
-        case .zhipu: "Z.ai"
-        case .minimax: "MiniMax"
-        case .stepfun: "StepFun"
-        case .blackForestLabs: "Black Forest Labs"
-        case .luma: "Luma"
-        case .claude: "Anthropic"
-        case .gemini: "Google"
-        }
     }
 
     private var chipBackground: some View {

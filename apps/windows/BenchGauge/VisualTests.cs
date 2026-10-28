@@ -18,7 +18,7 @@ namespace BenchGauge;
 // reading accounts or using the privacy-redacted Copy command.
 static class VisualTests
 {
-    sealed record Case(string Id, string Language, int Width, int Height, string Scenario, string Mode, int? QuotaAgeSeconds, string? VersionText, int? RowCount, string? Category, string[]? SelectedBoards, string[]? RefreshedSelectedBoards, string? SearchQuery, string? Grouping, Dictionary<string, string>? Countries, Dictionary<string, string>? Sources);
+    sealed record Case(string Id, string Language, int Width, int Height, string Scenario, string Mode, int? QuotaAgeSeconds, string? VersionText, int? RowCount, string? Category, string[]? SelectedBoards, string[]? RefreshedSelectedBoards, string? SearchQuery, string? Grouping, Dictionary<string, string>? Countries, Dictionary<string, string>? Sources, string? ContentUpdatedAt, string? ComparisonKind);
     sealed record Fixture(DisplayState State, Case[] Cases, Dictionary<string, Quota[]>? QuotaScenarios, Dictionary<string, ModelDetailSection[]>? ModelDetails);
     [StructLayout(LayoutKind.Sequential)] struct Rect { public int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Sequential)] struct Point { public int X, Y; }
@@ -100,7 +100,7 @@ static class VisualTests
             }
             if (test.Scenario == "sourceTimes") state = state with { Boards = state.Boards.Select(board => board with {
                 UpdatedAt = board.Kind == "artificialAnalysis" ? null : board.Kind == "arenaText" ? "2026-10-15T00:00:00Z" : board.UpdatedAt,
-                FetchedAt = "2026-10-22T00:00:00Z"
+                FetchedAt = "2026-10-22T00:00:00Z", ContentUpdatedAt = test.ContentUpdatedAt ?? board.ContentUpdatedAt
             }).ToArray() };
             if (test.Scenario == "freshnessStale") state = state with {
                 QuotaUnavailable = true, Quotas = state.Quotas.Select(quota => quota with { IsStale = true }).ToArray() };
@@ -117,17 +117,25 @@ static class VisualTests
                     return best with { Name = best.Organization ?? best.Name, Score = board.Kind is "openRouterUsage" or "vercelUsage" or "cloudbaseUsage" ? group.Sum(entry => entry.Score) : best.Score };
                 }).OrderByDescending(entry => entry.Score).ToArray()
             }).ToArray() };
+            if (test.Scenario == "rankChanges") state = state with { Boards = state.Boards.Select(board => board with {
+                Entries = board.Entries.Select((entry, index) => entry with { RankChange = ((index + (board.Kind == "epochECI" ? 1 : board.Kind == "arenaText" ? 2 : 0)) % 4) switch {
+                    0 => new RankChange(Delta: 12), 1 => new RankChange(Delta: -3),
+                    2 => new RankChange(IsNew: true), _ => null
+                } }).ToArray()
+            }).ToArray() };
             var panel = new MainWindow(null, preferences)
                 { Width = test.Width, Height = test.Height };
             panel.SetVisualViewport(test.Width, test.Height);
             // The account dialog owns the panel; WPF requires that owner to
             // have been shown before assigning Window.Owner.
             panel.SetVisualAppearance(theme == "dark");
-            if (test.Scenario is "addModelDialog" or "thirdPartyNotices" || test.Scenario.StartsWith("modelDetails")) panel.Show();
+            if (test.Scenario is "addModelDialog" or "thirdPartyNotices" or "applicationLicense" or "sourceDetails" || test.Scenario.StartsWith("modelDetails")) panel.Show();
             var detailEntry = state.Boards[0].Entries[0] with { Details = fixture.ModelDetails?.GetValueOrDefault(test.Language) };
             if (test.Scenario == "modelDetailsMissing") detailEntry = detailEntry with { Name = "Unmatched model / 暂无模型资料", Details = [] };
             if (test.Scenario == "modelDetailsLong") detailEntry = detailEntry with { Name = "Research Model — Extended Reasoning / Very Long Provider Variant 长名称测试模型（高推理预算版本）" };
             Window window = test.Scenario == "thirdPartyNotices" ? panel.CreateLicenseWindow(true)
+                : test.Scenario == "applicationLicense" ? panel.CreateLicenseWindow(false)
+                : test.Scenario == "sourceDetails" ? panel.CreateSourceDetailsWindow(state.Boards.First(board => board.Kind == (test.ComparisonKind ?? "epochECI")))
                 : test.Scenario.StartsWith("modelDetails") ? panel.CreateModelDetailsWindow(detailEntry)
                 : test.Scenario == "addModelDialog"
                 ? panel.CreateOfficialAccountsWindow(new EngineResponse(0, null, null, null, null,
@@ -142,7 +150,7 @@ static class VisualTests
                 panel.SetVisualAppearance(theme == "dark");
                 if (window is XAIAccountConnectionWindow xaiLogin) xaiLogin.SetAppearance(theme == "dark");
                 panel.SetState(state);
-                if (test.Scenario.StartsWith("modelDetails") || test.Scenario is "addModelDialog" or "thirdPartyNotices" || test.Scenario.StartsWith("xaiSubscriptionDialog", StringComparison.Ordinal) || test.Scenario.StartsWith("xaiDeviceDialog", StringComparison.Ordinal))
+                if (test.Scenario.StartsWith("modelDetails") || test.Scenario is "addModelDialog" or "thirdPartyNotices" or "applicationLicense" or "sourceDetails" || test.Scenario.StartsWith("xaiSubscriptionDialog", StringComparison.Ordinal) || test.Scenario.StartsWith("xaiDeviceDialog", StringComparison.Ordinal))
                 {
                     window.SizeToContent = SizeToContent.Manual; window.WindowStyle = WindowStyle.None;
                     window.Width = test.Width; window.Height = test.Height; window.Show();

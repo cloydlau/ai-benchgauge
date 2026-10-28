@@ -14,12 +14,13 @@ public sealed record AppConfig(string Version, string Repository, string UpdateP
 }
 public sealed record DisplayState(Board[] Boards, Quota[] Quotas, bool QuotaNeedsCCSwitch, bool QuotaUnavailable, string? TrayText, Alert[] Alerts, LayoutEntry[]? LayoutEntries = null, string? QuotaUpdatedAt = null);
 public sealed record LayoutEntry(string Name, string? PlanTitle, string? ApiTitle);
-public sealed record Board(string Kind, string Title, string Url, string? UpdatedAt, string? Error, Entry[] Entries, string? FetchedAt = null, CountryOption[]? CountryOptions = null, LeaderboardDistribution? Distribution = null, string? SourceNote = null, JsonElement? ModelMetadataSource = null);
+public sealed record Board(string Kind, string Title, string Url, string? UpdatedAt, string? Error, Entry[] Entries, string? FetchedAt = null, CountryOption[]? CountryOptions = null, LeaderboardDistribution? Distribution = null, string? SourceNote = null, JsonElement? ModelMetadataSource = null, string? ContentUpdatedAt = null);
 public sealed record CountryOption(string Value, string Label);
-public sealed record Entry(int Rank, string Name, double Score, string? Organization, string? Country, string? Logo, string? CodingURL, string? ApiURL, string? Help, string? Openness = null, string? BrandColor = null, string? LogoPNG = null, string? Initials = null, JsonElement? ModelMetadata = null, int? VoteCount = null, ModelDetailSection[]? Details = null, string? DetailID = null);
+public sealed record RankChange(int? Delta = null, bool? IsNew = null);
+public sealed record Entry(int Rank, string Name, double Score, string? Organization, string? Country, string? Logo, string? CodingURL, string? ApiURL, string? Help, string? Openness = null, string? BrandColor = null, string? LogoPNG = null, string? Initials = null, JsonElement? ModelMetadata = null, int? VoteCount = null, ModelDetailSection[]? Details = null, string? DetailID = null, RankChange? RankChange = null);
 public sealed record ModelDetailSection(string Id, string Title, string? Summary, ModelDetailRow[] Rows);
 public sealed record ModelDetailRow(string Label, string Value, string? Url);
-public sealed record Quota(string Id, string Name, bool IsCurrent, bool IsStale, string Help, string? Url, bool CanConnect, string? Connection, Run[] Runs, string? AccentLight = null, bool IsDimmed = false);
+public sealed record Quota(string Id, string Name, bool IsCurrent, bool IsStale, string Help, string? Url, bool CanConnect, string? Connection, Run[] Runs, string? AccentLight = null, bool IsDimmed = false, string? LogoPNG = null, string? Initials = null);
 public sealed record Run(string Text, string Light, string Dark);
 public sealed record Alert(string Title, string Body);
 public sealed record OfficialAccountSummary(string Id, string ProviderID, string Label);

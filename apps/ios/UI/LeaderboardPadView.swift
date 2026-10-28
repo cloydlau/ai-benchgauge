@@ -841,7 +841,7 @@ public struct LeaderboardPadView: View {
             failure: store.failures[kind],
             modelSearchQuery: $store.modelSearchQuery, modelSearchPresented: $store.modelSearchPresented,
             modelSearchEditing: $store.modelSearchEditing,
-            isRefreshing: store.refreshing.contains(kind), polishRevision: store.timestampPolishRevisions[kind, default: 0], isImage: isImage, compact: compact, denseColumns: denseColumns, exportScheme: exportScheme,
+            isLoading: store.isLoading(kind), polishRevision: store.timestampPolishRevisions[kind, default: 0], isImage: isImage, compact: compact, denseColumns: denseColumns, exportScheme: exportScheme,
             selectCountry: { store.setCountryFilter($0, for: kind); resetComparison() },
             clearFilters: { store.clearSearchQueries(); store.setCountryFilter(.all, for: kind); store.setOpennessFilter(.all, for: kind); resetComparison() },
             selectOpenness: { store.setOpennessFilter($0, for: kind); resetComparison() }, openModel: { entry in
@@ -1123,7 +1123,7 @@ private struct PadBoardCard: View {
     @Binding var modelSearchQuery: String
     @Binding var modelSearchPresented: Bool
     @Binding var modelSearchEditing: Bool
-    let isRefreshing: Bool
+    let isLoading: Bool
     let polishRevision: Int
     let isImage: Bool
     let compact: Bool
@@ -1278,7 +1278,7 @@ private struct PadBoardCard: View {
     private var timeLabels: some View {
         let time = LeaderboardPresentation.sourceTime(board, language: language, includesYear: isImage)
         let parts = LeaderboardPresentation.sourceTimeParts(board, language: language, includesYear: isImage)
-        let loading = !isImage && isRefreshing
+        let loading = !isImage && isLoading
         return HStack(spacing: 0) {
             Text(parts.value)
             if !parts.caption.isEmpty || !isImage {
@@ -1307,11 +1307,11 @@ private struct PadBoardCard: View {
                     .offset(y: 1).allowsHitTesting(false)
             }
         }
-        .modifier(TimestampPolish(ready: !isImage && !isRefreshing && board != nil && kind != .cloudbaseUsage, revision: polishRevision))
+        .modifier(TimestampPolish(ready: !isImage && !isLoading && board != nil && kind != .cloudbaseUsage, revision: polishRevision))
         .accessibilityElement(children: .ignore)
         .accessibilityAddTraits(.isStaticText)
         .accessibilityLabel(time.text)
-        .accessibilityValue(isRefreshing ? tr("Loading", "加载中") : "")
+        .accessibilityValue(isLoading && !isImage ? tr("Loading", "加载中") : "")
         .accessibilityIdentifier("source-times-\(kind.rawValue)")
     }
     private var sourceDescription: some View {
@@ -1541,7 +1541,7 @@ private struct PadBoardCard: View {
                     .accessibilityValue(rankingExpanded ? tr("Expanded", "已展开") : tr("Collapsed", "已收起"))
                 }
             }
-        } else if isRefreshing && !isImage {
+        } else if isLoading && !isImage {
             loadingSkeleton
         } else {
             VStack(spacing: 12) {
@@ -1669,8 +1669,11 @@ private struct PadBoardCard: View {
     private func entryRow(_ entry: LeaderboardEntry, rank: Int) -> some View {
         let country = OrganizationRegion.country(for: entry)
         return HStack(alignment: .center, spacing: columnSpacing) {
-            Text(LeaderboardPresentation.rankLabel(rank)).font(compactColumns ? .caption : .subheadline)
-                .monospacedDigit().foregroundStyle(primaryForeground).frame(width: rankColumnWidth)
+            VStack(spacing: 2) {
+                Text(LeaderboardPresentation.rankLabel(rank)).font(rank <= 3 ? .system(size: 20) : (compactColumns ? .caption : .subheadline))
+                    .monospacedDigit().foregroundStyle(primaryForeground)
+                LeaderboardRankChangeBadge(entry.rankChange, language: language)
+            }.frame(width: rankColumnWidth)
             HStack(alignment: .center, spacing: columnSpacing) {
                 HStack(spacing: 6) {
                     PadOrganizationLogo(entry: entry, isCompany: grouping == .company)
@@ -1791,17 +1794,7 @@ private struct PadOrganizationLogo: View {
             if let image = NSImage(data: data) { return Image(nsImage: image) }
             #endif
         }
-        guard let key = OrganizationLogoCatalog.bundledLogoKey(forOrganization: entry.organization, modelName: entry.name),
-              let image = Self.image(for: key) else { return nil }
-        return image
-    }
-    static func image(for key: String) -> Image? {
-        guard let url = Bundle.main.url(forResource: key, withExtension: "png", subdirectory: "logos") else { return nil }
-        #if os(iOS)
-        return UIImage(contentsOfFile: url.path).map(Image.init(uiImage:))
-        #else
-        return NSImage(contentsOf: url).map(Image.init(nsImage:))
-        #endif
+        return nil
     }
     var body: some View {
         Group {

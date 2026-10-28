@@ -1,9 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { existsSync, readFileSync } from 'node:fs'
-import { createHash } from 'node:crypto'
 import brandCatalog from '../../../fc/brand-catalog.json' with { type: 'json' }
-import companyCatalog from '../../../assets/logos/company-catalog.json' with { type: 'json' }
 import { boards, categories, copy, languages, text } from '../src/core/catalog.js'
 import { normalizeBoard, canReplace, countryCode, countryFlag, countryOptions, companyRows, visibleRows, formatTime, rowView, scoreShareText, modelNameMatches } from '../src/core/leaderboard.js'
 
@@ -231,28 +229,30 @@ test('the view DTO contains only display fields and uses PNG data rather than ar
   assert.notEqual(rowView(original, { dark: true }).fill, view.fill)
   assert.equal(rowView({ ...original, brand: { pngData: '<script>', colorHex: 'bad' } }).logo, '')
   assert.equal(rowView({ ...original, brand: { key: 'openai' } }).logo, '')
-  assert.equal(rowView({ ...original, name: 'Claude Sonnet', organization: 'Anthropic', brand: { key: 'anthropic', pngData: 'iVBORw0KGgo=' } }).logo, '/assets/logos/anthropic.png')
+  assert.equal(rowView({ ...original, name: 'Claude Sonnet', organization: 'Anthropic', brand: { key: 'anthropic', pngData: 'iVBORw0KGgo=' } }).logo, 'data:image/png;base64,iVBORw0KGgo=')
 })
 
-test('MiMo and GLM keep bundled provider icons when no separate model mark exists', () => {
+test('MiMo and GLM use shared provider images in both themes', () => {
   for (const [name, organization, key] of [
     ['MiMo-V2.6-Pro', 'Xiaomi', 'xiaomi'], ['mimo-v2.6-flash', 'Xiaomi', 'xiaomi'],
     ['GLM-5.3 (Max)', 'Z AI', 'zai'], ['glm-5.3-max', 'Z.ai', 'zai'], ['GLM-Image', 'Z AI', 'zai'],
     ['Opencode - GLM-5.3', undefined, 'zai'],
   ]) {
     const model = entry(1, name, 99, organization, { brand: { key, pngData: 'iVBORw0KGgo=' } })
-    assert.equal(rowView(model).logo, `/assets/logos/${key}.png`, name)
-    assert.equal(rowView(model, { dark: true }).logo, `/assets/logos/${key}.png`, name)
+    assert.equal(rowView(model).logo, 'data:image/png;base64,iVBORw0KGgo=', name)
+    assert.equal(rowView(model, { dark: true }).logo, 'data:image/png;base64,iVBORw0KGgo=', name)
   }
 })
 
-test('every bundled provider has a packaged PNG and is available to models and companies', () => {
-  for (const key of Object.keys(brandCatalog.colors)) {
-    const path = `/assets/logos/${key}.png`
-    assert.ok(existsSync(new URL(`../../..${path}`, import.meta.url)), path)
+test('provider rows use shared images or initials, with no packaged supplier PNGs', () => {
+  for (const key of Object.keys(brandCatalog.colors).filter(key => key !== 'github')) {
+    assert.equal(existsSync(new URL(`../../../assets/logos/${key}.png`, import.meta.url)), false, key)
     const model = entry(1, 'Provider model', 99, key, { brand: { key } })
-    assert.equal(rowView(model).logo, path, key)
-    assert.equal(rowView(model, { company: true }).logo, path, key)
+    assert.equal(rowView(model).logo, '', key)
+    assert.equal(rowView(model, { company: true }).logo, '', key)
+    const ready = { ...model, brand: { key, pngData: 'iVBORw0KGgo=' } }
+    assert.equal(rowView(ready).logo, 'data:image/png;base64,iVBORw0KGgo=', key)
+    assert.equal(rowView(ready, { company: true }).logo, 'data:image/png;base64,iVBORw0KGgo=', key)
   }
   assert.equal(rowView(entry(1, 'Unknown model', 1, 'Unverified')).logo, '')
   const serverOnly = entry(1, 'K2 Horizon', 99, 'Institute of Foundation Models', {
@@ -261,25 +261,24 @@ test('every bundled provider has a packaged PNG and is available to models and c
   assert.equal(rowView(serverOnly).logo, 'data:image/png;base64,iVBORw0KGgo=')
 })
 
-test('company logos cover pending, missing and older cached metadata with verified local assets', () => {
-  for (const [key, source] of Object.entries(companyCatalog)) {
-    const path = `/assets/logos/${key}.png`
-    const bytes = readFileSync(new URL(`../../..${path}`, import.meta.url))
-    assert.deepEqual([...bytes.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10], key)
-    assert.deepEqual([bytes.readUInt32BE(16), bytes.readUInt32BE(20)], [64, 64], key)
-    assert.ok(bytes.length <= 16 * 1024, key)
-    assert.equal(createHash('sha256').update(bytes).digest('hex'), source.sha256, key)
-    assert.equal(new URL(source.pageURL).protocol, 'https:')
-    assert.equal(new URL(source.sourceURL).protocol, 'https:')
+test('company images survive cached metadata; pending or missing images show initials', () => {
+  const formerCompanyKeys = ["arceeai", "primeintellect", "01ai", "nexusflow", "ai21labs", "reka", "princetonnlp", "huggingface", "databricks", "shanghaiailaboratory", "snowflake", "lmsys", "ucberkeley", "nousresearch", "mosaicml", "technologyinnovationinstitute", "universityofwashington", "togetherai", "stanford", "nomicai", "laion", "stabilityai", "kuaishou"]
+  for (const key of formerCompanyKeys) {
+    assert.equal(existsSync(new URL(`../../../assets/logos/${key}.png`, import.meta.url)), false, key)
     for (const status of ['pending', 'missing', undefined]) {
       const fields = status ? { organizationBrand: { key, status } } : {}
       const rows = visibleRows(board([entry(1, 'Provider model', 99, key, fields)]), { grouping: 'company' })
-      assert.equal(rows[0].logo, path, `${key}: ${status}`)
+      assert.equal(rows[0].logo, '', `${key}: ${status}`)
+      assert.ok(rows[0].initial, key)
       assert.equal(rows[0].score, 99)
     }
+    const cached = JSON.parse(JSON.stringify(board([entry(1, 'Provider model', 99, key, {
+      organizationBrand: { key, status: 'ready', pngData: 'iVBORw0KGgo=' },
+    })])))
+    assert.equal(visibleRows(cached, { grouping: 'company' })[0].logo, 'data:image/png;base64,iVBORw0KGgo=', key)
   }
   const trinity = visibleRows(board([entry(1, 'trinity-large-thinking', 99, null)]), { grouping: 'company' })
-  assert.equal(trinity[0].logo, '/assets/logos/arceeai.png')
+  assert.equal(trinity[0].logo, '')
   const ready = visibleRows(board([
     entry(1, 'Best', 99, 'OpenAI', { organizationBrand: { key: 'openai', status: 'pending' } }),
     entry(2, 'Other', 90, 'Open AI', { brand: { key: 'openai', pngData: 'iVBORw0KGgo=' } }),
@@ -287,12 +286,16 @@ test('company logos cover pending, missing and older cached metadata with verifi
   assert.equal(ready[0].logo, 'data:image/png;base64,iVBORw0KGgo=')
 })
 
-test('dedicated model marks and bundled model-family icons take priority over provider fallback', () => {
+test('model and manufacturer images come from the shared snapshot without local substitution', () => {
   const model = entry(1, 'Wan 3', 99, 'Alibaba', { brand: { key: 'qwen' } })
+  assert.equal(rowView(model).logo, '')
   const wan = brandCatalog.modelLogos.find(model => model.key === 'wan')
-  assert.equal(rowView(model).logo, `data:image/png;base64,${wan.pngData}`)
-  assert.equal(rowView(entry(1, 'Claude Sonnet', 99, 'Anthropic')).logo, '/assets/logos/anthropic.png')
-  assert.equal(rowView(entry(1, 'Agent - GLM-5.3', 99, 'Unverified Harness')).logo, '/assets/logos/zai.png')
+  const shared = { ...model, brand: { key: 'model-wan', pngData: wan.pngData },
+    organizationBrand: { key: 'qwen', pngData: 'iVBORw0KGgo=' } }
+  assert.equal(rowView(shared).logo, `data:image/png;base64,${wan.pngData}`)
+  assert.equal(rowView(shared, { company: true }).logo, 'data:image/png;base64,iVBORw0KGgo=')
+  assert.equal(rowView(entry(1, 'Claude Sonnet', 99, 'Anthropic')).logo, '')
+  assert.equal(rowView(entry(1, 'Agent - GLM-5.3', 99, 'Unverified Harness')).logo, '')
   assert.equal(rowView(entry(1, 'Agent - GLM-5.3', 99, 'Unverified Harness'), { company: true }).logo, '')
 })
 
@@ -322,5 +325,21 @@ test('timestamp dates use calendar days through three days ago, then the existin
   } finally {
     if (originalZone === undefined) delete process.env.TZ
     else process.env.TZ = originalZone
+  }
+})
+
+test('rank movement labels use arrows, localize new entries and use company positions', () => {
+  for (const language of ['en', 'zh-CN', 'zh-TW']) {
+    const base = { rank: 2, name: 'Model', score: 99, organization: 'OpenAI' }
+    for (const [change, expected, tone] of [[undefined, ''], [{delta:0}, ''], [{delta:3}, '↑3', 'up'], [{delta:-12}, '↓12', 'down'], [{isNew:true}, language === 'en' ? 'New' : '新', 'new']]) {
+      const row = rowView({ ...base, rankChange: change }, { language })
+      assert.equal(row.rankChangeText, expected)
+      assert.equal(row.rankChangeTone, tone)
+      assert.equal(row.rank, base.rank)
+      assert.equal(row.medal, '🥈')
+    }
+    const snapshot = { kind: 'arenaText', entries: [{ ...base, rankChange: {delta:3}, companyRankChange:{delta:-1} }] }
+    assert.equal(visibleRows(snapshot, { grouping:'company', language })[0].rankChangeText, '↓1')
+    assert.equal(visibleRows(snapshot, { query:'Model', language })[0].rankChangeText, '↑3')
   }
 })

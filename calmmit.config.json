@@ -157,6 +157,7 @@
           "pnpm-lock.yaml",
           "pnpm-workspace.yaml",
           "Scripts/weapp-deploy.mjs",
+          "Scripts/app-version.mjs",
           "Scripts/calmmit.mjs",
           "Scripts/contributor-circles.mjs",
           "calmmit.config.json",

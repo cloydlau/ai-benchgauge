@@ -62,7 +62,7 @@ private func eciCSV(_ first: [String: String] = [:], count: Int = 22) -> String 
         #expect(OrganizationLogoCatalog.developerKey(organization: row.organization) == key)
         #expect(row.developerCountry?.key == key)
         #expect(OrganizationRegion.country(for: row)?.regionCode == "US")
-        #expect(OrganizationLogoCatalog.bundledLogoKey(forOrganization: organization) == key)
+        #expect(OrganizationLogoCatalog.resolvedKey(organization: organization) == key)
     }
     for (id, country, openness) in [("Qwen2.5-Coder-14B", "CN", ModelOpenness.open),
                                    ("internlm-20b", "CN", .open), ("DeepSeek-Coder-V2-Lite-Base", "CN", .open),

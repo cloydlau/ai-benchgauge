@@ -956,7 +956,8 @@
             "dark": "#99D37C"
           }
         ],
-        "accentLight": "#3D8437"
+        "accentLight": "#3D8437",
+        "initials": "O"
       },
       {
         "id": "fixture-1",
@@ -979,7 +980,8 @@
             "dark": "#FF9153"
           }
         ],
-        "accentLight": "#DB521D"
+        "accentLight": "#DB521D",
+        "initials": "K"
       },
       {
         "id": "fixture-2",
@@ -1002,7 +1004,8 @@
             "dark": "#7FD68B"
           }
         ],
-        "accentLight": "#1C8541"
+        "accentLight": "#1C8541",
+        "initials": "Q"
       },
       {
         "id": "fixture-3",
@@ -1025,7 +1028,8 @@
             "dark": "#EBCB4E"
           }
         ],
-        "accentLight": "#9F8219"
+        "accentLight": "#9F8219",
+        "initials": "D"
       },
       {
         "id": "fixture-4",
@@ -1048,7 +1052,8 @@
             "dark": "#FF825F"
           }
         ],
-        "accentLight": "#DB3D23"
+        "accentLight": "#DB3D23",
+        "initials": "Z"
       },
       {
         "id": "fixture-5",
@@ -1071,7 +1076,8 @@
             "dark": "#BAD06A"
           }
         ],
-        "accentLight": "#63832B"
+        "accentLight": "#63832B",
+        "initials": "X"
       }
     ],
     "quotaNeedsCCSwitch": false,
@@ -1081,6 +1087,98 @@
     "quotaUpdatedAt": "2026-09-29T00:00:00Z"
   },
   "cases": [
+    {
+      "id": "rank-changes-three-zh-Hant",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "scenario": "rankChanges",
+      "mode": "clickToClose",
+      "category": "general",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ]
+    },
+    {
+      "id": "rank-changes-company-two",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "scenario": "rankChanges",
+      "mode": "clickToClose",
+      "category": "general",
+      "grouping": "company",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "epochECI"
+      ]
+    },
+    {
+      "id": "rank-column-model",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "rankChanges",
+      "mode": "clickToClose",
+      "category": "general",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "rank-changes-en",
+      "language": "en",
+      "width": 1100,
+      "height": 720,
+      "scenario": "rankChanges",
+      "mode": "clickToClose",
+      "category": "general",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "epochECI"
+      ]
+    },
+    {
+      "id": "rank-changes-zh",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "scenario": "rankChanges",
+      "mode": "clickToClose",
+      "category": "general",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "epochECI"
+      ]
+    },
+    {
+      "id": "rank-changes-zh-Hant",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "scenario": "rankChanges",
+      "mode": "clickToClose",
+      "category": "general",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "epochECI"
+      ]
+    },
+    {
+      "id": "rank-changes-company",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "rankChanges",
+      "mode": "clickToClose",
+      "category": "general",
+      "grouping": "company",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
     {
       "id": "single-time-en-850",
       "language": "en",
@@ -3623,6 +3721,76 @@
       "height": 720,
       "scenario": "openAICredits",
       "mode": "panel"
+    },
+    {
+      "id": "content-time-en",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceTimes",
+      "contentUpdatedAt": "2026-09-29T00:00:00Z"
+    },
+    {
+      "id": "content-time-zh",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceTimes",
+      "contentUpdatedAt": "2026-09-29T00:00:00Z"
+    },
+    {
+      "id": "content-time-zh-Hant",
+      "language": "zh-Hant",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceTimes",
+      "contentUpdatedAt": "2026-09-29T00:00:00Z"
+    },
+    {
+      "id": "source-header-epoch-en",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceHeader",
+      "category": "general",
+      "selectedBoards": [
+        "epochECI"
+      ]
+    },
+    {
+      "id": "source-header-usage-zh-Hant",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "scenario": "sourceHeader",
+      "category": "usage"
+    },
+    {
+      "id": "source-details-epochECI-en",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceDetails",
+      "comparisonKind": "epochECI",
+      "category": "general"
+    },
+    {
+      "id": "source-details-vercelUsage-zh",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceDetails",
+      "comparisonKind": "vercelUsage",
+      "category": "usage"
+    },
+    {
+      "id": "source-details-openRouterUsage-zh-Hant",
+      "language": "zh-Hant",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceDetails",
+      "comparisonKind": "openRouterUsage",
+      "category": "usage"
     }
   ],
   "quotaScenarios": {
@@ -3649,7 +3817,8 @@
           }
         ],
         "accentLight": "#DB521D",
-        "status": null
+        "status": null,
+        "initials": "K"
       }
     ],
     "kimiReauth": [
@@ -3670,7 +3839,8 @@
           }
         ],
         "accentLight": null,
-        "status": "reauth"
+        "status": "reauth",
+        "initials": "K"
       }
     ],
     "kimiPending": [
@@ -3691,7 +3861,8 @@
           }
         ],
         "accentLight": null,
-        "status": "pending"
+        "status": "pending",
+        "initials": "K"
       }
     ],
     "kimiDistinctKeys": [
@@ -3717,7 +3888,8 @@
           }
         ],
         "accentLight": "#DB521D",
-        "status": null
+        "status": null,
+        "initials": "K"
       },
       {
         "id": "fixture-kimi-second",
@@ -3741,7 +3913,8 @@
           }
         ],
         "accentLight": "#DB521D",
-        "status": null
+        "status": null,
+        "initials": "K"
       }
     ],
     "kimiDuplicateBefore": [
@@ -3762,7 +3935,8 @@
           }
         ],
         "accentLight": null,
-        "status": "notConfigured"
+        "status": "notConfigured",
+        "initials": "K"
       },
       {
         "id": "fixture-kimi-cli",
@@ -3781,7 +3955,8 @@
           }
         ],
         "accentLight": null,
-        "status": "reauth"
+        "status": "reauth",
+        "initials": "K"
       }
     ],
     "xaiWeeklyReset": [
@@ -3814,7 +3989,8 @@
             "utilization": 25,
             "resetsAt": "2026-10-05T12:26:54Z"
           }
-        ]
+        ],
+        "initials": "X"
       }
     ],
     "xaiSubscriptionDate": [
@@ -3862,7 +4038,8 @@
             "utilization": 0,
             "resetsAt": "2026-10-24T12:00:00Z"
           }
-        ]
+        ],
+        "initials": "X"
       }
     ],
     "xaiNoDate": [
@@ -3895,7 +4072,8 @@
             "utilization": 25,
             "resetsAt": null
           }
-        ]
+        ],
+        "initials": "X"
       }
     ],
     "xaiCachedDate": [
@@ -3944,7 +4122,8 @@
             "resetsAt": "2026-10-24T12:00:00Z",
             "dateSource": "cached"
           }
-        ]
+        ],
+        "initials": "X"
       }
     ],
     "xaiSubscriptionDialog": [
@@ -3977,7 +4156,8 @@
             "utilization": 25,
             "resetsAt": null
           }
-        ]
+        ],
+        "initials": "X"
       }
     ],
     "xaiSubscriptionDialog-verification": [
@@ -4010,7 +4190,8 @@
             "utilization": 25,
             "resetsAt": null
           }
-        ]
+        ],
+        "initials": "X"
       }
     ],
     "xaiSubscriptionDialog-mismatch": [
@@ -4043,7 +4224,8 @@
             "utilization": 25,
             "resetsAt": null
           }
-        ]
+        ],
+        "initials": "X"
       }
     ],
     "xaiSubscriptionDialog-paused": [
@@ -4076,7 +4258,8 @@
             "utilization": 25,
             "resetsAt": null
           }
-        ]
+        ],
+        "initials": "X"
       }
     ],
     "payAsYouGoLast-noDate": [
@@ -4124,7 +4307,8 @@
             "utilization": 0,
             "resetsAt": "2026-11-18T12:00:00Z"
           }
-        ]
+        ],
+        "initials": "K"
       },
       {
         "id": "sort-xai",
@@ -4155,7 +4339,8 @@
             "utilization": 25,
             "resetsAt": null
           }
-        ]
+        ],
+        "initials": "X"
       },
       {
         "id": "sort-deepseek",
@@ -4179,7 +4364,8 @@
             "currency": "CNY",
             "amount": 12.36
           }
-        ]
+        ],
+        "initials": "D"
       }
     ],
     "payAsYouGoLast-queryFailed": [
@@ -4227,7 +4413,8 @@
             "utilization": 0,
             "resetsAt": "2026-11-18T12:00:00Z"
           }
-        ]
+        ],
+        "initials": "K"
       },
       {
         "id": "sort-xai",
@@ -4246,7 +4433,8 @@
           }
         ],
         "accentLight": null,
-        "status": "queryFailed"
+        "status": "queryFailed",
+        "initials": "X"
       },
       {
         "id": "sort-deepseek",
@@ -4270,7 +4458,8 @@
             "currency": "CNY",
             "amount": 12.36
           }
-        ]
+        ],
+        "initials": "D"
       }
     ],
     "payAsYouGoLast-pending": [
@@ -4318,7 +4507,8 @@
             "utilization": 0,
             "resetsAt": "2026-11-18T12:00:00Z"
           }
-        ]
+        ],
+        "initials": "K"
       },
       {
         "id": "sort-xai",
@@ -4337,7 +4527,8 @@
           }
         ],
         "accentLight": null,
-        "status": "pending"
+        "status": "pending",
+        "initials": "X"
       },
       {
         "id": "sort-deepseek",
@@ -4361,7 +4552,8 @@
             "currency": "CNY",
             "amount": 12.36
           }
-        ]
+        ],
+        "initials": "D"
       }
     ],
     "payAsYouGoLast-reauth": [
@@ -4409,7 +4601,8 @@
             "utilization": 0,
             "resetsAt": "2026-11-18T12:00:00Z"
           }
-        ]
+        ],
+        "initials": "K"
       },
       {
         "id": "sort-xai",
@@ -4428,7 +4621,8 @@
           }
         ],
         "accentLight": null,
-        "status": "reauth"
+        "status": "reauth",
+        "initials": "X"
       },
       {
         "id": "sort-deepseek",
@@ -4452,7 +4646,8 @@
             "currency": "CNY",
             "amount": 12.36
           }
-        ]
+        ],
+        "initials": "D"
       }
     ],
     "inactiveQuotas": [
@@ -4474,7 +4669,8 @@
         ],
         "status": "queryFailed",
         "failureReason": "noCodingPlan",
-        "isDimmed": true
+        "isDimmed": true,
+        "initials": "Z"
       },
       {
         "id": "qwen",
@@ -4494,7 +4690,8 @@
         ],
         "status": "queryFailed",
         "failureReason": "noPlan",
-        "isDimmed": true
+        "isDimmed": true,
+        "initials": "Q"
       },
       {
         "id": "zero",
@@ -4519,7 +4716,8 @@
           }
         ],
         "isDimmed": true,
-        "accentLight": "#C33030"
+        "accentLight": "#C33030",
+        "initials": "D"
       },
       {
         "id": "owed",
@@ -4544,7 +4742,8 @@
           }
         ],
         "isDimmed": true,
-        "accentLight": "#C33030"
+        "accentLight": "#C33030",
+        "initials": "D"
       },
       {
         "id": "mixed",
@@ -4571,7 +4770,8 @@
             "currency": "CNY",
             "amount": 5
           }
-        ]
+        ],
+        "initials": "D"
       },
       {
         "id": "healthy",
@@ -4594,7 +4794,8 @@
             "name": "weekly_limit",
             "utilization": 30
           }
-        ]
+        ],
+        "initials": "K"
       },
       {
         "id": "error",
@@ -4612,7 +4813,8 @@
             "dark": "#FF8A80"
           }
         ],
-        "status": "queryFailed"
+        "status": "queryFailed",
+        "initials": "O"
       }
     ],
     "restoredQuotas": [
@@ -4638,7 +4840,8 @@
             "name": "weekly_limit",
             "utilization": 30
           }
-        ]
+        ],
+        "initials": "Z"
       },
       {
         "id": "qwen",
@@ -4662,7 +4865,8 @@
             "name": "weekly_limit",
             "utilization": 30
           }
-        ]
+        ],
+        "initials": "Q"
       },
       {
         "id": "zero",
@@ -4687,7 +4891,8 @@
           }
         ],
         "isDimmed": false,
-        "accentLight": "#238D50"
+        "accentLight": "#238D50",
+        "initials": "D"
       },
       {
         "id": "owed",
@@ -4712,7 +4917,8 @@
           }
         ],
         "isDimmed": false,
-        "accentLight": "#238D50"
+        "accentLight": "#238D50",
+        "initials": "D"
       },
       {
         "id": "mixed",
@@ -4739,7 +4945,8 @@
             "currency": "CNY",
             "amount": 5
           }
-        ]
+        ],
+        "initials": "D"
       },
       {
         "id": "healthy",
@@ -4762,7 +4969,8 @@
             "name": "weekly_limit",
             "utilization": 30
           }
-        ]
+        ],
+        "initials": "K"
       },
       {
         "id": "error",
@@ -4780,7 +4988,8 @@
             "dark": "#FF8A80"
           }
         ],
-        "status": "queryFailed"
+        "status": "queryFailed",
+        "initials": "O"
       }
     ],
     "kimiNotSubscribed": [
@@ -4805,7 +5014,8 @@
             "dark": "#99D37C"
           }
         ],
-        "accentLight": "#3D8437"
+        "accentLight": "#3D8437",
+        "initials": "O"
       },
       {
         "id": "kimi-neighbor-balance",
@@ -4830,7 +5040,8 @@
           }
         ],
         "accentLight": "#3D8437",
-        "isDimmed": false
+        "isDimmed": false,
+        "initials": "D"
       },
       {
         "id": "kimi-expired-plan",
@@ -4850,7 +5061,8 @@
         ],
         "accentLight": "#666666",
         "status": "notSubscribed",
-        "isDimmed": true
+        "isDimmed": true,
+        "initials": "K"
       }
     ],
     "openaiRenewedLogin": [
@@ -4884,7 +5096,8 @@
             "resetsAt": null
           }
         ],
-        "isDimmed": false
+        "isDimmed": false,
+        "initials": "O"
       }
     ],
     "quotaErrorSort": [
@@ -4910,7 +5123,8 @@
             "utilization": 25,
             "resetsAt": null
           }
-        ]
+        ],
+        "initials": "O"
       },
       {
         "id": "funded",
@@ -4933,7 +5147,8 @@
             "currency": "CNY",
             "amount": 12.36
           }
-        ]
+        ],
+        "initials": "D"
       },
       {
         "id": "exhausted",
@@ -4957,7 +5172,8 @@
             "utilization": 100,
             "resetsAt": null
           }
-        ]
+        ],
+        "initials": "Q"
       },
       {
         "id": "unsubscribed",
@@ -4975,7 +5191,8 @@
             "dark": "#AAAAAA"
           }
         ],
-        "status": "notSubscribed"
+        "status": "notSubscribed",
+        "initials": "K"
       },
       {
         "id": "zero-balance",
@@ -4998,7 +5215,8 @@
             "currency": "CNY",
             "amount": 0
           }
-        ]
+        ],
+        "initials": "D"
       },
       {
         "id": "network-plan",
@@ -5016,7 +5234,8 @@
             "dark": "#AAAAAA"
           }
         ],
-        "status": "network"
+        "status": "network",
+        "initials": "Z"
       },
       {
         "id": "network-metered",
@@ -5034,7 +5253,8 @@
             "dark": "#AAAAAA"
           }
         ],
-        "status": "network"
+        "status": "network",
+        "initials": "D"
       },
       {
         "id": "query-failed",
@@ -5052,7 +5272,8 @@
             "dark": "#AAAAAA"
           }
         ],
-        "status": "queryFailed"
+        "status": "queryFailed",
+        "initials": "X"
       },
       {
         "id": "login-expired",
@@ -5070,7 +5291,8 @@
             "dark": "#AAAAAA"
           }
         ],
-        "status": "reauth"
+        "status": "reauth",
+        "initials": "O"
       },
       {
         "id": "pending",
@@ -5088,7 +5310,8 @@
             "dark": "#AAAAAA"
           }
         ],
-        "status": "pending"
+        "status": "pending",
+        "initials": "K"
       }
     ],
     "openAICredits": [
@@ -5126,7 +5349,8 @@
             "resetsAt": "2026-10-01T00:00:00Z"
           }
         ],
-        "isDimmed": false
+        "isDimmed": false,
+        "initials": "O"
       },
       {
         "id": "openai-credits",
@@ -5162,7 +5386,8 @@
             "resetsAt": "2026-10-01T00:00:00Z"
           }
         ],
-        "isDimmed": false
+        "isDimmed": false,
+        "initials": "O"
       },
       {
         "id": "openai-unlimited",
@@ -5198,7 +5423,8 @@
             "resetsAt": "2026-10-01T00:00:00Z"
           }
         ],
-        "isDimmed": false
+        "isDimmed": false,
+        "initials": "O"
       },
       {
         "id": "openai-unknown",
@@ -5234,7 +5460,8 @@
             "resetsAt": "2026-10-01T00:00:00Z"
           }
         ],
-        "isDimmed": false
+        "isDimmed": false,
+        "initials": "O"
       },
       {
         "id": "openai-empty",
@@ -5270,7 +5497,8 @@
             "resetsAt": "2026-10-01T00:00:00Z"
           }
         ],
-        "isDimmed": true
+        "isDimmed": true,
+        "initials": "O"
       }
     ]
   },
@@ -6335,6 +6563,27 @@
             "url": null
           }
         ]
+      },
+      {
+        "id": "application-license-en",
+        "language": "en",
+        "width": 580,
+        "height": 540,
+        "scenario": "applicationLicense"
+      },
+      {
+        "id": "application-license-zh",
+        "language": "zh",
+        "width": 580,
+        "height": 540,
+        "scenario": "applicationLicense"
+      },
+      {
+        "id": "application-license-zh-Hant",
+        "language": "zh-Hant",
+        "width": 580,
+        "height": 540,
+        "scenario": "applicationLicense"
       }
     ]
   }

@@ -7,6 +7,9 @@ import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
 import { availableConfiguration, claimWorker, configuration, deploymentPaths, deploymentTick, mobileCheck, readJSON, writeJSON, bundleID, availableDevice } from './ios-deploy.mjs'
+import { ci } from './calmmit.mjs'
+
+const { formatTimestamp } = await ci.load('display-time')
 
 const root = resolve(import.meta.dirname, '..')
 const preload = String.raw`
@@ -73,7 +76,7 @@ function fixture(t, mode = '') {
   fs.copyFileSync(join(root, 'Scripts/ios-deploy.mjs'), join(directory, 'Scripts/ios-deploy.mjs'))
   fs.writeFileSync(join(directory, 'Scripts/build-cache.mjs'), 'export async function withBuildCache(root, profile, action) { return action() }')
   fs.writeFileSync(join(directory, 'Scripts/node-executable.mjs'), 'export const nodeExecutable = () => process.env.BENCHGAUGE_NODE || process.execPath')
-  fs.writeFileSync(join(directory, 'Scripts/calmmit.mjs'), `export const ci = { load: async () => ({ readSourceFingerprint: async () => globalThis.unitFingerprint() }) }`)
+  fs.writeFileSync(join(directory, 'Scripts/calmmit.mjs'), `export const ci = { load: async name => name === 'display-time' ? ({ formatTimestamp: ${formatTimestamp.toString()} }) : ({ readSourceFingerprint: async () => globalThis.unitFingerprint() }) }`)
   fs.writeFileSync(join(directory, 'Scripts/test.mjs'), `export const testInputSignature = () => globalThis.unitSignature()`)
   fs.writeFileSync(join(directory, 'Scripts/ios-project.mjs'), `export function generateIOSProject(root, options) { if (options.team !== 'ABCDEFGHIJ') throw new Error('wrong team') }`)
   fs.mkdirSync(join(directory, 'apps/ios/App/Assets.xcassets'), { recursive: true })

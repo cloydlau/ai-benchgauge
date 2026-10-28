@@ -6,6 +6,10 @@ Windows 源码、普通 CI 构建、测试与原生视觉检查保留；恢复�
 两端共用该配置的版本号和更新公钥。所有启用发布的平台构建成功并通过人工视觉审核后，
 汇总任务才创建草稿 Release 并公开。未设置此开关的旧配置继续发布两端。
 
+iPhone / iPad 发布同样关闭：`config/app.json` 的 `releaseIOS` 为 `false`。`node Scripts/ios-build.mjs archive` 在调用 SDK、签名或发行归档工具前直接停止；缺省开关也视为关闭。恢复移动发行需明确将 `releaseIOS` 改为 `true`，再按下方指南归档并走 Apple 发布流程。普通 SDK 构建、模拟器测试和本机开发安装继续运行。现有 iOS CI 只做检查，不上传 TestFlight / App Store；Git 标签的公开发布仍只包含当前启用的 macOS。
+
+微信小程序不纳入 Git 标签发版，不新增正式发布开关。现有本机自动化只测试、构建并上传开发版；选择体验版、提交审核和正式发布由维护者在微信后台操作。GitHub 小程序 CI 只测试、构建并保留工程产物。开发版上传与正式发布是独立步骤，当前上传监听保持原有行为。
+
 两端在启动时及运行期间每 24 小时自动检查稳定版，无需用户配置。发现新版后直接在后台下载，
 不会显示下载前的确认框，也不会激活、打开隐藏的应用窗口。下载准备完成且应用窗口激活时，
 才在当前窗口显示更新提示；后台下载完成则等用户下次打开或激活窗口。
@@ -74,14 +78,18 @@ rm work/update-signing/sparkle-private-key.txt
 
 ## 每次发版
 
-版本号采用 `主版本.次版本.修订版本`，例如 `1.0.1`。使用递增版本：
+全端公开版本号统一采用北京时间日期 `YYYYMMDD`，例如 `20261028`，唯一来源是 `config/app.json`。发布前运行以下命令（不传参数时取当天北京时间；显式日期可用于可复现发布）。同一天重复执行保持相同版本，拒绝回退；已发布稳定版仍必须使用更高日期号。
+
+小程序关于页与上传版本、iPhone/iPad 关于页、桌面公开版本、Git 标签、安装包文件名及更新清单都使用该日期号。小程序 `MP_VERSION` 仅可传入与共用配置相同的日期，防止单端漂移。普通构建读取配置中已准备好的版本，不会因为跨过零点自行换号。
+
+Apple 的 `CFBundleShortVersionString` / 默认 `CFBundleVersion` 使用同一天的 `2026.10.28`；Windows 程序集、文件和 NSIS 数字资源使用 `2026.10.28.0`，产品公开版本仍为 `20261028`。这些是同一日期的合法平台映射。Sparkle 以分段日期比较、显示八位日期；Windows 更新器兼容已安装的旧语义版本。参见 [Apple 版本字段格式](https://developer.apple.com/documentation/bundleresources/information-property-list/cfbundleshortversionstring) 和 [Windows 数字版本字段](https://learn.microsoft.com/en-us/windows/win32/sbscs/assembly-versions)。
 
 ```bash
-./Scripts/bump-version.sh 1.0.1
+./Scripts/bump-version.sh 20261028  # 或不传参数，取当天北京时间
 ./test.sh
 # 提交并推送版本号和本次源码后：
-git tag v1.0.1
-git push origin v1.0.1
+git tag v20261028
+git push origin v20261028
 ```
 
 推送 `v*` 标签会运行 `.github/workflows/release.yml`：
@@ -110,7 +118,7 @@ Cask 复用同一个 Developer ID 签名 / 公证 DMG，并设置 `auto_updates 
 若仅发布草稿的最后一步失败，可在 GitHub 确认附件齐全后手动发布该草稿。
 
 不带更新器的旧版本，需要先手动安装一次带更新器的版本；之后才会收到应用内更新提示。
-已发布的 `0.0.0` 带更新器，但采用旧的“先确认、再下载”流程。它可以收到下一次 `0.0.1`
+已发布的 `0.0.0` 带更新器，但采用旧的 “先确认、再下载” 流程。它可以收到日期版本
 的更新通知；需先完成这次升级，新的后台下载和强制提示流程才对该用户生效。
 仅发布新清单不能改变用户电脑上旧版本的交互逻辑。
 用户将应用放在可写的 Applications 目录后再启动，更新器才能直接替换并重启它。
@@ -158,7 +166,7 @@ Windows 安装器的 Authenticode 发行证书属于独立配置；当前更新�
 
 ## iPhone / iPad
 
-The universal iPhone/iPad edition has a separate simulator/device build check in `.github/workflows/ios.yml`. A desktop GitHub release does not publish a mobile build. Both device families use one iOS app record, bundle ID and universal archive; include iPhone and iPad screenshots in the store listing ([Apple screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/)). It needs Apple signing and distribution through TestFlight/App Store; see [the iOS build and distribution guide](../apps/ios/README.md). The Xcode project generator reads the same marketing version from `config/app.json`, while `IOS_BUILD_NUMBER` supplies the integer App Store Connect build number. No public mobile build has been published yet.
+The universal iPhone/iPad edition has a separate simulator/device build check in `.github/workflows/ios.yml`. A desktop GitHub release does not publish a mobile build. Both device families use one iOS app record, bundle ID and universal archive; include iPhone and iPad screenshots in the store listing ([Apple screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/)). It needs Apple signing and distribution through TestFlight/App Store; see [the iOS build and distribution guide](../apps/ios/README.md). The Xcode project generator reads the shared `YYYYMMDD` version from `config/app.json`, displays it in About, and maps it to `year.month.day` for Apple marketing and default build metadata. `IOS_BUILD_NUMBER` can override the internal build number for repeated TestFlight uploads, within Apple’s numeric field limits; it does not change the public date version. No public mobile build has been published yet.
 
 ### 自测后直接上架 App Store
 

@@ -351,7 +351,30 @@ extension GrokQuotaTests {
             #expect(windows.last?.subscriptionState == expected)
             #expect(windows.last?.resetsAt == ISO8601DateFormatter().date(from: "2026-09-27T12:00:00Z"))
             #expect(AccountQuotaFormatting.plainSummary(for: chip(windows), now: now)
-                == (expected == .inactive ? "未订购" : "7d 100%") + " · 至9月27日")
+                == (expected == .inactive ? "未订购" : "7d 100% · 至9月27日"))
+        }
+    }
+
+    @Test func unsubscribedPlansHideHistoricalDeadlinesFromAllDisplayValues() {
+        for source: ParsedQuotaDateSource? in [nil, .cached] {
+            for end in [now.addingTimeInterval(-86_400), now.addingTimeInterval(86_400)] {
+                let free = AccountQuotaChip(id: "xai", shortName: "xAI", websiteURL: nil,
+                    kind: .xaiOAuth, isCurrent: true, status: .windows([
+                    .init(name: "weekly_limit", utilization: 0, resetsAt: end),
+                    .init(name: ParsedQuotaWindow.planExpiryName, utilization: 0, resetsAt: end,
+                        dateSource: source, subscriptionState: .inactive)
+                ]))
+                #expect(AccountQuotaFormatting.plainSummary(for: free, now: now) == "未订购")
+                #expect(AccountQuotaFormatting.runs(for: free, now: now).map(\.text) == ["未订购"])
+                #expect(!AccountQuotaFormatting.help(for: free, now: now).contains("至"))
+                #expect(AccountQuotaFormatting.deadlineColorLevel(for: free, now: now) == nil)
+                #expect(AccountQuotaFormatting.cardColorLevel(for: free, now: now) == nil)
+                #expect(AccountQuotaFormatting.compactMenuBarQuota(for: free) == nil)
+                #expect(AccountQuotaFormatting.isDimmed(free))
+                #expect(QuotaAlerts.alerts(for: free, now: now).isEmpty)
+                #expect(AppLanguage.english.quotaText(AccountQuotaFormatting.plainSummary(for: free, now: now)) == "Not subscribed")
+                #expect(AppLanguage.traditionalChinese.quotaText(AccountQuotaFormatting.plainSummary(for: free, now: now)) == "未訂購")
+            }
         }
     }
 
@@ -440,7 +463,8 @@ extension GrokQuotaTests {
             let target = CCSwitchQuotaTarget(id: "xai", shortName: "xAI", websiteURL: nil, kind: .xaiOAuth, isCurrent: true, apiKey: nil, baseURL: nil)
             let result = try #require(try await client.refresh(targets: [target]).first)
             let summary = AccountQuotaFormatting.plainSummary(for: result, now: now)
-            #expect(summary == expected + " · " + AccountQuotaFormatting.periodEndPhrase(until: end, now: now))
+            #expect(summary == (expected == AccountQuotaMessage.notSubscribed
+                ? expected : expected + " · " + AccountQuotaFormatting.periodEndPhrase(until: end, now: now)))
             if expected != "7d 100%" {
                 #expect(!summary.contains("100%"))
                 #expect(AccountQuotaFormatting.compactMenuBarQuota(for: result) == nil)
@@ -488,13 +512,14 @@ extension GrokQuotaTests {
         let client = AccountQuotaClient(transport: transport, authFileURL: auth, now: { fixedNow },
             xaiSubscriptionDateStore: dates, xaiRefreshAllowed: { true })
         let first = try #require(try await client.refresh(targets: [target]).first)
-        #expect(AccountQuotaFormatting.plainSummary(for: first, now: now) == "未订购 · 至9月27日")
+        #expect(AccountQuotaFormatting.plainSummary(for: first, now: now) == "未订购")
         #expect(dates.record(accountID: "test", now: now)?.subscriptionState == .inactive)
         let restarted = AccountQuotaClient(transport: GrokEntitlementTransport(base: .init(status: 403,
             billingBody: credits(type: 2, end: "2026-10-05T12:00:00Z", percent: nil)), settings: "{}", settingsStatus: 503),
             authFileURL: auth, now: { fixedNow }, xaiSubscriptionDateStore: dates, xaiRefreshAllowed: { true })
         let cached = try #require(try await restarted.refresh(targets: [target]).first)
-        #expect(AccountQuotaFormatting.plainSummary(for: cached, now: now) == "未订购 · 至9月27日")
+        #expect(AccountQuotaFormatting.plainSummary(for: cached, now: now) == "未订购")
+        #expect(dates.record(accountID: "test", now: now)?.periodEnd == ISO8601DateFormatter().date(from: "2026-09-27T12:00:00Z"))
         #expect(AccountQuotaFormatting.isDimmed(cached))
         #expect(AppLanguage.english.quotaText("未订购") == "Not subscribed")
         #expect(AppLanguage.traditionalChinese.quotaText("未订购") == "未訂購")

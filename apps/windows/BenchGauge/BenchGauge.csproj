@@ -9,6 +9,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="../../../Sources/LeaderboardKit/Resources/Brand/mobile-title.json" LogicalName="BrandWordmark.json" />
     <EmbeddedResource Include="../../../Sources/LeaderboardKit/Resources/EpochAttribution.json" LogicalName="EpochAttribution.json" />
     <EmbeddedResource Include="../../../fc/arena-attribution.json" LogicalName="arena-attribution.json" />
     <Resource Include="../../../Sources/LeaderboardKit/Resources/Fonts/BenchGaugeCalligraphy.ttf" Link="Fonts/BenchGaugeCalligraphy.ttf" />
@@ -21,7 +22,15 @@
     <Content Include="../../../assets/brand/header-logo.png" Link="brand/header-logo.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../../assets/brand/header-logo-dark.png" Link="brand/header-logo-dark.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../Licenses/*" Link="Licenses/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../../assets/brand/partners/github/LICENSE.txt" Link="Licenses/Tabler.txt" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../../fc/models-dev-license.txt" Link="Licenses/models.dev-MIT.txt" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../../LICENSE" Link="Licenses/AI-BenchGauge.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <Target Name="PruneRemovedSupplierLogos" BeforeTargets="CopyFilesToOutputDirectory;ComputeFilesToPublish">
+    <ItemGroup>
+      <_RemovedSupplierLogo Include="$(OutDir)logos/*.png" Exclude="$(OutDir)logos/github.png" Condition="'$(OutDir)' != ''" />
+      <_RemovedSupplierLogo Include="$(PublishDir)logos/*.png" Exclude="$(PublishDir)logos/github.png" Condition="'$(PublishDir)' != ''" />
+    </ItemGroup>
+    <Delete Files="@(_RemovedSupplierLogo)" />
+  </Target>
 </Project>

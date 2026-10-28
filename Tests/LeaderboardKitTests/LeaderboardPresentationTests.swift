@@ -240,3 +240,24 @@ import LeaderboardKit
         #expect(parts.isSourceTime == !kind.isShareUsage)
     }
 }
+
+@Test func rankMovementsSurviveOfflineCodingAndCompaniesUseTheirOwnPositions() throws {
+    for language in AppLanguage.allCases {
+        #expect(LeaderboardRankChange(delta: 12).text(language: language) == "↑12")
+        #expect(LeaderboardRankChange(delta: -3).text(language: language) == "↓3")
+        #expect(LeaderboardRankChange(delta: 0).text(language: language) == "—")
+        #expect(LeaderboardRankChange().text(language: language) == "—")
+        #expect(LeaderboardRankChange(delta: Int.min).text(language: language) == "↓\(Int.min.magnitude)")
+        #expect(LeaderboardRankChange(isNew: true).text(language: language) == language.text("New", "新"))
+    }
+    let entry = LeaderboardEntry(rank: 2, name: "Fixture", score: 99, organization: "OpenAI",
+        rankChange: LeaderboardRankChange(delta: 3), companyRankChange: LeaderboardRankChange(delta: -1))
+    let saved = Leaderboard(kind: .arenaText, title: "Fixture", entries: [entry])
+    let decoded = try JSONDecoder().decode(Leaderboard.self, from: JSONEncoder().encode(saved))
+    #expect(decoded == saved)
+    #expect(decoded.entries[0].rankChange?.delta == 3)
+    #expect(CompanyLeaderboard.rank(decoded.entries)[0].entry.rankChange?.delta == -1)
+    let legacy = try JSONDecoder().decode(LeaderboardEntry.self, from: Data(#"{"rank":1,"name":"Legacy","score":90}"#.utf8))
+    #expect(legacy.rankChange == nil)
+    #expect(CompanyLeaderboard.rank([LeaderboardEntry(rank: 1, name: "No company delta", score: 90, organization: "OpenAI", rankChange: .init(delta: 3))])[0].entry.rankChange == nil)
+}

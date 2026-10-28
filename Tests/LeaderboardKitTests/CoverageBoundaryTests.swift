@@ -135,8 +135,8 @@ struct SharedEndpointBoundaryTests {
 struct CatalogURLBoundaryTests {
     @Test func staticCatalogValidationAndMissingOrganizationRemainExplicit() throws {
         #expect(LeaderboardPresentation.rankLabel(4) == "4")
-        #expect(OrganizationLogoCatalog.logoURL(forOrganization: nil) == nil)
-        #expect(OrganizationLogoCatalog.logoURL(forOrganization: "fixture-unknown") == nil)
+        #expect(OrganizationLogoCatalog.resolvedKey(organization: nil) == nil)
+        #expect(OrganizationLogoCatalog.resolvedKey(organization: "fixture-unknown") == "fixtureunknown")
         #expect(CompanyLeaderboard.displayName(key: "fixture", best: nil) == "fixture")
         #expect(CompanyLeaderboard.displayName(key: "fixture", best: .init(rank: 1, name: "Model", score: 1, organization: "Other")) == "fixture")
         #expect(try PurchaseLinkCatalog.validatedURL("https://fixture.invalid").host == "fixture.invalid")

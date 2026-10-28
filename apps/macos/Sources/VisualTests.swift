@@ -11,8 +11,8 @@ private final class SearchVisualWindow: NSWindow { override var canBecomeKey: Bo
 @MainActor
 enum NativeVisualCapture {
     enum CaptureError: Error { case blankFrame(String) }
-    struct Entry: Decodable { let rank: Int; let name: String; let score: Double; let modelID: String?; let organization: String; let logo: String; let openness: ModelOpenness?; let brand: OrganizationBrand?; let organizationBrand: OrganizationBrand?; let developerCountry: OrganizationCountryMetadata?; let modelMetadata: ModelMetadata?; let totalTokens: String? }
-    struct Board: Decodable { let kind: String; let title: String; let entries: [Entry]; let sourceUpdatedAt: String?; let sourceTimeUnavailable: Bool?; let fetchedAt: String?; let sourceNote: String? }
+    struct Entry: Decodable { let rank: Int; let name: String; let score: Double; let modelID: String?; let organization: String; let logo: String; let openness: ModelOpenness?; let brand: OrganizationBrand?; let organizationBrand: OrganizationBrand?; let developerCountry: OrganizationCountryMetadata?; let modelMetadata: ModelMetadata?; let totalTokens: String?; let rankChange: LeaderboardRankChange?; let companyRankChange: LeaderboardRankChange? }
+    struct Board: Decodable { let kind: String; let title: String; let entries: [Entry]; let sourceUpdatedAt: String?; let sourceTimeUnavailable: Bool?; let fetchedAt: String?; let contentUpdatedAt: String?; let sourceNote: String? }
     struct Quota: Decodable {
         struct Run: Decodable { let text: String }
         struct Balance: Decodable { let currency: String; let amount: Double }
@@ -23,7 +23,7 @@ enum NativeVisualCapture {
         let credits: OpenAICredits?
     }
     struct State: Decodable { let boards: [Board]; let quotas: [Quota]; let quotaUpdatedAt: String? }
-    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String?; let codexModel: String?; let codexProvider: String?; let codexBaseURL: String?; let taskCounts: CodexTaskCounts?; let refreshedTaskCounts: CodexTaskCounts?; let codexDesktopRunning: Bool?; let refreshedCodexDesktopRunning: Bool?; let showsCodexTaskStatus: Bool?; let refreshedShowsCodexTaskStatus: Bool?; let officialAccountChecking: Bool?; let sources: [String: LeaderboardOpennessFilter]?; let countries: [String: String]?; let grouping: LeaderboardGrouping?; let category: LeaderboardCategory?; let comparisonKind: LeaderboardKind?; let selectedBoards: [LeaderboardKind]?; let refreshedSelectedBoards: [LeaderboardKind]?; let rowCount: Int?; let searchQuery: String? }
+    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String?; let codexModel: String?; let codexProvider: String?; let codexBaseURL: String?; let taskCounts: CodexTaskCounts?; let refreshedTaskCounts: CodexTaskCounts?; let codexDesktopRunning: Bool?; let refreshedCodexDesktopRunning: Bool?; let showsCodexTaskStatus: Bool?; let refreshedShowsCodexTaskStatus: Bool?; let officialAccountChecking: Bool?; let sources: [String: LeaderboardOpennessFilter]?; let countries: [String: String]?; let grouping: LeaderboardGrouping?; let category: LeaderboardCategory?; let comparisonKind: LeaderboardKind?; let selectedBoards: [LeaderboardKind]?; let refreshedSelectedBoards: [LeaderboardKind]?; let rowCount: Int?; let searchQuery: String?; let contentUpdatedAt: String? }
     struct Fixture: Decodable { let state: State; let cases: [Case]; let quotaScenarios: [String: [Quota]]? }
 
     static func run() async throws {
@@ -44,9 +44,9 @@ enum NativeVisualCapture {
             let kind = LeaderboardKind(rawValue: board.kind)!
             let entries = board.entries.map { entry in
                 LeaderboardEntry(rank: entry.rank, name: entry.name, score: entry.score, modelID: entry.modelID, organization: entry.organization,
-                    logoURL: root.appending(path: "assets/logos/\(entry.logo).png"), openness: entry.openness, brand: entry.brand, organizationBrand: entry.organizationBrand, developerCountry: entry.developerCountry, modelMetadata: entry.modelMetadata, totalTokens: entry.totalTokens)
+                    openness: entry.openness, brand: entry.brand, organizationBrand: entry.organizationBrand, developerCountry: entry.developerCountry, modelMetadata: entry.modelMetadata, totalTokens: entry.totalTokens, rankChange: entry.rankChange, companyRankChange: entry.companyRankChange)
             }
-            return (kind, Leaderboard(kind: kind, title: board.title, sourceUpdatedAt: board.sourceTimeUnavailable == true ? nil : board.sourceUpdatedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, sourceNote: board.sourceNote, fetchedAt: board.fetchedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, entries: entries))
+            return (kind, Leaderboard(kind: kind, title: board.title, sourceUpdatedAt: board.sourceTimeUnavailable == true ? nil : board.sourceUpdatedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, sourceNote: board.sourceNote, fetchedAt: board.fetchedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, contentUpdatedAt: board.contentUpdatedAt.flatMap { ISO8601DateFormatter().date(from: $0) }, entries: entries))
         })
         let kinds: [String: CCSwitchQuotaKind] = ["OpenAI": .officialNote, "Kimi": .kimi, "Qwen": .qwen, "DeepSeek": .deepseek, "GLM": .zhipu, "xAI": .xaiOAuth]
         // Exercise the same ownership deferral as production, with no real login
@@ -112,7 +112,7 @@ enum NativeVisualCapture {
                     quotaDate = fixture.state.quotaUpdatedAt.flatMap { ISO8601DateFormatter().date(from: $0) }
                 }
                 var fetchedBoards = boards.mapValues { board in
-                    let entries = test.rowCount.map { count in
+                    var entries = test.rowCount.map { count in
                         (1...count).map { rank in
                             if test.scenario == "scrollPerformance", !board.entries.isEmpty {
                                 let original = board.entries[(rank - 1) % board.entries.count]
@@ -121,15 +121,31 @@ enum NativeVisualCapture {
                                     logoURL: original.logoURL, brand: original.brand)
                             }
                             return LeaderboardEntry(rank: rank, name: "Fixture model \(rank)", score: Double(count - rank + 1),
-                                organization: "Fixture maker \(rank)", logoURL: root.appending(path: "assets/logos/openai.png"))
+                                organization: "Fixture maker \(rank)")
                         }
                     } ?? board.entries
+                    if test.scenario == "rankChanges" {
+                        entries = entries.enumerated().map { index, entry in
+                            let offset = board.kind == .epochECI ? 1 : board.kind == .arenaText ? 2 : 0
+                            let change: LeaderboardRankChange? = switch (index + offset) % 4 {
+                            case 0: .init(delta: 12)
+                            case 1: .init(delta: -3)
+                            case 2: .init(isNew: true)
+                            default: nil
+                            }
+                            return LeaderboardEntry(rank: entry.rank, name: entry.name, score: entry.score,
+                                modelID: entry.modelID, organization: entry.organization, logoURL: entry.logoURL,
+                                openness: entry.openness, brand: entry.brand, organizationBrand: entry.organizationBrand,
+                                developerCountry: entry.developerCountry, modelMetadata: entry.modelMetadata,
+                                totalTokens: entry.totalTokens, rankChange: change, companyRankChange: change)
+                        }
+                    }
                     let singleTime = test.scenario == "sourceTimes"
                     let sourceDate = singleTime && board.kind == .artificialAnalysis ? nil : board.sourceUpdatedAt
                     let fetchDate = singleTime ? fixedDate.addingTimeInterval(23 * 86400)
                         : (test.scenario == "boardSelectionConfirm" || test.scenario.hasPrefix("desktopSearch") || test.scenario == "distributionCharts") ? Date() : quotaDate ?? fixedDate
                     return Leaderboard(kind: board.kind, title: board.title, sourceUpdatedAt: sourceDate, sourceNote: board.sourceNote,
-                                fetchedAt: fetchDate, entries: entries)
+                                fetchedAt: fetchDate, contentUpdatedAt: test.contentUpdatedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? board.contentUpdatedAt, entries: entries)
                 }
                 if test.scenario == "usagePending" { fetchedBoards[.openRouterUsage] = nil }
                 let stale = test.scenario == "freshnessStale"
@@ -282,6 +298,14 @@ enum NativeVisualCapture {
                 let size = NSSize(width: test.width, height: test.height)
                 let isClaudeConsentAlert = test.scenario == "claudeKeychainConsentAlert"
                 let isQuotaHelpAlert = test.scenario == "quotaTrackingHelp"
+                let isSourceDetailsAlert = test.scenario == "sourceDetails"
+                func captureSourceDetails(_ view: NSView) -> Data? {
+                    var png: Data?
+                    view.effectiveAppearance.performAsCurrentDrawingAppearance {
+                        png = PanelScreenshot.captureForm(view: view, minimumVariety: 1)
+                    }
+                    return png
+                }
                 let detailEntry = boards[.artificialAnalysis]!.entries[0]
                 let selectedDetail = test.scenario == "modelDetailsMissing"
                     ? LeaderboardEntry(rank: 0, name: "Unmatched model / 暂无模型资料", score: 0)
@@ -290,6 +314,8 @@ enum NativeVisualCapture {
                     : detailEntry
                 let view = test.scenario == "thirdPartyNotices"
                     ? AnyView(LicenseNoticesView(section: .thirdParty, language: AppLanguage(rawValue: test.language)!))
+                    : test.scenario == "applicationLicense"
+                    ? AnyView(LicenseNoticesView(section: .application, language: AppLanguage(rawValue: test.language)!))
                     : test.scenario.hasPrefix("modelDetails")
                     ? AnyView(ModelDetailsView(entry: selectedDetail, language: AppLanguage(rawValue: test.language)!, copyName: { _ in true }, close: {}))
                     : test.scenario == "addModelDialog"
@@ -319,6 +345,14 @@ enum NativeVisualCapture {
                 }
                 if isQuotaHelpAlert {
                     QuotaTrackingHelpAlert.make(language: AppLanguage(rawValue: test.language)!).beginSheetModal(for: window) { _ in }
+                }
+                if isSourceDetailsAlert {
+                    let language = AppLanguage(rawValue: test.language)!
+                    let kind = test.comparisonKind ?? .epochECI
+                    let content = LeaderboardPresentation.sourceHelp(kind, language: language,
+                        board: boards[kind], includesAgreement: true) + "\n\n" + kind.sourceURL.absoluteString
+                    SourceDetailsAlert.make(title: LeaderboardPresentation.columnTitle(kind, language: language),
+                        content: content, language: language).beginSheetModal(for: window) { _ in }
                 }
                 defer {
                     if let sheet = window.attachedSheet { window.endSheet(sheet) }
@@ -575,12 +609,37 @@ enum NativeVisualCapture {
                             }
                         }
                     }
-                    let captureView = (isClaudeConsentAlert || isQuotaHelpAlert) ? window.attachedSheet?.contentView : host
-                    let png = (test.scenario == "usagePending" || test.scenario.hasPrefix("usageLoading")) ? PanelScreenshot.captureForm(view: host, minimumVariety: 3) : (test.scenario == "thirdPartyNotices" || test.scenario.hasPrefix("modelDetails") || test.scenario == "addModelDialog" || test.scenario.hasPrefix("xaiSubscriptionDialog") || test.scenario.hasPrefix("xaiDeviceDialog") || isClaudeConsentAlert || isQuotaHelpAlert)
+                    let captureView = (isClaudeConsentAlert || isQuotaHelpAlert || isSourceDetailsAlert) ? window.attachedSheet?.contentView : host
+                    let png = isSourceDetailsAlert ? captureView.flatMap(captureSourceDetails)
+                        : (test.scenario == "usagePending" || test.scenario.hasPrefix("usageLoading")) ? PanelScreenshot.captureForm(view: host, minimumVariety: 3) : (test.scenario == "thirdPartyNotices" || test.scenario.hasPrefix("modelDetails") || test.scenario == "addModelDialog" || test.scenario.hasPrefix("xaiSubscriptionDialog") || test.scenario.hasPrefix("xaiDeviceDialog") || isClaudeConsentAlert || isQuotaHelpAlert)
                         ? captureView.flatMap { PanelScreenshot.captureForm(view: $0, minimumVariety: 1) }
                         : PanelScreenshot.capture(view: host)?.png
                     guard let png else { throw CaptureError.blankFrame(test.id) }
                     try png.write(to: output.appending(path: "\(test.id)-\(theme)-frame-\(frame).png"))
+                }
+                if isSourceDetailsAlert {
+                    guard let sheet = window.attachedSheet,
+                          let scroll = sheet.contentView?.subviews.flatMap({ [$0] + $0.subviews })
+                            .compactMap({ $0 as? NSScrollView }).first,
+                          let text = scroll.documentView as? NSTextView,
+                          !scroll.hasHorizontalScroller,
+                          text.frame.width <= scroll.contentView.bounds.width + 1 else {
+                        throw CaptureError.blankFrame("source details overflow horizontally")
+                    }
+                    let metrics: [String: Any] = ["documentWidth": text.frame.width,
+                        "viewportWidth": scroll.contentView.bounds.width, "documentHeight": text.frame.height,
+                        "viewportHeight": scroll.contentView.bounds.height, "characters": text.string.count,
+                        "originX": scroll.contentView.bounds.minX, "originY": scroll.contentView.bounds.minY,
+                        "appearance": sheet.effectiveAppearance.name.rawValue,
+                        "horizontalScroller": scroll.hasHorizontalScroller]
+                    try JSONSerialization.data(withJSONObject: metrics, options: [.prettyPrinted, .sortedKeys])
+                        .write(to: output.appending(path: "\(test.id)-\(theme)-layout.json"))
+                    text.scrollToEndOfDocument(nil)
+                    sheet.displayIfNeeded()
+                    guard let bottom = sheet.contentView.flatMap(captureSourceDetails) else {
+                        throw CaptureError.blankFrame("source details bottom is blank")
+                    }
+                    try bottom.write(to: output.appending(path: "\(test.id)-\(theme)-bottom.png"))
                 }
                 if test.scenario == "virtualRanking" || test.scenario == "scrollPerformance" {
                     func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }

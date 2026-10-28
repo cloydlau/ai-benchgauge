@@ -40,18 +40,12 @@ private struct FeatureSubtitleInk: Shape {
 public enum BrandTitleMetrics {
     public static func layoutWidth(language: AppLanguage, fontSize: CGFloat = 21) -> CGFloat {
         if language != .english { return ChineseBrandLayout.make().size.width * fontSize / 21 }
-        let font = CTFontCreateWithName("SnellRoundhand-Bold" as CFString, fontSize, nil)
-        let line = CTLineCreateWithAttributedString(NSAttributedString(string: language.appName,
-            attributes: [NSAttributedString.Key(kCTFontAttributeName as String): font]))
-        return CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+        return MobileBrandMetrics.layoutWidth(language: .english, fontSize: fontSize)
     }
 
     public static func inkHeight(language: AppLanguage, fontSize: CGFloat = 21) -> CGFloat {
         if language != .english { return ChineseBrandLayout.make().path.boundingBoxOfPath.height * fontSize / 21 }
-        let font = CTFontCreateWithName("SnellRoundhand-Bold" as CFString, fontSize, nil)
-        let line = CTLineCreateWithAttributedString(NSAttributedString(string: language.appName,
-            attributes: [NSAttributedString.Key(kCTFontAttributeName as String): font]))
-        return CTLineGetBoundsWithOptions(line, .useGlyphPathBounds).height
+        return MobileBrandMetrics.inkHeight(language: .english, fontSize: fontSize)
     }
 }
 

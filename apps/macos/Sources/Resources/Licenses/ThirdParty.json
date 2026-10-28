@@ -43,5 +43,14 @@
     "englishDescription": "Open-source and closed-source lock icons, matching the mini-program.",
     "chineseDescription": "与小程序一致的开源、闭源锁图标。",
     "file": "Lucide.txt"
+  },
+  {
+    "id": "tabler",
+    "name": "Tabler Icons — GitHub",
+    "license": "MIT",
+    "source": "https://github.com/tabler/tabler-icons/tree/ed177a085b652fe04ec4f37ced867c94621e7840",
+    "englishDescription": "GitHub icon selected through Icones for the repository link and shared contributor avatars.",
+    "chineseDescription": "从 Icones 选用的 GitHub 图标，用于仓库入口及共用贡献者头像。",
+    "file": "Tabler.txt"
   }
 ]

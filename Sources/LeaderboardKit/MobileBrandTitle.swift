@@ -80,7 +80,9 @@ struct MobileBrandArtwork: @unchecked Sendable {
     static let specification: Specification = {
         // A missing or malformed checked-in resource is a build defect, never a
         // reason to silently fall back to a different font or omit a letter.
-        let url = Bundle.module.url(forResource: "mobile-title", withExtension: "json", subdirectory: "Brand")!
+        // Packaged Mac apps flatten shared resources without a SwiftPM bundle.
+        let url = Bundle.main.url(forResource: "mobile-title", withExtension: "json")
+            ?? Bundle.module.url(forResource: "mobile-title", withExtension: "json", subdirectory: "Brand")!
         return try! JSONDecoder().decode(Specification.self, from: Data(contentsOf: url))
     }()
     static let english = make(key: "english")

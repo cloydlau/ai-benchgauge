@@ -1,20 +1,16 @@
 import { opennessIcon } from './openness-icon.js'
 import { bundledFlags } from './flag-catalog.js'
 import { boards, text, copy, hasOwn } from './catalog.js'
-import brandCatalog from '../../../../fc/brand-catalog.json' with { type: 'json' }
-import companyCatalog from '../../../../assets/logos/company-catalog.json' with { type: 'json' }
 import { purchaseLinks, preferredPurchaseLink } from './purchase-links.js'
-import { canReplace, countryCode, companyRows, latestTimestamp, createBrandRules, normalizedCountryCode, resolvedOpenness } from '../../../../fc/domain.mjs'
-export { canReplace, countryCode, companyRows, latestTimestamp } from '../../../../fc/domain.mjs'
-const brandRules = createBrandRules(brandCatalog)
-const bundledBrands = new Set(Object.keys(brandCatalog.colors))
-const bundledCompanies = new Set([...bundledBrands, ...Object.keys(companyCatalog)])
-
+import { canReplace, countryCode, companyRows, latestTimestamp, normalizedCountryCode, resolvedOpenness } from '../../../../fc/domain.mjs'
+export { canReplace, countryCode, companyRows, latestTimestamp, contentTimestamp, withContentTimestamp } from '../../../../fc/domain.mjs'
 export function normalizeBoard(value, kind) {
   if (!hasOwn(boards, kind) || !value || value.kind !== kind
     || !Number.isFinite(Date.parse(value.fetchedAt)) || !Array.isArray(value.entries)
     || !value.entries.length) throw new Error('Invalid shared snapshot')
   if (value.sourceUpdatedAt && !Number.isFinite(Date.parse(value.sourceUpdatedAt))) throw new Error('Invalid publication time')
+  if (value.contentUpdatedAt && (!Number.isFinite(Date.parse(value.contentUpdatedAt))
+    || Date.parse(value.contentUpdatedAt) > Date.parse(value.fetchedAt))) throw new Error('Invalid content update time')
   const seen = new Set()
   const entries = value.entries.map(entry => {
     if (!Number.isInteger(entry.rank) || entry.rank <= 0 || seen.has(entry.rank)
@@ -71,18 +67,9 @@ export function scoreShareText(score, leaderScore) {
 export const usageScoreText = score => score > 0 && score < 0.01 ? '<0.01B' : `${score.toFixed(2)}B`
 export const shareScoreText = score => score > 0 && score < 0.01 ? '<0.01%' : `${score.toFixed(2)}%`
 export function rowView(entry, { company = false, dark = false, details = true, language = 'en', category = 'general', kind, leaderScore } = {}) {
-  const productKey = !company ? brandRules.bundledProductKey(entry) : null
-  const modelBrand = !company ? brandRules.knownModelBrand(entry) : null
-  const brand = company ? entry.organizationBrand || entry.brand : entry.brand?.key?.startsWith('model-') ? entry.brand : modelBrand || entry.brand
-  let image = typeof brand?.pngData === 'string' && /^[A-Za-z0-9+/=]+$/.test(brand.pngData) && brand.pngData.length < 160000
+  const brand = company ? entry.organizationBrand || entry.brand : entry.brand
+  const image = typeof brand?.pngData === 'string' && /^[A-Za-z0-9+/=]+$/.test(brand.pngData) && brand.pngData.length < 160000
     ? `data:image/png;base64,${brand.pngData}` : ''
-  // A missing dedicated model mark must not hide its verified provider's bundled
-  // icon. Use the complete shared catalog, including image/video providers.
-  const key = company
-    ? [brand?.key, entry.developerCountry?.key, brandRules.normalizedBrandKey(entry.organization)].find(key => bundledCompanies.has(key))
-    : productKey || [brandRules.brandKey(entry)].find(key => bundledBrands.has(key))
-  if (!company && !brand?.key?.startsWith('model-') && (productKey || key && !brandRules.sharedProviderMark(entry))) image = ''
-  if (!image && key) image = `/assets/logos/${key}.png`
   const color = /^#[0-9a-f]{6}$/i.test(brand?.colorHex || '') ? brand.colorHex : '#62748b'
   const rgb = [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16)).join(',')
   const links = company ? purchaseLinks(entry.organization, { modelName: entry.name, category }) : null
@@ -91,12 +78,16 @@ export function rowView(entry, { company = false, dark = false, details = true, 
     return link ? [{ kind, title: text(copy[label], language), url: link.url }] : []
   }) : []
   const code = countryCode(entry)
+  const rankChangeText = entry.rankChange?.isNew ? (language === 'en' ? 'New' : '新')
+    : Number.isSafeInteger(entry.rankChange?.delta) && entry.rankChange.delta !== 0 ? `${entry.rankChange.delta > 0 ? '↑' : '↓'}${Math.abs(entry.rankChange.delta)}` : ''
   return { rank: entry.rank, name: entry.name, score: entry.score, logo: image,
+    rankChangeText,
+    rankChangeTone: rankChangeText ? (entry.rankChange?.isNew ? 'new' : entry.rankChange.delta > 0 ? 'up' : 'down') : undefined,
     purchaseActions: actions,
     initial: [...entry.name][0], countryUnknown: countryCode(entry) === 'unknown', countryName: countryName(countryCode(entry), language),
     flag: countryCode(entry) === 'unknown' ? '?' : countryFlag(countryCode(entry)),
     countryCode: code, flagImage: countryFlagImage(code),
-    components: details ? entry.components?.map(member => ({ name: member.name, rank: member.rank, score: ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? shareScoreText(member.score) : kind === 'openRouterUsage' ? usageScoreText(member.score) : member.score.toFixed(kind === 'epochECI' ? 2 : 1) })) || [] : [],
+    components: details ? entry.components?.map(member => ({ name: member.name, rank: member.rank, score: ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? shareScoreText(member.score) : kind === 'openRouterUsage' ? usageScoreText(member.score) : member.score.toFixed(kind === 'epochECI' ? 2 : 1) })) || [] : undefined,
     scoreText: ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? shareScoreText(entry.score) : kind === 'openRouterUsage' ? usageScoreText(entry.score) : entry.score.toFixed(kind === 'epochECI' ? 2 : 1), scoreShare: ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? '' : scoreShareText(entry.score, leaderScore), openness: company ? null : resolvedOpenness(entry),
     opennessIcon: opennessIcon(company ? null : resolvedOpenness(entry), dark),
     fill: `background-color:rgba(${rgb},${dark ? '0.26' : '0.18'});`,

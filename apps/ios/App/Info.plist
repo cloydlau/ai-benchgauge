@@ -9,6 +9,7 @@
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>BenchGaugeVersion</key><string>$(BENCHGAUGE_VERSION)</string>
     <key>BenchGaugeAppStoreID</key><string>$(BENCHGAUGE_APP_STORE_ID)</string>
     <key>LSRequiresIPhoneOS</key><true/>
     <key>CADisableMinimumFrameDurationOnPhone</key><true/>

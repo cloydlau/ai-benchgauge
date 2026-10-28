@@ -2,7 +2,7 @@ import { sourceAgreement } from '../../core/source-agreement.js'
 import { isArenaDatasetBoard } from '../../core/arena-attribution.js'
 import { definePage, ref, computed, onLoad, onReady, onShow, onHide, onUnload, onShareAppMessage, onResize } from '@vue-mini/core'
 import { boards, categories, categoryFor, copy, text, languages, boardTitle, hasOwn, desktopDownloadURL } from '../../core/catalog.js'
-import { rankedEntries, rowView, countryCode, countryName, countryFlag, countryFlagImage, countryOptions, formatTime } from '../../core/leaderboard.js'
+import { rankedEntries, rowView, countryCode, countryName, countryFlag, countryFlagImage, countryOptions, formatTime, contentTimestamp } from '../../core/leaderboard.js'
 import { opennessIcon, opennessColor } from '../../core/openness-icon.js'
 import { sourceTabTheme, sourceTabLogo } from '../../core/source-tab-theme.js'
 import { leaderboardDistribution } from '../../../../../fc/distributions.mjs'
@@ -492,7 +492,7 @@ definePage(query => {
   function boardTime(board, kind) {
     // Statistical dates describe coverage, not publication or retrieval.
     const isSourceTime = !['vercelUsage', 'cloudbaseUsage'].includes(kind) && Number.isFinite(Date.parse(board?.sourceUpdatedAt))
-    const value = isSourceTime ? board.sourceUpdatedAt : board?.fetchedAt
+    const value = isSourceTime ? board.sourceUpdatedAt : contentTimestamp(board)
     const dataset = isSourceTime && isArenaDatasetBoard(board)
     return { time: formatTime(value, language.value, new Date(), { dateOnly: dataset, utc: dataset }),
       timeLabel: tr(isSourceTime ? 'published' : 'updated'), isSourceTime }
@@ -517,7 +517,9 @@ definePage(query => {
       pendingConfiguration: !!configurationRequired.value[kind],
       hasBoard: !!board, filtered: filter.country !== 'all' || filter.openness !== 'all' || !!modelSearchQuery.value.trim(),
       countryFiltered: filter.country !== 'all', sourceFiltered: filter.openness !== 'all',
-      loading: !!refreshing.value[kind],
+      // Lazy sources also need placeholders before their first lifecycle task
+      // starts; only a completed attempt may reveal the no-board state.
+      loading: !!refreshing.value[kind] || (!board && lastAttempt[kind] == null),
       polishing: polishingKind.value === kind,
       headerPinned: !!pinnedHeaders.value[kind],
     }

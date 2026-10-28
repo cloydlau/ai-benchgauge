@@ -146,6 +146,7 @@ final class AppState: ObservableObject {
     private let defaults: UserDefaults
     private let configuration: AppConfiguration
     private let qwenWebsiteSource = QwenWebsiteQuotaSource()
+    private var qwenWebsiteUpdateGeneration = 0
     private let xaiConnection = XAIAccountConnection()
     private let xaiWebsiteSource = XAIWebsiteSubscriptionSource()
     private let openAIConnection = OpenAIAccountConnection()
@@ -213,14 +214,7 @@ final class AppState: ObservableObject {
         }
         xaiWebsiteSource.onUpdated = { [weak self] in self?.refreshQuotas(minimumInterval: 0) }
         qwenWebsiteSource.onUpdated = { [weak self] status in
-            guard let self, !self.isQuitting else { return }
-            self.quotaChips = self.quotaChips.map { chip in
-                guard chip.kind == .qwen else { return chip }
-                return AccountQuotaChip(id: chip.id, shortName: chip.shortName, modelName: chip.modelName,
-                    websiteURL: chip.websiteURL, kind: chip.kind, isCurrent: chip.isCurrent, status: status)
-            }
-            if case .qwenWebsite = status { self.quotaUpdatedAt = Date() }
-            self.quotaNotifier.consider(chips: self.quotaChips.filter { $0.kind == .qwen }, language: self.selectedLanguage)
+            self?.applyQwenWebsiteStatus(status)
         }
         openAIConnection.onConnected = { [weak self] in
             self?.refreshQuotas(minimumInterval: 0)
@@ -321,6 +315,20 @@ final class AppState: ObservableObject {
 
     func connectQwenWebsite() {
         qwenWebsiteSource.connect()
+    }
+
+    func applyQwenWebsiteStatus(_ status: AccountQuotaChip.Status) {
+        guard !isQuitting else { return }
+        qwenWebsiteUpdateGeneration += 1
+        quotaChips = quotaChips.map { chip in
+            guard chip.kind == .qwen else { return chip }
+            return AccountQuotaChip(id: chip.id, shortName: chip.shortName, modelName: chip.modelName,
+                websiteURL: chip.websiteURL, kind: chip.kind, isCurrent: chip.isCurrent, status: status)
+        }
+        if case .qwenWebsite = status { quotaUpdatedAt = Date() }
+        if configuration.previewCCSwitchState == nil {
+            quotaNotifier.consider(chips: quotaChips.filter { $0.kind == .qwen }, language: selectedLanguage)
+        }
     }
 
     func connectOpenAI(_ chip: AccountQuotaChip) {
@@ -752,6 +760,7 @@ final class AppState: ObservableObject {
                 let otherTargets = targetsToRefresh.filter { $0.kind != .xaiOAuth }
                 guard !otherTargets.isEmpty else { return }
                 let client = self.quotaClient!
+                let qwenWebsiteGeneration = self.qwenWebsiteUpdateGeneration
                 do {
                     let chips = try await client.refresh(
                         targets: otherTargets,
@@ -759,12 +768,15 @@ final class AppState: ObservableObject {
                         authFileURL: loaded.xaiAuthURL
                     )
                     guard !Task.isCancelled, !self.isQuitting, generation == self.quotaGeneration else { return }
-                    let refreshedByID = Dictionary(uniqueKeysWithValues: chips.map { ($0.id, $0) })
+                    let appliedChips = chips.filter {
+                        $0.kind != .qwen || qwenWebsiteGeneration == self.qwenWebsiteUpdateGeneration
+                    }
+                    let refreshedByID = Dictionary(uniqueKeysWithValues: appliedChips.map { ($0.id, $0) })
                     let refreshedAt = Date()
                     self.quotaChips = self.quotaChips.map { refreshedByID[$0.id] ?? $0 }
-                    self.quotaUpdatedAt = QuotaFreshness.updatedAt(afterRefreshing: chips, previous: self.quotaUpdatedAt, now: refreshedAt)
+                    self.quotaUpdatedAt = QuotaFreshness.updatedAt(afterRefreshing: appliedChips, previous: self.quotaUpdatedAt, now: refreshedAt)
                     if self.configuration.previewCCSwitchState == nil {
-                        self.quotaNotifier.consider(chips: chips, now: refreshedAt, language: self.selectedLanguage)
+                        self.quotaNotifier.consider(chips: appliedChips, now: refreshedAt, language: self.selectedLanguage)
                     }
                 } catch is CancellationError {
                     return
@@ -772,6 +784,7 @@ final class AppState: ObservableObject {
                     guard !Task.isCancelled, !self.isQuitting, generation == self.quotaGeneration else { return }
                     self.quotaChips = self.quotaChips.map { chip in
                         guard chip.status == .pending, chip.kind != .xaiOAuth else { return chip }
+                        if chip.kind == .qwen, qwenWebsiteGeneration != self.qwenWebsiteUpdateGeneration { return chip }
                         return AccountQuotaChip(
                             id: chip.id,
                             shortName: chip.shortName,
@@ -972,7 +985,7 @@ final class AppState: ObservableObject {
                 guard !Task.isCancelled, boardRefreshTokens[kind] == token else { return }
                 switch result {
                 case .success(let board):
-                    if board.canReplace(snapshot.boards[kind]) { snapshot.boards[kind] = board }
+                    if board.canReplace(snapshot.boards[kind]) { snapshot.boards[kind] = board.preservingContentTimestamp(from: snapshot.boards[kind]) }
                 case .failure(let error):
                     lastErrors[kind] = error is LeaderboardConfigurationRequired
                         ? LeaderboardFailure.configurationRequired.message(language: selectedLanguage, hasCachedBoard: snapshot.boards[kind] != nil)
@@ -987,7 +1000,7 @@ final class AppState: ObservableObject {
 
     private func acceptSharedBoard(_ board: Leaderboard, token: UUID) {
         guard boardRefreshTokens[board.kind] == token, !isQuitting, board != snapshot.boards[board.kind], board.canReplace(snapshot.boards[board.kind]) else { return }
-        snapshot.boards[board.kind] = board
+        snapshot.boards[board.kind] = board.preservingContentTimestamp(from: snapshot.boards[board.kind])
         lastErrors[board.kind] = nil
         snapshotPersistence.save(snapshot)
     }

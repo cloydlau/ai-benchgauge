@@ -55,12 +55,14 @@ struct Board: Encodable {
     var kind: String; var title: String; var url: String
     var updatedAt: String?; var error: String?; var entries: [Entry]
     var fetchedAt: String? = nil
+    var contentUpdatedAt: String? = nil
     var sourceNote: String? = nil
     var countryOptions: [CountryOption]? = nil
     var distribution: LeaderboardDistribution? = nil
 }
 struct CountryOption: Encodable { var value: String; var label: String }
 struct Entry: Encodable {
+    var rankChange: LeaderboardRankChange? = nil
     var modelMetadata: ModelMetadata? = nil
     var detailID: String? = nil
     var voteCount: Int? = nil
@@ -75,6 +77,8 @@ struct Quota: Encodable {
     var help: String; var url: String?; var canConnect: Bool; var connection: String?; var runs: [Run]
     var accentLight: String?
     var isDimmed: Bool
+    var logoPNG: String? = nil
+    var initials: String? = nil
 }
 struct Run: Encodable { var text: String; var light: String; var dark: String }
 struct Alert: Encodable { var title: String; var body: String }
@@ -370,7 +374,7 @@ actor Engine {
     }
     private func acceptSharedBoard(_ board: Leaderboard) {
         guard board != snapshot.boards[board.kind], board.canReplace(snapshot.boards[board.kind]) else { return }
-        snapshot.boards[board.kind] = board
+        snapshot.boards[board.kind] = board.preservingContentTimestamp(from: snapshot.boards[board.kind])
         errors[board.kind] = nil
         cache.save(snapshot)
     }
@@ -518,7 +522,7 @@ actor Engine {
                          error: errors[kind].map { $0 == "configurationRequired" ? LeaderboardFailure.configurationRequired.message(language: language, hasCachedBoard: board != nil) : language.text("Refresh failed; showing saved data", "刷新失败，显示已保存的数据") },
                          entries: entries.map { entry in
                 let links = PurchaseLinkCatalog.links(forOrganization: entry.organization, modelName: entry.name)
-                return Entry(detailID: grouping == "company" ? nil : entry.modelMetadata?.id, voteCount: entry.voteCount,
+                return Entry(rankChange: entry.rankChange, detailID: grouping == "company" ? nil : entry.modelMetadata?.id, voteCount: entry.voteCount,
                              rank: entry.rank, name: entry.name, score: entry.score, organization: entry.organization,
                              country: OrganizationRegion.country(for: entry)?.rawValue,
                              logo: OrganizationLogoCatalog.resolvedKey(organization: entry.organization, modelName: entry.name),
@@ -529,7 +533,8 @@ actor Engine {
                              brandColor: OrganizationLogoCatalog.rowBrandColorHex(for: entry),
                              logoPNG: OrganizationLogoCatalog.rowLogoPNGData(for: entry, isCompany: grouping == "company")?.base64EncodedString(),
                              initials: OrganizationLogoCatalog.initial(organization: entry.organization, modelName: entry.name))
-            }, fetchedAt: board.map { formatter.string(from: $0.fetchedAt) }, sourceNote: board?.sourceNote,
+            }, fetchedAt: board.map { formatter.string(from: $0.fetchedAt) },
+                         contentUpdatedAt: board?.contentUpdatedAt.map { formatter.string(from: $0) }, sourceNote: board?.sourceNote,
                          countryOptions: LeaderboardPresentation.countryFilters(board).compactMap { filter in
                 switch filter {
                 case .all: return nil
@@ -577,6 +582,7 @@ actor Engine {
                                     websiteURL: chip.websiteURL,
                                     kind: chip.kind, isCurrent: chip.isCurrent, status: .qwenWebsite(quota))
         }
+        let providerLogos = OrganizationLogoCatalog.organizationLogoPNGData(in: snapshot)
         let quotas = AccountQuotaFormatting.sortedChips(displayChips).map { chip in
             // Login-required Grok cards launch device authorization, not the product page.
             let xaiSignIn = AccountQuotaFormatting.requiresXAISignIn(chip)
@@ -596,7 +602,9 @@ actor Engine {
                     runs: AccountQuotaFormatting.runs(for: chip, now: now).map { run in
                 Run(text: language.quotaText(run.text), light: color(run.tone, dark: false), dark: color(run.tone, dark: true))
             }, accentLight: AccountQuotaFormatting.cardColorLevel(for: chip, now: now).map { color(.remaining($0), dark: false) },
-                isDimmed: AccountQuotaFormatting.isDimmed(chip))
+                isDimmed: AccountQuotaFormatting.isDimmed(chip),
+                logoPNG: providerLogos[LeaderboardQuotaProviders.organizationKey(for: chip.kind)]?.base64EncodedString(),
+                initials: LeaderboardQuotaProviders.logoInitial(for: chip.kind))
         }
         let previousRecovery = recovery
         let recovered = recovery.consider(chips: displayChips)

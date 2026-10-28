@@ -8,9 +8,10 @@ import sourceThemes from '../../Sources/LeaderboardKit/Resources/SourceTabThemes
 import sharp from 'sharp'
 import { engineeringInvestment } from './scripts/engineering-investment.mjs'
 import { contributorCircles } from '../../Scripts/contributor-circles.mjs'
-import { createAutoVersion } from './scripts/version.mjs'
+import { readAppVersion } from './scripts/version.mjs'
 import { renderSourceLogos, renderPlatformIcons } from '../../Scripts/source-logos.mjs'
 import { aboutArtworkFile } from './src/core/about-artwork.js'
+import { clientBrandPolicyPlugin } from './scripts/client-brand-policy.mjs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 // The native clients remain the authority for the shared-service address.
@@ -19,7 +20,7 @@ const endpoint = process.env.VITE_BENCHGAUGE_SHARED_ENDPOINT
   || swift.match(/bundledEndpoint: String\? = "([^"]+)"/)?.[1]
 const address = new URL(endpoint)
 if (address.protocol !== 'https:' || address.username || address.password || address.search || address.hash) throw new Error('A valid HTTPS shared endpoint is required')
-const version = process.env.MP_VERSION || createAutoVersion()
+const version = readAppVersion(root, process.env.MP_VERSION)
 const notices = [
   ['Vue Mini', '@vue-mini/core'], ['Vant Weapp', '@vant/weapp'], ['Tailwind CSS', 'tailwindcss'], ['fflate', 'fflate'],
 ].map(([name, packageName]) => ({ name, license: readFileSync(new URL(`node_modules/${packageName}/LICENSE`, import.meta.url), 'utf8') }))
@@ -51,7 +52,7 @@ const publishedNotices = notices.map((item, index) => {
 export default defineConfig({
   build: { target: 'es2019' },
   define: { __SHARED_ENDPOINT__: JSON.stringify(endpoint.replace(/\/$/, '')), __APP_VERSION__: JSON.stringify(version),
-    __MIT_LICENSE__: JSON.stringify(readFileSync(resolve(root, 'LICENSE'), 'utf8')),
+    __APPLICATION_LICENSE__: JSON.stringify(readFileSync(resolve(root, 'LICENSE'), 'utf8')),
     __THIRD_PARTY_NOTICES__: JSON.stringify(publishedNotices),
     __ENGINEERING_INVESTMENT__: JSON.stringify(engineeringInvestment(process.env.BENCHGAUGE_INVESTMENT_ROOT || root)),
     __CONTRIBUTOR_CIRCLES__: JSON.stringify(contributorCircles(process.env.BENCHGAUGE_INVESTMENT_ROOT || root)) },
@@ -66,6 +67,7 @@ export default defineConfig({
     autoImportComponents: { resolvers: [VantResolver()] },
   },
   plugins: [
+    clientBrandPolicyPlugin(root),
     {
       name: 'benchgauge-existing-assets',
       async generateBundle() {

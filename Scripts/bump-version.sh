@@ -3,7 +3,7 @@
 # The build number is what Sparkle-style updaters compare, and it must only
 # ever move forward.
 #
-# Usage: Scripts/bump-version.sh 1.1.0
+# Usage: Scripts/bump-version.sh [YYYYMMDD] (defaults to today's Beijing date)
 set -euo pipefail
 
 ROOT=${0:A:h:h}

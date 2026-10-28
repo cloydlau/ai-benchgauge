@@ -107,7 +107,6 @@ struct LeaderboardView: View {
             let time = LeaderboardPresentation.sourceTime(state.snapshot.boards[kind], language: state.selectedLanguage)
             return SourceTableHeaderView.requiredNameColumnWidth(
                 title: LeaderboardPresentation.columnTitle(kind, language: state.selectedLanguage),
-                licenseName: headerLicenseName(kind: kind, board: state.snapshot.boards[kind]),
                 summary: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(kind, language: state.selectedLanguage)),
                 time: time)
         }.max() ?? 0
@@ -251,6 +250,7 @@ struct LeaderboardView: View {
             if !state.quotaChips.isEmpty {
                 QuotaStrip(
                     chips: state.quotaChips,
+                    providerLogos: OrganizationLogoCatalog.organizationLogoPNGData(in: state.snapshot),
                     language: language,
                     onConnectQwen: state.connectQwenWebsite,
                     onConnectOpenAI: state.connectOpenAI,
@@ -514,7 +514,8 @@ struct LeaderboardView: View {
     private func boardColumns(_ slot: Int) -> some TableColumnContent<LeaderboardRow, Never> {
         TableColumn(LeaderboardPresentation.columnTitle(kind(at: slot), language: language)) { row in
             LeaderboardCell(model: row.cells[slot], language: language, shareColor: shareColor(for: kind(at: slot)),
-                columnWidth: nameColumnWidth, onSelectName: nameAction)
+                columnWidth: nameColumnWidth, rank: slot > 0 && !row.isDistribution ? row.rank : nil,
+                onSelectName: nameAction)
         }.width(nameColumnWidth)
         TableColumn(tr("Country", "国家")) { row in
             CountryCell(model: row.cells[slot], language: language)
@@ -531,8 +532,8 @@ struct LeaderboardView: View {
         let renderedRows = rows
         return Table(renderedRows) {
             TableColumn(tr("Rank", "排名")) { row in
-                Text(row.isDistribution ? "" : LeaderboardPresentation.rankLabel(row.rank)).monospacedDigit()
-                    .frame(maxWidth: .infinity, alignment: .center)
+                DesktopRankCell(rank: row.isDistribution ? nil : row.rank,
+                    entry: row.cells[0]?.entry, language: language, height: visibleKinds.count == 1 ? 26 : 24)
             }.width(Self.rankColumnWidth).alignment(.center)
             boardColumns(0)
             boardColumns(1)
@@ -544,8 +545,7 @@ struct LeaderboardView: View {
             boards: visibleKinds.map { kind in
                 let time = LeaderboardPresentation.sourceTime(state.snapshot.boards[kind], language: language)
                 return BoardHeaderConfiguration(kind: kind,
-                    licenseName: headerLicenseName(kind: kind, board: state.snapshot.boards[kind]),
-                    summary: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(kind, language: language)),
+                        summary: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(kind, language: language)),
                     time: time,
                     polishReady: !state.isRefreshing && !screenshot.isCapturing && state.snapshot.boards[kind] != nil && kind != .cloudbaseUsage,
                     polishRevision: state.timestampPolishRevision,
@@ -793,7 +793,7 @@ struct LeaderboardView: View {
                     Text(visibleKinds.map(\.sourceLinkTitle).joined(separator: " · "))
                     Text("·")
                 }
-                Text("Cloyd Lau · MIT License")
+                Text("Cloyd Lau · \(ApplicationLicense.shortName)")
             }
             .fixedSize()
         }
@@ -842,12 +842,13 @@ struct LeaderboardView: View {
 
             Text("Cloyd Lau")
             Text("·")
-            Button(compact ? "MIT" : "MIT License") {
+            Button(tr("License", "许可证")) {
                 screenshot.licenseSection = .application
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .help(tr("View the AI BenchGauge license", "查看 AI 天梯的许可证"))
+            .help(ApplicationLicense.name)
+            .accessibilityLabel(ApplicationLicense.name)
             .accessibilityIdentifier("application-license")
         }
         .fixedSize(horizontal: true, vertical: false)
@@ -1040,19 +1041,10 @@ struct LeaderboardView: View {
     ) -> LeaderboardCellModel? {
         guard let displayed else { return nil }
         let entry = displayed.entry
-        let key = OrganizationLogoCatalog.resolvedKey(
-            organization: entry.organization,
-            modelName: entry.name
-        )
         return LeaderboardCellModel(
             entry: entry,
             brandHex: OrganizationLogoCatalog.rowBrandColorHex(for: entry),
-            logoURL: entry.logoURL
-                ?? key.flatMap { organizationLogos[$0] }
-                ?? OrganizationLogoCatalog.logoURL(
-                    forOrganization: entry.organization,
-                    modelName: entry.name
-                ),
+            logoURL: nil,
             scoreHelp: displayed.scoreHelp,
             isCompany: displayed.isCompany,
             showRelativeShare: showRelativeShare, leaderScore: leaderScore
@@ -1084,13 +1076,8 @@ struct LeaderboardView: View {
 
 /// SwiftUI's TableColumn labels only support plain text. Install a native
 /// one-line header with the source name leading and its own data time trailing.
-private func headerLicenseName(kind: LeaderboardKind, board: Leaderboard?) -> String? {
-    kind == .epochECI || (kind.isUsage && kind != .cloudbaseUsage) || ArenaAttribution.applies(board) ? "CC BY 4.0" : nil
-}
-
 private struct BoardHeaderConfiguration {
     let kind: LeaderboardKind
-    let licenseName: String?
     let summary: SourceLensDescription
     let time: (text: String, isSourceTime: Bool)
     let polishReady: Bool
@@ -1317,12 +1304,21 @@ private struct TableChrome: NSViewRepresentable {
             if let existing = tableView.headerView as? SourceTableHeaderView {
                 header = existing
             } else {
+                let previousTop = scrollView.contentView.bounds.minY
+                let previousHeaderHeight = tableView.headerView?.frame.height ?? 0
                 header = SourceTableHeaderView(frame: NSRect(
                     x: 0, y: 0, width: tableView.bounds.width, height: SourceTableHeaderView.height
                 ))
                 header.tableView = tableView
                 tableView.headerView = header
                 scrollView.tile()
+                if previousTop <= -previousHeaderHeight + 0.5 {
+                    // Replacing the 28pt system header must also move the top
+                    // scroll origin, or the taller header clips the first row.
+                    scrollView.contentView.scroll(to: NSPoint(x: scrollView.contentView.bounds.minX,
+                        y: previousTop - (SourceTableHeaderView.height - previousHeaderHeight)))
+                    scrollView.reflectScrolledClipView(scrollView.contentView)
+                }
             }
             for (index, column) in tableView.tableColumns.enumerated() {
                 column.isHidden = index > 0 && (index - 1) / 4 >= boards.count
@@ -1414,13 +1410,12 @@ private final class SourceTableHeaderView: NSTableHeaderView {
     /// loading bar is near-black in light mode and near-white in dark mode.
     static let placeholderAlpha: CGFloat = 35.0 / 255.0
 
-    static func requiredNameColumnWidth(title: String, licenseName: String?, summary: SourceLensDescription,
+    static func requiredNameColumnWidth(title: String, summary: SourceLensDescription,
                                         time: (text: String, isSourceTime: Bool)) -> CGFloat {
         let titleFont = NSFont.systemFont(ofSize: 11, weight: .semibold)
-        let titled = licenseName.map { title + " · " + $0 } ?? title
         let timeFont = NSFont.monospacedDigitSystemFont(ofSize: 8, weight: time.isSourceTime ? .semibold : .regular)
         let timeWidth = (time.text as NSString).size(withAttributes: [.font: timeFont]).width
-        return ceil((titled as NSString).size(withAttributes: [
+        return ceil((title as NSString).size(withAttributes: [
             .font: titleFont
         ]).width + ((summary.emphasis + " · ") as NSString).size(withAttributes: [
             .font: NSFont.systemFont(ofSize: 10)
@@ -1454,30 +1449,9 @@ private final class SourceTableHeaderView: NSTableHeaderView {
                 return
             }
             if let window {
-                let alert = NSAlert()
-                alert.messageText = LeaderboardPresentation.columnTitle(board.kind, language: language)
                 let content = board.sourceDetails + "\n\n" + board.kind.sourceURL.absoluteString
-                let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 480, height: 360))
-                scroll.hasVerticalScroller = true
-                scroll.drawsBackground = false
-                let text = NSTextView(frame: scroll.bounds)
-                text.isEditable = false
-                text.isSelectable = true
-                text.drawsBackground = false
-                text.font = .systemFont(ofSize: 13)
-                text.textColor = .labelColor
-                text.minSize = NSSize(width: 0, height: scroll.contentSize.height)
-                text.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-                text.isVerticallyResizable = true
-                text.isHorizontallyResizable = false
-                text.autoresizingMask = [.width]
-                text.textContainer?.containerSize = NSSize(width: scroll.contentSize.width, height: CGFloat.greatestFiniteMagnitude)
-                text.textContainer?.widthTracksTextView = true
-                text.string = content
-                scroll.documentView = text
-                alert.accessoryView = scroll
-                alert.addButton(withTitle: "OK")
-                alert.addButton(withTitle: language.text("Copy link", "复制链接"))
+                let alert = SourceDetailsAlert.make(title: LeaderboardPresentation.columnTitle(board.kind, language: language),
+                    content: content, language: language)
                 alert.beginSheetModal(for: window) { response in
                     if response == .alertSecondButtonReturn {
                         NSPasteboard.general.clearContents()
@@ -1570,11 +1544,18 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             switch role {
             case 0:
                 let tint = NSColor(Color(hex: SourceTabTheme.palette(for: board.kind, dark: dark).accent)!)
+                let rankInset: CGFloat = index > 1 ? 36 : 0
+                if rankInset > 0 {
+                    let cell = NSTableHeaderCell(textCell: language.text("Rank", "排名"))
+                    cell.alignment = .center
+                    cell.draw(withFrame: NSRect(x: rect.minX, y: rect.minY, width: rankInset, height: rect.height), in: self)
+                }
                 drawBoardHeader(tableView.tableColumns[index].headerCell.stringValue,
-                    licenseName: board.licenseName, summary: board.summary,
+                    summary: board.summary,
                     time: board.time, tint: tint,
                     polishPhase: board.polishReady ? (fixedPolishPhase ?? polishSchedules[board.kind]?.phase(at: ProcessInfo.processInfo.systemUptime)) : nil,
-                    in: rect, kind: board.kind)
+                    in: NSRect(x: rect.minX + rankInset, y: rect.minY,
+                        width: max(0, rect.width - rankInset), height: rect.height), kind: board.kind)
             case 1: drawCountryHeader(selected: board.country, in: rect)
             case 2: drawFilterHeader(title: ModelOpenness.columnTitle(language: language), active: board.openness != .all, in: rect)
             default: tableView.tableColumns[index].headerCell.draw(withFrame: rect, in: self)
@@ -1680,7 +1661,6 @@ private final class SourceTableHeaderView: NSTableHeaderView {
 
     private func drawBoardHeader(
         _ title: String,
-        licenseName: String?,
         summary: SourceLensDescription,
         time: (text: String, isSourceTime: Bool),
         tint: NSColor,
@@ -1736,14 +1716,6 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         ])
         if explanation.size().width + text.size().width <= available {
             text.insert(explanation, at: 0)
-        }
-        let license = licenseName.map { " · " + $0 }
-        let licenseWidth = license.map { ($0 as NSString).size(withAttributes: [.font: titleFont]).width } ?? 0
-        let showsLicense = license != nil && text.size().width + licenseWidth <= available
-        if showsLicense, let license {
-            text.append(NSAttributedString(string: license, attributes: [
-                .font: titleFont, .foregroundColor: tint
-            ]))
         }
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineBreakMode = .byTruncatingTail
@@ -1821,6 +1793,26 @@ private extension LeaderboardCellModel {
     }
 }
 
+private struct DesktopRankCell: View {
+    let rank: Int?
+    let entry: LeaderboardEntry?
+    let language: AppLanguage
+    let height: CGFloat
+
+    var body: some View {
+        VStack(spacing: 1) {
+            if let rank {
+                Text(LeaderboardPresentation.rankLabel(rank)).monospacedDigit()
+                    .font(rank <= 3 ? .system(size: height < 26 ? 16 : 18) : nil)
+                if let entry { LeaderboardRankChangeBadge(entry.rankChange, language: language) }
+            }
+        }
+        // Draw inside the existing row padding; never grow the table's row height.
+        .fixedSize(horizontal: false, vertical: true).frame(height: height)
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+}
+
 private struct LeaderboardCell: View {
     @Environment(\.colorScheme) private var colorScheme
 
@@ -1828,6 +1820,7 @@ private struct LeaderboardCell: View {
     let language: AppLanguage
     let shareColor: Color
     let columnWidth: CGFloat
+    let rank: Int?
     /// Nil for skeleton placeholders, which must not be copied.
     let onSelectName: ((LeaderboardEntry) -> Bool)?
 
@@ -1840,12 +1833,24 @@ private struct LeaderboardCell: View {
     ]).width)
 
     var body: some View {
+        HStack(spacing: 0) {
+            if rank != nil {
+                DesktopRankCell(rank: entry == nil ? nil : rank, entry: entry, language: language, height: 24)
+                    .frame(width: 36)
+            }
+            nameBody
+        }.frame(width: columnWidth, height: 24)
+    }
+
+    @ViewBuilder private var nameBody: some View {
+        let nameWidth = max(0, columnWidth - (rank == nil ? 0 : 36))
         if entry == nil {
             nameContent()
+                .frame(width: nameWidth)
         } else {
             // TableColumn has an exact width. Measuring it again in every
             // recycled cell adds two GeometryReader layout passes per model.
-            let trackWidth = max(0, columnWidth - Self.shareWidth - Self.shareGap)
+            let trackWidth = max(0, nameWidth - Self.shareWidth - Self.shareGap)
             let filledWidth = trackWidth * LeaderboardPresentation.scoreFillRatio(
                 model?.entry.score ?? 0, leaderScore: model?.leaderScore)
             let share = LeaderboardPresentation.scoreShareText(
@@ -1874,7 +1879,7 @@ private struct LeaderboardCell: View {
                         .accessibilityHidden(true)
                 }
             }
-            .frame(width: columnWidth, height: 24, alignment: .leading)
+            .frame(width: nameWidth, height: 24, alignment: .leading)
             .clipped()
         }
     }
@@ -2458,19 +2463,8 @@ private struct ModelLogoView: View {
     private var logoContent: some View {
         if let pngData, let image = ModelLogoImageCache.shared.image(data: pngData) {
             Image(nsImage: image).resizable().scaledToFit()
-        } else if let key = OrganizationLogoCatalog.bundledLogoKey(forOrganization: organization, modelName: name),
-                  let image = ModelLogoImageCache.shared.bundledImage(key: key) {
-            Image(nsImage: image)
-                .resizable()
-                .scaledToFit()
         } else {
-            AsyncImage(url: url) { image in
-                image
-                    .resizable()
-                    .scaledToFit()
-            } placeholder: {
-                placeholder
-            }
+            placeholder
         }
     }
 

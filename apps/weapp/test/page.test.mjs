@@ -140,6 +140,47 @@ test('headers and help select only source time, falling back to fetch time when 
   }
 })
 
+test('headers and exported images retain the last new-data time until ranking content changes', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-30T06:00:00Z') })
+  const contentUpdatedAt = '2026-10-27T00:00:00Z'
+  for (const language of ['en', 'zh-CN', 'zh-TW']) {
+    const h = setup({ language }), loading = h.loadCategory()
+    for (let i = 0; i < h.requests.length; i++) h.respond(i, {
+      fetchedAt: '2026-10-28T00:00:00Z', contentUpdatedAt,
+    })
+    await loading
+    const card = () => h.page.cards.value.find(item => item.kind === 'artificialAnalysis')
+    const expected = formatTime(contentUpdatedAt, language)
+    assert.equal(card().time, expected)
+    const duplicate = h.page.refreshTap(event({ kind: 'artificialAnalysis' }))
+    h.respond(h.requests.length - 1, { fetchedAt: '2026-10-29T00:00:00Z' })
+    await duplicate
+    assert.equal(card().time, expected)
+    assert.equal(card().isSourceTime, false)
+    const canvas = canvasHarness()
+    Object.assign(wx, canvas.platform, { showLoading() {}, hideLoading() {}, showToast() {},
+      createSelectorQuery: () => {
+        let scroll = false
+        const query = {
+          select() { return { fields: () => query, boundingClientRect: () => query, node: () => { scroll = true; return query } } },
+          exec: callback => callback([{ node: scroll ? { scrollTo() {} } : canvas.canvas }]),
+        }
+        return query
+      },
+    })
+    await h.page.screenshot()
+    assert.ok(canvas.commands.some(([command, value]) => command === 'fillText'
+      && value === `${expected} ${card().timeLabel}`), language)
+    h.page.closeCapture()
+    const changed = h.page.refreshTap(event({ kind: 'artificialAnalysis' }))
+    const fetchedAt = '2026-10-30T00:00:00Z'
+    h.respond(h.requests.length - 1, { fetchedAt, entries: [{ rank: 1, name: 'Changed', score: 101 }] })
+    await changed
+    assert.equal(card().time, formatTime(fetchedAt, language))
+    globalThis.__benchHooks.unload()
+  }
+})
+
 test('leaving the page while search bounds are pending cannot expand or focus it later', async () => {
   const h = setup()
   let measured
@@ -538,6 +579,55 @@ test('purchase links update after switching the interface language inside the sa
   assert.equal(after.purchaseActions[0].url, 'https://platform.minimax.io/subscribe/coding-plan')
   assert.equal(after.purchaseActions[0].title, 'Plan')
   globalThis.__benchHooks.unload()
+})
+
+test('uncached sources show loading before entry and stop only when their own request settles', async t => {
+  const h = setup()
+  t.after(() => globalThis.__benchHooks.unload())
+  const card = kind => h.page.cards.value.find(card => card.kind === kind)
+  assert.equal(h.requests.length, 0)
+  assert.ok(h.page.cards.value.every(card => card.loading && !card.hasBoard))
+  const first = h.enter()
+  assert.equal(card('artificialAnalysis').loading, true)
+  h.requests[0].options.fail(); h.requests[0].options.complete()
+  await first
+  assert.equal(card('artificialAnalysis').loading, false, 'Failure must reveal the no-board message')
+  assert.equal(card('artificialAnalysis').hasBoard, false)
+  assert.equal(card('arenaText').loading, true, 'An unrequested source must not inherit another source’s failure')
+  await h.page.autoRefresh()
+  assert.equal(h.requests.length, 1, 'Backoff must not restart the skeleton after a failure')
+  assert.equal(card('artificialAnalysis').loading, false)
+  const retry = h.page.refreshTap(event({ kind: 'artificialAnalysis' }))
+  assert.equal(card('artificialAnalysis').loading, true)
+  h.respond(1); await retry
+  assert.equal(card('artificialAnalysis').loading, false)
+  assert.equal(card('artificialAnalysis').hasBoard, true)
+  h.page.selectFace(event({ index: 1 }))
+  assert.equal(card('arenaText').loading, true)
+  h.respond(2)
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(card('arenaText').loading, false)
+  assert.equal(card('arenaText').hasBoard, true)
+})
+
+test('cached boards render immediately and empty search results stay out of initial loading', async t => {
+  const h = setup({}, 0, {}, 'light', 'zh_CN', {
+    artificialAnalysis: { kind: 'artificialAnalysis', fetchedAt: new Date().toISOString(),
+      entries: [{ rank: 1, name: 'Cached model', score: 90 }] },
+  })
+  t.after(() => globalThis.__benchHooks.unload())
+  assert.equal(h.page.cards.value[0].loading, false)
+  assert.equal(h.page.cards.value[0].rows[0].name, 'Cached model')
+  await h.enter()
+  assert.equal(h.requests.length, 0)
+  const refresh = h.page.refreshTap(event({ kind: 'artificialAnalysis' }))
+  assert.equal(h.page.cards.value[0].loading, true)
+  assert.equal(h.page.cards.value[0].rows[0].name, 'Cached model')
+  h.respond(0, { fetchedAt: new Date().toISOString() }); await refresh
+  h.page.inputModelSearch({ detail: { value: 'no matching model' } })
+  assert.equal(h.page.cards.value[0].loading, false)
+  assert.equal(h.page.cards.value[0].hasBoard, true)
+  assert.equal(h.page.cards.value[0].count, 0)
 })
 
 test('loading skeletons cover the viewport at startup and after tall or landscape resizing', () => {

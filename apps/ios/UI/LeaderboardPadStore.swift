@@ -172,6 +172,11 @@ public final class LeaderboardPadStore: ObservableObject {
         visibleBoardKinds[min(max(0, selectedSource), visibleBoardKinds.count - 1)]
     }
 
+    public func isLoading(_ kind: LeaderboardKind) -> Bool {
+        // SwiftUI renders before .task starts, including newly selected sources.
+        refreshing.contains(kind) || (snapshot.boards[kind] == nil && attempts[kind] == nil)
+    }
+
     public func refresh(kind: LeaderboardKind? = nil, force: Bool = false, now: Date = Date()) async {
         let kind = kind ?? selectedKind
         if let task = refreshTasks[kind] { await task.value; return }
@@ -191,14 +196,14 @@ public final class LeaderboardPadStore: ObservableObject {
         let result = await service.refresh([kind], keeping: LeaderboardSnapshot(), onBoard: { [weak self] board in
             await self?.accept(board)
         })
-        if let board = result.snapshot.boards[kind], board.canReplace(snapshot.boards[kind]) { snapshot.boards[kind] = board }
+        if let board = result.snapshot.boards[kind], board.canReplace(snapshot.boards[kind]) { snapshot.boards[kind] = board.preservingContentTimestamp(from: snapshot.boards[kind]) }
         failures[kind] = result.failures[kind]
         cache?.save(snapshot)
     }
 
     private func accept(_ board: Leaderboard) {
         guard board != snapshot.boards[board.kind], board.canReplace(snapshot.boards[board.kind]) else { return }
-        snapshot.boards[board.kind] = board
+        snapshot.boards[board.kind] = board.preservingContentTimestamp(from: snapshot.boards[board.kind])
         failures[board.kind] = nil
         cache?.save(snapshot)
     }

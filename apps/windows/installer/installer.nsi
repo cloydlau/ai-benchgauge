@@ -7,12 +7,15 @@ Unicode true
 !ifndef VERSION
 !error "VERSION is required"
 !endif
+!ifndef PRODUCT_VERSION
+!error "PRODUCT_VERSION is required (year.month.day.0)"
+!endif
 Name "AI BenchGauge"
 OutFile "${OUTPUT}"
 InstallDir "$LOCALAPPDATA\Programs\AI-BenchGauge"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
-VIProductVersion "${VERSION}.0"
+VIProductVersion "${PRODUCT_VERSION}"
 VIAddVersionKey "ProductName" "AI BenchGauge"
 VIAddVersionKey "FileVersion" "${VERSION}"
 VIAddVersionKey "LegalCopyright" "Copyright cloydlau"

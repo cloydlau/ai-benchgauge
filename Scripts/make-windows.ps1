@@ -125,5 +125,6 @@ if ($Installer) {
     New-Item -ItemType Directory -Force $outputDirectory | Out-Null
     $nsis = (Get-Command makensis -ErrorAction SilentlyContinue).Source
     if (!$nsis) { $nsis = "${env:ProgramFiles(x86)}/NSIS/makensis.exe" }
-    Invoke-Checked $nsis @("/DVERSION=$($config.version)", "/DPAYLOAD=$root/outputs/windows/app", "/DOUTPUT=$outputDirectory/AI-BenchGauge-$($config.version)-windows-x64-setup.exe", "$root/apps/windows/installer/installer.nsi")
+    $nativeVersion = [DateTime]::ParseExact($config.version, 'yyyyMMdd', [Globalization.CultureInfo]::InvariantCulture).ToString('yyyy.M.d.0', [Globalization.CultureInfo]::InvariantCulture)
+    Invoke-Checked $nsis @("/DVERSION=$($config.version)", "/DPRODUCT_VERSION=$nativeVersion", "/DPAYLOAD=$root/outputs/windows/app", "/DOUTPUT=$outputDirectory/AI-BenchGauge-$($config.version)-windows-x64-setup.exe", "$root/apps/windows/installer/installer.nsi")
 }

@@ -4,6 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { writeIOSAbout } from './ios-about.mjs'
+import { dateVersion, platformVersion } from './app-version.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const id = value => createHash('sha256').update(value).digest('hex').slice(0, 24).toUpperCase()
@@ -12,10 +13,11 @@ const xml = value => String(value).replaceAll('&', '&amp;').replaceAll('"', '&qu
 
 // A small deterministic project keeps platform sources under apps/ios without
 // adding XcodeGen/CocoaPods or storing machine-specific Xcode configuration.
-export function iosProject({ version, appStoreID = null, buildNumber = '1', team = '', sourceDirectory = '', packageDirectory = '../..',
+export function iosProject({ version, appStoreID = null, buildNumber = platformVersion(version), team = '', sourceDirectory = '', packageDirectory = '../..',
   logoDirectory = '../../assets/logos', artworkDirectory = '../../assets/about', assetDirectory, aboutContentPath }) {
-  if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('iOS version must be major.minor.patch')
-  if (!/^\d+$/.test(String(buildNumber))) throw new Error('iOS build number must be an integer')
+  dateVersion(version)
+  if (String(buildNumber).trim() !== String(buildNumber)
+      || !/^[1-9]\d{0,3}(?:\.(?:0|[1-9]\d?)){0,2}$/.test(String(buildNumber))) throw new Error('iOS build number must contain up to three numeric fields (4/2/2 digits)')
   if (team && !/^[A-Z0-9]{10}$/.test(team)) throw new Error('Apple team ID must contain 10 uppercase letters/digits')
   if (appStoreID !== null && (typeof appStoreID !== 'string' || !/^[1-9]\d*$/.test(appStoreID))) throw new Error('App Store ID must be a positive numeric string or null')
   const objects = new Map()
@@ -69,7 +71,8 @@ export function iosProject({ version, appStoreID = null, buildNumber = '1', team
     CLANG_ENABLE_MODULES: 'YES', SWIFT_STRICT_CONCURRENCY: 'complete' }
   const projectConfigs = configurations('project', common)
   const appConfigs = configurations('app', { ...common, PRODUCT_NAME: 'AI BenchGauge', PRODUCT_BUNDLE_IDENTIFIER: 'com.cloydlau.ai-benchgauge.ipad',
-    INFOPLIST_FILE: sourcePath('App/Info.plist'), GENERATE_INFOPLIST_FILE: 'NO', MARKETING_VERSION: version, CURRENT_PROJECT_VERSION: buildNumber,
+    INFOPLIST_FILE: sourcePath('App/Info.plist'), GENERATE_INFOPLIST_FILE: 'NO', MARKETING_VERSION: platformVersion(version), CURRENT_PROJECT_VERSION: buildNumber,
+    BENCHGAUGE_VERSION: version,
     BENCHGAUGE_APP_STORE_ID: appStoreID ?? '',
     ASSETCATALOG_COMPILER_APPICON_NAME: 'AppIcon', SUPPORTS_MACCATALYST: 'NO', SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: 'NO',
     LD_RUNPATH_SEARCH_PATHS: '$(inherited) @executable_path/Frameworks' })
@@ -109,5 +112,5 @@ export function generateIOSProject(directory = root, options = {}) {
   return projectPath
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  console.log(generateIOSProject(root, { buildNumber: process.env.IOS_BUILD_NUMBER || process.env.IPAD_BUILD_NUMBER || '1', team: process.env.APPLE_TEAM_ID || '' }))
+  console.log(generateIOSProject(root, { buildNumber: process.env.IOS_BUILD_NUMBER || process.env.IPAD_BUILD_NUMBER || undefined, team: process.env.APPLE_TEAM_ID || '' }))
 }

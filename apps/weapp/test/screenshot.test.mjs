@@ -239,3 +239,26 @@ test('export source headings, publication times and shares retain identity after
     }
   }
 })
+
+test('image export retains every movement badge without increasing row height', () => {
+  for (const dark of [false, true]) {
+    const h = canvasHarness(), source = model([5], dark), paints = []
+    const before = planScreenshot(h.context, source)
+    source.boards[0].rows.forEach((row, i) => Object.assign(row,
+      [{rankChangeText:'↑12',rankChangeTone:'up'}, {rankChangeText:'↓3',rankChangeTone:'down'},
+       {rankChangeText:'新',rankChangeTone:'new'}, {rankChangeText:'New',rankChangeTone:'new'}, {rankChangeText:''}][i]))
+    const image = planScreenshot(h.context, source)
+    assert.deepEqual(image.rows.map(row => row.height), before.rows.map(row => row.height))
+    h.context.fillText = (value, x, y) => paints.push({ value, x, y, color: h.context.fillStyle })
+    drawScreenshot(h.context, source, image, new Map())
+    for (const [index, badge] of ['↑12', '↓3', '新', 'New', '—'].entries()) {
+      const paint = paints.find(paint => paint.value === badge)
+      const rank = paints.find(paint => paint.value === String(source.boards[0].rows[index].rank))
+      assert.ok(paint && rank)
+      assert.equal(paint.x, rank.x)
+      assert.equal(paint.y - rank.y, 16)
+    }
+    assert.equal(paints.find(paint => paint.value === '↑12').color, dark ? '#ff9292' : '#c24748')
+    assert.equal(paints.find(paint => paint.value === '↓3').color, dark ? '#73d7ae' : '#0f8561')
+  }
+})

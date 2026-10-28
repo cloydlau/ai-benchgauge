@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { generateIOSProject } from './ios-project.mjs'
 import { withBuildCache } from './build-cache.mjs'
+import { readAppConfig } from './app-config.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 export function iosSimulator(devices, family = 'iPad') {
@@ -42,10 +43,13 @@ export function iosBuildPlan(mode, { directory = root, device, phone, team = '',
   return mode === 'test' ? tests : [...builds, ...tests]
 }
 export function runIOSBuild(mode = 'check', env = process.env, family = 'both') {
+  if (mode === 'archive' && readAppConfig(root).releaseIOS !== true) {
+    throw new Error('iPhone/iPad release is disabled (config/app.json: releaseIOS must be true before archiving).')
+  }
   const sdk = spawnSync('xcrun', ['--sdk', mode === 'archive' ? 'iphoneos' : 'iphonesimulator', '--show-sdk-path'], { encoding: 'utf8' })
   if (sdk.status !== 0) throw new Error('Full Xcode with the iOS SDK is required. Command Line Tools alone cannot build the iPhone / iPad app. Select Xcode with xcode-select, or run the iOS GitHub Actions check.')
   const team = env.APPLE_TEAM_ID || ''
-  generateIOSProject(root, { team, buildNumber: env.IOS_BUILD_NUMBER || env.IPAD_BUILD_NUMBER || '1' })
+  generateIOSProject(root, { team, buildNumber: env.IOS_BUILD_NUMBER || env.IPAD_BUILD_NUMBER || undefined })
   let device, phone
   if (!['archive', 'build'].includes(mode)) {
     const result = spawnSync('xcrun', ['simctl', 'list', 'devices', 'available', '--json'], { encoding: 'utf8' })

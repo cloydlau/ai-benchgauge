@@ -1,8 +1,7 @@
 import Foundation
 
-/// Shared and bundled marks and row colors for leaderboard organizations.
-/// Shared service converts source logos to PNG; bundled icons remain available
-/// when the source has no logo or the service cannot acquire one.
+/// Shared marks and row colors for leaderboard organizations.
+/// Images travel with the shared snapshot and remain available offline.
 /// Purchase-link keys are separate: Alibaba links stay under `alibaba`.
 public enum OrganizationLogoCatalog {
     /// Canonical logo key.
@@ -39,7 +38,7 @@ public enum OrganizationLogoCatalog {
     }
 
     /// Brand of the lead model in `Harness - Model`. Nil when the label is
-    /// not that shape, or the model family has no bundled mark.
+    /// not that shape, or the model family is unknown.
     /// Fusion names a sidekick after `+`; that half must not win.
     private static func hostedModelKey(from modelName: String?) -> String? {
         guard let modelName, let separator = modelName.range(of: " - ") else { return nil }
@@ -52,7 +51,7 @@ public enum OrganizationLogoCatalog {
             .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
             .map(String.init)
         for token in tokens {
-            guard let key = modelFamilyKey(for: token), bundledKeys.contains(key) else { continue }
+            guard let key = modelFamilyKey(for: token) else { continue }
             return key
         }
         return nil
@@ -82,17 +81,10 @@ public enum OrganizationLogoCatalog {
         return LeaderboardBrandPolicy.aliases[words] ?? words
     }
 
-    /// Organization keys that have a logo bundled under Resources/logos/<key>.png.
-    public static func bundledLogoKey(forOrganization organization: String?, modelName: String? = nil) -> String? {
-        guard let key = resolvedKey(organization: organization, modelName: modelName),
-              bundledKeys.contains(key) else { return nil }
-        return key
-    }
-
     /// Theme color for the row wash. Colored marks use their brand hue;
     /// similar blues and cyans vary in lightness instead of changing hue.
     /// Monochrome marks use neutral shades. OpenAI keeps its brand green even
-    /// though the bundled blossom is black.
+    /// though the blossom mark is black.
     /// A harness label follows the lead model, not the tool and not the
     /// sidekick after `+`. Devin Fusion therefore uses Claude or OpenAI ink
     /// while the mark stays Devin.
@@ -114,21 +106,40 @@ public enum OrganizationLogoCatalog {
         return fallbackColorHex(for: resolvedKey(organization: entry.organization, modelName: entry.name, modelID: entry.modelID) ?? entry.name)
     }
 
-    /// A provider PNG must not replace a bundled product mark. Explicit model
-    /// assets still win, and company standings retain the provider's image.
-    /// Returning nil lets each native renderer use its bundled logo fallback.
+    /// Model and company rows use validated images supplied by the shared service.
+    /// Company aggregation normally promotes organizationBrand into brand; the
+    /// explicit organization brand also supports unaggregated company consumers.
     public static func rowLogoPNGData(for entry: LeaderboardEntry, isCompany: Bool = false) -> Data? {
-        let data = entry.brand?.validPNGData
-        guard !isCompany, entry.brand?.key.hasPrefix("model-") != true,
-              let key = bundledLogoKey(forOrganization: entry.organization, modelName: entry.name),
-              bundledModelMarks.contains(key) else { return data }
-        let tokens = entry.name.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber })
-        if tokens.contains(where: { modelFamilyKey(for: String($0)) == key }) { return nil }
-        return data
+        if isCompany {
+            return [entry.organizationBrand, entry.brand].compactMap { $0 }
+                .filter { !$0.key.hasPrefix("model-") }.compactMap(\.validPNGData).first
+        }
+        return entry.brand?.validPNGData
     }
 
-    // These bundled images are product marks, rather than manufacturer marks.
-    private static let bundledModelMarks = LeaderboardBrandPolicy.bundledModelMarks
+    /// Newest valid manufacturer mark wins across all cached boards. A model
+    /// mark must never become an account provider's icon. Missing or malformed
+    /// marks do not hide a valid mark from another board, including offline data.
+    public static func organizationLogoPNGData(in snapshot: LeaderboardSnapshot) -> [String: Data] {
+        var images: [String: Data] = [:]
+        let boards = snapshot.boards.values.sorted {
+            if $0.fetchedAt != $1.fetchedAt { return $0.fetchedAt > $1.fetchedAt }
+            return $0.kind.rawValue < $1.kind.rawValue
+        }
+        for board in boards {
+            for entry in board.entries {
+                guard let key = resolvedKey(organization: entry.organization, modelName: entry.name, modelID: entry.modelID),
+                      images[key] == nil else { continue }
+                for brand in [entry.organizationBrand, entry.brand].compactMap({ $0 }) {
+                    guard !brand.key.hasPrefix("model-"), normalizedKey(brand.key) == key,
+                          let png = brand.validPNGData else { continue }
+                    images[key] = png
+                    break
+                }
+            }
+        }
+        return images
+    }
 
     public static func fallbackColorHex(for name: String) -> String {
         var hash: UInt32 = 2_166_136_261
@@ -198,17 +209,11 @@ public enum OrganizationLogoCatalog {
         return [-0.24, -0.12, 0, 0.12, 0.24][Int(hash % 5)]
     }
 
-    public static func logoURL(forOrganization organization: String?, modelName: String? = nil) -> URL? {
-        guard let key = resolvedKey(organization: organization, modelName: modelName),
-              let urlString = favicons[key] else { return nil }
-        return URL(string: urlString)
-    }
-
     private static let brandColors: [String: String] = [
-        // Hues follow the bundled marks or published brand colors. Nearby
+        // Hues follow established marks or published brand colors. Nearby
         // blues/cyans use lighter or darker values within the same hue family.
         "anthropic": "#D97757",
-        "openai": "#10A37F", // published green; the bundled blossom is black
+        "openai": "#10A37F", // published green; the blossom is black
         "qwen": "#623AE7",
         "kimi": "#007CFF", // Kimi brand blue, not its mint/cyan secondary
         "google": "#4285F4",
@@ -225,7 +230,7 @@ public enum OrganizationLogoCatalog {
         "fal": "#EC0648",
         "pixverse": "#A129FF", // violet on the mark, off Qwen
         "microsoftai": "#E24B9A", // ribbon magenta, not the blue
-        // These bundled marks are monochrome. Distinguish them by shade.
+        // These marks are monochrome. Distinguish them by shade.
         "zai": "#3A3A3A",
         "spacexai": "#242424",
         "stepfun": "#505050",
@@ -241,46 +246,4 @@ public enum OrganizationLogoCatalog {
         "github": "#303030"
     ]
 
-    private static let bundledKeys: Set<String> = [
-        "anthropic", "openai", "qwen", "zai", "spacexai", "stepfun",
-        "kimi", "google", "deepseek", "tencent", "meta", "minimax",
-        "mistral", "nvidia", "bytedance", "xiaomi", "klingai", "krea",
-        "ideogram", "runway", "luma", "blackforestlabs", "fal", "pixverse",
-        "microsoftai", "opencode", "devin", "reve", "videorebirth",
-        "thinkingmachines", "github"
-    ]
-
-    /// Reachable from mainland China. Used only when the bundled PNG is missing.
-    private static let favicons: [String: String] = [
-        "anthropic": "https://claude.com/favicon.ico",
-        "openai": "https://openai.com/favicon.ico",
-        "qwen": "https://qwen.ai/favicon.ico",
-        "zai": "https://z.ai/favicon.ico",
-        "spacexai": "https://x.ai/favicon.ico",
-        "stepfun": "https://www.stepfun.com/favicon.ico",
-        "kimi": "https://www.kimi.com/favicon.ico",
-        "google": "https://ai.google.dev/favicon.ico",
-        "deepseek": "https://www.deepseek.com/favicon.ico",
-        "tencent": "https://cloud.tencent.com/favicon.ico",
-        "meta": "https://about.meta.com/favicon.ico",
-        "minimax": "https://www.minimax.io/favicon.ico",
-        "mistral": "https://mistral.ai/favicon.ico",
-        "nvidia": "https://www.nvidia.com/favicon.ico",
-        "bytedance": "https://www.bytedance.com/favicon.ico",
-        "xiaomi": "https://www.mi.com/favicon.ico",
-        "klingai": "https://klingai.com/favicon.ico",
-        "krea": "https://www.krea.ai/favicon.ico",
-        "ideogram": "https://ideogram.ai/favicon.ico",
-        "runway": "https://runway.com/favicon.ico",
-        "luma": "https://lumalabs.ai/favicon.ico",
-        "blackforestlabs": "https://bfl.ai/favicon.ico",
-        "fal": "https://fal.ai/favicon.ico",
-        "pixverse": "https://pixverse.ai/favicon.ico",
-        "microsoftai": "https://copilot.microsoft.com/favicon.ico",
-        "opencode": "https://opencode.ai/favicon.ico",
-        "devin": "https://devin.ai/favicon.ico",
-        "reve": "https://reve.com/favicon.ico",
-        "thinkingmachines": "https://thinkingmachines.ai/favicon.ico",
-        "github": "https://github.com/favicon.ico"
-    ]
 }

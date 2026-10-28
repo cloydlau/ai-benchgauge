@@ -1,6 +1,6 @@
 # License notice inventory
 
-The footer opens one license sheet from two entries: **MIT License** selects
+The footer opens one license sheet from two entries: **License** selects
 the application license, and **Open-source notices** selects third-party
 notices. Complete notices are bundled locally and are selectable and scrollable.
 
@@ -12,8 +12,9 @@ notices. Complete notices are bundled locally and are selectable and scrollable.
   The complete upstream distribution `LICENSE`, including its component notices,
   is bundled as `Resources/Licenses/Sparkle.txt` and listed in `ThirdParty.json`.
 - `LeaderboardCore` and `leaderboard-menu` are this repository's own targets.
-- The application license is the repository's `LICENSE`, MIT, copyright
-  2026 Cloyd Lau. Packaging copies it into `Resources/Licenses/AI-BenchGauge.txt`.
+- The application license is the repository's `LICENSE`: PolyForm Perimeter License 1.0.0,
+  with the project's licensing notices, copyright 2026 Cloyd Lau. Display identity is shared
+  through `Sources/LeaderboardKit/Resources/ApplicationLicense.json`. Packaging copies it into `Resources/Licenses/AI-BenchGauge.txt`.
 - The executable dynamically links the macOS system frameworks, Swift runtime,
   and `/usr/lib/libsqlite3.dylib`; no copies of those libraries are shipped.
   [SQLite's deliverable code is public domain](https://sqlite.org/copyright.html).
@@ -28,37 +29,78 @@ notices. Complete notices are bundled locally and are selectable and scrollable.
 - Codex CLI and qianwen CLI remain external integrations; their executables
   are not distributed in this app.
 
-The Sparkle notice above covers the newly bundled update framework. This is
-**not a completed provenance audit of the bundled brand images**.
+The Sparkle notice above covers the bundled update framework. Brand artwork
+is tracked separately below.
 
-## Brand image provenance still needs confirmation
+## GitHub icon provenance confirmed
 
-The 31 PNGs in `assets/logos` have no original download URLs, package versions,
-or license records. Their introduction in commit
-`9341a69f55c4c8515e92c456f86c7218c3aef51c` describes official favicons and
-Iconify, but does not identify the source of each file. Similarity to a brand
-mark does not establish which icon collection supplied it.
+On 2026-10-28, the old `assets/logos/github.png` was replaced with a deterministic
+export of **`tabler:brand-github-filled`**, selected through
+[Icones](https://icones.js.org/collection/tabler?s=brand-github).
+The unmodified SVG and complete MIT license are kept in
+[`assets/brand/partners/github`](../assets/brand/partners/github/README.md).
+`source.json` records revision `ed177a085b652fe04ec4f37ced867c94621e7840`,
+exact download URLs, source/license SHA-256 hashes and export settings.
+`node Scripts/source-logos.mjs --check` checks both hashes and generated copies.
 
-An audit compared the PNG byte hashes with `@lobehub/icons-static-png` 1.97.1:
-none matched. Some rendered marks look similar, which is insufficient to
-attribute the existing images to that library. Do not list Lobe Icons as a
-confirmed dependency on that basis.
+The same 128×128 transparent PNG serves macOS/Windows repository buttons,
+and GitHub Actions contributor avatars in the
+mini-program and iPhone/iPad. The original MIT text, copyright
+2020–2026 Paweł Kuna, is shipped in the macOS `Tabler.txt` manifest entry,
+Windows `Licenses/Tabler.txt` and both mobile clients' source-mark notices.
+The artwork license does not grant GitHub trademark rights or imply endorsement.
+This replacement confirms the new asset's provenance; it does not retroactively
+attribute the removed PNG to Tabler.
 
-The upstream collections investigated have different terms:
+## Supplier PNG removal and shared images — 2026-10-28
 
-- [Lobe Icons](https://github.com/lobehub/lobe-icons/blob/master/LICENSE): MIT;
-  retaining the copyright and full license notice would be required for its
-  distributed assets.
-- [SVG Logos](https://github.com/gilbarbara/logos/blob/master/LICENSE.txt) and
-  [Simple Icons](https://github.com/simple-icons/simple-icons/blob/develop/LICENSE.md):
-  CC0 1.0; neither was confirmed as the source of every bundled image.
-- [Hugeicons](https://github.com/iconify/icon-sets/blob/master/json/hugeicons.json):
-  MIT in Iconify's metadata. The `grok` and `grok-02` shapes examined do not match
-  the bundled `spacexai.png`. The development notification script's fallback
-  URLs do not demonstrate use in the distributed application.
+The other **53 supplier PNGs** and `assets/logos/company-catalog.json` have
+been removed. The directory now contains only the traceable GitHub export.
+This resolves the incomplete provenance inventory for these bundled files by
+removing them, rather than asserting an unverified license. The removed set
+comprised 30 legacy images with no verified per-file attribution and 23 newer
+company images whose page/download URLs and hashes did not establish artwork
+redistribution permission. Git history retains their previous records.
 
-Confirm the original sources before describing the image notice inventory as
-complete. Open-source license notices also do not grant rights in brand trademarks.
+macOS, Windows, iPhone/iPad, the mini-program and leaderboard exports use PNGs
+provided with shared leaderboard snapshots, with initials when unavailable.
+There is no local supplier PNG or direct-favicon download fallback. Desktop
+quota cards reuse manufacturer images from **all cached boards**, matched by
+provider identity rather than account labels. Dedicated model marks cannot
+become quota provider icons. Snapshot persistence preserves shared images for
+offline use; a provider absent from all downloaded boards shows its initial.
+
+The image service is separate from models.dev, which supplies model metadata.
+Removing local PNGs does not establish redistribution permission for remote
+artwork. The shared service's source URLs, acquired artwork and embedded
+`fc/brand-catalog.json` images remain a separate rights inventory; availability
+from a website is not recorded as written authorization. Brand trademarks
+remain owned by their respective holders. No complete artwork-rights clearance
+is claimed by this change.
+
+## Backend coverage reconciliation — 2026-10-28
+
+The 53 supplier identities removed from client asset bundles were compared
+with `fc/brand-catalog.json`. **52 already had server-side PNGs; Video Rebirth
+was the only missing identity.** Its image is now supplied by the same backend
+catalog rather than restoring client-local PNGs. The server catalog now has
+62 provider marks, plus the existing 7 dedicated model marks. This is source
+code coverage, not confirmation of what an already deployed service contains.
+
+Video Rebirth's official homepage declares `/fav-icon.svg` as its favicon.
+The new entry uses `https://www.videorebirth.com/fav-icon.svg`, normalized by
+`fc/brands.mjs` into a 64×64 PNG. Its provenance records retrieval time,
+source SHA-256 `e325f09d2e7be3d572554c0c2b409f2a5a46926de7e328b1ccef584b4e0c6dc5`
+and output SHA-256 `088349df1f7fa0b9dd09f51ee7dd66c2dee53df85650da21684f76706b3ca66d`.
+This identifies the source without copying an unattributed historical PNG.
+The entry explicitly records artwork permission as **not confirmed**.
+
+`Scripts/provider-logo-coverage.test.mjs` retains the 53 former client keys
+as an independent acceptance inventory and exercises shared images with cold
+storage, unavailable storage and saved snapshots. The other 52 images were
+already in the backend and have not been duplicated or retroactively granted
+permission by this reconciliation. All 52 focused tests pass, including the
+3 new backend-coverage checks. No deployment is performed here.
 
 ## Adding a required notice
 
@@ -85,7 +127,7 @@ SQLite 使用系统库，不打包第三方 SQLite 二进制。
 
 ## iPad edition
 
-The universal iOS target links the repository's own `LeaderboardKit` and `LeaderboardPadUI` plus Apple system frameworks. It does not ship Sparkle, SQLite, desktop command-line integrations, Windows dependencies, or desktop quota adapters. It reuses the desktop brand PNGs from `assets/logos`; the unresolved provenance audit above applies to iPad distribution too. The complete project MIT license is bundled in `apps/ios/UI/Resources/AI-BenchGauge.txt` and is available offline from the footer's MIT License entry.
+The universal iOS target links the repository's own `LeaderboardKit` and `LeaderboardPadUI` plus Apple system frameworks. It does not ship Sparkle, SQLite, desktop command-line integrations, Windows dependencies, or desktop quota adapters. It uses the shared snapshot images and initial fallback described above; supplier PNGs are not bundled. The separately licensed GitHub export remains available for repository and contributor UI. The complete project licensing notices and PolyForm Perimeter License 1.0.0 are bundled in `apps/ios/UI/Resources/AI-BenchGauge.txt`. The current mobile footer has no application-license entry. Third-party notices retain their respective original licenses.
 
 
 ## Chinese brand calligraphy

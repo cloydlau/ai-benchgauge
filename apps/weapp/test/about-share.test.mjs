@@ -108,6 +108,33 @@ test('About artwork title fits measured space and recovers on resize without acc
   assert.equal(about.artworkTitleScale.value, 0.8)
 })
 
+test('About allows rotation with native artwork preview and restores chrome when returning to portrait', () => {
+  const config = JSON.parse(readFileSync(new URL('../src/pages/about/index.json', import.meta.url), 'utf8'))
+  assert.equal(config.pageOrientation, 'auto')
+  globalThis.__APP_VERSION__ = '0.0.0'; globalThis.__THIRD_PARTY_NOTICES__ = []
+  globalThis.__ENGINEERING_INVESTMENT__ = { commitCount: 0, codeLineCount: 0 }
+  for (const language of ['en', 'zh-CN', 'zh-TW']) {
+    let window = { statusBarHeight: 47, windowWidth: 375 }
+    const previews = []
+    globalThis.wx = {
+      getStorageSync: () => ({ language }), getWindowInfo: () => window,
+      getAppBaseInfo: () => ({ theme: 'light' }), previewImage: options => previews.push(options),
+    }
+    const about = globalThis.aboutFactory({})
+    const portraitTitle = about.brandTitle.value
+    about.previewArtwork()
+    assert.deepEqual(previews, [{ current: about.artwork.image, urls: [about.artwork.image] }])
+    window = { statusBarHeight: 0, windowWidth: 812 }
+    globalThis.aboutResize()
+    assert.equal(about.statusBar.value, 0, 'Landscape can legitimately have no status bar')
+    assert.notDeepEqual(about.brandTitle.value, portraitTitle)
+    window = { statusBarHeight: 47, windowWidth: 375 }
+    globalThis.aboutResize()
+    assert.equal(about.statusBar.value, 47)
+    assert.deepEqual(about.brandTitle.value, portraitTitle)
+  }
+})
+
 test('about-page menu forwarding and cold-start back navigation retain the originating leaderboard settings', () => {
   const preferences = { category: 'video', grouping: 'company', face: 1, language: 'en', theme: 'system',
     filters: { arenaTextToVideo: { country: 'JP', openness: 'unknown' } } }

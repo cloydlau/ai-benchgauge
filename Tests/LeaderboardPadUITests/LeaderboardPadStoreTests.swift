@@ -87,6 +87,61 @@ private actor FetchGate {
     }
 }
 
+@MainActor @Test func initialMobileLoadingCoversTheFrameBeforeTaskAndSourceChanges() async throws {
+    let name = "initial-loading-\(UUID())"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    let directory = FileManager.default.temporaryDirectory.appending(path: name)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let gate = FetchGate()
+    let store = LeaderboardPadStore(defaults: defaults,
+        cache: LeaderboardCache(fileURL: directory.appending(path: "cache.json")),
+        service: LeaderboardService { kind in await gate.fetch(kind) })
+    #expect(store.refreshing.isEmpty)
+    #expect(store.isLoading(.artificialAnalysis))
+    #expect(store.isLoading(.arenaText))
+    let first = Task { await store.refresh(kind: .artificialAnalysis) }
+    await gate.waitFor([.artificialAnalysis])
+    #expect(store.isLoading(.artificialAnalysis))
+    await gate.release()
+    await first.value
+    #expect(!store.isLoading(.artificialAnalysis))
+    #expect(store.snapshot.boards[.artificialAnalysis] != nil)
+    store.selectedSource = 1
+    #expect(store.isLoading(store.selectedKind))
+    let second = Task { await store.refresh() }
+    await gate.waitFor([.arenaText])
+    #expect(store.isLoading(.arenaText))
+    await gate.release()
+    await second.value
+    #expect(!store.isLoading(.arenaText))
+}
+
+@MainActor @Test func initialMobileFailureLeavesLoadingAndCachedBoardsRenderImmediately() async throws {
+    let name = "initial-loading-failure-\(UUID())"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    let directory = FileManager.default.temporaryDirectory.appending(path: name)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let cache = LeaderboardCache(fileURL: directory.appending(path: "cache.json"))
+    let cached = Leaderboard(kind: .arenaText, title: "Saved", entries: [LeaderboardEntry(rank: 1, name: "Cached", score: 90)])
+    cache.save(.init(boards: [.arenaText: cached]))
+    let store = LeaderboardPadStore(defaults: defaults, cache: cache,
+        service: LeaderboardService { _ in throw URLError(.notConnectedToInternet) })
+    #expect(!store.isLoading(.arenaText))
+    #expect(store.isLoading(.artificialAnalysis))
+    await store.refresh(kind: .artificialAnalysis)
+    #expect(!store.isLoading(.artificialAnalysis))
+    #expect(store.snapshot.boards[.artificialAnalysis] == nil)
+    #expect(store.failures[.artificialAnalysis] == .offline)
+    await store.refresh(kind: .artificialAnalysis)
+    #expect(!store.isLoading(.artificialAnalysis))
+    #expect(store.isLoading(.epochECI))
+    await store.refresh(kind: .arenaText, force: true)
+    #expect(!store.isLoading(.arenaText))
+    #expect(store.snapshot.boards[.arenaText] == cached)
+}
+
 private actor BoardRequestLog {
     private(set) var kinds: [LeaderboardKind] = []
     func fetch(_ kind: LeaderboardKind) -> Leaderboard {

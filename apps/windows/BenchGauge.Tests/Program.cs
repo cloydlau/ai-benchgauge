@@ -6,6 +6,11 @@ using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Security;
 
+// Exercise the embedded application identity from the built shared assembly.
+if (ApplicationLicense.Name != "PolyForm Perimeter License 1.0.0" ||
+    ApplicationLicense.ShortName != "PolyForm Perimeter")
+    throw new Exception("Application license identity must load from the shared resource");
+
 foreach (var language in new[] { "en", "zh", "zh-Hant", "zh-TW" })
 {
     var explanation = BoardTimestamp.Explanation(language);
@@ -15,6 +20,21 @@ foreach (var language in new[] { "en", "zh", "zh-Hant", "zh-TW" })
         explanation.Contains("抓取") || explanation.Contains("retrieved"))
         throw new Exception("Timestamp help must explain publication and fallback refresh labels in every language");
 }
+
+// New-data time is independent of the latest successful network acquisition.
+var unchangedContent = new Board("epochECI", "Fixture", "https://example.test", null, null, [],
+    FetchedAt: "2026-10-28T00:00:00Z", ContentUpdatedAt: "2026-10-25T00:00:00Z");
+if (BoardTimestamp.For(unchangedContent).Value != DateTimeOffset.Parse(unchangedContent.ContentUpdatedAt!) ||
+    BoardTimestamp.For(unchangedContent with { Kind = "vercelUsage", UpdatedAt = "2026-10-26T00:00:00Z" }).Value != DateTimeOffset.Parse(unchangedContent.ContentUpdatedAt!) ||
+    !BoardTimestamp.For(unchangedContent with { UpdatedAt = "2026-10-24T00:00:00Z" }).IsSourceTime ||
+    BoardTimestamp.For(unchangedContent with { ContentUpdatedAt = null }).Value != DateTimeOffset.Parse(unchangedContent.FetchedAt!))
+    throw new Exception("Refresh labels must select the last changed-content time while preserving publication priority and legacy caches");
+var encodedContent = JsonSerializer.Serialize(unchangedContent, AppConfig.Json);
+if (JsonSerializer.Deserialize<Board>(encodedContent, AppConfig.Json)?.ContentUpdatedAt != unchangedContent.ContentUpdatedAt)
+    throw new Exception("The bridge new-data timestamp must survive JSON and cache round trips");
+foreach (var language in new[] { "en", "zh", "zh-Hant" })
+    if (!BoardTimestamp.Explanation(language).Contains(language == "en" ? "unchanged" : language == "zh" ? "没有变化" : "沒有變化"))
+        throw new Exception("Time help must explain unchanged data in every language");
 
 // The shared brand catalog covers exact category IDs, independent of column positions.
 foreach (var kinds in new[] {
@@ -216,7 +236,7 @@ if (oldResponse.QwenQuotaRefreshNeeded is not null) throw new Exception("Older r
 var keys = new Ed25519PrivateKeyParameters(new SecureRandom());
 var publicKey = Convert.ToBase64String(keys.GeneratePublicKey().GetEncoded());
 const string repository = "cloydlau/ai-benchgauge";
-var valid = new WindowsUpdate("1.2.3", "https://github.com/cloydlau/ai-benchgauge/releases/download/v1.2.3/AI-BenchGauge-1.2.3-windows-x64-setup.exe", new string('a', 64), 123, "Release notes");
+var valid = new WindowsUpdate("20261028", "https://github.com/cloydlau/ai-benchgauge/releases/download/v20261028/AI-BenchGauge-20261028-windows-x64-setup.exe", new string('a', 64), 123, "Release notes");
 byte[] Encode(WindowsUpdate update) => JsonSerializer.SerializeToUtf8Bytes(update, AppConfig.Json);
 string Sign(byte[] data)
 {
@@ -237,7 +257,8 @@ Reject(() => UpdateClient.Verify(bytes, Sign(bytes), wrongKey, repository));
 Reject(() => UpdateClient.Verify(bytes, Convert.ToBase64String(new byte[63]), publicKey, repository));
 foreach (var invalid in new[] {
     valid with { Url = "https://evil.example/installer.exe" }, valid with { Url = valid.Url + "?token=anything" },
-    valid with { Version = "1.2.3-beta" }, valid with { Version = "01.2.3" }, valid with { Length = 0 },
+    valid with { Version = "1.2.3-beta" }, valid with { Version = "01.2.3" }, valid with { Version = "20260230" },
+    valid with { Version = "20261028\n" }, valid with { Length = 0 },
     valid with { Length = 1_073_741_825 }, valid with { Sha256 = "bad" } })
 {
     var bad = Encode(invalid); Reject(() => UpdateClient.Verify(bad, Sign(bad), publicKey, repository));
@@ -245,7 +266,18 @@ foreach (var invalid in new[] {
 var oversized = Encoding.UTF8.GetBytes(new string('x', 65_537));
 Reject(() => UpdateClient.Verify(oversized, Sign(oversized), publicKey, repository));
 if (AppConfig.Load().Repository != repository) throw new Exception("Wrong embedded repository");
-if (Version.Parse("1.10.0") <= Version.Parse("1.9.99")) throw new Exception("Version comparison must be numeric");
+var appAssembly = typeof(AppConfig).Assembly;
+var versionInfo = System.Diagnostics.FileVersionInfo.GetVersionInfo(appAssembly.Location);
+if (versionInfo.ProductVersion != AppConfig.Load().Version)
+    throw new Exception("Windows product version differs from the public date version");
+var dateVersion = DateOnly.ParseExact(AppConfig.Load().Version, "yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture);
+if (appAssembly.GetName().Version != new Version(dateVersion.Year, dateVersion.Month, dateVersion.Day, 0))
+    throw new Exception("Windows assembly version differs from the shared date");
+foreach (var (left, right, expected) in new[] {
+    ("20261028", "20261027", 1), ("20261028", "20261028", 0), ("20261028", "20261029", -1),
+    ("20270101", "20261231", 1), ("20261028", "0.0.0", 1), ("20261028", "1.10.0", 1),
+    ("20261028", "2026.10.28", 0), ("1.10.0", "1.9.99", 1) })
+    if (Math.Sign(UpdateClient.CompareVersions(left, right)) != expected) throw new Exception("Incorrect date/legacy version ordering");
 // Every ordering of download completion, activation, visibility and modal state.
 var gateCases = 0;
 foreach (var visible in new[] { false, true })
@@ -276,7 +308,7 @@ if (!pending.TryPresent(true, true, false, false) || pending.Confirm() != "first
 var fixtureDirectory = Path.Combine(Path.GetTempPath(), "BenchGauge-update-tests-" + Guid.NewGuid());
 var installerBytes = Encoding.UTF8.GetBytes("Synthetic installer: must never be executed");
 var downloadUpdate = valid with { Length = installerBytes.Length, Sha256 = Convert.ToHexStringLower(SHA256.HashData(installerBytes)) };
-var fixtureConfig = new AppConfig("1.2.2", repository, publicKey);
+var fixtureConfig = new AppConfig("20261027", repository, publicKey);
 var downloadCases = 0;
 try
 {
@@ -296,9 +328,9 @@ try
     await client.Download(downloadUpdate);
     if (!File.ReadAllBytes(file).SequenceEqual(installerBytes) || handler.Requests != requests + 1) throw new Exception("Corrupt cache not replaced");
     downloadCases++;
-    var currentClient = new UpdateClient(fixtureConfig with { Version = "1.2.3" }, http, fixtureDirectory);
+    var currentClient = new UpdateClient(fixtureConfig with { Version = "20261028" }, http, fixtureDirectory);
     if (await currentClient.Check() is not null) throw new Exception("Same version offered as update");
-    var newerClient = new UpdateClient(fixtureConfig with { Version = "1.2.4" }, http, fixtureDirectory);
+    var newerClient = new UpdateClient(fixtureConfig with { Version = "20261029" }, http, fixtureDirectory);
     if (await newerClient.Check() is not null) throw new Exception("Rollback offered as update");
     downloadCases += 2;
     File.Delete(file);

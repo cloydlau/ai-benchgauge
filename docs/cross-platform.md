@@ -1,4 +1,82 @@
+## Shared provider images and local PNG removal — 2026-10-28
+
+Supplier artwork comes from shared snapshot PNG data across Mac, Windows,
+iPhone/iPad, the mini-program and leaderboard exports; missing images use
+initials. The 53 local supplier PNGs, the local company-image catalog and
+native favicon fallback are removed. The mini-program build retains only the
+shared catalog's identity rules; embedded server artwork is excluded. Native
+quota fixtures include the same provider initials for missing-image states. The traceable Tabler GitHub resource
+remains for repository buttons and contributor UI. Desktop quota cards reuse
+manufacturer images across all cached boards with stable provider-kind keys;
+model marks and account display names cannot select a provider image. The
+newest valid manufacturer image wins and persists with the snapshot offline.
+Providers absent from cached boards use initials until a shared mark arrives.
+models.dev metadata does not supply these images. Remote artwork rights are
+tracked separately from the removed local assets; see third-party-notices.md.
+
+Backend coverage follow-up (2026-10-28): 52 of the 53 removed supplier
+identities already had server-catalog PNGs. Video Rebirth was missing and is
+now covered by its official favicon, with source/output hashes and an explicit
+unconfirmed artwork-permission record. The backend catalog contains 62
+provider marks and 7 model marks. All clients and exports consume this data
+through the existing shared image fields; no client-local resource is restored.
+An independent 53-provider acceptance inventory covers cold reads, unavailable
+storage and cached snapshots. All 52 focused tests pass (including 3 new coverage
+checks), and generated policy validation passes. This source update has not been deployed and
+has no new client installation or native visual acceptance claim.
+
+Validation: 214 mini-program tests and production build pass; its output
+contains no server-catalog PNG data. Eight shared-domain tests and four source
+mark/contributor generation tests pass. A reduced native manifest links the
+actual Kit/Core/Bridge sources and tests without the unavailable iOS macro
+target: all 37 selected tests pass, including provider identity, model versus
+manufacturer separation, company aggregation, malformed/missing images,
+newest cached image selection and offline snapshot persistence. Windows shared
+tests and WPF Release
+cross-compilation pass (zero warnings/errors); the incremental output logo
+folder contains only GitHub. Mac application and bridge Debug builds pass.
+The iPhone/iPad shared view passes syntax parsing only; full Xcode is absent.
+
+Ignored `work/shared-brand-assets/` contains the synthetic fixture and 48 real
+Mac before/after frames in English, Simplified and Traditional Chinese,
+including company rows (950×720 content points, 2× backing scale, macOS
+27.0.1). Shared quota/row images and initial fallbacks are visible and aligned;
+only the native scrollbar changes between after-state frames. The baseline
+binary was reused and is not source-matched; the after binary was rebuilt
+during this task. Unrelated timestamp changes continued in the same checkout
+during verification, so the captures are not presented as a complete current
+repository build or an isolated comparison of all visible changes.
+Native Windows/DPI screenshots, a matching cross-platform CI artifact, mobile
+runtime/export verification and installed-client acceptance remain unavailable.
+No client was installed, uploaded or published.
+
 # 跨端变更与验收
+
+千问重新登录后关窗刷新（2026-10-28）：Mac 原流程在手动关闭登录窗口时取消读取、直接结束，可能把余量条留在旧的 “登录失效”。现在关窗后先显示查询中，再使用同一 WebKit 会话重新进入官方余量页，最多等待 25 秒；只有实际读取到余量或官方无套餐信息才保存连接状态，未登录及加载失败继续显示真实错误。后台余量刷新不再导航打断登录，重新打开登录会取消上一轮关窗校验，旧刷新结果不能覆盖较新的千问查询 / 余量状态。Windows 同步在关窗后使用原 WebView2 会话有界重读，并通过会话代次阻止旧异步回写和旧后台读取隐藏新登录窗口。无 Cookie / Token 导出或 CLI 凭据变更；小程序、iPhone/iPad 和榜单图片导出没有账号登录余量消费者。Mac 使用实际 AppKit 窗口和合成 WebView，6 项新增测试覆盖 9 个登录 / 失败 / 超时 / 竞态用例，连同 7 项已有 xAI 刷新回归，共 13 项测试、2 个套件通过；隔离清单编译实际 Mac 应用与 Core，未称为完整 iOS / SwiftUI 包测试通过。Windows WPF Release 交叉编译零警告 / 错误。日志和源码哈希位于忽略目录 `work/qwen-login-close/`；没有使用真实千问账号验收，没有 Windows 原生运行及对应 CI 视觉产物，也没有本轮截图、安装、上传或发布。
+
+未订购套餐隐藏日期（2026-10-28）：修正共享 `AccountQuotaFormatting` 中 xAI 已确认未订购仍拼接历史期末日期的分支，卡片和帮助仅保留 “未订购” / “未訂購” / “Not subscribed”，日期不再影响颜色；历史账号记录继续保存，已订购及待核实状态沿用现有日期规则。Mac 直接消费共享格式化，Windows 通过同一 Swift 引擎接收 runs / help / 颜色；小程序、iPhone/iPad 和榜单图片导出没有账号余量消费者。同步旧日期断言及 Windows 原生夹具，409 项共享 Core 回归、Windows 共享测试、Mac 应用与桌面共享引擎 Debug 编译通过；Core 回归通过隔离清单编译实际共享源码，未将它称为包含 SwiftUI 的完整包测试通过。相同三种状态 / 三语 / 浅深色夹具前后各 54 张 Mac 原生截图，查看简中浅色及英文深色未订购结果；已订购与待核实卡片的日期区域像素未变，18 组刷新 / 稳定日期区域一致，证据位于忽略目录 `work/quota-unsubscribed-date/`。无 Windows 原生运行环境及对应 CI 视觉产物，WPF 显示效果未验收；未安装、上传或发布。
+
+PC 奖牌与排名变化间距（2026-10-28）：Mac 移除奖牌及排名组的向下偏移，增加 1pt 上下间隔；替换 28pt 系统表头为 34pt 自定义表头时同步修正位于顶部的滚动位置，避免第一行被裁掉 6pt。Windows 在原有 32 DIP 行内固定预留 22 / 1 / 9 DIP 的奖牌、间隔、变化区域，保留 17 DIP 奖牌圆面及内部字号。两端列宽和行高不变，移动端保持现状，共用桌面榜单视图的图片导出同步。Mac Debug 和 Windows WPF Release 编译通过；Mac 七个排名夹具、浅深色显示 / 刷新 / 稳定共 42 帧，已查看单榜模型、三榜繁中、双榜公司和单榜公司，证据在忽略目录 `work/rank-desktop-clearance/final/`。前后截图期间其他对话调整了品牌资源和许可文案，因此不将全图差异视为本项变化。没有 Windows 原生运行环境及对应 CI 视觉产物，WPF 原生视觉尚未验收；未安装、上传或发布。
+
+移动端首帧加载态（2026-10-28）：小程序及 iPhone/iPad 将 “没有缓存且尚未请求” 的榜单视为加载中，首次进入和切到未请求来源时立即使用现有骨架屏，避免先闪出柱状图空态；实际请求仍按原来的懒加载、合并与退避规则执行。请求失败后退出骨架屏，保留原失败/待配置提示；有缓存直接显示榜单，刷新期间保留列表，筛选无结果仍显示空态。图片导出继续排除加载 UI，桌面不在本次明确的移动端范围。小程序 213 项回归与生产构建、9 项 iOS 构建脚本检查及 Swift 源码语法检查通过。当前缺少完整 Xcode 和可用官方微信 MCP，未完成微信、iPhone/iPad 原生运行及视觉验收，未安装、上传或发布。
+
+iPhone/iPad 发布暂停（2026-10-28）：共用 `config/app.json` 显式设置 `releaseIOS: false`，两种设备属于同一应用、同一发布开关。发行归档入口在任何 SDK/签名调用前检查开关，缺省也关闭；普通构建、模拟器测试和本机开发安装不受影响。现有 iOS CI 没有商店上传任务，tag 发布继续仅启用 macOS；Windows 发布仍关闭。配置类型及关闭/缺省阻断、显式启用恢复归档的隔离回归通过；未执行真实签名、归档、安装或商店发布。
+
+GitHub 图标来源修复（2026-10-28）：按用户建议选用 Icones 的 `tabler:brand-github-filled`，原始 SVG、MIT 正文及固定上游修订 / 哈希放在 `assets/brand/partners/github/`。`Scripts/source-logos.mjs` 统一生成原有 `assets/logos/github.png`，macOS / Windows 仓库按钮，以及小程序 / iPhone / iPad 共用的贡献者头像与导出保留原引用。Mac 离线声明增加 Tabler，Windows 直接打包源许可，两端移动客户端共用更新后的品牌声明。4 项生成 / 校验 / 贡献者测试、小程序生产构建及实际打包文件核对通过。复用已有 Debug 二进制，仅在忽略的原生测试应用内替换前后图标资源，使用同一 850×720pt 合成夹具采集 Mac 浅深色显示 / 刷新 / 稳定帧，2× backing scale，证据在 `work/github-icon/`；不将这项资源验证称为当前全部源码重新编译通过。Windows 原生截图、iPhone / iPad / 微信运行验收及客户端安装 / 上传 / 发布尚未完成。其他供应商品牌 PNG 的来源与授权状态见 `docs/third-party-notices.md`，本次未将它们标记为已授权。
+
+全端日期版本（2026-10-28）：公开版本统一为 `config/app.json` 的 `20261028`，小程序、iPhone/iPad、macOS 和 Windows 共源；发布脚本默认用北京时间当天日期，同日重复准备保持版本不变。Apple 元数据映射 `2026.10.28`，Windows 数字资源映射 `2026.10.28.0`，公开版本、Git 标签和安装包名使用八位日期。日期/配置/发布/隔离上传/iOS 项目及工具边界 55 项、小程序 211 项回归与生产构建通过；Windows 共享验签/升级测试和 WPF Release 交叉编译通过，实际程序集/文件版本与公开产品版本已核对，PowerShell 安装器脚本语法及日期转换通过。macOS plist 和生成 iOS 工程元数据校验通过，iOS 源码语法通过；本机缺少完整 Xcode，未完成 iPhone/iPad SDK 构建。未执行本轮 Mac 应用打包、Windows 安装器生成、各端原生运行/视觉或安装验收；未上传或发布。已发布 Homebrew Cask 继续指向真实旧版附件，后续正式发布由生成器更新，不伪造新日期包及校验和。
+
+关于入口点击样式（2026-10-28）：小程序榜单底部 “关于” 按钮关闭微信默认灰色按下态（`hover-class="none"`），单独增加左右各 12rpx 内边距和至少 44px 宽度；沿用 44px 最小高度与原打开关于行为。90 项页面测试及小程序生产构建通过；实际模板与 CSS 的浏览器夹具检查 320/375/560px 浅深色六种布局，按钮背景透明、内边距有效，点击区至少 44×44px。iPhone/iPad 现有对应入口使用 `.plain` 样式及最小 44×44pt 点击区域，本轮无须改动；桌面与榜单图片导出没有此 “关于” 按钮。官方微信 MCP 当前不可调用，未完成微信原生按下态及真机运行验收，未上传或发布。
+
+前三名奖牌放大（2026-10-28）：小程序奖牌从 23rpx 调到 40rpx（375px 视口下 11.5→20px），普通名次数字保留原字号；iPhone/iPad 及共用视图导出使用 20pt 奖牌，Mac 使用适合现有行高的 18pt 与固定排名布局，Windows 将奖牌圆面从 13 增到 17 DIP、内部名次从 9 增到 10。列宽、行高、颜色及变化标记沿用原规则。小程序 Canvas 原本使用数字排名，本次不增加新图标。小程序 211 项回归和生产构建、Mac Debug 与 Windows WPF Release 编译通过；iOS 仅完成语法检查。实际模板浏览器量测 320/375px 浅深色，奖牌及变化均在原列宽和 48px 行内，375px 下两者间距 2px。Mac 同一单榜模型/公司夹具采集浅深色前后帧，保存在忽略目录 `work/rank-medals/`；无 Windows 原生环境、完整 Xcode 或可用微信 MCP，三者原生运行及客户端安装尚未验收，不以构建代替。
+
+排名列变化展示（2026-10-28）：小程序、iPhone/iPad、桌面及相关导出改为排名在上、变化在下，保持总宽与行高；红色 `↑n`、绿色 `↓n`、灰色 `—`、蓝色 `新` / `New`。桌面多榜在各来源内部显示独立排名和变化，首榜沿用原排名列，后续榜单从名称列内预留排名宽度，避免混用来源。小程序中性状态由模板补横线，桥接数据保留空串及省略无效 tone 的紧凑表示，不增加万行虚拟列表载荷；四位变化数字使用较小字号。懂车帝官方销量页跳转登录，公开检索没有核实其 App 新上榜样式，暂沿用本产品现有新标记。
+
+全平台复核（2026-10-28）：模型与公司变化、四类服务端写入、Windows 共享桥接及各端导出数据路径均已核对；Apple 共享标记和小程序 Canvas 的新上榜蓝色统一为浅色 `#3276CA`、深色 `#89BBFF`。macOS / Windows 多榜改为各榜排名与变化上下排列，原生列结构、总宽和行高不变，名称区预留 36pt / 40 DIP。新增三榜繁中及双榜公司原生夹具，各来源使用不同变化以检查混用。小程序 211 项测试、排名数据 6 项测试、生产构建、Mac Debug 和 Windows WPF Release 交叉编译通过；iOS 语法检查通过。Mac 采集七个排名场景、两种主题的显示/刷新/稳定共 42 帧，已查看双榜英文、三榜繁中深色与双榜公司浅色，证据保存在忽略目录 `work/rank-all-platforms/`。缺少 Windows、iPhone/iPad 和微信原生运行环境，未完成对应原生运行验收、双桌面 CI 视觉对照或客户端安装与发布。
+
+本轮验证：小程序 211 项测试及生产构建通过，Canvas 回归核对排名/变化同列上下排列、红涨绿跌和行高；实际模板浏览器预览检查 320px 英文、375px 简中及浅深色，包含 `New`、持平与四位变化。Swift 实际共享源的 Codable/公司投影/箭头/横线/极端整数回归通过，iOS 语法检查通过；macOS Debug 编译及 Windows WPF Release 交叉编译通过（Windows 零警告/错误）。Mac 相同多榜夹具前后各 36 帧，新增单榜模型与公司场景 12 帧，2× backing scale；查看长名称、新/持平及两种主题，刷新与稳定帧一致，抽查原共用排名列像素不变。截图及元数据位于忽略目录 `work/rank-column/`。本机缺少官方微信 MCP、完整 Xcode 和 Windows 运行环境，尚未完成微信、iPhone/iPad 或 WPF 原生运行验收，也未取得对应双桌面 CI 视觉产物；未安装、上传或发布客户端。
+
+合影大图横屏配置（2026-10-28）：用户明确反馈微信小程序点开 “跨世纪的同框” 大图后，横置手机没有旋转。关于页补充 `pageOrientation: auto`，保留 `wx.previewImage` 的原生缩放、保存与转发入口；旋转时重新读取状态栏高度（允许横屏为 0）和品牌标题尺寸，并让出左右安全区。新增三语竖屏→横屏→竖屏回归；小程序 208 项测试及生产构建通过，产物确认保留自动方向配置。官方 wechatide-skill 0.3.11 在规范项目的模拟器成功打开关于页，读到正确合影标题与布局数据，console 未匹配到 error。本轮没有手机真机，尚未验证微信原生图片预览随物理方向旋转；不以配置或模拟器结果宣称真机验收通过。未上传或发布。原生 iPhone/iPad、macOS、Windows 及榜单图片导出不在本次明确限定的修复范围。
 
 小程序 “功能说明” 弹窗按钮按从左到右排列为 `OK`、`PC 端链接`（繁中 `PC 端連結`，英文 `PC link`）。三语均用 `OK` 关闭，仅点击右侧链接按钮复制桌面下载地址。此双按钮顺序针对小程序已有的弹窗，原生客户端单按钮帮助弹窗不增加链接操作。
 
@@ -12,13 +90,15 @@
 
 | 能力 | 共用来源 / 生成入口 | 消费者与核验入口 |
 | --- | --- | --- |
-| 移动标题与导出标题 | `assets/brand/mobile-title.json` → `node Scripts/sync-mobile-brand.mjs` | 小程序 `core/brand-title.js`、SVG / Canvas；iOS `MobileBrandTitle`（主界面、关于、导出）。`Scripts/mobile-brand.test.mjs` 检查两端副本与几何；Swift `MobileBrandTitleTests`、`MobileBrandSizingTests`；原生 `testSharedMobileWordmarkInEveryLanguageAndTheme` |
-| 桌面标题与图标 | `assets/brand/`、`Scripts/brand-assets.swift`、`Scripts/ios-icon.swift` | Mac `EnglishBrandTitle` / `ChineseBrandTitle`；Windows WPF 标题。桌面标题保留原生基线 / 字体布局，移动标题使用独立的紧凑字距；正式图标和标题网络图仍共源。遵循 `docs/visual-comparison.md` 的双桌面截图要求 |
+| 全端版本号 | `config/app.json`、`Scripts/app-version.mjs` → `Scripts/bump-version.sh [YYYYMMDD]` | 小程序、iPhone/iPad、macOS、Windows 公开版本和发布标签/安装包名统一八位北京时间日期；Apple 元数据映射 `year.month.day`，Windows 数字版本映射 `year.month.day.0`。普通构建读取共用版本；同日准备幂等，拒绝回退和小程序单端覆盖；更新比较兼容已安装旧语义版本。`app-version`、`app-config`、`release`、`ios`、`weapp-deploy` 及 Windows 共享测试覆盖 |
+| 共用英文标题、移动标题与导出标题 | `assets/brand/mobile-title.json` → `node Scripts/sync-mobile-brand.mjs` | 小程序 `core/brand-title.js`、SVG / Canvas；iOS `MobileBrandTitle`（主界面、关于、导出）、Mac `EnglishBrandTitle` 及 Windows WPF `EnglishBrandArtwork` 的英文标题。`Scripts/mobile-brand.test.mjs` 检查副本、WPF 嵌入资源与几何；Swift `MobileBrandTitleTests`、`MobileBrandSizingTests`；原生 `testSharedMobileWordmarkInEveryLanguageAndTheme` |
+| 桌面标题与图标 | `assets/brand/`、`Scripts/brand-assets.swift`、`Scripts/ios-icon.swift` | Mac `EnglishBrandTitle` / `ChineseBrandTitle`；Windows WPF 标题。桌面英文标题共用 iOS 离线字形、字距和 31° 网络 A 倾斜；中文桌面标题保留原生布局；正式图标和标题网络图仍共源。遵循 `docs/visual-comparison.md` 的双桌面截图要求 |
 | OpenAI 套餐与额外额度 | Core `CCSwitchQuotaParsers` / `AccountQuotaFormatting`、`OpenAIManagedQuotaSource` | macOS 余量条与菜单栏、Windows 共享引擎余量条与托盘；任一套餐窗口耗尽时显示 credits 余额，无限 / 未返回数字分别显示状态，缺少 credits 则保留百分比。缓存与路由投影保留余额；`OpenAICreditsTests` 和三语双主题 `openAICredits` 原生截图场景。小程序、iPhone/iPad 及榜单图片导出当前不展示账号余量，不新增该能力 |
 | 模型 / 公司排行、地区与开源规则 | `fc/domain.mjs`、`fc/leaderboard-policy.json`、`fc/brand-catalog.json`、`Scripts/generate-leaderboard-policy.mjs` | `Sources/LeaderboardKit`、小程序 `core/leaderboard.js`、Windows 共享引擎；同时检查筛选、公司聚合、离线缓存和图片导出 |
+| 排名变化 | 服务端 `withRankChanges` 在写入前对比旧快照，行内 `rankChange` / `companyRankChange` 随新快照保存 | 小程序、iPhone/iPad、macOS、Windows 及各端导出：上升红色 `↑n`、下降绿色 `↓n`、持平 `—`、蓝色新入榜 `新` / `New`。排名和变化上下排列，总宽、名次、行高不变；桌面多榜的每个来源独立显示排名和变化，后续榜单从原名称列内预留排名区。公司独立计算，无基线不误报；重复抓取保留标记，下次数据变化重新比较。JS 服务端与小程序/导出回归、Swift Codable/公司投影回归；共同原生 `rankChanges` 夹具覆盖三语、深浅色、单榜模型、三榜模型及双榜公司布局 |
 | 来源标志、主题与关于页 | `assets/brand/partners/`、`Scripts/source-logos.mjs`、`Sources/LeaderboardKit/Resources/SourceTabThemes.json` | 小程序榜单 / 导出，iOS 来源标签 / 导出，Mac / Windows 标题与来源说明；深浅色和离线资源分别验收 |
 | 表头榜单简介 | Kit `LeaderboardPresentation.sourceHelp` / `LeaderboardKind.sourceURL`、小程序 `core/catalog.js`、Windows 既有来源说明与 URL | 小程序、iPhone/iPad、macOS、Windows 点击表头名称打开该榜单简介，展示官方链接并提供显式复制链接操作；打开或关闭简介不写剪贴板。小程序 `page.test.mjs` 核对三语、全部类别、两种分组、复制与手势防误触；静态图片保留标题，不增加交互 |
-| 发布时间、刷新时间和刷新反馈 | 共享 Kit 时间策略、小程序 `core/freshness.js`、`Tests/fixtures/calendar-timestamps.json` | 小程序榜单与 Canvas、iOS `LeaderboardPadView` 与导出、Mac / Windows 时间文案。移动下拉检查起始 / 加载 / 完成三态；桌面保留原生刷新交互 |
+| 发布时间、刷新时间和刷新反馈 | `fc/domain.mjs` / `fc/service.mjs` 持久化 `contentUpdatedAt`，Kit `LeaderboardContent` / 时间策略、小程序 `core/freshness.js`、`Tests/fixtures/content-timestamps.json` 与日历夹具 | 小程序榜单与 Canvas、iOS `LeaderboardPadView` 与导出、Mac / Windows 时间文案。移动下拉检查起始 / 加载 / 完成三态；桌面保留原生刷新交互 |
 | 搜索、筛选与来源切换 | Kit 排行投影 / 过滤策略、小程序 `pages/leaderboard/index.js`、iOS `LeaderboardPadStore` / `LeaderboardPadView` | 两移动端分别搜索模型名 / 聚合后的公司名并保留独立关键词，核对搜索清除、空结果、来源 / 类别 / 公司切换、筛选保留和导出；魔方来源不循环，越过末榜进入下一类别首榜，越过首榜进入上一类别末榜，仅类别首尾循环；桌面核对对应筛选与投影，平台专属交互不硬搬 |
 | 文案、许可与应用说明 | `config/app.json`、`Scripts/sync-app-description.mjs`、共享 Kit 本地化与离线许可 | 三种语言；各端主界面、关于、导出与应用元数据。不能只更新一个语言或一处显示 |
 | 显示榜单 | Kit `DesktopBoardSelection`、小程序 `core/board-selection.js`；各端按分类保存 | 小程序设置页、iPhone/iPad `LeaderboardSettingsView`、桌面既有榜单选择器。默认全选，每类至少一榜，移动设置的重置恢复全部；移动单榜隐藏顶部 tabs 及占位，魔方跨分类按可见来源计数；排行、分布图、刷新和导出仅消费可见榜单，小程序分享保留显示选择 |
@@ -99,7 +179,7 @@ tabs 与魔方进度同步验证（2026-10-27）：小程序 203 项全量测试
 
 时间值与「发布／刷新」作为一个整体绘制连续下划线，覆盖中间空格；移动端加载时保留标签占位和整条线，避免分段文字或加载图标造成断口。图片导出不绘制交互下划线。
 
-小程序、iPhone / iPad、macOS 和 Windows 的榜单时间与「发布／刷新」标签均加下划线，点击打开「时间说明」，不触发数据刷新。三语说明强调榜单数据实时更新，区分榜单提供的发布时间，以及未提供发布时间时展示的最近刷新时间；不展示采集实现细节。Apple 共用 `LeaderboardPresentation.sourceTimeExplanation`，小程序维护在 `core/catalog.js`，Windows 共用 `BoardTimestamp.Explanation`。各端原生弹窗按平台呈现；静态图片继续保留时间信息，不增加弹窗操作。
+小程序、iPhone / iPad、macOS 和 Windows 的榜单时间与「发布／刷新」标签均加下划线，点击打开「时间说明」，不触发数据刷新。三语说明强调榜单数据实时更新，区分榜单提供的发布时间，以及未提供发布时间时展示上一次更新到新数据的时间，重复数据保持不变；不展示采集实现细节。Apple 共用 `LeaderboardPresentation.sourceTimeExplanation`，小程序维护在 `core/catalog.js`，Windows 共用 `BoardTimestamp.Explanation`。各端原生弹窗按平台呈现；静态图片继续保留时间信息，不增加弹窗操作。
 
 ## 英文移动表头
 
@@ -140,3 +220,27 @@ Artificial Analysis 的综合、编程、文生图、文生视频榜单表头统
 贡献者圆团限制行高（2026-10-27）：按用户要求，由提交次数和代码行数卡片决定原有行高，圆团不能撑高整行。小程序圆团脱离内部普通流，在拉伸至行高的按钮中按高度等比缩放并靠右下对齐；iPhone/iPad 保留零高占位列，在原有数字行上叠加圆团，边长取列宽与实际行高的较小值。320/375/560px、三语浅深色共 18 种浏览器排版均确认显示或隐藏圆团时行高一致，圆团保持正圆、未超出行高且底边对齐；小程序生产构建及 Swift 语法检查通过。微信及 iPhone/iPad 原生界面运行和安装本轮未验收；桌面及榜单图片导出没有对应消费者。
 
 贡献者圆团原尺寸修正（2026-10-27）：用户澄清圆团不得缩小。小程序恢复原有 27% 列宽和正圆大小，整个按钮绝对定位于数字行右下方，预留横向空间，允许圆团向上超出而不参与行高计算；完整按钮点击区域随圆团保持原大小。iPhone/iPad 继续使用叠加布局，移除以行高限制圆团边长，恢复由第三列宽度确定原尺寸。320/375/560px、三语浅深色共 18 种浏览器排版确认原尺寸及完整点击区域保留、数字行高不变、正圆和底边对齐；已查看浅色预览。小程序生产构建及 Swift 语法检查通过；微信和 iPhone/iPad 原生界面运行及安装本轮未验收。
+
+排名变化验证（2026-10-28）：服务端/共享规则 37 项、小程序最终全量 211 项（含相关 38 项）回归通过，覆盖四类 API 采集、HTML 贡献、写入失败保留旧榜、重复抓取、公司独立聚合、身份歧义、三语和图片导出行高。小程序生产构建、macOS Debug、Swift Windows 引擎桥接构建及 Windows WPF Release 交叉编译通过（Windows 零警告/错误）。实际共享 Swift 来源在受管理临时包中通过新增 Codable/离线缓存/公司投影回归；iPhone/iPad 仅完成源码语法检查，本机无完整 Xcode，未完成 iOS 构建、模拟器或真机验收。小程序官方微信 MCP 和 Windows 原生环境不可用，未完成这两端运行验收。Mac 使用同一夹具、1100×720pt、2× backing scale，采集修改前后各 36 帧，覆盖三语和两种主题；24 组刷新/稳定帧像素一致，已查看英文深色与简中浅色的长名称和升降标记，另查看 850pt 单榜公司布局。修改前基线为既有 Debug 可执行文件，并非 clean HEAD 重建。证据位于忽略目录 `work/rank-changes/`；无 Windows 对照、双桌面 CI 视觉产物、安装或部署记录。完整检查初轮 436 脚本测试、211 小程序测试和精确 100% 脚本覆盖率通过，但因输入变化未取得通过凭据；末轮全量检查另有 `Scripts/ios-deploy-boundaries.test.mjs` 两个用例报 `formatTimestamp is not a function`，未改写这些断言，也不据前一轮结果宣称最终全量通过。
+
+应用许可显示修正（2026-10-28）：仓库 `LICENSE`、macOS 与 iPhone/iPad 随包许可正文此前已是 PolyForm Perimeter License 1.0.0，本轮不修改条款。新增共用 `ApplicationLicense.json` 名称资源，macOS/Windows 页脚使用本地化 “许可证” 入口及完整名称提示，Mac 许可窗口与静态图片署名同步；Windows 图片导出共用该页脚。小程序清理旧 MIT 构建常量名称，移动端没有对应应用许可页脚，第三方原许可继续保留。2 项许可/打包契约检查、Windows 共享测试（含实际载入嵌入名称资源）、WPF Release 交叉编译（零警告/错误）、Mac Debug 编译及小程序生产构建通过。Mac 同一夹具与 850×720pt、2× backing scale，修改前后各采集 18 帧页脚，覆盖三语、浅深色及显示/刷新/稳定状态；另采集 18 帧应用许可窗口，已查看简中深色页脚和英文浅色完整许可名称。基线为本工作区修改前编译，包含其他并行任务修改，非 clean HEAD；证据在忽略目录 `work/license-identity/`。当前没有 Windows 原生运行/视觉截图及 CI 对照产物，本轮未安装或发布客户端，也未替换正在运行的 Mac 旧包。
+
+内容刷新时间（2026-10-28）：`fetchedAt` 继续记录成功采集以保留请求顺序与调度，新增持久化 `contentUpdatedAt` 记录最近一次取得新榜单数据的时刻。各来源写入前以最后持久化榜单比较，排序后核对模型身份、名称、公司、排名、分数、精确 token 用量与投票数；Vercel 新统计日和腾讯累计统计范围变化也视为新数据。数组顺序、排名变化徽标、图标/国家/模型资料补全不推进时间。首次取得数据使用本次采集时间；旧快照缺少该字段时，以已有采集时间作基线，无法据此追溯更早的首次发现时间。重复或被拒绝的旧响应、读缓存、失败的采集/持久化不推进；发布时间继续优先显示。
+
+小程序读写离线缓存、三语页头和 Canvas 图片导出，Apple 共用 Kit 的 Mac / iPhone / iPad 及静态导出，Windows 共享 Swift 引擎桥接、WPF 及图片导出均消费该字段。兼容旧服务端与直接采集时，客户端按同一榜单内容比较保留本地基线；服务端已提供的内容时间优先。网络调度继续使用来源发布时间/成功采集时间，避免数据长期未变导致重复请求。三语时间说明同步明确 “数据没有变化时，时间保持不变”。
+
+内容时间验证：服务端及来源相关 95 项、小程序最终全量 217 项（含三语实际页头/Canvas 导出回归）、实际 Kit 来源下 23 项 Swift 测试（含共用内容夹具、离线 Codable 与服务刷新）通过。小程序生产构建、Mac Debug 与 Swift 引擎桥接编译通过；Windows 共享测试和 WPF Release 交叉编译通过（零警告/错误）；iPhone/iPad 存储源码语法检查通过。Mac 同一时间夹具、850×720pt、2× backing scale，修改前后各采集 18 帧，覆盖三语、浅深色和显示/刷新/稳定状态；查看英文浅色与简中深色，确认刷新标签从最新抓取日改为内容日，发布时间不变。12 组刷新/稳定帧的时间区域像素一致，整幅图片的差异限于系统滚动条淡出。基线为修改前已有的 Debug 可执行文件，包含工作区并行修改，非 clean HEAD；前后另有并行品牌变更，不据此宣称全画面仅时间变化。截图、原生元数据、二进制/夹具校验和与检查日志在忽略目录 `work/content-time/`。本机无完整 Xcode 和 Windows 原生环境，本轮未完成 iPhone/iPad、Windows 与微信原生运行验收或对应 CI 双桌面视觉产物；未部署服务端、上传小程序或安装/发布任何客户端。
+
+
+PC 英文标题对齐 iOS（2026-10-28）：Mac `EnglishBrandTitle` 直接复用 `MobileBrandTitle`，补回独立 I、采用相同的离线字形与字距，并将网络 A 按共用配置倾斜 31°；宽度与墨迹高度量测同步。Windows WPF 嵌入同一生成 JSON，使用相同路径、倾斜与浅深色金属渐变，保留原生 27 DIP 标题行框。Mac 正式打包和原生截图入口补齐生成字形 JSON，并优先读取主应用资源，避免没有 SwiftPM bundle 的安装包启动失败。中文桌面标题保留原有布局；移动端字形资源未变，iOS 只增加主应用资源查找路径。共用桌面视图的导出使用更新标题，本轮未单独验收导出。
+
+验证：13 项实际 Kit 标题 / 字形 / 渲染测试通过（在最终主资源查找补充前运行）；最终原生截图应用不携带 SwiftPM bundle，已验证主资源加载与生成 JSON 逐字节一致。5 项资源与打包门禁测试、两份脚本语法检查、Mac Debug 编译和 Windows WPF Release 交叉编译通过（Windows 零警告 / 错误）。忽略目录 `work/desktop-english-brand/` 保存同一夹具的 Mac 前后各 36 帧，覆盖英 / 简中 / 繁中、850 / 1100×720pt、浅深色和显示 / 刷新 / 稳定阶段，实际 2× backing scale。已查看四组英文宽度 / 主题及繁中深色原图，I 完整、A 倾斜且无裁切；所有 12 组标题区三阶段像素一致。当前无 Windows 原生环境、对应 CI 视觉产物或完整 Xcode，Windows 视觉、iPhone/iPad 原生构建 / 运行以及客户端安装与发布均未验收；未安装、上传或发布。
+
+
+PC 来源表头与协议弹窗（2026-10-28）：Mac / Windows 表头只保留来源、说明及时间，不再追加 CC BY 4.0，宽度测量同步去掉协议后缀；使用相同桌面视图的图片导出继承该行为。点击来源仍展示完整署名、许可正文和原始链接，复制链接行为不变。Mac 将文档宽度约束为实际滚动视口宽度（含系统纵向滚动条占位），长文本随宽度换行，仅纵向滚动，并在弹窗完成初始布局后回到顶部；Windows 显式禁用横向滚动并保留 TextWrapping.Wrap。此次用户限定 PC，移动端未修改。
+
+原生视觉验证：使用同一共享夹具，850 / 1100×720pt、2× backing scale，采集 Mac 修改前 30 帧、修改后 30 帧及 6 张协议末尾截图，覆盖 Epoch 英文、Vercel 简中、OpenRouter 繁中与浅深色。已查看英文表头前后、繁中深色用量表头及三语弹窗与协议末尾；6 个弹窗均为 465pt 文档 / 465pt 视口，初始横纵偏移为零，无横向滚动条，全部 6552～17161 字符保留且可滚动到底。修改后 6 组弹窗刷新 / 稳定帧逐像素一致；表头剩余帧差异限于系统纵向滚动条淡出区域。旧弹窗深色基线存在截图背景解析问题，未据此宣称深色前后视觉对比通过；本轮在原生捕捉时使用实际 appearance 的绘制上下文，修改后深色已实图检查。Mac Debug、Windows WPF Release 交叉编译（零警告 / 错误）及源码语法检查通过。截图、原生元数据、几何记录、校验和及完整检查日志在忽略目录 work/source-details/。本机无 Windows 原生环境或对应 CI 视觉产物，Windows 原生运行与视觉仍待验收；未单独验收桌面导出，未安装或发布。
+
+本轮 Calmmit 测试阻断：删除供应商品牌 PNG 后，原有 3 项头像测试仍依赖该目录。现以独立临时目录中的合成 PNG 验证内置头像优先级、模型别名和通知附件，并补充实际仓库缺图时的 URL 回退检查；没有恢复来源不明资源，也没有删除或放宽原断言。相关 14 项测试通过。全量检查进一步发现日期版本脚本缺少无参数 CLI 分支覆盖，补充独立目录用例验证其按北京时间生成版本并同步原生元数据，保留无效 / 旧版本拒绝及同日幂等检查；发布相关 8 项测试通过，原有 100% 脚本覆盖率门禁保留。完整门禁回执及本机缺少完整 Xcode 时的原生测试跳过情况见 work/source-details/full-tests-verified.log；不能以脚本通过代替未运行的 Swift / iOS 原生测试。
+
+本轮最终完整门禁：`./test.sh --coverage` 返回 0，451 项脚本测试、217 项小程序测试通过，每个受测脚本的行 / 分支 / 函数覆盖率均为 100%。已有运行器因本机缺少完整 Xcode 跳过 Swift / iOS 原生测试；Mac 界面仍单独完成 Debug 编译和上述 AppKit 原生截图。

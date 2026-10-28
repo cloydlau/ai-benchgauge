@@ -108,7 +108,11 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
       const row = pair[column]; if (!row) return
       const center = y + height / 2
       if (row.rank % 2 === 0) rounded(context, x + 8, y, columnWidth - 16, height, 6, model.dark ? '#242a33' : '#f8f9fb')
-      text(context, row.rank, x + 24, center, 14, colors.muted, { align: 'center', numeric: true })
+      text(context, row.rank, x + 24, center - 6, 14, colors.muted, { align: 'center', numeric: true })
+      text(context, row.rankChangeText || '—', x + 24, center + 10, 9,
+        row.rankChangeTone === 'up' ? (model.dark ? '#ff9292' : '#c24748')
+          : row.rankChangeTone === 'down' ? (model.dark ? '#73d7ae' : '#0f8561')
+          : row.rankChangeTone === 'new' ? (model.dark ? '#89bbff' : '#3276ca') : colors.muted, { align: 'center', numeric: true })
       const nameX = x + 48
       const fillWidth = (columnWidth - 48 - 8) * row.fillPercent / 100
       if (fillWidth > 0) rounded(context, nameX, y + 4, fillWidth, height - 8, Math.min(5, fillWidth / 2), row.fill.match(/rgba\([^)]*\)/)?.[0] || colors.background)

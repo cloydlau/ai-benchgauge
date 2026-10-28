@@ -60,8 +60,9 @@ public struct LeaderboardService: Sendable {
             var failures: [LeaderboardKind: LeaderboardFailure] = [:]
             for await (kind, board, failure) in group {
                 if let board, board.canReplace(snapshot.boards[kind]) {
-                    snapshot.boards[kind] = board
-                    await onBoard?(board)
+                    let accepted = board.preservingContentTimestamp(from: snapshot.boards[kind])
+                    snapshot.boards[kind] = accepted
+                    await onBoard?(accepted)
                 }
                 if let failure { failures[kind] = failure }
             }

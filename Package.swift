@@ -4,7 +4,7 @@ import PackageDescription
 // Resolve AppKit/Sparkle only on macOS. The engine and business logic are shared.
 var dependencies: [Package.Dependency] = []
 var targets: [Target] = [
-    .target(name: "LeaderboardKit", resources: [.copy("Resources/Fonts"), .copy("Resources/Brand"), .copy("Resources/EpochAttribution.json"), .copy("Resources/CC-BY-4.0.json"), .copy("Resources/ModelDetailLabels.json"), .copy("Resources/SourceTabThemes.json"), .copy("Resources/ModelsDev-MIT.txt"), .copy("Resources/Lucide.txt")]),
+    .target(name: "LeaderboardKit", resources: [.copy("Resources/Fonts"), .copy("Resources/Brand"), .copy("Resources/EpochAttribution.json"), .copy("Resources/CC-BY-4.0.json"), .copy("Resources/ApplicationLicense.json"), .copy("Resources/ModelDetailLabels.json"), .copy("Resources/SourceTabThemes.json"), .copy("Resources/ModelsDev-MIT.txt"), .copy("Resources/Lucide.txt")]),
     .testTarget(name: "LeaderboardKitTests", dependencies: ["LeaderboardKit"]),
     .systemLibrary(name: "CSQLite"),
     .target(name: "CPlatformSupport", linkerSettings: [.linkedLibrary("bcrypt", .when(platforms: [.windows]))]),

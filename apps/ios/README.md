@@ -156,12 +156,15 @@ This verifies native compilation and the listed simulator states, not the absenc
 
 ## Install and distribute
 
+Public distribution is paused: `config/app.json` sets `releaseIOS` to `false` for both iPhone and iPad. The repository's `archive` command stops before invoking SDK or signing tools unless this switch is explicitly `true`; an absent switch also disables release archives. Ordinary SDK builds, simulator tests and local development installation remain available. The archive/upload instructions below apply after explicitly re-enabling this switch. CI currently only checks the app and does not upload to TestFlight or App Store Connect.
+
 The intended release path is to preview and test locally, then publish directly to the App Store. TestFlight is optional. See [自测后直接上架 App Store（中文）](../../docs/releasing.md#自测后直接上架-app-store) for that path, or [TestFlight 分发流程（可选）](../../docs/releasing.md#testflight-分发流程可选) for external beta testing. Both explain signing, upload and review.
 
 For your own iPhone or iPad, select an Apple signing team in Xcode and run on the connected device. For users, use **TestFlight or the App Store** with an Apple Developer Program account. The publisher still needs to configure signing, create the App Store Connect record, upload a signed build and complete the applicable review/distribution steps; writing the app or passing GitHub CI does not publish it. Use bundle ID `com.cloydlau.ai-benchgauge.ipad`.
 
 ```bash
-APPLE_TEAM_ID=YOURTEAMID IOS_BUILD_NUMBER=1 node Scripts/ios-build.mjs archive
+./Scripts/bump-version.sh  # 默认取当天北京时间，全端共同版本
+APPLE_TEAM_ID=YOURTEAMID node Scripts/ios-build.mjs archive
 ```
 
 Use your real 10-character team ID and a new integer build number for each upload. The script produces a signed Release archive under `work/ios/AI-BenchGauge.xcarchive`, using your existing Xcode provisioning configuration. Open the archive in Xcode Organizer, validate it, and upload to App Store Connect. An archive generated without valid signing is not an installable release. External TestFlight distribution may require Apple's beta review.
@@ -244,3 +247,5 @@ The final run passed all seven native UI regressions (five on iPhone, two on iPa
 ### English mobile heading (2026-10-18)
 
 English omits the subtitle and its sizing constraint; its header height is 44 points rather than reserving the Chinese caption row. Simplified and Traditional Chinese retain the existing subtitle/help. Targeted native UI tests pass on iPhone 18 Pro (iOS 27.0, 3×) and iPad Pro 11-inch M5 (iPadOS 27.0, 2×). Reviewed English/dark and Chinese/light originals, source snapshot and result bundles remain in ignored `work/mobile-english-title/`. Mini-program page tests (57) and the production build pass; the official IDE refresh succeeds, but runtime automation times out, so mini-program simulator visual verification is not claimed.
+
+公开版本统一读取 `config/app.json` 的 `YYYYMMDD` 日期号，iPhone 与 iPad 关于页显示相同版本。Xcode 生成器将其映射为 `year.month.day`（例如 `2026.10.28`）作为 Apple 营销版本和默认构建号。重复 TestFlight 上传可显式设置符合 Apple 数字字段限制的 `IOS_BUILD_NUMBER`，公开日期号保持不变。普通构建不会自行更改共用版本。

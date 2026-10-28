@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
+import { createAutoVersion, platformVersion } from './app-version.mjs'
 import { compareVersions, feedURL, releaseVersion, renderAppcast, renderHomebrewCask, signArchive, signingKey, validateRelease } from './release-lib.mjs'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
@@ -40,31 +41,34 @@ function keys() {
     encodedPublic: publicKey.export({ format: 'der', type: 'spki' }).subarray(-32).toString('base64') }
 }
 function info(publicKey) {
-  return { CFBundleIdentifier: 'com.cloydlau.ai-benchgauge', CFBundleShortVersionString: '1.2.3', CFBundleVersion: '1.2.3',
+  return { CFBundleIdentifier: 'com.cloydlau.ai-benchgauge', CFBundleShortVersionString: '2026.10.28', CFBundleVersion: '2026.10.28', BenchGaugeVersion: '20261028',
     LSMinimumSystemVersion: '14.0', SUPublicEDKey: publicKey, SUFeedURL: feedURL, SUScheduledCheckInterval: 86400,
     SUEnableAutomaticChecks: true, SUAutomaticallyUpdate: true, SUAllowsAutomaticUpdates: true,
     SURequireSignedFeed: true, SUVerifyUpdateBeforeExtraction: true }
 }
 
 test('release versions are numeric and reject prereleases, leading zeros, and shell syntax', () => {
-  assert.equal(releaseVersion('v1.2.3'), '1.2.3')
+  assert.equal(releaseVersion('v20261028'), '20261028')
   assert.equal(compareVersions('1.10.0', '1.9.9'), 1)
   assert.equal(compareVersions('2.0.0', '10.0.0'), -1)
-  assert.equal(compareVersions('1.2.3', 'v1.2.3'), 0)
-  for (const value of ['', '1.0', '01.2.3', '1.2.3-rc.1', '1.2.3+build', 'v1.2.3;touch hacked', '1.2.3\n']) {
+  assert.equal(compareVersions('20261028', 'v20261028'), 0)
+  assert.equal(compareVersions('20261028', '1.10.0'), 1)
+  assert.equal(compareVersions('20270101', '20261231'), 1)
+  assert.equal(compareVersions('20261028', '2026.10.28'), 0)
+  for (const value of ['', '1.0', '1.2.3', '020261028', '20261028-rc.1', '20261028+build', 'v20261028;touch hacked', '20261028\n']) {
     assert.throws(() => releaseVersion(value))
   }
 })
 
 test('release validation prevents rollback, version drift, missing keys, and unsafe update configuration', () => {
   const valid = info(keys().encodedPublic)
-  assert.equal(validateRelease('v1.2.3', valid, [{ tagName: 'v1.2.2' }]), '1.2.3')
-  assert.equal(validateRelease('v1.2.3', valid, [{ tagName: 'v2.0.0-rc.1', isPrerelease: true }]), '1.2.3')
-  for (const tagName of ['v1.2.3', 'v1.10.0', 'v2.0.0']) assert.throws(() => validateRelease('v1.2.3', valid, [{ tagName }]))
-  for (const changes of [{ CFBundleVersion: '1.2.2' }, { SUPublicEDKey: '' }, { SUFeedURL: 'http://example.com/feed' },
+  assert.equal(validateRelease('v20261028', valid, [{ tagName: 'v20261027' }]), '20261028')
+  assert.equal(validateRelease('v20261028', valid, [{ tagName: 'v2.0.0-rc.1', isPrerelease: true }]), '20261028')
+  for (const tagName of ['v20261028', 'v20261029', 'v20270101']) assert.throws(() => validateRelease('v20261028', valid, [{ tagName }]))
+  for (const changes of [{ CFBundleVersion: '20261027' }, { SUPublicEDKey: '' }, { SUFeedURL: 'http://example.com/feed' },
     { SUScheduledCheckInterval: 60 }, { SUScheduledCheckInterval: 3600 }, { SUAutomaticallyUpdate: false }, { SUAllowsAutomaticUpdates: false },
     { SURequireSignedFeed: false }, { SUVerifyUpdateBeforeExtraction: false }, { CFBundleIdentifier: 'different.app' }]) {
-    assert.throws(() => validateRelease('v1.2.3', { ...valid, ...changes }))
+    assert.throws(() => validateRelease('v20261028', { ...valid, ...changes }))
   }
 })
 
@@ -81,28 +85,30 @@ test('update signatures use the app public key and reject changed archives and m
 })
 
 test('feed uses the exact immutable archive, minimum OS, signature, and escaped release notes', () => {
-  const xml = renderAppcast({ version: '1.2.3', archiveName: 'AI-BenchGauge-1.2.3-macos-universal.zip',
+  const xml = renderAppcast({ version: '20261028', archiveName: 'AI-BenchGauge-20261028-macos-universal.zip',
     signature: Buffer.alloc(64, 1).toString('base64'), length: 987, notes: '<script>bad()</script> & ]]>\n"notes"', date: new Date('2026-09-29T00:00:00Z') })
-  assert.match(xml, /releases\/download\/v1\.2\.3\/AI-BenchGauge-1\.2\.3-macos-universal.zip/)
+  assert.match(xml, /releases\/download\/v20261028\/AI-BenchGauge-20261028-macos-universal.zip/)
   assert.match(xml, /<sparkle:minimumSystemVersion>14.0/)
+  assert.match(xml, /<sparkle:version>2026\.10\.28<\/sparkle:version>/)
+  assert.match(xml, /<sparkle:shortVersionString>20261028<\/sparkle:shortVersionString>/)
   assert.match(xml, /length="987"/)
   assert.match(xml, /&lt;script&gt;bad\(\)&lt;\/script&gt; &amp; \]\]&gt;/)
   assert.equal(xml.includes('<script>'), false)
-  assert.throws(() => renderAppcast({ version: '1.2.3', archiveName: 'arbitrary.zip', signature: '', length: 0 }))
+  assert.throws(() => renderAppcast({ version: '20261028', archiveName: 'arbitrary.zip', signature: '', length: 0 }))
 })
 
 test('Homebrew cask points to the exact signed DMG and reports app-managed updates', () => {
   const digest = 'a'.repeat(64)
-  const cask = renderHomebrewCask({ version: '1.2.3', archiveName: 'AI-BenchGauge-1.2.3-macos-universal.dmg', digest })
+  const cask = renderHomebrewCask({ version: '20261028', archiveName: 'AI-BenchGauge-20261028-macos-universal.dmg', digest })
   assert.match(cask, /cask "ai-benchgauge"/)
-  assert.match(cask, /version "1\.2\.3"/)
+  assert.match(cask, /version "20261028"/)
   assert.match(cask, /sha256 "a{64}"/)
-  assert.match(cask, /url "https:\/\/github\.com\/cloydlau\/ai-benchgauge\/releases\/download\/v1\.2\.3\/AI-BenchGauge-1\.2\.3-macos-universal\.dmg"/)
+  assert.match(cask, /url "https:\/\/github\.com\/cloydlau\/ai-benchgauge\/releases\/download\/v20261028\/AI-BenchGauge-20261028-macos-universal\.dmg"/)
   assert.match(cask, /auto_updates true/)
   assert.match(cask, /depends_on macos: ">= :sonoma"/)
   assert.match(cask, /app "AI-BenchGauge\.app"/)
-  assert.throws(() => renderHomebrewCask({ version: '1.2.3', archiveName: 'other.dmg', digest }))
-  assert.throws(() => renderHomebrewCask({ version: '1.2.3', archiveName: 'AI-BenchGauge-1.2.3-macos-universal.dmg', digest: 'not-a-sha256' }))
+  assert.throws(() => renderHomebrewCask({ version: '20261028', archiveName: 'other.dmg', digest }))
+  assert.throws(() => renderHomebrewCask({ version: '20261028', archiveName: 'AI-BenchGauge-20261028-macos-universal.dmg', digest: 'not-a-sha256' }))
 })
 
 test('official Sparkle verifies signatures and detects tampered signed feeds', { skip: !existsSync(join(root, '.build/artifacts/sparkle/Sparkle/bin/sign_update')) }, (t) => {
@@ -118,7 +124,7 @@ test('official Sparkle verifies signatures and detects tampered signed feeds', {
   const call = (args) => spawnSync(signer, ['-f', '-', ...args], { input: pair.seed + '\n', encoding: 'utf8' })
   assert.equal(call(['--verify', archive, signature]).status, 0)
   const feed = join(directory, 'appcast.xml')
-  writeFileSync(feed, renderAppcast({ version: '1.2.3', archiveName: 'AI-BenchGauge-1.2.3-macos-universal.zip', signature, length: bytes.length, notes: 'Offline update fixture' }))
+  writeFileSync(feed, renderAppcast({ version: '20261028', archiveName: 'AI-BenchGauge-20261028-macos-universal.zip', signature, length: bytes.length, notes: 'Offline update fixture' }))
   assert.equal(call(['-p', feed]).status, 0)
   assert.equal(call(['--verify', feed]).status, 0)
   writeFileSync(feed, readFileSync(feed, 'utf8').replace('Offline update fixture', 'Malicious update fixture'))
@@ -130,19 +136,34 @@ test('version bump rejects invalid or older versions without modifying the plist
   t.after(() => rmSync(fixture, { recursive: true, force: true }))
   mkdirSync(join(fixture, 'Scripts'))
   mkdirSync(join(fixture, 'apps/macos/Sources/Resources'), { recursive: true })
-  for (const name of ['bump-version.mjs', 'release-lib.mjs', 'app-config.mjs']) copyFileSync(join(root, 'Scripts', name), join(fixture, 'Scripts', name))
+  for (const name of ['bump-version.mjs', 'release-lib.mjs', 'app-config.mjs', 'app-version.mjs']) copyFileSync(join(root, 'Scripts', name), join(fixture, 'Scripts', name))
   const plist = join(fixture, 'apps/macos/Sources/Resources/Info.plist')
   const key = Buffer.alloc(32, 1).toString('base64')
   mkdirSync(join(fixture, 'config'))
-  writeFileSync(join(fixture, 'config/app.json'), JSON.stringify({ version: '1.2.3', repository: 'cloydlau/ai-benchgauge', updatePublicKey: key }))
-  writeFileSync(plist, JSON.stringify({ CFBundleVersion: '1.2.3', CFBundleShortVersionString: '1.2.3', SUPublicEDKey: key }))
-  for (const version of ['1.2.3', '1.1.0', 'garbage', '1.2.4-rc.1']) {
+  writeFileSync(join(fixture, 'config/app.json'), JSON.stringify({ version: '20261028', repository: 'cloydlau/ai-benchgauge', updatePublicKey: key }))
+  writeFileSync(plist, JSON.stringify({ CFBundleVersion: '2026.10.28', CFBundleShortVersionString: '2026.10.28', BenchGaugeVersion: '20261028', SUPublicEDKey: key }))
+  for (const version of ['20261027', '1.1.0', 'garbage', '20261029-rc.1', '20260230']) {
     const before = readFileSync(plist)
     const result = spawnSync(process.execPath, [join(fixture, 'Scripts/bump-version.mjs'), version])
     assert.notEqual(result.status, 0)
     assert.deepEqual(readFileSync(plist), before)
   }
-  assert.equal(spawnSync(process.execPath, [join(fixture, 'Scripts/bump-version.mjs'), '1.2.4']).status, 0)
-  assert.deepEqual(JSON.parse(readFileSync(plist)), { CFBundleVersion: '1.2.4', CFBundleShortVersionString: '1.2.4', SUPublicEDKey: key })
-  assert.equal(JSON.parse(readFileSync(join(fixture, 'config/app.json'))).version, '1.2.4')
+  assert.equal(spawnSync(process.execPath, [join(fixture, 'Scripts/bump-version.mjs'), '20261029']).status, 0)
+  assert.deepEqual(JSON.parse(readFileSync(plist)), { CFBundleVersion: '2026.10.29', CFBundleShortVersionString: '2026.10.29', BenchGaugeVersion: '20261029', SUPublicEDKey: key })
+  assert.equal(JSON.parse(readFileSync(join(fixture, 'config/app.json'))).version, '20261029')
+  const before = readFileSync(plist)
+  assert.equal(spawnSync(process.execPath, [join(fixture, 'Scripts/bump-version.mjs'), '20261029']).status, 0)
+  assert.deepEqual(readFileSync(plist), before, 'Same-day version preparation is idempotent')
+
+  // Exercise the actual no-argument CLI without changing this checkout's version.
+  const configFile = join(fixture, 'config/app.json')
+  const config = JSON.parse(readFileSync(configFile))
+  writeFileSync(configFile, JSON.stringify({ ...config, version: '20000101' }))
+  writeFileSync(plist, JSON.stringify({ CFBundleVersion: '2000.1.1', CFBundleShortVersionString: '2000.1.1', BenchGaugeVersion: '20000101', SUPublicEDKey: key }))
+  const dayBefore = createAutoVersion()
+  const automatic = spawnSync(process.execPath, [join(fixture, 'Scripts/bump-version.mjs')], { encoding: 'utf8' })
+  assert.equal(automatic.status, 0, automatic.stderr)
+  const version = JSON.parse(readFileSync(configFile)).version
+  assert.ok([dayBefore, createAutoVersion()].includes(version), 'Automatic version uses the current Beijing date')
+  assert.deepEqual(JSON.parse(readFileSync(plist)), { CFBundleVersion: platformVersion(version), CFBundleShortVersionString: platformVersion(version), BenchGaugeVersion: version, SUPublicEDKey: key })
 })
