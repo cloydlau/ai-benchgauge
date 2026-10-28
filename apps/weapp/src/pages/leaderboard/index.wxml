@@ -102,6 +102,7 @@
               <image wx:if="{{row.logo}}" class="model-logo" src="{{row.logo}}" mode="aspectFit" />
               <view wx:else class="model-logo initial">{{row.initial}}</view>
               <text class="model-name">{{row.name}}</text>
+              <text wx:if="{{row.rankChangeText}}" class="rank-change {{row.rankChangeTone}}">{{row.rankChangeText}}</text>
             </button>
             <view wx:if="{{row.purchaseActions.length}}" class="purchase-links">
               <button wx:for="{{row.purchaseActions}}" wx:for-item="action" wx:key="kind" class="purchase-link"

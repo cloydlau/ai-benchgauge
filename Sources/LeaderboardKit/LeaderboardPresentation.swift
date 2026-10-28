@@ -1,4 +1,23 @@
 import Foundation
+#if canImport(SwiftUI)
+import SwiftUI
+
+public struct LeaderboardRankChangeBadge: View {
+    let change: LeaderboardRankChange?
+    let language: AppLanguage
+    public init(_ change: LeaderboardRankChange?, language: AppLanguage) {
+        self.change = change; self.language = language
+    }
+    public var body: some View {
+        if let change, !change.text(language: language).isEmpty {
+            Text(change.text(language: language))
+                .font(.system(size: 9, weight: .semibold)).monospacedDigit()
+                .foregroundStyle(change.isNew == true ? Color.blue : (change.delta ?? 0) > 0 ? Color.green : Color.red)
+                .fixedSize()
+        }
+    }
+}
+#endif
 
 /// Shared presentation rules for Mac, iPhone and iPad leaderboards.
 public enum LeaderboardPresentation {

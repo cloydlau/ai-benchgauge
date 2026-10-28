@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { replacementFailure, resolvedOpenness } from './domain.mjs';
+import { replacementFailure, resolvedOpenness, withRankChanges } from './domain.mjs';
 import { parseBoard, sources } from './parser.mjs';
 import { codingKinds, withCodingOpenness } from './model-openness.mjs';
 import { isArena, isArenaDataset } from './arena-dataset.mjs';
@@ -94,6 +94,7 @@ export class SharedLeaderboards {
       throw new RequestError(409, 'Contribution already submitted');
     }
     board = await this.enrich(board, { acquire: true });
+    board = withRankChanges(board, previous);
     await this.store.writeBoard(kind, board);
     await this.models?.queue?.(board);
     return { board: await this.withModelOpenness(board) };
@@ -114,6 +115,7 @@ export class SharedLeaderboards {
       if (!isArenaDataset(board) || board.kind !== kind || replacementFailure(board, cached)) throw new Error('Invalid or older dataset');
       // Complete acquisition is committed atomically; failures retain the old dataset.
       board = await this.enrich(board, { acquire: true });
+      board = withRankChanges(board, cached);
       await this.store.writeBoard(kind, board);
       await this.models?.queue?.(board);
       return { board: await this.withModelOpenness(board), retryAt: nextAttemptAt };
@@ -137,6 +139,7 @@ export class SharedLeaderboards {
       let board = await this.openRouterUsage({ now });
       if (board?.kind !== openRouterKind || !board.entries?.length || replacementFailure(board, cached)) throw new Error('Invalid or older usage snapshot');
       board = await this.withModelOpenness(await this.enrich(board, { acquire: true }));
+      board = withRankChanges(board, cached);
       await this.store.writeBoard(openRouterKind, board);
       await this.models?.queue?.(board);
       return { board, retryAt: nextAttemptAt };
@@ -163,6 +166,7 @@ export class SharedLeaderboards {
       let board = await load({ now });
       if (board?.kind !== kind || !board.entries?.length || replacementFailure(board, cached)) throw new Error('Invalid or older usage snapshot');
       board = await this.enrich(board, { acquire: true });
+      board = withRankChanges(board, cached);
       await this.store.writeBoard(kind, board);
       await this.models?.queue?.(board);
       return { board, retryAt: nextAttemptAt };

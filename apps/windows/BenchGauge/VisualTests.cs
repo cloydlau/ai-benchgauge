@@ -117,6 +117,12 @@ static class VisualTests
                     return best with { Name = best.Organization ?? best.Name, Score = board.Kind is "openRouterUsage" or "vercelUsage" or "cloudbaseUsage" ? group.Sum(entry => entry.Score) : best.Score };
                 }).OrderByDescending(entry => entry.Score).ToArray()
             }).ToArray() };
+            if (test.Scenario == "rankChanges") state = state with { Boards = state.Boards.Select(board => board with {
+                Entries = board.Entries.Select((entry, index) => entry with { RankChange = (index % 4) switch {
+                    0 => new RankChange(Delta: 12), 1 => new RankChange(Delta: -3),
+                    2 => new RankChange(IsNew: true), _ => null
+                } }).ToArray()
+            }).ToArray() };
             var panel = new MainWindow(null, preferences)
                 { Width = test.Width, Height = test.Height };
             panel.SetVisualViewport(test.Width, test.Height);

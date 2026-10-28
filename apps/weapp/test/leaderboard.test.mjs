@@ -324,3 +324,15 @@ test('timestamp dates use calendar days through three days ago, then the existin
     else process.env.TZ = originalZone
   }
 })
+
+test('rank movement labels keep signs, localize new entries and use company positions', () => {
+  for (const language of ['en', 'zh-CN', 'zh-TW']) {
+    const base = { rank: 2, name: 'Model', score: 99, organization: 'OpenAI' }
+    for (const [change, expected] of [[undefined, ''], [{delta:0}, ''], [{delta:3}, '+3'], [{delta:-12}, '-12'], [{isNew:true}, language === 'en' ? 'New' : '新']]) {
+      assert.equal(rowView({ ...base, rankChange: change }, { language }).rankChangeText, expected)
+    }
+    const snapshot = { kind: 'arenaText', entries: [{ ...base, rankChange: {delta:3}, companyRankChange:{delta:-1} }] }
+    assert.equal(visibleRows(snapshot, { grouping:'company', language })[0].rankChangeText, '-1')
+    assert.equal(visibleRows(snapshot, { query:'Model', language })[0].rankChangeText, '+3')
+  }
+})

@@ -202,6 +202,12 @@
 .with-purchase-links .model-logo { width: 30rpx; height: 30rpx; }
 .model-logo { width: 36rpx; height: 36rpx; flex-shrink: 0; }.initial { display: flex; align-items: center; justify-content: center; border-radius: 8rpx; background: #fff; color: #506070; font-size: 22rpx; font-weight: 600; }
 .model-name { font-size: 24rpx; line-height: 1.35; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; word-break: break-word; }
+.rank-change { flex-shrink: 0; font-size: 18rpx; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; color: #0f8561; }
+.rank-change.down { color: #c24748; }
+.rank-change.new { color: #3276ca; }
+.dark .rank-change { color: #73d7ae; }
+.dark .rank-change.down { color: #ff9292; }
+.dark .rank-change.new { color: #89bbff; }
 .openness-cell { text-align: center; color: var(--muted); font-size: 20rpx; }.openness-icon { display: block; width: 26rpx; height: 26rpx; margin: auto; }.open-badge { display: inline-block; border-radius: 8rpx; padding: 6rpx 8rpx; background: rgba(20,145,102,.1); color: #188966; font-size: 18rpx; line-height: 1.2; }
 .dark .open-badge { color: #6bd2aa; }
 .country-cell { font-size: 26rpx; text-align: center; }

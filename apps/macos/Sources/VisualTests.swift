@@ -11,7 +11,7 @@ private final class SearchVisualWindow: NSWindow { override var canBecomeKey: Bo
 @MainActor
 enum NativeVisualCapture {
     enum CaptureError: Error { case blankFrame(String) }
-    struct Entry: Decodable { let rank: Int; let name: String; let score: Double; let modelID: String?; let organization: String; let logo: String; let openness: ModelOpenness?; let brand: OrganizationBrand?; let organizationBrand: OrganizationBrand?; let developerCountry: OrganizationCountryMetadata?; let modelMetadata: ModelMetadata?; let totalTokens: String? }
+    struct Entry: Decodable { let rank: Int; let name: String; let score: Double; let modelID: String?; let organization: String; let logo: String; let openness: ModelOpenness?; let brand: OrganizationBrand?; let organizationBrand: OrganizationBrand?; let developerCountry: OrganizationCountryMetadata?; let modelMetadata: ModelMetadata?; let totalTokens: String?; let rankChange: LeaderboardRankChange?; let companyRankChange: LeaderboardRankChange? }
     struct Board: Decodable { let kind: String; let title: String; let entries: [Entry]; let sourceUpdatedAt: String?; let sourceTimeUnavailable: Bool?; let fetchedAt: String?; let sourceNote: String? }
     struct Quota: Decodable {
         struct Run: Decodable { let text: String }
@@ -44,7 +44,7 @@ enum NativeVisualCapture {
             let kind = LeaderboardKind(rawValue: board.kind)!
             let entries = board.entries.map { entry in
                 LeaderboardEntry(rank: entry.rank, name: entry.name, score: entry.score, modelID: entry.modelID, organization: entry.organization,
-                    logoURL: root.appending(path: "assets/logos/\(entry.logo).png"), openness: entry.openness, brand: entry.brand, organizationBrand: entry.organizationBrand, developerCountry: entry.developerCountry, modelMetadata: entry.modelMetadata, totalTokens: entry.totalTokens)
+                    logoURL: root.appending(path: "assets/logos/\(entry.logo).png"), openness: entry.openness, brand: entry.brand, organizationBrand: entry.organizationBrand, developerCountry: entry.developerCountry, modelMetadata: entry.modelMetadata, totalTokens: entry.totalTokens, rankChange: entry.rankChange, companyRankChange: entry.companyRankChange)
             }
             return (kind, Leaderboard(kind: kind, title: board.title, sourceUpdatedAt: board.sourceTimeUnavailable == true ? nil : board.sourceUpdatedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, sourceNote: board.sourceNote, fetchedAt: board.fetchedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, entries: entries))
         })
@@ -112,7 +112,7 @@ enum NativeVisualCapture {
                     quotaDate = fixture.state.quotaUpdatedAt.flatMap { ISO8601DateFormatter().date(from: $0) }
                 }
                 var fetchedBoards = boards.mapValues { board in
-                    let entries = test.rowCount.map { count in
+                    var entries = test.rowCount.map { count in
                         (1...count).map { rank in
                             if test.scenario == "scrollPerformance", !board.entries.isEmpty {
                                 let original = board.entries[(rank - 1) % board.entries.count]
@@ -124,6 +124,21 @@ enum NativeVisualCapture {
                                 organization: "Fixture maker \(rank)", logoURL: root.appending(path: "assets/logos/openai.png"))
                         }
                     } ?? board.entries
+                    if test.scenario == "rankChanges" {
+                        entries = entries.enumerated().map { index, entry in
+                            let change: LeaderboardRankChange? = switch index % 4 {
+                            case 0: .init(delta: 12)
+                            case 1: .init(delta: -3)
+                            case 2: .init(isNew: true)
+                            default: nil
+                            }
+                            return LeaderboardEntry(rank: entry.rank, name: entry.name, score: entry.score,
+                                modelID: entry.modelID, organization: entry.organization, logoURL: entry.logoURL,
+                                openness: entry.openness, brand: entry.brand, organizationBrand: entry.organizationBrand,
+                                developerCountry: entry.developerCountry, modelMetadata: entry.modelMetadata,
+                                totalTokens: entry.totalTokens, rankChange: change, companyRankChange: change)
+                        }
+                    }
                     let singleTime = test.scenario == "sourceTimes"
                     let sourceDate = singleTime && board.kind == .artificialAnalysis ? nil : board.sourceUpdatedAt
                     let fetchDate = singleTime ? fixedDate.addingTimeInterval(23 * 86400)

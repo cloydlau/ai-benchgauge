@@ -1889,6 +1889,7 @@ private struct LeaderboardCell: View {
                     name: entry.name
                 )
                 modelName(entry, compact: compact)
+                LeaderboardRankChangeBadge(entry.rankChange, language: language)
                 if model?.isCompany == true {
                     InlinePurchaseLinks(organization: entry.organization, modelName: entry.name, language: language)
                 }

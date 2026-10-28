@@ -17,6 +17,55 @@ export function replacementFailure(next, previous) {
   return null
 }
 export const canReplace = (next, previous) => replacementFailure(next, previous) === null
+
+// The persisted snapshot owns the comparison, so cold/offline clients see the
+// same movement. Do this before replacing latest.json, never on client refresh.
+const rankingIdentity = entry => String(entry.modelID || `${entry.name}\u0000${entry.organization ?? ''}`)
+  .replace(/#arena-rank-\d+$/, '').trim().toLowerCase()
+const rankingContent = board => JSON.stringify([...board.entries].sort((a, b) => a.rank - b.rank)
+  .map(entry => [rankingIdentity(entry), entry.name, entry.organization ?? null, entry.rank, entry.score, entry.totalTokens ?? null]))
+function uniqueRanks(entries, identity) {
+  const ranks = new Map()
+  for (const entry of entries) {
+    const key = identity(entry)
+    ranks.set(key, ranks.has(key) ? null : entry.rank)
+  }
+  return ranks
+}
+function movement(rank, previousRank) {
+  if (previousRank === null) return undefined // Ambiguous identity: don't invent a match.
+  if (previousRank === undefined) return { isNew: true }
+  const delta = previousRank - rank
+  return delta ? { delta } : undefined
+}
+export function withRankChanges(next, previous) {
+  const clean = entry => {
+    const { rankChange, companyRankChange, ...rest } = entry
+    return rest
+  }
+  if (!previous?.entries.length || next.kind !== previous.kind) return { ...next, entries: next.entries.map(clean) }
+  if (rankingContent(next) === rankingContent(previous)) {
+    const prior = new Map(previous.entries.map(entry => [entry.rank, entry]))
+    return { ...next, entries: next.entries.map(entry => {
+      const old = prior.get(entry.rank)
+      return { ...clean(entry), ...(old.rankChange && { rankChange: old.rankChange }),
+        ...(old.companyRankChange && { companyRankChange: old.companyRankChange }) }
+    }) }
+  }
+  const priorRanks = uniqueRanks(previous.entries, rankingIdentity)
+  const currentRanks = uniqueRanks(next.entries, rankingIdentity)
+  const summingUsage = ['openRouterUsage', 'vercelUsage', 'cloudbaseUsage'].includes(next.kind)
+  const companyKey = entry => rules.brandKey(entry.components[0])
+  const priorCompanies = uniqueRanks(companyRows(previous.entries, { summingUsage }), companyKey)
+  const companyChanges = new Map(companyRows(next.entries, { summingUsage })
+    .map(entry => [companyKey(entry), movement(entry.rank, priorCompanies.get(companyKey(entry)))]))
+  return { ...next, entries: next.entries.map(entry => {
+    const key = rankingIdentity(entry)
+    const rankChange = currentRanks.get(key) === null ? undefined : movement(entry.rank, priorRanks.get(key))
+    const companyRankChange = companyChanges.get(rules.brandKey(entry))
+    return { ...clean(entry), ...(rankChange && { rankChange }), ...(companyRankChange && { companyRankChange }) }
+  }) }
+}
 export function latestTimestamp(board) {
   // Source time takes priority regardless of which timestamp is later.
   return [board?.sourceUpdatedAt, board?.fetchedAt]
@@ -111,7 +160,8 @@ export function companyRows(entries, { summingUsage = false } = {}) {
       && /^[A-Za-z0-9+/=]+$/.test(brand.pngData) && brand.pngData.length < 160000)
       ?? brands[0] ?? { key: group.key }
     const totalTokens = summingUsage && members.some(row => row.totalTokens != null) ? members.reduce((total, row) => total + BigInt(row.totalTokens ?? "0"), 0n).toString() : undefined
-    return { ...best, ...(summingUsage && { score: members.reduce((sum, row) => sum + row.score, 0), totalTokens }), name: group.name, bestRank: best.rank, openness: null,
+    const { rankChange, companyRankChange, ...company } = best
+    return { ...company, ...(companyRankChange && { rankChange: companyRankChange }), ...(summingUsage && { score: members.reduce((sum, row) => sum + row.score, 0), totalTokens }), name: group.name, bestRank: best.rank, openness: null,
       brand: organizationBrand, organizationBrand, developerCountry, components: members }
   }).sort((a, b) => b.score - a.score || a.bestRank - b.bestRank || a.name.localeCompare(b.name))
     .map((entry, index) => ({ ...entry, rank: index + 1 }))

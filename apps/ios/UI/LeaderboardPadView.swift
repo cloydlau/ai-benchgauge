@@ -1675,6 +1675,7 @@ private struct PadBoardCard: View {
                 HStack(spacing: 6) {
                     PadOrganizationLogo(entry: entry, isCompany: grouping == .company)
                     entryName(entry)
+                    LeaderboardRankChangeBadge(entry.rankChange, language: language)
                 }.padding(.horizontal, 5).padding(.vertical, 3)
                     // Keep the name content and controls at their existing row height.
                     .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)

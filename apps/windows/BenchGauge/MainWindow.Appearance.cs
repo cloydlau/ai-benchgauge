@@ -854,7 +854,21 @@ sealed partial class MainWindow
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) }); row.ColumnDefinitions.Add(new ColumnDefinition());
         AddCell(row, new Border { Child = BrandLogo(entry), Width = 20, Height = 20, VerticalAlignment = VerticalAlignment.Center,
             Clip = new RectangleGeometry(new Rect(0, 0, 20, 20), 5, 5), Margin = new Thickness(0, 0, 4, 0) }, 0);
-        var name = Caption(entry.Name, PanelInk, 13); name.Margin = new Thickness(6, 0, 3, 0); AddCell(row, name, 1);
+        var name = Caption(entry.Name, PanelInk, 13); name.Margin = new Thickness(6, 0, 3, 0);
+        var movementName = new Grid { VerticalAlignment = VerticalAlignment.Center };
+        movementName.ColumnDefinitions.Add(new ColumnDefinition());
+        movementName.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        AddCell(movementName, name, 0);
+        if (entry.RankChange is { } change && (change.IsNew == true || change.Delta is not null and not 0))
+        {
+            var movementLabel = change.IsNew == true ? Tr("New", "新", "新")
+                : (change.Delta > 0 ? "+" : "") + change.Delta?.ToString(CultureInfo.InvariantCulture);
+            var badge = Caption(movementLabel, Tint(change.IsNew == true ? (panelDark ? "#89BBFF" : "#3276CA")
+                : change.Delta > 0 ? (panelDark ? "#73D7AE" : "#0F8561") : (panelDark ? "#FF9292" : "#C24748")), 9, numeric: true);
+            badge.Margin = new Thickness(3, 0, 3, 0); AddCell(movementName, badge, 1);
+            row.HorizontalAlignment = HorizontalAlignment.Stretch;
+        }
+        AddCell(row, movementName, 1);
         if (entry.CodingURL is not null || entry.ApiURL is not null)
         {
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });

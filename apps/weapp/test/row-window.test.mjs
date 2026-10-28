@@ -3,6 +3,24 @@ import test from 'node:test'
 import { rowGeometry, resolveRowWindow, createRowRenderer } from '../src/core/row-window.js'
 import { rowView } from '../src/core/leaderboard.js'
 
+test('compact bridge rows omit disabled details and unused movement styles while preserving active badges', () => {
+  const entry = { rank: 2, name: 'Model', score: 99,
+    components: [{ rank: 1, name: 'Member', score: 98 }] }
+  const compact = change => JSON.parse(JSON.stringify(rowView({ ...entry, rankChange: change }, { details: false })))
+  for (const change of [undefined, { delta: 0 }, { delta: NaN }]) {
+    const row = compact(change)
+    assert.equal(row.rankChangeText, '')
+    assert.equal(Object.hasOwn(row, 'rankChangeTone'), false)
+    assert.equal(Object.hasOwn(row, 'components'), false)
+  }
+  for (const [change, text, tone] of [[{ delta: 3 }, '+3', 'up'], [{ delta: -2 }, '-2', 'down'], [{ isNew: true }, 'New', 'new']]) {
+    const row = compact(change)
+    assert.equal(row.rankChangeText, text)
+    assert.equal(row.rankChangeTone, tone)
+  }
+  assert.deepEqual(rowView(entry).components, [{ name: 'Member', rank: 1, score: '98.0' }])
+})
+
 test('scroll windows retain the full board leader and refresh their cached ratios after filtering', () => {
   const render = createRowRenderer((entry, entries) => rowView(entry, { leaderScore: entries[0]?.score }))
   const entries = [100, 80, 60, 40].map((score, i) => ({ rank: i + 1, name: `M${i}`, score }))

@@ -239,3 +239,17 @@ test('export source headings, publication times and shares retain identity after
     }
   }
 })
+
+test('image export retains every movement badge without increasing row height', () => {
+  for (const dark of [false, true]) {
+    const h = canvasHarness(), source = model([4], dark)
+    const before = planScreenshot(h.context, source)
+    source.boards[0].rows.forEach((row, i) => Object.assign(row,
+      [{rankChangeText:'+12',rankChangeTone:'up'}, {rankChangeText:'-3',rankChangeTone:'down'},
+       {rankChangeText:'新',rankChangeTone:'new'}, {rankChangeText:'New',rankChangeTone:'new'}][i]))
+    const image = planScreenshot(h.context, source)
+    assert.deepEqual(image.rows.map(row => row.height), before.rows.map(row => row.height))
+    drawScreenshot(h.context, source, image, new Map())
+    for (const badge of ['+12', '-3', '新', 'New']) assert.ok(h.commands.some(([op, value]) => op === 'fillText' && value === badge))
+  }
+})

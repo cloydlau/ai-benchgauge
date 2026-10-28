@@ -61,6 +61,7 @@ struct Board: Encodable {
 }
 struct CountryOption: Encodable { var value: String; var label: String }
 struct Entry: Encodable {
+    var rankChange: LeaderboardRankChange? = nil
     var modelMetadata: ModelMetadata? = nil
     var detailID: String? = nil
     var voteCount: Int? = nil
@@ -518,7 +519,7 @@ actor Engine {
                          error: errors[kind].map { $0 == "configurationRequired" ? LeaderboardFailure.configurationRequired.message(language: language, hasCachedBoard: board != nil) : language.text("Refresh failed; showing saved data", "刷新失败，显示已保存的数据") },
                          entries: entries.map { entry in
                 let links = PurchaseLinkCatalog.links(forOrganization: entry.organization, modelName: entry.name)
-                return Entry(detailID: grouping == "company" ? nil : entry.modelMetadata?.id, voteCount: entry.voteCount,
+                return Entry(rankChange: entry.rankChange, detailID: grouping == "company" ? nil : entry.modelMetadata?.id, voteCount: entry.voteCount,
                              rank: entry.rank, name: entry.name, score: entry.score, organization: entry.organization,
                              country: OrganizationRegion.country(for: entry)?.rawValue,
                              logo: OrganizationLogoCatalog.resolvedKey(organization: entry.organization, modelName: entry.name),

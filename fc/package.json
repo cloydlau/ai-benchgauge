@@ -12,7 +12,7 @@
     "sharp": "^0.35.5"
   },
   "devDependencies": {
-    "@alicloud/fc20230330": "^4.8.3",
+    "@alicloud/fc20230330": "^4.8.4",
     "@alicloud/openapi-client": "^0.4.15",
     "@alicloud/sts20150401": "^1.2.0"
   }

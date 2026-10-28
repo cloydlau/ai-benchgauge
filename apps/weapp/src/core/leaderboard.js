@@ -91,12 +91,16 @@ export function rowView(entry, { company = false, dark = false, details = true, 
     return link ? [{ kind, title: text(copy[label], language), url: link.url }] : []
   }) : []
   const code = countryCode(entry)
+  const rankChangeText = entry.rankChange?.isNew ? (language === 'en' ? 'New' : '新')
+    : Number.isSafeInteger(entry.rankChange?.delta) && entry.rankChange.delta !== 0 ? `${entry.rankChange.delta > 0 ? '+' : ''}${entry.rankChange.delta}` : ''
   return { rank: entry.rank, name: entry.name, score: entry.score, logo: image,
+    rankChangeText,
+    rankChangeTone: rankChangeText ? (entry.rankChange?.isNew ? 'new' : entry.rankChange.delta > 0 ? 'up' : 'down') : undefined,
     purchaseActions: actions,
     initial: [...entry.name][0], countryUnknown: countryCode(entry) === 'unknown', countryName: countryName(countryCode(entry), language),
     flag: countryCode(entry) === 'unknown' ? '?' : countryFlag(countryCode(entry)),
     countryCode: code, flagImage: countryFlagImage(code),
-    components: details ? entry.components?.map(member => ({ name: member.name, rank: member.rank, score: ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? shareScoreText(member.score) : kind === 'openRouterUsage' ? usageScoreText(member.score) : member.score.toFixed(kind === 'epochECI' ? 2 : 1) })) || [] : [],
+    components: details ? entry.components?.map(member => ({ name: member.name, rank: member.rank, score: ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? shareScoreText(member.score) : kind === 'openRouterUsage' ? usageScoreText(member.score) : member.score.toFixed(kind === 'epochECI' ? 2 : 1) })) || [] : undefined,
     scoreText: ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? shareScoreText(entry.score) : kind === 'openRouterUsage' ? usageScoreText(entry.score) : entry.score.toFixed(kind === 'epochECI' ? 2 : 1), scoreShare: ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? '' : scoreShareText(entry.score, leaderScore), openness: company ? null : resolvedOpenness(entry),
     opennessIcon: opennessIcon(company ? null : resolvedOpenness(entry), dark),
     fill: `background-color:rgba(${rgb},${dark ? '0.26' : '0.18'});`,

@@ -185,6 +185,21 @@ public struct OrganizationCountryMetadata: Codable, Equatable, Sendable {
     }
 }
 
+public struct LeaderboardRankChange: Codable, Equatable, Sendable {
+    public let delta: Int?
+    public let isNew: Bool?
+
+    public init(delta: Int? = nil, isNew: Bool? = nil) {
+        self.delta = delta; self.isNew = isNew
+    }
+
+    public func text(language: AppLanguage) -> String {
+        if isNew == true { return language.text("New", "新") }
+        guard let delta, delta != 0 else { return "" }
+        return delta > 0 ? "+\(delta)" : "\(delta)"
+    }
+}
+
 public struct LeaderboardEntry: Codable, Equatable, Identifiable, Sendable {
     public var id: Int { rank }
     public let rank: Int
@@ -202,6 +217,8 @@ public struct LeaderboardEntry: Codable, Equatable, Identifiable, Sendable {
     public let voteCount: Int?
     /// Exact upstream decimal string; score uses billions of tokens for display.
     public let totalTokens: String?
+    public let rankChange: LeaderboardRankChange?
+    public let companyRankChange: LeaderboardRankChange?
 
     public init(
         rank: Int,
@@ -216,7 +233,9 @@ public struct LeaderboardEntry: Codable, Equatable, Identifiable, Sendable {
         developerCountry: OrganizationCountryMetadata? = nil,
         modelMetadata: ModelMetadata? = nil,
         voteCount: Int? = nil,
-        totalTokens: String? = nil
+        totalTokens: String? = nil,
+        rankChange: LeaderboardRankChange? = nil,
+        companyRankChange: LeaderboardRankChange? = nil
     ) {
         self.rank = rank
         self.name = name
@@ -231,6 +250,8 @@ public struct LeaderboardEntry: Codable, Equatable, Identifiable, Sendable {
         self.modelMetadata = modelMetadata
         self.voteCount = voteCount
         self.totalTokens = totalTokens
+        self.rankChange = rankChange
+        self.companyRankChange = companyRankChange
     }
 }
 
