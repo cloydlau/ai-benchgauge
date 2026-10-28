@@ -972,7 +972,7 @@ final class AppState: ObservableObject {
                 guard !Task.isCancelled, boardRefreshTokens[kind] == token else { return }
                 switch result {
                 case .success(let board):
-                    if board.canReplace(snapshot.boards[kind]) { snapshot.boards[kind] = board }
+                    if board.canReplace(snapshot.boards[kind]) { snapshot.boards[kind] = board.preservingContentTimestamp(from: snapshot.boards[kind]) }
                 case .failure(let error):
                     lastErrors[kind] = error is LeaderboardConfigurationRequired
                         ? LeaderboardFailure.configurationRequired.message(language: selectedLanguage, hasCachedBoard: snapshot.boards[kind] != nil)
@@ -987,7 +987,7 @@ final class AppState: ObservableObject {
 
     private func acceptSharedBoard(_ board: Leaderboard, token: UUID) {
         guard boardRefreshTokens[board.kind] == token, !isQuitting, board != snapshot.boards[board.kind], board.canReplace(snapshot.boards[board.kind]) else { return }
-        snapshot.boards[board.kind] = board
+        snapshot.boards[board.kind] = board.preservingContentTimestamp(from: snapshot.boards[board.kind])
         lastErrors[board.kind] = nil
         snapshotPersistence.save(snapshot)
     }

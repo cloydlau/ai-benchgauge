@@ -245,7 +245,7 @@ public enum LeaderboardPresentation {
                                        timeZone: TimeZone = .current, includesYear: Bool = true, now: Date = Date())
         -> (value: String, caption: String, isSourceTime: Bool) {
         guard board?.kind.isShareUsage != true, let updated = board?.sourceUpdatedAt else {
-            let fetched = board.map { calendarTimestamp($0.fetchedAt, language: language, timeZone: timeZone, now: now) } ?? "—"
+            let fetched = board.map { calendarTimestamp($0.contentTimestamp, language: language, timeZone: timeZone, now: now) } ?? "—"
             return (fetched, language.text("Refreshed", "刷新"), false)
         }
         let dataset = ArenaAttribution.applies(board)
@@ -282,8 +282,8 @@ public enum LeaderboardPresentation {
 
     public static func sourceTimeExplanation(language: AppLanguage) -> String {
         language.text(
-            "Leaderboard data is updated in real time. There are two types of time labels:\n\nPublished: When a leaderboard provides a publication time, that time is displayed.\n\nRefreshed: When a leaderboard does not provide a publication time, the most recent data refresh time is displayed.",
-            "榜单数据实时更新。时间标记分为两种：\n\n发布：榜单提供了发布时间，展示其发布时间。\n\n刷新：榜单未提供发布时间，展示数据最近一次刷新的时间。")
+            "Leaderboard data is updated in real time. There are two types of time labels:\n\nPublished: When a leaderboard provides a publication time, that time is displayed.\n\nRefreshed: When a leaderboard does not provide a publication time, the last time new leaderboard data became available is displayed. Refreshing unchanged data keeps this time unchanged.",
+            "榜单数据实时更新。时间标记分为两种：\n\n发布：榜单提供了发布时间，展示其发布时间。\n\n刷新：榜单未提供发布时间，展示上一次更新到新数据的时间；数据没有变化时，时间保持不变。")
     }
 
     public static func sourceTimeHelp(_ board: Leaderboard?, language: AppLanguage) -> String {
@@ -292,7 +292,7 @@ public enum LeaderboardPresentation {
         formatter.dateStyle = .medium
         formatter.timeStyle = .medium
         guard board?.kind.isShareUsage != true, let updated = board?.sourceUpdatedAt else {
-            let fetched = board.map { formatter.string(from: $0.fetchedAt) } ?? "—"
+            let fetched = board.map { formatter.string(from: $0.contentTimestamp) } ?? "—"
             return "\(fetched) \(language.text("Refreshed", "刷新"))"
         }
         if ArenaAttribution.applies(board) { formatter.timeStyle = .none; formatter.timeZone = TimeZone(secondsFromGMT: 0) }
@@ -303,7 +303,7 @@ public enum LeaderboardPresentation {
     public static func rankingUpdated(_ snapshot: LeaderboardSnapshot, category: LeaderboardCategory,
                                       language: AppLanguage, now: Date = Date()) -> String {
         guard let date = category.boardKinds.compactMap({ kind in
-            snapshot.boards[kind].map { $0.sourceUpdatedAt ?? $0.fetchedAt }
+            snapshot.boards[kind].map { $0.sourceUpdatedAt ?? $0.contentTimestamp }
         }).min() else {
             return language.text("Rankings pending", "榜单 待更新")
         }

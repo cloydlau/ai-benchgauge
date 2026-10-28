@@ -18,6 +18,29 @@ export function replacementFailure(next, previous) {
 }
 export const canReplace = (next, previous) => replacementFailure(next, previous) === null
 
+// Network checks and metadata enrichment are not changes to the ranking. Keep
+// the last observed content change durable so cold clients share the same time.
+const contentSignature = board => JSON.stringify([
+  board.kind === 'vercelUsage' ? board.sourceUpdatedAt ?? null : null,
+  board.kind === 'cloudbaseUsage' ? board.sourceNote ?? null : null,
+  [...board.entries].sort((a, b) => a.rank - b.rank).map(entry => [
+    rankingIdentity(entry), entry.name, entry.organization ?? null, entry.rank,
+    entry.score, entry.totalTokens ?? null, entry.voteCount ?? null,
+  ]),
+])
+export function contentTimestamp(board) {
+  return [board?.contentUpdatedAt, board?.fetchedAt]
+    .find(value => value && Number.isFinite(Date.parse(value))) ?? null
+}
+export function withContentTimestamp(next, previous) {
+  if (previous && !canReplace(next, previous)) return previous
+  const authoritative = next.contentUpdatedAt && Number.isFinite(Date.parse(next.contentUpdatedAt))
+  const unchanged = previous?.entries.length && next.kind === previous.kind
+    && contentSignature(next) === contentSignature(previous)
+  return { ...next, contentUpdatedAt: authoritative ? next.contentUpdatedAt
+    : unchanged ? contentTimestamp(previous) : next.fetchedAt }
+}
+
 // The persisted snapshot owns the comparison, so cold/offline clients see the
 // same movement. Do this before replacing latest.json, never on client refresh.
 const rankingIdentity = entry => String(entry.modelID || `${entry.name}\u0000${entry.organization ?? ''}`)
@@ -68,7 +91,7 @@ export function withRankChanges(next, previous) {
 }
 export function latestTimestamp(board) {
   // Source time takes priority regardless of which timestamp is later.
-  return [board?.sourceUpdatedAt, board?.fetchedAt]
+  return [board?.sourceUpdatedAt, contentTimestamp(board)]
     .find(value => value && Number.isFinite(Date.parse(value))) ?? null
 }
 export function createBrandRules(catalog) {

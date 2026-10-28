@@ -140,6 +140,47 @@ test('headers and help select only source time, falling back to fetch time when 
   }
 })
 
+test('headers and exported images retain the last new-data time until ranking content changes', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-30T06:00:00Z') })
+  const contentUpdatedAt = '2026-10-27T00:00:00Z'
+  for (const language of ['en', 'zh-CN', 'zh-TW']) {
+    const h = setup({ language }), loading = h.loadCategory()
+    for (let i = 0; i < h.requests.length; i++) h.respond(i, {
+      fetchedAt: '2026-10-28T00:00:00Z', contentUpdatedAt,
+    })
+    await loading
+    const card = () => h.page.cards.value.find(item => item.kind === 'artificialAnalysis')
+    const expected = formatTime(contentUpdatedAt, language)
+    assert.equal(card().time, expected)
+    const duplicate = h.page.refreshTap(event({ kind: 'artificialAnalysis' }))
+    h.respond(h.requests.length - 1, { fetchedAt: '2026-10-29T00:00:00Z' })
+    await duplicate
+    assert.equal(card().time, expected)
+    assert.equal(card().isSourceTime, false)
+    const canvas = canvasHarness()
+    Object.assign(wx, canvas.platform, { showLoading() {}, hideLoading() {}, showToast() {},
+      createSelectorQuery: () => {
+        let scroll = false
+        const query = {
+          select() { return { fields: () => query, boundingClientRect: () => query, node: () => { scroll = true; return query } } },
+          exec: callback => callback([{ node: scroll ? { scrollTo() {} } : canvas.canvas }]),
+        }
+        return query
+      },
+    })
+    await h.page.screenshot()
+    assert.ok(canvas.commands.some(([command, value]) => command === 'fillText'
+      && value === `${expected} ${card().timeLabel}`), language)
+    h.page.closeCapture()
+    const changed = h.page.refreshTap(event({ kind: 'artificialAnalysis' }))
+    const fetchedAt = '2026-10-30T00:00:00Z'
+    h.respond(h.requests.length - 1, { fetchedAt, entries: [{ rank: 1, name: 'Changed', score: 101 }] })
+    await changed
+    assert.equal(card().time, formatTime(fetchedAt, language))
+    globalThis.__benchHooks.unload()
+  }
+})
+
 test('leaving the page while search bounds are pending cannot expand or focus it later', async () => {
   const h = setup()
   let measured

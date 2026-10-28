@@ -1,5 +1,5 @@
 import { boards, hasOwn } from '../core/catalog.js'
-import { normalizeBoard, canReplace } from '../core/leaderboard.js'
+import { normalizeBoard, canReplace, withContentTimestamp } from '../core/leaderboard.js'
 
 const CACHE_KEY = 'benchgauge.boards.v1'
 function snapshotFile(platform) {
@@ -67,7 +67,8 @@ export function createBoardStore({ platform, endpoint }) {
             }
             const next = normalizeBoard(result.data.board, kind)
             if (canReplace(next, snapshots[kind])) {
-              snapshots[kind] = next
+              // Legacy first reads already carry their baseline in fetchedAt.
+              snapshots[kind] = snapshots[kind] ? withContentTimestamp(next, snapshots[kind]) : next
               try { saveSnapshots(platform, snapshots) } catch { /* Still show a valid network result. */ }
             }
             resolve(snapshots[kind])

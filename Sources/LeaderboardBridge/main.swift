@@ -55,6 +55,7 @@ struct Board: Encodable {
     var kind: String; var title: String; var url: String
     var updatedAt: String?; var error: String?; var entries: [Entry]
     var fetchedAt: String? = nil
+    var contentUpdatedAt: String? = nil
     var sourceNote: String? = nil
     var countryOptions: [CountryOption]? = nil
     var distribution: LeaderboardDistribution? = nil
@@ -371,7 +372,7 @@ actor Engine {
     }
     private func acceptSharedBoard(_ board: Leaderboard) {
         guard board != snapshot.boards[board.kind], board.canReplace(snapshot.boards[board.kind]) else { return }
-        snapshot.boards[board.kind] = board
+        snapshot.boards[board.kind] = board.preservingContentTimestamp(from: snapshot.boards[board.kind])
         errors[board.kind] = nil
         cache.save(snapshot)
     }
@@ -530,7 +531,8 @@ actor Engine {
                              brandColor: OrganizationLogoCatalog.rowBrandColorHex(for: entry),
                              logoPNG: OrganizationLogoCatalog.rowLogoPNGData(for: entry, isCompany: grouping == "company")?.base64EncodedString(),
                              initials: OrganizationLogoCatalog.initial(organization: entry.organization, modelName: entry.name))
-            }, fetchedAt: board.map { formatter.string(from: $0.fetchedAt) }, sourceNote: board?.sourceNote,
+            }, fetchedAt: board.map { formatter.string(from: $0.fetchedAt) },
+                         contentUpdatedAt: board?.contentUpdatedAt.map { formatter.string(from: $0) }, sourceNote: board?.sourceNote,
                          countryOptions: LeaderboardPresentation.countryFilters(board).compactMap { filter in
                 switch filter {
                 case .all: return nil

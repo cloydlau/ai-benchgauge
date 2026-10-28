@@ -1,0 +1,779 @@
+[
+  {
+    "name": "legacy unchanged fetch",
+    "previous": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-27T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "next": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-28T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "expected": "2026-10-27T00:00:00Z"
+  },
+  {
+    "name": "first acquisition",
+    "previous": null,
+    "next": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-28T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "expected": "2026-10-28T00:00:00Z"
+  },
+  {
+    "name": "persisted unchanged fetch",
+    "previous": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-27T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ],
+      "contentUpdatedAt": "2026-10-26T00:00:00Z"
+    },
+    "next": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-28T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "expected": "2026-10-26T00:00:00Z"
+  },
+  {
+    "name": "order and enrichment do not count",
+    "previous": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-27T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "next": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-28T00:00:00Z",
+      "entries": [
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google",
+          "rankChange": {
+            "isNew": true
+          },
+          "openness": "closed",
+          "logoURL": "https://example.test/new-logo.png"
+        },
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        }
+      ]
+    },
+    "expected": "2026-10-27T00:00:00Z"
+  },
+  {
+    "name": "score changed",
+    "previous": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-27T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "next": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-28T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 101,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "expected": "2026-10-28T00:00:00Z"
+  },
+  {
+    "name": "name changed",
+    "previous": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-27T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "next": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-28T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "Renamed",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "expected": "2026-10-28T00:00:00Z"
+  },
+  {
+    "name": "totalTokens changed",
+    "previous": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-27T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "next": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-28T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI",
+          "totalTokens": "9007199254740993"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "expected": "2026-10-28T00:00:00Z"
+  },
+  {
+    "name": "voteCount changed",
+    "previous": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-27T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "next": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-28T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI",
+          "voteCount": 12
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "expected": "2026-10-28T00:00:00Z"
+  },
+  {
+    "name": "ranks changed",
+    "previous": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-27T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "next": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-28T00:00:00Z",
+      "entries": [
+        {
+          "rank": 2,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 1,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "expected": "2026-10-28T00:00:00Z"
+  },
+  {
+    "name": "model added",
+    "previous": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-27T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "next": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-28T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        },
+        {
+          "rank": 3,
+          "name": "New",
+          "score": 80
+        }
+      ]
+    },
+    "expected": "2026-10-28T00:00:00Z"
+  },
+  {
+    "name": "model removed",
+    "previous": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-27T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "next": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-28T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        }
+      ]
+    },
+    "expected": "2026-10-28T00:00:00Z"
+  },
+  {
+    "name": "late older response rejected",
+    "previous": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-27T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "next": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-26T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 80,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "expected": "2026-10-27T00:00:00Z"
+  },
+  {
+    "name": "authoritative shared timestamp wins on cold clients",
+    "previous": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-27T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ]
+    },
+    "next": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-28T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ],
+      "contentUpdatedAt": "2026-10-25T00:00:00Z"
+    },
+    "expected": "2026-10-25T00:00:00Z"
+  },
+  {
+    "name": "older publication rejected",
+    "previous": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-27T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ],
+      "sourceUpdatedAt": "2026-10-27T00:00:00Z"
+    },
+    "next": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-28T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ],
+      "sourceUpdatedAt": "2026-10-26T00:00:00Z"
+    },
+    "expected": "2026-10-27T00:00:00Z"
+  },
+  {
+    "name": "publication alone is not a changed ranking",
+    "previous": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-27T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ],
+      "sourceUpdatedAt": "2026-10-25T00:00:00Z"
+    },
+    "next": {
+      "kind": "epochECI",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-28T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ],
+      "sourceUpdatedAt": "2026-10-26T00:00:00Z"
+    },
+    "expected": "2026-10-27T00:00:00Z"
+  },
+  {
+    "name": "new statistical day counts as new dataset",
+    "previous": {
+      "kind": "vercelUsage",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-27T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ],
+      "sourceUpdatedAt": "2026-10-25T00:00:00Z"
+    },
+    "next": {
+      "kind": "vercelUsage",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-28T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ],
+      "sourceUpdatedAt": "2026-10-26T00:00:00Z"
+    },
+    "expected": "2026-10-28T00:00:00Z"
+  },
+  {
+    "name": "new cumulative coverage",
+    "previous": {
+      "kind": "cloudbaseUsage",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-27T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ],
+      "sourceNote": "10 sampled days"
+    },
+    "next": {
+      "kind": "cloudbaseUsage",
+      "title": "Fixture",
+      "fetchedAt": "2026-10-28T00:00:00Z",
+      "entries": [
+        {
+          "rank": 1,
+          "modelID": "a",
+          "name": "A",
+          "score": 100,
+          "organization": "OpenAI"
+        },
+        {
+          "rank": 2,
+          "modelID": "b",
+          "name": "B",
+          "score": 90,
+          "organization": "Google"
+        }
+      ],
+      "sourceNote": "11 sampled days"
+    },
+    "expected": "2026-10-28T00:00:00Z"
+  }
+]

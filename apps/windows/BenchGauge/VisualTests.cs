@@ -100,7 +100,7 @@ static class VisualTests
             }
             if (test.Scenario == "sourceTimes") state = state with { Boards = state.Boards.Select(board => board with {
                 UpdatedAt = board.Kind == "artificialAnalysis" ? null : board.Kind == "arenaText" ? "2026-10-15T00:00:00Z" : board.UpdatedAt,
-                FetchedAt = "2026-10-22T00:00:00Z"
+                FetchedAt = "2026-10-22T00:00:00Z", ContentUpdatedAt = test.ContentUpdatedAt ?? board.ContentUpdatedAt
             }).ToArray() };
             if (test.Scenario == "freshnessStale") state = state with {
                 QuotaUnavailable = true, Quotas = state.Quotas.Select(quota => quota with { IsStale = true }).ToArray() };

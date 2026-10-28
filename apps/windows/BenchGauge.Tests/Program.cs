@@ -16,6 +16,21 @@ foreach (var language in new[] { "en", "zh", "zh-Hant", "zh-TW" })
         throw new Exception("Timestamp help must explain publication and fallback refresh labels in every language");
 }
 
+// New-data time is independent of the latest successful network acquisition.
+var unchangedContent = new Board("epochECI", "Fixture", "https://example.test", null, null, [],
+    FetchedAt: "2026-10-28T00:00:00Z", ContentUpdatedAt: "2026-10-25T00:00:00Z");
+if (BoardTimestamp.For(unchangedContent).Value != DateTimeOffset.Parse(unchangedContent.ContentUpdatedAt!) ||
+    BoardTimestamp.For(unchangedContent with { Kind = "vercelUsage", UpdatedAt = "2026-10-26T00:00:00Z" }).Value != DateTimeOffset.Parse(unchangedContent.ContentUpdatedAt!) ||
+    !BoardTimestamp.For(unchangedContent with { UpdatedAt = "2026-10-24T00:00:00Z" }).IsSourceTime ||
+    BoardTimestamp.For(unchangedContent with { ContentUpdatedAt = null }).Value != DateTimeOffset.Parse(unchangedContent.FetchedAt!))
+    throw new Exception("Refresh labels must select the last changed-content time while preserving publication priority and legacy caches");
+var encodedContent = JsonSerializer.Serialize(unchangedContent, AppConfig.Json);
+if (JsonSerializer.Deserialize<Board>(encodedContent, AppConfig.Json)?.ContentUpdatedAt != unchangedContent.ContentUpdatedAt)
+    throw new Exception("The bridge new-data timestamp must survive JSON and cache round trips");
+foreach (var language in new[] { "en", "zh", "zh-Hant" })
+    if (!BoardTimestamp.Explanation(language).Contains(language == "en" ? "unchanged" : language == "zh" ? "没有变化" : "沒有變化"))
+        throw new Exception("Time help must explain unchanged data in every language");
+
 // The shared brand catalog covers exact category IDs, independent of column positions.
 foreach (var kinds in new[] {
     new[] { "artificialAnalysis", "artificialAnalysisCodingAgent", "artificialAnalysisTextToImage", "artificialAnalysisTextToVideo" },

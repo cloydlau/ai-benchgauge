@@ -88,9 +88,9 @@ export const copy = {
   published: ['Published', '发布', '發佈'], updated: ['Refreshed', '刷新', '刷新'], refresh: ['Refresh', '刷新', '重新整理'],
   timeExplanationTitle: ['Time labels', '时间说明', '時間說明'],
   timeExplanation: [
-    'Leaderboard data is updated in real time. There are two types of time labels:\n\nPublished: When a leaderboard provides a publication time, that time is displayed.\n\nRefreshed: When a leaderboard does not provide a publication time, the most recent data refresh time is displayed.',
-    '榜单数据实时更新。时间标记分为两种：\n\n发布：榜单提供了发布时间，展示其发布时间。\n\n刷新：榜单未提供发布时间，展示数据最近一次刷新的时间。',
-    '榜單資料即時更新。時間標記分為兩種：\n\n發佈：榜單提供了發佈時間，展示其發佈時間。\n\n刷新：榜單未提供發佈時間，展示資料最近一次刷新的時間。'],
+    'Leaderboard data is updated in real time. There are two types of time labels:\n\nPublished: When a leaderboard provides a publication time, that time is displayed.\n\nRefreshed: When a leaderboard does not provide a publication time, the last time new leaderboard data became available is displayed. Refreshing unchanged data keeps this time unchanged.',
+    '榜单数据实时更新。时间标记分为两种：\n\n发布：榜单提供了发布时间，展示其发布时间。\n\n刷新：榜单未提供发布时间，展示上一次更新到新数据的时间；数据没有变化时，时间保持不变。',
+    '榜單資料即時更新。時間標記分為兩種：\n\n發佈：榜單提供了發佈時間，展示其發佈時間。\n\n刷新：榜單未提供發佈時間，展示上一次更新到新資料的時間；資料沒有變化時，時間保持不變。'],
   loading: ['Loading shared rankings…', '正在读取共享榜单…', '正在讀取共享榜單…'],
   empty: ['No matching entries', '暂无符合筛选的条目', '暫無符合篩選的項目'],
   noBoard: ['No shared snapshot yet', '暂未取得共享榜单', '暫未取得共享榜單'],

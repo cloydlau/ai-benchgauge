@@ -261,6 +261,8 @@ public struct Leaderboard: Codable, Equatable, Sendable {
     public let sourceUpdatedAt: Date?
     public let sourceNote: String?
     public let fetchedAt: Date
+    /// Last acquisition that changed the ranking; absent in legacy snapshots.
+    public let contentUpdatedAt: Date?
     public let entries: [LeaderboardEntry]
     public let organizationLogoURLs: [String: URL]?
     public let modelMetadataSource: ModelMetadataSource?
@@ -282,6 +284,7 @@ public struct Leaderboard: Codable, Equatable, Sendable {
         sourceUpdatedAt: Date? = nil,
         sourceNote: String? = nil,
         fetchedAt: Date = Date(),
+        contentUpdatedAt: Date? = nil,
         entries: [LeaderboardEntry],
         organizationLogoURLs: [String: URL]? = nil,
         modelMetadataSource: ModelMetadataSource? = nil
@@ -291,6 +294,7 @@ public struct Leaderboard: Codable, Equatable, Sendable {
         self.sourceUpdatedAt = sourceUpdatedAt
         self.sourceNote = sourceNote
         self.fetchedAt = fetchedAt
+        self.contentUpdatedAt = contentUpdatedAt
         self.entries = entries
         self.organizationLogoURLs = organizationLogoURLs
         self.modelMetadataSource = modelMetadataSource
