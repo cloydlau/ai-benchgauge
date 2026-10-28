@@ -3791,7 +3791,28 @@
       "scenario": "sourceDetails",
       "comparisonKind": "openRouterUsage",
       "category": "usage"
-    }
+    },
+      {
+        "id": "application-license-en",
+        "language": "en",
+        "width": 580,
+        "height": 540,
+        "scenario": "applicationLicense"
+      },
+      {
+        "id": "application-license-zh",
+        "language": "zh",
+        "width": 580,
+        "height": 540,
+        "scenario": "applicationLicense"
+      },
+      {
+        "id": "application-license-zh-Hant",
+        "language": "zh-Hant",
+        "width": 580,
+        "height": 540,
+        "scenario": "applicationLicense"
+      }
   ],
   "quotaScenarios": {
     "kimiConfigured": [
@@ -6563,27 +6584,6 @@
             "url": null
           }
         ]
-      },
-      {
-        "id": "application-license-en",
-        "language": "en",
-        "width": 580,
-        "height": 540,
-        "scenario": "applicationLicense"
-      },
-      {
-        "id": "application-license-zh",
-        "language": "zh",
-        "width": 580,
-        "height": 540,
-        "scenario": "applicationLicense"
-      },
-      {
-        "id": "application-license-zh-Hant",
-        "language": "zh-Hant",
-        "width": 580,
-        "height": 540,
-        "scenario": "applicationLicense"
       }
     ]
   }
