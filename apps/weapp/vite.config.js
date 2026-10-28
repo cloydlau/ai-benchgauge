@@ -52,7 +52,7 @@ const publishedNotices = notices.map((item, index) => {
 export default defineConfig({
   build: { target: 'es2019' },
   define: { __SHARED_ENDPOINT__: JSON.stringify(endpoint.replace(/\/$/, '')), __APP_VERSION__: JSON.stringify(version),
-    __MIT_LICENSE__: JSON.stringify(readFileSync(resolve(root, 'LICENSE'), 'utf8')),
+    __APPLICATION_LICENSE__: JSON.stringify(readFileSync(resolve(root, 'LICENSE'), 'utf8')),
     __THIRD_PARTY_NOTICES__: JSON.stringify(publishedNotices),
     __ENGINEERING_INVESTMENT__: JSON.stringify(engineeringInvestment(process.env.BENCHGAUGE_INVESTMENT_ROOT || root)),
     __CONTRIBUTOR_CIRCLES__: JSON.stringify(contributorCircles(process.env.BENCHGAUGE_INVESTMENT_ROOT || root)) },

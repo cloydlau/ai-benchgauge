@@ -1110,7 +1110,11 @@ sealed partial class MainWindow
         if (Logo("github", 13) is { } github) repository.Content = new System.Windows.Shapes.Rectangle { Width = 13, Height = 13, Fill = PanelMuted, OpacityMask = new ImageBrush(github.Source) };
         else repository.Content = "GitHub";
         left.Children.Add(repository);
-        left.Children.Add(Caption(" Cloyd Lau · ", PanelMuted, 10)); left.Children.Add(FooterButton("MIT License", () => ShowLicenses(false)));
+        left.Children.Add(Caption(" Cloyd Lau · ", PanelMuted, 10));
+        var applicationLicense = FooterButton(Tr("License", "许可证", "許可證"), () => ShowLicenses(false));
+        applicationLicense.ToolTip = ApplicationLicense.Name;
+        System.Windows.Automation.AutomationProperties.SetName(applicationLicense, ApplicationLicense.Name);
+        left.Children.Add(applicationLicense);
         left.Children.Add(Caption(" · ", PanelMuted, 10)); left.Children.Add(FooterButton(Tr("Open-source notices", "开源声明", "開源聲明"), () => ShowLicenses(true))); row.Children.Add(left);
         var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         right.Children.Add(DataSourcesMenu()); right.Children.Add(Caption(" · ", size: 10));

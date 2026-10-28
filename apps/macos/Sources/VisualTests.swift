@@ -306,6 +306,8 @@ enum NativeVisualCapture {
                     : detailEntry
                 let view = test.scenario == "thirdPartyNotices"
                     ? AnyView(LicenseNoticesView(section: .thirdParty, language: AppLanguage(rawValue: test.language)!))
+                    : test.scenario == "applicationLicense"
+                    ? AnyView(LicenseNoticesView(section: .application, language: AppLanguage(rawValue: test.language)!))
                     : test.scenario.hasPrefix("modelDetails")
                     ? AnyView(ModelDetailsView(entry: selectedDetail, language: AppLanguage(rawValue: test.language)!, copyName: { _ in true }, close: {}))
                     : test.scenario == "addModelDialog"

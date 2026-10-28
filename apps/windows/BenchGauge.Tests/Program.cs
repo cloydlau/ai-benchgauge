@@ -6,6 +6,11 @@ using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Security;
 
+// Exercise the embedded application identity from the built shared assembly.
+if (ApplicationLicense.Name != "PolyForm Perimeter License 1.0.0" ||
+    ApplicationLicense.ShortName != "PolyForm Perimeter")
+    throw new Exception("Application license identity must load from the shared resource");
+
 foreach (var language in new[] { "en", "zh", "zh-Hant", "zh-TW" })
 {
     var explanation = BoardTimestamp.Explanation(language);

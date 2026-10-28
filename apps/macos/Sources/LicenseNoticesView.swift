@@ -23,7 +23,7 @@ struct LicenseDocument: Decodable, Identifiable {
     let file: String
 
     static let application = LicenseDocument(
-        id: "ai-benchgauge", name: "AI BenchGauge", license: "MIT",
+        id: "ai-benchgauge", name: "AI BenchGauge", license: ApplicationLicense.name,
         source: URL(string: "https://github.com/cloydlau/ai-benchgauge")!,
         englishDescription: "Application license", chineseDescription: "本软件的许可证",
         file: "AI-BenchGauge.txt"

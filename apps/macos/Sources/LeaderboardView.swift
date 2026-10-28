@@ -795,7 +795,7 @@ struct LeaderboardView: View {
                     Text(visibleKinds.map(\.sourceLinkTitle).joined(separator: " · "))
                     Text("·")
                 }
-                Text("Cloyd Lau · MIT License")
+                Text("Cloyd Lau · \(ApplicationLicense.shortName)")
             }
             .fixedSize()
         }
@@ -844,12 +844,13 @@ struct LeaderboardView: View {
 
             Text("Cloyd Lau")
             Text("·")
-            Button(compact ? "MIT" : "MIT License") {
+            Button(tr("License", "许可证")) {
                 screenshot.licenseSection = .application
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .help(tr("View the AI BenchGauge license", "查看 AI 天梯的许可证"))
+            .help(ApplicationLicense.name)
+            .accessibilityLabel(ApplicationLicense.name)
             .accessibilityIdentifier("application-license")
         }
         .fixedSize(horizontal: true, vertical: false)

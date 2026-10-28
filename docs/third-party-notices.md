@@ -1,6 +1,6 @@
 # License notice inventory
 
-The footer opens one license sheet from two entries: **MIT License** selects
+The footer opens one license sheet from two entries: **License** selects
 the application license, and **Open-source notices** selects third-party
 notices. Complete notices are bundled locally and are selectable and scrollable.
 
@@ -12,8 +12,9 @@ notices. Complete notices are bundled locally and are selectable and scrollable.
   The complete upstream distribution `LICENSE`, including its component notices,
   is bundled as `Resources/Licenses/Sparkle.txt` and listed in `ThirdParty.json`.
 - `LeaderboardCore` and `leaderboard-menu` are this repository's own targets.
-- The application license is the repository's `LICENSE`, MIT, copyright
-  2026 Cloyd Lau. Packaging copies it into `Resources/Licenses/AI-BenchGauge.txt`.
+- The application license is the repository's `LICENSE`: PolyForm Perimeter License 1.0.0,
+  with the project's licensing notices, copyright 2026 Cloyd Lau. Display identity is shared
+  through `Sources/LeaderboardKit/Resources/ApplicationLicense.json`. Packaging copies it into `Resources/Licenses/AI-BenchGauge.txt`.
 - The executable dynamically links the macOS system frameworks, Swift runtime,
   and `/usr/lib/libsqlite3.dylib`; no copies of those libraries are shipped.
   [SQLite's deliverable code is public domain](https://sqlite.org/copyright.html).
