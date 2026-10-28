@@ -86,9 +86,9 @@ test('simulator selection excludes iPhones, old runtimes and unavailable iPads',
   assert.throws(() => iosSimulator({ devices: {} }), /iPad simulator/)
 })
 test('iPad project uses only the portable UI library, shared version, and Debug-only fixtures', () => {
-  const { project, scheme } = iosProject({ version: '0.1.2', buildNumber: '17' })
-  assert.equal(project, iosProject({ version: '0.1.2', buildNumber: '17' }).project)
-  assert.ok(project.includes('MARKETING_VERSION = "0.1.2"'))
+  const { project, scheme } = iosProject({ version: '20261028', buildNumber: '17' })
+  assert.equal(project, iosProject({ version: '20261028', buildNumber: '17' }).project)
+  assert.ok(project.includes('MARKETING_VERSION = "2026.10.28"'))
   assert.ok(project.includes('CURRENT_PROJECT_VERSION = "17"'))
   assert.ok(project.includes('TARGETED_DEVICE_FAMILY = "1,2"'))
   assert.ok(project.includes('IPHONEOS_DEPLOYMENT_TARGET = "17.0"'))
@@ -119,7 +119,7 @@ test('App Store distribution uses the configured Apple ID and permits an unpubli
   t.after(() => rmSync(directory, { recursive: true, force: true }))
   mkdirSync(join(directory, 'config'), { recursive: true })
   for (const appStoreID of [null, '1234567890']) {
-    writeFileSync(join(directory, 'config/app.json'), JSON.stringify({ version: '0.1.2', appStoreID }))
+    writeFileSync(join(directory, 'config/app.json'), JSON.stringify({ version: '20261028', appStoreID }))
     const path = generateIOSProject(directory, { engineeringStats: { commitCount: 12, codeLineCount: 345 }, contributorSnapshot })
     const project = readFileSync(join(path, 'project.pbxproj'), 'utf8')
     assert.ok(project.includes(`BENCHGAUGE_APP_STORE_ID = "${appStoreID ?? ''}"`))
@@ -131,7 +131,7 @@ test('App Store distribution uses the configured Apple ID and permits an unpubli
     }
   }
   for (const appStoreID of ['', '0', '00123', 123, 'https://github.com/example', '123;OTHER=YES']) {
-    assert.throws(() => iosProject({ version: '0.1.2', appStoreID }), /App Store ID/)
+    assert.throws(() => iosProject({ version: '20261028', appStoreID }), /App Store ID/)
   }
 })
 
@@ -153,7 +153,7 @@ test('iPhone, iPad and desktop source copy uses the shared presentation rules', 
   assert.ok(ui.includes('store.language.appName'))
   assert.ok(!ui.includes('获取于'))
   assert.ok(!ui.includes('"Fetched"'))
-  const { project } = iosProject({ version: '0.1.2' })
+  const { project } = iosProject({ version: '20261028' })
   assert.ok(project.includes('path = "../../assets/logos"'))
 })
 
@@ -173,7 +173,7 @@ test('SDK build and family-specific UI checks are independently runnable', () =>
   const directory = mkdtempSync(join(tmpdir(), 'benchgauge-ios-project-'))
   t.after(() => rmSync(directory, { recursive: true, force: true }))
   mkdirSync(join(directory, 'config'), { recursive: true })
-  writeFileSync(join(directory, 'config/app.json'), '{"version":"0.1.2"}')
+  writeFileSync(join(directory, 'config/app.json'), '{"version":"20261028"}')
   const original = join(directory, 'apps/ios/AI-BenchGauge.xcodeproj')
   mkdirSync(original, { recursive: true }); writeFileSync(join(original, 'project.pbxproj'), 'personal Xcode settings')
   const generated = generateIOSProject(directory, { projectDirectory: join(directory, 'work/ios-deploy/Project'),

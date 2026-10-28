@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { readAppConfig, plistString, validateAppConfig } from './app-config.mjs'
+import { platformVersion } from './app-version.mjs'
 import { proxyUrlsFromScutil, gitProxyValue } from './git-network.mjs'
 import { updateDependencies } from './dev-update-deps.mjs'
 import { runWindowsTests } from './windows-tests.mjs'
@@ -44,26 +45,26 @@ test('public application configuration rejects removed options, drift and missin
   assert.equal(plistString('{"key":"value"}', 'key'), 'value')
   assert.equal(plistString('<key>key</key><string>value</string>', 'key'), 'value')
   const plist = join(root, 'apps/macos/Sources/Resources/Info.plist')
-  writeFileSync(plist, JSON.stringify({ CFBundleVersion: config.version, CFBundleShortVersionString: config.version, SUPublicEDKey: config.updatePublicKey }))
+  writeFileSync(plist, JSON.stringify({ CFBundleVersion: platformVersion(config.version), CFBundleShortVersionString: platformVersion(config.version), BenchGaugeVersion: config.version, SUPublicEDKey: config.updatePublicKey }))
   assert.equal(validateAppConfig(root).version, config.version)
   assert.throws(() => validateAppConfig(root, 'v999.0.0'), /tag/)
-  writeFileSync(plist, JSON.stringify({ CFBundleVersion: config.version, CFBundleShortVersionString: config.version, SUPublicEDKey: 'different' }))
+  writeFileSync(plist, JSON.stringify({ CFBundleVersion: platformVersion(config.version), CFBundleShortVersionString: platformVersion(config.version), BenchGaugeVersion: config.version, SUPublicEDKey: 'different' }))
   assert.throws(() => validateAppConfig(root), /must match/)
 })
 
 test('release signatures fail closed and metadata validates missing optional values', t => {
-  assert.throws(() => releaseVersion(null), /stable version/)
+  assert.throws(() => releaseVersion(null), /YYYYMMDD/)
   assert.throws(() => decodePublicKey(undefined), /SUPublicEDKey/)
   const key = crypto.generateKeyPairSync('ed25519').privateKey
   t.mock.method(crypto, 'verify', () => false); syncBuiltinESMExports()
   t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports() })
   assert.throws(() => signArchive(Buffer.from('fixture'), key), /signature verification/)
   assert.throws(() => signingKey(undefined, undefined), /SUPublicEDKey/)
-  assert.throws(() => renderAppcast({ version: '1.2.3', archiveName: 'AI-BenchGauge-1.2.3-macos-universal.dmg', length: 10 }), /metadata/)
-  assert.throws(() => renderHomebrewCask({ version: '1.2.3', archiveName: 'AI-BenchGauge-1.2.3-macos-universal.dmg' }), /metadata/)
-  for (const length of [0, 1.5]) assert.throws(() => renderAppcast({ version: '1.2.3', archiveName: 'AI-BenchGauge-1.2.3-macos-universal.dmg', length, signature: Buffer.alloc(64).toString('base64') }), /metadata/)
-  assert.throws(() => iosProject({ version: '1.2.3', buildNumber: 'wrong' }), /build number/)
-  assert.throws(() => iosProject({ version: '1.2.3', team: 'wrong' }), /team/)
+  assert.throws(() => renderAppcast({ version: '20261028', archiveName: 'AI-BenchGauge-20261028-macos-universal.dmg', length: 10 }), /metadata/)
+  assert.throws(() => renderHomebrewCask({ version: '20261028', archiveName: 'AI-BenchGauge-20261028-macos-universal.dmg' }), /metadata/)
+  for (const length of [0, 1.5]) assert.throws(() => renderAppcast({ version: '20261028', archiveName: 'AI-BenchGauge-20261028-macos-universal.dmg', length, signature: Buffer.alloc(64).toString('base64') }), /metadata/)
+  assert.throws(() => iosProject({ version: '20261028', buildNumber: 'wrong' }), /build number/)
+  assert.throws(() => iosProject({ version: '20261028', team: 'wrong' }), /team/)
 })
 
 test('Swift workspace recovery tolerates absent artifact metadata and unmatched remote paths', t => {
@@ -78,7 +79,7 @@ test('Swift workspace recovery tolerates absent artifact metadata and unmatched 
 test('project and visual policy CLI entry points validate their input in an isolated directory', t => {
   const root = directory(t)
   mkdirSync(join(root, 'Scripts')); mkdirSync(join(root, 'config'))
-  for (const name of ['ios-project.mjs', 'ios-build.mjs', 'build-cache.mjs', 'app-config.mjs', 'release-lib.mjs', 'visual-review-policy.mjs', 'prepare-swift-workspace.mjs']) copyFileSync(new URL('./' + name, import.meta.url), join(root, 'Scripts', name))
+  for (const name of ['ios-project.mjs', 'ios-build.mjs', 'build-cache.mjs', 'app-config.mjs', 'release-lib.mjs', 'app-version.mjs', 'visual-review-policy.mjs', 'prepare-swift-workspace.mjs']) copyFileSync(new URL('./' + name, import.meta.url), join(root, 'Scripts', name))
   // ios-about.mjs imports weapp core modules outside Scripts/, so the sandbox stubs it.
   writeFileSync(join(root, 'Scripts/ios-about.mjs'), 'export function writeIOSAbout(directory, targetPath) { return targetPath }\n')
   copyFileSync(new URL('../config/app.json', import.meta.url), join(root, 'config/app.json'))
@@ -127,14 +128,15 @@ test('dependency updates and Windows checks retain actual failure status', t => 
 test('iOS build orchestration uses isolated projects and propagates SDK, simulator and compiler failures', async t => {
   const root = directory(t)
   mkdirSync(join(root, 'Scripts')); mkdirSync(join(root, 'config'))
-  for (const name of ['ios-build.mjs', 'build-cache.mjs', 'ios-project.mjs', 'app-config.mjs', 'release-lib.mjs']) copyFileSync(new URL('./' + name, import.meta.url), join(root, 'Scripts', name))
+  for (const name of ['ios-build.mjs', 'build-cache.mjs', 'ios-project.mjs', 'app-config.mjs', 'release-lib.mjs', 'app-version.mjs']) copyFileSync(new URL('./' + name, import.meta.url), join(root, 'Scripts', name))
   // ios-about.mjs imports weapp core modules outside Scripts/, so the sandbox stubs it.
   writeFileSync(join(root, 'Scripts/ios-about.mjs'), 'export function writeIOSAbout(directory, targetPath) { return targetPath }\n')
   copyFileSync(new URL('../config/app.json', import.meta.url), join(root, 'config/app.json'))
   const { runIOSBuild } = await import(pathToFileURL(join(root, 'Scripts/ios-build.mjs')).href)
-  let mode = 'sdk', builds = [], simulator = 0
+  let mode = 'sdk', builds = [], simulator = 0, processCalls = 0
   const uuid = '00000000-0000-0000-0000-000000000001', phone = '00000000-0000-0000-0000-000000000002'
   processMock(t, (command, args) => {
+    processCalls++
     if (args.includes('--show-sdk-path')) return { status: mode === 'sdk' ? 1 : 0 }
     if (args.includes('simctl')) {
       simulator++
@@ -144,6 +146,14 @@ test('iOS build orchestration uses isolated projects and propagates SDK, simulat
     builds.push(args)
     return mode === 'error' ? { error: Error('compiler unavailable') } : { status: mode === 'failed' ? 5 : mode === 'no-status' ? null : 0 }
   })
+  const configFile = join(root, 'config/app.json')
+  const config = JSON.parse(readFileSync(configFile, 'utf8'))
+  for (const releaseIOS of [false, undefined]) {
+    writeFileSync(configFile, JSON.stringify({ ...config, releaseIOS }))
+    assert.throws(() => runIOSBuild('archive', { APPLE_TEAM_ID: 'ABCDEFGHIJ' }), /iPhone\/iPad release is disabled/)
+    assert.equal(processCalls, 0, 'A disabled release must stop before any SDK, signing or archive command')
+  }
+  writeFileSync(configFile, JSON.stringify({ ...config, releaseIOS: false }))
   assert.throws(() => runIOSBuild(), /Full Xcode/)
   mode = 'simulator'; assert.throws(() => runIOSBuild('check', {}), /simulators/)
   mode = 'error'; assert.throws(() => runIOSBuild('build', {}), /compiler unavailable/)
@@ -154,6 +164,7 @@ test('iOS build orchestration uses isolated projects and propagates SDK, simulat
   assert.equal(builds.length, 4)
   assert.equal(runIOSBuild('test', { IOS_BUILD_NUMBER: '3' }, 'iPad'), 0)
   assert.equal(runIOSBuild('test', {}, 'iPhone'), 0)
+  writeFileSync(configFile, JSON.stringify({ ...config, releaseIOS: true }))
   assert.equal(runIOSBuild('archive', { APPLE_TEAM_ID: 'ABCDEFGHIJ' }), 0)
   assert.ok(simulator >= 4)
 })
@@ -161,7 +172,7 @@ test('iOS build orchestration uses isolated projects and propagates SDK, simulat
 test('iOS CLI holds its managed cache lease through SDK builds and simulator checks', t => {
   const root = directory(t)
   mkdirSync(join(root, 'Scripts')); mkdirSync(join(root, 'config'))
-  for (const name of ['ios-build.mjs', 'build-cache.mjs', 'ios-project.mjs', 'app-config.mjs', 'release-lib.mjs']) copyFileSync(new URL('./' + name, import.meta.url), join(root, 'Scripts', name))
+  for (const name of ['ios-build.mjs', 'build-cache.mjs', 'ios-project.mjs', 'app-config.mjs', 'release-lib.mjs', 'app-version.mjs']) copyFileSync(new URL('./' + name, import.meta.url), join(root, 'Scripts', name))
   writeFileSync(join(root, 'Scripts/ios-about.mjs'), 'export function writeIOSAbout(directory, targetPath) { return targetPath }\n')
   copyFileSync(new URL('../config/app.json', import.meta.url), join(root, 'config/app.json'))
   const preload = join(root, 'managed-ios.cjs')

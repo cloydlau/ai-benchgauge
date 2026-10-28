@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -19,7 +20,7 @@ public sealed class UpdateClient(AppConfig config, HttpClient? client = null, st
         verifier.BlockUpdate(payload, 0, payload.Length);
         if (!verifier.VerifySignature(Convert.FromBase64String(signature.Trim()))) throw new CryptographicException("Invalid update signature");
         var update = JsonSerializer.Deserialize<WindowsUpdate>(payload, AppConfig.Json) ?? throw new JsonException("Missing update metadata");
-        if (!Regex.IsMatch(update.Version, @"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")) throw new JsonException("Invalid update version");
+        if (!IsDateVersion(update.Version)) throw new JsonException("Invalid update version");
         var expected = $"https://github.com/{repository}/releases/download/v{update.Version}/AI-BenchGauge-{update.Version}-windows-x64-setup.exe";
         if (update.Url != expected || !Regex.IsMatch(update.Sha256, "^[a-f0-9]{64}$") || update.Length is <= 0 or > 1_073_741_824) throw new JsonException("Invalid update artifact");
         return update;
@@ -30,8 +31,23 @@ public sealed class UpdateClient(AppConfig config, HttpClient? client = null, st
         var payload = await ReadLimited(prefix + "windows-update.json", 65_536);
         var signature = System.Text.Encoding.UTF8.GetString(await ReadLimited(prefix + "windows-update.json.sig", 1024));
         var update = Verify(payload, signature, config.UpdatePublicKey, config.Repository);
-        return Version.Parse(update.Version) > Version.Parse(config.Version) ? update : null;
+        return CompareVersions(update.Version, config.Version) > 0 ? update : null;
     }
+    static bool IsDateVersion(string value) => Regex.IsMatch(value, @"^[1-9][0-9]{7}\z")
+        && DateOnly.TryParseExact(value, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
+    static Version ComparableVersion(string value)
+    {
+        if (IsDateVersion(value))
+        {
+            var date = DateOnly.ParseExact(value, "yyyyMMdd", CultureInfo.InvariantCulture);
+            return new Version(date.Year, date.Month, date.Day);
+        }
+        // Compare installed semantic versions when upgrading to date versions.
+        if (Regex.IsMatch(value, @"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\z")
+            && Version.TryParse(value, out var legacy)) return legacy;
+        throw new JsonException("Invalid application version");
+    }
+    public static int CompareVersions(string left, string right) => ComparableVersion(left).CompareTo(ComparableVersion(right));
     async Task<byte[]> ReadLimited(string url, int maximum)
     {
         using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);

@@ -258,7 +258,8 @@ struct PadAboutView<Brand: View>: View {
         }.padding(.horizontal, 4).padding(.top, 24).padding(.bottom, 17)
     }
     private var version: some View {
-        Text("v" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""))
+        Text("v" + (Bundle.main.object(forInfoDictionaryKey: "BenchGaugeVersion") as? String
+            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""))
             .font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary)
             .padding(.horizontal, 5).padding(.vertical, 2.5)
             .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(outline, lineWidth: 0.5))

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { ci } from './calmmit.mjs'
 import { acquireCommitLock } from './commit-lock.mjs'
 import { nodeExecutable } from './node-executable.mjs'
-import { createAutoVersion } from '../apps/weapp/scripts/version.mjs'
+import { readAppVersion } from './app-version.mjs'
 
 const { readUploadConfig, createUploadConfigMonitor } = await ci.load('deployment-credentials')
 const { createWatchSession } = await ci.load('deployment-watch')
@@ -37,7 +37,7 @@ export const sourcePaths = [
   'Tests/fixtures/model-details.json', 'Tests/fixtures/calendar-timestamps.json',
   'fc/arena-attribution.json',
   'LICENSE', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml',
-  'Scripts/weapp-deploy.mjs', 'Scripts/calmmit.mjs', 'Scripts/contributor-circles.mjs', 'calmmit.config.json',
+  'Scripts/weapp-deploy.mjs', 'Scripts/app-version.mjs', 'Scripts/calmmit.mjs', 'Scripts/contributor-circles.mjs', 'calmmit.config.json',
   'Scripts/sync-privacy-guide.mjs', 'privacy-guide.json',
 ]
 
@@ -110,7 +110,7 @@ async function upload() {
     log('开始小程序测试与独立构建（不会改写开发中的 dist）')
     // Freeze once before building so the displayed and uploaded versions match,
     // including builds that finish after Shanghai midnight.
-    const version = process.env.MP_VERSION || createAutoVersion()
+    const version = readAppVersion(stage, process.env.MP_VERSION)
     // npm runs the exact package scripts against the existing locked binaries;
     // pnpm's pre-run dependency sync cannot operate on this isolated symlink tree.
     const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'

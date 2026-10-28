@@ -19,9 +19,11 @@
 	<key>CFBundleIconFile</key>
 	<string>AI-BenchGauge.icns</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.0.0</string>
+	<string>2026.10.28</string>
 	<key>CFBundleVersion</key>
-	<string>0.0.0</string>
+	<string>2026.10.28</string>
+	<key>BenchGaugeVersion</key>
+	<string>20261028</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>

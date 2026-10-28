@@ -19,7 +19,7 @@ const endpoint = process.env.VITE_BENCHGAUGE_SHARED_ENDPOINT
   || swift.match(/bundledEndpoint: String\? = "([^"]+)"/)?.[1]
 const address = new URL(endpoint)
 if (address.protocol !== 'https:' || address.username || address.password || address.search || address.hash) throw new Error('A valid HTTPS shared endpoint is required')
-const version = process.env.MP_VERSION || createAutoVersion()
+const version = readAppVersion(root, process.env.MP_VERSION)
 const notices = [
   ['Vue Mini', '@vue-mini/core'], ['Vant Weapp', '@vant/weapp'], ['Tailwind CSS', 'tailwindcss'], ['fflate', 'fflate'],
 ].map(([name, packageName]) => ({ name, license: readFileSync(new URL(`node_modules/${packageName}/LICENSE`, import.meta.url), 'utf8') }))

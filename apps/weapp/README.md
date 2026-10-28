@@ -19,7 +19,7 @@ pnpm open:weapp
 
 当前 `project.config.json` 使用 BenchGauge 正式 AppID `wx80689a4ae64a0c33`，本机私有配置已移除临时测试号的 AppID 覆盖。只读公开榜单不需要 AppSecret。
 
-小程序版本沿用玩水的北京时间日期规则 `YYYYMMDD`（例如 `20261018`），同一天保持相同版本号。关于页与上传版本共用该规则；上传流程在构建前确定版本，避免跨零点出现不一致。设置 `MP_VERSION` 可显式覆盖构建与上传版本。
+全端公开版本共用 `config/app.json` 的北京时间日期号 `YYYYMMDD`（例如 `20261028`），小程序关于页和上传版本与原生客户端一致。发布前在仓库根目录运行 `./Scripts/bump-version.sh`，默认取当天北京时间，也可传入显式日期；同一天保持相同版本。构建和上传冻结该共用版本，跨零点不会变化。`MP_VERSION` 只允许与共用配置相同的日期值，不能单独覆盖某一端。
 
 在小程序后台添加 request 合法域名 `https://ai-benchgauge-qrwtdokchx.cn-shenzhen.fcapp.run`。FC 函数统一命名为 `ai-benchgauge`，构建时从 Swift 共用配置读取其新地址。项目保留 `urlCheck: true`；本机开发时可在被忽略的 `project.private.config.json` 中本地关闭域名校验，该设置不替代线上域名配置。参考[微信网络说明](https://developers.weixin.qq.com/miniprogram/dev/framework/ability/network.html)。
 
@@ -66,7 +66,7 @@ Node 内置测试覆盖实际页面控制器、双榜共享筛选与偏好、刷
 
 源码静默 60 秒后，先在独立目录运行小程序测试与完整生产构建，校验源码和密钥未变化，再通过隔离的 Node 26 / miniprogram-ci 上传开发版；不改写开发中的 `dist`。新增测试、共享规则、图标、服务地址及构建配置都属于上传输入。成功后才写入 `.last-publish`，相同源码不重复上传；网络故障复用 Calmmit 的本机代理与退避逻辑，凭证或构建错误暂停到下一次变更。上传不提审、不正式发布；在微信后台将对应开发版选为体验版后，体验成员才能使用。
 
-构建校验完整页面、资源、常量及 JS 运行时依赖。GitHub `WeChat mini program` 作业安装锁定依赖、测试并构建，输出 `benchgauge-weapp` 工程；不自动上传、提审或发布。
+构建校验完整页面、资源、常量及 JS 运行时依赖。GitHub `WeChat mini program` 作业安装锁定依赖、测试并构建，输出 `benchgauge-weapp` 工程；不自动上传、提审或发布。小程序不纳入 Git 标签发版，不新增正式发布开关；本机自动上传只生成后台开发版，选择体验版、提审和正式发布由维护者在微信后台操作。
 
 已使用开发者工具生成的临时测试号完成原生模拟器验证：八个真实榜单、模型／公司、国家与源码筛选、三种语言、浅深主题、底部安全距离、回到顶部与关于页。通过模拟 HTTP 503 验证请求失败仍保留缓存，并恢复真实请求。
 

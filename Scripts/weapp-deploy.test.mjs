@@ -57,7 +57,7 @@ test('isolated upload retains the About artwork and detects image updates', t =>
 test('isolated upload retains the calendar fixture and resolves the shared version generator outside its checkout', t => {
   const root = mkdtempSync(join(tmpdir(), 'benchgauge-version-stage-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
-  const inputs = ['Tests/fixtures/calendar-timestamps.json', 'Scripts/calmmit.mjs', 'calmmit.config.json', 'apps/weapp/scripts/version.mjs']
+  const inputs = ['Tests/fixtures/calendar-timestamps.json', 'Scripts/calmmit.mjs', 'calmmit.config.json', 'apps/weapp/scripts/version.mjs', 'Scripts/app-version.mjs', 'config/app.json']
   for (const relative of [...inputs, 'node_modules/.fixture', 'apps/weapp/node_modules/.fixture']) {
     const target = join(root, relative)
     mkdirSync(join(target, '..'), { recursive: true })
@@ -231,9 +231,11 @@ test('only successful upload receipts suppress repeats; new source and rotated c
 function isolatedUploader(t, mode = 'success') {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'benchgauge-upload-behavior-')))
   t.after(() => rmSync(root, { recursive: true, force: true }))
-  for (const path of ['Scripts', 'bin', 'node_modules', 'apps/weapp/node_modules', 'apps/weapp/src', 'apps/weapp/scripts', 'apps/weapp/ci-runtime']) mkdirSync(join(root, path), { recursive: true })
+  for (const path of ['Scripts', 'bin', 'node_modules', 'apps/weapp/node_modules', 'apps/weapp/src', 'apps/weapp/scripts', 'apps/weapp/ci-runtime', 'config']) mkdirSync(join(root, path), { recursive: true })
   writeFileSync(join(root, 'package.json'), '{"type":"module"}')
   copyFileSync(new URL('./weapp-deploy.mjs', import.meta.url), join(root, 'Scripts/weapp-deploy.mjs'))
+  copyFileSync(new URL('./app-version.mjs', import.meta.url), join(root, 'Scripts/app-version.mjs'))
+  writeFileSync(join(root, 'config/app.json'), JSON.stringify({ version: '20261028' }))
   copyFileSync(new URL('../apps/weapp/scripts/version.mjs', import.meta.url), join(root, 'apps/weapp/scripts/version.mjs'))
   writeFileSync(join(root, 'apps/weapp/ci-runtime/package-lock.json'), JSON.stringify({ packages: Object.fromEntries(['node', 'miniprogram-ci', 'form-data'].map(name => [`node_modules/${name}`, { version: 'fixture' }])) }))
   writeFileSync(join(root, 'apps/weapp/src/page.js'), 'initial')
@@ -278,7 +280,7 @@ require('node:module').syncBuiltinESMExports();
     writeFileSync(platformHook, `await import(${JSON.stringify(pathToFileURL(join(ci.library, 'src/privacy-guide.mjs')).href)});\nObject.defineProperty(process,'platform',{value:'win32'});\n`)
     platformPreload = ` --import=${pathToFileURL(platformHook).href}`
   }
-  const env = { ...process.env, PATH: join(root, 'bin') + ':' + process.env.PATH, UPLOAD_MODE: mode, MP_VERSION: 'fixture-v1', NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --require=${hook}${platformPreload}`.trim() }
+  const env = { ...process.env, PATH: join(root, 'bin') + ':' + process.env.PATH, UPLOAD_MODE: mode, MP_VERSION: '20261028', NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --require=${hook}${platformPreload}`.trim() }
   if (mode === 'default-version') delete env.MP_VERSION
   return { root, env, script: join(root, 'Scripts/weapp-deploy.mjs') }
 }
@@ -301,7 +303,7 @@ test('successful uploader installs its isolated runtime when needed and writes a
     assert.equal(result.status, 0, mode + ': ' + result.stdout + result.stderr)
     const receipt = readReceipt(join(f.root, 'apps/weapp/.last-publish'))
     assert.equal(receipt.sourceSignature, sourceSignature(inputSnapshot(f.root)))
-    assert.equal(receipt.version, mode === 'default-version' ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year:'numeric',month:'2-digit',day:'2-digit' }).format(new Date()).replaceAll('-','') : 'fixture-v1')
+    assert.equal(receipt.version, '20261028')
     assert.equal(readFileSync(join(f.root, 'build-version'), 'utf8'), receipt.version)
     const events = readFileSync(join(f.root, 'events'), 'utf8').trim().split('\n').map(JSON.parse)
     assert.equal(events.at(-1)[0], 'upload')

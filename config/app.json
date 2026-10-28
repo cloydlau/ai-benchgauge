@@ -1,7 +1,8 @@
 {
-  "version": "0.0.0",
+  "version": "20261028",
   "repository": "cloydlau/ai-benchgauge",
   "releaseWindows": false,
+  "releaseIOS": false,
   "appStoreID": null,
   "updatePublicKey": "9+gdSEuQHeTGT4AF36euyIL6wSjR9QdcpLXs+cmjFeU=",
   "previewCCSwitchState": null

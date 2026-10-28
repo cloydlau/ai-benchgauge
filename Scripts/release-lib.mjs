@@ -1,25 +1,30 @@
 import { createHash, createPrivateKey, createPublicKey, sign, verify } from 'node:crypto'
+import { dateVersion, platformVersion } from './app-version.mjs'
 
 export const repository = 'cloydlau/ai-benchgauge'
 export const feedURL = `https://github.com/${repository}/releases/latest/download/appcast.xml`
 
 export function releaseVersion(value) {
-  const match = /^v?((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))$/.exec(value ?? '')
-  if (!match) throw new Error('Release version must be a stable version, for example 1.2.3 or v1.2.3')
-  return match[1]
+  return dateVersion(typeof value === 'string' ? value.replace(/^v/, '') : value)
 }
 
 export function compareVersions(left, right) {
-  const a = releaseVersion(left).split('.').map(BigInt)
-  const b = releaseVersion(right).split('.').map(BigInt)
+  // Published semantic versions remain comparable during the date migration.
+  const parts = value => {
+    const text = String(value).replace(/^v/, '')
+    if (text.trim() === text && /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(text)) return text.split('.').map(BigInt)
+    return platformVersion(releaseVersion(value)).split('.').map(BigInt)
+  }
+  const a = parts(left), b = parts(right)
   for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] > b[i] ? 1 : -1
   return 0
 }
 
 export function validateRelease(tag, info, published = []) {
   const version = releaseVersion(tag)
-  if (tag !== `v${version}` || info.CFBundleShortVersionString !== version || info.CFBundleVersion !== version) {
-    throw new Error('The tag, marketing version, and build version must match')
+  if (tag !== `v${version}` || info.CFBundleShortVersionString !== platformVersion(version)
+      || info.CFBundleVersion !== platformVersion(version) || info.BenchGaugeVersion !== version) {
+    throw new Error('The tag, public version, and platform versions must match')
   }
   if (info.CFBundleIdentifier !== 'com.cloydlau.ai-benchgauge' || info.LSMinimumSystemVersion !== '14.0') {
     throw new Error('Unexpected bundle identifier or deployment target')
@@ -79,7 +84,7 @@ export function renderAppcast({ version, archiveName, signature, length, notes, 
     <item>
       <title>AI BenchGauge ${version}</title>
       <pubDate>${date.toUTCString()}</pubDate>
-      <sparkle:version>${version}</sparkle:version>
+      <sparkle:version>${platformVersion(version)}</sparkle:version>
       <sparkle:shortVersionString>${version}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
       <description><![CDATA[<pre>${escapeXML(notes)}</pre>]]></description>

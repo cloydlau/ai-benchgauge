@@ -1,10 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { decodePublicKey, releaseVersion, repository } from './release-lib.mjs'
+import { decodePublicKey, repository } from './release-lib.mjs'
+import { dateVersion, platformVersion } from './app-version.mjs'
 export function readAppConfig(root) {
   const config = JSON.parse(readFileSync(join(root, 'config/app.json'), 'utf8'))
   if (config.releaseWindows !== undefined && typeof config.releaseWindows !== 'boolean') {
     throw new Error('releaseWindows must be a boolean')
+  }
+  if (config.releaseIOS !== undefined && typeof config.releaseIOS !== 'boolean') {
+    throw new Error('releaseIOS must be a boolean')
   }
   if ('previewCCSwitchEmptyState' in config) {
     throw new Error('Use previewCCSwitchState instead of previewCCSwitchEmptyState')
@@ -13,7 +17,7 @@ export function readAppConfig(root) {
     && !['notInstalled', 'installedEmpty', 'configured'].includes(config.previewCCSwitchState)) {
     throw new Error('previewCCSwitchState must be notInstalled, installedEmpty, configured, or null')
   }
-  releaseVersion(config.version); decodePublicKey(config.updatePublicKey)
+  dateVersion(config.version); decodePublicKey(config.updatePublicKey)
   if (config.repository !== repository) throw new Error('Unexpected release repository')
   return config
 }
@@ -26,7 +30,8 @@ export function plistString(text, key) {
 export function validateAppConfig(root, tag) {
   const config = readAppConfig(root)
   const plist = readFileSync(join(root, 'apps/macos/Sources/Resources/Info.plist'), 'utf8')
-  if (['CFBundleVersion', 'CFBundleShortVersionString'].some(key => plistString(plist, key) !== config.version)
+  if (['CFBundleVersion', 'CFBundleShortVersionString'].some(key => plistString(plist, key) !== platformVersion(config.version))
+    || plistString(plist, 'BenchGaugeVersion') !== config.version
     || plistString(plist, 'SUPublicEDKey') !== config.updatePublicKey) throw new Error('macOS and Windows release configuration must match')
   if (tag && tag !== `v${config.version}`) throw new Error('Release tag must match the shared application version')
   return config
