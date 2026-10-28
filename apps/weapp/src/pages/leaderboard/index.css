@@ -239,6 +239,7 @@
 .reset-button { color: var(--accent); border: 1rpx solid var(--line); border-radius: 12rpx; padding: 12rpx 24rpx; }
 .footer { display: flex; align-items: center; justify-content: space-between; padding-top: 12rpx; margin: 0 28rpx; color: var(--muted); font-size: 21rpx; }
 .footer { padding-bottom: calc(env(safe-area-inset-bottom) + 260rpx); }
+.about-entry { box-sizing: border-box; min-width: 44px; padding: 0 12rpx; }
 .language-symbol { font-size: 24rpx; font-weight: 600; }
 .footer-actions { display: flex; gap: 6rpx; }.footer-actions .tap { width: 44px; }
 .back-top { position: fixed; z-index: 90; right: 30rpx; bottom: calc(env(safe-area-inset-bottom) + 148rpx); width: 42px; height: 42px; border-radius: 50%; box-shadow: 0 6rpx 24rpx rgba(0,0,0,.12); background: var(--card); color: var(--accent); display: none; justify-content: center; align-items: center; }
