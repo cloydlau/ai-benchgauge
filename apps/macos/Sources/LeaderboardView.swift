@@ -1311,12 +1311,21 @@ private struct TableChrome: NSViewRepresentable {
             if let existing = tableView.headerView as? SourceTableHeaderView {
                 header = existing
             } else {
+                let previousTop = scrollView.contentView.bounds.minY
+                let previousHeaderHeight = tableView.headerView?.frame.height ?? 0
                 header = SourceTableHeaderView(frame: NSRect(
                     x: 0, y: 0, width: tableView.bounds.width, height: SourceTableHeaderView.height
                 ))
                 header.tableView = tableView
                 tableView.headerView = header
                 scrollView.tile()
+                if previousTop <= -previousHeaderHeight + 0.5 {
+                    // Replacing the 28pt system header must also move the top
+                    // scroll origin, or the taller header clips the first row.
+                    scrollView.contentView.scroll(to: NSPoint(x: scrollView.contentView.bounds.minX,
+                        y: previousTop - (SourceTableHeaderView.height - previousHeaderHeight)))
+                    scrollView.reflectScrolledClipView(scrollView.contentView)
+                }
             }
             for (index, column) in tableView.tableColumns.enumerated() {
                 column.isHidden = index > 0 && (index - 1) / 4 >= boards.count
@@ -1829,17 +1838,15 @@ private struct DesktopRankCell: View {
     let height: CGFloat
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 1) {
             if let rank {
                 Text(LeaderboardPresentation.rankLabel(rank)).monospacedDigit()
                     .font(rank <= 3 ? .system(size: height < 26 ? 16 : 18) : nil)
-                    .offset(y: rank <= 3 && entry != nil ? 3 : 0)
                 if let entry { LeaderboardRankChangeBadge(entry.rankChange, language: language) }
             }
         }
         // Draw inside the existing row padding; never grow the table's row height.
         .fixedSize(horizontal: false, vertical: true).frame(height: height)
-        .offset(y: (rank ?? 4) <= 3 && entry != nil ? 1 : 0)
         .frame(maxWidth: .infinity, alignment: .center)
     }
 }

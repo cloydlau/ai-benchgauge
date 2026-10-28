@@ -844,7 +844,7 @@ sealed partial class MainWindow
     {
         if (rank > 3) return Center(Caption(rank.ToString(CultureInfo.InvariantCulture), PanelInk, 13, numeric: true));
         // The medal stays legible on Windows installations without color emoji.
-        var grid = new Grid { Width = 22, Height = 23, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+        var grid = new Grid { Width = 22, Height = 22, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
         var ribbon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M 4,0 L 9,0 L 13,9 L 8,9 Z M 13,0 L 18,0 L 14,9 L 9,9 Z"), Fill = Tint(rank == 1 ? "#FFB900" : rank == 2 ? "#86A0A7" : "#E0783D") };
         grid.Children.Add(ribbon);
         grid.Children.Add(new Border { Width = 17, Height = 17, CornerRadius = new CornerRadius(9), Background = Tint(rank == 1 ? "#F8BF24" : rank == 2 ? "#B8BEC4" : "#C78C5C"), VerticalAlignment = VerticalAlignment.Bottom,
@@ -881,9 +881,17 @@ sealed partial class MainWindow
     }
     FrameworkElement RankCell(int rank, RankChange? change)
     {
-        var cell = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        cell.Children.Add(Rank(rank));
-        cell.Children.Add(Center(RankMovement(change)));
+        // Reserve both lines inside the existing 32-DIP row, with a clear gap.
+        var cell = new Grid { Height = 32, VerticalAlignment = VerticalAlignment.Center };
+        cell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(22) });
+        cell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1) });
+        cell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(9) });
+        var rankView = Rank(rank);
+        rankView.VerticalAlignment = VerticalAlignment.Center;
+        cell.Children.Add(rankView);
+        var movement = Center(RankMovement(change));
+        Grid.SetRow(movement, 2);
+        cell.Children.Add(movement);
         return cell;
     }
     FrameworkElement ModelCell(Entry entry, double leaderScore, Brush shareColor, bool showRelativeShare)
