@@ -478,6 +478,16 @@ sealed partial class MainWindow
     }
     void ShowTimeExplanation() => ShowInformationDialog(BoardTimestamp.ExplanationTitle(prefs.Language), BoardTimestamp.Explanation(prefs.Language));
     void ShowInformationDialog(string title, string content, string? copyLink = null)
+        => ShowInformationWindow(CreateInformationDialog(title, content, copyLink));
+
+    void ShowInformationWindow(Window dialog)
+    {
+        modalOpen = true;
+        try { dialog.ShowDialog(); }
+        finally { modalOpen = false; _ = Dispatcher.BeginInvoke(TryPresentPreparedUpdate); }
+    }
+
+    Window CreateInformationDialog(string title, string content, string? copyLink = null)
     {
         // A system MessageBox localizes its OK button to the Windows language.
         var dialog = new Window { Owner = this, Title = title,
@@ -503,12 +513,30 @@ sealed partial class MainWindow
         actions.Children.Add(confirm);
         DockPanel.SetDock(actions, Dock.Bottom); layout.Children.Add(actions);
         layout.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             Content = new TextBlock { Text = content, TextWrapping = TextWrapping.Wrap } });
         dialog.Content = layout;
-        modalOpen = true;
-        try { dialog.ShowDialog(); }
-        finally { modalOpen = false; _ = Dispatcher.BeginInvoke(TryPresentPreparedUpdate); }
+        return dialog;
     }
+    string BoardSourceDescription(Board board) => BoardTitle(board) + "\n"
+                    + (board.Kind.StartsWith("arena") || board.Kind == "codeArenaWebDev"
+                        ? Tr("Formerly LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena") + "\n" : "")
+                    + SourceIntroduction(board) + "\n" + (board.Kind == "openRouterUsage"
+                        ? Tr("Latest complete UTC day · input + output tokens · 1B = 1 billion tokens. Top 50 public models; excludes private and zero-data-retention traffic. Provider tokenizers differ. Company totals cover listed models only.", "最近完整 UTC 日输入与输出 token 用量；1B = 十亿 token。展示公开流量前 50 名，排除私有及零数据留存流量；各供应商分词方式不同。公司用量仅汇总榜内模型。", "最近完整 UTC 日輸入與輸出 token 用量；1B = 十億 token。展示公開流量前 50 名，排除私有及零資料留存流量；各供應商分詞方式不同。公司用量僅彙總榜內模型。")
+                        : Tr("Scores are not directly comparable across lists", "各榜分数不直接互比", "各榜分數不直接互比"))
+                    + (board.Kind == "cloudbaseUsage" ? "\n" + Tr("Sampled-period text token shares, including cache hits; model families only. Full dates and absolute volumes unavailable.", "抽样统计日文本 token 累计占比，含缓存命中；按模型系列汇总，未公开完整日期或绝对用量。", "抽樣統計日文字 token 累計佔比，含快取命中；按模型系列彙總，未公開完整日期或絕對用量。") : "")
+                    + (board.Kind == "vercelUsage" ? "\n" + Tr("Daily data uses UTC 00:00 to 00:00 the next day (08:00 to 08:00 the next day in Beijing). Text token shares include cached and reasoning tokens. Company shares sum listed models only; no absolute volumes are published.", "按 UTC 当天 00:00 至次日 00:00 统计，对应北京时间当天 08:00 至次日 08:00。文本 token 用量占比包含缓存及推理 token；公司只汇总榜内模型，不提供绝对用量。", "按 UTC 當天 00:00 至次日 00:00 統計，對應北京時間當天 08:00 至次日 08:00。文字 token 用量佔比包含快取及推理 token；公司只彙總榜內模型，不提供絕對用量。") : "")
+                    + (BoardTimestamp.StatisticalDay(board, prefs.Language) is { } statisticalDay ? "\n" + statisticalDay : "")
+                    + (board.Kind is "vercelUsage" or "cloudbaseUsage" ? "\n" + BoardTimestamp.Explanation(prefs.Language) : "")
+                    + (ArenaAttribution.Applies(board) ? "\n" + ArenaAttribution.FullText(prefs.Language) : "");
+
+    internal Window CreateSourceDetailsWindow(Board board) => CreateInformationDialog(BoardTitle(board),
+                BoardSourceDescription(board) + (string.IsNullOrEmpty(board.Url) ? "" : "\n\n" + board.Url)
+                    + (board.Kind is "openRouterUsage" or "vercelUsage" or "cloudbaseUsage"
+                        ? "\n\n" + UsageLicense.Text(board.Kind, board.SourceNote, prefs.Language)
+                        : board.Kind == "epochECI" ? "\n\n" + EpochAttribution.FullText(prefs.Language) + "\n\n" + UsageLicense.FullLicense(prefs.Language)
+                        : ArenaAttribution.Applies(board) ? "\n\n" + UsageLicense.FullLicense(prefs.Language) : ""), board.Url);
+
     Button QuietButton(string text, Action action) => Quiet(Button(text, action));
     Button QuietButton(string text, Func<Task> action) => Quiet(Button(text, action));
     Button Quiet(Button button) { button.Padding = new Thickness(2, 0, 2, 0); button.Margin = new Thickness(0); button.Foreground = PanelMuted; return button; }
@@ -622,17 +650,7 @@ sealed partial class MainWindow
         {
             var board = pair[i]; var column = 1 + i * 4;
             AddCell(headings, Center(Caption(board.Kind is "vercelUsage" or "cloudbaseUsage" ? Tr("Share", "占比", "佔比") : board.Kind == "openRouterUsage" ? Tr("Tokens", "用量", "用量") : Tr("Score", "分数", "分數"), PanelInk)), column + 3);
-            var sourceDescription = BoardTitle(board) + "\n"
-                    + (board.Kind.StartsWith("arena") || board.Kind == "codeArenaWebDev"
-                        ? Tr("Formerly LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena") + "\n" : "")
-                    + SourceIntroduction(board) + "\n" + (board.Kind == "openRouterUsage"
-                        ? Tr("Latest complete UTC day · input + output tokens · 1B = 1 billion tokens. Top 50 public models; excludes private and zero-data-retention traffic. Provider tokenizers differ. Company totals cover listed models only.", "最近完整 UTC 日输入与输出 token 用量；1B = 十亿 token。展示公开流量前 50 名，排除私有及零数据留存流量；各供应商分词方式不同。公司用量仅汇总榜内模型。", "最近完整 UTC 日輸入與輸出 token 用量；1B = 十億 token。展示公開流量前 50 名，排除私有及零資料留存流量；各供應商分詞方式不同。公司用量僅彙總榜內模型。")
-                        : Tr("Scores are not directly comparable across lists", "各榜分数不直接互比", "各榜分數不直接互比"))
-                    + (board.Kind == "cloudbaseUsage" ? "\n" + Tr("Sampled-period text token shares, including cache hits; model families only. Full dates and absolute volumes unavailable.", "抽样统计日文本 token 累计占比，含缓存命中；按模型系列汇总，未公开完整日期或绝对用量。", "抽樣統計日文字 token 累計佔比，含快取命中；按模型系列彙總，未公開完整日期或絕對用量。") : "")
-                    + (board.Kind == "vercelUsage" ? "\n" + Tr("Daily data uses UTC 00:00 to 00:00 the next day (08:00 to 08:00 the next day in Beijing). Text token shares include cached and reasoning tokens. Company shares sum listed models only; no absolute volumes are published.", "按 UTC 当天 00:00 至次日 00:00 统计，对应北京时间当天 08:00 至次日 08:00。文本 token 用量占比包含缓存及推理 token；公司只汇总榜内模型，不提供绝对用量。", "按 UTC 當天 00:00 至次日 00:00 統計，對應北京時間當天 08:00 至次日 08:00。文字 token 用量佔比包含快取及推理 token；公司只彙總榜內模型，不提供絕對用量。") : "")
-                    + (BoardTimestamp.StatisticalDay(board, prefs.Language) is { } statisticalDay ? "\n" + statisticalDay : "")
-                    + (board.Kind is "vercelUsage" or "cloudbaseUsage" ? "\n" + BoardTimestamp.Explanation(prefs.Language) : "")
-                    + (ArenaAttribution.Applies(board) ? "\n" + ArenaAttribution.FullText(prefs.Language) : "");
+            var sourceDescription = BoardSourceDescription(board);
             var summary = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 9,
                 FontFamily = new FontFamily("Segoe UI"), Margin = new Thickness(5, 0, 4, 0), ToolTip = board.Error ?? sourceDescription };
             CenterTextInk(summary);
@@ -650,27 +668,17 @@ sealed partial class MainWindow
                 var lensWidth = Measure(lens, 10, FontWeights.Normal);
                 if (available > 0 && lensWidth + Measure(title, 11, FontWeights.SemiBold) > available)
                     title = title.Replace("Artificial Analysis", "AA", StringComparison.Ordinal);
-                var license = board.Kind is "epochECI" or "openRouterUsage" or "vercelUsage" || ArenaAttribution.Applies(board) ? " · CC BY 4.0" : "";
                 var titleWidth = Measure(title, 11, FontWeights.SemiBold);
                 var showsLens = lensWidth + titleWidth <= available;
-                var licenseWidth = license.Length == 0 ? 0 : Measure(license, 11, FontWeights.SemiBold);
-                var showsLicense = license.Length > 0 && (showsLens ? lensWidth : 0) + titleWidth + licenseWidth <= available;
                 summary.Inlines.Clear();
                 if (showsLens)
                     summary.Inlines.Add(new TextRun(lens) { Foreground = BoardTint(board.Kind), FontSize = 10, FontWeight = FontWeights.Normal });
                 summary.Inlines.Add(new TextRun(title) { Foreground = BoardTint(board.Kind) });
-                if (showsLicense)
-                    summary.Inlines.Add(new TextRun(license) { Foreground = BoardTint(board.Kind) });
             }
             summary.SizeChanged += (_, _) => UpdateHeading();
             UpdateHeading();
             summary.Cursor = Cursors.Hand;
-            summary.MouseLeftButtonUp += (_, _) => ShowInformationDialog(BoardTitle(board),
-                sourceDescription + (string.IsNullOrEmpty(board.Url) ? "" : "\n\n" + board.Url)
-                    + (board.Kind is "openRouterUsage" or "vercelUsage" or "cloudbaseUsage"
-                        ? "\n\n" + UsageLicense.Text(board.Kind, board.SourceNote, prefs.Language)
-                        : board.Kind == "epochECI" ? "\n\n" + EpochAttribution.FullText(prefs.Language) + "\n\n" + UsageLicense.FullLicense(prefs.Language)
-                        : ArenaAttribution.Applies(board) ? "\n\n" + UsageLicense.FullLicense(prefs.Language) : ""), board.Url);
+            summary.MouseLeftButtonUp += (_, _) => ShowInformationWindow(CreateSourceDetailsWindow(board));
             var heading = new Grid();
             heading.ColumnDefinitions.Add(new ColumnDefinition());
             heading.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });

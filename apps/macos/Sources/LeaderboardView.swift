@@ -107,7 +107,6 @@ struct LeaderboardView: View {
             let time = LeaderboardPresentation.sourceTime(state.snapshot.boards[kind], language: state.selectedLanguage)
             return SourceTableHeaderView.requiredNameColumnWidth(
                 title: LeaderboardPresentation.columnTitle(kind, language: state.selectedLanguage),
-                licenseName: headerLicenseName(kind: kind, board: state.snapshot.boards[kind]),
                 summary: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(kind, language: state.selectedLanguage)),
                 time: time)
         }.max() ?? 0
@@ -546,8 +545,7 @@ struct LeaderboardView: View {
             boards: visibleKinds.map { kind in
                 let time = LeaderboardPresentation.sourceTime(state.snapshot.boards[kind], language: language)
                 return BoardHeaderConfiguration(kind: kind,
-                    licenseName: headerLicenseName(kind: kind, board: state.snapshot.boards[kind]),
-                    summary: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(kind, language: language)),
+                        summary: SourceLensDescription(emphasis: LeaderboardPresentation.explanation(kind, language: language)),
                     time: time,
                     polishReady: !state.isRefreshing && !screenshot.isCapturing && state.snapshot.boards[kind] != nil && kind != .cloudbaseUsage,
                     polishRevision: state.timestampPolishRevision,
@@ -1078,13 +1076,8 @@ struct LeaderboardView: View {
 
 /// SwiftUI's TableColumn labels only support plain text. Install a native
 /// one-line header with the source name leading and its own data time trailing.
-private func headerLicenseName(kind: LeaderboardKind, board: Leaderboard?) -> String? {
-    kind == .epochECI || (kind.isUsage && kind != .cloudbaseUsage) || ArenaAttribution.applies(board) ? "CC BY 4.0" : nil
-}
-
 private struct BoardHeaderConfiguration {
     let kind: LeaderboardKind
-    let licenseName: String?
     let summary: SourceLensDescription
     let time: (text: String, isSourceTime: Bool)
     let polishReady: Bool
@@ -1417,13 +1410,12 @@ private final class SourceTableHeaderView: NSTableHeaderView {
     /// loading bar is near-black in light mode and near-white in dark mode.
     static let placeholderAlpha: CGFloat = 35.0 / 255.0
 
-    static func requiredNameColumnWidth(title: String, licenseName: String?, summary: SourceLensDescription,
+    static func requiredNameColumnWidth(title: String, summary: SourceLensDescription,
                                         time: (text: String, isSourceTime: Bool)) -> CGFloat {
         let titleFont = NSFont.systemFont(ofSize: 11, weight: .semibold)
-        let titled = licenseName.map { title + " · " + $0 } ?? title
         let timeFont = NSFont.monospacedDigitSystemFont(ofSize: 8, weight: time.isSourceTime ? .semibold : .regular)
         let timeWidth = (time.text as NSString).size(withAttributes: [.font: timeFont]).width
-        return ceil((titled as NSString).size(withAttributes: [
+        return ceil((title as NSString).size(withAttributes: [
             .font: titleFont
         ]).width + ((summary.emphasis + " · ") as NSString).size(withAttributes: [
             .font: NSFont.systemFont(ofSize: 10)
@@ -1457,30 +1449,9 @@ private final class SourceTableHeaderView: NSTableHeaderView {
                 return
             }
             if let window {
-                let alert = NSAlert()
-                alert.messageText = LeaderboardPresentation.columnTitle(board.kind, language: language)
                 let content = board.sourceDetails + "\n\n" + board.kind.sourceURL.absoluteString
-                let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 480, height: 360))
-                scroll.hasVerticalScroller = true
-                scroll.drawsBackground = false
-                let text = NSTextView(frame: scroll.bounds)
-                text.isEditable = false
-                text.isSelectable = true
-                text.drawsBackground = false
-                text.font = .systemFont(ofSize: 13)
-                text.textColor = .labelColor
-                text.minSize = NSSize(width: 0, height: scroll.contentSize.height)
-                text.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-                text.isVerticallyResizable = true
-                text.isHorizontallyResizable = false
-                text.autoresizingMask = [.width]
-                text.textContainer?.containerSize = NSSize(width: scroll.contentSize.width, height: CGFloat.greatestFiniteMagnitude)
-                text.textContainer?.widthTracksTextView = true
-                text.string = content
-                scroll.documentView = text
-                alert.accessoryView = scroll
-                alert.addButton(withTitle: "OK")
-                alert.addButton(withTitle: language.text("Copy link", "复制链接"))
+                let alert = SourceDetailsAlert.make(title: LeaderboardPresentation.columnTitle(board.kind, language: language),
+                    content: content, language: language)
                 alert.beginSheetModal(for: window) { response in
                     if response == .alertSecondButtonReturn {
                         NSPasteboard.general.clearContents()
@@ -1580,7 +1551,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
                     cell.draw(withFrame: NSRect(x: rect.minX, y: rect.minY, width: rankInset, height: rect.height), in: self)
                 }
                 drawBoardHeader(tableView.tableColumns[index].headerCell.stringValue,
-                    licenseName: board.licenseName, summary: board.summary,
+                    summary: board.summary,
                     time: board.time, tint: tint,
                     polishPhase: board.polishReady ? (fixedPolishPhase ?? polishSchedules[board.kind]?.phase(at: ProcessInfo.processInfo.systemUptime)) : nil,
                     in: NSRect(x: rect.minX + rankInset, y: rect.minY,
@@ -1690,7 +1661,6 @@ private final class SourceTableHeaderView: NSTableHeaderView {
 
     private func drawBoardHeader(
         _ title: String,
-        licenseName: String?,
         summary: SourceLensDescription,
         time: (text: String, isSourceTime: Bool),
         tint: NSColor,
@@ -1746,14 +1716,6 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         ])
         if explanation.size().width + text.size().width <= available {
             text.insert(explanation, at: 0)
-        }
-        let license = licenseName.map { " · " + $0 }
-        let licenseWidth = license.map { ($0 as NSString).size(withAttributes: [.font: titleFont]).width } ?? 0
-        let showsLicense = license != nil && text.size().width + licenseWidth <= available
-        if showsLicense, let license {
-            text.append(NSAttributedString(string: license, attributes: [
-                .font: titleFont, .foregroundColor: tint
-            ]))
         }
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineBreakMode = .byTruncatingTail

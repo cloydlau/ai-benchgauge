@@ -3721,6 +3721,76 @@
       "height": 720,
       "scenario": "openAICredits",
       "mode": "panel"
+    },
+    {
+      "id": "content-time-en",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceTimes",
+      "contentUpdatedAt": "2026-09-29T00:00:00Z"
+    },
+    {
+      "id": "content-time-zh",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceTimes",
+      "contentUpdatedAt": "2026-09-29T00:00:00Z"
+    },
+    {
+      "id": "content-time-zh-Hant",
+      "language": "zh-Hant",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceTimes",
+      "contentUpdatedAt": "2026-09-29T00:00:00Z"
+    },
+    {
+      "id": "source-header-epoch-en",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceHeader",
+      "category": "general",
+      "selectedBoards": [
+        "epochECI"
+      ]
+    },
+    {
+      "id": "source-header-usage-zh-Hant",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "scenario": "sourceHeader",
+      "category": "usage"
+    },
+    {
+      "id": "source-details-epochECI-en",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceDetails",
+      "comparisonKind": "epochECI",
+      "category": "general"
+    },
+    {
+      "id": "source-details-vercelUsage-zh",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceDetails",
+      "comparisonKind": "vercelUsage",
+      "category": "usage"
+    },
+    {
+      "id": "source-details-openRouterUsage-zh-Hant",
+      "language": "zh-Hant",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceDetails",
+      "comparisonKind": "openRouterUsage",
+      "category": "usage"
     }
   ],
   "quotaScenarios": {
