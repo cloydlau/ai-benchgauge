@@ -14,7 +14,9 @@ passes. Explicit ended records retain their actual end date; an active renewal
 wins over ended history. A passed date alone is not proof of expired access, so
 an unverifiable renewal shows “套餐待核实” with the last reported date. Confirmed
 inactive plans always show “未订购” / “未訂購” / “Not subscribed”, matching
-Kimi and GLM, whether or not a reported end date has passed. Their usage percentages are suppressed in the card,
+Kimi and GLM, whether or not a reported end date has passed. Their historical
+end date remains in the account cache, but is hidden from the card and help;
+it supplies no deadline color. Their usage percentages are suppressed in the card,
 help and menu bar, and do not trigger quota recovery notifications. No usage
 reset is promoted to a subscription date. A date the provider never reported
 cannot be reconstructed.
@@ -30,7 +32,8 @@ checks and 100% script/Swift coverage. The identical fixture produced 54 native
 Mac frames before and 54 after on macOS 27.0.1 at actual 1× backing scale,
 900×720 points, covering three subscription states, all three languages and
 both themes. All shown/refreshed/settled pairs are pixel-identical. Reviewed
-originals show complete status labels and retained dates without clipping;
+originals show complete status labels and retained dates without clipping
+(the later 2026-10-28 rule hides the date for confirmed inactive plans);
 confirmed inactive cards keep their existing dimmed presentation. Source hashes,
 capture provenance, test receipt and review notes are in
 `work/xai-expired-subscription/verification.json`.

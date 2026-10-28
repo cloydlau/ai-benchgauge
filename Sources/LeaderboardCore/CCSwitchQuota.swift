@@ -763,6 +763,9 @@ public enum AccountQuotaFormatting {
     /// The boundary shown after 至. A plan boundary wins over monthly
     /// usage resets. Neither boundary establishes renewal or canceled access.
     private static func chipExpiry(_ chip: AccountQuotaChip) -> Date? {
+        // Retain historical dates in the account cache, but an unpurchased
+        // plan has no displayed deadline or deadline urgency.
+        guard xaiUnavailableState(chip) != .inactive else { return nil }
         switch chip.status {
         case let .windows(windows):
             return windowPeriodEnd(windows, kind: chip.kind)
@@ -1044,7 +1047,7 @@ public enum AccountQuotaFormatting {
            let state = plan.subscriptionState, state != .active {
             runs.append(QuotaTextRun(text: state == .unverified ? "套餐待核实" : AccountQuotaMessage.notSubscribed,
                 tone: state == .inactive ? .red : .orange))
-            if let end = plan.resetsAt {
+            if state != .inactive, let end = plan.resetsAt {
                 appendSeparator(&runs)
                 runs.append(contentsOf: periodEndRuns(until: end, now: now))
             }
