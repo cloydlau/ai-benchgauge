@@ -910,7 +910,7 @@ public enum AccountQuotaFormatting {
                let state = plan.subscriptionState, state != .active {
                 var lines = [windowRuns(windows, kind: chip.kind, now: now).map(\.text).joined(),
                     state == .inactive ? "当前账号没有有效付费套餐，额度百分比不代表可用订阅。" : "暂时无法核实当前套餐，不将零用量显示为可用满额。"]
-                if plan.dateSource == .cached { lines.append("套餐日期来自已保存的查询结果；接口暂时不可用") }
+                if state != .inactive, plan.dateSource == .cached { lines.append("套餐日期来自已保存的查询结果；接口暂时不可用") }
                 return lines
             }
             return windowDetailLines(windows, now: now)
