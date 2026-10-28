@@ -243,10 +243,11 @@ import LeaderboardKit
 
 @Test func rankMovementsSurviveOfflineCodingAndCompaniesUseTheirOwnPositions() throws {
     for language in AppLanguage.allCases {
-        #expect(LeaderboardRankChange(delta: 12).text(language: language) == "+12")
-        #expect(LeaderboardRankChange(delta: -3).text(language: language) == "-3")
-        #expect(LeaderboardRankChange(delta: 0).text(language: language).isEmpty)
-        #expect(LeaderboardRankChange().text(language: language).isEmpty)
+        #expect(LeaderboardRankChange(delta: 12).text(language: language) == "↑12")
+        #expect(LeaderboardRankChange(delta: -3).text(language: language) == "↓3")
+        #expect(LeaderboardRankChange(delta: 0).text(language: language) == "—")
+        #expect(LeaderboardRankChange().text(language: language) == "—")
+        #expect(LeaderboardRankChange(delta: Int.min).text(language: language) == "↓\(Int.min.magnitude)")
         #expect(LeaderboardRankChange(isNew: true).text(language: language) == language.text("New", "新"))
     }
     let entry = LeaderboardEntry(rank: 2, name: "Fixture", score: 99, organization: "OpenAI",

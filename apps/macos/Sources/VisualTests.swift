@@ -126,7 +126,8 @@ enum NativeVisualCapture {
                     } ?? board.entries
                     if test.scenario == "rankChanges" {
                         entries = entries.enumerated().map { index, entry in
-                            let change: LeaderboardRankChange? = switch index % 4 {
+                            let offset = board.kind == .epochECI ? 1 : board.kind == .arenaText ? 2 : 0
+                            let change: LeaderboardRankChange? = switch (index + offset) % 4 {
                             case 0: .init(delta: 12)
                             case 1: .init(delta: -3)
                             case 2: .init(isNew: true)

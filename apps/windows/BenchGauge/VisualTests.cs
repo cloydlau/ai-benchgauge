@@ -118,7 +118,7 @@ static class VisualTests
                 }).OrderByDescending(entry => entry.Score).ToArray()
             }).ToArray() };
             if (test.Scenario == "rankChanges") state = state with { Boards = state.Boards.Select(board => board with {
-                Entries = board.Entries.Select((entry, index) => entry with { RankChange = (index % 4) switch {
+                Entries = board.Entries.Select((entry, index) => entry with { RankChange = ((index + (board.Kind == "epochECI" ? 1 : board.Kind == "arenaText" ? 2 : 0)) % 4) switch {
                     0 => new RankChange(Delta: 12), 1 => new RankChange(Delta: -3),
                     2 => new RankChange(IsNew: true), _ => null
                 } }).ToArray()

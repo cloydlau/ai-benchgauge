@@ -1669,13 +1669,15 @@ private struct PadBoardCard: View {
     private func entryRow(_ entry: LeaderboardEntry, rank: Int) -> some View {
         let country = OrganizationRegion.country(for: entry)
         return HStack(alignment: .center, spacing: columnSpacing) {
-            Text(LeaderboardPresentation.rankLabel(rank)).font(compactColumns ? .caption : .subheadline)
-                .monospacedDigit().foregroundStyle(primaryForeground).frame(width: rankColumnWidth)
+            VStack(spacing: 2) {
+                Text(LeaderboardPresentation.rankLabel(rank)).font(rank <= 3 ? .system(size: 20) : (compactColumns ? .caption : .subheadline))
+                    .monospacedDigit().foregroundStyle(primaryForeground)
+                LeaderboardRankChangeBadge(entry.rankChange, language: language)
+            }.frame(width: rankColumnWidth)
             HStack(alignment: .center, spacing: columnSpacing) {
                 HStack(spacing: 6) {
                     PadOrganizationLogo(entry: entry, isCompany: grouping == .company)
                     entryName(entry)
-                    LeaderboardRankChangeBadge(entry.rankChange, language: language)
                 }.padding(.horizontal, 5).padding(.vertical, 3)
                     // Keep the name content and controls at their existing row height.
                     .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)

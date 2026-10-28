@@ -195,8 +195,8 @@ public struct LeaderboardRankChange: Codable, Equatable, Sendable {
 
     public func text(language: AppLanguage) -> String {
         if isNew == true { return language.text("New", "新") }
-        guard let delta, delta != 0 else { return "" }
-        return delta > 0 ? "+\(delta)" : "\(delta)"
+        guard let delta, delta != 0 else { return "—" }
+        return delta > 0 ? "↑\(delta)" : "↓\(delta.magnitude)"
     }
 }
 

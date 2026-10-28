@@ -96,13 +96,15 @@
           <view id="rows-{{card.kind}}" class="virtual-rows" style="height:{{card.height}}px;">
           <view wx:for="{{card.rows}}" wx:for-item="row" wx:key="rank" style="top:{{row.top}}px;height:{{card.rowHeight}}px;" class="table-row table-grid {{row.rank % 2 === 0 ? 'alternate' : ''}}">
             <view class="row-fill-track" aria-hidden="true"><view class="name-fill" style="{{row.fill}}width:{{row.fillPercent}}%;" /></view>
-            <text class="rank-cell mono">{{row.medal}}</text>
+            <view class="rank-cell rank-stack mono">
+              <text class="rank-value {{row.rank <= 3 ? 'medal' : ''}}">{{row.medal}}</text>
+              <text class="rank-change {{row.rankChangeTone}} {{row.rankChangeText.length > 4 ? 'long' : ''}}">{{row.rankChangeText || '—'}}</text>
+            </view>
             <view class="name-cell {{row.purchaseActions.length ? 'with-purchase-links' : ''}}">
             <button class="name-action" data-kind="{{card.kind}}" data-rank="{{row.rank}}" bindtap="rowDetails" aria-label="{{row.name}}">
               <image wx:if="{{row.logo}}" class="model-logo" src="{{row.logo}}" mode="aspectFit" />
               <view wx:else class="model-logo initial">{{row.initial}}</view>
               <text class="model-name">{{row.name}}</text>
-              <text wx:if="{{row.rankChangeText}}" class="rank-change {{row.rankChangeTone}}">{{row.rankChangeText}}</text>
             </button>
             <view wx:if="{{row.purchaseActions.length}}" class="purchase-links">
               <button wx:for="{{row.purchaseActions}}" wx:for-item="action" wx:key="kind" class="purchase-link"

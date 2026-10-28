@@ -3,18 +3,26 @@ import Foundation
 import SwiftUI
 
 public struct LeaderboardRankChangeBadge: View {
+    @Environment(\.colorScheme) private var colorScheme
     let change: LeaderboardRankChange?
     let language: AppLanguage
     public init(_ change: LeaderboardRankChange?, language: AppLanguage) {
         self.change = change; self.language = language
     }
     public var body: some View {
-        if let change, !change.text(language: language).isEmpty {
-            Text(change.text(language: language))
-                .font(.system(size: 9, weight: .semibold)).monospacedDigit()
-                .foregroundStyle(change.isNew == true ? Color.blue : (change.delta ?? 0) > 0 ? Color.green : Color.red)
-                .fixedSize()
-        }
+        Text(change?.text(language: language) ?? "—")
+            .font(.system(size: 8, weight: .semibold)).monospacedDigit()
+            .foregroundStyle(tint)
+            .lineLimit(1).minimumScaleFactor(0.65)
+    }
+    private var tint: Color {
+        let dark = colorScheme == .dark
+        let rgb: (Double, Double, Double)
+        if change?.isNew == true { rgb = dark ? (137, 187, 255) : (50, 118, 202) }
+        else if (change?.delta ?? 0) > 0 { rgb = dark ? (255, 146, 146) : (194, 71, 72) }
+        else if (change?.delta ?? 0) < 0 { rgb = dark ? (115, 215, 174) : (15, 133, 97) }
+        else { return .secondary }
+        return Color(red: rgb.0 / 255, green: rgb.1 / 255, blue: rgb.2 / 255)
     }
 }
 #endif

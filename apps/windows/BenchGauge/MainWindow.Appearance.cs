@@ -693,7 +693,16 @@ sealed partial class MainWindow
             timeButton.Click += (_, _) => ShowTimeExplanation();
             heading.Children.Add(summary);
             Grid.SetColumn(timeButton, 1); heading.Children.Add(timeButton);
-            AddCell(headings, heading, column);
+            if (i > 0)
+            {
+                var sourceHeading = new Grid();
+                sourceHeading.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
+                sourceHeading.ColumnDefinitions.Add(new ColumnDefinition());
+                AddCell(sourceHeading, Center(Caption(Tr("Rank", "排名", "排名"), PanelInk)), 0);
+                AddCell(sourceHeading, heading, 1);
+                AddCell(headings, sourceHeading, column);
+            }
+            else AddCell(headings, heading, column);
             AddCell(headings, OpennessPicker(board), column + 2);
             AddCell(headings, CountryPicker(board), column + 1);
         }
@@ -706,12 +715,25 @@ sealed partial class MainWindow
         {
             if (index == count) return DistributionPanels(pair);
             var row = TableGrid(pair.Length); row.Height = 32; row.Background = index % 2 == 0 ? PanelBackground : Tint(panelDark ? "#29292B" : "#F3F3F5");
-            AddCell(row, Rank(index + 1), 0);
+            if (entries.Length > 0 && index < entries[0].Length)
+                AddCell(row, RankCell(index + 1, entries[0][index].RankChange), 0);
+            else AddCell(row, Rank(index + 1), 0);
             for (var side = 0; side < entries.Length; side++)
             {
                 var column = 1 + side * 4;
                 if (index >= entries[side].Length) continue;
-                var entry = entries[side][index]; AddCell(row, ModelCell(entry, unsearched[side][0].Score, BoardTint(pair[side].Kind), pair[side].Kind is not ("vercelUsage" or "cloudbaseUsage")), column);
+                var entry = entries[side][index];
+                var model = ModelCell(entry, unsearched[side][0].Score, BoardTint(pair[side].Kind), pair[side].Kind is not ("vercelUsage" or "cloudbaseUsage"));
+                if (side > 0)
+                {
+                    var sourceRow = new Grid();
+                    sourceRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
+                    sourceRow.ColumnDefinitions.Add(new ColumnDefinition());
+                    AddCell(sourceRow, RankCell(index + 1, entry.RankChange), 0);
+                    AddCell(sourceRow, model, 1);
+                    AddCell(row, sourceRow, column);
+                }
+                else AddCell(row, model, column);
                 var score = new Grid();
                 score.Children.Add(Center(Caption((pair[side].Kind is "vercelUsage" or "cloudbaseUsage" ? (entry.Score > 0 && entry.Score < 0.01 ? "<0.01%" : entry.Score.ToString("0.00", CultureInfo.InvariantCulture) + "%") : pair[side].Kind == "openRouterUsage" && entry.Score > 0 && entry.Score < 0.01 ? "<0.01B" : entry.Score.ToString(pair[side].Kind == "openRouterUsage" ? "0.00\"B\"" : pair[side].Kind == "epochECI" ? "0.00" : "0.0", CultureInfo.InvariantCulture)), PanelMuted, 13, numeric: true)));
                 AddCell(row, score, column + 3);
@@ -825,11 +847,11 @@ sealed partial class MainWindow
     {
         if (rank > 3) return Center(Caption(rank.ToString(CultureInfo.InvariantCulture), PanelInk, 13, numeric: true));
         // The medal stays legible on Windows installations without color emoji.
-        var grid = new Grid { Width = 18, Height = 23, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
-        var ribbon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M 4,0 L 8,0 L 11,8 L 7,8 Z M 10,0 L 14,0 L 11,8 L 7,8 Z"), Fill = Tint(rank == 1 ? "#FFB900" : rank == 2 ? "#86A0A7" : "#E0783D") };
+        var grid = new Grid { Width = 22, Height = 23, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+        var ribbon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M 4,0 L 9,0 L 13,9 L 8,9 Z M 13,0 L 18,0 L 14,9 L 9,9 Z"), Fill = Tint(rank == 1 ? "#FFB900" : rank == 2 ? "#86A0A7" : "#E0783D") };
         grid.Children.Add(ribbon);
-        grid.Children.Add(new Border { Width = 13, Height = 13, CornerRadius = new CornerRadius(7), Background = Tint(rank == 1 ? "#F8BF24" : rank == 2 ? "#B8BEC4" : "#C78C5C"), VerticalAlignment = VerticalAlignment.Bottom,
-            Child = Center(Caption(rank.ToString(CultureInfo.InvariantCulture), Brushes.White, 9, numeric: true)) }); return grid;
+        grid.Children.Add(new Border { Width = 17, Height = 17, CornerRadius = new CornerRadius(9), Background = Tint(rank == 1 ? "#F8BF24" : rank == 2 ? "#B8BEC4" : "#C78C5C"), VerticalAlignment = VerticalAlignment.Bottom,
+            Child = Center(Caption(rank.ToString(CultureInfo.InvariantCulture), Brushes.White, 10, numeric: true)) }); return grid;
     }
     Brush BrandFill(string hex, string modelName)
     {
@@ -848,6 +870,25 @@ sealed partial class MainWindow
         channels = channels.Select(channel => (int)Math.Round(shade < 0 ? channel * (1 + shade) : channel + (255 - channel) * shade, MidpointRounding.AwayFromZero)).ToArray();
         return new SolidColorBrush(Color.FromRgb((byte)channels[0], (byte)channels[1], (byte)channels[2])) { Opacity = 0.34 };
     }
+    TextBlock RankMovement(RankChange? change)
+    {
+        var label = change?.IsNew == true ? Tr("New", "新", "新")
+            : change?.Delta is > 0 ? "↑" + change.Delta.Value.ToString(CultureInfo.InvariantCulture)
+            : change?.Delta is < 0 ? "↓" + (-(long)change.Delta.Value).ToString(CultureInfo.InvariantCulture) : "—";
+        var color = change?.IsNew == true ? Tint(panelDark ? "#89BBFF" : "#3276CA")
+            : change?.Delta is > 0 ? Tint(panelDark ? "#FF9292" : "#C24748")
+            : change?.Delta is < 0 ? Tint(panelDark ? "#73D7AE" : "#0F8561") : PanelMuted;
+        var badge = Caption(label, color, 8, numeric: true);
+        badge.LineHeight = 9; badge.LineStackingStrategy = LineStackingStrategy.BlockLineHeight;
+        return badge;
+    }
+    FrameworkElement RankCell(int rank, RankChange? change)
+    {
+        var cell = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        cell.Children.Add(Rank(rank));
+        cell.Children.Add(Center(RankMovement(change)));
+        return cell;
+    }
     FrameworkElement ModelCell(Entry entry, double leaderScore, Brush shareColor, bool showRelativeShare)
     {
         var row = new Grid { HorizontalAlignment = HorizontalAlignment.Left };
@@ -859,15 +900,6 @@ sealed partial class MainWindow
         movementName.ColumnDefinitions.Add(new ColumnDefinition());
         movementName.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         AddCell(movementName, name, 0);
-        if (entry.RankChange is { } change && (change.IsNew == true || change.Delta is not null and not 0))
-        {
-            var movementLabel = change.IsNew == true ? Tr("New", "新", "新")
-                : (change.Delta > 0 ? "+" : "") + change.Delta?.ToString(CultureInfo.InvariantCulture);
-            var badge = Caption(movementLabel, Tint(change.IsNew == true ? (panelDark ? "#89BBFF" : "#3276CA")
-                : change.Delta > 0 ? (panelDark ? "#73D7AE" : "#0F8561") : (panelDark ? "#FF9292" : "#C24748")), 9, numeric: true);
-            badge.Margin = new Thickness(3, 0, 3, 0); AddCell(movementName, badge, 1);
-            row.HorizontalAlignment = HorizontalAlignment.Stretch;
-        }
         AddCell(row, movementName, 1);
         if (entry.CodingURL is not null || entry.ApiURL is not null)
         {

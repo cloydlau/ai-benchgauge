@@ -13,7 +13,7 @@ test('compact bridge rows omit disabled details and unused movement styles while
     assert.equal(Object.hasOwn(row, 'rankChangeTone'), false)
     assert.equal(Object.hasOwn(row, 'components'), false)
   }
-  for (const [change, text, tone] of [[{ delta: 3 }, '+3', 'up'], [{ delta: -2 }, '-2', 'down'], [{ isNew: true }, 'New', 'new']]) {
+  for (const [change, text, tone] of [[{ delta: 3 }, '↑3', 'up'], [{ delta: -2 }, '↓2', 'down'], [{ isNew: true }, 'New', 'new']]) {
     const row = compact(change)
     assert.equal(row.rankChangeText, text)
     assert.equal(row.rankChangeTone, tone)

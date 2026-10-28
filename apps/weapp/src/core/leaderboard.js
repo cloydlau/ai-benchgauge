@@ -92,7 +92,7 @@ export function rowView(entry, { company = false, dark = false, details = true, 
   }) : []
   const code = countryCode(entry)
   const rankChangeText = entry.rankChange?.isNew ? (language === 'en' ? 'New' : '新')
-    : Number.isSafeInteger(entry.rankChange?.delta) && entry.rankChange.delta !== 0 ? `${entry.rankChange.delta > 0 ? '+' : ''}${entry.rankChange.delta}` : ''
+    : Number.isSafeInteger(entry.rankChange?.delta) && entry.rankChange.delta !== 0 ? `${entry.rankChange.delta > 0 ? '↑' : '↓'}${Math.abs(entry.rankChange.delta)}` : ''
   return { rank: entry.rank, name: entry.name, score: entry.score, logo: image,
     rankChangeText,
     rankChangeTone: rankChangeText ? (entry.rankChange?.isNew ? 'new' : entry.rankChange.delta > 0 ? 'up' : 'down') : undefined,

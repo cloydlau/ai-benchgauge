@@ -1081,6 +1081,9 @@
     "quotaUpdatedAt": "2026-09-29T00:00:00Z"
   },
   "cases": [
+    {"id": "rank-changes-three-zh-Hant", "language": "zh-Hant", "width": 1100, "height": 720, "scenario": "rankChanges", "mode": "clickToClose", "category": "general", "selectedBoards": ["artificialAnalysis", "arenaText", "epochECI"]},
+    {"id": "rank-changes-company-two", "language": "zh", "width": 1100, "height": 720, "scenario": "rankChanges", "mode": "clickToClose", "category": "general", "grouping": "company", "selectedBoards": ["artificialAnalysis", "epochECI"]},
+    {"id": "rank-column-model", "language": "zh", "width": 850, "height": 720, "scenario": "rankChanges", "mode": "clickToClose", "category": "general", "selectedBoards": ["artificialAnalysis"]},
     {"id": "rank-changes-en", "language": "en", "width": 1100, "height": 720, "scenario": "rankChanges", "mode": "clickToClose", "category": "general", "selectedBoards": ["artificialAnalysis", "epochECI"]},
     {"id": "rank-changes-zh", "language": "zh", "width": 1100, "height": 720, "scenario": "rankChanges", "mode": "clickToClose", "category": "general", "selectedBoards": ["artificialAnalysis", "epochECI"]},
     {"id": "rank-changes-zh-Hant", "language": "zh-Hant", "width": 1100, "height": 720, "scenario": "rankChanges", "mode": "clickToClose", "category": "general", "selectedBoards": ["artificialAnalysis", "epochECI"]},

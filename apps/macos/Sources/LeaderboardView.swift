@@ -514,7 +514,8 @@ struct LeaderboardView: View {
     private func boardColumns(_ slot: Int) -> some TableColumnContent<LeaderboardRow, Never> {
         TableColumn(LeaderboardPresentation.columnTitle(kind(at: slot), language: language)) { row in
             LeaderboardCell(model: row.cells[slot], language: language, shareColor: shareColor(for: kind(at: slot)),
-                columnWidth: nameColumnWidth, onSelectName: nameAction)
+                columnWidth: nameColumnWidth, rank: slot > 0 && !row.isDistribution ? row.rank : nil,
+                onSelectName: nameAction)
         }.width(nameColumnWidth)
         TableColumn(tr("Country", "国家")) { row in
             CountryCell(model: row.cells[slot], language: language)
@@ -531,8 +532,8 @@ struct LeaderboardView: View {
         let renderedRows = rows
         return Table(renderedRows) {
             TableColumn(tr("Rank", "排名")) { row in
-                Text(row.isDistribution ? "" : LeaderboardPresentation.rankLabel(row.rank)).monospacedDigit()
-                    .frame(maxWidth: .infinity, alignment: .center)
+                DesktopRankCell(rank: row.isDistribution ? nil : row.rank,
+                    entry: row.cells[0]?.entry, language: language, height: visibleKinds.count == 1 ? 26 : 24)
             }.width(Self.rankColumnWidth).alignment(.center)
             boardColumns(0)
             boardColumns(1)
@@ -1570,11 +1571,18 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             switch role {
             case 0:
                 let tint = NSColor(Color(hex: SourceTabTheme.palette(for: board.kind, dark: dark).accent)!)
+                let rankInset: CGFloat = index > 1 ? 36 : 0
+                if rankInset > 0 {
+                    let cell = NSTableHeaderCell(textCell: language.text("Rank", "排名"))
+                    cell.alignment = .center
+                    cell.draw(withFrame: NSRect(x: rect.minX, y: rect.minY, width: rankInset, height: rect.height), in: self)
+                }
                 drawBoardHeader(tableView.tableColumns[index].headerCell.stringValue,
                     licenseName: board.licenseName, summary: board.summary,
                     time: board.time, tint: tint,
                     polishPhase: board.polishReady ? (fixedPolishPhase ?? polishSchedules[board.kind]?.phase(at: ProcessInfo.processInfo.systemUptime)) : nil,
-                    in: rect, kind: board.kind)
+                    in: NSRect(x: rect.minX + rankInset, y: rect.minY,
+                        width: max(0, rect.width - rankInset), height: rect.height), kind: board.kind)
             case 1: drawCountryHeader(selected: board.country, in: rect)
             case 2: drawFilterHeader(title: ModelOpenness.columnTitle(language: language), active: board.openness != .all, in: rect)
             default: tableView.tableColumns[index].headerCell.draw(withFrame: rect, in: self)
@@ -1821,6 +1829,28 @@ private extension LeaderboardCellModel {
     }
 }
 
+private struct DesktopRankCell: View {
+    let rank: Int?
+    let entry: LeaderboardEntry?
+    let language: AppLanguage
+    let height: CGFloat
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if let rank {
+                Text(LeaderboardPresentation.rankLabel(rank)).monospacedDigit()
+                    .font(rank <= 3 ? .system(size: height < 26 ? 16 : 18) : nil)
+                    .offset(y: rank <= 3 && entry != nil ? 3 : 0)
+                if let entry { LeaderboardRankChangeBadge(entry.rankChange, language: language) }
+            }
+        }
+        // Draw inside the existing row padding; never grow the table's row height.
+        .fixedSize(horizontal: false, vertical: true).frame(height: height)
+        .offset(y: (rank ?? 4) <= 3 && entry != nil ? 1 : 0)
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+}
+
 private struct LeaderboardCell: View {
     @Environment(\.colorScheme) private var colorScheme
 
@@ -1828,6 +1858,7 @@ private struct LeaderboardCell: View {
     let language: AppLanguage
     let shareColor: Color
     let columnWidth: CGFloat
+    let rank: Int?
     /// Nil for skeleton placeholders, which must not be copied.
     let onSelectName: ((LeaderboardEntry) -> Bool)?
 
@@ -1840,12 +1871,24 @@ private struct LeaderboardCell: View {
     ]).width)
 
     var body: some View {
+        HStack(spacing: 0) {
+            if rank != nil {
+                DesktopRankCell(rank: entry == nil ? nil : rank, entry: entry, language: language, height: 24)
+                    .frame(width: 36)
+            }
+            nameBody
+        }.frame(width: columnWidth, height: 24)
+    }
+
+    @ViewBuilder private var nameBody: some View {
+        let nameWidth = max(0, columnWidth - (rank == nil ? 0 : 36))
         if entry == nil {
             nameContent()
+                .frame(width: nameWidth)
         } else {
             // TableColumn has an exact width. Measuring it again in every
             // recycled cell adds two GeometryReader layout passes per model.
-            let trackWidth = max(0, columnWidth - Self.shareWidth - Self.shareGap)
+            let trackWidth = max(0, nameWidth - Self.shareWidth - Self.shareGap)
             let filledWidth = trackWidth * LeaderboardPresentation.scoreFillRatio(
                 model?.entry.score ?? 0, leaderScore: model?.leaderScore)
             let share = LeaderboardPresentation.scoreShareText(
@@ -1874,7 +1917,7 @@ private struct LeaderboardCell: View {
                         .accessibilityHidden(true)
                 }
             }
-            .frame(width: columnWidth, height: 24, alignment: .leading)
+            .frame(width: nameWidth, height: 24, alignment: .leading)
             .clipped()
         }
     }
@@ -1889,7 +1932,6 @@ private struct LeaderboardCell: View {
                     name: entry.name
                 )
                 modelName(entry, compact: compact)
-                LeaderboardRankChangeBadge(entry.rankChange, language: language)
                 if model?.isCompany == true {
                     InlinePurchaseLinks(organization: entry.organization, modelName: entry.name, language: language)
                 }

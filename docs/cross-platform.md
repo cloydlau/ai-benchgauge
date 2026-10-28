@@ -1,5 +1,13 @@
 # 跨端变更与验收
 
+前三名奖牌放大（2026-10-28）：小程序奖牌从 23rpx 调到 40rpx（375px 视口下 11.5→20px），普通名次数字保留原字号；iPhone/iPad 及共用视图导出使用 20pt 奖牌，Mac 使用适合现有行高的 18pt 与固定排名布局，Windows 将奖牌圆面从 13 增到 17 DIP、内部名次从 9 增到 10。列宽、行高、颜色及变化标记沿用原规则。小程序 Canvas 原本使用数字排名，本次不增加新图标。小程序 211 项回归和生产构建、Mac Debug 与 Windows WPF Release 编译通过；iOS 仅完成语法检查。实际模板浏览器量测 320/375px 浅深色，奖牌及变化均在原列宽和 48px 行内，375px 下两者间距 2px。Mac 同一单榜模型/公司夹具采集浅深色前后帧，保存在忽略目录 `work/rank-medals/`；无 Windows 原生环境、完整 Xcode 或可用微信 MCP，三者原生运行及客户端安装尚未验收，不以构建代替。
+
+排名列变化展示（2026-10-28）：小程序、iPhone/iPad、桌面及相关导出改为排名在上、变化在下，保持总宽与行高；红色 `↑n`、绿色 `↓n`、灰色 `—`、蓝色 `新` / `New`。桌面多榜在各来源内部显示独立排名和变化，首榜沿用原排名列，后续榜单从名称列内预留排名宽度，避免混用来源。小程序中性状态由模板补横线，桥接数据保留空串及省略无效 tone 的紧凑表示，不增加万行虚拟列表载荷；四位变化数字使用较小字号。懂车帝官方销量页跳转登录，公开检索没有核实其 App 新上榜样式，暂沿用本产品现有新标记。
+
+全平台复核（2026-10-28）：模型与公司变化、四类服务端写入、Windows 共享桥接及各端导出数据路径均已核对；Apple 共享标记和小程序 Canvas 的新上榜蓝色统一为浅色 `#3276CA`、深色 `#89BBFF`。macOS / Windows 多榜改为各榜排名与变化上下排列，原生列结构、总宽和行高不变，名称区预留 36pt / 40 DIP。新增三榜繁中及双榜公司原生夹具，各来源使用不同变化以检查混用。小程序 211 项测试、排名数据 6 项测试、生产构建、Mac Debug 和 Windows WPF Release 交叉编译通过；iOS 语法检查通过。Mac 采集七个排名场景、两种主题的显示/刷新/稳定共 42 帧，已查看双榜英文、三榜繁中深色与双榜公司浅色，证据保存在忽略目录 `work/rank-all-platforms/`。缺少 Windows、iPhone/iPad 和微信原生运行环境，未完成对应原生运行验收、双桌面 CI 视觉对照或客户端安装与发布。
+
+本轮验证：小程序 211 项测试及生产构建通过，Canvas 回归核对排名/变化同列上下排列、红涨绿跌和行高；实际模板浏览器预览检查 320px 英文、375px 简中及浅深色，包含 `New`、持平与四位变化。Swift 实际共享源的 Codable/公司投影/箭头/横线/极端整数回归通过，iOS 语法检查通过；macOS Debug 编译及 Windows WPF Release 交叉编译通过（Windows 零警告/错误）。Mac 相同多榜夹具前后各 36 帧，新增单榜模型与公司场景 12 帧，2× backing scale；查看长名称、新/持平及两种主题，刷新与稳定帧一致，抽查原共用排名列像素不变。截图及元数据位于忽略目录 `work/rank-column/`。本机缺少官方微信 MCP、完整 Xcode 和 Windows 运行环境，尚未完成微信、iPhone/iPad 或 WPF 原生运行验收，也未取得对应双桌面 CI 视觉产物；未安装、上传或发布客户端。
+
 合影大图横屏配置（2026-10-28）：用户明确反馈微信小程序点开 “跨世纪的同框” 大图后，横置手机没有旋转。关于页补充 `pageOrientation: auto`，保留 `wx.previewImage` 的原生缩放、保存与转发入口；旋转时重新读取状态栏高度（允许横屏为 0）和品牌标题尺寸，并让出左右安全区。新增三语竖屏→横屏→竖屏回归；小程序 208 项测试及生产构建通过，产物确认保留自动方向配置。官方 wechatide-skill 0.3.11 在规范项目的模拟器成功打开关于页，读到正确合影标题与布局数据，console 未匹配到 error。本轮没有手机真机，尚未验证微信原生图片预览随物理方向旋转；不以配置或模拟器结果宣称真机验收通过。未上传或发布。原生 iPhone/iPad、macOS、Windows 及榜单图片导出不在本次明确限定的修复范围。
 
 小程序 “功能说明” 弹窗按钮按从左到右排列为 `OK`、`PC 端链接`（繁中 `PC 端連結`，英文 `PC link`）。三语均用 `OK` 关闭，仅点击右侧链接按钮复制桌面下载地址。此双按钮顺序针对小程序已有的弹窗，原生客户端单按钮帮助弹窗不增加链接操作。
@@ -18,7 +26,7 @@
 | 桌面标题与图标 | `assets/brand/`、`Scripts/brand-assets.swift`、`Scripts/ios-icon.swift` | Mac `EnglishBrandTitle` / `ChineseBrandTitle`；Windows WPF 标题。桌面标题保留原生基线 / 字体布局，移动标题使用独立的紧凑字距；正式图标和标题网络图仍共源。遵循 `docs/visual-comparison.md` 的双桌面截图要求 |
 | OpenAI 套餐与额外额度 | Core `CCSwitchQuotaParsers` / `AccountQuotaFormatting`、`OpenAIManagedQuotaSource` | macOS 余量条与菜单栏、Windows 共享引擎余量条与托盘；任一套餐窗口耗尽时显示 credits 余额，无限 / 未返回数字分别显示状态，缺少 credits 则保留百分比。缓存与路由投影保留余额；`OpenAICreditsTests` 和三语双主题 `openAICredits` 原生截图场景。小程序、iPhone/iPad 及榜单图片导出当前不展示账号余量，不新增该能力 |
 | 模型 / 公司排行、地区与开源规则 | `fc/domain.mjs`、`fc/leaderboard-policy.json`、`fc/brand-catalog.json`、`Scripts/generate-leaderboard-policy.mjs` | `Sources/LeaderboardKit`、小程序 `core/leaderboard.js`、Windows 共享引擎；同时检查筛选、公司聚合、离线缓存和图片导出 |
-| 排名变化 | 服务端 `withRankChanges` 在写入前对比旧快照，行内 `rankChange` / `companyRankChange` 随新快照保存 | 小程序、iPhone/iPad、macOS、Windows 及各端导出：上升 `+n`、下降 `-n`、新入榜 `新` / `New`，公司独立计算，无基线不误报；重复抓取保留标记，下次数据变化重新比较。JS 服务端与小程序/导出回归、Swift Codable/公司投影回归；共同原生 `rankChanges` 夹具覆盖三语、深浅色及窄单榜公司布局 |
+| 排名变化 | 服务端 `withRankChanges` 在写入前对比旧快照，行内 `rankChange` / `companyRankChange` 随新快照保存 | 小程序、iPhone/iPad、macOS、Windows 及各端导出：上升红色 `↑n`、下降绿色 `↓n`、持平 `—`、蓝色新入榜 `新` / `New`。排名和变化上下排列，总宽、名次、行高不变；桌面多榜的每个来源独立显示排名和变化，后续榜单从原名称列内预留排名区。公司独立计算，无基线不误报；重复抓取保留标记，下次数据变化重新比较。JS 服务端与小程序/导出回归、Swift Codable/公司投影回归；共同原生 `rankChanges` 夹具覆盖三语、深浅色、单榜模型、三榜模型及双榜公司布局 |
 | 来源标志、主题与关于页 | `assets/brand/partners/`、`Scripts/source-logos.mjs`、`Sources/LeaderboardKit/Resources/SourceTabThemes.json` | 小程序榜单 / 导出，iOS 来源标签 / 导出，Mac / Windows 标题与来源说明；深浅色和离线资源分别验收 |
 | 表头榜单简介 | Kit `LeaderboardPresentation.sourceHelp` / `LeaderboardKind.sourceURL`、小程序 `core/catalog.js`、Windows 既有来源说明与 URL | 小程序、iPhone/iPad、macOS、Windows 点击表头名称打开该榜单简介，展示官方链接并提供显式复制链接操作；打开或关闭简介不写剪贴板。小程序 `page.test.mjs` 核对三语、全部类别、两种分组、复制与手势防误触；静态图片保留标题，不增加交互 |
 | 发布时间、刷新时间和刷新反馈 | 共享 Kit 时间策略、小程序 `core/freshness.js`、`Tests/fixtures/calendar-timestamps.json` | 小程序榜单与 Canvas、iOS `LeaderboardPadView` 与导出、Mac / Windows 时间文案。移动下拉检查起始 / 加载 / 完成三态；桌面保留原生刷新交互 |

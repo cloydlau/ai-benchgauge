@@ -325,14 +325,18 @@ test('timestamp dates use calendar days through three days ago, then the existin
   }
 })
 
-test('rank movement labels keep signs, localize new entries and use company positions', () => {
+test('rank movement labels use arrows, localize new entries and use company positions', () => {
   for (const language of ['en', 'zh-CN', 'zh-TW']) {
     const base = { rank: 2, name: 'Model', score: 99, organization: 'OpenAI' }
-    for (const [change, expected] of [[undefined, ''], [{delta:0}, ''], [{delta:3}, '+3'], [{delta:-12}, '-12'], [{isNew:true}, language === 'en' ? 'New' : '新']]) {
-      assert.equal(rowView({ ...base, rankChange: change }, { language }).rankChangeText, expected)
+    for (const [change, expected, tone] of [[undefined, ''], [{delta:0}, ''], [{delta:3}, '↑3', 'up'], [{delta:-12}, '↓12', 'down'], [{isNew:true}, language === 'en' ? 'New' : '新', 'new']]) {
+      const row = rowView({ ...base, rankChange: change }, { language })
+      assert.equal(row.rankChangeText, expected)
+      assert.equal(row.rankChangeTone, tone)
+      assert.equal(row.rank, base.rank)
+      assert.equal(row.medal, '🥈')
     }
     const snapshot = { kind: 'arenaText', entries: [{ ...base, rankChange: {delta:3}, companyRankChange:{delta:-1} }] }
-    assert.equal(visibleRows(snapshot, { grouping:'company', language })[0].rankChangeText, '-1')
-    assert.equal(visibleRows(snapshot, { query:'Model', language })[0].rankChangeText, '+3')
+    assert.equal(visibleRows(snapshot, { grouping:'company', language })[0].rankChangeText, '↓1')
+    assert.equal(visibleRows(snapshot, { query:'Model', language })[0].rankChangeText, '↑3')
   }
 })
