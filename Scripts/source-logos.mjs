@@ -73,6 +73,21 @@ export async function renderPlatformIcons(sharp) {
   return assets
 }
 
+// Keep the historical PNG path shared by native buttons and contributor avatars,
+// but derive it only from the pinned, licensed SVG selected through Icones.
+export async function renderGitHubIcon(sharp) {
+  const directory = resolve(partners, 'github')
+  const manifest = JSON.parse(readFileSync(resolve(directory, 'source.json'), 'utf8'))
+  const svg = readFileSync(resolve(directory, 'logo.svg'))
+  const license = readFileSync(resolve(directory, 'LICENSE.txt'))
+  for (const [data, expected] of [[svg, manifest.sha256], [license, manifest.licenseSHA256]]) {
+    if (createHash('sha256').update(data).digest('hex') !== expected) throw new Error('GitHub icon changed without provenance update')
+  }
+  const source = await sharp(Buffer.from(svg.toString('utf8').replaceAll('currentColor', manifest.conversion.color)))
+    .resize(manifest.conversion.size, manifest.conversion.size).png().toBuffer()
+  return withoutDensity(source)
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const sharp = createRequire(new URL('../fc/package.json', import.meta.url))('sharp')
   const check = process.argv.includes('--check')
@@ -82,6 +97,18 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     if (check) {
       if (!readFileSync(destination).equals(source)) throw new Error(`Stale source mark export: ${name}`)
     } else writeFileSync(destination, source)
+  }
+  for (const [path, source] of [
+    ['assets/logos/github.png', await renderGitHubIcon(sharp)],
+    ['apps/macos/Sources/Resources/Licenses/Tabler.txt', readFileSync(resolve(partners, 'github/LICENSE.txt'))],
+  ]) {
+    const destination = resolve(root, path)
+    if (check) {
+      if (!readFileSync(destination).equals(source)) throw new Error(`Stale source mark export: ${path}`)
+    } else {
+      mkdirSync(dirname(destination), { recursive: true })
+      writeFileSync(destination, source)
+    }
   }
   console.log(check ? 'Source mark exports match official artwork.' : 'Exported local source marks for Apple and WeChat clients.')
 }

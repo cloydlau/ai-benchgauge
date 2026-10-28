@@ -42,3 +42,9 @@ exports; see `weibo/README.md` for source and licensing details.
 `solvay/` holds the official International Solvay Institutes avatar used beside
 the About artwork's historic-photo credit. The same exporter preserves its
 original colors in both themes; see `solvay/README.md` for provenance.
+
+`github/` holds the MIT-licensed `tabler:brand-github-filled` SVG selected through
+Icones, with its pinned upstream revision, hashes and complete license. The same
+exporter replaces `assets/logos/github.png` for desktop repository buttons and
+shared contributor avatars. See `github/README.md`; this is Tabler artwork,
+separate from the official leaderboard-source marks.

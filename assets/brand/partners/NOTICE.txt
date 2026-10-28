@@ -18,9 +18,13 @@ Artificial Analysis: https://artificialanalysis.ai/
 Arena: https://arena.ai/blog/lmarena-is-now-arena
 Epoch AI: https://epoch.ai/
 
-WeChat platform outline by Tabler Icons
+WeChat platform outline and GitHub filled icon by Tabler Icons
 https://github.com/tabler/tabler-icons
 WeChat is a trademark of Tencent. This Tabler rendition identifies the mini-program platform.
+GitHub icon: tabler:brand-github-filled, selected through https://icones.js.org/
+Pinned source: https://github.com/tabler/tabler-icons/tree/ed177a085b652fe04ec4f37ced867c94621e7840
+GitHub is a trademark of its owner. The icon identifies the repository link
+and GitHub Actions contributor; its inclusion does not imply endorsement.
 
 MIT License
 

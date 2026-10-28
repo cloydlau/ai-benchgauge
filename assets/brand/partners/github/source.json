@@ -1,0 +1,18 @@
+{
+  "icon": "tabler:brand-github-filled",
+  "collection": "Tabler Icons",
+  "discoveryURL": "https://icones.js.org/collection/tabler?s=brand-github",
+  "revision": "ed177a085b652fe04ec4f37ced867c94621e7840",
+  "sourceURL": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/icons/filled/brand-github.svg",
+  "sha256": "8cca490e9b3b931e543802eecb8482e3d9c4490d1a713d287dce4675cc2b568e",
+  "license": "MIT",
+  "licenseURL": "https://raw.githubusercontent.com/tabler/tabler-icons/ed177a085b652fe04ec4f37ced867c94621e7840/LICENSE",
+  "licenseSHA256": "b740a1d46122672da62833e97f7e7c8a13fa85cbc7445b584b297cc00dde93db",
+  "retrievedAt": "2026-10-28",
+  "conversion": {
+    "size": 128,
+    "color": "#161614",
+    "densityMetadata": false
+  },
+  "output": "assets/logos/github.png"
+}
