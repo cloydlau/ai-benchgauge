@@ -58,7 +58,7 @@ import LeaderboardKit
     #expect(store.timestampPolishRevisions[.artificialAnalysis] == 1)
     await store.refresh(kind: .artificialAnalysis, force: true)
     #expect(store.timestampPolishRevisions[.artificialAnalysis] == 2)
-    #expect(store.snapshot.boards[.artificialAnalysis] == board)
+    #expect(store.snapshot.boards[.artificialAnalysis] == board.preservingContentTimestamp(from: board))
     #expect(store.refreshing.isEmpty)
 }
 
