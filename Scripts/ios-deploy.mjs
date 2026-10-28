@@ -5,6 +5,9 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { withBuildCache } from './build-cache.mjs'
 import { nodeExecutable } from './node-executable.mjs'
+import { ci } from './calmmit.mjs'
+
+const { formatTimestamp } = await ci.load('display-time')
 
 export const root = resolve(import.meta.dirname, '..')
 const script = fileURLToPath(import.meta.url)
@@ -240,7 +243,7 @@ async function watch(paths) {
     const previous = readJSON(paths.status)
     if (previous?.phase === phase && previous?.request === value.request && previous?.device === value.device && previous?.message === message) return
     writeJSON(paths.status, { ...value, updatedAt: new Date().toISOString() })
-    console.log(`[ios-deploy] ${new Date().toISOString()} ${message}${error ? '\n' + error : ''}`)
+    console.log(`[ios-deploy] ${formatTimestamp(Date.now())} ${message}${error ? '\n' + error : ''}`)
   }
   try {
     while (!controller.signal.aborted) {
