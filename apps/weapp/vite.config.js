@@ -8,9 +8,10 @@ import sourceThemes from '../../Sources/LeaderboardKit/Resources/SourceTabThemes
 import sharp from 'sharp'
 import { engineeringInvestment } from './scripts/engineering-investment.mjs'
 import { contributorCircles } from '../../Scripts/contributor-circles.mjs'
-import { createAutoVersion } from './scripts/version.mjs'
+import { readAppVersion } from './scripts/version.mjs'
 import { renderSourceLogos, renderPlatformIcons } from '../../Scripts/source-logos.mjs'
 import { aboutArtworkFile } from './src/core/about-artwork.js'
+import { clientBrandPolicyPlugin } from './scripts/client-brand-policy.mjs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 // The native clients remain the authority for the shared-service address.
@@ -66,6 +67,7 @@ export default defineConfig({
     autoImportComponents: { resolvers: [VantResolver()] },
   },
   plugins: [
+    clientBrandPolicyPlugin(root),
     {
       name: 'benchgauge-existing-assets',
       async generateBundle() {

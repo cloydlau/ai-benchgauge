@@ -18,6 +18,32 @@ public struct OfficialQuotaProvider: Equatable, Sendable, Identifiable {
 /// Token traffic is not a capability result and does not expand this scope.
 /// Existing accounts are never deleted when a model falls out of the top 20.
 public enum LeaderboardQuotaProviders {
+    /// Stable provider identity; account labels and localized names are user editable.
+    public static func organizationName(for kind: CCSwitchQuotaKind) -> String {
+        switch kind {
+        case .officialNote: "OpenAI"
+        case .kimi: "Kimi"
+        case .deepseek: "DeepSeek"
+        case .qwen: "Qwen"
+        case .xaiOAuth: "xAI"
+        case .zhipu: "Z.ai"
+        case .minimax: "MiniMax"
+        case .stepfun: "StepFun"
+        case .blackForestLabs: "Black Forest Labs"
+        case .luma: "Luma"
+        case .claude: "Anthropic"
+        case .gemini: "Google"
+        }
+    }
+
+    public static func organizationKey(for kind: CCSwitchQuotaKind) -> String {
+        OrganizationLogoCatalog.normalizedKey(organizationName(for: kind))
+    }
+
+    public static func logoInitial(for kind: CCSwitchQuotaKind) -> String {
+        OrganizationLogoCatalog.initial(organization: organizationName(for: kind), modelName: "")
+    }
+
     public static func rankedOrganizations(in snapshot: LeaderboardSnapshot) -> Set<String> {
         Set(LeaderboardCategory.allCases.filter { $0 != .usage }.flatMap(\.boardKinds).flatMap { kind in
             (snapshot.boards[kind]?.entries ?? []).compactMap { entry in

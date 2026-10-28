@@ -1,4 +1,72 @@
+## Shared provider images and local PNG removal — 2026-10-28
+
+Supplier artwork comes from shared snapshot PNG data across Mac, Windows,
+iPhone/iPad, the mini-program and leaderboard exports; missing images use
+initials. The 53 local supplier PNGs, the local company-image catalog and
+native favicon fallback are removed. The mini-program build retains only the
+shared catalog's identity rules; embedded server artwork is excluded. Native
+quota fixtures include the same provider initials for missing-image states. The traceable Tabler GitHub resource
+remains for repository buttons and contributor UI. Desktop quota cards reuse
+manufacturer images across all cached boards with stable provider-kind keys;
+model marks and account display names cannot select a provider image. The
+newest valid manufacturer image wins and persists with the snapshot offline.
+Providers absent from cached boards use initials until a shared mark arrives.
+models.dev metadata does not supply these images. Remote artwork rights are
+tracked separately from the removed local assets; see third-party-notices.md.
+
+Backend coverage follow-up (2026-10-28): 52 of the 53 removed supplier
+identities already had server-catalog PNGs. Video Rebirth was missing and is
+now covered by its official favicon, with source/output hashes and an explicit
+unconfirmed artwork-permission record. The backend catalog contains 62
+provider marks and 7 model marks. All clients and exports consume this data
+through the existing shared image fields; no client-local resource is restored.
+An independent 53-provider acceptance inventory covers cold reads, unavailable
+storage and cached snapshots. All 52 focused tests pass (including 3 new coverage
+checks), and generated policy validation passes. This source update has not been deployed and
+has no new client installation or native visual acceptance claim.
+
+Validation: 214 mini-program tests and production build pass; its output
+contains no server-catalog PNG data. Eight shared-domain tests and four source
+mark/contributor generation tests pass. A reduced native manifest links the
+actual Kit/Core/Bridge sources and tests without the unavailable iOS macro
+target: all 37 selected tests pass, including provider identity, model versus
+manufacturer separation, company aggregation, malformed/missing images,
+newest cached image selection and offline snapshot persistence. Windows shared
+tests and WPF Release
+cross-compilation pass (zero warnings/errors); the incremental output logo
+folder contains only GitHub. Mac application and bridge Debug builds pass.
+The iPhone/iPad shared view passes syntax parsing only; full Xcode is absent.
+
+Ignored `work/shared-brand-assets/` contains the synthetic fixture and 48 real
+Mac before/after frames in English, Simplified and Traditional Chinese,
+including company rows (950×720 content points, 2× backing scale, macOS
+27.0.1). Shared quota/row images and initial fallbacks are visible and aligned;
+only the native scrollbar changes between after-state frames. The baseline
+binary was reused and is not source-matched; the after binary was rebuilt
+during this task. Unrelated timestamp changes continued in the same checkout
+during verification, so the captures are not presented as a complete current
+repository build or an isolated comparison of all visible changes.
+Native Windows/DPI screenshots, a matching cross-platform CI artifact, mobile
+runtime/export verification and installed-client acceptance remain unavailable.
+No client was installed, uploaded or published.
+
 # 跨端变更与验收
+
+千问重新登录后关窗刷新（2026-10-28）：Mac 原流程在手动关闭登录窗口时取消读取、直接结束，可能把余量条留在旧的 “登录失效”。现在关窗后先显示查询中，再使用同一 WebKit 会话重新进入官方余量页，最多等待 25 秒；只有实际读取到余量或官方无套餐信息才保存连接状态，未登录及加载失败继续显示真实错误。后台余量刷新不再导航打断登录，重新打开登录会取消上一轮关窗校验，旧刷新结果不能覆盖较新的千问查询 / 余量状态。Windows 同步在关窗后使用原 WebView2 会话有界重读，并通过会话代次阻止旧异步回写和旧后台读取隐藏新登录窗口。无 Cookie / Token 导出或 CLI 凭据变更；小程序、iPhone/iPad 和榜单图片导出没有账号登录余量消费者。Mac 使用实际 AppKit 窗口和合成 WebView，6 项新增测试覆盖 9 个登录 / 失败 / 超时 / 竞态用例，连同 7 项已有 xAI 刷新回归，共 13 项测试、2 个套件通过；隔离清单编译实际 Mac 应用与 Core，未称为完整 iOS / SwiftUI 包测试通过。Windows WPF Release 交叉编译零警告 / 错误。日志和源码哈希位于忽略目录 `work/qwen-login-close/`；没有使用真实千问账号验收，没有 Windows 原生运行及对应 CI 视觉产物，也没有本轮截图、安装、上传或发布。
+
+未订购套餐隐藏日期（2026-10-28）：修正共享 `AccountQuotaFormatting` 中 xAI 已确认未订购仍拼接历史期末日期的分支，卡片和帮助仅保留 “未订购” / “未訂購” / “Not subscribed”，日期不再影响颜色；历史账号记录继续保存，已订购及待核实状态沿用现有日期规则。Mac 直接消费共享格式化，Windows 通过同一 Swift 引擎接收 runs / help / 颜色；小程序、iPhone/iPad 和榜单图片导出没有账号余量消费者。同步旧日期断言及 Windows 原生夹具，409 项共享 Core 回归、Windows 共享测试、Mac 应用与桌面共享引擎 Debug 编译通过；Core 回归通过隔离清单编译实际共享源码，未将它称为包含 SwiftUI 的完整包测试通过。相同三种状态 / 三语 / 浅深色夹具前后各 54 张 Mac 原生截图，查看简中浅色及英文深色未订购结果；已订购与待核实卡片的日期区域像素未变，18 组刷新 / 稳定日期区域一致，证据位于忽略目录 `work/quota-unsubscribed-date/`。无 Windows 原生运行环境及对应 CI 视觉产物，WPF 显示效果未验收；未安装、上传或发布。
+
+PC 奖牌与排名变化间距（2026-10-28）：Mac 移除奖牌及排名组的向下偏移，增加 1pt 上下间隔；替换 28pt 系统表头为 34pt 自定义表头时同步修正位于顶部的滚动位置，避免第一行被裁掉 6pt。Windows 在原有 32 DIP 行内固定预留 22 / 1 / 9 DIP 的奖牌、间隔、变化区域，保留 17 DIP 奖牌圆面及内部字号。两端列宽和行高不变，移动端保持现状，共用桌面榜单视图的图片导出同步。Mac Debug 和 Windows WPF Release 编译通过；Mac 七个排名夹具、浅深色显示 / 刷新 / 稳定共 42 帧，已查看单榜模型、三榜繁中、双榜公司和单榜公司，证据在忽略目录 `work/rank-desktop-clearance/final/`。前后截图期间其他对话调整了品牌资源和许可文案，因此不将全图差异视为本项变化。没有 Windows 原生运行环境及对应 CI 视觉产物，WPF 原生视觉尚未验收；未安装、上传或发布。
+
+移动端首帧加载态（2026-10-28）：小程序及 iPhone/iPad 将 “没有缓存且尚未请求” 的榜单视为加载中，首次进入和切到未请求来源时立即使用现有骨架屏，避免先闪出柱状图空态；实际请求仍按原来的懒加载、合并与退避规则执行。请求失败后退出骨架屏，保留原失败/待配置提示；有缓存直接显示榜单，刷新期间保留列表，筛选无结果仍显示空态。图片导出继续排除加载 UI，桌面不在本次明确的移动端范围。小程序 213 项回归与生产构建、9 项 iOS 构建脚本检查及 Swift 源码语法检查通过。当前缺少完整 Xcode 和可用官方微信 MCP，未完成微信、iPhone/iPad 原生运行及视觉验收，未安装、上传或发布。
+
+iPhone/iPad 发布暂停（2026-10-28）：共用 `config/app.json` 显式设置 `releaseIOS: false`，两种设备属于同一应用、同一发布开关。发行归档入口在任何 SDK/签名调用前检查开关，缺省也关闭；普通构建、模拟器测试和本机开发安装不受影响。现有 iOS CI 没有商店上传任务，tag 发布继续仅启用 macOS；Windows 发布仍关闭。配置类型及关闭/缺省阻断、显式启用恢复归档的隔离回归通过；未执行真实签名、归档、安装或商店发布。
+
+GitHub 图标来源修复（2026-10-28）：按用户建议选用 Icones 的 `tabler:brand-github-filled`，原始 SVG、MIT 正文及固定上游修订 / 哈希放在 `assets/brand/partners/github/`。`Scripts/source-logos.mjs` 统一生成原有 `assets/logos/github.png`，macOS / Windows 仓库按钮，以及小程序 / iPhone / iPad 共用的贡献者头像与导出保留原引用。Mac 离线声明增加 Tabler，Windows 直接打包源许可，两端移动客户端共用更新后的品牌声明。4 项生成 / 校验 / 贡献者测试、小程序生产构建及实际打包文件核对通过。复用已有 Debug 二进制，仅在忽略的原生测试应用内替换前后图标资源，使用同一 850×720pt 合成夹具采集 Mac 浅深色显示 / 刷新 / 稳定帧，2× backing scale，证据在 `work/github-icon/`；不将这项资源验证称为当前全部源码重新编译通过。Windows 原生截图、iPhone / iPad / 微信运行验收及客户端安装 / 上传 / 发布尚未完成。其他供应商品牌 PNG 的来源与授权状态见 `docs/third-party-notices.md`，本次未将它们标记为已授权。
+
+全端日期版本（2026-10-28）：公开版本统一为 `config/app.json` 的 `20261028`，小程序、iPhone/iPad、macOS 和 Windows 共源；发布脚本默认用北京时间当天日期，同日重复准备保持版本不变。Apple 元数据映射 `2026.10.28`，Windows 数字资源映射 `2026.10.28.0`，公开版本、Git 标签和安装包名使用八位日期。日期/配置/发布/隔离上传/iOS 项目及工具边界 55 项、小程序 211 项回归与生产构建通过；Windows 共享验签/升级测试和 WPF Release 交叉编译通过，实际程序集/文件版本与公开产品版本已核对，PowerShell 安装器脚本语法及日期转换通过。macOS plist 和生成 iOS 工程元数据校验通过，iOS 源码语法通过；本机缺少完整 Xcode，未完成 iPhone/iPad SDK 构建。未执行本轮 Mac 应用打包、Windows 安装器生成、各端原生运行/视觉或安装验收；未上传或发布。已发布 Homebrew Cask 继续指向真实旧版附件，后续正式发布由生成器更新，不伪造新日期包及校验和。
+
+关于入口点击样式（2026-10-28）：小程序榜单底部 “关于” 按钮关闭微信默认灰色按下态（`hover-class="none"`），单独增加左右各 12rpx 内边距和至少 44px 宽度；沿用 44px 最小高度与原打开关于行为。90 项页面测试及小程序生产构建通过；实际模板与 CSS 的浏览器夹具检查 320/375/560px 浅深色六种布局，按钮背景透明、内边距有效，点击区至少 44×44px。iPhone/iPad 现有对应入口使用 `.plain` 样式及最小 44×44pt 点击区域，本轮无须改动；桌面与榜单图片导出没有此 “关于” 按钮。官方微信 MCP 当前不可调用，未完成微信原生按下态及真机运行验收，未上传或发布。
 
 前三名奖牌放大（2026-10-28）：小程序奖牌从 23rpx 调到 40rpx（375px 视口下 11.5→20px），普通名次数字保留原字号；iPhone/iPad 及共用视图导出使用 20pt 奖牌，Mac 使用适合现有行高的 18pt 与固定排名布局，Windows 将奖牌圆面从 13 增到 17 DIP、内部名次从 9 增到 10。列宽、行高、颜色及变化标记沿用原规则。小程序 Canvas 原本使用数字排名，本次不增加新图标。小程序 211 项回归和生产构建、Mac Debug 与 Windows WPF Release 编译通过；iOS 仅完成语法检查。实际模板浏览器量测 320/375px 浅深色，奖牌及变化均在原列宽和 48px 行内，375px 下两者间距 2px。Mac 同一单榜模型/公司夹具采集浅深色前后帧，保存在忽略目录 `work/rank-medals/`；无 Windows 原生环境、完整 Xcode 或可用微信 MCP，三者原生运行及客户端安装尚未验收，不以构建代替。
 

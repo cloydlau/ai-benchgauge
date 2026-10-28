@@ -121,7 +121,7 @@ enum NativeVisualCapture {
                                     logoURL: original.logoURL, brand: original.brand)
                             }
                             return LeaderboardEntry(rank: rank, name: "Fixture model \(rank)", score: Double(count - rank + 1),
-                                organization: "Fixture maker \(rank)", logoURL: root.appending(path: "assets/logos/openai.png"))
+                                organization: "Fixture maker \(rank)")
                         }
                     } ?? board.entries
                     if test.scenario == "rankChanges" {

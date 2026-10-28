@@ -1794,17 +1794,7 @@ private struct PadOrganizationLogo: View {
             if let image = NSImage(data: data) { return Image(nsImage: image) }
             #endif
         }
-        guard let key = OrganizationLogoCatalog.bundledLogoKey(forOrganization: entry.organization, modelName: entry.name),
-              let image = Self.image(for: key) else { return nil }
-        return image
-    }
-    static func image(for key: String) -> Image? {
-        guard let url = Bundle.main.url(forResource: key, withExtension: "png", subdirectory: "logos") else { return nil }
-        #if os(iOS)
-        return UIImage(contentsOfFile: url.path).map(Image.init(uiImage:))
-        #else
-        return NSImage(contentsOf: url).map(Image.init(nsImage:))
-        #endif
+        return nil
     }
     var body: some View {
         Group {

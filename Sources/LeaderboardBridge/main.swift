@@ -77,6 +77,8 @@ struct Quota: Encodable {
     var help: String; var url: String?; var canConnect: Bool; var connection: String?; var runs: [Run]
     var accentLight: String?
     var isDimmed: Bool
+    var logoPNG: String? = nil
+    var initials: String? = nil
 }
 struct Run: Encodable { var text: String; var light: String; var dark: String }
 struct Alert: Encodable { var title: String; var body: String }
@@ -580,6 +582,7 @@ actor Engine {
                                     websiteURL: chip.websiteURL,
                                     kind: chip.kind, isCurrent: chip.isCurrent, status: .qwenWebsite(quota))
         }
+        let providerLogos = OrganizationLogoCatalog.organizationLogoPNGData(in: snapshot)
         let quotas = AccountQuotaFormatting.sortedChips(displayChips).map { chip in
             // Login-required Grok cards launch device authorization, not the product page.
             let xaiSignIn = AccountQuotaFormatting.requiresXAISignIn(chip)
@@ -599,7 +602,9 @@ actor Engine {
                     runs: AccountQuotaFormatting.runs(for: chip, now: now).map { run in
                 Run(text: language.quotaText(run.text), light: color(run.tone, dark: false), dark: color(run.tone, dark: true))
             }, accentLight: AccountQuotaFormatting.cardColorLevel(for: chip, now: now).map { color(.remaining($0), dark: false) },
-                isDimmed: AccountQuotaFormatting.isDimmed(chip))
+                isDimmed: AccountQuotaFormatting.isDimmed(chip),
+                logoPNG: providerLogos[LeaderboardQuotaProviders.organizationKey(for: chip.kind)]?.base64EncodedString(),
+                initials: LeaderboardQuotaProviders.logoInitial(for: chip.kind))
         }
         let previousRecovery = recovery
         let recovered = recovery.consider(chips: displayChips)

@@ -3,7 +3,7 @@ import LeaderboardCore
 import Testing
 
 struct OrganizationBrandTests {
-    @Test func providerPNGsCannotReplaceKnownModelMarks() throws {
+    @Test func sharedProviderPNGsRemainVisibleWithoutBundledMarks() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let png = try Data(contentsOf: root.appending(path: "Tests/fixtures/shared-brand-64.png"))
         for (name, organization, key) in [
@@ -17,7 +17,7 @@ struct OrganizationBrandTests {
         ] {
             let provider = OrganizationBrand(key: key, colorHex: "#319FA8", pngData: png)
             let entry = LeaderboardEntry(rank: 1, name: name, score: 99, organization: organization, brand: provider)
-            #expect(OrganizationLogoCatalog.rowLogoPNGData(for: entry) == nil)
+            #expect(OrganizationLogoCatalog.rowLogoPNGData(for: entry) == png)
             #expect(OrganizationLogoCatalog.rowLogoPNGData(for: entry, isCompany: true) == png)
         }
         for (name, organization) in [("New Model", "New Maker"), ("GPT-6", "OpenAI"), ("Veo 3.1", "Google")] {
@@ -33,6 +33,23 @@ struct OrganizationBrandTests {
         let invalid = LeaderboardEntry(rank: 1, name: "Claude", score: 99, organization: "Anthropic",
             brand: OrganizationBrand(key: "model-claude", colorHex: "#319FA8", pngData: Data("invalid".utf8)))
         #expect(OrganizationLogoCatalog.rowLogoPNGData(for: invalid) == nil)
+    }
+
+    @Test func companyRowsReuseOnlyManufacturerImagesAcrossTheirModels() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let png = try Data(contentsOf: root.appending(path: "Tests/fixtures/shared-brand-64.png"))
+        let model = LeaderboardEntry(rank: 1, name: "Wan 3", score: 100, organization: "Alibaba",
+            brand: OrganizationBrand(key: "model-wan", colorHex: "#123456", pngData: png),
+            organizationBrand: OrganizationBrand(key: "qwen", colorHex: "#623AE7"))
+        let companyWithoutImage = try #require(CompanyLeaderboard.rank([model]).first?.entry)
+        #expect(OrganizationLogoCatalog.rowLogoPNGData(for: companyWithoutImage, isCompany: true) == nil)
+        #expect(OrganizationLogoCatalog.rowLogoPNGData(for: model, isCompany: true) == nil)
+        let sibling = LeaderboardEntry(rank: 2, name: "Qwen fixture", score: 90, organization: "Alibaba",
+            brand: OrganizationBrand(key: "qwen", colorHex: "#623AE7", pngData: png))
+        let company = try #require(CompanyLeaderboard.rank([model, sibling]).first?.entry)
+        #expect(company.brand?.key == "qwen")
+        #expect(OrganizationLogoCatalog.rowLogoPNGData(for: company, isCompany: true) == png)
+        #expect(company.score == 100)
     }
 
     @Test func modelAndCompanyMarksSurviveCacheWithoutBeingMixed() throws {

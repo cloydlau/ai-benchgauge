@@ -3,13 +3,14 @@ import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
+import { avatarFixture } from './fixtures/avatar-fixture.mjs'
 
 import { avatarForModel } from './commit-identity.mjs'
 import { materializeAvatar } from './desktop-notify.mjs'
 import { deliverNotification } from './desktop-notify-worker.mjs'
 
-test('内置头像不下载不转码，直接交给通知附件', () => {
-  const avatar = avatarForModel('claude-opus-5.5')
+test('内置头像不下载不转码，直接交给通知附件', (t) => {
+  const avatar = avatarForModel('claude-opus-5.5', avatarFixture(t))
   const image = materializeAvatar(avatar)
   assert.equal(image, avatar.bundled)
   assert.ok(existsSync(image))

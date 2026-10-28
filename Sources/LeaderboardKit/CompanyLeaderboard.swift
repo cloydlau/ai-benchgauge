@@ -108,10 +108,18 @@ public enum CompanyLeaderboard {
             rankChange: flagship.companyRankChange,
             bestRank: flagship.rank,
             logoURL: flagship.logoURL,
-            brand: flagship.organizationBrand ?? flagship.brand,
+            brand: manufacturerBrand(key: key, members: ordered),
             developerCountry: ordered.compactMap(\.developerCountry).first { $0.key == key && $0.countryCode != nil },
             components: components
         )
+    }
+
+    /// A model mark is not its manufacturer's mark. Reuse a ready provider
+    /// image from any member before returning pending metadata for the initial.
+    private static func manufacturerBrand(key: String, members: [LeaderboardEntry]) -> OrganizationBrand? {
+        let brands = members.flatMap { [$0.organizationBrand, $0.brand].compactMap { $0 } }
+            .filter { !$0.key.hasPrefix("model-") && OrganizationLogoCatalog.normalizedKey($0.key) == key }
+        return brands.first { $0.validPNGData != nil } ?? brands.first
     }
 
     /// Highest score is the flagship. Rank, then name, only separate equals.

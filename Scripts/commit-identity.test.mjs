@@ -4,6 +4,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
+import { avatarFixture } from './fixtures/avatar-fixture.mjs'
 
 import {
   avatarForModel,
@@ -63,12 +64,13 @@ test('llama 按未知模型处理，不归到 Meta 身份', () => {
   assert.equal(emailForModel('llama-4'), 'llama-4@users.noreply.github.com')
 })
 
-test('内置头像优先，断网也直接给出仓库里的 PNG', async () => {
+test('内置头像优先，断网也直接给出配置的 PNG（独立夹具）', async (t) => {
+  const options = avatarFixture(t)
   const originalFetch = globalThis.fetch
   let probed = 0
   globalThis.fetch = async () => { probed += 1; throw new Error('offline') }
   try {
-    const avatar = await resolveModelAvatar('kimi-k3', { fetchBudgetMs: 1000 })
+    const avatar = await resolveModelAvatar('kimi-k3', { ...options, fetchBudgetMs: 1000 })
     assert.equal(avatar.source, 'bundled')
     assert.equal(avatar.probed, true)
     assert.equal(avatar.url, avatar.bundled)
@@ -96,16 +98,28 @@ test('没有内置头像时才探测网络，全部失败回退到通用机器�
   }
 })
 
-test('每家有内置图标的模型都指向仓库里真实存在的 PNG', () => {
+test('每家配置的模型都正确解析本地 PNG 及别名（独立夹具）', (t) => {
+  const options = avatarFixture(t)
   const models = [
     'glm-4.6', 'deepseek-v3.2', 'gpt-6-sol', 'claude-opus-5.5', 'kimi-k3', 'grok-4.7',
     'qwen3-coder', 'gemini-2.5-pro', 'meta-ai', 'MiMo-V2.5-Pro', 'devin-1.2',
   ]
   for (const model of models) {
-    const avatar = avatarForModel(model)
+    const avatar = avatarForModel(model, options)
     assert.ok(avatar.bundled, model)
     assert.ok(existsSync(avatar.bundled), `${model} -> ${avatar.bundled}`)
     assert.equal(avatar.url, avatar.bundled, model)
+  }
+})
+
+test('移除供应商品牌 PNG 后，真实仓库头像回退到远程候选且不伪造本地文件', () => {
+  for (const model of ['glm-4.6', 'deepseek-v3.2', 'gpt-6-sol', 'claude-opus-5.5', 'kimi-k3',
+    'grok-4.7', 'qwen3-coder', 'gemini-2.5-pro', 'meta-ai', 'MiMo-V2.5-Pro', 'devin-1.2']) {
+    const avatar = avatarForModel(model)
+    assert.equal(avatar.bundled, '', model)
+    assert.equal(avatar.probed, false, model)
+    assert.match(avatar.url, /^https:\/\//, model)
+    assert.ok(avatar.candidates.includes(avatar.url), model)
   }
 })
 

@@ -251,6 +251,7 @@ struct LeaderboardView: View {
             if !state.quotaChips.isEmpty {
                 QuotaStrip(
                     chips: state.quotaChips,
+                    providerLogos: OrganizationLogoCatalog.organizationLogoPNGData(in: state.snapshot),
                     language: language,
                     onConnectQwen: state.connectQwenWebsite,
                     onConnectOpenAI: state.connectOpenAI,
@@ -1041,19 +1042,10 @@ struct LeaderboardView: View {
     ) -> LeaderboardCellModel? {
         guard let displayed else { return nil }
         let entry = displayed.entry
-        let key = OrganizationLogoCatalog.resolvedKey(
-            organization: entry.organization,
-            modelName: entry.name
-        )
         return LeaderboardCellModel(
             entry: entry,
             brandHex: OrganizationLogoCatalog.rowBrandColorHex(for: entry),
-            logoURL: entry.logoURL
-                ?? key.flatMap { organizationLogos[$0] }
-                ?? OrganizationLogoCatalog.logoURL(
-                    forOrganization: entry.organization,
-                    modelName: entry.name
-                ),
+            logoURL: nil,
             scoreHelp: displayed.scoreHelp,
             isCompany: displayed.isCompany,
             showRelativeShare: showRelativeShare, leaderScore: leaderScore
@@ -2501,19 +2493,8 @@ private struct ModelLogoView: View {
     private var logoContent: some View {
         if let pngData, let image = ModelLogoImageCache.shared.image(data: pngData) {
             Image(nsImage: image).resizable().scaledToFit()
-        } else if let key = OrganizationLogoCatalog.bundledLogoKey(forOrganization: organization, modelName: name),
-                  let image = ModelLogoImageCache.shared.bundledImage(key: key) {
-            Image(nsImage: image)
-                .resizable()
-                .scaledToFit()
         } else {
-            AsyncImage(url: url) { image in
-                image
-                    .resizable()
-                    .scaledToFit()
-            } placeholder: {
-                placeholder
-            }
+            placeholder
         }
     }
 

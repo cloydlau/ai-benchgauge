@@ -534,13 +534,15 @@ sealed partial class MainWindow
         var line = new Grid { Height = 18, VerticalAlignment = VerticalAlignment.Center };
         line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); line.ColumnDefinitions.Add(new ColumnDefinition());
         var text = Caption("", quota.IsDimmed ? PanelMuted : PanelInk); text.Inlines.Clear(); text.ToolTip = quota.Help;
-        if (ProviderLogo(quota.Name) is { } key && Logo(key, 16) is { } image)
+        FrameworkElement providerMark;
+        if (SharedLogo(quota.LogoPNG, 16) is { } image)
         {
             if (quota.IsDimmed) { image.Source = Monochrome(image.Source); image.Opacity = 0.55; }
-            var mark = new Border { Child = image, Width = 18, Height = 18, VerticalAlignment = VerticalAlignment.Center,
-                Background = Brushes.White, CornerRadius = new CornerRadius(3), Margin = new Thickness(0, 0, 5, 0) };
-            AddCell(line, mark, 0);
+            providerMark = image;
         }
+        else providerMark = Center(Caption(string.IsNullOrWhiteSpace(quota.Initials) ? "?" : quota.Initials, Brushes.DimGray, 10));
+        AddCell(line, new Border { Child = providerMark, Width = 18, Height = 18, VerticalAlignment = VerticalAlignment.Center,
+            Background = Brushes.White, CornerRadius = new CornerRadius(3), Margin = new Thickness(0, 0, 5, 0) }, 0);
         text.Inlines.Add(new TextRun(quota.Name + "  ") { FontWeight = quota.IsCurrent ? FontWeights.SemiBold : FontWeights.Medium });
         foreach (var run in quota.Runs) text.Inlines.Add(new TextRun(run.Text) { Foreground = quota.IsDimmed ? PanelMuted : Tint(panelDark ? run.Dark : run.Light) });
         if (quota.IsStale) text.Inlines.Add(new TextRun(" · " + Tr("saved", "缓存", "快取")) { Foreground = PanelMuted });
@@ -570,13 +572,6 @@ sealed partial class MainWindow
         result.Freeze();
         return result;
     }
-    static string? ProviderLogo(string name)
-    {
-        var value = name.ToLowerInvariant();
-        foreach (var item in new[] { ("openai","openai"),("claude","anthropic"),("anthropic","anthropic"),("gemini","google"),("google","google"),("kimi","kimi"),("qwen","qwen"),("千问","qwen"),("deepseek","deepseek"),("glm","zai"),("grok","spacexai"),("xai","spacexai"),("智谱","zai") })
-            if (value.Contains(item.Item1)) return item.Item2;
-        return null;
-    }
     static Image? Logo(string key, double size)
     {
         var path = Path.Combine(AppContext.BaseDirectory, "logos", key + ".png");
@@ -584,9 +579,9 @@ sealed partial class MainWindow
             VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center } : null;
     }
 
-    FrameworkElement BrandLogo(Entry entry)
+    static Image? SharedLogo(string? encodedPNG, double size)
     {
-        if (entry.LogoPNG is { Length: <= 22000 } encoded)
+        if (encodedPNG is { Length: <= 22000 } encoded)
         {
             try
             {
@@ -598,13 +593,18 @@ sealed partial class MainWindow
                     using var stream = new MemoryStream(bytes, false);
                     var bitmap = new BitmapImage(); bitmap.BeginInit(); bitmap.CacheOption = BitmapCacheOption.OnLoad;
                     bitmap.DecodePixelWidth = 64; bitmap.StreamSource = stream; bitmap.EndInit(); bitmap.Freeze();
-                    return new Image { Source = bitmap, Width = 20, Height = 20, Stretch = Stretch.Uniform,
+                    return new Image { Source = bitmap, Width = size, Height = size, Stretch = Stretch.Uniform,
                         HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
                 }
             }
             catch (Exception error) when (error is FormatException or IOException or NotSupportedException or ArgumentException) { }
         }
-        if (entry.Logo is { } key && Logo(key, 20) is { } bundled) return bundled;
+        return null;
+    }
+
+    FrameworkElement BrandLogo(Entry entry)
+    {
+        if (SharedLogo(entry.LogoPNG, 20) is { } shared) return shared;
         var initial = entry.Initials;
         if (string.IsNullOrWhiteSpace(initial))
             initial = (string.IsNullOrWhiteSpace(entry.Organization) ? entry.Name : entry.Organization)

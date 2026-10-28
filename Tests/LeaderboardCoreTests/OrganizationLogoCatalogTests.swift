@@ -22,7 +22,7 @@ struct OrganizationLogoCatalogTests {
         ]
         for group in groups {
             let keys = group.map {
-                OrganizationLogoCatalog.bundledLogoKey(forOrganization: $0)
+                OrganizationLogoCatalog.resolvedKey(organization: $0)
             }
             let colors = group.map {
                 OrganizationLogoCatalog.brandColorHex(forOrganization: $0)
@@ -34,38 +34,38 @@ struct OrganizationLogoCatalogTests {
         }
 
         // Purchase links keep `alibaba`. Logos use the Qwen mark.
-        #expect((OrganizationLogoCatalog.bundledLogoKey(forOrganization: "Alibaba")) == ("qwen"))
-        #expect((OrganizationLogoCatalog.bundledLogoKey(forOrganization: "Alibaba")) != ("alibaba"))
+        #expect((OrganizationLogoCatalog.resolvedKey(organization: "Alibaba")) == ("qwen"))
+        #expect((OrganizationLogoCatalog.resolvedKey(organization: "Alibaba")) != ("alibaba"))
     }
 
     @Test
     func testDevinFallsBackToModelNameWhenOrganizationIsMissing() {
         let name = "Devin"
-        #expect((OrganizationLogoCatalog.bundledLogoKey(forOrganization: nil, modelName: name)) == ("devin"))
+        #expect((OrganizationLogoCatalog.resolvedKey(organization: nil, modelName: name)) == ("devin"))
         #expect((OrganizationLogoCatalog.brandColorHex(forOrganization: nil, modelName: name)) == (OrganizationLogoCatalog.brandColorHex(forOrganization: "Devin")))
-        #expect((OrganizationLogoCatalog.logoURL(forOrganization: nil, modelName: name)) != nil)
+        #expect((OrganizationLogoCatalog.resolvedKey(organization: nil, modelName: name)) != nil)
 
         let other = OrganizationLogoCatalog.resolvedKey(
             organization: nil,
             modelName: "Some Other Model"
         )
         #expect((other) == nil)
-        #expect((OrganizationLogoCatalog.bundledLogoKey(forOrganization: nil, modelName: "Some Other Model")) == nil)
+        #expect((OrganizationLogoCatalog.resolvedKey(organization: nil, modelName: "Some Other Model")) == nil)
         #expect((OrganizationLogoCatalog.brandColorHex(forOrganization: "", modelName: "Some Other Model")) == nil)
     }
 
     @Test
     func testHostedModelBrandOverridesHarnessOrganization() {
-        #expect((OrganizationLogoCatalog.bundledLogoKey(
-                forOrganization: "Anthropic",
+        #expect((OrganizationLogoCatalog.resolvedKey(
+                organization: "Anthropic",
                 modelName: "Claude Code - Qwen3.8 Max"
             )) == ("qwen"))
         #expect((OrganizationLogoCatalog.brandColorHex(
                 forOrganization: "Anthropic",
                 modelName: "Claude Code - Qwen3.8 Max"
             )) == ("#623AE7"))
-        #expect((OrganizationLogoCatalog.bundledLogoKey(
-                forOrganization: "OpenAI",
+        #expect((OrganizationLogoCatalog.resolvedKey(
+                organization: "OpenAI",
                 modelName: "Codex - DeepSeek V4 Pro 0813 (max)"
             )) == ("deepseek"))
         #expect((OrganizationLogoCatalog.brandColorHex(
@@ -78,8 +78,8 @@ struct OrganizationLogoCatalogTests {
             )) == ("zai"))
 
         // Same company on both sides of the dash stays with the harness.
-        #expect((OrganizationLogoCatalog.bundledLogoKey(
-                forOrganization: "Anthropic",
+        #expect((OrganizationLogoCatalog.resolvedKey(
+                organization: "Anthropic",
                 modelName: "Claude Code - Fable 5.1 (max) (with fallback)"
             )) == ("anthropic"))
         #expect((OrganizationLogoCatalog.brandColorHex(
@@ -87,21 +87,21 @@ struct OrganizationLogoCatalogTests {
                 modelName: "Claude Code - Opus 5 (max)"
             )) == ("#D97757"))
         // Intelligence-index names are not harness labels.
-        #expect((OrganizationLogoCatalog.bundledLogoKey(
-                forOrganization: "Alibaba",
+        #expect((OrganizationLogoCatalog.resolvedKey(
+                organization: "Alibaba",
                 modelName: "Qwen3.8 Max (0902)"
             )) == ("qwen"))
         // Fusion has no organization. The mark stays Devin. The wash follows the lead.
         let claudeFusion = "Devin Fusion CLI - Claude Fable 5.1 XHigh + SWE-2 Medium"
-        #expect((OrganizationLogoCatalog.bundledLogoKey(forOrganization: nil, modelName: claudeFusion)) == ("devin"))
+        #expect((OrganizationLogoCatalog.resolvedKey(organization: nil, modelName: claudeFusion)) == ("devin"))
         #expect((OrganizationLogoCatalog.brandColorHex(forOrganization: nil, modelName: claudeFusion)) == ("#D97757"))
         let astraFusion = "Devin Fusion CLI - GPT-6 Astra XHigh + SWE-2 Medium"
-        #expect((OrganizationLogoCatalog.bundledLogoKey(forOrganization: nil, modelName: astraFusion)) == ("devin"))
+        #expect((OrganizationLogoCatalog.resolvedKey(organization: nil, modelName: astraFusion)) == ("devin"))
         #expect((OrganizationLogoCatalog.brandColorHex(forOrganization: nil, modelName: astraFusion)) == ("#10A37F"))
     }
 
     @Test
-    func testCachedOrganizationsHaveBundledMarksAndRealColors() {
+    func testCachedOrganizationsHaveStableKeysAndRealColors() {
         let organizations = [
             "Google", "OpenAI", "Anthropic", "Alibaba", "Meta", "Microsoft AI", "SpaceXAI",
             "KlingAI", "Z.ai", "ByteDance Seed", "Bytedance", "MiniMax", "Moonshot", "PixVerse",
@@ -110,7 +110,7 @@ struct OrganizationLogoCatalogTests {
             "Runway", "StepFun", "Tencent", "Reve", "Video Rebirth"
         ]
         for organization in organizations {
-            let key = OrganizationLogoCatalog.bundledLogoKey(forOrganization: organization)
+            let key = OrganizationLogoCatalog.resolvedKey(organization: organization)
             let color = OrganizationLogoCatalog.brandColorHex(forOrganization: organization)
             #expect((key) != nil, Comment(rawValue: organization))
             #expect((color) != nil, Comment(rawValue: organization))
@@ -154,7 +154,7 @@ struct OrganizationLogoCatalogTests {
         ]
         for (key, color) in expected {
             #expect((OrganizationLogoCatalog.brandColorHex(forOrganization: key)) == (color), Comment(rawValue: key))
-            #expect((OrganizationLogoCatalog.bundledLogoKey(forOrganization: key)) == (key))
+            #expect((OrganizationLogoCatalog.resolvedKey(organization: key)) == (key))
             let darkColor = OrganizationLogoCatalog.displayBrandColorHex(color, isDark: true)
             if OrganizationLogoCatalog.isAchromaticHex(color) {
                 #expect(OrganizationLogoCatalog.isAchromaticHex(darkColor), Comment(rawValue: key))
