@@ -517,7 +517,9 @@ definePage(query => {
       pendingConfiguration: !!configurationRequired.value[kind],
       hasBoard: !!board, filtered: filter.country !== 'all' || filter.openness !== 'all' || !!modelSearchQuery.value.trim(),
       countryFiltered: filter.country !== 'all', sourceFiltered: filter.openness !== 'all',
-      loading: !!refreshing.value[kind],
+      // Lazy sources also need placeholders before their first lifecycle task
+      // starts; only a completed attempt may reveal the no-board state.
+      loading: !!refreshing.value[kind] || (!board && lastAttempt[kind] == null),
       polishing: polishingKind.value === kind,
       headerPinned: !!pinnedHeaders.value[kind],
     }

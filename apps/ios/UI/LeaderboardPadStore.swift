@@ -172,6 +172,11 @@ public final class LeaderboardPadStore: ObservableObject {
         visibleBoardKinds[min(max(0, selectedSource), visibleBoardKinds.count - 1)]
     }
 
+    public func isLoading(_ kind: LeaderboardKind) -> Bool {
+        // SwiftUI renders before .task starts, including newly selected sources.
+        refreshing.contains(kind) || (snapshot.boards[kind] == nil && attempts[kind] == nil)
+    }
+
     public func refresh(kind: LeaderboardKind? = nil, force: Bool = false, now: Date = Date()) async {
         let kind = kind ?? selectedKind
         if let task = refreshTasks[kind] { await task.value; return }

@@ -581,6 +581,55 @@ test('purchase links update after switching the interface language inside the sa
   globalThis.__benchHooks.unload()
 })
 
+test('uncached sources show loading before entry and stop only when their own request settles', async t => {
+  const h = setup()
+  t.after(() => globalThis.__benchHooks.unload())
+  const card = kind => h.page.cards.value.find(card => card.kind === kind)
+  assert.equal(h.requests.length, 0)
+  assert.ok(h.page.cards.value.every(card => card.loading && !card.hasBoard))
+  const first = h.enter()
+  assert.equal(card('artificialAnalysis').loading, true)
+  h.requests[0].options.fail(); h.requests[0].options.complete()
+  await first
+  assert.equal(card('artificialAnalysis').loading, false, 'Failure must reveal the no-board message')
+  assert.equal(card('artificialAnalysis').hasBoard, false)
+  assert.equal(card('arenaText').loading, true, 'An unrequested source must not inherit another source’s failure')
+  await h.page.autoRefresh()
+  assert.equal(h.requests.length, 1, 'Backoff must not restart the skeleton after a failure')
+  assert.equal(card('artificialAnalysis').loading, false)
+  const retry = h.page.refreshTap(event({ kind: 'artificialAnalysis' }))
+  assert.equal(card('artificialAnalysis').loading, true)
+  h.respond(1); await retry
+  assert.equal(card('artificialAnalysis').loading, false)
+  assert.equal(card('artificialAnalysis').hasBoard, true)
+  h.page.selectFace(event({ index: 1 }))
+  assert.equal(card('arenaText').loading, true)
+  h.respond(2)
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(card('arenaText').loading, false)
+  assert.equal(card('arenaText').hasBoard, true)
+})
+
+test('cached boards render immediately and empty search results stay out of initial loading', async t => {
+  const h = setup({}, 0, {}, 'light', 'zh_CN', {
+    artificialAnalysis: { kind: 'artificialAnalysis', fetchedAt: new Date().toISOString(),
+      entries: [{ rank: 1, name: 'Cached model', score: 90 }] },
+  })
+  t.after(() => globalThis.__benchHooks.unload())
+  assert.equal(h.page.cards.value[0].loading, false)
+  assert.equal(h.page.cards.value[0].rows[0].name, 'Cached model')
+  await h.enter()
+  assert.equal(h.requests.length, 0)
+  const refresh = h.page.refreshTap(event({ kind: 'artificialAnalysis' }))
+  assert.equal(h.page.cards.value[0].loading, true)
+  assert.equal(h.page.cards.value[0].rows[0].name, 'Cached model')
+  h.respond(0, { fetchedAt: new Date().toISOString() }); await refresh
+  h.page.inputModelSearch({ detail: { value: 'no matching model' } })
+  assert.equal(h.page.cards.value[0].loading, false)
+  assert.equal(h.page.cards.value[0].hasBoard, true)
+  assert.equal(h.page.cards.value[0].count, 0)
+})
+
 test('loading skeletons cover the viewport at startup and after tall or landscape resizing', () => {
   const h = setup()
   const covers = height => {
