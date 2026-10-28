@@ -4,6 +4,8 @@
   --about-outline: rgba(65, 77, 92, .065);
   min-height: 100vh;
   padding: 0 28rpx calc(env(safe-area-inset-bottom) + 40rpx);
+  padding-left: max(28rpx, env(safe-area-inset-left));
+  padding-right: max(28rpx, env(safe-area-inset-right));
   background: radial-gradient(ellipse 90% 360px at 100% 0, rgba(142, 156, 171, .07), transparent), var(--bg);
 }
 .about-page.dark {

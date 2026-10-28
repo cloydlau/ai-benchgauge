@@ -34,7 +34,12 @@ definePage(query => {
     else measure()
   }
   onReady(() => { ready = true; measureArtworkTitle() })
-  onResize(measureArtworkTitle)
+  onResize(() => {
+    const window = wx.getWindowInfo()
+    statusBar.value = window.statusBarHeight ?? 24
+    brandTitle.value = measureBrand(labels.name, (window.windowWidth || 375) / 750 * 48)
+    measureArtworkTitle()
+  })
   onUnload(() => { alive = false; titleMeasureSerial++ })
   const labels = Object.fromEntries(Object.keys(copy).map(key => [key, text(copy[key], language)]))
   const dark = preferences.theme === 'dark' || (preferences.theme === 'system'
@@ -44,8 +49,9 @@ definePage(query => {
   }
   onShareAppMessage(() => ({ title: `${labels.about}｜${labels.rankingSummary}`,
     path: sharePath(preferences, dark ? 'dark' : 'light', '/pages/about/index') }))
-  const statusBar = wx.getWindowInfo().statusBarHeight || 24
-  const brandTitle = createBrandMeasurer(wx)(labels.name, (wx.getWindowInfo().windowWidth || 375) / 750 * 48)
+  const statusBar = ref(wx.getWindowInfo().statusBarHeight ?? 24)
+  const measureBrand = createBrandMeasurer(wx)
+  const brandTitle = ref(measureBrand(labels.name, (wx.getWindowInfo().windowWidth || 375) / 750 * 48))
   const notice = ref('')
   const investment = investmentContent(__ENGINEERING_INVESTMENT__, language)
   const contributors = contributorsContent(__CONTRIBUTOR_CIRCLES__, language)
