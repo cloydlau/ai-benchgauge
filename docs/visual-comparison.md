@@ -2795,3 +2795,37 @@ Mac and Windows now distinguish Tencent Cloud’s Cumulative share / 累计占�
 Evidence: ignored `work/desktop-usage-captions/verification.json`, source snapshots, binary hashes, fixture and build/restart logs. Native Mac captures retain 36 originals before and 36 after using the same 1400×720-point fixture, three languages, both themes and shown/refreshed/settled frames on macOS 27.0.1 (26A434), actual 1× backing scale. All three frames in each case are identical. Reviewed six before/after pairs spanning all languages/themes and all three sources: the new captions fit without clipping or overlap. The before executable is the existing pre-edit Debug build, whose desktop captions match the retained baseline source; it is not a clean-HEAD rebuild. Earlier stale-Debug and Release capture attempts are excluded.
 
 Mac Release packaging/signature verification and local restart pass. Windows shared checks and Release cross-build pass with zero warnings/errors. The first standard gate exposed missing coverage for the new shared title helper. Added regression checks for usage captions in all languages and source-logo identity across all categories; their final expectations preserve native Traditional Chinese conversion. All Swift test targets then pass, with 100% line/function/region coverage across 72 source files. The overall wrapper exits 75 because concurrent mini-program brand-title edits changed its input signature; no successful complete gate receipt is claimed. The desktop product source hashes still match the captured/built revision. A separate earlier core request timed out waiting for the existing test lock. Windows native captures, actual Windows DPI coverage and a source-matched CI artifact remain unavailable; Windows visual verification and protected release approval are not claimed.
+
+
+## Desktop English wordmark matches iOS — 2026-10-28
+
+Mac now uses the existing iOS wordmark component, retaining the separate I and
+31-degree network-A shear. Windows WPF consumes the identical generated
+outline/placement JSON and light/dark metallic gradient. Native Windows header
+line-box sizing and desktop Chinese typography remain platform-specific. The
+English Mac title uses the tight iOS ink frame, slightly reducing its header
+height; surrounding captions and controls remain clear.
+
+Ignored `work/desktop-english-brand/` retains before/after executables, source
+snapshots/hashes, the identical synthetic fixture, logs and `verification.json`.
+Both phases contain 36 native Mac originals across three languages, two themes
+and 850/1100×720-point content viewports on macOS 27.0.1 (26A434), actual 2×
+backing scale. All twelve brand-header regions are identical across shown,
+refreshed and settled frames within each phase. Reviewed English originals in
+both widths/themes confirm the restored I, leaning A and complete adjacent
+subtitle; Traditional Chinese/dark remains unclipped. Concurrent work continued
+in this dirty checkout, so whole-image differences outside the title are not
+attributed to this change. Revision and relevant source/binary hashes are
+recorded locally; no clean-commit or source-matched CI artifact is claimed.
+
+The first after capture exposed a missing SwiftPM bundle in packaged apps. The
+final capture succeeds without that bundle after adding the generated JSON to
+both Mac package entry points and using main-app resources first. Its wordmark
+resource matches the generated source byte-for-byte. Thirteen native title tests
+passed before this final resource-lookup addition; final native captures exercise
+the main-resource branch. Five resource/packaging-gate tests, shell syntax, Mac
+Debug compilation and Windows WPF Release cross-compilation pass. This is not a
+Mac Release-installer build. Windows native/DPI screenshots, cross-desktop CI
+visual review, new iOS device/simulator verification and export-specific runtime
+checks remain unavailable. No client was installed or published, and no
+protected release approval is claimed.

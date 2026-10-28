@@ -9,6 +9,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="../../../Sources/LeaderboardKit/Resources/Brand/mobile-title.json" LogicalName="BrandWordmark.json" />
     <EmbeddedResource Include="../../../Sources/LeaderboardKit/Resources/EpochAttribution.json" LogicalName="EpochAttribution.json" />
     <EmbeddedResource Include="../../../fc/arena-attribution.json" LogicalName="arena-attribution.json" />
     <Resource Include="../../../Sources/LeaderboardKit/Resources/Fonts/BenchGaugeCalligraphy.ttf" Link="Fonts/BenchGaugeCalligraphy.ttf" />

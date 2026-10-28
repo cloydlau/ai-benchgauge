@@ -54,3 +54,15 @@ test('a changed canonical title fails checks until both client exports are regen
     assert.equal(native.layouts.english.logoShear, Math.tan(29 * Math.PI / 180))
   } finally { rmSync(directory, { recursive: true, force: true }) }
 })
+
+test('Windows embeds the same generated wordmark resource as iOS and macOS', () => {
+  const project = readFileSync(join(root, 'apps/windows/BenchGauge/BenchGauge.csproj'), 'utf8')
+  const resource = project.match(/<EmbeddedResource Include="([^"]+)" LogicalName="BrandWordmark.json"\s*\/>/)
+  assert.ok(resource, 'WPF must ship the shared wordmark, including the separate I and A shear')
+  const windows = readFileSync(join(root, 'apps/windows/BenchGauge', resource[1]))
+  const apple = readFileSync(join(root, 'Sources/LeaderboardKit/Resources/Brand/mobile-title.json'))
+  assert.deepEqual(windows, apple)
+  const spec = JSON.parse(windows)
+  assert.deepEqual(spec.layouts.english.glyphs.map(glyph => glyph.key), ['en-I', 'en-name'])
+  assert.equal(spec.layouts.english.logoShear, Math.tan(31 * Math.PI / 180))
+})

@@ -95,8 +95,8 @@ sealed partial class MainWindow
     {
         static readonly BitmapImage LightBrandLogo = LoadBrandLogo("header-logo.png");
         static readonly BitmapImage DarkBrandLogo = LoadBrandLogo("header-logo-dark.png");
-        BitmapImage BrandLogo => spec.Foreground is SolidColorBrush brush && brush.Color.R + brush.Color.G + brush.Color.B > 384
-            ? DarkBrandLogo : LightBrandLogo;
+        bool DarkBrand => spec.Foreground is SolidColorBrush brush && brush.Color.R + brush.Color.G + brush.Color.B > 384;
+        BitmapImage BrandLogo => DarkBrand ? DarkBrandLogo : LightBrandLogo;
         static BitmapImage LoadBrandLogo(string name)
         {
             var image = new BitmapImage();
@@ -108,10 +108,12 @@ sealed partial class MainWindow
         public bool AlignInkTop { get; init; }
         public bool DimsAmpersand { get; init; }
         public double VisibleInkHeight => spec.Text == "AI 天梯"
-            ? BrandGlyphs().Max(glyph => glyph.Ink.Height) : Text().BuildGeometry(new Point()).Bounds.Height;
+            ? BrandGlyphs().Max(glyph => glyph.Ink.Height)
+            : spec.Text == "AI BenchGauge" ? EnglishBrandArtwork.Shared.Height * spec.FontSize / EnglishBrandArtwork.Shared.BaseSize
+            : Text().BuildGeometry(new Point()).Bounds.Height;
         public double VisibleInkTop {
             get {
-                if (spec.Text == "AI 天梯") return (ActualHeight - VisibleInkHeight) / 2;
+                if (spec.Text is "AI 天梯" or "AI BenchGauge") return (ActualHeight - VisibleInkHeight) / 2;
                 var bounds = Text().BuildGeometry(new Point()).Bounds;
                 var scale = VisualTreeHelper.GetDpi(this).DpiScaleY;
                 return bounds.Top + Math.Round((ActualHeight / 2 - bounds.Top - bounds.Height / 2) * scale,
@@ -163,6 +165,8 @@ sealed partial class MainWindow
         }
         protected override Size MeasureOverride(Size available)
         {
+            if (spec.Text == "AI BenchGauge")
+                return new Size(EnglishBrandArtwork.Shared.Width * spec.FontSize / EnglishBrandArtwork.Shared.BaseSize, 27);
             if (spec.Text == "AI 天梯")
             {
                 var glyphs = BrandGlyphs();
@@ -172,6 +176,11 @@ sealed partial class MainWindow
         }
         protected override void OnRender(DrawingContext drawing)
         {
+            if (spec.Text == "AI BenchGauge")
+            {
+                EnglishBrandArtwork.Shared.Draw(drawing, BrandLogo, DarkBrand, spec.FontSize, VisibleInkTop);
+                return;
+            }
             if (spec.Text == "AI 天梯")
             {
                 var glyphs = BrandGlyphs();
@@ -191,18 +200,6 @@ sealed partial class MainWindow
             var dpi = VisualTreeHelper.GetDpi(this);
             var offset = AlignInkTop ? -bounds.Top : Math.Round((ActualHeight / 2 - bounds.Top - bounds.Height / 2) * dpi.DpiScaleY,
                 MidpointRounding.AwayFromZero) / dpi.DpiScaleY;
-            if (spec.Text == "AI BenchGauge")
-            {
-                var next = new FormattedText("I", CultureInfo.GetCultureInfo(spec.Language.IetfLanguageTag), spec.FlowDirection,
-                    new Typeface(spec.FontFamily, spec.FontStyle, spec.FontWeight, spec.FontStretch), spec.FontSize,
-                    spec.Foreground, dpi.PixelsPerDip).BuildGeometry(new Point()).Bounds;
-                var nextOrigin = text.BuildHighlightGeometry(new Point(), 1, 1).Bounds.Left;
-                text.SetForegroundBrush(Brushes.Transparent, 0, 1);
-                var logoHeight = next.Height;
-                var logoWidth = logoHeight * BrandLogo.PixelWidth / BrandLogo.PixelHeight;
-                drawing.DrawImage(BrandLogo, new Rect(nextOrigin + next.Left - BrandGap - logoWidth,
-                    offset + next.Top, logoWidth, logoHeight));
-            }
             drawing.DrawText(text, new Point(0, offset));
         }
     }

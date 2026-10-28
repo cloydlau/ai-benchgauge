@@ -21,12 +21,12 @@ struct BrandHeadingTests {
         }
     }
 
-    @Test func replacingInitialKeepsNativeTitleAndBaselineFootprint() throws {
+    @Test func englishDesktopMatchesIOSAtEverySizeAndAlignment() throws {
         _ = NSApplication.shared
         for size in [21.0, 25.0, 32.0] {
             for alignment in [VerticalAlignment.top, .center, .bottom, .firstTextBaseline] {
                 let before = NSHostingView(rootView: HStack(alignment: alignment, spacing: 6) {
-                    Text("AI BenchGauge").font(.custom("SnellRoundhand-Bold", fixedSize: size)).lineLimit(1)
+                    MobileBrandTitle(language: .english, fontSize: size)
                     Text("Subtitle").font(.system(size: 12))
                 })
                 let after = NSHostingView(rootView: HStack(alignment: alignment, spacing: 6) {
@@ -34,12 +34,21 @@ struct BrandHeadingTests {
                     Text("Subtitle").font(.system(size: 12))
                 })
                 let expected = before.fittingSize
+                #expect(abs(BrandTitleMetrics.layoutWidth(language: .english, fontSize: size)
+                    - MobileBrandMetrics.layoutWidth(language: .english, fontSize: size)) < 0.001)
+                #expect(abs(BrandTitleMetrics.inkHeight(language: .english, fontSize: size)
+                    - MobileBrandMetrics.inkHeight(language: .english, fontSize: size)) < 0.001)
                 #expect(abs(after.fittingSize.width - expected.width) < 0.01)
                 #expect(abs(after.fittingSize.height - expected.height) < 0.01)
                 after.frame = CGRect(origin: .zero, size: expected)
                 let image = try #require(after.bitmapImageRepForCachingDisplay(in: after.bounds))
                 after.cacheDisplay(in: after.bounds, to: image)
                 #expect(image.pixelsWide > 100)
+                before.frame = CGRect(origin: .zero, size: expected)
+                let reference = try #require(before.bitmapImageRepForCachingDisplay(in: before.bounds))
+                before.cacheDisplay(in: before.bounds, to: reference)
+                #expect(image.representation(using: .png, properties: [:])
+                    == reference.representation(using: .png, properties: [:]))
             }
         }
         let title = ChineseBrandLayout.make()
