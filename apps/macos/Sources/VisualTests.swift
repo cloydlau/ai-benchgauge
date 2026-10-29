@@ -11,7 +11,7 @@ private final class SearchVisualWindow: NSWindow { override var canBecomeKey: Bo
 @MainActor
 enum NativeVisualCapture {
     enum CaptureError: Error { case blankFrame(String) }
-    struct Entry: Decodable { let rank: Int; let name: String; let score: Double; let modelID: String?; let organization: String; let logo: String; let openness: ModelOpenness?; let brand: OrganizationBrand?; let organizationBrand: OrganizationBrand?; let developerCountry: OrganizationCountryMetadata?; let modelMetadata: ModelMetadata?; let totalTokens: String?; let rankChange: LeaderboardRankChange?; let companyRankChange: LeaderboardRankChange? }
+    struct Entry: Decodable { let rank: Int; let name: String; let score: Double; let modelID: String?; let organization: String; let logo: String; let openness: ModelOpenness?; let brand: OrganizationBrand?; let organizationBrand: OrganizationBrand?; let developerCountry: OrganizationCountryMetadata?; let modelMetadata: ModelMetadata?; let totalTokens: String?; let taskCostUSD: Double?; let speed: Double?; let outputPriceUSD: Double?; let provider: String?; let rankChange: LeaderboardRankChange?; let companyRankChange: LeaderboardRankChange? }
     struct Board: Decodable { let kind: String; let title: String; let entries: [Entry]; let sourceUpdatedAt: String?; let sourceTimeUnavailable: Bool?; let fetchedAt: String?; let contentUpdatedAt: String?; let sourceNote: String? }
     struct Quota: Decodable {
         struct Run: Decodable { let text: String }
@@ -44,7 +44,7 @@ enum NativeVisualCapture {
             let kind = LeaderboardKind(rawValue: board.kind)!
             let entries = board.entries.map { entry in
                 LeaderboardEntry(rank: entry.rank, name: entry.name, score: entry.score, modelID: entry.modelID, organization: entry.organization,
-                    openness: entry.openness, brand: entry.brand, organizationBrand: entry.organizationBrand, developerCountry: entry.developerCountry, modelMetadata: entry.modelMetadata, totalTokens: entry.totalTokens, rankChange: entry.rankChange, companyRankChange: entry.companyRankChange)
+                    openness: entry.openness, brand: entry.brand, organizationBrand: entry.organizationBrand, developerCountry: entry.developerCountry, modelMetadata: entry.modelMetadata, totalTokens: entry.totalTokens, rankChange: entry.rankChange, companyRankChange: entry.companyRankChange, taskCostUSD: entry.taskCostUSD, speed: entry.speed, outputPriceUSD: entry.outputPriceUSD, provider: entry.provider)
             }
             return (kind, Leaderboard(kind: kind, title: board.title, sourceUpdatedAt: board.sourceTimeUnavailable == true ? nil : board.sourceUpdatedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, sourceNote: board.sourceNote, fetchedAt: board.fetchedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? fixedDate, contentUpdatedAt: board.contentUpdatedAt.flatMap { ISO8601DateFormatter().date(from: $0) }, entries: entries))
         })
@@ -102,6 +102,10 @@ enum NativeVisualCapture {
                 let defaultsName = "ai-benchgauge.visual.\(UUID().uuidString)"
                 let defaults = UserDefaults(suiteName: defaultsName)!
                 let state = AppState(cache: LeaderboardCache(fileURL: output.appending(path: "nonexistent-cache.json")), defaults: defaults)
+                state.codingCostOrder = test.scenario == "codingCostOrder"
+                if test.scenario == "aaCostOrder" { state.costOrders = Set(test.selectedBoards ?? []) }
+                if test.scenario == "aaSpeedOrder" { state.speedOrders = Set(test.selectedBoards ?? []) }
+                if test.scenario == "priceAscending" { state.priceAscending = true }
                 let visibleChips = (fixture.quotaScenarios?[test.scenario]).map { $0.map(chip) }
                     ?? (test.scenario == "manyQuotas" ? chips : (["empty", "installedEmpty", "error"].contains(test.scenario) ? [] : Array(chips.prefix(2))))
                 let errors: [LeaderboardKind: String] = test.scenario == "error" ? [.artificialAnalysis: "Refresh failed / 刷新失败（测试）", .arenaText: "Refresh failed / 刷新失败（测试）"] : [:]
@@ -357,6 +361,42 @@ enum NativeVisualCapture {
                 defer {
                     if let sheet = window.attachedSheet { window.endSheet(sheet) }
                     window.close(); defaults.removePersistentDomain(forName: defaultsName)
+                }
+                if test.scenario == "metricStability" {
+                    func findTable(_ view: NSView) -> NSTableView? {
+                        if let table = view as? NSTableView, table.tableColumns.count >= 9 { return table }
+                        for child in view.subviews { if let result = findTable(child) { return result } }
+                        return nil
+                    }
+                    try await Task.sleep(for: .milliseconds(500))
+                    host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                    guard let table = findTable(host), let header = table.headerView,
+                          let scroll = table.enclosingScrollView else { throw CaptureError.blankFrame("metric table missing") }
+                    scroll.contentView.scroll(to: NSPoint(x: 0, y: 120))
+                    scroll.reflectScrolledClipView(scroll.contentView)
+                    await Task.yield()
+                    let originalOffset = scroll.contentView.bounds.minY
+                    let headerFrame = header.frame
+                    let kind = (test.selectedBoards ?? [.artificialAnalysis]).first ?? .artificialAnalysis
+                    for frame in 0..<3 {
+                        if frame == 1 { state.costOrders.insert(kind) }
+                        if frame == 2 { state.costOrders.remove(kind); state.speedOrders.insert(kind) }
+                        try await Task.sleep(for: .milliseconds(300))
+                        host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                        guard findTable(host) === table, table.headerView === header,
+                              header.frame == headerFrame,
+                              abs(scroll.contentView.bounds.minY - originalOffset) < 1,
+                              let png = PanelScreenshot.capture(view: host)?.png else {
+                            throw CaptureError.blankFrame("metric switch replaced or moved the header/scroll")
+                        }
+                        try png.write(to: output.appending(path: "\(test.id)-\(theme)-frame-\(frame).png"))
+                    }
+                    metadata.append(["id": test.id, "theme": theme, "width": String(test.width), "height": String(test.height),
+                        "fixtureHash": fixtureHash, "timezone": TimeZone.current.identifier,
+                        "sourceCommit": ProcessInfo.processInfo.environment["GITHUB_SHA"] ?? "local-uncommitted",
+                        "backingScale": String(describing: window.backingScaleFactor), "capture": "native-view-without-redaction",
+                        "os": ProcessInfo.processInfo.operatingSystemVersionString])
+                    continue
                 }
                 for frame in 0..<3 {
                     if test.scenario.hasPrefix("usageLoading") { apply(refreshed: frame > 0, phase: frame) }

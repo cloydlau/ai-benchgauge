@@ -2,6 +2,7 @@ import Foundation
 
 public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
     case artificialAnalysis = "artificialAnalysis"
+    case valsSWEbench = "valsSWEbench"
     case artificialAnalysisCodingAgent = "artificialAnalysisCodingAgent"
     case arenaText = "arenaText"
     case epochECI = "epochECI"
@@ -13,9 +14,14 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
     case cloudbaseUsage = "cloudbaseUsage"
     case vercelUsage = "vercelUsage"
     case openRouterUsage = "openRouterUsage"
+    case openRouterPrice = "openRouterPrice"
 
     public var isUsage: Bool { self == .openRouterUsage || isShareUsage }
     public var isShareUsage: Bool { self == .vercelUsage || self == .cloudbaseUsage }
+    public var isPrice: Bool { self == .openRouterPrice }
+    public var supportsAACost: Bool {
+        [.openRouterUsage, .artificialAnalysis, .artificialAnalysisCodingAgent, .valsSWEbench, .artificialAnalysisTextToImage, .artificialAnalysisTextToVideo].contains(self)
+    }
 
     /// Older builds stored these boards under abbreviated raw values.
     fileprivate static let legacyRawValues: [String: LeaderboardKind] = [
@@ -53,11 +59,13 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
         let value = switch self {
         case .artificialAnalysis:
             "https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index"
+        case .valsSWEbench: "https://www.vals.ai/benchmarks/swebench"
         case .artificialAnalysisCodingAgent:
             "https://artificialanalysis.ai/agents/coding-agents"
         case .cloudbaseUsage: "https://docs.cloudbase.net/ai/announcement/model-token-volume"
         case .vercelUsage: "https://vercel.com/ai-gateway/leaderboards/models"
         case .openRouterUsage: "https://openrouter.ai/rankings"
+        case .openRouterPrice: "https://openrouter.ai/models"
         case .epochECI:
             "https://epoch.ai/eci"
         case .arenaText:
@@ -90,22 +98,26 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
             "Artificial Analysis"
         case .arenaText, .codeArenaWebDev, .arenaTextToImage, .arenaTextToVideo:
             "Arena"
+        case .valsSWEbench: "Vals AI"
         case .epochECI: "Epoch AI"
         case .cloudbaseUsage: "Tencent Cloud"
         case .vercelUsage: "Vercel AI Gateway"
         case .openRouterUsage: "OpenRouter"
+        case .openRouterPrice: "OpenRouter"
         }
     }
 
     public var sourceLinkTitle: String {
         switch self {
         case .artificialAnalysis: "Artificial Analysis"
+        case .valsSWEbench: "Vals AI · SWE-bench (Archived)"
         case .artificialAnalysisCodingAgent: "Artificial Analysis 编程"
         case .arenaText: "Text Arena"
         case .epochECI: "Epoch ECI"
         case .cloudbaseUsage: "Tencent Cloud"
         case .vercelUsage: "Vercel AI Gateway"
         case .openRouterUsage: "OpenRouter"
+        case .openRouterPrice: "OpenRouter"
         case .codeArenaWebDev: "Code Arena"
         case .artificialAnalysisTextToImage: "Artificial Analysis 文生图"
         case .arenaTextToImage: "Arena 文生图"
@@ -117,10 +129,13 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
 
 public enum LeaderboardCategory: String, Codable, CaseIterable, Identifiable, Sendable {
     case usage
+    case price
     case general
     case coding
     case image
     case video
+
+    public static let allCases: [LeaderboardCategory] = [.usage, .general, .coding, .image, .video]
 
     public var id: String { rawValue }
 
@@ -131,16 +146,23 @@ public enum LeaderboardCategory: String, Codable, CaseIterable, Identifiable, Se
         case .image: "图片"
         case .video: "视频"
         case .usage: "用量"
+        case .price: "价格"
         }
+    }
+
+    /// The archived Vals snapshot remains selectable for historical comparison.
+    public var defaultBoardKinds: [LeaderboardKind] {
+        self == .coding ? [.artificialAnalysisCodingAgent, .codeArenaWebDev] : boardKinds
     }
 
     public var boardKinds: [LeaderboardKind] {
         switch self {
         case .general: [.artificialAnalysis, .arenaText, .epochECI]
-        case .coding: [.artificialAnalysisCodingAgent, .codeArenaWebDev]
+        case .coding: [.artificialAnalysisCodingAgent, .codeArenaWebDev, .valsSWEbench]
         case .image: [.artificialAnalysisTextToImage, .arenaTextToImage]
         case .video: [.artificialAnalysisTextToVideo, .arenaTextToVideo]
         case .usage: [.openRouterUsage, .vercelUsage, .cloudbaseUsage]
+        case .price: [.openRouterPrice]
         }
     }
 }
@@ -219,6 +241,13 @@ public struct LeaderboardEntry: Codable, Equatable, Identifiable, Sendable {
     public let totalTokens: String?
     public let rankChange: LeaderboardRankChange?
     public let companyRankChange: LeaderboardRankChange?
+    /// Source cost in USD: per evaluation task, per image, or per minute of video,
+    /// depending on the leaderboard kind.
+    public let taskCostUSD: Double?
+    /// AA output tokens/s for general models; seconds/task for coding agents.
+    public let speed: Double?
+    public let outputPriceUSD: Double?
+    public let provider: String?
 
     public init(
         rank: Int,
@@ -235,7 +264,11 @@ public struct LeaderboardEntry: Codable, Equatable, Identifiable, Sendable {
         voteCount: Int? = nil,
         totalTokens: String? = nil,
         rankChange: LeaderboardRankChange? = nil,
-        companyRankChange: LeaderboardRankChange? = nil
+        companyRankChange: LeaderboardRankChange? = nil,
+        taskCostUSD: Double? = nil,
+        speed: Double? = nil,
+        outputPriceUSD: Double? = nil,
+        provider: String? = nil
     ) {
         self.rank = rank
         self.name = name
@@ -252,6 +285,10 @@ public struct LeaderboardEntry: Codable, Equatable, Identifiable, Sendable {
         self.totalTokens = totalTokens
         self.rankChange = rankChange
         self.companyRankChange = companyRankChange
+        self.taskCostUSD = taskCostUSD.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil }
+        self.speed = speed.flatMap { $0.isFinite && $0 > 0 ? $0 : nil }
+        self.outputPriceUSD = outputPriceUSD.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil }
+        self.provider = provider
     }
 }
 

@@ -55,7 +55,7 @@ export function createBoardStore({ platform, endpoint }) {
     const promise = new Promise((resolve, reject) => {
       let task
       task = platform.request({
-        url: `${endpoint}/v1/boards/${kind}`, method: 'GET', timeout: 15000,
+        url: `${endpoint}/v1/boards/${kind}`, method: 'GET', timeout: kind === 'openRouterPrice' ? 30000 : 15000,
         header: { Accept: 'application/json' },
         success(result) {
           if (disposed) { reject(new Error('Store disposed')); return }

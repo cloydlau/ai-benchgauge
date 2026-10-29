@@ -9,15 +9,30 @@ import { loadConfiguredVercelUsage } from './vercel-usage.mjs';
 import { loadCloudBaseUsage } from './cloudbase-usage.mjs';
 import { loadConfiguredOpenRouterUsage, openRouterConfigured } from './openrouter-usage.mjs';
 import { ModelsDevRegistry, loadConfiguredModelsDev, modelsDevInterval } from './models-dev.mjs';
+import { loadConfiguredOpenRouterPrices, priceBoard } from './price-catalog.mjs';
+import { loadConfiguredAAGeneralCosts } from './aa-general-cost.mjs';
 
 const maxHTMLBytes = 24 * 1024 * 1024;
-export function handler(makeService, { syncToken = process.env.MODELS_DEV_SYNC_TOKEN } = {}) {
+export function handler(makeService, { syncToken = process.env.MODELS_DEV_SYNC_TOKEN, priceLoader = loadConfiguredOpenRouterPrices } = {}) {
+  let openRouterPrices, priceExpires = 0;
   return async (request, response) => {
     response.setHeader('Content-Type', 'application/json; charset=utf-8');
     response.setHeader('Cache-Control', 'no-store');
     response.setHeader('X-Content-Type-Options', 'nosniff');
     try {
       const path = new URL(request.url, 'http://localhost').pathname;
+      if (['/v1/prices/openRouter', '/v1/boards/openRouterPrice', '/v1/boards/openRouterPrice/refresh'].includes(path)) {
+        const refreshing = path.endsWith('/refresh');
+        if (request.method !== (refreshing ? 'POST' : 'GET')) throw new RequestError(405, 'Method not allowed');
+        let catalog;
+        if (!openRouterPrices || Date.now() >= priceExpires) {
+          openRouterPrices = Promise.resolve().then(() => priceLoader()); priceExpires = Date.now() + 600000;
+        }
+        try { catalog = await openRouterPrices; }
+        catch { openRouterPrices = undefined; priceExpires = 0; throw new RequestError(503, 'Price catalog unavailable'); }
+        response.end(JSON.stringify(path.startsWith('/v1/boards/') ? { board: priceBoard('openRouterPrice', catalog) } : catalog));
+        return;
+      }
       if (path === '/invoke') {
         if (request.method !== 'POST') throw new RequestError(405, 'Method not allowed');
         let size = 0; const chunks = [];
@@ -81,6 +96,7 @@ async function serviceFor(request) {
   const client = new OSS(configuration);
   const store = new OSSStore(client);
   return new SharedLeaderboards(store, { brands: new BrandRegistry(store), countries: new CountryRegistry(store), arenaDataset: loadConfiguredArenaDataset,
+    generalCosts: loadConfiguredAAGeneralCosts,
     cloudbaseUsage: loadCloudBaseUsage, vercelUsage: loadConfiguredVercelUsage, openRouterUsage: loadConfiguredOpenRouterUsage, openRouterConfigured,
     models: new ModelsDevRegistry(store, { load: loadConfiguredModelsDev, cache: modelsCache }) });
 }

@@ -8,7 +8,7 @@ public final class LeaderboardPadStore: ObservableObject {
     @Published public private(set) var failures: [LeaderboardKind: LeaderboardFailure] = [:]
     @Published public private(set) var refreshing: Set<LeaderboardKind> = []
     @Published public private(set) var timestampPolishRevisions: [LeaderboardKind: Int] = [:]
-    @Published public var category: LeaderboardCategory { didSet { CategoryPreference.save(category, to: defaults) } }
+    @Published public var category: LeaderboardCategory { didSet { if category == .price { grouping = .model }; CategoryPreference.save(category, to: defaults) } }
     @Published public var grouping: LeaderboardGrouping {
         didSet {
             if grouping != oldValue {
@@ -20,6 +20,13 @@ public final class LeaderboardPadStore: ObservableObject {
             rowPresentations.removeAll()
             GroupingPreference.save(grouping, to: defaults)
         }
+    }
+    @Published public var priceAscending = false { didSet { rowPresentations.removeAll() } }
+    @Published public var speedOrders: Set<LeaderboardKind> = [] { didSet { rowPresentations.removeAll() } }
+    @Published public var costOrders: Set<LeaderboardKind> = [] { didSet { rowPresentations.removeAll() } }
+    public var codingCostOrder: Bool {
+        get { costOrders.contains(.artificialAnalysisCodingAgent) }
+        set { if newValue { costOrders.insert(.artificialAnalysisCodingAgent) } else { costOrders.remove(.artificialAnalysisCodingAgent) } }
     }
     @Published public var appearance: String { didSet { defaults.set(appearance, forKey: "mobileAppearance") } }
     @Published public var boardTransition: LeaderboardSwitchStyle { didSet { defaults.set(boardTransition.rawValue, forKey: "mobileBoardTransition") } }
@@ -62,7 +69,7 @@ public final class LeaderboardPadStore: ObservableObject {
     func rowPresentation(for kind: LeaderboardKind) -> PadRowPresentation {
         if let cached = rowPresentations[kind] { return cached }
         let value = PadRowPresentation(board: snapshot.boards[kind], grouping: grouping,
-            country: countryFilter(for: kind), openness: opennessFilter(for: kind), language: language, modelQuery: modelSearchQuery)
+            country: countryFilter(for: kind), openness: opennessFilter(for: kind), language: language, modelQuery: modelSearchQuery, costOrder: costOrders.contains(kind), speedOrder: speedOrders.contains(kind), priceAscending: priceAscending)
         rowPresentations[kind] = value
         return value
     }
@@ -75,7 +82,7 @@ public final class LeaderboardPadStore: ObservableObject {
         self.snapshot = self.cache?.load() ?? LeaderboardSnapshot()
         let initialCategory = CategoryPreference.load(from: defaults)
         self.category = initialCategory
-        self.grouping = GroupingPreference.load(from: defaults)
+        self.grouping = initialCategory == .price ? .model : GroupingPreference.load(from: defaults)
         self.language = AppLanguage.load(from: defaults)
         self.appearance = defaults.string(forKey: "mobileAppearance") ?? "system"
         self.boardTransition = LeaderboardSwitchStyle(saved: defaults.string(forKey: "mobileBoardTransition"))
@@ -122,6 +129,9 @@ public final class LeaderboardPadStore: ObservableObject {
         snapshot = source.snapshot
         category = source.category
         grouping = source.grouping
+        costOrders = source.costOrders
+        speedOrders = source.speedOrders
+        priceAscending = source.priceAscending
         language = source.language
         appearance = source.appearance
         boardTransition = source.boardTransition

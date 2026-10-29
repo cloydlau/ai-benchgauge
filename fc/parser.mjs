@@ -1,3 +1,4 @@
+import { parse as parseHTML } from 'parse5';
 import { parseEpochECI } from './epoch-eci.mjs';
 import { countryCode } from './countries.mjs';
 import { normalizedBrandKey } from './brands.mjs';
@@ -9,6 +10,7 @@ export const sources = Object.freeze({
   vercelUsage: ['https://vercel.com/ai-gateway/leaderboards/models', 'Vercel AI Gateway'],
   openRouterUsage: ['https://openrouter.ai/rankings', 'OpenRouter'],
   artificialAnalysis: ['https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index', 'Artificial Analysis Intelligence Index'],
+  valsSWEbench: ['https://www.vals.ai/benchmarks/swebench', 'Vals AI · SWE-bench Verified'],
   artificialAnalysisCodingAgent: ['https://artificialanalysis.ai/agents/coding-agents', 'Artificial Analysis Coding Agent Index'],
   epochECI: ['https://epoch.ai/data/eci_scores.csv', 'Epoch Capabilities Index'],
   arenaText: ['https://arena.ai/leaderboard/text', 'Arena | Text'],
@@ -99,6 +101,7 @@ export function parseBoard(kind, html, now) {
   if (kind === 'openRouterUsage' || kind === 'vercelUsage' || kind === 'cloudbaseUsage') throw new Error('Usage requires the official Data API');
   if (!Object.hasOwn(sources, kind) || typeof html !== 'string') throw new Error('Invalid source');
   if (kind === 'epochECI') return parseEpochECI(html, now);
+  if (kind === 'valsSWEbench') return parseVals(html, now);
   const text = payload(html);
   const arena = kind === 'codeArenaWebDev' || kind.startsWith('arena');
   const coding = kind === 'artificialAnalysisCodingAgent';
@@ -126,7 +129,13 @@ export function parseBoard(kind, html, now) {
     const countryHint = code && organization ? { key: normalizedBrandKey(organization), countryCode: code } : null;
     const organizationWebsite = safeString(arena ? value.modelOrganizationWebsite : creator?.website, 2048);
     if (organization && logoURL) organizationLogoURLs[organization] = logoURL;
-    rows.push({ name, score, ...(modelID && { modelID }), ...(organization && { organization }), ...(logoURL && { logoURL }), ...(modelLogoURL && { modelLogoURL }), ...(openness && { openness }), ...(countryHint && { countryHint }), ...(organizationWebsite && { organizationWebsite }) });
+    // AA image quotes are per 1,000 images; video quotes remain per minute.
+    // General/coding costs use their respective source-provided task metrics.
+    const taskCostUSD = coding ? value.mean?.costUsd : intelligence ? value.intelligenceIndexCostPerTask?.cost?.total
+      : kind === 'artificialAnalysisTextToImage' && typeof value.pricePer1kImages === 'number' ? value.pricePer1kImages / 1000
+      : kind === 'artificialAnalysisTextToVideo' ? value.pricePerMinute : undefined;
+    const speed = coding ? value.mean?.agentWallTimeSec : intelligence ? value.timescaleData?.medianOutputSpeed : undefined;
+    rows.push({ name, score, ...(typeof speed === 'number' && Number.isFinite(speed) && speed > 0 && { speed }), ...(typeof taskCostUSD === 'number' && Number.isFinite(taskCostUSD) && taskCostUSD >= 0 && { taskCostUSD }), ...(modelID && { modelID }), ...(organization && { organization }), ...(logoURL && { logoURL }), ...(modelLogoURL && { modelLogoURL }), ...(openness && { openness }), ...(countryHint && { countryHint }), ...(organizationWebsite && { organizationWebsite }) });
   }
   if (rows.length < (coding ? 10 : 20)) throw new Error('Incomplete source data');
   const organizationLogoSVGs = Object.create(null);
@@ -166,4 +175,40 @@ export function parseBoard(kind, html, now) {
     entries: rows.map((row, index) => ({ rank: index + 1, ...row })),
     ...(Object.keys(organizationLogoURLs).length && { organizationLogoURLs }),
     ...(Object.keys(organizationLogoSVGs).length && { organizationLogoSVGs }) };
+}
+
+// Vals publishes one row per model and harness. Preserve the source order and variants.
+function parseVals(html, now) {
+  if (!html.includes('Archived Benchmark')) throw new Error('Missing Vals archive notice');
+  const dateMatch = html.match(/Updated\s+(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (!dateMatch) throw new Error('Missing Vals source date');
+  const sourceDate = Date.UTC(+dateMatch[3], +dateMatch[1] - 1, +dateMatch[2]);
+  if (!Number.isFinite(sourceDate) || sourceDate > now + 300000) throw new Error('Invalid Vals date');
+  const doc = parseHTML(html);
+  const children = node => node.childNodes ?? [];
+  const walk = function* (node) { yield node; for (const child of children(node)) yield* walk(child); };
+  const text = node => [...walk(node)].filter(n => n.nodeName === '#text').map(n => n.value).join('').trim();
+  const table = [...walk(doc)].find(n => n.tagName === 'table' && n.attrs?.some(a => a.name === 'aria-labelledby' && a.value === 'benchmark-leaderboard-title'));
+  if (!table) throw new Error('Missing Vals leaderboard');
+  const trs = [...walk(table)].filter(n => n.tagName === 'tr');
+  const header = children(trs[0] ?? {}).filter(n => n.tagName === 'th').map(text).join('|');
+  if (header !== 'Rank|Model|Harness|Score|Cost / Test|Tokens / Test|Duration / Test') throw new Error('Unexpected Vals columns');
+  const entries = [];
+  for (const tr of trs.slice(1)) {
+    const cells = children(tr).filter(n => n.tagName === 'td' || n.tagName === 'th');
+    if (cells.length !== 7) throw new Error('Malformed Vals row');
+    const [rankText, model, harness, scoreText, costText, , duration] = cells.map(text);
+    const rank = Number(rankText), score = Number(scoreText.replace(/%$/, ''));
+    if (rank !== entries.length + 1 || !model || !harness || !/^\d+(?:\.\d+)?%$/.test(scoreText) || score > 100) throw new Error('Invalid Vals row');
+    const anchor = [...walk(cells[1])].find(n => n.tagName === 'a');
+    const slug = anchor?.attrs?.find(a => a.name === 'href')?.value?.match(/^\/models\/([a-zA-Z0-9_.-]+)$/)?.[1];
+    if (!slug) throw new Error('Invalid Vals model link');
+    const cost = /^\$\d+(?:\.\d+)?$/.test(costText) ? Number(costText.slice(1)) : undefined;
+    const time = duration.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+(?:\.\d+)?)s)?$/);
+    const speed = time && (time[1] || time[2] || time[3]) ? (+time[1] || 0) * 3600 + (+time[2] || 0) * 60 + (+time[3] || 0) : undefined;
+    const organization = slug.includes('_') ? slug.split('_')[0] : undefined;
+    entries.push({ rank, name: `${model} · ${harness}`, score, modelID: `vals:${slug}:${harness}`, ...(organization && { organization }), ...(cost !== undefined && { taskCostUSD: cost }), ...(speed > 0 && { speed }) });
+  }
+  if (entries.length < 20) throw new Error('Incomplete Vals source data');
+  return { kind: 'valsSWEbench', title: sources.valsSWEbench[1], fetchedAt: new Date(now).toISOString(), sourceUpdatedAt: new Date(sourceDate).toISOString(), sourceNote: 'Archived · SWE-bench Verified', entries };
 }

@@ -1,17 +1,19 @@
 import { categories, categoryFor } from './catalog.js'
 
-// Match DesktopBoardSelection: catalog order, all visible by default, never empty.
+// Match DesktopBoardSelection: defaults exclude archived sources; explicit choices retain them.
 export function visibleBoardKinds(category, selections = {}) {
-  const kinds = categoryFor(category).kinds
+  const item = categoryFor(category), kinds = item.kinds
+  const defaults = item.defaultKinds || kinds
   const saved = selections?.[category]
-  const selected = Array.isArray(saved) ? kinds.filter(kind => saved.includes(kind)) : kinds
-  return selected.length ? selected : kinds
+  const selected = Array.isArray(saved) ? kinds.filter(kind => saved.includes(kind)) : defaults
+  return selected.length ? selected : defaults
 }
 
 export function normalizeBoardSelections(value) {
   return Object.fromEntries(categories.flatMap(category => {
     const kinds = visibleBoardKinds(category.id, value)
-    return kinds.length === category.kinds.length ? [] : [[category.id, kinds]]
+    const defaults = category.defaultKinds || category.kinds
+    return kinds.length === defaults.length && kinds.every((kind, index) => kind === defaults[index]) ? [] : [[category.id, kinds]]
   }))
 }
 

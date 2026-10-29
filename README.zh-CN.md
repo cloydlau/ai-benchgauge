@@ -7,7 +7,7 @@
 [English](README.md) | **简体中文** | [繁體中文](README.zh-Hant.md)
 
 <!-- app-description:start (generated from apps/weapp/src/core/catalog.js) -->
-**任务测评看成绩，用户盲测看体验，难度校准看实力。多榜对照，选得明白；余量追踪，用得有数。**
+**任务测评看成绩，用户盲测看体验，难度校准看实力。多维纵览，选得明白；余量洞察，用得有数。**
 <!-- app-description:end -->
 
 `macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `English / 简中 / 繁中`
@@ -34,8 +34,8 @@
 
 | 系统 | 处理器 | 支持情况 |
 | --- | --- | --- |
-| 微信小程序 | iOS / Android 微信 | 已加入客户端及共享榜单；开发者预览和发布待完成 |
-| iOS 17 / iPadOS 17 及以上 | 能运行对应系统的 iPhone、iPad | 已加入原生工程，尚未发布公开 TestFlight / App Store 版本 |
+| 微信小程序 | iOS / Android 微信 | 已上传开发版；公开发布待完成 |
+| iOS 17 / iPadOS 17 及以上 | 能运行对应系统的 iPhone、iPad | 原生工程可用；公开发行已暂停 |
 | Windows 11 | 64 位 Intel / AMD（`x64`） | 支持 |
 | Windows 10 | 64 位 Intel / AMD（`x64`） | 兼容目标；.NET 10 官方支持仍受维护的 LTSC / Enterprise 版本，Home / Pro 尚未验证 |
 | Windows 7 / 8 / 8.1 | 任意 | 不支持 |
@@ -44,16 +44,16 @@
 | macOS 13 Ventura 及以下 | 任意 | 不支持 |
 
 Mac 的 `.dmg` 包含 **Apple 芯片与 Intel 原生通用应用**，两种芯片下载同一个安装包，无需 Rosetta。
-Windows 提供 `x64` 的 `-setup.exe`，内含 Swift 和 .NET；不提供 32 位或原生 ARM64 安装包，ARM64 模拟运行尚未验证。
+启用 Windows 发布时，`x64` 的 `-setup.exe` 内含 Swift 和 .NET；不提供 32 位或原生 ARM64 安装包，ARM64 模拟运行尚未验证。
 具体版本限制、已验证范围和 Intel 支持评估见[系统兼容说明](docs/compatibility.md)。
 
-**iPhone / iPad：**[原生排行榜版](apps/ios/README.md)共用一个应用包、商店记录和版本。iPhone 通过左右滑动／点按进行 3D 魔方翻面，在同一位置切换两个榜单；iPad 宽屏保持并排。支持横竖屏、离线缓存和截图复制，不提供桌面的展示模式选择。新版 iPadOS 的系统窗口仍由用户控制。首版不提供电脑的账户余量。目前尚未发布公开 TestFlight / App Store 版本，不能安装 DMG / EXE。
+**iPhone / iPad：**[原生排行榜版](apps/ios/README.md)共用一个应用包、商店记录和版本。iPhone 通过左右滑动／点按进行 3D 魔方翻面，在同一位置切换来源；iPad 宽屏并排显示榜单。支持横竖屏、离线缓存和截图复制，不提供桌面的展示模式选择。新版 iPadOS 的系统窗口仍由用户控制。首版不提供电脑的账户余量。目前尚未发布公开 TestFlight / App Store 版本，不能安装 DMG / EXE。
 
 ## 你会得到什么
 
 | 功能 | 用起来是什么样 |
 | --- | --- |
-| **双榜对照** | 综合、编程、图片、视频四类榜单，每类并排展示两个来源的完整榜单与各自分数；表格保持原有高度，支持滚动及一键返回顶部。 |
+| **榜单对照** | 用量、综合、编程、图片、视频五类榜单，桌面可并排查看各来源的完整榜单与数值；表格保持原有高度，支持滚动及一键返回顶部。 |
 | **模型 / 公司切换** | 模型看具体型号；公司以该公司上榜模型的最高分排名，不会因为多上榜或较弱型号而改变分数。 |
 | **四种显示模式** | 底部下拉框可选“保持打开”“保持置顶”“失焦关闭”“独立窗口”；“保持打开”点击其他位置不会关闭，再点菜单栏图标关闭。“保持置顶”还会让弹窗显示在其他应用窗口之上。独立窗口首次打开时在菜单栏图标所在屏幕居中，内容宽高与弹窗一致；可拖动、调整大小和 macOS 分屏，切换模式时保留手动调整的位置和大小。 |
 | **CC Switch 余量** | 读取本机 CC Switch 数据，查询支持的提供商余量，并在榜单上方显示状态；百分比和金额颜色随余量减少从绿色渐变至红色。金额以 ¥0/10/30/100、$0/2/5/20 分别对应红/橙/黄/绿，中间连续过渡，悬停可查看各币种的参照金额；无需安装 Codex。 |
@@ -61,17 +61,17 @@ Windows 提供 `x64` 的 `-setup.exe`，内含 Swift 和 .NET；不提供 32 位
 | **直达套餐与按量页面** | 仅在“公司”分组显示可用的“套餐 / 按量”链接。简中优先打开中国大陆站点，其他界面语言优先打开国际站点。 |
 | **少打扰的更新** | 进入榜单时检查发布时间，没有发布时间时检查抓取时间，满 24 小时才自动刷新。手动刷新复用该榜正在进行的请求，不运行榜单定时轮询；刷新失败时保留本地缓存。 |
 | **应用自动更新** | 启动时及每 24 小时检查 GitHub 稳定版，后台下载并校验；准备好且窗口激活后显示不可关闭的“重启升级”提示，点击安装并启动新版，后台不抢焦点。[发版配置](docs/releasing.md)。 |
-| **Codex 任务计数（macOS）** | 菜单栏显示执行中、已完成待查看的任务数量，有失败任务时再显示报错数。ChatGPT/Codex 桌面应用运行时显示，本地更新，不调用模型或余量 API。 |
+| **Codex 任务计数（macOS）** | 菜单栏显示执行中、已完成待查看的任务数量，有失败任务时再显示报错数。默认关闭；在底部开启 “Codex 任务统计” 后，ChatGPT/Codex 桌面应用运行时显示。本地更新，不调用模型或余量 API。 |
 
 ### Codex 任务计数
 
-在 macOS 上，ChatGPT/Codex 桌面应用运行时，菜单栏会显示类似 `▶ 2  ✓ 1` 的任务计数：
+在 macOS 上，底部开启默认关闭的 “Codex 任务统计” 后，ChatGPT/Codex 桌面应用运行时，菜单栏会显示类似 `▶ 2  ✓ 1` 的任务计数：
 
 - `▶`：正在执行的任务；等待批准或用户输入的任务不计入。
 - `✓`：已完成但尚未查看的任务，不是累计完成总数。
 - `!`：失败任务；仅在数量大于零时显示。可恢复的工具错误不会被计为任务失败。
 
-悬停菜单栏条目可查看各项含义。只统计本机桌面任务，不含已归档任务、代理子任务和远程主机。状态通过本地数据只读更新，不消耗模型/API 额度。状态暂不可用时显示 `▶ —  ✓ —`，不会当成零；关闭桌面应用后整段计数隐藏，仅安装 Codex 或运行 CLI 不会显示。目前任务计数仅支持 macOS。
+悬停菜单栏条目可查看各项含义。只统计本机桌面任务，不含已归档任务、代理子任务和远程主机。状态通过本地数据只读更新，不消耗模型/API 额度。状态暂不可用时显示 `▶ —  ✓ —`，不会当成零；关闭开关或桌面应用后整段计数隐藏，仅安装 Codex 或运行 CLI 不会显示。目前任务计数仅支持 macOS。
 
 ### 账户余量如何工作？
 
@@ -106,21 +106,22 @@ xAI 显示“登录失效”或“未登录”时，点击卡片会打开 CC Swi
 
 ## 榜单来源
 
-| 分类 | 左侧 | 右侧 |
-| --- | --- | --- |
-| 综合 | Artificial Analysis Intelligence Index | Arena · Text / Epoch ECI（可切换） |
-| 编程 | Artificial Analysis Coding Agent Index | Code Arena · WebDev |
-| 图片 | Artificial Analysis · 文生图 | Arena · 文生图 |
-| 视频 | Artificial Analysis · 文生视频 | Arena · 文生视频 |
+| 分类 | 来源 |
+| --- | --- |
+| 用量 | OpenRouter、Vercel AI Gateway、腾讯云 |
+| 综合 | Artificial Analysis Intelligence Index、Text Arena、Epoch ECI |
+| 编程 | Artificial Analysis Coding Agent Index、Code Arena · WebDev |
+| 图片 | Artificial Analysis · 文生图、Arena · 文生图 |
+| 视频 | Artificial Analysis · 文生视频、Arena · 文生视频 |
 
-综合还提供 [Epoch AI 的 ECI](https://epoch.ai/eci)，读取官方 CSV。桌面端保持两列，右侧可切换 Arena / Epoch ECI；移动端可切换三个来源。ECI 保留原始指数，显示两位小数，不按百分比展示；CSV 中的模型发布日期不作为榜单更新时间。见[数据与验证说明](docs/epoch-eci.md)。
+桌面和 iPad 宽屏可并排显示榜单，窄屏移动端切换来源。用量来源的统计范围和周期不同，数值不能直接比较。Epoch ECI 保留原始指数。Artificial Analysis 编程榜还显示平均每任务 API 成本，可按成绩或成本排序，并保留原能力排名。成本数据需要更新采集器并刷新快照，尚未部署；见[成本说明与验证](docs/coding-task-cost.md)。
 
-图片和视频使用对应的专项榜单。Artificial Analysis 只有编程智能体榜的数据里带批次生成时间 `materializedAt`，应用会在该列标题上显示这个源站数据时间和版本号；综合、文生图、文生视频三块没有公开数据时间，列标题不显示日期，面板顶部仍显示本机抓取时间。Arena 有投票截止时间时会显示该时间。切换分类会优先读取缓存，不必每次重新等待网络。
+来源提供发布时间时优先显示；否则显示榜单内容最近一次变化的时间，相同数据不会推进时间。刷新失败时保留缓存。各端实现及验证边界见[跨端进展](docs/cross-platform.md)。
 
 ## 快速开始
 
 从 [GitHub Releases](https://github.com/cloydlau/ai-benchgauge/releases) 下载对应安装包：
-Mac 使用 `.dmg`（Apple 芯片 / Intel 通用），Windows 使用 `-setup.exe`（x64）。
+Mac 使用 `.dmg`（Apple 芯片 / Intel 通用）。Windows 发布目前暂停，已有版本不一定包含最新源码。
 Mac 也可以用 Homebrew 安装签名 Cask，后续更新继续由应用内 Sparkle 提供：
 
 ```bash
@@ -195,4 +196,4 @@ BenchGauge 手机工程已接入 Calmmit：源码变更 → 语法检查、完�
 
 ## 微信小程序开发版
 
-[小程序工程](apps/weapp/README.md) 沿用 Watrek 的 Vue Mini / Vant Weapp / weapp-vite / Tailwind 技术栈，读取同一份共享榜单，支持四类榜单（综合三个来源，其余各两个）、模型／公司、独立筛选、离线缓存和三种语言。运行 `pnpm build:weapp`，在微信开发者工具导入 `apps/weapp`。已配置 BenchGauge 正式 AppID `wx80689a4ae64a0c33`，已接入本机自动上传并于 2026-10-15 上传开发版 `20261015`；账号额度仍由桌面版提供。
+[小程序工程](apps/weapp/README.md) 沿用 Watrek 的 Vue Mini / Vant Weapp / weapp-vite / Tailwind 技术栈，读取同一份共享榜单，支持五类榜单（用量和综合各三个来源，其余各两个）、模型／公司、独立筛选、离线缓存和三种语言。运行 `pnpm build:weapp`，在微信开发者工具导入 `apps/weapp`。已配置 BenchGauge 正式 AppID `wx80689a4ae64a0c33`，已接入本机自动上传并于 2026-10-15 上传开发版 `20261015`；账号额度仍由桌面版提供。

@@ -1,4 +1,5 @@
 import { readBounded } from './arena-dataset.mjs';
+import { openRouterPriceRows } from './price-catalog.mjs';
 
 export const openRouterKind = 'openRouterUsage';
 export const openRouterSource = 'https://openrouter.ai/rankings';
@@ -15,6 +16,7 @@ const variant = value => value.includes(':') ? value.slice(value.indexOf(':')) :
 export function withOpenRouterModels(board, payload) {
   if (!Array.isArray(payload?.data) || payload.data.length > 10000) throw new Error('Invalid OpenRouter models');
   const identities = new Map();
+  const prices = new Map(openRouterPriceRows(payload).map(row => [row.id, row]));
   for (const row of payload.data) {
     // Dynamic aliases are not pinned model identities.
     if (typeof row.id === 'string' && row.id.startsWith('~')) continue;
@@ -29,7 +31,21 @@ export function withOpenRouterModels(board, payload) {
   return { ...board, entries: board.entries.map(entry => {
     const { openRouterModelID: ignored, ...original } = entry;
     const ids = identities.get(entry.modelID);
-    return ids?.size === 1 ? { ...original, openRouterModelID: [...ids][0] } : original;
+    if (ids?.size !== 1) return original;
+    const id = [...ids][0], price = prices.get(id);
+    return { ...original, openRouterModelID: id, ...(price && { taskCostUSD: price.input, outputPriceUSD: price.output }) };
+  }) };
+}
+
+// The source exposes provider-specific p50 throughput; the best available
+// provider is explicit, not an assumed default routing speed.
+export function withOpenRouterSpeeds(board, responses) {
+  return { ...board, entries: board.entries.map(entry => {
+    const data = responses.get(entry.openRouterModelID)?.data;
+    if (!data || data.id !== entry.openRouterModelID || !Array.isArray(data.endpoints)) return entry;
+    const values = data.endpoints.map(endpoint => endpoint.throughput_last_30m?.p50)
+      .filter(value => typeof value === 'number' && Number.isFinite(value) && value > 0);
+    return values.length ? { ...entry, speed: Math.max(...values) } : entry;
   }) };
 }
 
@@ -76,7 +92,7 @@ export function parseOpenRouterUsage(payload, { now = Date.now(), day = complete
 }
 
 export async function loadOpenRouterUsage({ now = Date.now(), apiKey = process.env.OPENROUTER_API_KEY,
-  fetcher = fetch, signal = AbortSignal.timeout(10000) } = {}) {
+  fetcher = fetch, signal = AbortSignal.timeout(10000), includeSpeeds = true } = {}) {
   if (!apiKey?.trim()) throw new Error('OpenRouter data source not configured');
   const day = completedUsageDay(now);
   const url = `https://openrouter.ai/api/v1/datasets/rankings-daily?start_date=${day}&end_date=${day}`;
@@ -88,7 +104,21 @@ export async function loadOpenRouterUsage({ now = Date.now(), apiKey = process.e
     const models = await readBounded(await fetcher(openRouterModelsURL, {
       signal, redirect: 'error', headers: { Accept: 'application/json' },
     }), 8 * 1024 * 1024);
-    return withOpenRouterModels(board, JSON.parse(models.toString('utf8')));
+    const identified = withOpenRouterModels(board, JSON.parse(models.toString('utf8')));
+    if (!includeSpeeds) return identified;
+    const ids = [...new Set(identified.entries.map(entry => entry.openRouterModelID).filter(Boolean))];
+    const responses = new Map(); let next = 0;
+    await Promise.all(Array.from({ length: Math.min(6, ids.length) }, async () => {
+      while (next < ids.length && !signal.aborted) {
+        const id = ids[next++];
+        try {
+          const url = `https://openrouter.ai/api/v1/models/${id.split('/').map(encodeURIComponent).join('/')}/endpoints`;
+          const response = await fetcher(url, { signal, redirect: 'error', headers: { Accept: 'application/json' } });
+          responses.set(id, JSON.parse((await readBounded(response, 512000)).toString('utf8')));
+        } catch { /* Missing speed does not discard usage or prices. */ }
+      }
+    }));
+    return withOpenRouterSpeeds(identified, responses);
   } catch { return board; } // Optional identity data must not discard valid usage.
 }
 
@@ -117,6 +147,15 @@ export async function loadConfiguredOpenRouterUsage({ now = Date.now(), fetcher 
     ...board.entries.map(entry => ({ date: day, model_permaslug: entry.modelID, total_tokens: entry.totalTokens })),
     { date: day, model_permaslug: 'other', total_tokens: board.otherTokens },
   ] }, { now, day });
-  return withOpenRouterModels(parsed, { data: board.entries.filter(entry => entry.openRouterModelID != null)
+  const identified = withOpenRouterModels(parsed, { data: board.entries.filter(entry => entry.openRouterModelID != null)
     .map(entry => ({ id: entry.openRouterModelID, canonical_slug: entry.modelID })) });
+  const collected = new Map(board.entries.map(entry => [entry.modelID, entry]));
+  return { ...identified, entries: identified.entries.map(entry => {
+    const item = collected.get(entry.modelID);
+    if (!item || !entry.openRouterModelID || entry.openRouterModelID !== item.openRouterModelID) return entry;
+    const validPrice = n => typeof n === 'number' && Number.isFinite(n) && n >= 0;
+    return { ...entry, openRouterModelID: item.openRouterModelID,
+      ...(validPrice(item.taskCostUSD) && validPrice(item.outputPriceUSD) && { taskCostUSD: item.taskCostUSD, outputPriceUSD: item.outputPriceUSD }),
+      ...(typeof item.speed === 'number' && Number.isFinite(item.speed) && item.speed > 0 && { speed: item.speed }) };
+  }) };
 }

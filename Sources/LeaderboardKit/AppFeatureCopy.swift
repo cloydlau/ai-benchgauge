@@ -6,8 +6,8 @@ public enum AppFeatureCopy {
         subtitleRows(language: language).joined(separator: language == .english ? " " : "")
     }
     public static func subtitleRows(language: AppLanguage) -> [String] {
-        [language.text("Compare leaderboards to make informed choices;", "多榜对照，选得明白；"),
-         language.text("track quotas to know where you stand.", "余量追踪，用得有数。")]
+        [language.text("Compare across dimensions, choose with clarity;", "多维纵览，选得明白；"),
+         language.text("track your quotas, stay informed.", "余量洞察，用得有数。")]
     }
     public static func quotaTitle(language: AppLanguage) -> String {
         language.text("Quota tracking", "余量追踪")

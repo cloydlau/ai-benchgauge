@@ -17,7 +17,7 @@ public sealed record LayoutEntry(string Name, string? PlanTitle, string? ApiTitl
 public sealed record Board(string Kind, string Title, string Url, string? UpdatedAt, string? Error, Entry[] Entries, string? FetchedAt = null, CountryOption[]? CountryOptions = null, LeaderboardDistribution? Distribution = null, string? SourceNote = null, JsonElement? ModelMetadataSource = null, string? ContentUpdatedAt = null);
 public sealed record CountryOption(string Value, string Label);
 public sealed record RankChange(int? Delta = null, bool? IsNew = null);
-public sealed record Entry(int Rank, string Name, double Score, string? Organization, string? Country, string? Logo, string? CodingURL, string? ApiURL, string? Help, string? Openness = null, string? BrandColor = null, string? LogoPNG = null, string? Initials = null, JsonElement? ModelMetadata = null, int? VoteCount = null, ModelDetailSection[]? Details = null, string? DetailID = null, RankChange? RankChange = null);
+public sealed record Entry(int Rank, string Name, double Score, string? Organization, string? Country, string? Logo, string? CodingURL, string? ApiURL, string? Help, string? Openness = null, string? BrandColor = null, string? LogoPNG = null, string? Initials = null, JsonElement? ModelMetadata = null, int? VoteCount = null, ModelDetailSection[]? Details = null, string? DetailID = null, RankChange? RankChange = null, double? TaskCostUSD = null, double? Speed = null, double? OutputPriceUSD = null, string? Provider = null);
 public sealed record ModelDetailSection(string Id, string Title, string? Summary, ModelDetailRow[] Rows);
 public sealed record ModelDetailRow(string Label, string Value, string? Url);
 public sealed record Quota(string Id, string Name, bool IsCurrent, bool IsStale, string Help, string? Url, bool CanConnect, string? Connection, Run[] Runs, string? AccentLight = null, bool IsDimmed = false, string? LogoPNG = null, string? Initials = null);
@@ -49,21 +49,33 @@ public static class LeaderboardCountryPolicy
 }
 public sealed class Preferences
 {
-    public string Category { get; set; } = "general";
+    string category = "general";
+    public string Category { get => category; set => category = value == "price" ? "usage" : value; }
     public Dictionary<string, string[]> BoardSelections { get; set; } = [];
+    public HashSet<string> MetricGuidesSeen { get; set; } = [];
+    public bool HasSeenMetricGuide(string kind) => MetricGuidesSeen?.Contains(kind) == true;
+    public bool MarkMetricGuideSeen(string kind)
+    {
+        if (kind is not ("openRouterUsage" or "artificialAnalysis" or "artificialAnalysisCodingAgent" or "valsSWEbench" or "artificialAnalysisTextToImage" or "artificialAnalysisTextToVideo")) return false;
+        MetricGuidesSeen ??= [];
+        return MetricGuidesSeen.Add(kind);
+    }
     public string[] AvailableBoardKinds() => Category switch {
-        "coding" => ["artificialAnalysisCodingAgent", "codeArenaWebDev"],
+        "coding" => ["artificialAnalysisCodingAgent", "codeArenaWebDev", "valsSWEbench"],
         "image" => ["artificialAnalysisTextToImage", "arenaTextToImage"],
         "video" => ["artificialAnalysisTextToVideo", "arenaTextToVideo"],
         "usage" => ["openRouterUsage", "vercelUsage", "cloudbaseUsage"],
+        "price" => ["openRouterPrice"],
         _ => ["artificialAnalysis", "arenaText", "epochECI"]
     };
     public string[] VisibleBoardKinds()
     {
         var all = AvailableBoardKinds();
+        var defaults = Category == "coding" ? all.Where(kind => kind != "valsSWEbench").ToArray() : all;
         var selected = BoardSelections?.GetValueOrDefault(Category);
-        var valid = all.Where(kind => selected is null || selected.Contains(kind)).ToArray();
-        return valid.Length == 0 ? all : valid;
+        if (selected is null) return defaults;
+        var valid = all.Where(selected.Contains).ToArray();
+        return valid.Length == 0 ? defaults : valid;
     }
     public void ToggleBoard(string kind)
     {

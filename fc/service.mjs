@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { replacementFailure, resolvedOpenness, withRankChanges, withContentTimestamp } from './domain.mjs';
 import { parseBoard, sources } from './parser.mjs';
+import { attachGeneralTaskCosts } from './aa-general-cost.mjs';
 import { codingKinds, withCodingOpenness } from './model-openness.mjs';
 import { isArena, isArenaDataset } from './arena-dataset.mjs';
 import { vercelKind, vercelInterval } from './vercel-usage.mjs';
@@ -17,9 +18,10 @@ export class RequestError extends Error {
 // All durable decisions live in OSS, not a process-local lock. AppendObject's
 // position precondition makes simultaneous FC instances compete atomically.
 export class SharedLeaderboards {
-  constructor(store, { clock = Date.now, token = () => randomBytes(32).toString('base64url'), brands = null, countries = null, arenaDataset = null, models = null, openRouterUsage = null, vercelUsage = null, cloudbaseUsage = null, openRouterConfigured = () => false } = {}) {
+  constructor(store, { clock = Date.now, token = () => randomBytes(32).toString('base64url'), brands = null, countries = null, arenaDataset = null, models = null, openRouterUsage = null, vercelUsage = null, cloudbaseUsage = null, generalCosts = null, openRouterConfigured = () => false } = {}) {
     this.store = store; this.clock = clock; this.token = token; this.brands = brands; this.countries = countries; this.arenaDataset = arenaDataset; this.models = models;
     this.cloudbaseUsage = cloudbaseUsage; this.vercelUsage = vercelUsage; this.openRouterUsage = openRouterUsage; this.openRouterConfigured = openRouterConfigured;
+    this.generalCosts = generalCosts;
   }
   async enrich(board, options) {
     if (this.models) board = await this.models.enrich(board, options);
@@ -92,6 +94,14 @@ export class SharedLeaderboards {
     // never both publish. A failed write preserves the previous snapshot.
     if (this.clock() >= state.expiresAt || !await this.store.appendState(kind, position, { ...state, consumed: true })) {
       throw new RequestError(409, 'Contribution already submitted');
+    }
+    if (kind === 'artificialAnalysis') {
+      // Preserve known prices only for identical scores if the supplemental source is temporarily unavailable.
+      let costs = previous;
+      if (this.generalCosts) {
+        try { costs = await this.generalCosts({ now: this.clock() }); } catch { /* Keep the matching cached value. */ }
+      }
+      board = attachGeneralTaskCosts(board, costs);
     }
     board = await this.enrich(board, { acquire: true });
     board = withContentTimestamp(withRankChanges(board, previous), previous);

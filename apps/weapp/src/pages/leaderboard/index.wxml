@@ -13,7 +13,7 @@
     </view>
     <view class="pill grouping" style="height:{{groupingControl.height}}px;width:{{groupingControl.width}}px;font-size:{{groupingControl.fontSize}}px;">
       <button class="pill-option {{grouping === 'model' ? 'selected' : ''}}" data-id="model" bindtap="selectGrouping">{{labels.models}}</button>
-      <button class="pill-option {{grouping === 'company' ? 'selected' : ''}}" data-id="company" bindtap="selectGrouping">{{labels.companies}}</button>
+      <button class="pill-option {{grouping === 'company' ? 'selected' : ''}}" data-id="company" bindtap="selectGrouping" disabled="{{category === 'price'}}">{{labels.companies}}</button>
     </view>
   </view>
   <view class="board-stage">
@@ -68,7 +68,11 @@
             <button wx:if="{{grouping !== 'company'}}" class="filter {{card.sourceFiltered ? 'filtered' : ''}}" data-kind="{{card.kind}}" data-mode="openness" bindtap="filterMenu">
               <view class="filter-label">{{labels.source}}<view class="filter-arrow" aria-hidden="true"><van-icon name="{{card.sourceFiltered ? 'filter-o' : 'arrow-down'}}" size="{{card.sourceFiltered ? '8px' : '7px'}}" /></view></view>
             </button>
-            <text class="score-cell">{{card.scoreLabel}}</text>
+            <button wx:if="{{card.hasTaskCost}}" class="score-cell cost-sort {{card.showMetricGuide ? 'is-guided' : ''}}" data-kind="{{card.kind}}" bindtap="toggleCostOrder" aria-label="{{card.showMetricGuide ? labels.metricGuide : card.costSortLabel}}">
+              <text class="cost-score-title">{{card.showMetricGuide ? labels.metricGuide : card.speedOrder ? card.speedUnit : card.costOrder ? card.costUnit : card.scoreLabel}}⌄</text>
+            </button>
+            <button wx:elif="{{card.hasPrice}}" class="score-cell cost-sort" bindtap="togglePriceOrder" aria-label="{{labels.priceInput}} {{card.priceAscending ? '↑' : '↓'}}"><text class="cost-score-title">{{labels.priceInput}}{{card.priceAscending ? '↑' : '↓'}}</text><text class="cost-unit">{{labels.priceOutput}}</text></button>
+            <text wx:else class="score-cell">{{card.scoreLabel}}</text>
           </view>
           <view class="model-search" style="{{card.searchStyle}}" aria-hidden="{{!modelSearchVisible}}">
             <view class="model-search-content">
@@ -120,6 +124,7 @@
             </button>
             <view class="score-cell score-value mono">
               <text>{{row.scoreText}}</text>
+              <text wx:if="{{row.outputPriceText}}" class="score-share task-cost">{{row.outputPriceText}}</text>
               <text wx:if="{{row.scoreShare}}" class="score-share">{{row.scoreShare}}</text>
             </view>
           </view>
@@ -156,7 +161,7 @@
     <view class="category-glass-selection" style="transform:translateX({{categoryIndex * 100}}%);" aria-hidden="true" />
     <button wx:for="{{categoryItems}}" wx:key="id" class="category-tab {{categoryIndex === index ? 'active' : ''}}"
       data-id="{{item.id}}" bindtap="selectCategory" role="tab" aria-selected="{{category === item.id}}">
-      <image class="category-icon" src="{{item.icon}}" mode="aspectFit" aria-hidden="true" /><text class="category-label">{{item.label}}</text>
+      <van-icon wx:if="{{item.id === 'price'}}" name="balance-o" size="18px" /><image wx:else class="category-icon" src="{{item.icon}}" mode="aspectFit" aria-hidden="true" /><text class="category-label">{{item.label}}</text>
     </button>
   </view>
   <!-- Let Vant receive option/button touches; backgroundLocked locks the boards. -->

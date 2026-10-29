@@ -311,9 +311,9 @@ public struct LeaderboardPadView: View {
         PadSegmentedControl(values: LeaderboardGrouping.allCases,
             titles: [tr("Models", "模型"), tr("Companies", "公司")], selection: $store.grouping,
             identifier: "grouping", label: tr("Grouping", "分组"), segmentWidth: width / 2, fontSize: 11)
-            .frame(width: width, height: 30).id(width)
+            .frame(width: width, height: 30).id(width).disabled(store.category == .price)
         #else
-        groupingPicker.frame(width: 160)
+        groupingPicker.frame(width: 160).disabled(store.category == .price)
         #endif
     }
     private func mobileBrandTitle(size: CGFloat) -> some View {
@@ -837,11 +837,17 @@ public struct LeaderboardPadView: View {
     private func boardCard(_ kind: LeaderboardKind, isImage: Bool = false, compact: Bool = false, denseColumns: Bool = false, exportScheme: ColorScheme? = nil, viewportHeight: CGFloat = 900, pageRows: Range<Int>? = nil) -> some View {
         PadBoardCard(kind: kind, board: store.snapshot.boards[kind], rowPresentation: pageRows.map { store.rowPresentation(for: kind).page($0) } ?? store.rowPresentation(for: kind), grouping: store.grouping,
             language: store.language, filter: store.countryFilter(for: kind), opennessFilter: store.opennessFilter(for: kind),
+            costOrder: store.costOrders.contains(kind), speedOrder: store.speedOrders.contains(kind), priceAscending: store.priceAscending, togglePrice: { store.priceAscending.toggle(); resetComparison() }, selectMetric: { metric in
+                store.costOrders.remove(kind); store.speedOrders.remove(kind)
+                if metric == 1 { store.costOrders.insert(kind) }
+                if metric == 2 { store.speedOrders.insert(kind) }
+                resetComparison()
+            },
             countryOptions: store.availableCountryFilters, skeletonHeight: viewportHeight,
             failure: store.failures[kind],
             modelSearchQuery: $store.modelSearchQuery, modelSearchPresented: $store.modelSearchPresented,
             modelSearchEditing: $store.modelSearchEditing,
-            isLoading: store.isLoading(kind), polishRevision: store.timestampPolishRevisions[kind, default: 0], isImage: isImage, compact: compact, denseColumns: denseColumns, exportScheme: exportScheme,
+            isLoading: store.isLoading(kind), polishRevision: store.timestampPolishRevisions[kind, default: 0], isImage: isImage, guideEligible: scenePhase == .active && (!compact || store.visibleBoardKinds.indices.contains(store.selectedSource) && store.visibleBoardKinds[store.selectedSource] == kind), compact: compact, denseColumns: denseColumns, exportScheme: exportScheme,
             selectCountry: { store.setCountryFilter($0, for: kind); resetComparison() },
             clearFilters: { store.clearSearchQueries(); store.setCountryFilter(.all, for: kind); store.setOpennessFilter(.all, for: kind); resetComparison() },
             selectOpenness: { store.setOpennessFilter($0, for: kind); resetComparison() }, openModel: { entry in
@@ -1117,6 +1123,11 @@ private struct PadBoardCard: View {
     let language: AppLanguage
     let filter: LeaderboardCountryFilter
     let opennessFilter: LeaderboardOpennessFilter
+    let costOrder: Bool
+    let speedOrder: Bool
+    let priceAscending: Bool
+    let togglePrice: () -> Void
+    let selectMetric: (Int) -> Void
     let countryOptions: [LeaderboardCountryFilter]
     let skeletonHeight: CGFloat
     var failure: LeaderboardFailure? = nil
@@ -1126,6 +1137,7 @@ private struct PadBoardCard: View {
     let isLoading: Bool
     let polishRevision: Int
     let isImage: Bool
+    let guideEligible: Bool
     let compact: Bool
     let denseColumns: Bool
     let exportScheme: ColorScheme?
@@ -1140,6 +1152,8 @@ private struct PadBoardCard: View {
     @State private var searchFocusTask: Task<Void, Never>?
     @State private var headerPinned = false
     @State private var rankingExpanded = false
+    @State private var metricGuideVisible = false
+    @State private var metricHeaderVisible = false
     @StateObject private var detail = PadBoardDetail()
     private func tr(_ en: String, _ zh: String) -> String { language.text(en, zh) }
     private var rows: [LeaderboardEntry] { rowPresentation.rows }
@@ -1239,6 +1253,15 @@ private struct PadBoardCard: View {
         Group {
             if isImage { cardContent }
             else { interactiveCard }
+        }
+        .task(id: "\(guideEligible)-\(isImage)-\(isLoading)-\(board != nil)-\(modelSearchPresented)-\(metricHeaderVisible)") {
+            metricGuideVisible = false
+            guard guideEligible, metricHeaderVisible, !isImage, !isLoading, !modelSearchPresented,
+                  kind.supportsAACost, !MetricGuide.hasSeen(kind),
+                  !ProcessInfo.processInfo.arguments.contains("--ui-testing") else { return }
+            do { try await Task.sleep(for: .seconds(1)) } catch { return }
+            guard !Task.isCancelled, !MetricGuide.hasSeen(kind) else { return }
+            metricGuideVisible = true
         }
         .onChange(of: searchFocused) { _, focused in
             modelSearchEditing = focused
@@ -1453,7 +1476,27 @@ private struct PadBoardCard: View {
                         .help(ModelOpenness.help(language: language))
                     }
                 }
-                scoreColumn { Text(LeaderboardPresentation.scoreTitle(kind, language: language)).font(columnHeaderFont) }
+                scoreColumn {
+                    if kind.supportsAACost {
+                        if isImage { costHeading }
+                        else {
+                            Menu {
+                                Button(kind == .openRouterUsage ? tr("Usage", "用量") : tr("Score", "分数")) { MetricGuide.markSeen(kind); metricGuideVisible = false; selectMetric(0) }
+                                Button(kind == .openRouterUsage ? tr("Price", "价格") : tr("Cost", "成本")) { MetricGuide.markSeen(kind); metricGuideVisible = false; selectMetric(1) }
+                                if LeaderboardPresentation.supportsAASpeed(kind) { Button(tr("Speed", "速度")) { MetricGuide.markSeen(kind); metricGuideVisible = false; selectMetric(2) } }
+                            } label: { costHeading }
+                            .buttonStyle(.plain)
+                            .simultaneousGesture(TapGesture().onEnded { MetricGuide.markSeen(kind); metricGuideVisible = false })
+                            .accessibilityIdentifier("coding-cost-sort")
+                            .accessibilityLabel(metricGuideVisible ? MetricGuide.label(language) : LeaderboardPresentation.aaCostHelp(kind, language: language))
+                        }
+                    } else if kind.isPrice {
+                        Group {
+                            if isImage { priceHeading }
+                            else { Button(action: togglePrice) { priceHeading }.buttonStyle(.plain).accessibilityLabel(tr("Sort by input price", "按输入价格排序")) }
+                        }
+                    } else { Text(LeaderboardPresentation.scoreTitle(kind, language: language)).font(columnHeaderFont) }
+                }
             }.font(columnHeaderFont).foregroundStyle(secondaryForeground).padding(.horizontal, columnPadding)
                 .padding(.top, headerTopPadding).padding(.bottom, headerBottomPadding)
                 .opacity(searchVisible ? 0 : 1)
@@ -1704,9 +1747,11 @@ private struct PadBoardCard: View {
                 }
             }
             .background {
-                LeaderboardScoreBackground(color: brandColor(entry).opacity(displayScheme == .dark ? 0.26 : 0.18),
-                    score: entry.score, leaderScore: rowPresentation.leaderScore)
-                    .padding(.vertical, 4)
+                if (!costOrder && !speedOrder) || ((speedOrder ? entry.speed : entry.taskCostUSD) != nil && (rowPresentation.leaderScore ?? 0) > 0) {
+                    LeaderboardScoreBackground(color: brandColor(entry).opacity(displayScheme == .dark ? 0.26 : 0.18),
+                        score: speedOrder ? (entry.speed ?? 0) : costOrder ? (entry.taskCostUSD ?? 0) : entry.score, leaderScore: rowPresentation.leaderScore)
+                        .padding(.vertical, 4)
+                }
             }
         }
         .font(.subheadline).padding(.horizontal, columnPadding).frame(minHeight: 48)
@@ -1737,10 +1782,37 @@ private struct PadBoardCard: View {
         badge
         #endif
     }
+    private var priceHeading: some View {
+        VStack(spacing: 1) { Text(tr("In $/1M", "输入$/百万") + (priceAscending ? " ↑" : " ↓")).font(columnHeaderFont); Text(tr("Out", "输出")).font(.system(size: 8)) }
+    }
+
+    private var costHeading: some View {
+        #if os(iOS)
+        let guideScreenBounds = UIScreen.main.bounds
+        #else
+        let guideScreenBounds = CGRect.infinite
+        #endif
+        return Text(speedOrder ? ((kind == .artificialAnalysisCodingAgent || kind == .valsSWEbench) ? tr("s/task", "秒/任务") : "token/s") : costOrder ? (kind == .openRouterUsage ? tr("In/Out $/1M", "输入/输出$/百万") : kind == .artificialAnalysisTextToImage ? tr("$/image", "$/张") : kind == .artificialAnalysisTextToVideo ? tr("$/min", "$/分钟") : tr("$/task", "$/任务")) : (kind == .openRouterUsage ? tr("Usage", "用量") : tr("Score", "分数")))
+            .font(columnHeaderFont)
+            .opacity(metricGuideVisible ? 0 : 1)
+            .overlay {
+                if metricGuideVisible {
+                    Text(language == .english ? "Switch ▾" : MetricGuide.label(language) + " ▾")
+                        .font(.system(size: 9, weight: .semibold)).foregroundStyle(.white)
+                        .lineLimit(1).minimumScaleFactor(0.65)
+                        .frame(maxWidth: .infinity).padding(.vertical, 3)
+                        .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 5))
+                }
+            }
+            .onGeometryChange(for: Bool.self) { proxy in
+                let frame = proxy.frame(in: .global)
+                return !frame.isEmpty && frame.intersects(guideScreenBounds)
+            } action: { metricHeaderVisible = $0 }
+    }
     private func scoreValue(_ entry: LeaderboardEntry) -> some View {
-        Text(LeaderboardPresentation.scoreText(entry.score, kind: kind)).monospacedDigit()
+        Text(speedOrder ? LeaderboardPresentation.speedText(entry.speed) : costOrder ? LeaderboardPresentation.taskCostText(entry.taskCostUSD) : LeaderboardPresentation.scoreText(entry.score, kind: kind)).monospacedDigit()
             .overlay(alignment: .bottomTrailing) {
-                let share = kind.isShareUsage ? "" : LeaderboardPresentation.scoreShareText(entry.score, leaderScore: rowPresentation.leaderScore)
+                let share = (kind.isPrice || (kind == .openRouterUsage && costOrder)) ? LeaderboardPresentation.taskCostText(entry.outputPriceUSD) : kind.isShareUsage ? "" : LeaderboardPresentation.scoreShareText(speedOrder ? (entry.speed ?? .nan) : costOrder ? (entry.taskCostUSD ?? .nan) : entry.score, leaderScore: rowPresentation.leaderScore)
                 if !share.isEmpty {
                     Text(share).font(.system(size: 8)).monospacedDigit()
                         .foregroundStyle(sourceAccent).offset(y: 10)

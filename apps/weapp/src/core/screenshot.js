@@ -77,10 +77,10 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
   const headerLogo = images.get(brandLogoSource(model.dark))
   if (headerLogo) drawBrandLogo(context, headerLogo, title, margin, titleY)
   drawBrandGlyphs(context, title, margin, titleY, { dark: model.dark })
-  const subtitle = model.labels.subtitle.split(' & '), captionX = margin + title.width + 6
-  if (model.labels.name === 'AI BenchGauge') {
-    text(context, subtitle[0] + ' &', captionX, 40 - title.height * 0.375, title.height * 0.5, colors.muted)
-    text(context, subtitle[1] + ' ?', captionX, 40 + title.height * 0.375, title.height * 0.5, colors.muted)
+  const subtitle = model.labels.subtitle.replace(/([;；])\s*/, '$1\n').split('\n'), captionX = margin + title.width + 6
+  if (subtitle.length === 2) {
+    text(context, subtitle[0], captionX, 40 - title.height * 0.25, title.height * 0.5, colors.muted)
+    text(context, subtitle[1] + ' ?', captionX, 40 + title.height * 0.25, title.height * 0.5, colors.muted)
   } else {
     text(context, model.labels.subtitle + ' ?', captionX, titleY + title.height / 2, 12, colors.muted)
   }
@@ -99,7 +99,8 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
     text(context, board.title, x + 49, 213, 13, accent, { bold: true })
     text(context, model.labels.country, countryX, 213, 11, colors.muted, { align: 'center' })
     if (showSource) text(context, model.labels.source, sourceX, 213, 11, colors.muted, { align: 'center' })
-    text(context, ['vercelUsage', 'cloudbaseUsage'].includes(board.kind) ? (model.language === 'en' ? 'Share' : model.language === 'zh-TW' ? '佔比' : '占比') : board.kind === 'openRouterUsage' ? (model.language === 'en' ? 'Tokens' : '用量') : model.labels.score, scoreX, 213, 12, colors.muted, { align: 'right' })
+    text(context, board.taskCostLabel || (board.kind === 'openRouterPrice' ? model.labels.priceInput : ['vercelUsage', 'cloudbaseUsage'].includes(board.kind) ? (model.language === 'en' ? 'Share' : model.language === 'zh-TW' ? '佔比' : '占比') : board.kind === 'openRouterUsage' ? (model.language === 'en' ? 'Tokens' : '用量') : model.labels.score), scoreX, board.kind === 'openRouterPrice' ? 208 : 213, 12, colors.muted, { align: 'right' })
+    if (board.kind === 'openRouterPrice') text(context, model.labels.priceOutput, scoreX, 223, 9, colors.muted, { align: 'right' })
     context.strokeStyle = colors.line; context.lineWidth = 1; context.beginPath()
     context.moveTo(x + 12, 232); context.lineTo(x + columnWidth - 12, 232); context.stroke()
     if (!board.rows.length) text(context, board.empty, x + columnWidth / 2, top + 48, 14, colors.muted, { align: 'center' })
@@ -135,7 +136,8 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
         if (statusIcon) context.drawImage(statusIcon, sourceX - 7, center - 7, 14, 14)
         else text(context, row.openness === 'open' ? model.labels.open : row.openness === 'closed' ? model.labels.closed : '—', sourceX, center, 10, colors.muted, { align: 'center' })
       }
-      text(context, row.scoreText, scoreX, center, 14, colors.muted, { align: 'right', numeric: true })
+      text(context, row.scoreText, scoreX, row.outputPriceText ? center - 5 : center, 14, colors.muted, { align: 'right', numeric: true })
+      if (row.outputPriceText) text(context, row.outputPriceText, scoreX, center + 10, 9, colors.muted, { align: 'right', numeric: true })
       if (row.scoreShare) {
         text(context, row.scoreShare, scoreX, center + 12, 9, accent, { align: 'right', numeric: true })
       }

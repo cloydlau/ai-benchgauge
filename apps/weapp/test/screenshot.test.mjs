@@ -22,6 +22,19 @@ const model = (counts = [415, 32], dark = false) => ({
       score: count - index, openness: index % 2 ? 'open' : 'closed', developerCountry: { countryCode: 'US' } }, { dark })) })),
 })
 
+test('exported subtitles preserve both tagline sentences in every language', () => {
+  for (const language of ['en', 'zh-CN', 'zh-TW']) {
+    const h = canvasHarness(), source = model([0])
+    source.language = language
+    source.labels = Object.fromEntries(Object.entries(copy).map(([key, value]) => [key, text(value, language)]))
+    const [first, second] = source.labels.subtitle.replace(/([;；])\s*/, '$1\n').split('\n')
+    drawScreenshot(h.context, source, planScreenshot(h.context, source), new Map())
+    const captions = h.commands.filter(([name, value]) => name === 'fillText' && (value === first || value === `${second} ?`))
+    assert.equal(captions.length, 2)
+    assert.ok(captions[0][3] < captions[1][3])
+  }
+})
+
 test('single-source usage export fills the canvas and retains source licensing', () => {
   const h = canvasHarness(), source = model([2])
   source.language = 'en'

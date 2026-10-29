@@ -46,7 +46,8 @@ public enum CompanyLeaderboard {
                     brand: item.brand,
                     developerCountry: item.developerCountry,
                     totalTokens: item.totalTokens,
-                    rankChange: item.rankChange
+                    rankChange: item.rankChange,
+                    taskCostUSD: item.taskCostUSD, speed: item.speed, outputPriceUSD: item.outputPriceUSD
                 ),
                 components: item.components
             )
@@ -83,6 +84,9 @@ public enum CompanyLeaderboard {
         var name: String
         var score: Double
         var totalTokens: String?
+        var taskCostUSD: Double?
+        var speed: Double?
+        var outputPriceUSD: Double?
         var rankChange: LeaderboardRankChange?
         var bestRank: Int
         var logoURL: URL?
@@ -105,6 +109,9 @@ public enum CompanyLeaderboard {
             name: displayName(key: key, best: flagship),
             score: summingUsage ? members.reduce(0) { $0 + $1.score } : flagship.score,
             totalTokens: summingUsage && members.contains(where: { $0.totalTokens != nil }) ? members.reduce(Decimal(0)) { $0 + (Decimal(string: $1.totalTokens ?? "0") ?? 0) }.description : nil,
+            taskCostUSD: flagship.taskCostUSD,
+            speed: flagship.speed,
+            outputPriceUSD: flagship.outputPriceUSD,
             rankChange: flagship.companyRankChange,
             bestRank: flagship.rank,
             logoURL: flagship.logoURL,

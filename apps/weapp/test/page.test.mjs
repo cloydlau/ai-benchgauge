@@ -65,13 +65,13 @@ function setup(preferences = {}, count = 0, query = {}, systemTheme = 'light', s
   const page = globalThis.__benchPageFactory(query)
   const respond = (index, metadata = {}) => {
     const request = requests[index]; request.responded = true; const kind = request.options.url.split('/').at(-1)
-    request.options.success({ statusCode: 200, data: { board: { kind, fetchedAt: '2026-10-13T12:00:00Z', entries: count ? Array.from({ length: count }, (_, i) => ({
+    request.options.success({ statusCode: 200, data: { board: { kind, fetchedAt: '2026-10-13T12:00:00Z', entries: (count ? Array.from({ length: count }, (_, i) => ({
       rank: i + 1, name: `Model ${i + 1}`, score: count - i, organization: `Maker ${i + 1}`,
       openness: i % 2 ? 'open' : 'closed',
     })) : [
       { rank: 1, name: 'Closed model', score: 99, organization: 'OpenAI', openness: 'closed', developerCountry: { key: 'openai', countryCode: 'US' } },
       { rank: 2, name: 'Open model', score: 98, organization: 'DeepSeek', openness: 'open', developerCountry: { key: 'deepseek', countryCode: 'CN' } },
-    ], ...metadata } } }); request.options.complete()
+    ]).map(row => kind === 'openRouterPrice' ? { ...row, outputPriceUSD: 2 } : row), ...metadata } } }); request.options.complete()
   }
   const respondAll = () => requests.forEach((request, index) => { if (!request.responded) { request.responded = true; respond(index) } })
   // Data/filter/layout fixtures explicitly populate every displayed source via
@@ -84,6 +84,63 @@ function setup(preferences = {}, count = 0, query = {}, systemTheme = 'light', s
   return { page, requests, writes, modals, clipboard, scrolls, respond, respondAll, respondCategory, requestCategory, loadCategory, enter, theme: theme => themeListener?.({ theme }) }
 }
 const event = dataset => ({ currentTarget: { dataset } })
+
+test('coding cost toggle keeps original ranks, price baselines and companies in every language', async t => {
+  for (const language of ['en', 'zh-CN', 'zh-TW']) {
+    const kind = 'artificialAnalysisCodingAgent'
+    const h = setup({ category: 'coding', language })
+    const loading = h.loadCategory()
+    const data = { entries: [
+      { rank: 1, name: 'Strong expensive', score: 90, organization: 'OpenAI', taskCostUSD: 9.48, speed: 200 },
+      { rank: 2, name: 'Missing price', score: 80, organization: 'Anthropic' },
+      { rank: 3, name: 'Cheap sibling', score: 70, organization: 'OpenAI', taskCostUSD: .005, speed: 100 },
+      { rank: 4, name: 'Zero price', score: 60, organization: 'Google', taskCostUSD: 0 },
+    ] }
+    for (let i = 0; i < h.requests.length; i++) h.respond(i, data)
+    await loading
+    const card = () => h.page.cards.value.find(card => card.kind === kind)
+    assert.deepEqual(card().rows.map(row => row.rank), [1, 2, 3, 4])
+    globalThis.wx.showActionSheet = ({ itemList, success }) => { assert.equal(itemList.length, 3); success({ tapIndex: 1 }) }
+    h.page.toggleCostOrder(event({ kind }))
+    assert.equal(card().costOrder, true)
+    assert.deepEqual(card().rows.map(row => row.rank), [1, 2, 3, 4])
+    assert.deepEqual(card().rows.map(row => row.scoreText), ['$9.48', '—', '$0.005', '$0'])
+    assert.equal(card().rows[3].fillPercent, 0, 'Zero cost has no price fill')
+    assert.equal(card().rows[0].fillPercent, 100, 'Highest cost is the price baseline')
+    h.page.selectGrouping(event({ id: 'company' }))
+    assert.equal(card().rows.find(row => row.name === 'OpenAI').scoreText, '$9.48')
+    h.page.sourceHelp(event({ kind }))
+    assert.ok(h.page.sourceNotice.value.content.includes(language === 'en' ? 'not subscription' : language === 'zh-TW' ? '非訂閱' : '非订阅'))
+    h.page.closeSourceNotice()
+    globalThis.wx.showActionSheet = ({ success }) => success({ tapIndex: 2 })
+    h.page.toggleCostOrder(event({ kind }))
+    assert.equal(card().speedOrder, true)
+    assert.equal(card().rows.find(row => row.name === "OpenAI").scoreText, "200")
+    globalThis.wx.showActionSheet = ({ success }) => success({ tapIndex: 0 })
+    h.page.toggleCostOrder(event({ kind }))
+    assert.equal(card().costOrder, false)
+    assert.equal(!!card().speedOrder, false)
+    globalThis.__benchHooks.unload()
+  }
+})
+
+test('OpenRouter usage header switches metrics without changing ranks', async () => {
+  const h = setup({ category: 'usage' })
+  const loading = h.loadCategory()
+  for (let i = 0; i < h.requests.length; i++) h.respond(i, { entries: [
+    { rank: 1, name: 'Cheap', score: 9, taskCostUSD: 1, outputPriceUSD: 3, speed: 20 },
+    { rank: 2, name: 'Expensive', score: 5, taskCostUSD: 5, outputPriceUSD: 7, speed: 80 },
+  ] })
+  await loading
+  const card = () => h.page.cards.value.find(item => item.kind === 'openRouterUsage')
+  globalThis.wx.showActionSheet = ({ success }) => success({ tapIndex: 1 })
+  h.page.toggleCostOrder(event({ kind: 'openRouterUsage' }))
+  assert.deepEqual(card().rows.map(row => [row.rank, row.name, row.scoreText, row.outputPriceText]), [[1, 'Cheap', '$1.00', '$3.00'], [2, 'Expensive', '$5.00', '$7.00']])
+  globalThis.wx.showActionSheet = ({ success }) => success({ tapIndex: 2 })
+  h.page.toggleCostOrder(event({ kind: 'openRouterUsage' }))
+  assert.deepEqual(card().rows.map(row => [row.rank, row.scoreText]), [[1, '20'], [2, '80']])
+  globalThis.__benchHooks.unload()
+})
 
 test('timestamp polish follows load completion, thirty-second cadence and page visibility', async t => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.parse('2026-10-24T05:00:00Z') })
@@ -656,9 +713,9 @@ test('subtitle help offers dismissal and copies the desktop link only on its lin
   assert.match(dialog, /bindcancel="closeFeatureHelp"/)
   assert.match(dialog, /bindconfirm="copyDesktopLink"/)
   for (const [language, title, gotIt, desktopLink] of [
-    ['en', 'Multiple leaderboards & quota tracking', 'OK', 'PC link'],
-    ['zh-CN', '多榜对照 & 余量追踪', 'OK', 'PC 端链接'],
-    ['zh-TW', '多榜對照 & 餘量追蹤', 'OK', 'PC 端連結'],
+    ['en', 'Model & quota insights', 'OK', 'PC link'],
+    ['zh-CN', '多维纵览 & 余量洞察', 'OK', 'PC 端链接'],
+    ['zh-TW', '多維縱覽 & 餘量洞察', 'OK', 'PC 端連結'],
   ]) {
     const h = setup({ language })
     h.page.quotaHelp()
@@ -785,7 +842,7 @@ test('pulling each source requests exactly that board and leaves sibling snapsho
     h.page.selectCategory(event({ id: category.id }))
     const categoryLoading = h.requestCategory()
     h.respondCategory(); await categoryLoading
-    for (const kind of category.kinds) {
+    for (const kind of category.defaultKinds || category.kinds) {
       const before = h.page.cards.value.map(card => ({ kind: card.kind, rows: card.rows, time: card.time }))
       const index = h.requests.length
       const pull = h.page.pullRefresh(event({ kind }))
@@ -887,9 +944,9 @@ test('failed entry refresh preserves cache, automatic retries back off, and manu
 
 test('every category and source shares the current page title and only the localized ranking summary', () => {
   for (const language of ['en', 'zh-CN', 'zh-TW']) for (const category of categories) for (const face of category.kinds.keys()) {
-    const h = setup({ language, category: category.id, face })
+    const h = setup({ language, category: category.id, face, boardSelections: { [category.id]: category.kinds } })
     const message = globalThis.__benchHooks.share()
-    const title = category.id === 'usage' ? text([copy.dailyUsage, copy.dailyShare, copy.cumulativeShare][face], language) : text([copy.tasks, copy.votes, copy.capabilityIndex][face], language)
+    const title = category.kinds[face] === 'valsSWEbench' ? text(copy.archivedBenchmark, language) : category.id === 'price' ? 'API' : category.id === 'usage' ? text([copy.dailyUsage, copy.dailyShare, copy.cumulativeShare][face], language) : text([copy.tasks, copy.votes, copy.capabilityIndex][face], language)
     assert.equal(message.title, `${title}｜${text(copy.rankingSummary, language)}`)
     assert.ok(!message.title.includes(text(copy.tagline, language)))
     const shared = pagePreferences(Object.fromEntries(new URL('https://shared.example' + message.path).searchParams))
@@ -1394,7 +1451,7 @@ test('board headings show localized introductions and copy official links only o
   const template = readFileSync(new URL('../src/pages/leaderboard/index.wxml', import.meta.url), 'utf8')
   assert.match(template, /class="source-heading"[^>]*bindtap="sourceHelp"/)
   for (const language of ['en', 'zh-CN', 'zh-TW']) for (const category of categories) for (const grouping of ['model', 'company']) {
-    const h = setup({ language, category: category.id, grouping })
+    const h = setup({ language, category: category.id, grouping, boardSelections: { [category.id]: category.kinds } })
     for (const card of h.page.cards.value) {
       const previousCopies = h.clipboard.length
       h.page.sourceHelp(event({ kind: card.kind }))
@@ -1788,7 +1845,7 @@ test('cube traverses every source and category in both directions, only wrapping
   const touch = x => ({ touches: [{ clientX: x, clientY: 200 }] })
   const expand = h => h.page.cards.value.filter(card => card.hasMore && !card.expanded)
     .forEach(card => h.page.toggleRanking(event({ kind: card.kind })))
-  const sequence = categories.flatMap(item => item.kinds.map((kind, face) => ({ category: item.id, face, kind })))
+  const sequence = categories.flatMap(item => (item.defaultKinds || item.kinds).map((kind, face) => ({ category: item.id, face, kind })))
   for (const direction of [-1, 1]) {
     let index = direction > 0 ? 0 : sequence.length - 1
     const initial = sequence[index], h = setup(initial, 1000)
@@ -1831,7 +1888,7 @@ test('short or cancelled boundary drags leave the category and its flat board un
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
   const touch = x => ({ touches: [{ clientX: x, clientY: 200 }] })
   for (const item of categories) for (const direction of [-1, 1]) for (const cancel of [false, true]) {
-    const face = direction > 0 ? item.kinds.length - 1 : 0
+    const face = direction > 0 ? (item.defaultKinds || item.kinds).length - 1 : 0
     const h = setup({ category: item.id, face })
     h.page.cubeStart(touch(180))
     t.mock.timers.tick(200)
@@ -1854,7 +1911,7 @@ test('settings visibility survives reload, hides the single-source tab space and
   const boardSelections = Object.fromEntries(categories.map(item => [item.id, [item.kinds.at(-1)]]))
   const touch = x => ({ touches: [{ clientX: x, clientY: 200 }] })
   for (const direction of [-1, 1]) {
-    let index = 1
+    let index = categories.findIndex(item => item.id === 'general')
     const h = setup({ category: 'general', face: 2, boardSelections })
     for (let turn = 0; turn < categories.length * 2; turn++) {
       assert.equal(h.page.cards.value.length, 1)
@@ -2363,7 +2420,7 @@ test('edge exit gestures on either tab bar never preview or commit another selec
     h.page.tabStart(tabTouch(kind, 16))
     for (const x of [17, 170, 300, -60]) {
       h.page.tabMove(tabTouch(kind, x))
-      assert.equal(h.page.categoryIndex.value, 1)
+      assert.equal(h.page.categoryIndex.value, categories.findIndex(item => item.id === 'general'))
       assert.equal(h.page.sourceTabIndex.value, 0)
       assert.equal(h.page.sourceSelection.value, selection)
       assert.equal(h.page.cubeBusy.value, false)
@@ -2388,7 +2445,7 @@ test('bar drags preview under the finger and commit only the final category once
   assert.equal(h.page.category.value, 'general')
   assert.equal(h.requests.length, 0)
   h.page.tabMove(tabTouch('category', 600))
-  assert.equal(h.page.categoryIndex.value, 4)
+  assert.equal(h.page.categoryIndex.value, categories.length - 1)
   h.page.tabEnd(tabTouch('category', 600, 740, true))
   assert.equal(h.page.category.value, 'video')
   assert.equal(h.requests.length, 1, 'Only the active source in the released category is fetched')
@@ -2427,7 +2484,7 @@ test('vertical, multitouch, cancelled and interrupted tab drags never change a s
     h.page.tabStart(tabTouch('category', 60)); h.page.tabMove(tabTouch('category', 300))
     cancel(); h.page.tabEnd(tabTouch('category', 300, 740, true))
     assert.equal(h.page.category.value, 'general')
-    assert.equal(h.page.categoryIndex.value, 1)
+    assert.equal(h.page.categoryIndex.value, categories.findIndex(item => item.id === 'general'))
   }
   assert.equal(h.requests.length, 0)
   globalThis.__benchHooks.unload()
@@ -2439,7 +2496,7 @@ test('a delayed bounds query cannot revive a released tab gesture', () => {
   h.page.tabStart(tabTouch('category', 60)); h.page.tabMove(tabTouch('category', 300))
   h.page.tabEnd(tabTouch('category', 300, 740, true))
   measured([{ left: 20, width: 320 }])
-  assert.equal(h.page.categoryIndex.value, 1)
+  assert.equal(h.page.categoryIndex.value, categories.findIndex(item => item.id === 'general'))
   assert.equal(h.page.category.value, 'general')
   globalThis.__benchHooks.unload()
 })
@@ -2505,7 +2562,7 @@ test('bottom category icons and selected label follow the active source and live
     h.theme(dark ? 'dark' : 'light')
     for (const category of categories) {
       h.page.selectCategory(event({ id: category.id })); h.respondCategory()
-      for (const [index, kind] of category.kinds.entries()) {
+      for (const [index, kind] of (category.defaultKinds || category.kinds).entries()) {
         // Exercise the reactive face state used by taps, drags and cube swipes.
         h.page.face.value = index
         const { accent } = sourceTabTheme(kind, dark)

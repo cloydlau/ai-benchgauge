@@ -22,7 +22,9 @@ public enum HTMLLeaderboardParser {
                 modelID: modelID,
                 organization: organization,
                 logoURL: artificialAnalysisLogoURL(from: logoPath),
-                openness: ModelOpenness.fromSource(object)
+                openness: ModelOpenness.fromSource(object),
+                taskCostUSD: number((object["intelligenceIndexCostPerTask"] as? [String: Any])?["cost"] as? [String: Any], key: "total"),
+                speed: number(object["timescaleData"] as? [String: Any], key: "medianOutputSpeed")
             )
         }
 
@@ -44,7 +46,8 @@ public enum HTMLLeaderboardParser {
                     modelID: record.modelID,
                     organization: record.organization,
                     logoURL: record.logoURL,
-                    openness: record.openness
+                    openness: record.openness,
+                    taskCostUSD: record.taskCostUSD, speed: record.speed
                 )
             }
 
@@ -83,7 +86,8 @@ public enum HTMLLeaderboardParser {
                 score: rawScore * 100,
                 modelID: modelID,
                 organization: organization,
-                openness: ModelOpenness.fromSource(object)
+                openness: ModelOpenness.fromSource(object),
+                taskCostUSD: taskCost(from: object), speed: number(object["mean"] as? [String: Any], key: "agentWallTimeSec")
             )
         }
 
@@ -104,7 +108,8 @@ public enum HTMLLeaderboardParser {
                     score: record.score,
                     modelID: record.modelID,
                     organization: record.organization,
-                    openness: record.openness
+                    openness: record.openness,
+                    taskCostUSD: record.taskCostUSD, speed: record.speed
                 )
             }
 
@@ -115,6 +120,58 @@ public enum HTMLLeaderboardParser {
             sourceNote: artificialAnalysisCodingAgentVersion(fromHTML: html),
             entries: entries
         )
+    }
+
+    public static func valsSWEbench(fromHTML html: String) throws -> Leaderboard {
+        func matches(_ pattern: String, _ text: String) -> [NSTextCheckingResult] {
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators, .caseInsensitive]) else { return [] }
+            return regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+        }
+        func group(_ result: NSTextCheckingResult, _ index: Int, _ text: String) -> String? {
+            guard let range = Range(result.range(at: index), in: text) else { return nil }
+            return String(text[range])
+        }
+        func clean(_ value: String) -> String {
+            let stripped = value.replacingOccurrences(of: "<[^>]*>", with: "", options: .regularExpression)
+            let entities = ["&amp;": "&", "&quot;": "\"", "&#39;": "'", "&apos;": "'", "&lt;": "<", "&gt;": ">", "&nbsp;": " "]
+            return entities.reduce(stripped) { $0.replacingOccurrences(of: $1.key, with: $1.value) }.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        guard html.contains("Archived Benchmark"),
+              let dm = matches(#"Updated\s+(\d{1,2})/(\d{1,2})/(\d{4})"#, html).first,
+              let month = group(dm, 1, html).flatMap(Int.init), let day = group(dm, 2, html).flatMap(Int.init),
+              let year = group(dm, 3, html).flatMap(Int.init),
+              let date = Calendar(identifier: .gregorian).date(from: DateComponents(timeZone: TimeZone(secondsFromGMT: 0), year: year, month: month, day: day)),
+              date <= Date().addingTimeInterval(300),
+              let tm = matches(#"<table\b[^>]*aria-labelledby="benchmark-leaderboard-title"[^>]*>(.*?)</table>"#, html).first,
+              let table = group(tm, 1, html) else { throw ParserError.invalidValsSource }
+        let trs = matches(#"<tr\b[^>]*>(.*?)</tr>"#, table).compactMap { group($0, 1, table) }
+        guard let header = trs.first else { throw ParserError.invalidValsSource }
+        let headers = matches(#"<th\b[^>]*>(.*?)</th>"#, header).compactMap { group($0, 1, header).map(clean) }
+        guard headers == ["Rank", "Model", "Harness", "Score", "Cost / Test", "Tokens / Test", "Duration / Test"] else { throw ParserError.invalidValsSource }
+        var entries: [LeaderboardEntry] = []
+        for row in trs.dropFirst() {
+            let cells = matches(#"<t[dh]\b[^>]*>(.*?)</t[dh]>"#, row).compactMap { group($0, 1, row) }
+            guard cells.count == 7, let rank = Int(clean(cells[0])), rank == entries.count + 1,
+                  let sm = matches(#"^(\d+(?:\.\d+)?)%$"#, clean(cells[3])).first,
+                  let score = group(sm, 1, clean(cells[3])).flatMap(Double.init), score <= 100,
+                  let lm = matches(#"href="/models/([a-zA-Z0-9_.-]+)""#, cells[1]).first,
+                  let slug = group(lm, 1, cells[1]) else { throw ParserError.invalidValsSource }
+            let model = clean(cells[1]), harness = clean(cells[2]), costText = clean(cells[4]), duration = clean(cells[6])
+            guard !model.isEmpty, !harness.isEmpty else { throw ParserError.invalidValsSource }
+            let cost = matches(#"^\$(\d+(?:\.\d+)?)$"#, costText).first.flatMap { group($0, 1, costText).flatMap(Double.init) }
+            var speed: Double? = nil
+            if let d = matches(#"^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+(?:\.\d+)?)s)?$"#, duration).first {
+                let hours = group(d, 1, duration).flatMap(Double.init) ?? 0
+                let minutes = group(d, 2, duration).flatMap(Double.init) ?? 0
+                let seconds = group(d, 3, duration).flatMap(Double.init) ?? 0
+                let total = hours * 3600 + minutes * 60 + seconds
+                if total > 0 { speed = total }
+            }
+            let owner = slug.split(separator: "_", maxSplits: 1).first.map(String.init)
+            entries.append(LeaderboardEntry(rank: rank, name: "\(model) · \(harness)", score: score, modelID: "vals:\(slug):\(harness)", organization: owner, taskCostUSD: cost, speed: speed))
+        }
+        guard entries.count >= 20 else { throw ParserError.invalidValsSource }
+        return Leaderboard(kind: .valsSWEbench, title: "Vals AI · SWE-bench Verified", sourceUpdatedAt: date, sourceNote: "Archived · SWE-bench Verified", entries: entries)
     }
 
     public static func arenaWebDev(fromHTML html: String) throws -> Leaderboard {
@@ -178,7 +235,8 @@ public enum HTMLLeaderboardParser {
                 modelID: modelID,
                 organization: organization,
                 logoURL: artificialAnalysisLogoURL(from: logoPath),
-                openness: ModelOpenness.fromSource(values)
+                openness: ModelOpenness.fromSource(values),
+                taskCostUSD: kind == .artificialAnalysisTextToImage ? number(values, key: "pricePer1kImages").map { $0 / 1000 } : number(values, key: "pricePerMinute"), speed: nil
             )
         }
 
@@ -200,7 +258,8 @@ public enum HTMLLeaderboardParser {
                     modelID: record.modelID,
                     organization: record.organization,
                     logoURL: record.logoURL,
-                    openness: record.openness
+                    openness: record.openness,
+                    taskCostUSD: record.taskCostUSD
                 )
             }
 
@@ -275,6 +334,7 @@ public enum HTMLLeaderboardParser {
     }
 
     public enum ParserError: Error, Equatable {
+        case invalidValsSource
         case notEnoughArtificialAnalysisRecords(Int)
         case notEnoughCodingAgentRecords(Int)
         case notEnoughArenaRecords(Int)
@@ -288,6 +348,21 @@ public enum HTMLLeaderboardParser {
         let organization: String?
         let logoURL: URL?
         let openness: ModelOpenness?
+        let taskCostUSD: Double?
+        let speed: Double?
+    }
+
+    private static func number(_ object: [String: Any]?, key: String) -> Double? {
+        guard let raw = object?[key] as? NSNumber, String(cString: raw.objCType) != "c" else { return nil }
+        let value = raw.doubleValue
+        return value.isFinite && value >= 0 ? value : nil
+    }
+
+    private static func taskCost(from object: [String: Any]) -> Double? {
+        guard let raw = (object["mean"] as? [String: Any])?["costUsd"] as? NSNumber,
+              String(cString: raw.objCType) != "c" else { return nil }
+        let value = raw.doubleValue
+        return value.isFinite && value >= 0 ? value : nil
     }
 
     private struct ParsedCodingAgentRecord: Sendable {
@@ -296,6 +371,8 @@ public enum HTMLLeaderboardParser {
         let modelID: String?
         let organization: String?
         let openness: ModelOpenness?
+        let taskCostUSD: Double?
+        let speed: Double?
     }
 
     private struct ParsedArenaRecord: Sendable {

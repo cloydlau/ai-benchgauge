@@ -6,6 +6,23 @@ using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Security;
 
+// Prices remain attached to the capability-ranked row, including offline JSON.
+var costRows = new[] {
+    new Entry(1, "Strong", 90, "OpenAI", null, null, null, null, null, TaskCostUSD: 9.48, RankChange: new RankChange(2)),
+    new Entry(2, "Unknown", 80, "Anthropic", null, null, null, null, null),
+    new Entry(3, "Cheap", 70, "OpenAI", null, null, null, null, null, TaskCostUSD: 0.005),
+    new Entry(4, "Zero", 60, "Google", null, null, null, null, null, TaskCostUSD: 0),
+    new Entry(5, "Invalid", 50, "Google", null, null, null, null, null, TaskCostUSD: -1),
+};
+var costRestored = JsonSerializer.Deserialize<Entry[]>(JsonSerializer.Serialize(costRows, AppConfig.Json), AppConfig.Json)!;
+var costOrdered = CodingTaskCost.Order(costRestored, true);
+if (!costOrdered.Select(row => row.Rank).SequenceEqual(new[] { 4, 3, 1, 2, 5 }) || costOrdered[2] != costRows[0]
+    || !CodingTaskCost.Order(costRestored, false).SequenceEqual(costRows))
+    throw new Exception("Cost order must retain source ranks, scores, movements and unknown prices");
+foreach (var (value, expected) in new (double?, string)[] { (null, "—"), (double.NaN, "—"), (-1, "—"), (0, "$0"), (0.0001, "<$0.001"), (0.005, "$0.005"), (9.48, "$9.48") })
+    if (CodingTaskCost.Format(value) != expected) throw new Exception("Task cost precision/unit mismatch");
+Console.WriteLine("PASS: task cost offline round trip, ordering, original rank/movement and precision");
+
 // Exercise the embedded application identity from the built shared assembly.
 if (ApplicationLicense.Name != "PolyForm Perimeter License 1.0.0" ||
     ApplicationLicense.ShortName != "PolyForm Perimeter")
@@ -360,7 +377,9 @@ if (!visibility.VisibleBoardKinds().SequenceEqual(new[] { "epochECI" })) throw n
 visibility = JsonSerializer.Deserialize<Preferences>(JsonSerializer.Serialize(visibility, AppConfig.Json), AppConfig.Json)!;
 if (!visibility.VisibleBoardKinds().SequenceEqual(new[] { "epochECI" })) throw new Exception("Board selection did not persist");
 visibility.Category = "coding";
-if (visibility.VisibleBoardKinds().Length != 2) throw new Exception("Board selections leaked between categories");
+if (!visibility.VisibleBoardKinds().SequenceEqual(new[] { "artificialAnalysisCodingAgent", "codeArenaWebDev" })) throw new Exception("Coding default must omit the archived source");
+visibility.ToggleBoard("valsSWEbench");
+if (!visibility.VisibleBoardKinds().SequenceEqual(new[] { "artificialAnalysisCodingAgent", "codeArenaWebDev", "valsSWEbench" })) throw new Exception("Archived source must remain explicitly selectable");
 visibility.Category = "general"; visibility.ToggleBoard("artificialAnalysis");
 if (!visibility.VisibleBoardKinds().SequenceEqual(new[] { "artificialAnalysis", "epochECI" })) throw new Exception("Restored board order is wrong");
 foreach (var invalid in new[] { Array.Empty<string>(), new[] { "retired" }, new[] { "arenaTextToImage" } }) {
@@ -413,6 +432,13 @@ foreach (var language in new[] { "en", "zh", "zh-Hant" }) {
         throw new Exception("CloudBase source notice must remain offline and must not grant a Creative Commons license");
 }
 Console.WriteLine("PASS: CloudBase source notice in all three languages");
+
+var guidePreferences = new Preferences();
+if (guidePreferences.HasSeenMetricGuide("artificialAnalysis") || !guidePreferences.MarkMetricGuideSeen("artificialAnalysis")) throw new Exception("First eligible guide must be recorded");
+if (guidePreferences.MarkMetricGuideSeen("arenaText") || guidePreferences.HasSeenMetricGuide("openRouterUsage")) throw new Exception("Unsupported and other sources must not be marked");
+guidePreferences = JsonSerializer.Deserialize<Preferences>(JsonSerializer.Serialize(guidePreferences, AppConfig.Json), AppConfig.Json)!;
+if (!guidePreferences.HasSeenMetricGuide("artificialAnalysis") || guidePreferences.HasSeenMetricGuide("openRouterUsage")) throw new Exception("Guide state must persist independently per source");
+Console.WriteLine("PASS: metric guidance persists per eligible source");
 
 sealed class FixtureHttpHandler(Func<HttpRequestMessage, byte[]> response) : HttpMessageHandler
 {

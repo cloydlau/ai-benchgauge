@@ -583,8 +583,8 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
                 continue
             }
             XCTAssertTrue(help.waitForExistence(timeout: 10))
-            XCTAssertEqual(help.label, chinese ? "多榜对照，选得明白；余量追踪，用得有数。"
-                : "Compare leaderboards to make informed choices; track quotas to know where you stand.")
+            XCTAssertEqual(help.label, chinese ? "多维纵览，选得明白；余量洞察，用得有数。"
+                : "Compare across dimensions, choose with clarity; track your quotas, stay informed.")
             XCTAssertGreaterThanOrEqual(help.frame.minX, app.frame.minX)
             XCTAssertLessThanOrEqual(help.frame.maxX, app.frame.maxX)
             XCTAssertGreaterThanOrEqual(help.frame.height, 44)
@@ -622,7 +622,7 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
             XCTAssertEqual(help.exists, chinese)
             if chinese {
                 XCTAssertTrue(help.waitForExistence(timeout: 10))
-                let caption = chinese ? "多榜对照，选得明白；余量追踪，用得有数。" : "Compare leaderboards to make informed choices; track quotas to know where you stand."
+                let caption = chinese ? "多维纵览，选得明白；余量洞察，用得有数。" : "Compare across dimensions, choose with clarity; track your quotas, stay informed."
                 XCTAssertEqual(help.label, caption)
                 XCTAssertGreaterThan(help.frame.width, 0)
                 XCTAssertGreaterThanOrEqual(help.frame.minX, app.frame.minX)
@@ -696,7 +696,7 @@ final class LeaderboardCategoryTabTests: XCTestCase {
                 continue
             }
             XCTAssertTrue(help.waitForExistence(timeout: 10))
-            XCTAssertEqual(help.label, chinese ? "多榜对照，选得明白；余量追踪，用得有数。" : "Compare leaderboards to make informed choices; track quotas to know where you stand.")
+            XCTAssertEqual(help.label, chinese ? "多维纵览，选得明白；余量洞察，用得有数。" : "Compare across dimensions, choose with clarity; track your quotas, stay informed.")
             let heading = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
             heading.name = "quota-help-\(chinese ? "zh-system" : "en-dark")-heading"
             heading.lifetime = .keepAlways; add(heading)

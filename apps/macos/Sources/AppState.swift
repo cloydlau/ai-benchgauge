@@ -20,6 +20,13 @@ enum InactiveQuotaRefreshScope {
 
 @MainActor
 final class AppState: ObservableObject {
+    @Published var priceAscending = false
+    @Published var speedOrders: Set<LeaderboardKind> = []
+    @Published var costOrders: Set<LeaderboardKind> = []
+    var codingCostOrder: Bool {
+        get { costOrders.contains(.artificialAnalysisCodingAgent) }
+        set { if newValue { costOrders.insert(.artificialAnalysisCodingAgent) } else { costOrders.remove(.artificialAnalysisCodingAgent) } }
+    }
     @Published private(set) var snapshot = LeaderboardSnapshot() {
         didSet { snapshotRevision &+= 1 }
     }
@@ -226,7 +233,7 @@ final class AppState: ObservableObject {
             snapshot = cached
         }
         selectedCategory = CategoryPreference.load()
-        selectedGrouping = GroupingPreference.load()
+        selectedGrouping = selectedCategory == .price ? .model : GroupingPreference.load()
         codexDesktopRunning = isCodexRunning
     }
 
@@ -414,6 +421,7 @@ final class AppState: ObservableObject {
 
     func selectCategory(_ category: LeaderboardCategory) {
         guard category != selectedCategory else { return }
+        if category == .price { selectGrouping(.model) }
         selectedCategory = category
         CategoryPreference.save(category)
         refreshNow(force: false)

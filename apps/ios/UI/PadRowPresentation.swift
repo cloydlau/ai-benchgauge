@@ -11,14 +11,19 @@ final class PadRowPresentation {
     let leaderScore: Double?
 
     init(board: Leaderboard?, grouping: LeaderboardGrouping, country: LeaderboardCountryFilter,
-         openness: LeaderboardOpennessFilter, language: AppLanguage, modelQuery: String = "") {
-        let unsearched = LeaderboardPresentation.rows(board, grouping: grouping, filter: country, openness: openness)
-        leaderScore = unsearched.first?.score
+         openness: LeaderboardOpennessFilter, language: AppLanguage, modelQuery: String = "", costOrder: Bool = false, speedOrder: Bool = false, priceAscending: Bool = false) {
+        let base = LeaderboardPresentation.rows(board, grouping: grouping, filter: country, openness: openness)
+        let unsearched = board?.kind.isPrice == true ? LeaderboardPresentation.priceOrdered(base, ascending: priceAscending) : base
+        let showCost = board?.kind.supportsAACost == true && costOrder
+        let showSpeed = board.map { LeaderboardPresentation.supportsAASpeed($0.kind) && speedOrder } ?? false
+        leaderScore = showCost ? unsearched.compactMap(\.taskCostUSD).filter { $0.isFinite && $0 >= 0 }.max() : showSpeed ? unsearched.compactMap(\.speed).max() : unsearched.map(\.score).max()
         let matches = LeaderboardPresentation.modelNameMatcher(modelQuery)
         rows = unsearched.filter { matches($0.name) }
-        scoreWidthReference = rows.map {
-            LeaderboardPresentation.scoreText($0.score, kind: board?.kind ?? .artificialAnalysis)
-        }.max { $0.count < $1.count } ?? "0.0"
+        let values = rows.flatMap { row in
+            let first = showSpeed ? LeaderboardPresentation.speedText(row.speed) : showCost ? LeaderboardPresentation.taskCostText(row.taskCostUSD) : LeaderboardPresentation.scoreText(row.score, kind: board?.kind ?? .artificialAnalysis)
+            return (board?.kind.isPrice == true || (board?.kind == .openRouterUsage && showCost)) ? [first, LeaderboardPresentation.taskCostText(row.outputPriceUSD)] : [first]
+        }
+        scoreWidthReference = values.max { $0.count < $1.count } ?? "0.0"
         countries = LeaderboardPresentation.countryFilters(board)
     }
     private init(rows: [LeaderboardEntry], scoreWidthReference: String, countries: [LeaderboardCountryFilter], leaderScore: Double?) {

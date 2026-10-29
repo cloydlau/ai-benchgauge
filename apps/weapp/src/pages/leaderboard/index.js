@@ -2,13 +2,14 @@ import { sourceAgreement } from '../../core/source-agreement.js'
 import { isArenaDatasetBoard } from '../../core/arena-attribution.js'
 import { definePage, ref, computed, onLoad, onReady, onShow, onHide, onUnload, onShareAppMessage, onResize } from '@vue-mini/core'
 import { boards, categories, categoryFor, copy, text, languages, boardTitle, hasOwn, desktopDownloadURL } from '../../core/catalog.js'
-import { rankedEntries, rowView, countryCode, countryName, countryFlag, countryFlagImage, countryOptions, formatTime, contentTimestamp } from '../../core/leaderboard.js'
+import { rankedEntries, rowView, supportsAACost, supportsAASpeed, isPriceBoard, countryCode, countryName, countryFlag, countryFlagImage, countryOptions, formatTime, contentTimestamp } from '../../core/leaderboard.js'
 import { opennessIcon, opennessColor } from '../../core/openness-icon.js'
 import { sourceTabTheme, sourceTabLogo } from '../../core/source-tab-theme.js'
 import { leaderboardDistribution } from '../../../../../fc/distributions.mjs'
 import { createBoardStore } from '../../services/boards.js'
 import { shouldAutoRefresh } from '../../core/freshness.js'
 import { createTimestampPolish } from '../../core/timestamp-polish.js'
+import { createMetricGuide } from '../../core/metric-guide.js'
 import { rowGeometry, resolveRowWindow, createRowRenderer } from '../../core/row-window.js'
 import { exportScreenshot, removeScreenshot, saveScreenshotImage } from '../../services/screenshot.js'
 import { cubeIndex, cubeTarget, cubeNavigation, cubeRenderedFace, cubeTabPosition, cubeGesture, moveCubeGesture, cubeDestination, matchingScroll, isBackSwipe } from '../../core/cube.js'
@@ -26,7 +27,7 @@ definePage(query => {
   const category = ref(initial.category)
   const boardSelections = ref(initial.boardSelections || {})
   const boardTransition = ref(normalizeBoardTransition(initial.boardTransition))
-  const grouping = ref(initial.grouping)
+  const grouping = ref(initial.category === 'price' ? 'model' : initial.grouping)
   const expandedBoards = ref({})
   const configurationRequired = ref({})
   // Share the input interaction while retaining a separate query per grouping.
@@ -178,11 +179,19 @@ definePage(query => {
   let preparedScroll, queuedCubeFace, cubeTurnSerial = 0
   let pageReady = false, pageVisible = false
   const polishingKind = ref(null)
+  const metricGuideKind = ref(null)
+  const metricGuide = createMetricGuide({ supports: supportsAACost,
+    read: () => { const value = wx.getStorageSync('benchgauge.metricGuideSeen'); return Array.isArray(value) ? value : [] },
+    write: value => wx.setStorageSync('benchgauge.metricGuideSeen', value), show: value => { metricGuideKind.value = value },
+    readyNow: kind => alive && pageReady && pageVisible && !cubeBusy.value && !modelSearchVisible.value
+      && current.value.kinds[face.value] === kind && !refreshing.value[kind] && (!!snapshots.value[kind] || lastAttempt[kind] != null),
+  })
   const timestampPolish = createTimestampPolish(kind => { polishingKind.value = kind })
   function syncTimestampPolish() {
     const kind = current.value.kinds[face.value], board = snapshots.value[kind]
     const hasDate = Number.isFinite(Date.parse(board?.sourceUpdatedAt)) || Number.isFinite(Date.parse(board?.fetchedAt))
     timestampPolish.update(kind, alive && pageReady && pageVisible && kind !== 'cloudbaseUsage' && hasDate && !refreshing.value[kind])
+    metricGuide.update(kind, alive && pageReady && pageVisible && !cubeBusy.value && !modelSearchVisible.value && !refreshing.value[kind] && (!!board || lastAttempt[kind] != null))
   }
   let cubeWidth = 375
   let suppressTapUntil = 0
@@ -277,7 +286,7 @@ definePage(query => {
           if (!alive) return
           cubeBusy.value = false; cubeDuration.value = 0
           cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1
-          measureLists()
+          measureLists(); syncTimestampPolish()
           const next = queuedCubeFace; queuedCubeFace = null
           if (next != null && next !== face.value) turnCube(next)
         }, 440)
@@ -362,7 +371,7 @@ definePage(query => {
             if (!alive) return
             cubeBusy.value = false; cubeDuration.value = 0
             cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1
-            measureLists()
+            measureLists(); syncTimestampPolish()
             entranceTimer = setTimeout(() => { entranceHintVisible.value = false }, 1600)
           }, 750)
         }, 550)
@@ -452,10 +461,32 @@ definePage(query => {
   const categoryThemeStyle = computed(() => `--category-accent:${selectedSourceTheme.value.accent};`)
   const current = computed(() => ({ ...categoryFor(category.value), kinds: visibleBoardKinds(category.value, boardSelections.value) }))
   const sourceTabIcons = computed(() => current.value.kinds.map(kind => sourceTabLogo(kind, dark.value)))
-  const tabs = computed(() => current.value.kinds.map(kind => kind === 'openRouterUsage' ? tr('dailyUsage') : kind === 'cloudbaseUsage' ? tr('cumulativeShare') : kind === 'vercelUsage' ? tr('dailyShare') : kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
+  const tabs = computed(() => current.value.kinds.map(kind => isPriceBoard(kind) ? 'API' : kind === 'openRouterUsage' ? tr('dailyUsage') : kind === 'cloudbaseUsage' ? tr('cumulativeShare') : kind === 'vercelUsage' ? tr('dailyShare') : kind === 'valsSWEbench' ? tr('archivedBenchmark') : kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
   // Retain each slot's geometry while replacing its source identity and label.
   const sourceTabItems = computed(() => current.value.kinds.map((kind, index) => ({ index,
     content: [{ kind, label: tabs.value[index], icon: sourceTabIcons.value[index] }] })))
+  const priceAscending = ref(false)
+  const togglePriceOrder = () => {
+    if (cubeBusy.value || backgroundLocked.value) return
+    priceAscending.value = !priceAscending.value
+    expandedBoards.value = {}
+    resetScroll(["openRouterPrice"])
+  }
+  const costOrder = ref({})
+  const speedOrder = ref({})
+  const costUnit = kind => kind === 'openRouterUsage' ? (language.value === 'en' ? 'In/Out $/1M' : language.value === 'zh-TW' ? '輸入/輸出$/百萬' : '输入/输出$/百万') : tr(kind === 'artificialAnalysisTextToImage' ? 'imageCostUnit' : kind === 'artificialAnalysisTextToVideo' ? 'videoCostUnit' : 'taskCostUnit')
+  const toggleCostOrder = event => {
+    const kind = event.currentTarget.dataset.kind
+    if (!supportsAACost(kind) || cubeBusy.value || backgroundLocked.value) return
+    metricGuide.acknowledge(kind)
+    const labels = kind === 'openRouterUsage' ? (language.value === 'en' ? ['Usage', 'Price', 'Speed'] : language.value === 'zh-TW' ? ['用量', '價格', '速度'] : ['用量', '价格', '速度']) : language.value === "en" ? ["Score", "Cost", "Speed"] : language.value === "zh-TW" ? ["分數", "成本", "速度"] : ["分数", "成本", "速度"]
+    wx.showActionSheet({ itemList: labels.slice(0, supportsAASpeed(kind) ? 3 : 2), success: ({ tapIndex }) => {
+      costOrder.value = { ...costOrder.value, [kind]: tapIndex === 1 }
+      speedOrder.value = { ...speedOrder.value, [kind]: tapIndex === 2 }
+      expandedBoards.value = {}
+      resetScroll([kind])
+    } })
+  }
   const filterFor = kind => ({ country: 'all', openness: 'all', ...filters.value[kind] })
   const countriesFor = kind => countryOptions({ entries: Object.values(snapshots.value).flatMap(board => board?.entries || []) }, language.value, filterFor(kind).country)
   function setFilters(filter) {
@@ -465,9 +496,15 @@ definePage(query => {
   }
   // Keep full model data out of the Vue-to-WeChat bridge. Sorting/filtering
   // are cached independently of scroll positions; only window rows are mapped.
-  const rankedCards = computed(() => current.value.kinds.map(kind => ({ kind,
-    leaderScore: rankedEntries(snapshots.value[kind], { ...filterFor(kind), grouping: grouping.value })[0]?.score,
-    entries: rankedEntries(snapshots.value[kind], { ...filterFor(kind), grouping: grouping.value, query: modelSearchQuery.value }) })))
+  const rankedCards = computed(() => current.value.kinds.map(kind => {
+    const costMode = !!costOrder.value[kind]
+    const speedMode = !!speedOrder.value[kind]
+    const base = rankedEntries(snapshots.value[kind], { ...filterFor(kind), grouping: grouping.value })
+    const prices = base.map(entry => entry.taskCostUSD).filter(value => Number.isFinite(value) && value >= 0)
+    const speeds = base.map(entry => entry.speed).filter(value => Number.isFinite(value) && value > 0)
+    return { kind, costMode, speedMode, leaderScore: speedMode ? (speeds.length ? Math.max(...speeds) : undefined) : costMode ? (prices.length ? Math.max(...prices) : undefined) : isPriceBoard(kind) ? Math.max(...base.map(entry => entry.score), 0) : base[0]?.score,
+      entries: rankedEntries(snapshots.value[kind], { ...filterFor(kind), grouping: grouping.value, query: modelSearchQuery.value, priceAscending: priceAscending.value, sort: speedMode ? 'speed' : costMode ? 'cost' : 'score' }) }
+  }))
   const visibleCards = computed(() => rankedCards.value.map(card => ({ ...card, totalCount: card.entries.length,
     entries: expandedBoards.value[card.kind] ? card.entries : card.entries.slice(0, 20) })))
   function toggleRanking(event) {
@@ -513,6 +550,9 @@ definePage(query => {
       rowHeight: geometry.value.rowHeight,
       rows: renderRows(kind, entries, range, leaderScore),
       searchStyle: modelSearchVisible.value ? 'left:0px;right:0px;' : searchOrigins.value[kind] || 'left:50%;right:50%;',
+      ...(isPriceBoard(kind) && { hasPrice: true, priceAscending: priceAscending.value }),
+      ...(supportsAACost(kind) && { hasTaskCost: true, ...(metricGuideKind.value === kind && { showMetricGuide: true }), costOrder: !!costOrder.value[kind], speedOrder: !!speedOrder.value[kind], ...(speedOrder.value[kind] && { speedUnit: (kind === "artificialAnalysisCodingAgent" || kind === "valsSWEbench") ? (language.value === "en" ? "s/task" : language.value === "zh-TW" ? "秒/任務" : "秒/任务") : "token/s" }), costUnit: costUnit(kind),
+        costSortLabel: speedOrder.value[kind] ? (language.value === "en" ? "Speed" : "速度") : kind === 'openRouterUsage' ? (costOrder.value[kind] ? (language.value === 'en' ? 'Price' : language.value === 'zh-TW' ? '價格' : '价格') : tr('tokens')) : costOrder.value[kind] ? tr('taskCostAscending') : tr('scoreDescending') }),
       scoreLabel: ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? tr('tokenShare') : kind === 'openRouterUsage' ? tr('tokens') : tr('score'),
       pendingConfiguration: !!configurationRequired.value[kind],
       hasBoard: !!board, filtered: filter.country !== 'all' || filter.openness !== 'all' || !!modelSearchQuery.value.trim(),
@@ -529,9 +569,9 @@ definePage(query => {
   function renderRows(kind, entries, range, leaderScore) {
     if (!rowRenderers.has(kind)) rowRenderers.set(kind, createRowRenderer((entry, entries) =>
       rowView(entry, { company: grouping.value === 'company', dark: dark.value, details: false,
-        language: language.value, category: category.value, kind, leaderScore: rankedCards.value.find(card => card.kind === kind)?.leaderScore })))
+        language: language.value, category: category.value, kind, costMode: !!costOrder.value[kind], speedMode: !!speedOrder.value[kind], leaderScore: rankedCards.value.find(card => card.kind === kind)?.leaderScore })))
     return rowRenderers.get(kind)({ entries, ...range, rowHeight: geometry.value.rowHeight,
-      variant: `${grouping.value}:${dark.value}:${language.value}:${category.value}:${leaderScore}` })
+      variant: `${grouping.value}:${dark.value}:${language.value}:${category.value}:${leaderScore}:${!!costOrder.value[kind]}:${!!speedOrder.value[kind]}` })
   }
 
   function rangeFor(kind, count, force = false) {
@@ -769,8 +809,8 @@ definePage(query => {
     }
     playEntrance()
   })
-  onHide(() => { pageVisible = false; timestampPolish.stop(); blurModelSearch(); clearTimeout(searchExpandTimer); stopCube(); cancelSourceTabsSync() })
-  onUnload(() => { timestampPolish.stop(); blurModelSearch(); clearTimeout(searchExpandTimer); stopCube(); cancelSourceTabsSync(); alive = false; measureSerial++; scrollRequests.clear(); rowRenderers.clear(); store.dispose(); wx.offThemeChange?.(themeListener)
+  onHide(() => { pageVisible = false; metricGuide.stop(); timestampPolish.stop(); blurModelSearch(); clearTimeout(searchExpandTimer); stopCube(); cancelSourceTabsSync() })
+  onUnload(() => { metricGuide.stop(); timestampPolish.stop(); blurModelSearch(); clearTimeout(searchExpandTimer); stopCube(); cancelSourceTabsSync(); alive = false; measureSerial++; scrollRequests.clear(); rowRenderers.clear(); store.dispose(); wx.offThemeChange?.(themeListener)
     if (!capture.value.saving) removeScreenshot(wx, capture.value.path)
     if (capturing.value || capture.value.saving) wx.hideLoading() })
   onShareAppMessage(() => ({ title: `${tabs.value[face.value]}｜${tr('rankingSummary')}`,
@@ -793,10 +833,12 @@ definePage(query => {
   }
   function changeCategory(id, destination = face.value) {
     blurModelSearch(); stopCube(); entrancePlayed = true
+    if (id === 'price') grouping.value = 'model'
     expandedBoards.value = {}; category.value = id; face.value = Math.min(destination, current.value.kinds.length - 1); cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1; rowRenderers.clear(); resetScroll(); persist(); autoRefresh()
     syncTimestampPolish()
   }
   function selectGrouping(event) {
+    if (category.value === 'price') return
     blurModelSearch(); stopCube(); entrancePlayed = true
     searchQueries[grouping.value] = modelSearchQuery.value
     grouping.value = event.currentTarget.dataset.id
@@ -905,7 +947,7 @@ definePage(query => {
     const serial = ++searchSerial
     const expand = () => {
       if (!alive || serial !== searchSerial) return
-      modelSearchOpen.value = true
+      modelSearchOpen.value = true; metricGuide.stop()
       clearTimeout(searchFocusTimer)
       searchFocusTimer = setTimeout(() => {
         if (alive && serial === searchSerial && modelSearchVisible.value) modelSearchFocused.value = true
@@ -953,6 +995,7 @@ definePage(query => {
     blurModelSearch(); clearTimeout(searchExpandTimer)
     modelSearchOpen.value = false
     inputModelSearch({ detail: { value: '' } })
+    syncTimestampPolish()
     wx.hideKeyboard?.()
   }
   function preferences(event) {
@@ -1085,10 +1128,11 @@ definePage(query => {
           return { kind, sourceNote: board?.sourceNote, title: boardTitle(kind, language.value), tab: tabs.value[index],
             summary: text(boards[kind].summaries, language.value),
             time: `${time.time} ${time.timeLabel}`, isSourceTime: time.isSourceTime,
-            filterLabel: `${tr('country')}: ${country} · ${tr('source')}: ${tr(filter.openness)}`,
+            taskCostLabel: isPriceBoard(kind) ? tr('priceInput') + (priceAscending.value ? ' ↑' : ' ↓') : speedOrder.value[kind] ? ((kind === 'artificialAnalysisCodingAgent' || kind === 'valsSWEbench') ? (language.value === 'en' ? 's/task' : language.value === 'zh-TW' ? '秒/任務' : '秒/任务') : 'token/s') : supportsAACost(kind) && costOrder.value[kind] ? costUnit(kind) : '',
+            filterLabel: `${supportsAACost(kind) ? (speedOrder.value[kind] ? (language.value === 'en' ? 'Speed' : '速度') : tr(costOrder.value[kind] ? 'taskCostAscending' : 'scoreDescending')) + ' · ' : ''}${tr('country')}: ${country} · ${tr('source')}: ${tr(filter.openness)}`,
             empty: tr(board ? 'empty' : 'noBoard'),
             rows: rankedCards.value[index].entries.map(entry =>
-              rowView(entry, { company: grouping.value === 'company', dark: dark.value, details: false, kind: rankedCards.value[index].kind, leaderScore: rankedCards.value[index].leaderScore })) }
+              rowView(entry, { company: grouping.value === 'company', dark: dark.value, language: language.value, details: false, kind: rankedCards.value[index].kind, costMode: !!costOrder.value[kind], speedMode: !!speedOrder.value[kind], leaderScore: rankedCards.value[index].leaderScore })) }
         }) }
       const canvas = await new Promise((resolve, reject) => {
         wx.createSelectorQuery().select('#leaderboard-export').fields({ node: true }).exec(result => {
@@ -1151,7 +1195,7 @@ definePage(query => {
     cubeFaces, sourceSelection, sourceTabIndex, sourceTabsStyle, sourceTabsExtent, sourceTabWidth, sourceTabItems, cubeViewportStyle,
     cubePosition, cubeDuration, cubeBusy, cubeDragging, entranceStyle, entranceHintVisible, boardTransition,
     cubeStart, cubeMove, cubeEnd, cubeCancel, tabStart, tabMove, tabEnd, cancelTabDrag, attributeHint,
-    selectCategory, selectGrouping, selectFace, changeFace, scroll, top, filterMenu, toggleRanking,
+    selectCategory, selectGrouping, selectFace, changeFace, scroll, top, filterMenu, toggleRanking, toggleCostOrder, togglePriceOrder,
     clearFilters, preferences, sheetSelect, closeSheet, sourceHelp, timeHelp, countryHelp, copyPurchaseLink, rowDetails, companyDetails, closeCompanyDetails, copyCompanyName, about, openSettings,
     quotaHelp, quotaHelpContent, showingFeatureHelp, closeFeatureHelp, copyDesktopLink, refreshTap, autoRefresh, pullRefresh, pullRefreshing, pullRefreshKind, finishPullRefresh,
     capturing, capture, screenshot, closeCapture, previewScreenshot, saveScreenshot }

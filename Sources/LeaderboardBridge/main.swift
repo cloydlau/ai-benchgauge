@@ -62,6 +62,10 @@ struct Board: Encodable {
 }
 struct CountryOption: Encodable { var value: String; var label: String }
 struct Entry: Encodable {
+    var outputPriceUSD: Double? = nil
+    var provider: String? = nil
+    var taskCostUSD: Double? = nil
+    var speed: Double? = nil
     var rankChange: LeaderboardRankChange? = nil
     var modelMetadata: ModelMetadata? = nil
     var detailID: String? = nil
@@ -515,14 +519,15 @@ actor Engine {
             let countryFilter: LeaderboardCountryFilter = countryValue == "unknown" ? .unknown
                 : OrganizationCountry(rawValue: countryValue).map(LeaderboardCountryFilter.country) ?? .all
             let models = (board?.entries ?? []).filter { sourceFilter.matches($0) && countryFilter.matches($0) }
-            let standings = grouping == "company" ? CompanyLeaderboard.rank(models, summingUsage: kind.isUsage) : []
-            let entries = grouping == "company" ? standings.map(\.entry) : models
+            let company = grouping == "company" && !kind.isPrice
+            let standings = company ? CompanyLeaderboard.rank(models, summingUsage: kind.isUsage) : []
+            let entries = company ? standings.map(\.entry) : models
             return Board(modelMetadataSource: board?.modelMetadataSource, kind: kind.rawValue, title: kind.sourcePrefix, url: kind.sourceURL.absoluteString,
                          updatedAt: board?.sourceUpdatedAt.map { formatter.string(from: $0) },
                          error: errors[kind].map { $0 == "configurationRequired" ? LeaderboardFailure.configurationRequired.message(language: language, hasCachedBoard: board != nil) : language.text("Refresh failed; showing saved data", "刷新失败，显示已保存的数据") },
                          entries: entries.map { entry in
                 let links = PurchaseLinkCatalog.links(forOrganization: entry.organization, modelName: entry.name)
-                return Entry(rankChange: entry.rankChange, detailID: grouping == "company" ? nil : entry.modelMetadata?.id, voteCount: entry.voteCount,
+                return Entry(outputPriceUSD: entry.outputPriceUSD, provider: entry.provider, taskCostUSD: entry.taskCostUSD, speed: entry.speed, rankChange: entry.rankChange, detailID: company ? nil : entry.modelMetadata?.id, voteCount: entry.voteCount,
                              rank: entry.rank, name: entry.name, score: entry.score, organization: entry.organization,
                              country: OrganizationRegion.country(for: entry)?.rawValue,
                              logo: OrganizationLogoCatalog.resolvedKey(organization: entry.organization, modelName: entry.name),

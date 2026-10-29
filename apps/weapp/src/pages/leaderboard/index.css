@@ -301,3 +301,11 @@
 
 .source-notice-scroll { box-sizing: border-box; height: 55vh; }
 .source-notice-text { display: block; padding: 8px 24px 24px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.75; text-align: left; }
+
+.cost-sort { padding: 0; margin: 0; min-height: 28rpx; line-height: 28rpx; font-size: 20rpx; color: var(--source-accent); background: transparent; text-align: right; }
+.cost-sort::after { border: 0; }
+.cost-score-title { display: block; }
+.cost-unit { display: block; font-size: 15rpx; line-height: 18rpx; white-space: nowrap; }
+.task-cost { color: var(--muted); }
+
+.cost-sort.is-guided { background: var(--source-accent); color: var(--card); border-radius: 6px; font-size: 16rpx; font-weight: 600; white-space: nowrap; overflow: hidden; }

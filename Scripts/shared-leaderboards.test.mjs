@@ -22,6 +22,7 @@ class MemoryStore {
 }
 const time = Date.parse('2026-10-12T00:00:00Z');
 function html(kind = 'arenaText', date = '2026-10-10T00:00:00Z', count = 22, modelLogoURL = undefined) {
+  if (kind === 'valsSWEbench') return 'Archived Benchmark Updated 10/10/2026 <table aria-labelledby="benchmark-leaderboard-title"><tr>' + ['Rank', 'Model', 'Harness', 'Score', 'Cost / Test', 'Tokens / Test', 'Duration / Test'].map(x => `<th>${x}</th>`).join('') + '</tr>' + Array.from({ length: count }, (_, i) => `<tr><td>${i + 1}</td><th><a href="/models/maker_model-${i}">Model ${i}</a></th><td>Agent</td><td>${100 - i}%</td><td>$1.25</td><td>1m</td><td>1m</td></tr>`).join('') + '</table>';
   if (kind === 'epochECI') return 'Model,Display name,eci,Organization,Country (of organization),Accessibility group\n'
     + Array.from({ length: count }, (_, i) => `model-${i},Model ${i},${100-i},Maker,US,Closed weights`).join('\n');
   const rows = Array.from({ length: count }, (_, i) => {
@@ -131,13 +132,13 @@ test('all parsed sources retain ranking, IDs, organizations and correct source d
     assert.equal(board.kind, kind);
     assert.equal(board.entries.length, 22);
     assert.equal(board.entries.at(-1).rank, 22);
-    assert.equal(board.entries.at(-1).modelID, 'model-21');
+    assert.equal(board.entries.at(-1).modelID, kind === 'valsSWEbench' ? 'vals:maker_model-21:Agent' : 'model-21');
     assert.equal(board.entries[0].rank, 1);
-    assert.equal(board.entries[0].name, 'Model 0');
-    assert.equal(board.entries[0].modelID, 'model-0');
-    assert.equal(board.entries[0].organization, 'Maker');
+    assert.equal(board.entries[0].name, kind === 'valsSWEbench' ? 'Model 0 · Agent' : 'Model 0');
+    assert.equal(board.entries[0].modelID, kind === 'valsSWEbench' ? 'vals:maker_model-0:Agent' : 'model-0');
+    assert.equal(board.entries[0].organization, kind === 'valsSWEbench' ? 'maker' : 'Maker');
     assert.equal(board.fetchedAt, new Date(time).toISOString());
-    if (kind.startsWith('arena') || kind === 'codeArenaWebDev' || kind === 'artificialAnalysisCodingAgent') {
+    if (kind.startsWith('arena') || kind === 'codeArenaWebDev' || kind === 'artificialAnalysisCodingAgent' || kind === 'valsSWEbench') {
       assert.equal(board.sourceUpdatedAt, '2026-10-10T00:00:00.000Z');
     } else assert.equal(board.sourceUpdatedAt, undefined);
   }

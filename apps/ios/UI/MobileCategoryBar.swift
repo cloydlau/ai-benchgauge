@@ -30,7 +30,9 @@ struct MobileCategoryBar: View {
                     withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.24)) { category = item }
                 } label: {
                     VStack(spacing: 4) {
-                        if let icon = Self.icons[item.rawValue] {
+                        if item == .price {
+                            Image(systemName: "tag").font(.system(size: 18)).foregroundStyle(accent)
+                        } else if let icon = Self.icons[item.rawValue] {
                             Image(decorative: icon, scale: 3)
                                 .renderingMode(.template).resizable().scaledToFit().frame(width: 18, height: 18)
                                 .foregroundStyle(accent)

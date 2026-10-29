@@ -45,7 +45,7 @@ public struct LeaderboardFetcher: Sendable {
         let path = endpoint.appendingPathComponent("v1/boards/\(kind.rawValue)")
         var request = URLRequest(url: path.appendingPathComponent("refresh"))
         request.httpMethod = "POST"
-        if kind.sourcePrefix == "Arena" { request.timeoutInterval = 30 }
+        if kind.sourcePrefix == "Arena" || kind.isPrice { request.timeoutInterval = 30 }
         let response: SharedResponse
         do {
             response = try await sharedResponse(request)
@@ -145,11 +145,13 @@ public struct LeaderboardFetcher: Sendable {
 
     func parse(_ kind: LeaderboardKind, html: String) throws -> Leaderboard {
         switch kind {
-        case .openRouterUsage, .vercelUsage, .cloudbaseUsage: throw URLError(.resourceUnavailable)
+        case .openRouterUsage, .vercelUsage, .cloudbaseUsage, .openRouterPrice: throw URLError(.resourceUnavailable)
         case .epochECI:
             return try EpochECIParser.parse(html)
         case .artificialAnalysis:
             return try HTMLLeaderboardParser.artificialAnalysis(fromHTML: html)
+        case .valsSWEbench:
+            return try HTMLLeaderboardParser.valsSWEbench(fromHTML: html)
         case .artificialAnalysisCodingAgent:
             return try HTMLLeaderboardParser.artificialAnalysisCodingAgent(fromHTML: html)
         case .arenaText:

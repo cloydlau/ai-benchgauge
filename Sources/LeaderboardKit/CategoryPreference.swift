@@ -9,6 +9,7 @@ public enum CategoryPreference {
         guard let raw = defaults.string(forKey: userDefaultsKey) else {
             return .general
         }
+        if raw == LeaderboardCategory.price.rawValue { return .usage }
         guard let category = LeaderboardCategory(rawValue: raw) else {
             defaults.removeObject(forKey: userDefaultsKey)
             return .general

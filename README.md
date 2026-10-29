@@ -5,7 +5,7 @@
 **English** | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-Hant.md)
 
 <!-- app-description:start (generated from apps/weapp/src/core/catalog.js) -->
-**Task benchmarks show results; blind user votes show the experience; difficulty-calibrated tests show overall capability. Compare leaderboards to make informed choices; track quotas to know where you stand.**
+**Task benchmarks show results; blind user votes show the experience; difficulty-calibrated tests show overall capability. Compare across dimensions, choose with clarity; track your quotas, stay informed.**
 <!-- app-description:end -->
 
 `macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `3 languages`
@@ -32,8 +32,8 @@ Stop switching between leaderboard tabs. Open the menu bar to compare the full r
 
 | System | Processor | Support |
 | --- | --- | --- |
-| WeChat mini program | WeChat on iOS / Android | Client and shared snapshots added; developer preview / publishing pending |
-| iOS 17 / iPadOS 17 or later | iPhones and iPads supported by those systems | Native project added; public TestFlight/App Store release pending |
+| WeChat mini program | WeChat on iOS / Android | Developer build uploaded; public release pending |
+| iOS 17 / iPadOS 17 or later | iPhones and iPads supported by those systems | Native project available; public distribution paused |
 | Windows 11 | 64-bit Intel / AMD (`x64`) | Supported |
 | Windows 10 | 64-bit Intel / AMD (`x64`) | Compatibility target; .NET 10 officially supports maintained LTSC / Enterprise releases. Home / Pro editions are not yet verified. |
 | Windows 7 / 8 / 8.1 | Any | Not supported |
@@ -42,18 +42,18 @@ Stop switching between leaderboard tabs. Open the menu bar to compare the full r
 | macOS 13 Ventura or earlier | Any | Not supported |
 
 The Mac `.dmg` contains one **Universal app with native Apple silicon and Intel binaries**; no Rosetta is needed.
-Windows ships an `x64` `-setup.exe` with Swift and .NET included. There is no Windows 32-bit or native ARM64 package; ARM64 emulation is not verified.
+When Windows releases are enabled, the `x64` `-setup.exe` includes Swift and .NET. There is no Windows 32-bit or native ARM64 package; ARM64 emulation is not verified.
 See [compatibility details, validation scope, and the Intel support assessment](docs/compatibility.md).
 
-**iPhone / iPad:** the [universal native leaderboard edition](apps/ios/README.md) uses one app record and version. iPhone shows one board at a time with swipe/tap 3D cube switching; wide iPad layouts show both boards side by side. It supports rotation, offline cache and screenshot copying; there is no desktop display-mode selector. Newer iPadOS system windowing remains under user control. Computer account quotas are outside this edition. No public TestFlight/App Store build has been published; DMG/EXE files are for desktops.
+**iPhone / iPad:** the [universal native leaderboard edition](apps/ios/README.md) uses one app record and version. iPhone shows one board at a time with swipe/tap source switching; wide iPad layouts show boards side by side. It supports rotation, offline cache and screenshot copying; there is no desktop display-mode selector. Newer iPadOS system windowing remains under user control. Computer account quotas are outside this edition. No public TestFlight/App Store build has been published; DMG/EXE files are for desktops.
 
 ## What you get
 
-**WeChat mini program:** the [Vue Mini / Vant Weapp edition](apps/weapp/README.md) reads the same shared snapshots, with four categories, model/company views, independent filters, offline cache and three languages. Run `pnpm build:weapp` and import `apps/weapp` in WeChat DevTools. The project is configured with BenchGauge’s AppID `wx80689a4ae64a0c33`; no mini-program build has been publicly released. Account quotas remain on the desktop editions.
+**WeChat mini program:** the [Vue Mini / Vant Weapp edition](apps/weapp/README.md) reads the same shared snapshots, with five categories, model/company views, independent filters, offline cache and three languages. Run `pnpm build:weapp` and import `apps/weapp` in WeChat DevTools. The project is configured with BenchGauge’s AppID `wx80689a4ae64a0c33`; a developer build was uploaded on 2026-10-15; public release remains pending. Account quotas remain on the desktop editions.
 
 | Feature | What it does |
 | --- | --- |
-| **Paired rankings** | Compare complete lists and scores across general, coding, image, and video categories; scroll within the existing table height and return to the top with one click. |
+| **Leaderboard comparison** | Compare complete lists and values across usage, general, coding, image, and video categories; scroll within the existing table height and return to the top with one click. |
 | **Models or companies** | See individual models, or rank each company by its highest-scoring listed model. Extra or weaker listings do not change that score. |
 | **Four display modes** | Choose Keep open, Always on top, Close on blur, or Window from the footer menu. Keep open stays visible when you click elsewhere; click the menu bar icon again to close. Always on top also keeps the panel above other application windows. The window first opens centered on the menu bar icon's screen at the same content size as the popover. It can be moved, resized, or tiled in macOS Split View, and retains your adjustments when switching modes. |
 | **CC Switch quotas** | Read the local CC Switch database, query supported providers, and show account quota status above the table. Percentage and monetary balance colors gradually change from green to red as the quota decreases. Monetary references are ¥0/10/30/100 and $0/2/5/20 for red/orange/yellow/green, with continuous transitions; hover for the currency's reference amounts. Codex does not need to be installed. |
@@ -108,16 +108,17 @@ Keep BenchGauge running and allow system notifications. Exhausted providers rema
 
 ## Leaderboard sources
 
-| Category | Left | Right |
-| --- | --- | --- |
-| General | Artificial Analysis Intelligence Index | Arena · Text / Epoch ECI (selectable) |
-| Coding | Artificial Analysis Coding Agent Index | Code Arena · WebDev |
-| Image | Artificial Analysis · 文生图 (text-to-image) | Arena · 文生图 (text-to-image) |
-| Video | Artificial Analysis · 文生视频 (text-to-video) | Arena · 文生视频 (text-to-video) |
+| Category | Sources |
+| --- | --- |
+| Usage | OpenRouter, Vercel AI Gateway, Tencent Cloud |
+| General | Artificial Analysis Intelligence Index, Text Arena, Epoch ECI |
+| Coding | Artificial Analysis Coding Agent Index, Code Arena · WebDev |
+| Image | Artificial Analysis · text-to-image, Arena · text-to-image |
+| Video | Artificial Analysis · text-to-video, Arena · text-to-video |
 
-General also includes [Epoch AI’s ECI](https://epoch.ai/eci), sourced from its official CSV. Desktop keeps two columns and lets you select Arena or Epoch ECI on the right; mobile offers three sources. ECI shows the original index to two decimal places, without treating it as a percentage. The CSV’s model release date is not a leaderboard update time. See [data and verification details](docs/epoch-eci.md).
+Desktop and wide iPad layouts can display boards side by side; narrow mobile layouts switch between sources. The usage sources measure different populations and periods, so their numbers are not directly comparable. Epoch ECI uses its original index. Artificial Analysis coding also shows average API cost per task and supports sorting by score or cost, retaining the original capability rank. The new cost data requires the updated collector and a refreshed snapshot; it has not yet been deployed. See [cost details and verification](docs/coding-task-cost.md).
 
-Image and video use their dedicated boards. The Artificial Analysis Coding Agent Index embeds a `materializedAt` batch stamp in its payload, and the app shows that source data time beside the index version. The other Artificial Analysis boards expose no data timestamp, so their columns show no date and the panel heading keeps this Mac's fetch time. Arena's vote cutoff is shown when available. Switching categories uses cached data first.
+Source publication time is shown when available; otherwise the displayed update time reflects the last change in leaderboard content, and stays unchanged for identical data. Cached data is retained when refresh fails. See [cross-platform progress](docs/cross-platform.md) for implementation and validation boundaries.
 
 Application updates check stable GitHub Releases at launch and every 24 hours, downloading and verifying new versions in the background.
 Only a prepared update and an active app window trigger the mandatory, single-button “Restart to update” dialog.
@@ -126,7 +127,7 @@ See [release setup and signing](docs/releasing.md).
 
 ## Quick start
 
-Download the Universal Mac `.dmg` or Windows x64 `-setup.exe` from [GitHub Releases](https://github.com/cloydlau/ai-benchgauge/releases), using the compatibility table above.
+Download available desktop packages from [GitHub Releases](https://github.com/cloydlau/ai-benchgauge/releases), using the compatibility table above. Windows publishing is currently paused; an existing release may not contain the latest source changes.
 On macOS, you can also install the signed cask with Homebrew; Sparkle continues to handle in-app updates:
 
 ```bash
@@ -194,7 +195,7 @@ All added or changed bitmaps and recordings pass the shared independent AI priva
 ## Windows and platform layout
 
 Windows uses a native WPF tray/window client and the same Swift business logic as macOS.
-Download the `.dmg` (Apple silicon + Intel) or Windows x64 `-setup.exe` from the same [GitHub Release](https://github.com/cloydlau/ai-benchgauge/releases).
+Desktop packages are available from [GitHub Releases](https://github.com/cloydlau/ai-benchgauge/releases); Windows publishing is currently paused.
 Both apps share versions, quota rules and signed update checks every 24 hours. Windows includes Swift/.NET runtimes and supports Qwen sign-in through WebView2.
 See [Windows build instructions](apps/windows/README.md), [project structure](docs/architecture.md) and [release setup](docs/releasing.md).
 Local full tests now require .NET 10 SDK; `BENCHGAUGE_DOTNET` can select its executable.

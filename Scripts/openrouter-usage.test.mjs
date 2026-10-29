@@ -105,7 +105,7 @@ test('official acquisition uses only server key, a bounded JSON response, no red
     return new Response(JSON.stringify(fixture()));
   };
   await assert.rejects(loadOpenRouterUsage({ now, apiKey: '', fetcher })); assert.equal(calls, 0);
-  const board = await loadOpenRouterUsage({ now, apiKey: 'test-only-key', fetcher });
+  const board = await loadOpenRouterUsage({ now, apiKey: 'test-only-key', fetcher, includeSpeeds: false });
   assert.equal(board.entries.length, 3); assert.equal(board.entries[0].openRouterModelID, 'openai/model-one');
   assert.equal(calls, 2);
   for (const response of [new Response('', { status: 429 }), new Response('bad'), new Response('x'.repeat(256001))]) {

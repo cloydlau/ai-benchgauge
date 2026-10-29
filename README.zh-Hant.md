@@ -7,7 +7,7 @@
 [English](README.md) | [简体中文](README.zh-CN.md) | **繁體中文**
 
 <!-- app-description:start (generated from apps/weapp/src/core/catalog.js) -->
-**任務測評看成績，使用者盲測看體驗，難度校準看實力。多榜對照，選得明白；餘量追蹤，用得有數。**
+**任務測評看成績，使用者盲測看體驗，難度校準看實力。多維縱覽，選得明白；餘量洞察，用得有數。**
 <!-- app-description:end -->
 
 `macOS 14+` · `Windows 10/11 x64` · `Swift 6 / WPF` · `English / 簡中 / 繁中`
@@ -34,7 +34,7 @@
 
 | 系統 | 處理器 | 支援情況 |
 | --- | --- | --- |
-| 微信小程式 | iOS / Android 微信 | 已加入用戶端與共享榜單；開發者預覽和發布待完成 |
+| 微信小程式 | iOS / Android 微信 | 已上傳開發版；公開發布待完成 |
 | iOS 17 / iPadOS 17 及以上 | 能執行對應系統的 iPhone、iPad | 已加入原生專案，尚未發布公開 TestFlight / App Store 版本 |
 | Windows 11 | 64 位元 Intel / AMD（`x64`） | 支援 |
 | Windows 10 | 64 位元 Intel / AMD（`x64`） | 相容目標；.NET 10 官方支援仍受維護的 LTSC / Enterprise 版本，Home / Pro 尚未驗證 |
@@ -44,33 +44,33 @@
 | macOS 13 Ventura 或更早版本 | 任意 | 不支援 |
 
 Mac 的 `.dmg` 包含 **Apple 晶片與 Intel 原生通用應用程式**，兩種晶片使用同一個安裝包，無需 Rosetta。
-Windows 提供 `x64` 的 `-setup.exe`，內含 Swift 與 .NET；不提供 32 位元或原生 ARM64 安裝包，ARM64 模擬執行尚未驗證。
+啟用 Windows 發布時，`x64` 的 `-setup.exe` 內含 Swift 與 .NET；不提供 32 位元或原生 ARM64 安裝包，ARM64 模擬執行尚未驗證。
 版本限制、已驗證範圍及 Intel 支援評估見[系統相容說明](docs/compatibility.md)。
 
-**iPhone / iPad：**[原生排行榜版](apps/ios/README.md)共用一個應用程式套件、商店記錄和版本。iPhone 透過左右滑動／點按進行 3D 魔方翻面，在同一位置切換兩個榜單；iPad 寬螢幕維持並排。支援橫豎螢幕、離線快取和截圖複製，不提供桌面的顯示模式選擇。新版 iPadOS 的系統視窗仍由使用者控制。首版不提供電腦的帳戶餘量。目前尚未發布公開 TestFlight / App Store 版本，無法安裝 DMG / EXE。
+**iPhone / iPad：**[原生排行榜版](apps/ios/README.md)共用一個應用程式套件、商店記錄和版本。iPhone 透過左右滑動／點按進行 3D 魔方翻面，在同一位置切換來源；iPad 寬螢幕維持並排。支援橫豎螢幕、離線快取和截圖複製，不提供桌面的顯示模式選擇。新版 iPadOS 的系統視窗仍由使用者控制。首版不提供電腦的帳戶餘量。目前尚未發布公開 TestFlight / App Store 版本，無法安裝 DMG / EXE。
 
 ## 你會得到什麼
 
 | 功能 | 使用時會看到什麼 |
 | --- | --- |
-| **雙榜比較** | 綜合、編程、圖片、視頻四類榜單，每類並排顯示兩個來源的完整榜單與各自分數；表格維持原有高度，支援捲動及一鍵返回頂部。 |
+| **榜單比較** | 用量、綜合、編程、圖片、影片五類榜單，桌面可並排查看各來源的完整榜單與數值；表格維持原有高度，支援捲動及一鍵返回頂部。 |
 | **模型 / 公司切換** | 模型檢視具體型號；公司以該公司上榜模型的最高分排名，不會因為多個上榜型號或較弱型號而改變分數。 |
 | **四種顯示模式** | 底部下拉選單可選「保持打開」「保持置頂」「失焦關閉」「獨立視窗」；「保持打開」點擊其他位置不會關閉，再點選單列圖示關閉。「保持置頂」還會讓彈窗顯示在其他應用程式視窗之上。獨立視窗首次打開時在選單列圖示所在螢幕置中，內容寬高與彈窗一致；可拖動、調整大小和 macOS 分割顯示，切換模式時保留手動調整的位置和大小。 |
 | **CC Switch 額度** | 讀取本機 CC Switch 資料，查詢支援的供應商額度，並在榜單上方顯示狀態；百分比和金額顏色隨剩餘額度減少從綠色漸變至紅色。金額以 ¥0/10/30/100、$0/2/5/20 分別對應紅/橙/黃/綠，中間連續過渡，懸停可查看各幣別的參照金額；不必安裝 Codex。 |
 | **額度恢復通知** | 5h 等額度耗盡後，恢復可用時通知一次，顯示供應商與剩餘額度。切換模型後繼續監控，重新啟動應用程式也會記住耗盡狀態。 |
 | **直達套餐與按量頁面** | 僅在「公司」分組顯示可用的「套餐 / 按量」連結。簡體中文優先開啟中國大陸站點，其他介面語言優先開啟國際站點。 |
 | **不打擾的更新** | 進入榜單時檢查發佈時間，沒有發佈時間時檢查擷取時間，滿 24 小時才自動重新整理。手動重新整理共用該榜正在進行的請求，不執行榜單定時輪詢；失敗時保留本機快取。 |
-| **Codex 任務計數（macOS）** | 選單列顯示執行中、已完成待查看的任務數量，有失敗任務時再顯示錯誤數。ChatGPT/Codex 桌面應用程式執行時顯示，本機更新，不呼叫模型或額度 API。 |
+| **Codex 任務計數（macOS）** | 選單列顯示執行中、已完成待查看的任務數量，有失敗任務時再顯示錯誤數。預設關閉；在底部開啟「Codex 任務統計」後，ChatGPT/Codex 桌面應用程式執行時顯示。本機更新，不呼叫模型或額度 API。 |
 
 ### Codex 任務計數
 
-在 macOS 上，ChatGPT/Codex 桌面應用程式執行時，選單列會顯示類似 `▶ 2  ✓ 1` 的任務計數：
+在 macOS 上，底部開啟預設關閉的「Codex 任務統計」後，ChatGPT/Codex 桌面應用程式執行時，選單列會顯示類似 `▶ 2  ✓ 1` 的任務計數：
 
 - `▶`：正在執行的任務；等待批准或使用者輸入的任務不計入。
 - `✓`：已完成但尚未查看的任務，不是累計完成總數。
 - `!`：失敗任務；僅在數量大於零時顯示。可恢復的工具錯誤不會被計為任務失敗。
 
-懸停選單列項目可查看各項含義。只統計本機桌面任務，不含已封存任務、代理子任務和遠端主機。狀態透過本機資料唯讀更新，不消耗模型/API 額度。狀態暫時無法取得時顯示 `▶ —  ✓ —`，不會當作零；關閉桌面應用程式後整段計數隱藏，僅安裝 Codex 或執行 CLI 不會顯示。目前任務計數僅支援 macOS。
+懸停選單列項目可查看各項含義。只統計本機桌面任務，不含已封存任務、代理子任務和遠端主機。狀態透過本機資料唯讀更新，不消耗模型/API 額度。狀態暫時無法取得時顯示 `▶ —  ✓ —`，不會當作零；關閉開關或桌面應用程式後整段計數隱藏，僅安裝 Codex 或執行 CLI 不會顯示。目前任務計數僅支援 macOS。
 
 ### 帳戶額度如何運作？
 
@@ -105,24 +105,21 @@ xAI 顯示「登錄失效」或「未登錄」時，點擊卡片會開啟 CC Swi
 
 ## 榜單來源
 
-| 分類 | 左側 | 右側 |
-| --- | --- | --- |
-| 綜合 | Artificial Analysis Intelligence Index | Arena · Text / Epoch ECI（可切換） |
-| 編程 | Artificial Analysis Coding Agent Index | Code Arena · WebDev |
-| 圖片 | Artificial Analysis · 文生圖 | Arena · 文生圖 |
-| 視頻 | Artificial Analysis · 文生視頻 | Arena · 文生視頻 |
+| 分類 | 來源 |
+| --- | --- |
+| 用量 | OpenRouter、Vercel AI Gateway、騰訊雲 |
+| 綜合 | Artificial Analysis Intelligence Index、Text Arena、Epoch ECI |
+| 編程 | Artificial Analysis Coding Agent Index、Code Arena · WebDev |
+| 圖片 | Artificial Analysis · 文生圖、Arena · 文生圖 |
+| 影片 | Artificial Analysis · 文生影片、Arena · 文生影片 |
 
-綜合另提供 [Epoch AI 的 ECI](https://epoch.ai/eci)，讀取官方 CSV。桌面端維持兩欄，右側可切換 Arena / Epoch ECI；行動端可切換三個來源。ECI 保留原始指數，顯示兩位小數，不按百分比呈現；CSV 中的模型發布日期不作為榜單更新時間。見[資料與驗證說明](docs/epoch-eci.md)。
+桌面和 iPad 寬螢幕可並排顯示榜單，窄螢幕行動端切換來源。用量來源的統計範圍和週期不同，數值不能直接比較。Epoch ECI 保留原始指數。Artificial Analysis 編程榜亦顯示平均每任務 API 成本，可按成績或成本排序，並保留原能力排名。成本資料需要更新採集器並重新整理快照，尚未部署；見[成本說明與驗證](docs/coding-task-cost.md)。
 
-圖片和視頻使用對應的專項榜單。Artificial Analysis 只有編程智能體榜的資料帶有批次產生時間 `materializedAt`，應用程式會在該欄位標題顯示這個來源資料時間與版本號；綜合、文生圖、文生視頻三塊沒有公開資料時間，欄位標題不顯示日期，面板上方仍顯示本機擷取時間。Arena 提供投票截止時間時則會顯示該時間。切換分類會優先讀取快取，不必每次都等待網路。
-
-應用啟動時及每 24 小時檢查 GitHub 穩定版，在背景下載並驗證簽章。
-準備好且視窗啟用後，才顯示無法關閉的「重啟升級」提示；點擊安裝並啟動新版，背景不搶焦點。
-[發版設定](docs/releasing.md)。
+來源提供發布時間時優先顯示；否則顯示榜單內容最近一次變化的時間，相同資料不會推進時間。重新整理失敗時保留快取。各端實作及驗證範圍見[跨端進展](docs/cross-platform.md)。
 
 ## 快速開始
 
-從 [GitHub Releases](https://github.com/cloydlau/ai-benchgauge/releases) 下載 Mac 通用 `.dmg` 或 Windows x64 `-setup.exe`，依上方相容性表選擇。
+從 [GitHub Releases](https://github.com/cloydlau/ai-benchgauge/releases) 下載可用的桌面安裝包，依上方相容性表選擇。Windows 發布目前暫停，既有版本未必包含最新原始碼。
 Mac 也可以用 Homebrew 安裝簽署 Cask，後續更新繼續由應用程式內 Sparkle 提供：
 
 ```bash
@@ -189,12 +186,11 @@ MODEL_NAME=實際模型名 Scripts/commit.sh -m "feat(menu): …"
 
 ## Windows 與平台結構
 
-Mac 與 Windows 共用 Swift 業務邏輯與版本號。每次 [GitHub Release](https://github.com/cloydlau/ai-benchgauge/releases)
-同時提供 Mac 通用 `.dmg` 與 Windows x64 `-setup.exe`，兩端每 24 小時檢查簽名更新。
+Mac 與 Windows 共用 Swift 業務邏輯與版本號，兩端每 24 小時檢查簽名更新。Windows 發布目前暫停；可用安裝包見 [GitHub Releases](https://github.com/cloydlau/ai-benchgauge/releases)。
 Windows 安裝包包含 Swift / .NET 執行環境，千問登入使用 WebView2。
 詳見 [Windows 建置](apps/windows/README.md)、[目錄結構](docs/architecture.md)及[發版設定](docs/releasing.md)。
 完整本機測試另需 .NET 10 SDK；可用 `BENCHGAUGE_DOTNET` 指定執行檔。
 
 ## 微信小程式開發版
 
-[小程式工程](apps/weapp/README.md) 沿用 Watrek 的 Vue Mini / Vant Weapp / weapp-vite / Tailwind 技術，讀取同一份共享榜單，支援四類雙榜、模型／公司、獨立篩選、離線快取與三種語言。執行 `pnpm build:weapp`，在微信開發者工具匯入 `apps/weapp`。已設定 BenchGauge 正式 AppID `wx80689a4ae64a0c33`，尚未上傳體驗版或正式版；帳號額度仍由桌面版提供。
+[小程式工程](apps/weapp/README.md) 沿用 Watrek 的 Vue Mini / Vant Weapp / weapp-vite / Tailwind 技術，讀取同一份共享榜單，支援五類榜單（用量和綜合各三個來源，其餘各兩個）、模型／公司、獨立篩選、離線快取與三種語言。執行 `pnpm build:weapp`，在微信開發者工具匯入 `apps/weapp`。已設定 BenchGauge 正式 AppID `wx80689a4ae64a0c33`，已於 2026-10-15 上傳開發版 `20261015`；公開發布待完成；帳號額度仍由桌面版提供。

@@ -124,7 +124,10 @@ static class VisualTests
                 } }).ToArray()
             }).ToArray() };
             var panel = new MainWindow(null, preferences)
-                { Width = test.Width, Height = test.Height };
+                { Width = test.Width, Height = test.Height, codingCostOrder = test.Scenario == "codingCostOrder" };
+            if (test.Scenario == "aaCostOrder") panel.SetVisualCostOrder(test.SelectedBoards ?? []);
+            if (test.Scenario == "aaSpeedOrder") panel.SetVisualSpeedOrder(test.SelectedBoards ?? []);
+            if (test.Scenario == "priceAscending") panel.SetVisualPriceAscending();
             panel.SetVisualViewport(test.Width, test.Height);
             // The account dialog owns the panel; WPF requires that owner to
             // have been shown before assigning Window.Owner.
@@ -288,7 +291,7 @@ static class VisualTests
                     if (colors.Count < 20) throw new InvalidOperationException("Blank Windows desktop capture: " + test.Id);
                     bitmap.Save(Path.Combine(directory, $"{test.Id}{(theme == "dark" ? "-dark" : "")}-frame-{frame}.png"), Drawing.Imaging.ImageFormat.Png);
                 }
-                if (test.Scenario == "virtualRanking") VerifyVirtualRanking(window);
+                if (test.Scenario == "virtualRanking") VerifyVirtualRanking(window, test.RowCount ?? 1000);
                 var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(window);
                 metadata.Add(new { test.Id, theme, test.Language, test.Scenario, test.Width, test.Height,
                     clientPixelWidth = rect.Right, clientPixelHeight = rect.Bottom, dpiScale = dpi.DpiScaleX,

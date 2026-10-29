@@ -6,7 +6,9 @@ import LeaderboardKit
     #expect(DesktopBoardSelection.kinds(for: .general, saved: []) == LeaderboardCategory.general.boardKinds)
     #expect(DesktopBoardSelection.kinds(for: .general, saved: ["retired"]) == LeaderboardCategory.general.boardKinds)
     #expect(DesktopBoardSelection.kinds(for: .general, saved: ["epochECI", "retired", "epochECI"]) == [.epochECI])
-    #expect(DesktopBoardSelection.kinds(for: .coding, saved: nil) == LeaderboardCategory.coding.boardKinds)
+    #expect(DesktopBoardSelection.kinds(for: .coding, saved: nil) == [.artificialAnalysisCodingAgent, .codeArenaWebDev])
+    #expect(DesktopBoardSelection.kinds(for: .coding, saved: ["valsSWEbench"]) == [.valsSWEbench])
+    #expect(DesktopBoardSelection.toggling(.valsSWEbench, in: .coding, saved: nil) == ["artificialAnalysisCodingAgent", "codeArenaWebDev", "valsSWEbench"])
 }
 
 @Test func desktopBoardSelectionKeepsOneAndRestoresCatalogOrder() {

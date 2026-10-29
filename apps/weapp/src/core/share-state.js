@@ -35,7 +35,7 @@ export function normalizePreferences(value, locale) {
   // Old saved language choices remain explicit. New automatic preferences
   // keep following the host language even when another setting is saved.
   const manualLanguage = languages.includes(value.language) && value.languageMode !== 'system'
-  const category = validCategory(value.category) ? value.category : 'general'
+  const category = value.category === 'price' ? 'usage' : validCategory(value.category) ? value.category : 'general'
   const boardSelections = normalizeBoardSelections(value.boardSelections)
   const face = Math.max(0, Math.min(visibleBoardKinds(category, boardSelections).length - 1, Number.isInteger(Number(value.face)) ? Number(value.face) : 0))
   return {

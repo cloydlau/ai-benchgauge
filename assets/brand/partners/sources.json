@@ -114,6 +114,22 @@
         "iOS leaderboard source tabs (all applicable categories)",
         "Mini-program leaderboard source tabs (all applicable categories)"
       ]
+    },
+    {
+      "id": "vals",
+      "title": "Vals AI",
+      "pageURL": "https://www.vals.ai/benchmarks/swebench",
+      "file": "logo.svg",
+      "url": "https://www.vals.ai/favicon-dark.svg",
+      "conversion": "Official SVG favicon; aspect-preserving PNG export.",
+      "retrievedAt": "2026-10-29",
+      "downloadSHA256": "dbde84a02313058c784ade0b895e472ddc01401e5473a98b67284050c98a5dc7",
+      "sha256": "dbde84a02313058c784ade0b895e472ddc01401e5473a98b67284050c98a5dc7",
+      "rights": "Third-party brand mark; retained ownership, not licensed by the repository MIT license.",
+      "usage": [
+        "iOS leaderboard source tabs",
+        "Mini-program leaderboard source tabs"
+      ]
     }
   ]
 }

@@ -1,9 +1,10 @@
 /// Desktop visibility is stored per category. Missing or obsolete preferences
-/// restore all sources; an empty dashboard is never a valid selection.
+/// restore default sources; an empty dashboard is never a valid selection.
 public enum DesktopBoardSelection {
     public static func kinds(for category: LeaderboardCategory, saved: [String]?) -> [LeaderboardKind] {
-        let kinds = category.boardKinds.filter { saved?.contains($0.rawValue) ?? true }
-        return kinds.isEmpty ? category.boardKinds : kinds
+        guard let saved else { return category.defaultBoardKinds }
+        let kinds = category.boardKinds.filter { saved.contains($0.rawValue) }
+        return kinds.isEmpty ? category.defaultBoardKinds : kinds
     }
 
     public static func toggling(_ kind: LeaderboardKind, in category: LeaderboardCategory, saved: [String]?) -> [String] {

@@ -137,7 +137,9 @@
                   }
                 }
               ]
-            }
+            },
+            "taskCostUSD": 12.5,
+            "speed": 27.5
           },
           {
             "rank": 2,
@@ -148,7 +150,9 @@
             "country": "unitedStates",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "taskCostUSD": 0,
+            "speed": 45.5
           },
           {
             "rank": 3,
@@ -159,7 +163,9 @@
             "country": "unitedStates",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "taskCostUSD": 0.005,
+            "speed": 63.5
           },
           {
             "rank": 4,
@@ -170,7 +176,8 @@
             "country": "china",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "speed": 81.5
           },
           {
             "rank": 5,
@@ -181,7 +188,8 @@
             "country": "china",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "taskCostUSD": 12.5
           },
           {
             "rank": 6,
@@ -192,7 +200,9 @@
             "country": "china",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "taskCostUSD": 0,
+            "speed": 117.5
           },
           {
             "rank": 7,
@@ -203,7 +213,9 @@
             "country": "china",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "taskCostUSD": 0.005,
+            "speed": 135.5
           },
           {
             "rank": 8,
@@ -214,7 +226,9 @@
             "country": "unitedStates",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "taskCostUSD": 0.4,
+            "speed": 153.5
           },
           {
             "rank": 9,
@@ -225,7 +239,8 @@
             "country": "france",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "speed": 171.5
           },
           {
             "rank": 10,
@@ -236,7 +251,8 @@
             "country": "canada",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "taskCostUSD": 0
           },
           {
             "rank": 11,
@@ -247,7 +263,9 @@
             "country": "unitedStates",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "taskCostUSD": 0.005,
+            "speed": 207.5
           },
           {
             "rank": 12,
@@ -258,7 +276,9 @@
             "country": "unitedStates",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "taskCostUSD": 0.4,
+            "speed": 225.5
           },
           {
             "rank": 13,
@@ -269,7 +289,9 @@
             "country": "unitedStates",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "taskCostUSD": 12.5,
+            "speed": 243.5
           },
           {
             "rank": 14,
@@ -280,7 +302,8 @@
             "country": "china",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "speed": 261.5
           },
           {
             "rank": 15,
@@ -291,7 +314,8 @@
             "country": "china",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "taskCostUSD": 0.005
           },
           {
             "rank": 16,
@@ -302,7 +326,9 @@
             "country": "china",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "taskCostUSD": 0.4,
+            "speed": 297.5
           },
           {
             "rank": 17,
@@ -313,7 +339,9 @@
             "country": "china",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "taskCostUSD": 12.5,
+            "speed": 315.5
           },
           {
             "rank": 18,
@@ -324,7 +352,9 @@
             "country": "unitedStates",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "taskCostUSD": 0,
+            "speed": 333.5
           },
           {
             "rank": 19,
@@ -335,7 +365,8 @@
             "country": "france",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "speed": 351.5
           },
           {
             "rank": 20,
@@ -346,7 +377,8 @@
             "country": "canada",
             "codingURL": null,
             "apiURL": null,
-            "help": null
+            "help": null,
+            "taskCostUSD": 0.4
           }
         ],
         "fetchedAt": "2026-09-29T00:00:00Z"
@@ -930,6 +962,250 @@
             "country": "china",
             "logo": "moonshotai",
             "openness": "open"
+          }
+        ]
+      },
+      {
+        "kind": "artificialAnalysisCodingAgent",
+        "title": "Artificial Analysis",
+        "entries": [
+          {
+            "rank": 1,
+            "name": "Agent - Example Model 1 with long name",
+            "score": 80,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "openness": "closed",
+            "taskCostUSD": 9.48,
+            "rankChange": {
+              "delta": 2
+            },
+            "speed": 90
+          },
+          {
+            "rank": 2,
+            "name": "Agent - Example Model 2 with long name",
+            "score": 77,
+            "organization": "Anthropic",
+            "logo": "openai",
+            "openness": "closed",
+            "taskCostUSD": 0.005,
+            "rankChange": {
+              "isNew": true
+            },
+            "speed": 127
+          },
+          {
+            "rank": 3,
+            "name": "Agent - Example Model 3 with long name",
+            "score": 74,
+            "organization": "Google",
+            "logo": "openai",
+            "openness": "closed",
+            "taskCostUSD": 0,
+            "speed": 164
+          },
+          {
+            "rank": 4,
+            "name": "Agent - Example Model 4 with long name",
+            "score": 71,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "openness": "closed",
+            "taskCostUSD": 12.7,
+            "speed": 201
+          },
+          {
+            "rank": 5,
+            "name": "Agent - Example Model 5 with long name",
+            "score": 68,
+            "organization": "Anthropic",
+            "logo": "openai",
+            "openness": "closed",
+            "taskCostUSD": null
+          },
+          {
+            "rank": 6,
+            "name": "Agent - Example Model 6 with long name",
+            "score": 65,
+            "organization": "Google",
+            "logo": "openai",
+            "openness": "closed",
+            "taskCostUSD": 0.4,
+            "speed": 275
+          },
+          {
+            "rank": 7,
+            "name": "Agent - Example Model 7 with long name",
+            "score": 62,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "openness": "closed",
+            "taskCostUSD": 2.1,
+            "speed": 312
+          },
+          {
+            "rank": 8,
+            "name": "Agent - Example Model 8 with long name",
+            "score": 59,
+            "organization": "Anthropic",
+            "logo": "openai",
+            "openness": "closed",
+            "taskCostUSD": 5.2,
+            "speed": 349
+          },
+          {
+            "rank": 9,
+            "name": "Agent - Example Model 9 with long name",
+            "score": 56,
+            "organization": "Google",
+            "logo": "openai",
+            "openness": "closed",
+            "taskCostUSD": 1.9,
+            "speed": 386
+          },
+          {
+            "rank": 10,
+            "name": "Agent - Example Model 10 with long name",
+            "score": 53,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "openness": "closed",
+            "taskCostUSD": 20
+          },
+          {
+            "rank": 11,
+            "name": "Agent - Example Model 11 with long name",
+            "score": 50,
+            "organization": "Anthropic",
+            "logo": "openai",
+            "openness": "closed",
+            "taskCostUSD": 0.02,
+            "speed": 460
+          },
+          {
+            "rank": 12,
+            "name": "Agent - Example Model 12 with long name",
+            "score": 47,
+            "organization": "Google",
+            "logo": "openai",
+            "openness": "closed",
+            "taskCostUSD": 7,
+            "speed": 497
+          }
+        ],
+        "sourceUpdatedAt": "2026-10-28T00:00:00Z"
+      },
+      {
+        "kind": "artificialAnalysisTextToImage",
+        "title": "AA Image",
+        "url": "https://artificialanalysis.ai",
+        "entries": [
+          {
+            "rank": 1,
+            "name": "Example AA Image model with a long name 1",
+            "score": 1200,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "taskCostUSD": 0.21
+          },
+          {
+            "rank": 2,
+            "name": "Example AA Image model with a long name 2",
+            "score": 1175,
+            "organization": "Google",
+            "logo": "google",
+            "taskCostUSD": 0
+          },
+          {
+            "rank": 3,
+            "name": "Example AA Image model with a long name 3",
+            "score": 1150,
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "taskCostUSD": 2.4
+          },
+          {
+            "rank": 4,
+            "name": "Example AA Image model with a long name 4",
+            "score": 1125,
+            "organization": "OpenAI",
+            "logo": "openai"
+          }
+        ]
+      },
+      {
+        "kind": "artificialAnalysisTextToVideo",
+        "title": "AA Video",
+        "url": "https://artificialanalysis.ai",
+        "entries": [
+          {
+            "rank": 1,
+            "name": "Example AA Video model with a long name 1",
+            "score": 1200,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "taskCostUSD": 0.21
+          },
+          {
+            "rank": 2,
+            "name": "Example AA Video model with a long name 2",
+            "score": 1175,
+            "organization": "Google",
+            "logo": "google",
+            "taskCostUSD": 0
+          },
+          {
+            "rank": 3,
+            "name": "Example AA Video model with a long name 3",
+            "score": 1150,
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "taskCostUSD": 2.4
+          },
+          {
+            "rank": 4,
+            "name": "Example AA Video model with a long name 4",
+            "score": 1125,
+            "organization": "OpenAI",
+            "logo": "openai"
+          }
+        ]
+      },
+      {
+        "kind": "openRouterPrice",
+        "title": "OpenRouter",
+        "url": "https://openrouter.ai/models",
+        "entries": [
+          {
+            "rank": 1,
+            "name": "OpenAI: Example Model with a Long Name",
+            "score": 0,
+            "outputPriceUSD": 0,
+            "provider": "OpenRouter",
+            "organization": "OpenAI",
+            "logo": "openai",
+            "modelID": "openai/fixture"
+          },
+          {
+            "rank": 2,
+            "name": "Google: Example Pro",
+            "score": 0.25,
+            "outputPriceUSD": 2.5,
+            "provider": "OpenRouter",
+            "organization": "Google",
+            "logo": "google",
+            "modelID": "google/fixture"
+          },
+          {
+            "rank": 3,
+            "name": "Anthropic: Example",
+            "score": 4,
+            "outputPriceUSD": 20,
+            "provider": "OpenRouter",
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "modelID": "anthropic/fixture"
           }
         ]
       }
@@ -3792,27 +4068,742 @@
       "comparisonKind": "openRouterUsage",
       "category": "usage"
     },
-      {
-        "id": "application-license-en",
-        "language": "en",
-        "width": 580,
-        "height": 540,
-        "scenario": "applicationLicense"
-      },
-      {
-        "id": "application-license-zh",
-        "language": "zh",
-        "width": 580,
-        "height": 540,
-        "scenario": "applicationLicense"
-      },
-      {
-        "id": "application-license-zh-Hant",
-        "language": "zh-Hant",
-        "width": 580,
-        "height": 540,
-        "scenario": "applicationLicense"
-      }
+    {
+      "id": "application-license-en",
+      "language": "en",
+      "width": 580,
+      "height": 540,
+      "scenario": "applicationLicense"
+    },
+    {
+      "id": "application-license-zh",
+      "language": "zh",
+      "width": 580,
+      "height": 540,
+      "scenario": "applicationLicense"
+    },
+    {
+      "id": "application-license-zh-Hant",
+      "language": "zh-Hant",
+      "width": 580,
+      "height": 540,
+      "scenario": "applicationLicense"
+    },
+    {
+      "id": "coding-cost-en-model-score",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "codingCost",
+      "category": "coding",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisCodingAgent"
+      ]
+    },
+    {
+      "id": "coding-cost-en-model-ascending",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "codingCostOrder",
+      "category": "coding",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisCodingAgent"
+      ]
+    },
+    {
+      "id": "coding-cost-en-company-score",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "codingCost",
+      "category": "coding",
+      "grouping": "company",
+      "selectedBoards": [
+        "artificialAnalysisCodingAgent"
+      ]
+    },
+    {
+      "id": "coding-cost-en-company-ascending",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "codingCostOrder",
+      "category": "coding",
+      "grouping": "company",
+      "selectedBoards": [
+        "artificialAnalysisCodingAgent"
+      ]
+    },
+    {
+      "id": "coding-cost-zh-model-score",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "codingCost",
+      "category": "coding",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisCodingAgent"
+      ]
+    },
+    {
+      "id": "coding-cost-zh-model-ascending",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "codingCostOrder",
+      "category": "coding",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisCodingAgent"
+      ]
+    },
+    {
+      "id": "coding-cost-zh-company-score",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "codingCost",
+      "category": "coding",
+      "grouping": "company",
+      "selectedBoards": [
+        "artificialAnalysisCodingAgent"
+      ]
+    },
+    {
+      "id": "coding-cost-zh-company-ascending",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "codingCostOrder",
+      "category": "coding",
+      "grouping": "company",
+      "selectedBoards": [
+        "artificialAnalysisCodingAgent"
+      ]
+    },
+    {
+      "id": "coding-cost-zh-Hant-model-score",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "codingCost",
+      "category": "coding",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisCodingAgent"
+      ]
+    },
+    {
+      "id": "coding-cost-zh-Hant-model-ascending",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "codingCostOrder",
+      "category": "coding",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisCodingAgent"
+      ]
+    },
+    {
+      "id": "coding-cost-zh-Hant-company-score",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "codingCost",
+      "category": "coding",
+      "grouping": "company",
+      "selectedBoards": [
+        "artificialAnalysisCodingAgent"
+      ]
+    },
+    {
+      "id": "coding-cost-zh-Hant-company-ascending",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "codingCostOrder",
+      "category": "coding",
+      "grouping": "company",
+      "selectedBoards": [
+        "artificialAnalysisCodingAgent"
+      ]
+    },
+    {
+      "id": "price-feature-en-general-score",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostScore",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "price-feature-en-general-cost",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostOrder",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "price-feature-en-image-score",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostScore",
+      "category": "image",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisTextToImage"
+      ]
+    },
+    {
+      "id": "price-feature-en-image-cost",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostOrder",
+      "category": "image",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisTextToImage"
+      ]
+    },
+    {
+      "id": "price-feature-en-video-score",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostScore",
+      "category": "video",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisTextToVideo"
+      ]
+    },
+    {
+      "id": "price-feature-en-video-cost",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostOrder",
+      "category": "video",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisTextToVideo"
+      ]
+    },
+    {
+      "id": "price-feature-en-openrouter",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "priceCategory",
+      "category": "price",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterPrice"
+      ]
+    },
+    {
+      "id": "price-feature-zh-general-score",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostScore",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "price-feature-zh-general-cost",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostOrder",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "price-feature-zh-image-score",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostScore",
+      "category": "image",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisTextToImage"
+      ]
+    },
+    {
+      "id": "price-feature-zh-image-cost",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostOrder",
+      "category": "image",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisTextToImage"
+      ]
+    },
+    {
+      "id": "price-feature-zh-video-score",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostScore",
+      "category": "video",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisTextToVideo"
+      ]
+    },
+    {
+      "id": "price-feature-zh-video-cost",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostOrder",
+      "category": "video",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisTextToVideo"
+      ]
+    },
+    {
+      "id": "price-feature-zh-openrouter",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "priceCategory",
+      "category": "price",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterPrice"
+      ]
+    },
+    {
+      "id": "price-feature-zh-Hant-general-score",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostScore",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "price-feature-zh-Hant-general-cost",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostOrder",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "price-feature-zh-Hant-image-score",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostScore",
+      "category": "image",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisTextToImage"
+      ]
+    },
+    {
+      "id": "price-feature-zh-Hant-image-cost",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostOrder",
+      "category": "image",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisTextToImage"
+      ]
+    },
+    {
+      "id": "price-feature-zh-Hant-video-score",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostScore",
+      "category": "video",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisTextToVideo"
+      ]
+    },
+    {
+      "id": "price-feature-zh-Hant-video-cost",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostOrder",
+      "category": "video",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisTextToVideo"
+      ]
+    },
+    {
+      "id": "price-feature-zh-Hant-openrouter",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "priceCategory",
+      "category": "price",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterPrice"
+      ]
+    },
+    {
+      "id": "price-feature-en-price-compact",
+      "language": "en",
+      "width": 600,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "priceCategory",
+      "category": "price",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterPrice"
+      ]
+    },
+    {
+      "id": "price-feature-en-video-compact",
+      "language": "en",
+      "width": 600,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostOrder",
+      "category": "video",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisTextToVideo"
+      ]
+    },
+    {
+      "id": "price-feature-zh-price-compact",
+      "language": "zh",
+      "width": 600,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "priceCategory",
+      "category": "price",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterPrice"
+      ]
+    },
+    {
+      "id": "price-feature-zh-video-compact",
+      "language": "zh",
+      "width": 600,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostOrder",
+      "category": "video",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisTextToVideo"
+      ]
+    },
+    {
+      "id": "speed-en-general",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaSpeedOrder",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "speed-en-coding",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaSpeedOrder",
+      "category": "coding",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisCodingAgent"
+      ]
+    },
+    {
+      "id": "speed-zh-CN-general",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaSpeedOrder",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "speed-zh-CN-coding",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaSpeedOrder",
+      "category": "coding",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisCodingAgent"
+      ]
+    },
+    {
+      "id": "speed-zh-TW-general",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaSpeedOrder",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "speed-zh-TW-coding",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaSpeedOrder",
+      "category": "coding",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisCodingAgent"
+      ]
+    },
+    {
+      "id": "price-direction-en-priceDescending",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "priceDescending",
+      "category": "price",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterPrice"
+      ]
+    },
+    {
+      "id": "price-direction-en-priceAscending",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "priceAscending",
+      "category": "price",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterPrice"
+      ]
+    },
+    {
+      "id": "price-direction-zh-priceDescending",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "priceDescending",
+      "category": "price",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterPrice"
+      ]
+    },
+    {
+      "id": "price-direction-zh-priceAscending",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "priceAscending",
+      "category": "price",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterPrice"
+      ]
+    },
+    {
+      "id": "price-direction-zh-Hant-priceDescending",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "priceDescending",
+      "category": "price",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterPrice"
+      ]
+    },
+    {
+      "id": "price-direction-zh-Hant-priceAscending",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "priceAscending",
+      "category": "price",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterPrice"
+      ]
+    },
+    {
+      "id": "percent-align-en-general-aaSpeedOrder",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaSpeedOrder",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "percent-align-zh-general-aaCostOrder",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostOrder",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "percent-align-zh-Hant-coding-aaSpeedOrder",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaSpeedOrder",
+      "category": "coding",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisCodingAgent"
+      ]
+    },
+    {
+      "id": "metric-stability-en-general",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "metricStability",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "metric-stability-zh-general",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "metricStability",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis"
+      ]
+    },
+    {
+      "id": "metric-stability-zh-Hant-coding",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "metricStability",
+      "category": "coding",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysisCodingAgent"
+      ]
+    }
   ],
   "quotaScenarios": {
     "kimiConfigured": [

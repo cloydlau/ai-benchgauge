@@ -25,7 +25,7 @@ const contentSignature = board => JSON.stringify([
   board.kind === 'cloudbaseUsage' ? board.sourceNote ?? null : null,
   [...board.entries].sort((a, b) => a.rank - b.rank).map(entry => [
     rankingIdentity(entry), entry.name, entry.organization ?? null, entry.rank,
-    entry.score, entry.totalTokens ?? null, entry.voteCount ?? null,
+    entry.score, entry.totalTokens ?? null, entry.voteCount ?? null, entry.taskCostUSD ?? null, entry.speed ?? null, entry.outputPriceUSD ?? null, entry.provider ?? null,
   ]),
 ])
 export function contentTimestamp(board) {
@@ -190,3 +190,20 @@ export function companyRows(entries, { summingUsage = false } = {}) {
     .map((entry, index) => ({ ...entry, rank: index + 1 }))
 }
 
+
+// Display ordering never rewrites the source's capability ranks or movements.
+export const validTaskCost = value => typeof value === 'number' && Number.isFinite(value) && value >= 0
+export function orderByTaskCost(entries, enabled = false) {
+  if (!enabled) return entries
+  return [...entries].sort((a, b) => {
+    const left = validTaskCost(a.taskCostUSD) ? a.taskCostUSD : Infinity
+    const right = validTaskCost(b.taskCostUSD) ? b.taskCostUSD : Infinity
+    return (left === right ? 0 : left < right ? -1 : 1) || b.score - a.score || a.rank - b.rank
+  })
+}
+export function taskCostText(value) {
+  if (!validTaskCost(value)) return '—'
+  if (value === 0) return '$0'
+  if (value < 0.001) return '<$0.001'
+  return '$' + value.toFixed(value < 0.01 ? 3 : 2)
+}

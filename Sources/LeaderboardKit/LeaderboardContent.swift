@@ -27,6 +27,10 @@ extension Leaderboard {
         let score: Double
         let totalTokens: String?
         let voteCount: Int?
+        let taskCostUSD: Double?
+        let speed: Double?
+        let outputPriceUSD: Double?
+        let provider: String?
     }
     private var contentRows: [ContentRow] {
         entries.sorted { $0.rank < $1.rank }.map {
@@ -34,7 +38,7 @@ extension Leaderboard {
                 .replacingOccurrences(of: "#arena-rank-\\d+$", with: "", options: .regularExpression)
                 .trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             return ContentRow(identity: identity, name: $0.name, organization: $0.organization,
-                rank: $0.rank, score: $0.score, totalTokens: $0.totalTokens, voteCount: $0.voteCount)
+                rank: $0.rank, score: $0.score, totalTokens: $0.totalTokens, voteCount: $0.voteCount, taskCostUSD: $0.taskCostUSD, speed: $0.speed, outputPriceUSD: $0.outputPriceUSD, provider: $0.provider)
         }
     }
 }
