@@ -107,6 +107,7 @@ export function sharePath(value, appearance, path = '/pages/leaderboard/index') 
     ...(preferences.boardSelections ? { b: preferences.boardSelections } : {}),
     // All-default filters are deliberately omitted. The complete snapshot
     // replaces receiver preferences, so omission resets that board's filters.
-    x: Object.fromEntries(Object.entries(preferences.filters).map(([kind, filter]) => [kind, [filter.country, filter.openness]])) }
+    // Readers expand the selected board's global pair to all boards.
+    x: preferences.filters[kind] ? { [kind]: [preferences.filters[kind].country, preferences.filters[kind].openness] } : {} }
   return `${path}?state=${encodeURIComponent(JSON.stringify(state))}`
 }
