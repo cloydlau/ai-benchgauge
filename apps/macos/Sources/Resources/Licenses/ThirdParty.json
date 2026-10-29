@@ -46,11 +46,20 @@
   },
   {
     "id": "tabler",
-    "name": "Tabler Icons — GitHub",
+    "name": "Tabler Icons — WeChat",
     "license": "MIT",
     "source": "https://github.com/tabler/tabler-icons/tree/ed177a085b652fe04ec4f37ced867c94621e7840",
-    "englishDescription": "GitHub icon selected through Icones for the repository link and shared contributor avatars.",
-    "chineseDescription": "从 Icones 选用的 GitHub 图标，用于仓库入口及共用贡献者头像。",
+    "englishDescription": "WeChat platform icon.",
+    "chineseDescription": "微信平台图标。",
     "file": "Tabler.txt"
+  },
+  {
+    "id": "octicons",
+    "name": "GitHub Octicons",
+    "license": "MIT",
+    "source": "https://github.com/primer/octicons/tree/9a274e212ee25c400ff666ce25a57866b7eacc25",
+    "englishDescription": "GitHub mark used for the repository link and contributor avatar.",
+    "chineseDescription": "用于仓库入口和贡献者头像的 GitHub 官方图标。",
+    "file": "Octicons.txt"
   }
 ]

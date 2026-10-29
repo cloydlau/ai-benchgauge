@@ -18,11 +18,9 @@ Artificial Analysis: https://artificialanalysis.ai/
 Arena: https://arena.ai/blog/lmarena-is-now-arena
 Epoch AI: https://epoch.ai/
 
-WeChat platform outline and GitHub filled icon by Tabler Icons
+WeChat platform outline icon by Tabler Icons
 https://github.com/tabler/tabler-icons
 WeChat is a trademark of Tencent. This Tabler rendition identifies the mini-program platform.
-GitHub icon: tabler:brand-github-filled, selected through https://icones.js.org/
-Pinned source: https://github.com/tabler/tabler-icons/tree/ed177a085b652fe04ec4f37ced867c94621e7840
 GitHub is a trademark of its owner. The icon identifies the repository link
 and GitHub Actions contributor; its inclusion does not imply endorsement.
 
@@ -60,3 +58,30 @@ Official conference gallery: https://solvayinstitutes.be/home/conferences/pictur
 The mark belongs to the International Solvay Institutes and identifies the
 historic conference associated with the original photograph. Inclusion does
 not imply endorsement; this artwork is not covered by the repository MIT license.
+
+GitHub Octicons mark-github-24
+https://github.com/primer/octicons/tree/9a274e212ee25c400ff666ce25a57866b7eacc25
+
+MIT License
+
+Copyright (c) 2026 GitHub Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Vals AI favicon is a third-party brand mark. Rights remain with its owner. Source: https://www.vals.ai/favicon-dark.svg

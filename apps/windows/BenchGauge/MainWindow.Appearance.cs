@@ -1244,7 +1244,11 @@ sealed partial class MainWindow
         if (Logo("github", 13) is { } github) repository.Content = new System.Windows.Shapes.Rectangle { Width = 13, Height = 13, Fill = PanelMuted, OpacityMask = new ImageBrush(github.Source) };
         else repository.Content = "GitHub";
         left.Children.Add(repository);
-        left.Children.Add(Caption(" Cloyd Lau · ", PanelMuted, 10));
+        left.Children.Add(Caption(" ", PanelMuted, 10));
+        var author = FooterButton("Cloyd Lau", () => Open("https://github.com/" + config.Repository));
+        author.Content = Caption("Cloyd Lau", PanelMuted, 10);
+        left.Children.Add(author);
+        left.Children.Add(Caption(" · ", PanelMuted, 10));
         var applicationLicense = FooterButton(Tr("License", "许可证", "許可證"), () => ShowLicenses(false));
         applicationLicense.ToolTip = ApplicationLicense.Name;
         System.Windows.Automation.AutomationProperties.SetName(applicationLicense, ApplicationLicense.Name);

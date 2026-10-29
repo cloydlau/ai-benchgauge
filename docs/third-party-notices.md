@@ -34,23 +34,13 @@ is tracked separately below.
 
 ## GitHub icon provenance confirmed
 
-On 2026-10-28, the old `assets/logos/github.png` was replaced with a deterministic
-export of **`tabler:brand-github-filled`**, selected through
-[Icones](https://icones.js.org/collection/tabler?s=brand-github).
-The unmodified SVG and complete MIT license are kept in
+The GitHub mark is the unmodified official `mark-github-24` from GitHub Octicons,
+revision `9a274e212ee25c400ff666ce25a57866b7eacc25`, under MIT. The SVG,
+complete license, source URL and SHA-256 are recorded in
 [`assets/brand/partners/github`](../assets/brand/partners/github/README.md).
-`source.json` records revision `ed177a085b652fe04ec4f37ced867c94621e7840`,
-exact download URLs, source/license SHA-256 hashes and export settings.
-`node Scripts/source-logos.mjs --check` checks both hashes and generated copies.
-
-The same 128×128 transparent PNG serves macOS/Windows repository buttons,
-and GitHub Actions contributor avatars in the
-mini-program and iPhone/iPad. The original MIT text, copyright
-2020–2026 Paweł Kuna, is shipped in the macOS `Tabler.txt` manifest entry,
-Windows `Licenses/Tabler.txt` and both mobile clients' source-mark notices.
-The artwork license does not grant GitHub trademark rights or imply endorsement.
-This replacement confirms the new asset's provenance; it does not retroactively
-attribute the removed PNG to Tabler.
+The generated PNG is shared by desktop repository links and mobile contributor
+avatars. The Octicons notice is bundled in each client; the separate Tabler
+notice remains for the WeChat platform icon.
 
 ## Supplier PNG removal and shared images — 2026-10-28
 

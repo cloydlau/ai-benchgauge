@@ -74,16 +74,18 @@ export async function renderPlatformIcons(sharp) {
 }
 
 // Keep the historical PNG path shared by native buttons and contributor avatars,
-// but derive it only from the pinned, licensed SVG selected through Icones.
+// but derive it only from the pinned, licensed GitHub Octicons SVG.
 export async function renderGitHubIcon(sharp) {
   const directory = resolve(partners, 'github')
   const manifest = JSON.parse(readFileSync(resolve(directory, 'source.json'), 'utf8'))
   const svg = readFileSync(resolve(directory, 'logo.svg'))
-  const license = readFileSync(resolve(directory, 'LICENSE.txt'))
+  const license = readFileSync(resolve(directory, 'OCTICONS-LICENSE.txt'))
   for (const [data, expected] of [[svg, manifest.sha256], [license, manifest.licenseSHA256]]) {
     if (createHash('sha256').update(data).digest('hex') !== expected) throw new Error('GitHub icon changed without provenance update')
   }
-  const source = await sharp(Buffer.from(svg.toString('utf8').replaceAll('currentColor', manifest.conversion.color)))
+  const artwork = svg.toString('utf8').replaceAll('currentColor', manifest.conversion.color)
+    .replace('<svg ', `<svg fill="${manifest.conversion.color}" `)
+  const source = await sharp(Buffer.from(artwork))
     .resize(manifest.conversion.size, manifest.conversion.size).png().toBuffer()
   return withoutDensity(source)
 }
@@ -101,6 +103,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   for (const [path, source] of [
     ['assets/logos/github.png', await renderGitHubIcon(sharp)],
     ['apps/macos/Sources/Resources/Licenses/Tabler.txt', readFileSync(resolve(partners, 'github/LICENSE.txt'))],
+    ['apps/macos/Sources/Resources/Licenses/Octicons.txt', readFileSync(resolve(partners, 'github/OCTICONS-LICENSE.txt'))],
   ]) {
     const destination = resolve(root, path)
     if (check) {

@@ -62,7 +62,7 @@ test('source marks reject unverified artwork and absent official dark-mode rules
   await assert.rejects(renderSourceLogos(sharp), /Missing official dark variant: arena/)
 })
 
-test('GitHub export uses pinned Tabler artwork and packages its full license across clients', async t => {
+test('GitHub export uses pinned official Octicons artwork and packages its full license across clients', async t => {
   const { root, script, output, run } = fixture(t)
   const { renderGitHubIcon } = await import(pathToFileURL(script).href)
   const sharp = createRequire(new URL('../fc/package.json', import.meta.url))('sharp')
@@ -72,20 +72,20 @@ test('GitHub export uses pinned Tabler artwork and packages its full license acr
   assert.deepEqual(readFileSync(join(root, 'assets/logos/github.png')), png)
   assert.deepEqual(readFileSync(new URL('../assets/logos/github.png', import.meta.url)), png)
   assert.equal((await sharp(png).metadata()).width, 128)
-  const license = readFileSync(join(root, 'assets/brand/partners/github/LICENSE.txt'), 'utf8')
-  assert.match(license, /Copyright \(c\) 2020-2026 Paweł Kuna/)
-  assert.equal(readFileSync(join(root, 'apps/macos/Sources/Resources/Licenses/Tabler.txt'), 'utf8'), license)
-  assert.equal(readFileSync(new URL('../apps/macos/Sources/Resources/Licenses/Tabler.txt', import.meta.url), 'utf8'), license)
+  const license = readFileSync(join(root, 'assets/brand/partners/github/OCTICONS-LICENSE.txt'), 'utf8')
+  assert.match(license, /Copyright \(c\) 2026 GitHub Inc/)
+  assert.equal(readFileSync(join(root, 'apps/macos/Sources/Resources/Licenses/Octicons.txt'), 'utf8'), license)
+  assert.equal(readFileSync(new URL('../apps/macos/Sources/Resources/Licenses/Octicons.txt', import.meta.url), 'utf8'), license)
   assert.ok(readFileSync(join(output, 'NOTICE.txt'), 'utf8').includes(license.trim()))
   const windows = readFileSync(new URL('../apps/windows/BenchGauge/BenchGauge.csproj', import.meta.url), 'utf8')
-  assert.match(windows, /assets\/brand\/partners\/github\/LICENSE\.txt" Link="Licenses\/Tabler\.txt"/)
+  assert.match(windows, /assets\/brand\/partners\/github\/OCTICONS-LICENSE\.txt" Link="Licenses\/Octicons\.txt"/)
   const manifest = JSON.parse(readFileSync(new URL('../apps/macos/Sources/Resources/Licenses/ThirdParty.json', import.meta.url), 'utf8'))
-  assert.equal(manifest.find(item => item.id === 'tabler').file, 'Tabler.txt')
+  assert.equal(manifest.find(item => item.id === 'octicons').file, 'Octicons.txt')
   const path = join(root, 'assets/logos/github.png')
   writeFileSync(path, 'stale')
   assert.equal(run('--check').status, 1)
   assert.equal(readFileSync(path, 'utf8'), 'stale')
-  for (const file of ['logo.svg', 'LICENSE.txt']) {
+  for (const file of ['logo.svg', 'OCTICONS-LICENSE.txt']) {
     const path = join(root, 'assets/brand/partners/github', file)
     const original = readFileSync(path)
     writeFileSync(path, Buffer.concat([original, Buffer.from('\n')]))

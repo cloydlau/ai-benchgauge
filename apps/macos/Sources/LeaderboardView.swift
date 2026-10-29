@@ -859,7 +859,12 @@ struct LeaderboardView: View {
             .pointingHandCursor()
             .help(repositoryURL)
 
-            Text("Cloyd Lau")
+            Button("Cloyd Lau") {
+                if let url = URL(string: repositoryURL) { NSWorkspace.shared.open(url) }
+            }
+            .buttonStyle(.plain)
+            .pointingHandCursor()
+            .help(repositoryURL)
             Text("·")
             Button(tr("License", "许可证")) {
                 screenshot.licenseSection = .application

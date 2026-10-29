@@ -23,6 +23,7 @@
     <Content Include="../../../assets/brand/header-logo-dark.png" Link="brand/header-logo-dark.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../Licenses/*" Link="Licenses/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../../assets/brand/partners/github/LICENSE.txt" Link="Licenses/Tabler.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../../assets/brand/partners/github/OCTICONS-LICENSE.txt" Link="Licenses/Octicons.txt" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../../fc/models-dev-license.txt" Link="Licenses/models.dev-MIT.txt" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../../LICENSE" Link="Licenses/AI-BenchGauge.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
