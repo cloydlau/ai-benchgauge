@@ -18,7 +18,7 @@ struct OrganizationBrandTests {
             let provider = OrganizationBrand(key: key, colorHex: "#319FA8", pngData: png)
             let entry = LeaderboardEntry(rank: 1, name: name, score: 99, organization: organization, brand: provider)
             #expect(OrganizationLogoCatalog.rowLogoPNGData(for: entry) == png)
-            #expect(OrganizationLogoCatalog.rowLogoPNGData(for: entry, isCompany: true) == png)
+            #expect(OrganizationLogoCatalog.rowLogoPNGData(for: entry, isCompany: true) == nil)
         }
         for (name, organization) in [("New Model", "New Maker"), ("GPT-6", "OpenAI"), ("Veo 3.1", "Google")] {
             let entry = LeaderboardEntry(rank: 1, name: name, score: 99, organization: organization,
@@ -45,11 +45,40 @@ struct OrganizationBrandTests {
         #expect(OrganizationLogoCatalog.rowLogoPNGData(for: companyWithoutImage, isCompany: true) == nil)
         #expect(OrganizationLogoCatalog.rowLogoPNGData(for: model, isCompany: true) == nil)
         let sibling = LeaderboardEntry(rank: 2, name: "Qwen fixture", score: 90, organization: "Alibaba",
-            brand: OrganizationBrand(key: "qwen", colorHex: "#623AE7", pngData: png))
+            organizationBrand: OrganizationBrand(key: "qwen", colorHex: "#623AE7", pngData: png))
         let company = try #require(CompanyLeaderboard.rank([model, sibling]).first?.entry)
         #expect(company.brand?.key == "qwen")
         #expect(OrganizationLogoCatalog.rowLogoPNGData(for: company, isCompany: true) == png)
         #expect(company.score == 100)
+    }
+
+    @Test func companyRowsPreferConfirmedCompanyImagesAndRejectAmbiguousModelImages() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let png = try Data(contentsOf: root.appending(path: "Tests/fixtures/shared-brand-64.png"))
+        let product = OrganizationBrand(key: "model-product-qwen", colorHex: "#623AE7", pngData: png)
+        let ambiguous = OrganizationBrand(key: "qwen", colorHex: "#623AE7", pngData: png)
+        let first = LeaderboardEntry(rank: 1, name: "Qwen3.5", score: 99, organization: "Alibaba", brand: product)
+        let legacy = LeaderboardEntry(rank: 1, name: "Qwen3.5", score: 99, organization: "Alibaba", brand: ambiguous)
+        let duplicated = LeaderboardEntry(rank: 1, name: "Qwen3.5", score: 99, organization: "Alibaba", brand: ambiguous, organizationBrand: ambiguous)
+        for entry in [first, legacy, duplicated] {
+            let company = try #require(CompanyLeaderboard.rank([entry]).first?.entry)
+            #expect(OrganizationLogoCatalog.rowLogoPNGData(for: company, isCompany: true) == nil)
+        }
+        let repository = root.appending(path: "Tests").resolvingSymlinksInPath().deletingLastPathComponent()
+        let catalogData = try Data(contentsOf: repository.appending(path: "fc/brand-catalog.json"))
+        let catalog = try #require(JSONSerialization.jsonObject(with: catalogData) as? [String: Any])
+        let providers = try #require(catalog["providerLogos"] as? [String: [String: Any]])
+        let qwenBase64 = try #require(providers["qwen"]?["pngData"] as? String)
+        let oldQwenPNG = try #require(Data(base64Encoded: qwenBase64))
+        let oldProduct = OrganizationBrand(key: "qwen", colorHex: "#623AE7", pngData: oldQwenPNG)
+        let wan = LeaderboardEntry(rank: 1, name: "Wan 3.0", score: 99, organization: "Alibaba",
+            brand: OrganizationBrand(key: "model-wan", colorHex: "#123456", pngData: png), organizationBrand: oldProduct)
+        let oldCompany = try #require(CompanyLeaderboard.rank([wan]).first?.entry)
+        #expect(OrganizationLogoCatalog.rowLogoPNGData(for: oldCompany, isCompany: true) == nil)
+        let companyMark = OrganizationBrand(key: "qwen", colorHex: "#623AE7", pngData: png)
+        let sibling = LeaderboardEntry(rank: 2, name: "Other", score: 90, organization: "Alibaba", organizationBrand: companyMark)
+        let company = try #require(CompanyLeaderboard.rank([first, sibling]).first?.entry)
+        #expect(OrganizationLogoCatalog.rowLogoPNGData(for: company, isCompany: true) == png)
     }
 
     @Test func modelAndCompanyMarksSurviveCacheWithoutBeingMixed() throws {

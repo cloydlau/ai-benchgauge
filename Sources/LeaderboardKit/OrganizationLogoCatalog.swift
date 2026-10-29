@@ -71,6 +71,38 @@ public enum OrganizationLogoCatalog {
 
     private static let modelFamilies = LeaderboardBrandPolicy.modelFamilies
 
+    /// A legacy brand field for these named models may contain the product
+    /// icon rather than its manufacturer's icon, even when the keys match.
+    static func hasDistinctModelBrand(_ entry: LeaderboardEntry) -> Bool {
+        guard let key = developerKey(organization: entry.organization, modelName: entry.name, modelID: entry.modelID),
+              LeaderboardBrandPolicy.bundledModelMarks.contains(key) else { return false }
+        return entry.name.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .contains { modelFamilyKey(for: String($0)) == key }
+    }
+
+    static func explicitCompanyBrand(_ entry: LeaderboardEntry) -> OrganizationBrand? {
+        guard let brand = entry.organizationBrand else { return nil }
+        if isKnownProductImage(brand) { return nil }
+        if hasDistinctModelBrand(entry), let png = brand.validPNGData, png == entry.brand?.validPNGData { return nil }
+        return brand
+    }
+
+    static func legacyCompanyBrand(_ entry: LeaderboardEntry) -> OrganizationBrand? {
+        guard entry.organizationBrand == nil, !hasDistinctModelBrand(entry), let brand = entry.brand,
+              !isKnownProductImage(brand) else { return nil }
+        return brand
+    }
+
+    /// Match the exact previously distributed model images in old snapshots.
+    /// Fingerprints are generated from the shared catalog, not shipped artwork.
+    private static func isKnownProductImage(_ brand: OrganizationBrand) -> Bool {
+        guard let data = brand.validPNGData,
+              let expected = LeaderboardBrandPolicy.productMarkFingerprints[normalizedKey(brand.key)] else { return false }
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        for byte in data { hash = (hash ^ UInt64(byte)) &* 1_099_511_628_211 }
+        return "\(data.count):" + String(format: "%016llx", hash) == expected
+    }
+
     /// Alias-normalized key for an organization string or a remote logo-map key.
     /// Does not infer from model names. Empty input returns an empty string.
     public static func normalizedKey(_ raw: String) -> String {
@@ -111,7 +143,7 @@ public enum OrganizationLogoCatalog {
     /// explicit organization brand also supports unaggregated company consumers.
     public static func rowLogoPNGData(for entry: LeaderboardEntry, isCompany: Bool = false) -> Data? {
         if isCompany {
-            return [entry.organizationBrand, entry.brand].compactMap { $0 }
+            return [explicitCompanyBrand(entry), legacyCompanyBrand(entry)].compactMap { $0 }
                 .filter { !$0.key.hasPrefix("model-") }.compactMap(\.validPNGData).first
         }
         return entry.brand?.validPNGData
@@ -130,7 +162,7 @@ public enum OrganizationLogoCatalog {
             for entry in board.entries {
                 guard let key = resolvedKey(organization: entry.organization, modelName: entry.name, modelID: entry.modelID),
                       images[key] == nil else { continue }
-                for brand in [entry.organizationBrand, entry.brand].compactMap({ $0 }) {
+                for brand in [explicitCompanyBrand(entry), legacyCompanyBrand(entry)].compactMap({ $0 }) {
                     guard !brand.key.hasPrefix("model-"), normalizedKey(brand.key) == key,
                           let png = brand.validPNGData else { continue }
                     images[key] = png

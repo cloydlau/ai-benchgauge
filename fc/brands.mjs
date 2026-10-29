@@ -16,7 +16,7 @@ export function validPNG(bytes) {
 sharp.concurrency(1);
 sharp.cache({ memory: 16, files: 0, items: 16 });
 
-export const { normalizedBrandKey, brandKey, knownModelBrand } = createBrandRules(catalog);
+export const { normalizedBrandKey, brandKey, knownModelBrand, bundledProductKey } = createBrandRules(catalog);
 export function fallbackColor(key) {
   let hash = 2166136261;
   for (const byte of Buffer.from(normalizedBrandKey(key))) hash = Math.imul(hash ^ byte, 16777619) >>> 0;
@@ -141,8 +141,10 @@ export class BrandRegistry {
       const previous = groups.get(key);
       // A hosted-model override must never inherit the harness's source logo.
       const sourceURL = normalizedBrandKey(entry.organization) === key ? candidate : null;
-      const organizationBrand = entry.organizationBrand ?? entry.brand;
-      const saved = organizationBrand?.key === key && validPNG(Buffer.from(organizationBrand.pngData ?? '', 'base64')) ? organizationBrand : previous?.saved;
+      const organizationBrand = entry.organizationBrand ?? (bundledProductKey(entry) ? null : entry.brand);
+      const productPNG = catalog.bundledModelMarks.includes(key) ? catalog.providerLogos?.[key]?.pngData : null;
+      const saved = organizationBrand?.key === key && organizationBrand.pngData !== productPNG
+        && validPNG(Buffer.from(organizationBrand.pngData ?? '', 'base64')) ? organizationBrand : previous?.saved;
       groups.set(key, { key, name: entry.organization ?? entry.name, sourceURL: previous?.sourceURL ?? sourceURL,
         sourceSVG: previous?.sourceSVG ?? (sourceURL === inline?.sourceURL ? inline?.sourceSVG : undefined), saved });
     }
@@ -163,18 +165,34 @@ export class BrandRegistry {
       const key = brandKey(entry);
       const cached = resolved.get(key);
       // Retain saved PNGs if the registry temporarily cannot be read.
-      const saved = [entry.organizationBrand, entry.brand].find(brand => brand?.key === key);
+      const saved = [entry.organizationBrand, ...(bundledProductKey(entry) ? [] : [entry.brand])].find(brand => brand?.key === key);
       const bundled = catalog.providerLogos?.[key];
       const verified = bundled && validPNG(Buffer.from(bundled.pngData ?? '', 'base64'))
         ? { key, ...bundled, status: 'ready' } : null;
-      const organizationBrand = (cached?.pngData ? cached : null)
-        ?? (saved?.pngData ? saved : null) ?? verified ?? cached ?? saved ?? { key: key ?? '', colorHex: catalog.colors[key] ?? fallbackColor(key ?? entry.name), status: key ? 'pending' : 'unknown' };
+      const isProductImage = brand => catalog.bundledModelMarks.includes(key)
+        && brand?.pngData && brand.pngData === bundled?.pngData;
+      const companyCached = isProductImage(cached) ? null : cached;
+      const companySaved = isProductImage(saved) ? null : saved;
+      const companyFallback = catalog.bundledModelMarks.includes(key) ? null : verified;
+      const organizationBrand = (companyCached?.pngData ? companyCached : null)
+        ?? (companySaved?.pngData ? companySaved : null) ?? companyFallback ?? companyCached ?? companySaved
+        ?? { key: key ?? '', colorHex: catalog.colors[key] ?? fallbackColor(key ?? entry.name), status: key ? 'pending' : 'unknown' };
       const model = modelLogo(entry, board.kind);
       const savedModel = model && entry.brand?.key === model.key
         && validPNG(Buffer.from(entry.brand.pngData ?? '', 'base64')) ? entry.brand : null;
       const modelBrand = model && (resolved.get(model.key)?.pngData ? resolved.get(model.key) : savedModel ?? model.verified);
-      return { ...entry, brand: modelBrand?.pngData ? modelBrand : organizationBrand,
-        ...(model && { organizationBrand }) };
+      const productKey = bundledProductKey(entry);
+      const product = productKey && catalog.providerLogos?.[productKey];
+      const productBrand = product && validPNG(Buffer.from(product.pngData ?? '', 'base64'))
+        ? { ...product, key: `model-product-${productKey}`, status: 'ready' } : null;
+      // Explicitly verified model artwork (for example Wan or Veo) remains
+      // distinct. Recognized model families use their own verified mark even
+      // when the source or an older cached entry supplies a company logo.
+      const selected = model?.verified && modelBrand?.pngData ? modelBrand
+        : productBrand ?? (modelBrand?.pngData ? modelBrand : null)
+          ?? (organizationBrand?.pngData ? organizationBrand : verified ?? organizationBrand);
+      return { ...entry, brand: selected,
+        ...((model || productBrand || catalog.bundledModelMarks.includes(key)) && { organizationBrand }) };
     }) };
   }
   async resolve(brand, acquire, signal) {
@@ -188,7 +206,13 @@ export class BrandRegistry {
       }
       return { key: brand.key, colorHex, status: record?.status === 'ready' ? 'failed' : record?.status ?? 'pending' };
     };
-    const cached = await publicValue(previous);
+    let cached = await publicValue(previous);
+    // Older snapshots may have stored the product mark as the company mark.
+    // Discard it and reacquire the company source when one is available.
+    if (catalog.bundledModelMarks.includes(brand.key) && cached.pngData
+        && cached.pngData === catalog.providerLogos?.[brand.key]?.pngData) {
+      cached = { key: brand.key, colorHex: catalog.colors[brand.key] ?? fallbackColor(brand.key), status: 'pending' };
+    }
     // A ready provider asset cannot satisfy a model request. A changed model
     // source must also be retried instead of returning its old image forever.
     if (cached.pngData && (brand.scope !== 'model' || !brand.sourceURL || previous.sourceURL === brand.sourceURL)

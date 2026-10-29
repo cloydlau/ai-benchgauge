@@ -121,7 +121,9 @@ test('Wan family owns a separate mark; old Alibaba PNG cannot hide it or leak in
   assert.equal(result.entries[0].brand.key, 'model-wan');
   assert.deepEqual(result.entries[0].brand, result.entries[1].brand);
   assert.deepEqual(result.entries[0].organizationBrand, provider);
-  assert.deepEqual(result.entries[2].brand, provider);
+  const verifiedQwen = JSON.parse(readFileSync(new URL('../fc/brand-catalog.json', import.meta.url))).providerLogos.qwen;
+  assert.equal(result.entries[2].brand.pngData, verifiedQwen.pngData);
+  assert.deepEqual(result.entries[2].organizationBrand, provider);
   assert.deepEqual(result.entries[3].brand, provider);
   assert.equal(requests.length, 2);
   assert.equal(store.records.size, 2);
@@ -257,11 +259,66 @@ test('source provider marks do not override verified model marks or inherit a ha
   assert.equal(result.entries[0].brand.key, 'model-wan');
   assert.equal(result.entries[0].organizationBrand.key, 'qwen');
   assert.equal(result.entries[1].brand.key, 'qwen');
-  // Qwen is shared with the real Alibaba entry, never Anthropic's source SVG.
-  assert.deepEqual(result.entries[2].brand, result.entries[1].brand);
+  // Hosted Qwen uses its own verified product mark, not Alibaba or Anthropic.
+  assert.notDeepEqual(result.entries[2].brand, result.entries[1].brand);
   const alone = await new BrandRegistry(new Store()).enrich({ ...input, entries: input.entries.slice(2) }, { acquire: true });
   // The verified bundled Qwen mark remains available without any source SVG.
   const catalog = JSON.parse(readFileSync(new URL('../fc/brand-catalog.json', import.meta.url)));
   assert.equal(alone.entries[0].brand.pngData, catalog.providerLogos.qwen.pngData);
-  assert.equal(alone.entries[0].brand.key, 'qwen');
+  assert.equal(alone.entries[0].brand.key, 'model-product-qwen');
+});
+test('known models repair company artwork in saved snapshots while keeping company and distinct model artwork', async () => {
+  const catalog = JSON.parse(readFileSync(new URL('../fc/brand-catalog.json', import.meta.url)));
+  const companyPNG = (await normalizeLogo(svg)).png.toString('base64');
+  const stale = key => ({ key, pngData: companyPNG, colorHex: '#319FA8', status: 'ready' });
+  const input = { kind: 'arenaText', entries: [
+    { name: 'Qwen3.5', organization: 'Alibaba', brand: stale('qwen'), organizationBrand: stale('qwen') },
+    { name: 'Claude Opus 4.6', organization: 'Anthropic', brand: stale('anthropic'), organizationBrand: stale('anthropic') },
+    { name: 'Gemini 3 Pro', organization: 'Google', brand: stale('google'), organizationBrand: stale('google') },
+    { name: 'Unrelated', organization: 'New Maker', brand: stale('newmaker') },
+    { name: 'Wan 3.0', organization: 'Alibaba', brand: stale('qwen') },
+  ] };
+  const registry = new BrandRegistry(new Store(), { download: async () => { throw Error('offline'); } });
+  for (const acquire of [false, true]) {
+    const result = await registry.enrich(input, { acquire });
+    for (const [index, key] of [[0, 'qwen'], [1, 'anthropic']]) {
+      assert.equal(result.entries[index].brand.pngData, catalog.providerLogos[key].pngData);
+      assert.equal(result.entries[index].organizationBrand.pngData, companyPNG);
+    }
+    assert.equal(result.entries[2].brand.key, 'model-gemini');
+    assert.equal(result.entries[2].organizationBrand.pngData, companyPNG);
+    assert.equal(result.entries[3].brand.pngData, companyPNG);
+    assert.equal(result.entries[4].brand.key, 'model-wan');
+  }
+});
+
+test('old cached product images never become company marks and a real sibling company mark wins', async () => {
+  const catalog = JSON.parse(readFileSync(new URL('../fc/brand-catalog.json', import.meta.url)));
+  const productPNG = catalog.providerLogos.qwen.pngData;
+  const model = { rank: 1, score: 99, name: 'Qwen3.5', organization: 'Alibaba', brand: { key: 'qwen', pngData: productPNG }, organizationBrand: { key: 'qwen', pngData: productPNG } };
+  const result = await new BrandRegistry(new Store()).enrich({ kind: 'arenaText', entries: [model] });
+  assert.equal(result.entries[0].brand.key, 'model-product-qwen');
+  assert.equal(result.entries[0].brand.pngData, productPNG);
+  assert.equal(result.entries[0].organizationBrand.pngData, undefined);
+  const { companyRows } = await import('../fc/domain.mjs');
+  assert.equal(companyRows([model])[0].brand.pngData, undefined);
+  const wan = { ...model, name: 'Wan 3.0', brand: { key: 'model-wan', pngData: catalog.modelLogos.find(item => item.key === 'wan').pngData } };
+  assert.equal(companyRows([wan])[0].brand.pngData, undefined);
+  const companyPNG = (await normalizeLogo(svg)).png.toString('base64');
+  const sibling = { rank: 2, score: 90, name: 'Other', organization: 'Alibaba', organizationBrand: { key: 'qwen', pngData: companyPNG } };
+  assert.equal(companyRows([model, sibling])[0].brand.pngData, companyPNG);
+});
+
+test('a cached product mark is replaced when a verified company source becomes available', async () => {
+  const catalog = JSON.parse(readFileSync(new URL('../fc/brand-catalog.json', import.meta.url)));
+  const store = new Store();
+  store.assets.set('old', Buffer.from(catalog.providerLogos.qwen.pngData, 'base64'));
+  store.records.set('qwen', { assetHash: 'old', sourceURL: 'https://qwen.ai/favicon.ico', status: 'ready' });
+  const registry = new BrandRegistry(store, { download: async () => svg });
+  const entry = { rank: 1, score: 99, name: 'Qwen3.5', organization: 'Alibaba', logoURL: 'https://artificialanalysis.ai/img/logos/alibaba.svg' };
+  const stale = await registry.enrich({ entries: [entry] });
+  assert.equal(stale.entries[0].organizationBrand.pngData, undefined);
+  const fixed = await registry.enrich({ entries: [entry] }, { acquire: true });
+  assert.equal(fixed.entries[0].brand.key, 'model-product-qwen');
+  assert.equal(fixed.entries[0].organizationBrand.pngData, (await normalizeLogo(svg)).png.toString('base64'));
 });

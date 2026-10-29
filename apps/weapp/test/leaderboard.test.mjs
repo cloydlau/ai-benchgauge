@@ -343,3 +343,13 @@ test('rank movement labels use arrows, localize new entries and use company posi
     assert.equal(visibleRows(snapshot, { query:'Model', language })[0].rankChangeText, '↑3')
   }
 })
+
+test('公司榜不把旧模型图标当成公司图标，并优先使用其他型号的公司图', () => {
+  const product = brandCatalog.providerLogos.qwen.pngData
+  const model = entry(1, 'Qwen3.5', 99, 'Alibaba', { brand: { key: 'qwen', pngData: product }, organizationBrand: { key: 'qwen', pngData: product } })
+  assert.equal(visibleRows(board([model]), { grouping: 'company' })[0].logo, '')
+  const sibling = entry(2, 'Other', 90, 'Alibaba', { organizationBrand: { key: 'qwen', pngData: 'iVBORw0KGgo=' } })
+  assert.equal(visibleRows(board([model, sibling]), { grouping: 'company' })[0].logo, 'data:image/png;base64,iVBORw0KGgo=')
+  const legacy = entry(1, 'Qwen3.5', 99, 'Alibaba', { brand: { key: 'qwen', pngData: product } })
+  assert.equal(visibleRows(board([legacy]), { grouping: 'company' })[0].logo, '')
+})

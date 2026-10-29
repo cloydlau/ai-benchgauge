@@ -124,7 +124,9 @@ public enum CompanyLeaderboard {
     /// A model mark is not its manufacturer's mark. Reuse a ready provider
     /// image from any member before returning pending metadata for the initial.
     private static func manufacturerBrand(key: String, members: [LeaderboardEntry]) -> OrganizationBrand? {
-        let brands = members.flatMap { [$0.organizationBrand, $0.brand].compactMap { $0 } }
+        let explicit = members.compactMap(OrganizationLogoCatalog.explicitCompanyBrand)
+        let legacy = members.compactMap(OrganizationLogoCatalog.legacyCompanyBrand)
+        let brands = (explicit + legacy)
             .filter { !$0.key.hasPrefix("model-") && OrganizationLogoCatalog.normalizedKey($0.key) == key }
         return brands.first { $0.validPNGData != nil } ?? brands.first
     }

@@ -352,4 +352,13 @@ enum LeaderboardBrandPolicy {
     static var modelFamilies: [(family: String, key: String)] { modelFamiliesStorage }
     private static let bundledModelMarksStorage: Set<String> = ["anthropic", "google", "qwen", "kimi", "deepseek", "minimax"]
     static var bundledModelMarks: Set<String> { bundledModelMarksStorage }
+    private static let productMarkFingerprintsStorage: [String: String] = [
+        "anthropic": "2918:08c1dff00892c011",
+        "google": "2163:cd2939d7122f0b80",
+        "qwen": "2644:7e87cccaa888437a",
+        "kimi": "1876:b759d9943ce4fd33",
+        "deepseek": "2517:c30c13872c2a5a3a",
+        "minimax": "2183:5e5e00af73a09d11",
+    ]
+    static var productMarkFingerprints: [String: String] { productMarkFingerprintsStorage }
 }

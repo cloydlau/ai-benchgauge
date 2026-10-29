@@ -175,8 +175,16 @@ export function companyRows(entries, { summingUsage = false } = {}) {
       return rules.normalizedBrandKey(country.key) === group.key
     })
     const developerCountry = matchedCountry ? { ...matchedCountry, countryCode: countryCode({ developerCountry: matchedCountry }) } : undefined
-    const brands = members.flatMap(member => [member.organizationBrand, member.brand])
+    const explicit = members.map(member => {
+      const company = member.organizationBrand
+      return rules.bundledProductKey(member) && company?.pngData && company.pngData === member.brand?.pngData
+        ? null : company
+    })
       .filter(brand => brand && rules.normalizedBrandKey(brand.key) === group.key)
+    const legacy = members.filter(member => !member.organizationBrand && !rules.bundledProductKey(member)).map(member => member.brand)
+      .filter(brand => brand && rules.normalizedBrandKey(brand.key) === group.key)
+    const productPNG = catalog.bundledModelMarks.includes(group.key) ? catalog.providerLogos?.[group.key]?.pngData : null
+    const brands = [...explicit, ...legacy].filter(brand => !productPNG || brand.pngData !== productPNG)
     // The strongest model may still be waiting for its company image. Reuse a
     // verified provider mark from any sibling, without borrowing a model/harness mark.
     const organizationBrand = brands.find(brand => typeof brand.pngData === 'string'
