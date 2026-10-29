@@ -23,7 +23,8 @@
     "media": false,
     "alint": false,
     "worktrees": true,
-    "iosDeploy": true
+    "iosDeploy": true,
+    "x18n": true
   },
   "commands": {
     "lint": [
@@ -50,6 +51,12 @@
       "node",
       "Scripts/ios-deploy.mjs",
       "enqueue"
+    ],
+    "x18n": [
+      "node",
+      "Scripts/calmmit.mjs",
+      "x18n",
+      "--advisory"
     ]
   },
   "profiles": {
@@ -57,19 +64,22 @@
       "lint",
       "tests",
       "alint",
-      "iosDeploy"
+      "iosDeploy",
+      "x18n"
     ],
     "check": [
       "lint",
       "tests",
       "build",
       "alint",
-      "iosDeploy"
+      "iosDeploy",
+      "x18n"
     ],
     "push": [
       "lint",
       "tests",
-      "iosDeploy"
+      "iosDeploy",
+      "x18n"
     ]
   },
   "identity": {
