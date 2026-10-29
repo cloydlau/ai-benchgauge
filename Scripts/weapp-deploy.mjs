@@ -1,7 +1,6 @@
 import { spawn } from 'node:child_process'
-import { createHash } from 'node:crypto'
-import { appendFileSync, copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { appendFileSync, mkdirSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ci } from './calmmit.mjs'
 import { acquireCommitLock } from './commit-lock.mjs'
@@ -10,6 +9,8 @@ import { readAppVersion } from './app-version.mjs'
 
 const { readUploadConfig, createUploadConfigMonitor } = await ci.load('deployment-credentials')
 const { createWatchSession } = await ci.load('deployment-watch')
+const { inputSnapshot: snapshotInputs, sourceSignature, copyInputs } = await ci.load('deployment-source')
+export { sourceSignature }
 const { runWechatCiScript, writeSuccessfulPublish } = await ci.load('wechat-ci')
 const { checkPrivacyGuide } = await ci.load('privacy-guide')
 const root = ci.root
@@ -22,7 +23,7 @@ export const sourcePaths = [
   'apps/weapp/vite.config.js', 'apps/weapp/postcss.config.js', 'apps/weapp/tsconfig.json',
   'apps/weapp/package.json', 'apps/weapp/project.config.json',
   'apps/weapp/ci-runtime/package.json', 'apps/weapp/ci-runtime/package-lock.json',
-  'fc/domain.mjs', 'fc/distributions.mjs', 'fc/brand-catalog.json', 'fc/leaderboard-policy.json', 'fc/country-catalog.json',
+  'fc/domain.mjs', 'fc/distributions.mjs', 'fc/price-catalog.mjs', 'fc/arena-dataset.mjs', 'fc/brand-catalog.json', 'fc/leaderboard-policy.json', 'fc/country-catalog.json',
   'fc/purchase-links.json', 'Scripts/generate-purchase-links.mjs', 'Scripts/source-logos.mjs',
   'Sources/LeaderboardKit/PurchaseLinkData.generated.swift',
   'assets/brand/header-logo.png', 'assets/brand/header-logo-dark.png', 'assets/brand/partners', 'assets/logos', 'assets/about',
@@ -42,24 +43,7 @@ export const sourcePaths = [
 ]
 
 export function inputSnapshot(repo = root, paths = sourcePaths) {
-  const files = new Map()
-  const collect = relative => {
-    const path = join(repo, relative)
-    const stat = statSync(path, { throwIfNoEntry: false })
-    if (!stat) return
-    if (stat.isDirectory()) {
-      for (const name of readdirSync(path).sort()) {
-        if (name.startsWith('.') || /\.(key|pem)$/.test(name) || ['node_modules', 'dist'].includes(name)) continue
-        collect(`${relative}/${name}`)
-      }
-    } else if (stat.isFile()) files.set(relative, createHash('sha256').update(readFileSync(path)).digest('hex'))
-  }
-  paths.forEach(collect)
-  return files
-}
-
-export function sourceSignature(files) {
-  return createHash('sha256').update(JSON.stringify([...files].sort(([a], [b]) => a.localeCompare(b)))).digest('hex')
+  return snapshotInputs(repo, paths, {})
 }
 
 export function readReceipt(path = receiptPath) {
@@ -83,11 +67,7 @@ function run(command, args, { cwd = root, env = process.env } = {}) {
 
 export function stageInputs(repo, destination, files) {
   mkdirSync(destination, { recursive: true })
-  for (const relative of files.keys()) {
-    const target = join(destination, relative)
-    mkdirSync(dirname(target), { recursive: true })
-    copyFileSync(join(repo, relative), target)
-  }
+  copyInputs(repo, destination, files)
   for (const relative of ['node_modules', 'apps/weapp/node_modules']) {
     symlinkSync(join(repo, relative), join(destination, relative), 'dir')
   }

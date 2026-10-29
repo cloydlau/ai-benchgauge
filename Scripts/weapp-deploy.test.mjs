@@ -97,6 +97,8 @@ test('isolated upload loads shared domain and chart statistics and detects their
   assert.equal(domain.countryCode({ name: 'Qwen', organization: 'Alibaba' }), 'CN')
   assert.equal(domain.normalizedCountryCode('HK'), 'CN')
   const { leaderboardDistribution } = await import(pathToFileURL(join(stage, 'fc/distributions.mjs')).href)
+  const { priceBoard } = await import(pathToFileURL(join(stage, 'fc/price-catalog.mjs')).href)
+  assert.equal(typeof priceBoard, 'function')
   const distribution = leaderboardDistribution([{ name: 'Qwen', organization: 'Alibaba', openness: 'open' }])
   assert.equal(distribution.total, 1)
   assert.equal(distribution.countries[0].id, 'CN')
@@ -245,7 +247,7 @@ function isolatedUploader(t, mode = 'success') {
   writeFileSync(join(root, 'Scripts/calmmit.mjs'), `
 export const state={ready:true,polls:0,scheduled:[],stops:0,session:null,configCalls:0};
 const config=()=>{const n=++state.configCalls,mode=process.env.UPLOAD_MODE;return{ready:state.ready&&mode!=='not-ready'&&!(mode==='config-unready'&&n===2),reason:'fixture credentials unavailable',signature:(mode==='config-rotation'&&n>=2||mode==='late-config'&&n>=3)?'rotated':'first',keyChangedAt:0,appid:'fixture-appid',privateKeyPath:'fixture-private-key'}};
-export const ci={root:${JSON.stringify(root)},load:async name=>['privacy-guide','wechat-ci'].includes(name)?import(${JSON.stringify(pathToFileURL(join(ci.library, 'src/')).href)}+name+'.mjs'):name==='deployment-credentials'?{readUploadConfig:config,createUploadConfigMonitor:options=>({initial:options.readConfig(),poll(){state.polls++;if(state.pollError)throw Error('fixture monitor');options.readConfig()}})}:{createWatchSession:options=>{state.session=options;return{schedule:(...args)=>state.scheduled.push(args),stop(){state.stops++}}}}};
+export const ci={root:${JSON.stringify(root)},load:async name=>['privacy-guide','wechat-ci','deployment-source'].includes(name)?import(${JSON.stringify(pathToFileURL(join(ci.library, 'src/')).href)}+name+'.mjs'):name==='deployment-credentials'?{readUploadConfig:config,createUploadConfigMonitor:options=>({initial:options.readConfig(),poll(){state.polls++;if(state.pollError)throw Error('fixture monitor');options.readConfig()}})}:{createWatchSession:options=>{state.session=options;return{schedule:(...args)=>state.scheduled.push(args),stop(){state.stops++}}}}};
 `)
   const installRuntime = () => {
     mkdirSync(join(root, 'apps/weapp/ci-runtime/node_modules/node/bin'), { recursive: true })
