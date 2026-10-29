@@ -1430,11 +1430,11 @@ private final class SourceTableHeaderView: NSTableHeaderView {
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     isolated deinit {
-        polishTimer?.invalidate()
+        polishTimer?.invalidate(); guideTimer?.invalidate()
         NotificationCenter.default.removeObserver(self)
         NSWorkspace.shared.notificationCenter.removeObserver(self)
     }
-    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); updatePolish() }
+    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); updatePolish(); updateMetricGuide() }
 
     @objc private func updatePolish() {
         polishTimer?.invalidate(); polishTimer = nil
