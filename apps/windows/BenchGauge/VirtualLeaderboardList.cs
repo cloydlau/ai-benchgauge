@@ -1,4 +1,5 @@
 using System;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -11,10 +12,17 @@ namespace BenchGauge;
 sealed class VirtualLeaderboardList : ListBox
 {
     readonly Func<int, FrameworkElement> createRow;
+    readonly ObservableCollection<int> indices = new();
+    readonly int rankingCount;
+    int loadedCount;
 
     public VirtualLeaderboardList(int count, Func<int, FrameworkElement> createRow)
     {
         this.createRow = createRow;
+        rankingCount = Math.Max(0, count - 1);
+        loadedCount = Math.Min(20, rankingCount);
+        foreach (var index in Enumerable.Range(0, loadedCount)) indices.Add(index);
+        indices.Add(rankingCount); // Distribution panel remains after the loaded rows.
         Background = Brushes.Transparent;
         BorderThickness = new Thickness(0);
         Padding = new Thickness(0);
@@ -42,7 +50,26 @@ sealed class VirtualLeaderboardList : ListBox
             }
         };
         System.Windows.Automation.AutomationProperties.SetAutomationId(this, "leaderboard-rows");
-        ItemsSource = Enumerable.Range(0, count);
+        ItemsSource = indices;
+        AddHandler(ScrollViewer.ScrollChangedEvent, new ScrollChangedEventHandler((_, change) =>
+        {
+            if (change.VerticalChange <= 0 || change.VerticalOffset + change.ViewportHeight < loadedCount * 32 - 96) return;
+            LoadMore();
+        }));
+    }
+
+    void LoadMore()
+    {
+        var next = Math.Min(rankingCount, loadedCount + 20);
+        while (loadedCount < next) indices.Insert(indices.Count - 1, loadedCount++);
+    }
+
+    // Refresh visible content in place without replacing the list or its scroll viewer.
+    public void RefreshRealizedRows()
+    {
+        for (var position = 0; position < indices.Count; position++)
+            if (ItemContainerGenerator.ContainerFromIndex(position) is ListBoxItem item && indices[position] < rankingCount)
+                item.Content = createRow(indices[position]);
     }
 
     protected override void PrepareContainerForItemOverride(DependencyObject element, object item)

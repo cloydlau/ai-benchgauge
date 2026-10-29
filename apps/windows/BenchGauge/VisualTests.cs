@@ -312,13 +312,19 @@ static class VisualTests
             foreach (var child in Descendants(System.Windows.Media.VisualTreeHelper.GetChild(root, index))) yield return child;
     }
 
-    static void VerifyVirtualRanking(Window window)
+    static void VerifyVirtualRanking(Window window, int expectedRows)
     {
         var list = Descendants(window).OfType<VirtualLeaderboardList>().Single();
         int Realized() => Descendants(list).OfType<System.Windows.Controls.VirtualizingStackPanel>().Single().Children.Count;
         var initial = Realized();
-        if (list.Items.Count < 1000 || initial == 0 || initial >= 200)
+        if (list.Items.Count != 21 || initial == 0 || initial >= 200)
             throw new InvalidOperationException("Long ranking created too many row controls");
+        while (list.Items.Count < expectedRows + 1)
+        {
+            var previous = list.Items.Count;
+            list.ScrollIntoView(list.Items[previous - 1]); Settle(window);
+            if (list.Items.Count <= previous) throw new InvalidOperationException("Scroll did not load the next batch");
+        }
         list.ScrollIntoView(list.Items.Count - 1); Settle(window);
         if (list.ItemContainerGenerator.ContainerFromIndex(list.Items.Count - 1) is null || Realized() >= 200)
             throw new InvalidOperationException("Long ranking tail or recycling failed");

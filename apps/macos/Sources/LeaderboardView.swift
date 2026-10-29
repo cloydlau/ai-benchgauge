@@ -14,11 +14,19 @@ private final class ScreenshotUIState: ObservableObject {
     @Published var modelDetails: LeaderboardEntry?
 }
 
+@MainActor
+private final class DesktopRowPage: ObservableObject {
+    @Published var count = 20
+    func reset() { count = 20 }
+    func loadMore() { count += 20 }
+}
+
 struct LeaderboardView: View {
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var state: AppState
     @StateObject private var screenshot = ScreenshotUIState()
     @StateObject private var search = DesktopLeaderboardSearchState()
+    @StateObject private var rowPage = DesktopRowPage()
 
     private var language: AppLanguage { state.selectedLanguage }
     private func tr(_ english: String, _ chinese: String) -> String {

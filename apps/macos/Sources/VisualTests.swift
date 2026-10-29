@@ -683,8 +683,10 @@ enum NativeVisualCapture {
                 }
                 if test.scenario == "virtualRanking" || test.scenario == "scrollPerformance" {
                     func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
-                    guard let table = descendants(host).compactMap({ $0 as? NSTableView }).first,
-                          table.numberOfRows >= 1000 else { throw CaptureError.blankFrame("long ranking missing") }
+                    guard let table = descendants(host).compactMap({ $0 as? NSTableView }).first else { throw CaptureError.blankFrame("long ranking missing") }
+                    if test.scenario == "virtualRanking", table.numberOfRows != 20 + LeaderboardView.distributionRowCount {
+                        throw CaptureError.blankFrame("initial ranking must contain 20 rows")
+                    }
                     func realizedRows() -> Int {
                         var count = 0
                         table.enumerateAvailableRowViews { _, _ in count += 1 }
@@ -692,6 +694,14 @@ enum NativeVisualCapture {
                     }
                     let initial = realizedRows()
                     guard initial > 0, initial < 100 else { throw CaptureError.blankFrame("table eagerly created row views") }
+                    let target = (test.rowCount ?? 1000) + LeaderboardView.distributionRowCount
+                    while table.numberOfRows < target {
+                        let previous = table.numberOfRows
+                        table.scrollRowToVisible(previous - 1)
+                        try await Task.sleep(for: .milliseconds(100))
+                        host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                        guard table.numberOfRows > previous else { throw CaptureError.blankFrame("scroll did not load the next batch") }
+                    }
                     table.scrollRowToVisible(table.numberOfRows - 1)
                     try await Task.sleep(for: .milliseconds(300))
                     host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
@@ -736,13 +746,18 @@ enum NativeVisualCapture {
                         [view] + view.subviews.flatMap(descendants)
                     }
                     guard let table = descendants(host).compactMap({ $0 as? NSTableView }).first,
-                          table.numberOfRows == 31 + LeaderboardView.distributionRowCount,
+                          table.numberOfRows == 20 + LeaderboardView.distributionRowCount,
                           let scroll = table.enclosingScrollView,
                           scroll.hasVerticalScroller,
                           let button = descendants(host).compactMap({ $0 as? NSButton }).first(where: {
                               $0.identifier?.rawValue == "leaderboard-back-to-top"
                           }) else { throw CaptureError.blankFrame("full ranking table or scroll control missing") }
                     let viewport = scroll.frame.size
+                    table.scrollRowToVisible(table.numberOfRows - 1)
+                    try await Task.sleep(for: .milliseconds(300))
+                    guard table.numberOfRows == 31 + LeaderboardView.distributionRowCount else {
+                        throw CaptureError.blankFrame("scroll did not load the remaining ranking")
+                    }
                     table.scrollRowToVisible(table.numberOfRows - 1)
                     try await Task.sleep(for: .milliseconds(300))
                     host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
