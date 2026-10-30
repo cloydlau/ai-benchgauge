@@ -4803,6 +4803,90 @@
       "selectedBoards": [
         "artificialAnalysisCodingAgent"
       ]
+    },
+    {
+      "id": "header-variants-en-600",
+      "language": "en",
+      "width": 600,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "normal",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText"
+      ]
+    },
+    {
+      "id": "header-variants-en-950",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "normal",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText"
+      ]
+    },
+    {
+      "id": "header-variants-zh-600",
+      "language": "zh",
+      "width": 600,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "normal",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText"
+      ]
+    },
+    {
+      "id": "header-variants-zh-950",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "normal",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText"
+      ]
+    },
+    {
+      "id": "header-variants-zh-Hant-600",
+      "language": "zh-Hant",
+      "width": 600,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "normal",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText"
+      ]
+    },
+    {
+      "id": "header-variants-zh-Hant-950",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "normal",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText"
+      ]
     }
   ],
   "quotaScenarios": {

@@ -43,7 +43,7 @@
         <view class="board-card source-{{card.index}}" style="{{card.themeStyle}}">
           <view class="metadata">
             <button class="summary" data-kind="{{card.kind}}" bindtap="sourceHelp">{{card.summary}}</button>
-            <view wx:if="{{card.variantLabels && card.variantLabels.length > 1}}" class="times" aria-role="button" bindtap="timeHelp" aria-label="{{card.timeAccessibility}} · {{labels.timeExplanationTitle}}" aria-busy="{{card.loading}}">
+            <view class="times" aria-role="button" bindtap="timeHelp" aria-label="{{card.timeAccessibility}} · {{labels.timeExplanationTitle}}" aria-busy="{{card.loading}}">
               <view class="time-copy">
                 <view class="time-row {{card.isSourceTime ? 'time-source' : 'time-fetched'}}"><text class="time-value">{{card.time}}</text><view class="time-caption {{card.loading ? 'time-caption-loading' : ''}}"><text class="time-label">{{card.timeLabel}}</text><view wx:if="{{card.loading}}" class="time-loading" aria-hidden="true" /></view></view>
                 <view wx:if="{{card.polishing}}" class="time-row time-polish {{card.isSourceTime ? 'time-source' : 'time-fetched'}}" aria-hidden="true"><text class="time-value">{{card.time}}</text><view class="time-caption"><text class="time-label">{{card.timeLabel}}</text></view></view>
@@ -61,12 +61,6 @@
             <picker wx:if="{{card.variantLabels && card.variantLabels.length > 1}}" class="variant-picker" mode="selector" range="{{card.variantLabels}}" value="{{card.variantIndex}}" data-base="{{card.variantBase}}" bindchange="selectVariant">
               <view class="variant-label"><text class="variant-text">{{card.variantLabels[card.variantIndex]}}</text><van-icon name="arrow-down" size="9px" /></view>
             </picker>
-            <view wx:else class="times" aria-role="button" bindtap="timeHelp" aria-label="{{card.timeAccessibility}} · {{labels.timeExplanationTitle}}" aria-busy="{{card.loading}}">
-              <view class="time-copy">
-                <view class="time-row {{card.isSourceTime ? 'time-source' : 'time-fetched'}}"><text class="time-value">{{card.time}}</text><view class="time-caption {{card.loading ? 'time-caption-loading' : ''}}"><text class="time-label">{{card.timeLabel}}</text><view wx:if="{{card.loading}}" class="time-loading" aria-hidden="true" /></view></view>
-                <view wx:if="{{card.polishing}}" class="time-row time-polish {{card.isSourceTime ? 'time-source' : 'time-fetched'}}" aria-hidden="true"><text class="time-value">{{card.time}}</text><view class="time-caption"><text class="time-label">{{card.timeLabel}}</text></view></view>
-              </view>
-            </view>
             <button id="model-filter-{{card.kind}}" class="model-filter-toggle" data-kind="{{card.kind}}" bindtap="openModelSearch" aria-label="{{grouping === 'company' ? labels.searchCompanies : labels.searchModels}}"><van-icon name="search" size="13px" /></button>
             </view>
             </view>

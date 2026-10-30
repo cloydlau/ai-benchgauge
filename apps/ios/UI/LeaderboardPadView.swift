@@ -1369,7 +1369,7 @@ private struct PadBoardCard: View {
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("source-help-\(kind.rawValue)")
                     .frame(maxWidth: .infinity, alignment: .leading)
-                if kind.mediaVariants.count > 1 { timestamp }
+                timestamp
             }
         }.font(.caption)
     }
@@ -1415,7 +1415,6 @@ private struct PadBoardCard: View {
     private var sourceHeadingActions: some View {
         HStack(alignment: .center, spacing: 2) {
             if kind.mediaVariants.count > 1 { variantMenu }
-            else { timestamp }
             if !isImage {
                 Button(action: openModelSearch) {
                     Image(systemName: "magnifyingglass")

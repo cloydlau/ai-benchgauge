@@ -672,8 +672,11 @@ sealed partial class MainWindow
         var pair = VisibleBoards();
         Action refreshMetricRows = () => { };
         var table = new Grid();
+        table.RowDefinitions.Add(new RowDefinition { Height = new GridLength(18) });
         table.RowDefinitions.Add(new RowDefinition { Height = new GridLength(34) });
         table.RowDefinitions.Add(new RowDefinition());
+        var timeRow = TableGrid(pair.Length); timeRow.Background = Tint(panelDark ? "#29292B" : "#FCFCFC");
+        table.Children.Add(timeRow);
         var headings = TableGrid(pair.Length); headings.Background = Tint(panelDark ? "#29292B" : "#FCFCFC"); headings.Height = 34;
         AddCell(headings, Caption(Tr("Rank", "排名", "排名"), PanelInk) is { } rank ? Center(rank) : throw new InvalidOperationException(), 0);
         for (var i = 0; i < pair.Length; i++)
@@ -759,9 +762,11 @@ sealed partial class MainWindow
                     CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
                     new Typeface(summary.FontFamily, FontStyles.Normal, weight, FontStretches.Normal),
                     size, PanelInk, VisualTreeHelper.GetDpi(this).PixelsPerDip).WidthIncludingTrailingWhitespace;
-                var title = BoardTitle(board);
+                var hasVariants = Preferences.MediaVariants(board.Kind).Length > 1;
+                var title = hasVariants ? (board.Kind.StartsWith("artificialAnalysis", StringComparison.Ordinal) ? "Artificial Analysis" : "Arena") : BoardTitle(board);
                 var available = summary.ActualWidth;
-                var lens = SourceLens(board) + " · ";
+                var sourceLens = SourceLens(board);
+                var lens = hasVariants && sourceLens == MediaVariantTitle(board.Kind) ? "" : sourceLens + " · ";
                 var lensWidth = Measure(lens, 10, FontWeights.Normal);
                 if (available > 0 && lensWidth + Measure(title, 11, FontWeights.SemiBold) > available)
                     title = title.Replace("Artificial Analysis", "AA", StringComparison.Ordinal);
@@ -778,7 +783,27 @@ sealed partial class MainWindow
             summary.MouseLeftButtonUp += (_, _) => ShowInformationWindow(CreateSourceDetailsWindow(board));
             var heading = new Grid();
             heading.ColumnDefinitions.Add(new ColumnDefinition());
-            heading.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            if (Preferences.MediaVariants(board.Kind).Length > 1)
+            {
+                heading.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var variant = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                variant.Children.Add(new TextBlock { Text = MediaVariantTitle(board.Kind), FontSize = 9,
+                    TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 85, VerticalAlignment = VerticalAlignment.Center });
+                variant.Children.Add(new TextBlock { Text = " ▾", FontSize = 9, VerticalAlignment = VerticalAlignment.Center });
+                var variantButton = new Button { Content = variant, Background = PanelSurface, BorderThickness = new Thickness(0),
+                    Height = 20, VerticalAlignment = VerticalAlignment.Center,
+                    Padding = new Thickness(5, 0, 5, 0), Foreground = PanelMuted, Cursor = Cursors.Hand,
+                    ToolTip = MediaVariantTitle(board.Kind) };
+                var menu = new ContextMenu();
+                foreach (var option in Preferences.MediaVariants(board.Kind))
+                {
+                    var choice = new MenuItem { Header = MediaVariantTitle(option), IsCheckable = true, IsChecked = option == board.Kind };
+                    choice.Click += async (_, _) => { if (!prefs.SelectMediaVariant(board.Kind, option)) return; SaveFrame(); Render(); await Refresh("refreshBoardsIfStale"); };
+                    menu.Items.Add(choice);
+                }
+                variantButton.Click += (_, _) => { menu.PlacementTarget = variantButton; menu.IsOpen = true; };
+                Grid.SetColumn(variantButton, 1); heading.Children.Add(variantButton);
+            }
             var selectedTime = BoardTime(board);
             var time = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 5, 0) };
             var sourceTime = Caption(selectedTime.Text, selectedTime.IsSourceTime ? BoardTint(board.Kind) : PanelMuted, 8.5, numeric: true);
@@ -794,7 +819,8 @@ sealed partial class MainWindow
             var timeButton = new Button { Content = time, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Padding = new Thickness(0), Cursor = Cursors.Hand };
             timeButton.Click += (_, _) => ShowTimeExplanation();
             heading.Children.Add(summary);
-            Grid.SetColumn(timeButton, 1); heading.Children.Add(timeButton);
+            timeButton.HorizontalAlignment = HorizontalAlignment.Right;
+            Grid.SetColumn(timeButton, column); Grid.SetColumnSpan(timeButton, 4); timeRow.Children.Add(timeButton);
             if (i > 0)
             {
                 var sourceHeading = new Grid();
@@ -808,7 +834,7 @@ sealed partial class MainWindow
             AddCell(headings, OpennessPicker(board), column + 2);
             AddCell(headings, CountryPicker(board), column + 1);
         }
-        var outline = new Border { Child = headings, BorderBrush = PanelLine, BorderThickness = new Thickness(1, 1, 1, 1) }; Grid.SetRow(outline, 0); table.Children.Add(outline);
+        var outline = new Border { Child = headings, BorderBrush = PanelLine, BorderThickness = new Thickness(1, 1, 1, 1) }; Grid.SetRow(outline, 1); table.Children.Add(outline);
         var unsearched = pair.Select(board => {
             var rows = board.Entries.Where(entry => prefs.Countries.GetValueOrDefault(board.Kind, "") is { } filter && (filter.Length == 0 || (filter == "unknown" ? entry.Country is null : entry.Country == filter)));
             if (IsPriceBoard(board.Kind)) return (priceAscending ? rows.OrderBy(e => e.Score).ThenBy(e => e.OutputPriceUSD) : rows.OrderByDescending(e => e.Score).ThenByDescending(e => e.OutputPriceUSD)).ThenBy(e => e.Name, StringComparer.Ordinal).ThenBy(e => e.DetailID, StringComparer.Ordinal).Select((entry, index) => entry with { Rank = index + 1, RankChange = null }).ToArray();
@@ -910,7 +936,7 @@ sealed partial class MainWindow
             empty.HorizontalAlignment = HorizontalAlignment.Center; empty.VerticalAlignment = VerticalAlignment.Top; empty.Margin = new Thickness(0, 40, 0, 0); empty.IsHitTestVisible = false;
             viewport.Children.Add(empty);
         }
-        Grid.SetRow(viewport, 1); table.Children.Add(viewport);
+        Grid.SetRow(viewport, 2); table.Children.Add(viewport);
         // A resizable desktop window can be narrower than three readable source
         // groups. Keep every selected source reachable with one shared horizontal
         // viewport, so the native header and body move together.
@@ -921,25 +947,7 @@ sealed partial class MainWindow
             boardTable = new ScrollViewer { Content = table, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, VerticalContentAlignment = VerticalAlignment.Stretch };
         }
-        if (!pair.Any(board => Preferences.MediaVariants(board.Kind).Length > 1)) return boardTable;
-        var wrapper = new DockPanel();
-        var selectors = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(8, 3, 8, 3) };
-        foreach (var board in pair.Where(board => Preferences.MediaVariants(board.Kind).Length > 1))
-        {
-            var label = (board.Kind.StartsWith("artificialAnalysis") ? "AA" : "Arena") + " · " + MediaVariantTitle(board.Kind);
-            var button = QuietButton(label + " ▾", () => { });
-            var menu = new ContextMenu();
-            foreach (var option in Preferences.MediaVariants(board.Kind))
-            {
-                var choice = new MenuItem { Header = MediaVariantTitle(option), IsCheckable = true, IsChecked = option == board.Kind };
-                choice.Click += async (_, _) => { if (!prefs.SelectMediaVariant(board.Kind, option)) return; SaveFrame(); Render(); await Refresh("refreshBoardsIfStale"); };
-                menu.Items.Add(choice);
-            }
-            button.Click += (_, _) => { menu.PlacementTarget = button; menu.IsOpen = true; };
-            selectors.Children.Add(button);
-        }
-        DockPanel.SetDock(selectors, Dock.Top); wrapper.Children.Add(selectors); wrapper.Children.Add(boardTable);
-        return wrapper;
+        return boardTable;
     }
 
     string MediaVariantTitle(string kind) => kind switch {

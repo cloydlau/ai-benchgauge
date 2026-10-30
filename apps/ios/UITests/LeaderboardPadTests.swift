@@ -2271,14 +2271,9 @@ final class TimestampLoadingLayoutTests: XCTestCase {
                     let heading = app.staticTexts["source-heading-\(kind)"]
                     XCTAssertTrue(time.waitForExistence(timeout: 5))
                     Thread.sleep(forTimeInterval: 0.4)
-                    if dark {
-                        XCTAssertGreaterThanOrEqual(time.frame.minY, heading.frame.maxY)
-                        XCTAssertEqual(time.frame.minX, heading.frame.minX, accuracy: 1,
-                            "English timestamps keep their fixed second row while loading")
-                    } else {
-                        XCTAssertGreaterThanOrEqual(time.frame.minX, heading.frame.maxX)
-                        XCTAssertEqual(heading.frame.midY, time.frame.midY, accuracy: 1)
-                    }
+                    XCTAssertLessThanOrEqual(time.frame.maxY, heading.frame.minY,
+                        "Timestamp stays above the table heading while loading")
+                    XCTAssertGreaterThan(time.frame.midX, heading.frame.midX)
                     XCTAssertEqual(time.value as? String ?? "", loading ? (dark ? "Loading" : "加载中") : "")
                     XCTAssertTrue(app.buttons["name-\(kind)-1"].exists, "Cached rows remain visible while loading")
                     let geometry = CGRect(x: time.frame.minX - heading.frame.minX,
@@ -2339,12 +2334,8 @@ final class UsageTimestampTests: XCTestCase {
                 let heading = app.staticTexts["source-heading-\(kind)"]
                 XCTAssertTrue(time.waitForExistence(timeout: 5))
                 XCTAssertEqual(time.label, expected, "The header uses retrieval time, not the statistics day")
-                if dark {
-                    XCTAssertGreaterThanOrEqual(time.frame.minY, heading.frame.maxY)
-                    XCTAssertEqual(time.frame.minX, heading.frame.minX, accuracy: 1)
-                } else {
-                    XCTAssertEqual(time.frame.midY, heading.frame.midY, accuracy: 1)
-                }
+                XCTAssertLessThanOrEqual(time.frame.maxY, heading.frame.minY)
+                XCTAssertGreaterThan(time.frame.midX, heading.frame.midX)
                 let header = XCTAttachment(screenshot: app.screenshot())
                 header.name = "usage-refresh-\(dark ? "en-dark" : "zh-light")-\(kind)-header"
                 header.lifetime = .keepAlways; add(header)

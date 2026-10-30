@@ -1,4 +1,5 @@
 import test from 'node:test'
+import { readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
 import { boards, copy, text, mobileBoardHeading } from '../src/core/catalog.js'
 import { normalizeBoard, visibleRows, isAAImageCost, isAAVideoCost } from '../src/core/leaderboard.js'
@@ -87,4 +88,15 @@ test('variant exports keep the timestamp in metadata and the selected task in th
   assert.equal(labels.find(command => command[1] === 'Image to video')[3], 223)
   assert.ok(labels.some(command => command[1] === 'AA'))
   assert.ok(!labels.some(command => command[1] === 'Artificial Analysis'))
+})
+
+
+test('every mobile board has one timestamp above the header, independent of variants', () => {
+  const template = readFileSync(new URL('../src/pages/leaderboard/index.wxml', import.meta.url), 'utf8')
+  const metadata = template.indexOf('<view class="metadata">')
+  const timestamp = template.indexOf('<view class="times"', metadata)
+  const header = template.indexOf('<view id="head-anchor-', metadata)
+  assert.ok(metadata >= 0 && timestamp > metadata && timestamp < header)
+  assert.equal((template.match(/class="times"/g) || []).length, 1)
+  assert.match(template.slice(timestamp, header), /bindtap="timeHelp"/)
 })

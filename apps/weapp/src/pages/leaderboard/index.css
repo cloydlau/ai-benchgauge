@@ -117,9 +117,9 @@
 /* Rank text starts at 4rpx margin + 2rpx padding + (44rpx - 2 × 19rpx) / 2. */
 .metadata { display: flex; align-items: center; gap: 16rpx; padding: 24rpx 6rpx 12rpx 9rpx; }
 .summary { flex: 1; min-width: 0; padding: 0; color: var(--muted); text-align: left; font-size: 22rpx; line-height: 1.5; }
-.variant-picker { flex: none; max-width: 180rpx; color: var(--muted); font-size: 18rpx; }
-.variant-label { display: flex; align-items: center; gap: 4rpx; white-space: nowrap; }
-.variant-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.variant-picker { flex: 0 1 auto; min-width: 0; max-width: 100%; color: var(--muted); font-size: 18rpx; }
+.variant-label { display: flex; align-items: center; gap: 4rpx; }
+.variant-text { min-width: 0; white-space: normal; word-break: break-all; }
 /* Match the small timestamp's visible glyph center to the source heading.
    Apply the same correction to the date, caption and reflection. */
 .times { position: relative; top: .1em; color: var(--muted); display: flex; justify-content: flex-start; white-space: nowrap; gap: 8rpx; flex-shrink: 0; text-align: left; align-items: center; font-size: 18rpx; line-height: 1.25; }
@@ -160,7 +160,7 @@
 .table-head-pinned { padding-bottom: 0; margin-bottom: 0; }
 .table-head-content { min-height: 28px; opacity: 1; transition: opacity .22s ease; }
 .model-heading { display: flex; align-items: center; justify-content: flex-start; min-width: 0; gap: 2rpx; }
-.source-heading-actions { display: flex; align-items: center; gap: 2rpx; flex-shrink: 0; }
+.source-heading-actions { display: flex; align-items: center; gap: 2rpx; flex: 0 1 auto; min-width: 0; max-width: 100%; }
 .source-heading-details { display: flex; flex-wrap: wrap; align-items: center; min-width: 0; gap: 4rpx 12rpx; }
 .model-heading .source-heading { flex: 0 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .model-filter-toggle { display: flex; flex-shrink: 0; align-items: center; justify-content: flex-start; box-sizing: border-box; width: 28px; min-height: 28px; padding: 0 0 0 3px; color: var(--source-accent); }

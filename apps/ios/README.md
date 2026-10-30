@@ -66,7 +66,7 @@ Simulator checks cover portrait/landscape. Before distribution, also verify on a
 
 ### English mobile table headings (2026-10-26)
 
-English fixes the name-column heading to two rows: the board name leads the first row; its timestamp and search button occupy the second. iPhone and iPad use the same structure in both model and company modes, including pinned headers. Chinese keeps its existing horizontal arrangement. The mini-program applies the same English structure. Desktop keeps its existing measured table columns and separate native search; image exports retain their independent full titles and metadata without search buttons.
+Every leaderboard places its timestamp at the right of the source description above the table header. iPhone and iPad use the same placement in both model and company modes; the timestamp scrolls with the description while the header can pin. Search and variant controls stay in the header, and image exports retain the timestamp above it.
 
 The mini-program production build passed. Official DevTools runtime measurements confirm separate English rows, equal leading edges and aligned time/search centers in ordinary and pinned model/company headers; search opens normally. Four native iPhone 18 Pro / iOS 27.0 (3×) regressions passed: English/light and Chinese/dark pinned-header centering with search/keyboard interaction, independent company search, and Chinese/light plus English/dark source metadata before/during/after refresh. iPad Pro 11-inch M5 / iPadOS 27.0 (2×) passed the same source-metadata layout regression. This run covers portrait; the earlier wordmark run's landscape captures do not verify this new header layout. Native originals and result bundles stay in ignored `work/mobile-brand-parity/`.
 

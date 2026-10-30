@@ -171,27 +171,6 @@ struct LeaderboardView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            if visibleKinds.contains(where: { $0.mediaVariants.count > 1 }) {
-                HStack(spacing: 12) {
-                    Spacer()
-                    ForEach(visibleKinds.filter { $0.mediaVariants.count > 1 }, id: \.self) { kind in
-                        if screenshot.isCapturing {
-                            Text(kind.sourcePrefix + " · " + kind.mediaVariantTitle(language: language))
-                        } else {
-                            Menu {
-                                ForEach(kind.mediaVariants, id: \.self) { option in
-                                    Button { state.selectMediaVariant(option, replacing: kind) } label: {
-                                        if option == kind { Label(option.mediaVariantTitle(language: language), systemImage: "checkmark") }
-                                        else { Text(option.mediaVariantTitle(language: language)) }
-                                    }
-                                }
-                            } label: {
-                                HStack(spacing: 4) { Text(kind.sourcePrefix + " · " + kind.mediaVariantTitle(language: language)); Image(systemName: "chevron.down") }
-                            }.menuStyle(.borderlessButton)
-                        }
-                    }
-                }.font(.caption).padding(.horizontal, 12).padding(.vertical, 5)
-            }
             table.overlay {
                 if state.selectedCategory == .usage, visibleKinds.allSatisfy({ state.snapshot.boards[$0]?.entries.isEmpty ?? true }) {
                     VStack(spacing: 10) {
@@ -599,6 +578,7 @@ struct LeaderboardView: View {
                     sourceDetails: LeaderboardPresentation.sourceHelp(kind, language: language, board: state.snapshot.boards[kind], includesAgreement: true),
                     country: state.countryFilters[kind] ?? .all,
                     countryOptions: countryOptions(for: kind), openness: state.opennessFilters[kind] ?? .all,
+                    selectVariant: { state.selectMediaVariant($0, replacing: kind) },
                     costOrder: kind != .openRouterUsage && state.costOrders.contains(kind), speedOrder: kind != .openRouterUsage && state.speedOrders.contains(kind), priceAscending: state.priceAscending, togglePrice: { state.priceAscending.toggle() }, selectMetric: { metric in
                         state.costOrders.remove(kind); state.speedOrders.remove(kind)
                         if metric == 1 { state.costOrders.insert(kind) }
@@ -1149,6 +1129,7 @@ private struct BoardHeaderConfiguration {
     let country: LeaderboardCountryFilter
     let countryOptions: [LeaderboardCountryFilter]
     let openness: LeaderboardOpennessFilter
+    let selectVariant: (LeaderboardKind) -> Void
     let costOrder: Bool
     let speedOrder: Bool
     let priceAscending: Bool
@@ -1421,7 +1402,7 @@ private struct TableChrome: NSViewRepresentable {
 }
 
 private final class SourceTableHeaderView: NSTableHeaderView {
-    static let height: CGFloat = 34
+    static let height: CGFloat = 52
     // Keep the pinned labels readable even when the system makes table chrome vibrant.
     override var allowsVibrancy: Bool { false }
     override var isOpaque: Bool { false }
@@ -1435,6 +1416,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
     private var polishSchedules: [LeaderboardKind: TimestampPolishSchedule] = [:]
     private var polishRevisions: [LeaderboardKind: Int] = [:]
     private var timeRects: [LeaderboardKind: NSRect] = [:]
+    private var variantRects: [LeaderboardKind: NSRect] = [:]
     private var polishTimer: Timer?
     private var guideTimer: Timer?
     private var guidePending: [LeaderboardKind: TimeInterval] = [:]
@@ -1603,6 +1585,25 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         guard !showsSkeleton else { return }
         let point = convert(event.locationInWindow, from: nil)
         let column = column(at: point)
+        if timeRects.values.contains(where: { $0.contains(point) }), let window {
+            let alert = NSAlert()
+            alert.messageText = LeaderboardPresentation.sourceTimeExplanationTitle(language: language)
+            alert.informativeText = LeaderboardPresentation.sourceTimeExplanation(language: language)
+            alert.addButton(withTitle: "OK")
+            alert.beginSheetModal(for: window)
+            return
+        }
+        if let board = boards.first(where: { variantRects[$0.kind]?.contains(point) == true }) {
+            menuKind = board.kind
+            let menu = NSMenu()
+            for (index, option) in board.kind.mediaVariants.enumerated() {
+                let item = NSMenuItem(title: option.mediaVariantTitle(language: language), action: #selector(selectVariant(_:)), keyEquivalent: "")
+                item.target = self; item.tag = index; item.state = option == board.kind ? .on : .off
+                menu.addItem(item)
+            }
+            NSMenu.popUpContextMenu(menu, with: event, for: self)
+            return
+        }
         if column > 0, (column - 1) % 4 == 3, boards.indices.contains((column - 1) / 4) {
             let board = boards[(column - 1) / 4]
             if board.kind.isPrice { board.togglePrice(); return }
@@ -1622,14 +1623,6 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         }
         if column > 0, (column - 1) % 4 == 0, boards.indices.contains((column - 1) / 4) {
             let board = boards[(column - 1) / 4]
-            if timeRects[board.kind]?.contains(point) == true, let window {
-                let alert = NSAlert()
-                alert.messageText = LeaderboardPresentation.sourceTimeExplanationTitle(language: language)
-                alert.informativeText = LeaderboardPresentation.sourceTimeExplanation(language: language)
-                alert.addButton(withTitle: "OK")
-                alert.beginSheetModal(for: window)
-                return
-            }
             if let window {
                 let content = board.sourceDetails + "\n\n" + board.kind.sourceURL.absoluteString
                 let alert = SourceDetailsAlert.make(title: LeaderboardPresentation.columnTitle(board.kind, language: language),
@@ -1693,6 +1686,13 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         super.resetCursorRects()
         guard !showsSkeleton else { return }
         for rect in timeRects.values { addCursorRect(rect, cursor: .pointingHand) }
+        for rect in variantRects.values { addCursorRect(rect, cursor: .pointingHand) }
+    }
+
+    @objc private func selectVariant(_ sender: NSMenuItem) {
+        guard let menuKind, let board = boards.first(where: { $0.kind == menuKind }),
+              board.kind.mediaVariants.indices.contains(sender.tag) else { return }
+        board.selectVariant(board.kind.mediaVariants[sender.tag])
     }
 
     @objc private func selectMetric(_ sender: NSMenuItem) {
@@ -1720,8 +1720,11 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         bounds.fill(using: .copy)
 
         timeRects.removeAll(keepingCapacity: true)
+        variantRects.removeAll(keepingCapacity: true)
         for index in tableView.tableColumns.indices where !tableView.tableColumns[index].isHidden {
-            let rect = headerRect(ofColumn: index)
+            let fullRect = headerRect(ofColumn: index)
+            let rect = NSRect(x: fullRect.minX, y: isFlipped ? fullRect.minY + 18 : fullRect.minY,
+                width: fullRect.width, height: max(0, fullRect.height - 18))
             guard index > 0, boards.indices.contains((index - 1) / 4) else {
                 tableView.tableColumns[index].headerCell.draw(withFrame: rect, in: self)
                 continue
@@ -1748,7 +1751,9 @@ private final class SourceTableHeaderView: NSTableHeaderView {
                     time: board.time, tint: tint,
                     polishPhase: board.polishReady ? (fixedPolishPhase ?? polishSchedules[board.kind]?.phase(at: ProcessInfo.processInfo.systemUptime)) : nil,
                     in: NSRect(x: rect.minX + rankInset, y: rect.minY,
-                        width: max(0, rect.width - rankInset), height: rect.height), kind: board.kind)
+                        width: max(0, rect.width - rankInset), height: rect.height),
+                    timeArea: NSRect(x: fullRect.minX, y: isFlipped ? fullRect.minY : fullRect.maxY - 18,
+                        width: max(0, headerRect(ofColumn: index + 3).maxX - fullRect.minX), height: 18), kind: board.kind)
             case 1: drawCountryHeader(selected: board.country, in: rect)
             case 2: drawFilterHeader(title: ModelOpenness.columnTitle(language: language), active: board.openness != .all, in: rect)
             case 3 where board.kind == .openRouterUsage:
@@ -1873,6 +1878,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         tint: NSColor,
         polishPhase: Double?,
         in rect: NSRect,
+        timeArea: NSRect,
         kind: LeaderboardKind
     ) {
         let timeFont = NSFont.monospacedDigitSystemFont(ofSize: 8, weight: time.isSourceTime ? .semibold : .regular)
@@ -1880,18 +1886,13 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             .foregroundColor: time.isSourceTime ? tint : NSColor.secondaryLabelColor,
             .underlineStyle: NSUnderlineStyle.single.rawValue]
         let timeSize = (time.text as NSString).size(withAttributes: timeAttributes)
-        let timeWidth = ceil(timeSize.width)
         let titleRect = NSTableHeaderCell(textCell: "").titleRect(forBounds: rect)
         let titleFont = NSFont.systemFont(ofSize: 11, weight: .semibold)
-        let compactTitle = title.replacingOccurrences(of: "Artificial Analysis", with: "AA")
-        let compactTitleWidth = (compactTitle as NSString).size(withAttributes: [.font: titleFont]).width
-        // Narrow three-board views must retain the source identity. The lower
-        // line still contains just one selected timestamp, never both dates.
-        let stacked = rect.width < min(45, compactTitleWidth) + timeWidth + 18
-        let timeY = stacked ? (isFlipped ? rect.maxY - timeSize.height - 3 : rect.minY + 3)
-            : titleRect.midY - timeSize.height / 2
-        let timeOrigin = NSPoint(x: rect.maxX - timeSize.width - 5, y: timeY)
-        timeRects[kind] = NSRect(origin: timeOrigin, size: timeSize).insetBy(dx: -3, dy: -3).intersection(rect)
+        let sourceTitle = kind.mediaVariants.count > 1 ? kind.sourcePrefix : title
+        let compactTitle = sourceTitle.replacingOccurrences(of: "Artificial Analysis", with: "AA")
+        let timeY = timeArea.midY - timeSize.height / 2
+        let timeOrigin = NSPoint(x: timeArea.maxX - timeSize.width - 5, y: timeY)
+        timeRects[kind] = NSRect(origin: timeOrigin, size: timeSize).insetBy(dx: -3, dy: -3).intersection(timeArea)
         (time.text as NSString).draw(at: timeOrigin, withAttributes: timeAttributes)
         if let polishPhase, let context = NSGraphicsContext.current?.cgContext {
             context.saveGState()
@@ -1910,14 +1911,40 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             context.endTransparencyLayer()
             context.restoreGState()
         }
-        let nameRect = NSRect(x: rect.minX, y: rect.minY, width: stacked ? rect.width : max(0, rect.width - timeWidth - 8), height: rect.height)
+        var nameRect = rect
+        if kind.mediaVariants.count > 1 {
+            let variantFont = NSFont.systemFont(ofSize: 9)
+            let variantText = kind.mediaVariantTitle(language: language)
+            let width = min(ceil((variantText as NSString).size(withAttributes: [.font: variantFont]).width) + 20,
+                            max(0, rect.width - 47))
+            if width > 0 {
+                let variantRect = NSRect(x: rect.maxX - width, y: rect.minY, width: width, height: rect.height)
+                variantRects[kind] = variantRect
+                let dark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                let background = dark ? NSColor(calibratedRed: 39 / 255, green: 46 / 255, blue: 56 / 255, alpha: 1)
+                    : NSColor(calibratedRed: 231 / 255, green: 234 / 255, blue: 240 / 255, alpha: 1)
+                background.setFill()
+                let backgroundRect = NSRect(x: variantRect.minX, y: variantRect.midY - 10, width: width, height: 20)
+                NSBezierPath(roundedRect: backgroundRect, xRadius: 5, yRadius: 5).fill()
+                let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byTruncatingTail
+                let textHeight = ceil(variantFont.ascender - variantFont.descender + variantFont.leading)
+                (variantText as NSString).draw(in: NSRect(x: variantRect.minX + 5, y: titleRect.midY - textHeight / 2,
+                    width: max(0, width - 19), height: textHeight), withAttributes: [.font: variantFont,
+                    .foregroundColor: NSColor.secondaryLabelColor, .paragraphStyle: paragraph])
+                ("▾" as NSString).draw(at: NSPoint(x: variantRect.maxX - 10, y: titleRect.midY - textHeight / 2),
+                    withAttributes: [.font: variantFont, .foregroundColor: NSColor.secondaryLabelColor])
+                nameRect.size.width = max(0, rect.width - width)
+            }
+        }
         let summaryFont = NSFont.systemFont(ofSize: 10)
         let available = max(0, nameRect.width - 10)
-        let titleWidth = (title as NSString).size(withAttributes: [.font: titleFont]).width
-        let explanation = NSAttributedString(string: summary.emphasis + " · ",
+        let titleWidth = (sourceTitle as NSString).size(withAttributes: [.font: titleFont]).width
+        let explanationText = kind.mediaVariants.count > 1 && summary.emphasis == kind.mediaVariantTitle(language: language)
+            ? "" : summary.emphasis + " · "
+        let explanation = NSAttributedString(string: explanationText,
             attributes: [.font: summaryFont, .foregroundColor: tint])
         // Keep the introduction first while retaining the source in narrow columns.
-        let visibleTitle = explanation.size().width + titleWidth > available ? compactTitle : title
+        let visibleTitle = explanation.size().width + titleWidth > available ? compactTitle : sourceTitle
         let text = NSMutableAttributedString(string: visibleTitle, attributes: [
             .font: titleFont, .foregroundColor: tint
         ])
@@ -1927,8 +1954,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineBreakMode = .byTruncatingTail
         text.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: text.length))
-        let nameY = stacked ? (isFlipped ? rect.minY + 3 : rect.maxY - text.size().height - 3)
-            : titleRect.midY - text.size().height / 2
+        let nameY = titleRect.midY - text.size().height / 2
         text.draw(in: NSRect(x: nameRect.minX + 5, y: nameY,
             width: available, height: ceil(text.size().height)))
     }
