@@ -52,11 +52,31 @@ public sealed class Preferences
     string category = "general";
     public string Category { get => category; set => category = value == "price" ? "usage" : value; }
     public Dictionary<string, string[]> BoardSelections { get; set; } = [];
+    public Dictionary<string, string> MediaSelections { get; set; } = [];
+    public static string[] MediaVariants(string kind) => kind switch {
+        "arenaText" or "arenaTextUncontrolled" => ["arenaText", "arenaTextUncontrolled"],
+        "codeArenaWebDev" or "codeArenaImageToWebDev" => ["codeArenaWebDev", "codeArenaImageToWebDev"],
+        "artificialAnalysisTextToImage" or "artificialAnalysisImageEditing" => ["artificialAnalysisTextToImage", "artificialAnalysisImageEditing"],
+        "arenaTextToImage" or "arenaImageEditing" or "arenaMultiImageEditing" => ["arenaTextToImage", "arenaImageEditing", "arenaMultiImageEditing"],
+        "artificialAnalysisTextToVideo" or "artificialAnalysisImageToVideo" or "artificialAnalysisVideoEditing" => ["artificialAnalysisTextToVideo", "artificialAnalysisImageToVideo", "artificialAnalysisVideoEditing"],
+        "arenaTextToVideo" or "arenaImageToVideo" or "arenaVideoEditing" => ["arenaTextToVideo", "arenaImageToVideo", "arenaVideoEditing"],
+        "artificialAnalysisSpeechProviderVoice" or "artificialAnalysisSpeechControlledVoice" or "artificialAnalysisSpeechAgent" or "artificialAnalysisSpeechToText" or "artificialAnalysisSpeechToTextStreaming" => ["artificialAnalysisSpeechProviderVoice", "artificialAnalysisSpeechControlledVoice", "artificialAnalysisSpeechAgent", "artificialAnalysisSpeechToText", "artificialAnalysisSpeechToTextStreaming"],
+        _ => []
+    };
+    public bool SelectMediaVariant(string current, string selected)
+    {
+        var variants = MediaVariants(current);
+        if (variants.Length == 0 || !variants.Contains(selected) || current == selected) return false;
+        MediaSelections ??= [];
+        if (selected == variants[0]) MediaSelections.Remove(variants[0]);
+        else MediaSelections[variants[0]] = selected;
+        return true;
+    }
     public HashSet<string> MetricGuidesSeen { get; set; } = [];
     public bool HasSeenMetricGuide(string kind) => MetricGuidesSeen?.Contains(kind) == true;
     public bool MarkMetricGuideSeen(string kind)
     {
-        if (kind is not ("openRouterUsage" or "artificialAnalysis" or "artificialAnalysisCodingAgent" or "valsSWEbench" or "artificialAnalysisTextToImage" or "artificialAnalysisTextToVideo")) return false;
+        if (kind is not ("openRouterUsage" or "artificialAnalysis" or "artificialAnalysisCodingAgent" or "valsSWEbench" or "artificialAnalysisTextToImage" or "artificialAnalysisImageEditing" or "artificialAnalysisTextToVideo" or "artificialAnalysisImageToVideo" or "artificialAnalysisVideoEditing")) return false;
         MetricGuidesSeen ??= [];
         return MetricGuidesSeen.Add(kind);
     }
@@ -64,11 +84,12 @@ public sealed class Preferences
         "coding" => ["artificialAnalysisCodingAgent", "codeArenaWebDev", "valsSWEbench"],
         "image" => ["artificialAnalysisTextToImage", "arenaTextToImage"],
         "video" => ["artificialAnalysisTextToVideo", "arenaTextToVideo"],
+        "speech" => ["artificialAnalysisSpeechProviderVoice"],
         "usage" => ["openRouterUsage", "vercelUsage", "cloudbaseUsage"],
         "price" => ["openRouterPrice"],
         _ => ["artificialAnalysis", "arenaText", "epochECI"]
     };
-    public string[] VisibleBoardKinds()
+    public string[] VisibleBaseBoardKinds()
     {
         var all = AvailableBoardKinds();
         var defaults = Category == "coding" ? all.Where(kind => kind != "valsSWEbench").ToArray() : all;
@@ -77,9 +98,11 @@ public sealed class Preferences
         var valid = all.Where(selected.Contains).ToArray();
         return valid.Length == 0 ? defaults : valid;
     }
+    public string[] VisibleBoardKinds() => VisibleBaseBoardKinds().Select(kind =>
+        MediaSelections?.TryGetValue(kind, out var chosen) == true && MediaVariants(kind).Contains(chosen) ? chosen : kind).ToArray();
     public void ToggleBoard(string kind)
     {
-        var current = VisibleBoardKinds();
+        var current = VisibleBaseBoardKinds();
         if (!AvailableBoardKinds().Contains(kind) || (current.Length == 1 && current.Contains(kind))) return;
         SetVisibleBoards(AvailableBoardKinds().Where(value => value == kind ? !current.Contains(value) : current.Contains(value)));
     }
@@ -87,7 +110,7 @@ public sealed class Preferences
     {
         var selected = kinds.ToHashSet();
         var next = AvailableBoardKinds().Where(selected.Contains).ToArray();
-        if (next.Length == 0 || next.SequenceEqual(VisibleBoardKinds())) return false;
+        if (next.Length == 0 || next.SequenceEqual(VisibleBaseBoardKinds())) return false;
         BoardSelections ??= [];
         BoardSelections[Category] = next;
         return true;

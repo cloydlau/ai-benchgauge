@@ -1,9 +1,11 @@
 import notice from './arena-attribution.json' with { type: 'json' };
 import policy from './leaderboard-policy.json' with { type: 'json' };
 
-export const arenaSubsets = Object.freeze({ arenaText: 'text_style_control', codeArenaWebDev: 'webdev',
-  arenaTextToImage: 'text_to_image', arenaTextToVideo: 'text_to_video' });
+export const arenaSubsets = Object.freeze({ arenaText: 'text_style_control', arenaTextUncontrolled: 'text', codeArenaWebDev: 'webdev', codeArenaImageToWebDev: 'webdev',
+  arenaTextToImage: 'text_to_image', arenaImageEditing: 'image_edit', arenaMultiImageEditing: 'image_edit', arenaTextToVideo: 'text_to_video',
+  arenaImageToVideo: 'image_to_video', arenaVideoEditing: 'video_edit' });
 export const isArena = kind => Object.hasOwn(arenaSubsets, kind);
+export const arenaCategory = kind => kind === 'arenaMultiImageEditing' ? 'multi_image_edit' : kind === 'codeArenaImageToWebDev' ? 'image_to_webdev' : 'overall';
 export const isArenaDataset = board => Boolean(board && isArena(board.kind)
   && board.sourceNote?.includes(notice.sourceURL));
 export const arenaDataURL = (kind, revision = 'main') => {
@@ -13,7 +15,8 @@ export const arenaDataURL = (kind, revision = 'main') => {
 
 export function parseArenaRows(kind, rows, { now = Date.now(), revision, classifyLicense = () => undefined } = {}) {
   if (!isArena(kind) || !Array.isArray(rows) || rows.length > 50000 || !/^[a-f0-9]{40}$/.test(revision ?? '')) throw new Error('Invalid dataset');
-  const overall = rows.filter(row => row.category === 'overall');
+  const category = arenaCategory(kind);
+  const overall = rows.filter(row => row.category === category);
   // `latest` can contain different dates for different categories. Never mix them.
   const dates = new Set(overall.map(row => row.leaderboard_publish_date));
   if (dates.size !== 1) throw new Error('Mixed dataset publication dates');
@@ -40,11 +43,11 @@ export function parseArenaRows(kind, rows, { now = Date.now(), revision, classif
       voteCount, ...(typeof row.license === 'string' && { modelLicense: row.license }),
       ...(openness && { openness }) };
   }).sort((a, b) => a.rank - b.rank);
-  if (entries.length < 20 || entries.length > 5000 || entries.some((row, i) => row.rank !== i + 1)
+  if (entries.length < (kind === 'arenaVideoEditing' ? 10 : 20) || entries.length > 5000 || entries.some((row, i) => row.rank !== i + 1)
     || entries.some((row, i) => i && row.score > entries[i - 1].score)) throw new Error('Incomplete dataset ranking');
   return { kind, title: 'Arena | ' + arenaSubsets[kind], sourceUpdatedAt: new Date(published).toISOString(),
     fetchedAt: new Date(now).toISOString(), sourceDatasetRevision: revision,
-    sourceNote: `${notice.credit} · ${arenaSubsets[kind]}/latest/overall\n${notice.sourceURL}\n${notice.sourceURL}/tree/${revision}\n${notice.licenseURL}\n${notice.changes.en}`,
+    sourceNote: `${notice.credit} · ${arenaSubsets[kind]}/latest/${category}\n${notice.sourceURL}\n${notice.sourceURL}/tree/${revision}\n${notice.licenseURL}\n${notice.changes.en}`,
     entries };
 }
 

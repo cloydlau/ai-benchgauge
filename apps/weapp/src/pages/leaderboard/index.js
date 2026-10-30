@@ -1,8 +1,8 @@
 import { sourceAgreement } from '../../core/source-agreement.js'
 import { isArenaDatasetBoard } from '../../core/arena-attribution.js'
 import { definePage, ref, computed, onLoad, onReady, onShow, onHide, onUnload, onShareAppMessage, onResize } from '@vue-mini/core'
-import { boards, categories, categoryFor, copy, text, languages, boardTitle, hasOwn, desktopDownloadURL } from '../../core/catalog.js'
-import { rankedEntries, rowView, supportsAACost, supportsAASpeed, isPriceBoard, countryCode, countryName, countryFlag, countryFlagImage, countryOptions, formatTime, contentTimestamp } from '../../core/leaderboard.js'
+import { boards, categories, categoryFor, boardVariants, variantLabels, variantBase, normalizeVariants, copy, text, languages, boardTitle, mobileBoardHeading, hasOwn, desktopDownloadURL } from '../../core/catalog.js'
+import { rankedEntries, rowView, supportsAACost, supportsAASpeed, isAAImageCost, isAAVideoCost, isErrorRate, isPriceBoard, countryCode, countryName, countryFlag, countryFlagImage, countryOptions, formatTime, contentTimestamp } from '../../core/leaderboard.js'
 import { opennessIcon, opennessColor } from '../../core/openness-icon.js'
 import { sourceTabTheme, sourceTabLogo } from '../../core/source-tab-theme.js'
 import { leaderboardDistribution } from '../../../../../fc/distributions.mjs'
@@ -26,6 +26,7 @@ definePage(query => {
   const languageMode = ref(initial.languageMode)
   const category = ref(initial.category)
   const boardSelections = ref(initial.boardSelections || {})
+  const variants = ref(normalizeVariants(initial.variants))
   const boardTransition = ref(normalizeBoardTransition(initial.boardTransition))
   const grouping = ref(initial.category === 'price' ? 'model' : initial.grouping)
   const expandedBoards = ref({})
@@ -180,7 +181,9 @@ definePage(query => {
   let pageReady = false, pageVisible = false
   const polishingKind = ref(null)
   const metricGuideKind = ref(null)
-  const metricGuide = createMetricGuide({ supports: supportsAACost,
+  // OpenRouter's selector is temporarily hidden; keep its underlying metric support.
+  const metricAvailable = kind => kind !== 'openRouterUsage' && supportsAACost(kind)
+  const metricGuide = createMetricGuide({ supports: metricAvailable,
     read: () => { const value = wx.getStorageSync('benchgauge.metricGuideSeen'); return Array.isArray(value) ? value : [] },
     write: value => wx.setStorageSync('benchgauge.metricGuideSeen', value), show: value => { metricGuideKind.value = value },
     readyNow: kind => alive && pageReady && pageVisible && !cubeBusy.value && !modelSearchVisible.value
@@ -459,7 +462,7 @@ definePage(query => {
     icon: `/assets/categories/${item.id}-${selectedSourceTheme.value.accent.slice(1)}.png` })))
   const categoryIndex = computed(() => categoryDragIndex.value ?? categories.findIndex(item => item.id === category.value))
   const categoryThemeStyle = computed(() => `--category-accent:${selectedSourceTheme.value.accent};`)
-  const current = computed(() => ({ ...categoryFor(category.value), kinds: visibleBoardKinds(category.value, boardSelections.value) }))
+  const current = computed(() => ({ ...categoryFor(category.value), kinds: visibleBoardKinds(category.value, boardSelections.value).map(kind => variants.value[kind] || kind) }))
   const sourceTabIcons = computed(() => current.value.kinds.map(kind => sourceTabLogo(kind, dark.value)))
   const tabs = computed(() => current.value.kinds.map(kind => isPriceBoard(kind) ? 'API' : kind === 'openRouterUsage' ? tr('dailyUsage') : kind === 'cloudbaseUsage' ? tr('cumulativeShare') : kind === 'vercelUsage' ? tr('dailyShare') : kind === 'valsSWEbench' ? tr('archivedBenchmark') : kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
   // Retain each slot's geometry while replacing its source identity and label.
@@ -474,10 +477,10 @@ definePage(query => {
   }
   const costOrder = ref({})
   const speedOrder = ref({})
-  const costUnit = kind => kind === 'openRouterUsage' ? (language.value === 'en' ? 'In/Out $/1M' : language.value === 'zh-TW' ? '輸入/輸出$/百萬' : '输入/输出$/百万') : tr(kind === 'artificialAnalysisTextToImage' ? 'imageCostUnit' : kind === 'artificialAnalysisTextToVideo' ? 'videoCostUnit' : 'taskCostUnit')
+  const costUnit = kind => kind === 'openRouterUsage' ? (language.value === 'en' ? 'In/Out $/1M' : language.value === 'zh-TW' ? '輸入/輸出$/百萬' : '输入/输出$/百万') : tr(isAAImageCost(kind) ? 'imageCostUnit' : isAAVideoCost(kind) ? 'videoCostUnit' : 'taskCostUnit')
   const toggleCostOrder = event => {
     const kind = event.currentTarget.dataset.kind
-    if (!supportsAACost(kind) || cubeBusy.value || backgroundLocked.value) return
+    if (!metricAvailable(kind) || cubeBusy.value || backgroundLocked.value) return
     metricGuide.acknowledge(kind)
     const labels = kind === 'openRouterUsage' ? (language.value === 'en' ? ['Usage', 'Price', 'Speed'] : language.value === 'zh-TW' ? ['用量', '價格', '速度'] : ['用量', '价格', '速度']) : language.value === "en" ? ["Score", "Cost", "Speed"] : language.value === "zh-TW" ? ["分數", "成本", "速度"] : ["分数", "成本", "速度"]
     wx.showActionSheet({ itemList: labels.slice(0, supportsAASpeed(kind) ? 3 : 2), success: ({ tapIndex }) => {
@@ -497,8 +500,8 @@ definePage(query => {
   // Keep full model data out of the Vue-to-WeChat bridge. Sorting/filtering
   // are cached independently of scroll positions; only window rows are mapped.
   const rankedCards = computed(() => current.value.kinds.map(kind => {
-    const costMode = !!costOrder.value[kind]
-    const speedMode = !!speedOrder.value[kind]
+    const costMode = metricAvailable(kind) && !!costOrder.value[kind]
+    const speedMode = metricAvailable(kind) && !!speedOrder.value[kind]
     const base = rankedEntries(snapshots.value[kind], { ...filterFor(kind), grouping: grouping.value })
     const prices = base.map(entry => entry.taskCostUSD).filter(value => Number.isFinite(value) && value >= 0)
     const speeds = base.map(entry => entry.speed).filter(value => Number.isFinite(value) && value > 0)
@@ -514,7 +517,7 @@ definePage(query => {
     const expanded = !expandedBoards.value[kind]
     expandedBoards.value = { ...expandedBoards.value, [kind]: expanded }
     if (expanded) { syncWindow(kind, true); measureLists() }
-    else resetScroll([kind])
+    else { syncWindow(kind, true); measureLists() }
   }
   const distributions = computed(() => Object.fromEntries(current.value.kinds.map(kind => {
     const distribution = leaderboardDistribution(snapshots.value[kind]?.entries || [])
@@ -536,24 +539,28 @@ definePage(query => {
   }
   const cards = computed(() => visibleCards.value.map(({ kind, entries, leaderScore, totalCount }, index) => {
     const board = snapshots.value[kind]
+    const base = variantBase(kind)
+    const options = boardVariants[base] || []
     const filter = filterFor(kind)
     const range = rangeFor(kind, entries.length)
     const time = boardTime(board, kind)
-    return { kind, themeStyle: `--source-accent:${sourceTabTheme(kind, dark.value).accent};`, title: boardTitle(kind, language.value), index, summary: text(boards[kind].summaries, language.value),
+    return { kind, themeStyle: `--source-accent:${sourceTabTheme(kind, dark.value).accent};`, title: boardTitle(kind, language.value), heading: mobileBoardHeading(kind, language.value), index, summary: text(boards[kind].summaries, language.value),
+      ...(options.length > 1 && { variantBase: base, variantLabels: options.map(option => text(variantLabels[option], language.value)), variantIndex: options.indexOf(kind) }),
       ...time, timeAccessibility: `${time.time} ${time.timeLabel}`,
       count: totalCount, shownCount: entries.length, hasMore: totalCount > 20, expanded: !!expandedBoards.value[kind],
       expansionLabel: expandedBoards.value[kind] ? tr('showLess') : tr('showAll').replace('{count}', totalCount), distribution: distributions.value[kind],
       // Keep the editing header pinned when a query reduces a long list to a
       // few rows; native scroll views otherwise clamp their offset to zero.
       height: Math.max(entries.length * geometry.value.rowHeight, (modelSearchVisible.value || !!modelSearchQuery.value.trim())
-        ? Math.max(0, (viewports[kind] || geometry.value.viewportHeight) - geometry.value.rowHeight - (entries.length ? 0 : 200)) : 0),
+        ? Math.max(0, (viewports[kind] || geometry.value.viewportHeight) - geometry.value.rowHeight - (entries.length ? 0 : 200)) : 0) + (totalCount > 20 ? 48 : 0),
+      toggleTop: 20 * geometry.value.rowHeight,
       rowHeight: geometry.value.rowHeight,
-      rows: renderRows(kind, entries, range, leaderScore),
+      rows: renderRows(kind, entries, range, leaderScore).map(row => ({ ...row, top: row.top + (expandedBoards.value[kind] && row.top >= 20 * geometry.value.rowHeight ? 48 : 0) })),
       searchStyle: modelSearchVisible.value ? 'left:0px;right:0px;' : searchOrigins.value[kind] || 'left:50%;right:50%;',
       ...(isPriceBoard(kind) && { hasPrice: true, priceAscending: priceAscending.value }),
-      ...(supportsAACost(kind) && { hasTaskCost: true, ...(metricGuideKind.value === kind && { showMetricGuide: true }), costOrder: !!costOrder.value[kind], speedOrder: !!speedOrder.value[kind], ...(speedOrder.value[kind] && { speedUnit: (kind === "artificialAnalysisCodingAgent" || kind === "valsSWEbench") ? (language.value === "en" ? "s/task" : language.value === "zh-TW" ? "秒/任務" : "秒/任务") : "token/s" }), costUnit: costUnit(kind),
+      ...(metricAvailable(kind) && { hasTaskCost: true, ...(metricGuideKind.value === kind && { showMetricGuide: true }), ...(kind in costOrder.value && { costOrder: !!costOrder.value[kind] }), ...(kind in speedOrder.value && { speedOrder: !!speedOrder.value[kind] }), ...((speedOrder.value[kind] || costOrder.value[kind]) && { metricTitle: speedOrder.value[kind] ? (language.value === 'en' ? 'Speed' : '速度') : (language.value === 'en' ? 'Cost' : '成本') }), ...(speedOrder.value[kind] && { speedUnit: (kind === "artificialAnalysisCodingAgent" || kind === "valsSWEbench") ? (language.value === "en" ? "s/task" : language.value === "zh-TW" ? "秒/任務" : "秒/任务") : "token/s" }), ...(costOrder.value[kind] && { costUnit: costUnit(kind) }),
         costSortLabel: speedOrder.value[kind] ? (language.value === "en" ? "Speed" : "速度") : kind === 'openRouterUsage' ? (costOrder.value[kind] ? (language.value === 'en' ? 'Price' : language.value === 'zh-TW' ? '價格' : '价格') : tr('tokens')) : costOrder.value[kind] ? tr('taskCostAscending') : tr('scoreDescending') }),
-      scoreLabel: ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? tr('tokenShare') : kind === 'openRouterUsage' ? tr('tokens') : tr('score'),
+      scoreLabel: isErrorRate(kind) ? 'WER ↓' : ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? tr('tokenShare') : kind === 'openRouterUsage' ? tr('tokens') : tr('score'),
       pendingConfiguration: !!configurationRequired.value[kind],
       hasBoard: !!board, filtered: filter.country !== 'all' || filter.openness !== 'all' || !!modelSearchQuery.value.trim(),
       countryFiltered: filter.country !== 'all', sourceFiltered: filter.openness !== 'all',
@@ -569,13 +576,16 @@ definePage(query => {
   function renderRows(kind, entries, range, leaderScore) {
     if (!rowRenderers.has(kind)) rowRenderers.set(kind, createRowRenderer((entry, entries) =>
       rowView(entry, { company: grouping.value === 'company', dark: dark.value, details: false,
-        language: language.value, category: category.value, kind, costMode: !!costOrder.value[kind], speedMode: !!speedOrder.value[kind], leaderScore: rankedCards.value.find(card => card.kind === kind)?.leaderScore })))
+        language: language.value, category: category.value, kind, costMode: metricAvailable(kind) && !!costOrder.value[kind], speedMode: metricAvailable(kind) && !!speedOrder.value[kind], leaderScore: rankedCards.value.find(card => card.kind === kind)?.leaderScore })))
     return rowRenderers.get(kind)({ entries, ...range, rowHeight: geometry.value.rowHeight,
       variant: `${grouping.value}:${dark.value}:${language.value}:${category.value}:${leaderScore}:${!!costOrder.value[kind]}:${!!speedOrder.value[kind]}` })
   }
 
   function rangeFor(kind, count, force = false) {
-    return resolveRowWindow({ count, scrollTop: scrollPositions[kind] || 0, origin: origins[kind] || 0,
+    const scrollTop = scrollPositions[kind] || 0
+    const toggleStart = (origins[kind] || 0) + 20 * geometry.value.rowHeight
+    const adjustedScrollTop = expandedBoards.value[kind] ? scrollTop - Math.min(48, Math.max(0, scrollTop - toggleStart)) : scrollTop
+    return resolveRowWindow({ count, scrollTop: adjustedScrollTop, origin: origins[kind] || 0,
       geometry: { ...geometry.value, viewportHeight: viewports[kind] || geometry.value.viewportHeight },
       ...scrollWindows.value[kind], force })
   }
@@ -702,6 +712,7 @@ definePage(query => {
   function preferencesSnapshot() {
     return { language: language.value, languageMode: languageMode.value, category: category.value, grouping: grouping.value,
       face: face.value, theme: theme.value, appearance: sharedAppearance.value, filters: filters.value,
+      ...(Object.keys(variants.value).length ? { variants: variants.value } : {}),
       ...(boardTransition.value !== 'cube' ? { boardTransition: boardTransition.value } : {}),
       ...(Object.keys(boardSelections.value).length ? { boardSelections: boardSelections.value } : {}) }
   }
@@ -849,6 +860,17 @@ definePage(query => {
     if (Date.now() < suppressTapUntil) return
     const destination = Number(event.currentTarget.dataset.index)
     if (Number.isInteger(destination) && destination >= 0 && destination < current.value.kinds.length) { entrancePlayed = true; turnCube(destination) }
+  }
+  function selectVariant(event) {
+    const base = event.currentTarget.dataset.base
+    const options = boardVariants[base]
+    const index = Number(event.detail.value)
+    if (!options || !Number.isInteger(index) || index < 0 || index >= options.length || cubeBusy.value) return
+    const previous = current.value.kinds[face.value]
+    if (variantBase(previous) !== base || options[index] === previous) return
+    blurModelSearch(); stopCube(); entrancePlayed = true
+    variants.value = normalizeVariants({ ...variants.value, [base]: options[index] })
+    expandedBoards.value = {}; rowRenderers.clear(); resetScroll(); persist(); autoRefresh(); syncTimestampPolish()
   }
   function changeFace(event) { turnCube(Math.max(0, Math.min(current.value.kinds.length - 1, Number(event.detail.current) || 0))) }
   function scroll(event) {
@@ -1028,7 +1050,7 @@ definePage(query => {
     const kind = event.currentTarget.dataset.kind
     if (!hasOwn(boards, kind)) return
     const board = snapshots.value[kind]
-    const formerName = kind.startsWith('arena') || kind === 'codeArenaWebDev'
+    const formerName = kind.startsWith('arena') || kind.startsWith('codeArena')
       ? `${text(['Formerly LMSYS Chatbot Arena / LMArena', '原 LMSYS Chatbot Arena / LMArena', '原 LMSYS Chatbot Arena / LMArena'], language.value)}\n\n` : ''
     const agreement = sourceAgreement(kind, board, language.value)
     const time = boardTime(board, kind)
@@ -1125,14 +1147,16 @@ definePage(query => {
           const board = snapshots.value[kind], filter = filterFor(kind)
           const country = filter.country === 'all' ? tr('all') : countryName(filter.country, language.value)
           const time = boardTime(board, kind)
-          return { kind, sourceNote: board?.sourceNote, title: boardTitle(kind, language.value), tab: tabs.value[index],
+          return { kind, sourceNote: board?.sourceNote, title: boardTitle(kind, language.value), heading: mobileBoardHeading(kind, language.value), tab: tabs.value[index],
             summary: text(boards[kind].summaries, language.value),
+            variantLabel: variantBase(kind) ? text(variantLabels[kind], language.value) : '',
             time: `${time.time} ${time.timeLabel}`, isSourceTime: time.isSourceTime,
-            taskCostLabel: isPriceBoard(kind) ? tr('priceInput') + (priceAscending.value ? ' ↑' : ' ↓') : speedOrder.value[kind] ? ((kind === 'artificialAnalysisCodingAgent' || kind === 'valsSWEbench') ? (language.value === 'en' ? 's/task' : language.value === 'zh-TW' ? '秒/任務' : '秒/任务') : 'token/s') : supportsAACost(kind) && costOrder.value[kind] ? costUnit(kind) : '',
-            filterLabel: `${supportsAACost(kind) ? (speedOrder.value[kind] ? (language.value === 'en' ? 'Speed' : '速度') : tr(costOrder.value[kind] ? 'taskCostAscending' : 'scoreDescending')) + ' · ' : ''}${tr('country')}: ${country} · ${tr('source')}: ${tr(filter.openness)}`,
+            taskCostLabel: isErrorRate(kind) ? 'WER ↓' : isPriceBoard(kind) ? tr('priceInput') + (priceAscending.value ? ' ↑' : ' ↓') : metricAvailable(kind) && speedOrder.value[kind] ? ((kind === 'artificialAnalysisCodingAgent' || kind === 'valsSWEbench') ? (language.value === 'en' ? 's/task' : language.value === 'zh-TW' ? '秒/任務' : '秒/任务') : 'token/s') : metricAvailable(kind) && costOrder.value[kind] ? costUnit(kind) : '',
+            metricHeading: metricAvailable(kind) && speedOrder.value[kind] ? (language.value === 'en' ? 'Speed' : '速度') : metricAvailable(kind) && costOrder.value[kind] ? (language.value === 'en' ? 'Cost' : '成本') : '',
+            filterLabel: `${metricAvailable(kind) ? (speedOrder.value[kind] ? (language.value === 'en' ? 'Speed' : '速度') : tr(costOrder.value[kind] ? 'taskCostAscending' : 'scoreDescending')) + ' · ' : ''}${tr('country')}: ${country} · ${tr('source')}: ${tr(filter.openness)}`,
             empty: tr(board ? 'empty' : 'noBoard'),
             rows: rankedCards.value[index].entries.map(entry =>
-              rowView(entry, { company: grouping.value === 'company', dark: dark.value, language: language.value, details: false, kind: rankedCards.value[index].kind, costMode: !!costOrder.value[kind], speedMode: !!speedOrder.value[kind], leaderScore: rankedCards.value[index].leaderScore })) }
+              rowView(entry, { company: grouping.value === 'company', dark: dark.value, language: language.value, details: false, kind: rankedCards.value[index].kind, costMode: metricAvailable(kind) && !!costOrder.value[kind], speedMode: metricAvailable(kind) && !!speedOrder.value[kind], leaderScore: rankedCards.value[index].leaderScore })) }
         }) }
       const canvas = await new Promise((resolve, reject) => {
         wx.createSelectorQuery().select('#leaderboard-export').fields({ node: true }).exec(result => {
@@ -1195,7 +1219,7 @@ definePage(query => {
     cubeFaces, sourceSelection, sourceTabIndex, sourceTabsStyle, sourceTabsExtent, sourceTabWidth, sourceTabItems, cubeViewportStyle,
     cubePosition, cubeDuration, cubeBusy, cubeDragging, entranceStyle, entranceHintVisible, boardTransition,
     cubeStart, cubeMove, cubeEnd, cubeCancel, tabStart, tabMove, tabEnd, cancelTabDrag, attributeHint,
-    selectCategory, selectGrouping, selectFace, changeFace, scroll, top, filterMenu, toggleRanking, toggleCostOrder, togglePriceOrder,
+    selectCategory, selectGrouping, selectFace, selectVariant, changeFace, scroll, top, filterMenu, toggleRanking, toggleCostOrder, togglePriceOrder,
     clearFilters, preferences, sheetSelect, closeSheet, sourceHelp, timeHelp, countryHelp, copyPurchaseLink, rowDetails, companyDetails, closeCompanyDetails, copyCompanyName, about, openSettings,
     quotaHelp, quotaHelpContent, showingFeatureHelp, closeFeatureHelp, copyDesktopLink, refreshTap, autoRefresh, pullRefresh, pullRefreshing, pullRefreshKind, finishPullRefresh,
     capturing, capture, screenshot, closeCapture, previewScreenshot, saveScreenshot }

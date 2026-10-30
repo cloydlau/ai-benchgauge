@@ -5,7 +5,7 @@ import arenaNotice from './arena-attribution.json' with { type: 'json' }
 // Pure leaderboard rules shared by the FC service and WeChat client.
 // Platform adapters own network/storage and UI formatting; this module owns identity and selection.
 const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object, key)
-export const isArenaDatasetBoard = board => Boolean(board && ['arenaText', 'codeArenaWebDev', 'arenaTextToImage', 'arenaTextToVideo'].includes(board.kind)
+export const isArenaDatasetBoard = board => Boolean(board && ['arenaText', 'arenaTextUncontrolled', 'codeArenaWebDev', 'codeArenaImageToWebDev', 'arenaTextToImage', 'arenaImageEditing', 'arenaMultiImageEditing', 'arenaTextToVideo', 'arenaImageToVideo', 'arenaVideoEditing'].includes(board.kind)
   && board.sourceNote?.includes(arenaNotice.sourceURL))
 export function replacementFailure(next, previous) {
   if (!previous) return null
@@ -78,9 +78,10 @@ export function withRankChanges(next, previous) {
   const priorRanks = uniqueRanks(previous.entries, rankingIdentity)
   const currentRanks = uniqueRanks(next.entries, rankingIdentity)
   const summingUsage = ['openRouterUsage', 'vercelUsage', 'cloudbaseUsage'].includes(next.kind)
+  const lowerIsBetter = ['artificialAnalysisSpeechToText', 'artificialAnalysisSpeechToTextStreaming'].includes(next.kind)
   const companyKey = entry => rules.brandKey(entry.components[0])
-  const priorCompanies = uniqueRanks(companyRows(previous.entries, { summingUsage }), companyKey)
-  const companyChanges = new Map(companyRows(next.entries, { summingUsage })
+  const priorCompanies = uniqueRanks(companyRows(previous.entries, { summingUsage, lowerIsBetter }), companyKey)
+  const companyChanges = new Map(companyRows(next.entries, { summingUsage, lowerIsBetter })
     .map(entry => [companyKey(entry), movement(entry.rank, priorCompanies.get(companyKey(entry)))]))
   return { ...next, entries: next.entries.map(entry => {
     const key = rankingIdentity(entry)
@@ -158,7 +159,7 @@ function companyIdentity(entry) {
   const name = hasOwn(policy.companyNames, key) ? policy.companyNames[key] : rules.normalizedBrandKey(raw) === key ? raw : key
   return { key, name }
 }
-export function companyRows(entries, { summingUsage = false } = {}) {
+export function companyRows(entries, { summingUsage = false, lowerIsBetter = false } = {}) {
   const groups = new Map()
   for (const entry of entries) {
     const identity = companyIdentity(entry)
@@ -166,7 +167,7 @@ export function companyRows(entries, { summingUsage = false } = {}) {
     if (!groups.has(identity.key)) groups.set(identity.key, { ...identity, members: [] })
     groups.get(identity.key).members.push(entry)
   }
-  const strongest = (a, b) => b.score - a.score || a.rank - b.rank || a.name.localeCompare(b.name)
+  const strongest = (a, b) => (lowerIsBetter ? a.score - b.score : b.score - a.score) || a.rank - b.rank || a.name.localeCompare(b.name)
   return [...groups.values()].map(group => {
     const members = group.members.sort(strongest)
     const best = members[0]
@@ -194,7 +195,7 @@ export function companyRows(entries, { summingUsage = false } = {}) {
     const { rankChange, companyRankChange, ...company } = best
     return { ...company, ...(companyRankChange && { rankChange: companyRankChange }), ...(summingUsage && { score: members.reduce((sum, row) => sum + row.score, 0), totalTokens }), name: group.name, bestRank: best.rank, openness: null,
       brand: organizationBrand, organizationBrand, developerCountry, components: members }
-  }).sort((a, b) => b.score - a.score || a.bestRank - b.bestRank || a.name.localeCompare(b.name))
+  }).sort((a, b) => (lowerIsBetter ? a.score - b.score : b.score - a.score) || a.bestRank - b.bestRank || a.name.localeCompare(b.name))
     .map((entry, index) => ({ ...entry, rank: index + 1 }))
 }
 

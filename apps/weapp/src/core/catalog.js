@@ -3,8 +3,48 @@ export const categories = [
   { id: 'general', labels: ['General', '综合', '綜合'], kinds: ['artificialAnalysis', 'arenaText', 'epochECI'] },
   { id: 'coding', labels: ['Coding', '编程', '編程'], kinds: ['artificialAnalysisCodingAgent', 'codeArenaWebDev', 'valsSWEbench'], defaultKinds: ['artificialAnalysisCodingAgent', 'codeArenaWebDev'] },
   { id: 'image', labels: ['Image', '图片', '圖片'], kinds: ['artificialAnalysisTextToImage', 'arenaTextToImage'] },
+  { id: 'speech', labels: ['Speech', '语音', '語音'], kinds: ['artificialAnalysisSpeechProviderVoice'] },
   { id: 'video', labels: ['Video', '视频', '影片'], kinds: ['artificialAnalysisTextToVideo', 'arenaTextToVideo'] },
 ]
+// Each family represents one source in one category; its members must not be
+// merged or treated as equivalent rankings.
+export const boardVariants = Object.freeze({
+  arenaText: ['arenaText', 'arenaTextUncontrolled'],
+  codeArenaWebDev: ['codeArenaWebDev', 'codeArenaImageToWebDev'],
+  artificialAnalysisTextToImage: ['artificialAnalysisTextToImage', 'artificialAnalysisImageEditing'],
+  arenaTextToImage: ['arenaTextToImage', 'arenaImageEditing', 'arenaMultiImageEditing'],
+  artificialAnalysisTextToVideo: ['artificialAnalysisTextToVideo', 'artificialAnalysisImageToVideo', 'artificialAnalysisVideoEditing'],
+  arenaTextToVideo: ['arenaTextToVideo', 'arenaImageToVideo', 'arenaVideoEditing'],
+  artificialAnalysisSpeechProviderVoice: ['artificialAnalysisSpeechProviderVoice', 'artificialAnalysisSpeechControlledVoice', 'artificialAnalysisSpeechAgent', 'artificialAnalysisSpeechToText', 'artificialAnalysisSpeechToTextStreaming'],
+})
+export const variantLabels = Object.freeze({
+  arenaText: ['Style Control', '风格控制', '風格控制'],
+  arenaTextUncontrolled: ['Original', '原始总榜', '原始總榜'],
+  codeArenaWebDev: ['WebDev', '网页开发', '網頁開發'],
+  codeArenaImageToWebDev: ['Image to WebDev', '图片转代码', '圖片轉程式碼'],
+  artificialAnalysisTextToImage: ['Text to image', '文生图', '文生圖'],
+  arenaTextToImage: ['Text to image', '文生图', '文生圖'],
+  artificialAnalysisImageEditing: ['Image editing', '图片编辑', '圖片編輯'],
+  arenaImageEditing: ['Single-image edit', '单图编辑', '單圖編輯'],
+  arenaMultiImageEditing: ['Multi-image edit', '多图编辑', '多圖編輯'],
+  artificialAnalysisTextToVideo: ['Text to video', '文生视频', '文生影片'],
+  arenaTextToVideo: ['Text to video', '文生视频', '文生影片'],
+  artificialAnalysisImageToVideo: ['Image to video', '图生视频', '圖生影片'],
+  arenaImageToVideo: ['Image to video', '图生视频', '圖生影片'],
+  artificialAnalysisVideoEditing: ['Video editing', '视频编辑', '影片編輯'],
+  arenaVideoEditing: ['Video editing', '视频编辑', '影片編輯'],
+  artificialAnalysisSpeechProviderVoice: ['TTS · Provider voice', '文字转语音 · 原生声音', '文字轉語音 · 原生聲音'],
+  artificialAnalysisSpeechControlledVoice: ['TTS · Controlled voice', '文字转语音 · 受控声音', '文字轉語音 · 受控聲音'],
+  artificialAnalysisSpeechAgent: ['Speech agent', '语音对话', '語音對話'],
+  artificialAnalysisSpeechToText: ['STT · Non-streaming', '语音转文字 · 非流式', '語音轉文字 · 非串流'],
+  artificialAnalysisSpeechToTextStreaming: ['STT · Streaming', '语音转文字 · 流式', '語音轉文字 · 串流'],
+})
+export const variantBase = kind => Object.keys(boardVariants).find(base => boardVariants[base].includes(kind))
+export function normalizeVariants(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(Object.entries(boardVariants).flatMap(([base, options]) =>
+    options.includes(value[base]) && value[base] !== base ? [[base, value[base]]] : []))
+}
 export const repositoryURL = 'https://github.com/cloydlau/ai-benchgauge'
 export const desktopDownloadURL = `${repositoryURL}/releases/latest`
 export const leaderboardSources = [
@@ -22,19 +62,34 @@ export const boards = {
   openRouterUsage: { title: 'OpenRouter', summaries: ['Latest complete UTC day · input + output tokens · 1B = 1 billion tokens.', '最近完整 UTC 日输入与输出 token 用量；1B = 十亿 token。', '最近完整 UTC 日輸入與輸出 token 用量；1B = 十億 token。'], methodology: ['Latest complete UTC day · prompt + completion tokens · top 50 public models. 1B = 1 billion tokens. Excludes private and zero-data-retention traffic; provider tokenizers differ. Company totals cover listed models only. Prices are input/output USD per million tokens; speed is the highest available provider 30-minute p50 throughput. Company metrics use its most-used listed model; usage ranking remains unchanged.', '最近完整 UTC 日的输入与输出 token 用量，展示公开流量前 50 名。1B = 十亿 token。排除私有及零数据留存流量；各供应商分词方式不同。公司用量仅汇总榜内模型。价格为每百万 token 输入/输出美元报价；速度为可用供应商最近 30 分钟最高 P50 吞吐量。公司指标取用量最高的上榜模型，保持原用量排名。', '最近完整 UTC 日的輸入與輸出 token 用量，展示公開流量前 50 名。1B = 十億 token。排除私有及零資料留存流量；各供應商分詞方式不同。公司用量僅彙總榜內模型。價格為每百萬 token 輸入/輸出美元報價；速度為可用供應商最近 30 分鐘最高 P50 吞吐量。公司指標取用量最高的上榜模型，保持原用量排名。'], url: 'https://openrouter.ai/rankings' },
   epochECI: { title: 'Epoch ECI', summaries: ['Estimates general capability from benchmark results, accounting for difficulty and discrimination.', '结合不同测试的难度与区分度，估计模型的综合能力', '結合不同測試的難度與區分度，估計模型的綜合能力'], url: 'https://epoch.ai/eci' },
   artificialAnalysis: { title: 'Artificial Analysis', summaries: ['Combines standardized tests across several abilities.', '汇总多项标准化测试，适合看综合能力', '彙總多項標準化測試，適合看綜合能力'], methodology: ['Cost is the weighted average API cost per Intelligence Index task, based on evaluation tokens and prices.', '成本为综合能力评测每任务的加权平均 API 成本，根据评测 token 用量及价格计算。', '成本為綜合能力評測每任務的加權平均 API 成本，根據評測 token 用量及價格計算。'], url: 'https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index' },
-  arenaText: { title: 'Text Arena', summaries: ['People compare anonymous answers to real prompts.', '真实提问下盲选回答，贴近用户偏好', '真實提問下盲選回答，貼近使用者偏好'], url: 'https://arena.ai/leaderboard/text' },
+  arenaText: { title: 'Text Arena', summaries: ['Anonymous comparisons with style control.', '真实提问下盲选回答，并进行风格控制', '真實提問下盲選回答，並進行風格控制'], url: 'https://arena.ai/leaderboard/text' },
+  arenaTextUncontrolled: { title: 'Text Arena', summaries: ['Anonymous comparisons without style control.', '真实提问下盲选回答，未进行风格控制', '真實提問下盲選回答，未進行風格控制'], url: 'https://arena.ai/leaderboard/text' },
   valsSWEbench: { title: 'Vals AI · SWE-bench (Archived)', summaries: ['Archived SWE-bench Verified: score, cost and duration per test.', '已归档的 SWE-bench Verified：每次测试的成绩、成本和耗时。', '已歸檔的 SWE-bench Verified：每次測試的成績、成本和耗時。'], methodology: ['Archived; no new models are tested. Model and harness variants retain source order.', '榜单已归档，不再评测新模型。保留模型与代理组合及原榜顺序。', '榜單已歸檔，不再評測新模型。保留模型與代理組合及原榜順序。'], url: 'https://www.vals.ai/benchmarks/swebench' },
   artificialAnalysisCodingAgent: { title: 'Artificial Analysis', summaries: ['Coding scores and average API cost per task.', '编程成绩与平均每任务 API 成本', '編程成績與平均每任務 API 成本'], methodology: ['Coding performance and average API dollars per task; switch the displayed metric in the header; ranking stays unchanged. Costs include applicable cache pricing, not subscription fees or cost per successful task. Company cost is for its strongest model; original capability ranks are retained.', '编程成绩与平均每任务 API 美元成本；通过表头切换指标，榜单顺序不变。成本含适用缓存计费，非订阅价格或每个成功任务成本。公司成本对应最强模型；保留原能力排名。', '編程成績與平均每任務 API 美元成本；透過表頭切換指標，榜單順序不變。成本含適用快取計費，非訂閱價格或每個成功任務成本。公司成本對應最強模型；保留原能力排名。'], url: 'https://artificialanalysis.ai/agents/coding-agents' },
   codeArenaWebDev: { title: 'Code Arena', summaries: ['People pick the better result from paired web builds.', '用户盲选网页成品，侧重实际观感', '使用者盲選網頁成品，側重實際觀感'], url: 'https://arena.ai/leaderboard/code/webdev' },
+  codeArenaImageToWebDev: { title: 'Code Arena', summaries: ['People compare websites generated from images.', '用户盲选由图片生成的网页', '使用者盲選由圖片生成的網頁'], url: 'https://arena.ai/leaderboard/code/image-to-webdev' },
   artificialAnalysisTextToImage: { title: 'Artificial Analysis', summaries: ['Blind votes across a balanced set of image use cases.', '按用途均衡选题，盲选图片质量', '按用途均衡選題，盲選圖片品質'], methodology: ['API dollars per image, converted from AA’s price per 1,000 images at 1024×1024 default settings.', '每张图片的 API 美元价格，按 AA 默认设置、1024×1024 每千张价格换算。', '每張圖片的 API 美元價格，按 AA 預設設定、1024×1024 每千張價格換算。'], url: 'https://artificialanalysis.ai/image/leaderboard/text-to-image' },
+  artificialAnalysisImageEditing: { title: 'Artificial Analysis', summaries: ['Blind votes on edited images.', '盲选图片编辑效果', '盲選圖片編輯效果'], methodology: ['API dollars per image, converted from AA’s price per 1,000 images.', '每张图片的 API 美元价格，按 AA 每千张价格换算。', '每張圖片的 API 美元價格，按 AA 每千張價格換算。'], url: 'https://artificialanalysis.ai/image/leaderboard/editing' },
   arenaTextToImage: { title: 'Arena 文生图', titles: ["Text to Image Arena", "Arena 文生图", "Arena 文生圖"], summaries: ['People vote on images made from their own prompts.', '用户自由出题并盲选，贴近日常审美', '使用者自由出題並盲選，貼近日常審美'], url: 'https://arena.ai/leaderboard/text-to-image' },
+  arenaImageEditing: { title: 'Arena 单图编辑', titles: ['Single-image Edit Arena', 'Arena 单图编辑', 'Arena 單圖編輯'], summaries: ['People vote on edits to one image.', '用户盲选单图编辑效果', '使用者盲選單圖編輯效果'], url: 'https://arena.ai/leaderboard/image/image-edit/single-image' },
+  arenaMultiImageEditing: { title: 'Arena 多图编辑', titles: ['Multi-image Edit Arena', 'Arena 多图编辑', 'Arena 多圖編輯'], summaries: ['People vote on edits using multiple images.', '用户盲选多图编辑效果', '使用者盲選多圖編輯效果'], url: 'https://arena.ai/leaderboard/image/image-edit/multi-image' },
   artificialAnalysisTextToVideo: { title: 'Artificial Analysis', summaries: ['Blind votes on videos made with comparable settings.', '相同提示词、统一设置下盲选视频质量', '相同提示詞、統一設定下盲選影片品質'], methodology: ['API dollars per minute of generated video; settings and resolution can differ by model.', '生成视频的 API 美元价格，按分钟计；各模型设置和分辨率可能不同。', '生成影片的 API 美元價格，按分鐘計；各模型設定和解析度可能不同。'], url: 'https://artificialanalysis.ai/video/leaderboard/text-to-video' },
+  artificialAnalysisImageToVideo: { title: 'Artificial Analysis', summaries: ['Blind votes on videos generated from images.', '盲选图片生成视频的效果', '盲選圖片生成影片的效果'], methodology: ['API dollars per minute; settings and resolution can differ by model.', 'API 美元价格按分钟计；各模型设置和分辨率可能不同。', 'API 美元價格按分鐘計；各模型設定和解析度可能不同。'], url: 'https://artificialanalysis.ai/video/leaderboard/image-to-video' },
+  artificialAnalysisVideoEditing: { title: 'Artificial Analysis', summaries: ['Blind votes on edited videos.', '盲选视频编辑效果', '盲選影片編輯效果'], methodology: ['API dollars per minute; settings and resolution can differ by model.', 'API 美元价格按分钟计；各模型设置和分辨率可能不同。', 'API 美元價格按分鐘計；各模型設定和解析度可能不同。'], url: 'https://artificialanalysis.ai/video/leaderboard/video-editing' },
   arenaTextToVideo: { title: 'Arena 文生视频', titles: ["Text to Video Arena", "Arena 文生视频", "Arena 文生影片"], summaries: ['People vote on paired videos from real prompts.', '用户自由出题并盲选，贴近日常偏好', '使用者自由出題並盲選，貼近日常偏好'], url: 'https://arena.ai/leaderboard/text-to-video' },
+  arenaImageToVideo: { title: 'Arena 图生视频', titles: ['Image to Video Arena', 'Arena 图生视频', 'Arena 圖生影片'], summaries: ['People vote on videos generated from images.', '用户盲选图片生成的视频', '使用者盲選圖片生成的影片'], url: 'https://arena.ai/leaderboard/video/image-to-video' },
+  arenaVideoEditing: { title: 'Arena 视频编辑', titles: ['Video Edit Arena', 'Arena 视频编辑', 'Arena 影片編輯'], summaries: ['People vote on edited videos.', '用户盲选视频编辑效果', '使用者盲選影片編輯效果'], url: 'https://arena.ai/leaderboard/video/video-edit' },
+  artificialAnalysisSpeechProviderVoice: { title: 'Artificial Analysis', summaries: ["Blind votes on each provider's native voices.", '盲选各供应商的原生声音', '盲選各供應商的原生聲音'], url: 'https://artificialanalysis.ai/text-to-speech/leaderboard/provider-voice' },
+  artificialAnalysisSpeechControlledVoice: { title: 'Artificial Analysis', summaries: ['Blind votes with controlled voices.', '使用受控声音进行盲选', '使用受控聲音進行盲選'], url: 'https://artificialanalysis.ai/text-to-speech/leaderboard/controlled-voice' },
+  artificialAnalysisSpeechAgent: { title: 'Artificial Analysis', summaries: ['Blind votes on speech-to-speech agents.', '盲选语音对话代理', '盲選語音對話代理'], url: 'https://artificialanalysis.ai/speech-to-speech/arena' },
+  artificialAnalysisSpeechToText: { title: 'Artificial Analysis', summaries: ['Speech-to-text word error rate; lower is better.', '语音转文字词错误率，越低越好', '語音轉文字詞錯誤率，越低越好'], url: 'https://artificialanalysis.ai/speech-to-text/non-streaming' },
+  artificialAnalysisSpeechToTextStreaming: { title: 'Artificial Analysis', summaries: ['Streaming speech-to-text word error rate; lower is better.', '流式语音转文字词错误率，越低越好', '串流語音轉文字詞錯誤率，越低越好'], url: 'https://artificialanalysis.ai/speech-to-text/streaming' },
 }
 export const languages = ['en', 'zh-CN', 'zh-TW']
 export const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key)
 export const text = (values, language) => values[Math.max(0, languages.indexOf(language))]
 export const boardTitle = (kind, language) => boards[kind].titles ? text(boards[kind].titles, language) : boards[kind].title
+export const mobileBoardHeading = (kind, language) => kind.startsWith('artificialAnalysis') ? 'AA' : boardTitle(kind, language)
 export const categoryFor = id => categories.find(category => category.id === id) || categories.find(category => category.id === 'general')
 
 const tagline = ['Compare across dimensions, choose with clarity; track your quotas, stay informed.',

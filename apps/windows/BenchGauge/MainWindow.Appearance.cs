@@ -29,7 +29,10 @@ sealed partial class MainWindow
     readonly HashSet<string> speedOrders = [];
     static bool SupportsAASpeed(string kind) => kind is "openRouterUsage" or "artificialAnalysis" or "artificialAnalysisCodingAgent" or "valsSWEbench";
     internal bool codingCostOrder { get => costOrders.Contains("artificialAnalysisCodingAgent"); set { if (value) costOrders.Add("artificialAnalysisCodingAgent"); else costOrders.Remove("artificialAnalysisCodingAgent"); } }
-    static bool SupportsAACost(string kind) => kind is "openRouterUsage" or "artificialAnalysis" or "artificialAnalysisCodingAgent" or "valsSWEbench" or "artificialAnalysisTextToImage" or "artificialAnalysisTextToVideo";
+    static bool IsAAImageCost(string kind) => kind is "artificialAnalysisTextToImage" or "artificialAnalysisImageEditing";
+    static bool IsAAVideoCost(string kind) => kind is "artificialAnalysisTextToVideo" or "artificialAnalysisImageToVideo" or "artificialAnalysisVideoEditing";
+    static bool IsErrorRate(string kind) => kind is "artificialAnalysisSpeechToText" or "artificialAnalysisSpeechToTextStreaming";
+    static bool SupportsAACost(string kind) => kind is "openRouterUsage" or "artificialAnalysis" or "artificialAnalysisCodingAgent" or "valsSWEbench" || IsAAImageCost(kind) || IsAAVideoCost(kind);
     static bool IsPriceBoard(string kind) => kind == "openRouterPrice";
     internal void SetVisualSpeedOrder(IEnumerable<string> kinds) { foreach (var kind in kinds.Where(SupportsAASpeed)) speedOrders.Add(kind); }
     internal void SetVisualCostOrder(IEnumerable<string> kinds) { foreach (var kind in kinds.Where(SupportsAACost)) costOrders.Add(kind); }
@@ -401,7 +404,7 @@ sealed partial class MainWindow
             async value => { if (prefs.Category == "price") return; prefs.Grouping = value; SaveFrame(); await Refresh("state"); if (engine is null) Render(); }, compact: compactTabs);
         grouping.IsEnabled = prefs.Category != "price";
         switches.Children.Add(grouping);
-        var categories = Segments([("usage",Tr("Usage","用量","用量")),("general",Tr("General","综合","綜合")),("coding",Tr("Coding","编程","編程")),("image",Tr("Image","图片","圖片")),("video",Tr("Video","视频","視頻"))], prefs.Category, 480,
+        var categories = Segments([("usage",Tr("Usage","用量","用量")),("general",Tr("General","综合","綜合")),("coding",Tr("Coding","编程","編程")),("image",Tr("Image","图片","圖片")),("speech",Tr("Speech","语音","語音")),("video",Tr("Video","视频","視頻"))], prefs.Category, 540,
             async value => { prefs.Category = value; if (value == "price") prefs.Grouping = "model"; SaveFrame(); await Refresh("refreshBoardsIfStale"); if (engine is null) Render(); }, compact: compactTabs);
         categories.Margin = new Thickness(8, 0, 0, 0); switches.Children.Add(categories);
         var tabs = SearchNavigation(switches);
@@ -531,7 +534,7 @@ sealed partial class MainWindow
         return dialog;
     }
     string BoardSourceDescription(Board board) => BoardTitle(board) + "\n"
-                    + (board.Kind.StartsWith("arena") || board.Kind == "codeArenaWebDev"
+                    + (board.Kind.StartsWith("arena") || board.Kind.StartsWith("codeArena")
                         ? Tr("Formerly LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena") + "\n" : "")
                     + SourceIntroduction(board) + "\n" + (board.Kind == "openRouterUsage"
                         ? Tr("Latest complete UTC day · input + output tokens · 1B = 1 billion tokens. Top 50 public models; excludes private and zero-data-retention traffic. Provider tokenizers differ. Company totals cover listed models only.", "最近完整 UTC 日输入与输出 token 用量；1B = 十亿 token。展示公开流量前 50 名，排除私有及零数据留存流量；各供应商分词方式不同。公司用量仅汇总榜内模型。", "最近完整 UTC 日輸入與輸出 token 用量；1B = 十億 token。展示公開流量前 50 名，排除私有及零資料留存流量；各供應商分詞方式不同。公司用量僅彙總榜內模型。")
@@ -658,8 +661,8 @@ sealed partial class MainWindow
     string AACostHelp(string kind) => kind switch {
         "openRouterUsage" => Tr("Input/output prices in USD per million tokens; speed is the best available provider 30-minute p50 throughput. Company values use its most-used listed model; usage ranking stays unchanged.", "输入/输出价格为每百万 token 美元报价；速度为可用供应商最近 30 分钟最高的 P50 吞吐量。公司值取用量最高的上榜模型；保持原用量排名。", "輸入/輸出價格為每百萬 token 美元報價；速度為可用供應商最近 30 分鐘最高的 P50 吞吐量。公司值取用量最高的上榜模型；保持原用量排名。"),
         "valsSWEbench" => Tr("Cost and duration per test as published by Vals; source ranking stays unchanged.", "Vals 公布的每次测试成本和耗时；切换指标不改变原榜排名。", "Vals 公布的每次測試成本和耗時；切換指標不改變原榜排名。"),
-        "artificialAnalysisTextToImage" => Tr("API dollars per image, converted from AA's price per 1,000 images at 1024×1024 default settings.", "每张图片的 API 美元价格，按 AA 默认设置、1024×1024 每千张价格换算。", "每張圖片的 API 美元價格，按 AA 預設設定、1024×1024 每千張價格換算。"),
-        "artificialAnalysisTextToVideo" => Tr("API dollars per minute of generated video; settings and resolution can differ by model.", "生成视频的 API 美元价格，按分钟计；各模型设置和分辨率可能不同。", "生成影片的 API 美元價格，按分鐘計；各模型設定和解析度可能不同。"),
+        "artificialAnalysisTextToImage" or "artificialAnalysisImageEditing" => Tr("API dollars per image, converted from AA's price per 1,000 images.", "每张图片的 API 美元价格，按 AA 每千张价格换算。", "每張圖片的 API 美元價格，按 AA 每千張價格換算。"),
+        "artificialAnalysisTextToVideo" or "artificialAnalysisImageToVideo" or "artificialAnalysisVideoEditing" => Tr("API dollars per minute of video; settings and resolution can differ by model.", "视频的 API 美元价格按分钟计；各模型设置和分辨率可能不同。", "影片的 API 美元價格按分鐘計；各模型設定和解析度可能不同。"),
         "artificialAnalysis" => Tr("Weighted average API cost per Intelligence Index task, based on evaluation token usage and prices.", "综合能力评测每任务的加权平均 API 成本，根据评测 token 用量及价格计算。", "綜合能力評測每任務的加權平均 API 成本，根據評測 token 用量及價格計算。"),
         _ => CodingCostHelp(),
     };
@@ -676,14 +679,21 @@ sealed partial class MainWindow
         for (var i = 0; i < pair.Length; i++)
         {
             var board = pair[i]; var column = 1 + i * 4;
-            if (SupportsAACost(board.Kind))
+            // Temporarily hide OpenRouter's selector; its metric code remains available.
+            if (board.Kind != "openRouterUsage" && SupportsAACost(board.Kind))
             {
                 var selectedCost = costOrders.Contains(board.Kind);
                 var selectedSpeed = speedOrders.Contains(board.Kind);
-                var unit = board.Kind == "openRouterUsage" ? Tr("In/Out $/1M", "输入/输出$/百万", "輸入/輸出$/百萬") : board.Kind == "artificialAnalysisTextToImage" ? Tr("$/image", "$/张", "$/張") : board.Kind == "artificialAnalysisTextToVideo" ? Tr("$/min", "$/分钟", "$/分鐘") : Tr("$/task", "$/任务", "$/任務");
-                string metricTitle(bool selectedSpeed, bool selectedCost) => (selectedSpeed ? ((board.Kind == "artificialAnalysisCodingAgent" || board.Kind == "valsSWEbench") ? Tr("s/task", "秒/任务", "秒/任務") : "token/s") : selectedCost ? unit : board.Kind == "openRouterUsage" ? Tr("Usage", "用量", "用量") : Tr("Score", "分数", "分數")) + " ⌄";
-                var metricLabel = Caption(metricTitle(selectedSpeed, selectedCost), PanelInk, 10);
-                var button = new WpfButton { Content = Center(metricLabel), Background = Brushes.Transparent, BorderThickness = new Thickness(0), Padding = new Thickness(0), ToolTip = AACostHelp(board.Kind) };
+                var unit = board.Kind == "openRouterUsage" ? Tr("In/Out $/1M", "输入/输出$/百万", "輸入/輸出$/百萬") : IsAAImageCost(board.Kind) ? Tr("$/image", "$/张", "$/張") : IsAAVideoCost(board.Kind) ? Tr("$/min", "$/分钟", "$/分鐘") : Tr("$/task", "$/任务", "$/任務");
+                var metricLabel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+                void SetMetricTitle(bool speed, bool cost) {
+                    metricLabel.Children.Clear();
+                    var title = speed ? Tr("Speed", "速度", "速度") : cost ? (board.Kind == "openRouterUsage" ? Tr("Price", "价格", "價格") : Tr("Cost", "成本", "成本")) : board.Kind == "openRouterUsage" ? Tr("Usage", "用量", "用量") : Tr("Score", "分数", "分數");
+                    var metricUnit = speed ? ((board.Kind == "artificialAnalysisCodingAgent" || board.Kind == "valsSWEbench") ? Tr("s/task", "秒/任务", "秒/任務") : "token/s") : unit;
+                    metricLabel.Children.Add(CenterElement(FilterHeaderLabel(speed || cost ? $"{title} {metricUnit}" : title, false)));
+                }
+                SetMetricTitle(selectedSpeed, selectedCost);
+                var button = new WpfButton { Content = CenterElement(metricLabel), Background = Brushes.Transparent, BorderThickness = new Thickness(0), Padding = new Thickness(0), ToolTip = AACostHelp(board.Kind) };
                 var guideContent = new StackPanel { IsHitTestVisible = false };
                 var arrow = new System.Windows.Shapes.Polygon { Points = new PointCollection { new(0, 7), new(7, 0), new(14, 7) },
                     Fill = Tint(panelDark ? "#23394B" : "#F0F9FF"), Stroke = Tint(panelDark ? "#5B9BCD" : "#38BDF8"), StrokeThickness = 1,
@@ -714,7 +724,7 @@ sealed partial class MainWindow
                     item.Click += (_, _) => {
                         costOrders.Remove(board.Kind); speedOrders.Remove(board.Kind);
                         if (value == 1) costOrders.Add(board.Kind); if (value == 2) speedOrders.Add(board.Kind);
-                        metricLabel.Text = metricTitle(value == 2, value == 1);
+                        SetMetricTitle(value == 2, value == 1);
                         foreach (var option in menu.Items.OfType<MenuItem>()) option.IsChecked = ReferenceEquals(option, item);
                         refreshMetricRows();
                     };
@@ -736,7 +746,7 @@ sealed partial class MainWindow
                 priceButton.Click += (_, _) => { priceAscending = !priceAscending; Render(); };
                 AddCell(headings, priceButton, column + 3);
             }
-            else AddCell(headings, Center(Caption(board.Kind is "vercelUsage" or "cloudbaseUsage" ? Tr("Share", "占比", "佔比") : board.Kind == "openRouterUsage" ? Tr("Tokens", "用量", "用量") : Tr("Score", "分数", "分數"), PanelInk)), column + 3);
+            else AddCell(headings, Center(Caption(IsErrorRate(board.Kind) ? "WER ↓" : board.Kind is "vercelUsage" or "cloudbaseUsage" ? Tr("Share", "占比", "佔比") : board.Kind == "openRouterUsage" ? Tr("Usage", "用量", "用量") : Tr("Score", "分数", "分數"), PanelInk)), column + 3);
             var sourceDescription = BoardSourceDescription(board);
             var summary = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 9,
                 FontFamily = new FontFamily("Segoe UI"), Margin = new Thickness(5, 0, 4, 0), ToolTip = board.Error ?? sourceDescription };
@@ -807,9 +817,9 @@ sealed partial class MainWindow
         var matches = LeaderboardSearch.Compile(leaderboardQuery);
         var entries = unsearched.Select(board => board.Where(entry => matches(entry.Name)).ToArray()).ToArray();
         var count = entries.Length == 0 ? 20 : Math.Max(string.IsNullOrWhiteSpace(leaderboardQuery) ? 1 : 4, entries.Max(values => values.Length));
-        double[] computeMaxima() => unsearched.Select((board, side) => speedOrders.Contains(pair[side].Kind)
+        double[] computeMaxima() => unsearched.Select((board, side) => pair[side].Kind != "openRouterUsage" && speedOrders.Contains(pair[side].Kind)
             ? board.Select(value => value.Speed ?? 0).DefaultIfEmpty().Max()
-            : costOrders.Contains(pair[side].Kind)
+            : pair[side].Kind != "openRouterUsage" && costOrders.Contains(pair[side].Kind)
                 ? board.Select(value => value.TaskCostUSD is { } amount && double.IsFinite(amount) && amount >= 0 ? amount : 0).DefaultIfEmpty().Max()
                 : board.Select(value => value.Score).DefaultIfEmpty().Max()).ToArray();
         var maxima = computeMaxima();
@@ -825,10 +835,10 @@ sealed partial class MainWindow
                 var column = 1 + side * 4;
                 if (index >= entries[side].Length) continue;
                 var entry = entries[side][index];
-                var showCost = costOrders.Contains(pair[side].Kind);
-                var showSpeed = speedOrders.Contains(pair[side].Kind);
+                var showCost = pair[side].Kind != "openRouterUsage" && costOrders.Contains(pair[side].Kind);
+                var showSpeed = pair[side].Kind != "openRouterUsage" && speedOrders.Contains(pair[side].Kind);
                 var maximum = maxima[side];
-                var model = ModelCell(entry, maximum, BoardTint(pair[side].Kind), pair[side].Kind is not ("vercelUsage" or "cloudbaseUsage"), showCost, showSpeed);
+                var model = ModelCell(entry, maximum, BoardTint(pair[side].Kind), pair[side].Kind is not ("vercelUsage" or "cloudbaseUsage") && !IsErrorRate(pair[side].Kind), showCost, showSpeed, IsErrorRate(pair[side].Kind));
                 if (side > 0)
                 {
                     var sourceRow = new Grid();
@@ -840,20 +850,20 @@ sealed partial class MainWindow
                 }
                 else AddCell(row, model, column);
                 var score = new Grid();
-                score.Children.Add(Center(Caption((pair[side].Kind is "vercelUsage" or "cloudbaseUsage" ? (entry.Score > 0 && entry.Score < 0.01 ? "<0.01%" : entry.Score.ToString("0.00", CultureInfo.InvariantCulture) + "%") : pair[side].Kind == "openRouterUsage" && entry.Score > 0 && entry.Score < 0.01 ? "<0.01B" : entry.Score.ToString(pair[side].Kind == "openRouterUsage" ? "0.00\"B\"" : pair[side].Kind == "epochECI" ? "0.00" : "0.0", CultureInfo.InvariantCulture)), PanelMuted, 13, numeric: true)));
+                score.Children.Add(Center(Caption((IsErrorRate(pair[side].Kind) ? entry.Score.ToString("0.00", CultureInfo.InvariantCulture) + "%" : pair[side].Kind is "vercelUsage" or "cloudbaseUsage" ? (entry.Score > 0 && entry.Score < 0.01 ? "<0.01%" : entry.Score.ToString("0.00", CultureInfo.InvariantCulture) + "%") : pair[side].Kind == "openRouterUsage" && entry.Score > 0 && entry.Score < 0.01 ? "<0.01B" : entry.Score.ToString(pair[side].Kind == "openRouterUsage" ? "0.00\"B\"" : pair[side].Kind == "epochECI" ? "0.00" : "0.0", CultureInfo.InvariantCulture)), PanelMuted, 13, numeric: true)));
                 if (showSpeed)
                 {
                     score.Children.Clear(); score.Children.Add(Center(Caption(entry.Speed is { } speed ? speed.ToString(speed < 10 ? "0.0" : "0", CultureInfo.InvariantCulture) : "—", PanelMuted, 13, numeric: true)));
                 }
                 else if (showCost && pair[side].Kind != "openRouterUsage")
                 {
-                    score.Children.Clear(); score.Children.Add(Center(Caption(CodingTaskCost.Format(entry.TaskCostUSD), PanelMuted, 13, numeric: true)));
+                    score.Children.Clear(); score.Children.Add(CenterElement(CurrencyValue(CodingTaskCost.Format(entry.TaskCostUSD), 13)));
                 }
                 else if (IsPriceBoard(pair[side].Kind) || (pair[side].Kind == "openRouterUsage" && showCost))
                 {
                     var values = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-                    values.Children.Add(Center(Caption(CodingTaskCost.Format(entry.Score), PanelMuted, 11, numeric: true)));
-                    values.Children.Add(Center(Caption(CodingTaskCost.Format(entry.OutputPriceUSD), PanelMuted, 8, numeric: true)));
+                    values.Children.Add(CenterElement(CurrencyValue(CodingTaskCost.Format(entry.Score), 11)));
+                    values.Children.Add(CenterElement(CurrencyValue(CodingTaskCost.Format(entry.OutputPriceUSD), 8)));
                     score.Children.Clear(); score.Children.Add(values);
                 }
                 AddCell(row, score, column + 3);
@@ -904,14 +914,53 @@ sealed partial class MainWindow
         // A resizable desktop window can be narrower than three readable source
         // groups. Keep every selected source reachable with one shared horizontal
         // viewport, so the native header and body move together.
+        FrameworkElement boardTable = table;
         if (pair.Length == 3 && renderedPanelWidth < 748)
         {
             table.Width = 748;
-            return new ScrollViewer { Content = table, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            boardTable = new ScrollViewer { Content = table, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, VerticalContentAlignment = VerticalAlignment.Stretch };
         }
-        return table;
+        if (!pair.Any(board => Preferences.MediaVariants(board.Kind).Length > 1)) return boardTable;
+        var wrapper = new DockPanel();
+        var selectors = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(8, 3, 8, 3) };
+        foreach (var board in pair.Where(board => Preferences.MediaVariants(board.Kind).Length > 1))
+        {
+            var label = (board.Kind.StartsWith("artificialAnalysis") ? "AA" : "Arena") + " · " + MediaVariantTitle(board.Kind);
+            var button = QuietButton(label + " ▾", () => { });
+            var menu = new ContextMenu();
+            foreach (var option in Preferences.MediaVariants(board.Kind))
+            {
+                var choice = new MenuItem { Header = MediaVariantTitle(option), IsCheckable = true, IsChecked = option == board.Kind };
+                choice.Click += async (_, _) => { if (!prefs.SelectMediaVariant(board.Kind, option)) return; SaveFrame(); Render(); await Refresh("refreshBoardsIfStale"); };
+                menu.Items.Add(choice);
+            }
+            button.Click += (_, _) => { menu.PlacementTarget = button; menu.IsOpen = true; };
+            selectors.Children.Add(button);
+        }
+        DockPanel.SetDock(selectors, Dock.Top); wrapper.Children.Add(selectors); wrapper.Children.Add(boardTable);
+        return wrapper;
     }
+
+    string MediaVariantTitle(string kind) => kind switch {
+        "arenaText" => Tr("Style Control", "风格控制", "風格控制"),
+        "arenaTextUncontrolled" => Tr("Original", "原始总榜", "原始總榜"),
+        "codeArenaWebDev" => Tr("WebDev", "网页开发", "網頁開發"),
+        "codeArenaImageToWebDev" => Tr("Image to WebDev", "图片转代码", "圖片轉程式碼"),
+        "artificialAnalysisTextToImage" or "arenaTextToImage" => Tr("Text to image", "文生图", "文生圖"),
+        "artificialAnalysisImageEditing" => Tr("Image editing", "图片编辑", "圖片編輯"),
+        "arenaImageEditing" => Tr("Single-image edit", "单图编辑", "單圖編輯"),
+        "arenaMultiImageEditing" => Tr("Multi-image edit", "多图编辑", "多圖編輯"),
+        "artificialAnalysisSpeechProviderVoice" => Tr("TTS · Provider voice", "文字转语音 · 原生声音", "文字轉語音 · 原生聲音"),
+        "artificialAnalysisSpeechControlledVoice" => Tr("TTS · Controlled voice", "文字转语音 · 受控声音", "文字轉語音 · 受控聲音"),
+        "artificialAnalysisSpeechAgent" => Tr("Speech agent", "语音对话", "語音對話"),
+        "artificialAnalysisSpeechToText" => Tr("STT · Non-streaming", "语音转文字 · 非流式", "語音轉文字 · 非串流"),
+        "artificialAnalysisSpeechToTextStreaming" => Tr("STT · Streaming", "语音转文字 · 流式", "語音轉文字 · 串流"),
+        "artificialAnalysisTextToVideo" or "arenaTextToVideo" => Tr("Text to video", "文生视频", "文生影片"),
+        "artificialAnalysisImageToVideo" or "arenaImageToVideo" => Tr("Image to video", "图生视频", "圖生影片"),
+        "artificialAnalysisVideoEditing" or "arenaVideoEditing" => Tr("Video editing", "视频编辑", "影片編輯"),
+        _ => ""
+    };
 
     Brush OpennessTint(string openness) => Tint(openness == "open"
         ? (panelDark ? "#77D9A1" : "#188966")
@@ -958,8 +1007,9 @@ sealed partial class MainWindow
         var grid = new Grid(); var compact = renderedPanelWidth < 850;
         System.Windows.Automation.AutomationProperties.SetAutomationId(grid, "leaderboard-columns");
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
+        var boards = VisibleBoards();
         for (var i = 0; i < boardCount; i++)
-            foreach (var width in new[] { new GridLength(1, GridUnitType.Star), new GridLength(CountryColumnWidth), new GridLength(SourceColumnWidth), new GridLength(compact ? 56 : 78) })
+            foreach (var width in new[] { new GridLength(1, GridUnitType.Star), new GridLength(CountryColumnWidth), new GridLength(SourceColumnWidth), new GridLength(boards[i].Kind != "openRouterUsage" && SupportsAACost(boards[i].Kind) ? 104 : compact ? 56 : 78) })
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
         return grid;
     }
@@ -1018,7 +1068,7 @@ sealed partial class MainWindow
         cell.Children.Add(movement);
         return cell;
     }
-    FrameworkElement ModelCell(Entry entry, double leaderScore, Brush shareColor, bool showRelativeShare, bool costMode = false, bool speedMode = false)
+    FrameworkElement ModelCell(Entry entry, double leaderScore, Brush shareColor, bool showRelativeShare, bool costMode = false, bool speedMode = false, bool errorRate = false)
     {
         var row = new Grid { HorizontalAlignment = HorizontalAlignment.Left };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) }); row.ColumnDefinitions.Add(new ColumnDefinition());
@@ -1043,7 +1093,7 @@ sealed partial class MainWindow
             hex = entry.Logo is { } logoKey && BrandColors.TryGetValue(logoKey, out var known) ? known : "#607D8B";
         var color = BrandFill(hex, entry.Name);
         var value = speedMode ? entry.Speed : costMode ? entry.TaskCostUSD : entry.Score;
-        var ratio = (costMode || speedMode) && (value is null || leaderScore <= 0) ? 0 : ScoreShare.FillRatio(value ?? 0, leaderScore);
+        var ratio = errorRate || ((costMode || speedMode) && (value is null || leaderScore <= 0)) ? 0 : ScoreShare.FillRatio(value ?? 0, leaderScore);
         var background = new Grid { IsHitTestVisible = false };
         background.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ratio, GridUnitType.Star) });
         background.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1 - ratio, GridUnitType.Star) });
@@ -1092,14 +1142,20 @@ sealed partial class MainWindow
         "cloudbaseUsage" => "Tencent Cloud",
         "vercelUsage" => "Vercel AI Gateway",
         "openRouterUsage" => "OpenRouter",
-        "artificialAnalysis" => "Artificial Analysis", "arenaText" => "Text Arena", "epochECI" => "Epoch ECI",
+        "artificialAnalysis" => "Artificial Analysis", "arenaText" or "arenaTextUncontrolled" => "Text Arena", "epochECI" => "Epoch ECI",
         "artificialAnalysisCodingAgent" => "Artificial Analysis",
         "valsSWEbench" => "Vals AI · SWE-bench (Archived)",
-        "codeArenaWebDev" => "Code Arena",
+        "codeArenaWebDev" or "codeArenaImageToWebDev" => "Code Arena",
         "artificialAnalysisTextToImage" => "Artificial Analysis",
+        "artificialAnalysisImageEditing" or "artificialAnalysisImageToVideo" or "artificialAnalysisVideoEditing" => "Artificial Analysis",
         "arenaTextToImage" => Tr("Text to Image Arena", "Arena 文生图", "Arena 文生圖"),
+        "arenaImageEditing" => Tr("Single-image Edit Arena", "Arena 单图编辑", "Arena 單圖編輯"),
+        "arenaMultiImageEditing" => Tr("Multi-image Edit Arena", "Arena 多图编辑", "Arena 多圖編輯"),
+        "artificialAnalysisSpeechProviderVoice" or "artificialAnalysisSpeechControlledVoice" or "artificialAnalysisSpeechAgent" or "artificialAnalysisSpeechToText" or "artificialAnalysisSpeechToTextStreaming" => "Artificial Analysis",
         "artificialAnalysisTextToVideo" => "Artificial Analysis",
         "arenaTextToVideo" => Tr("Text to Video Arena", "Arena 文生视频", "Arena 文生影片"),
+        "arenaImageToVideo" => Tr("Image to Video Arena", "Arena 图生视频", "Arena 圖生影片"),
+        "arenaVideoEditing" => Tr("Video Edit Arena", "Arena 视频编辑", "Arena 影片編輯"),
         _ => board.Title,
     };
     string SourceIntroduction(Board board) => board.Kind switch
@@ -1107,10 +1163,24 @@ sealed partial class MainWindow
         "artificialAnalysis" => Tr("Combines standardized tests across several abilities.", "汇总多项标准化测试，适合看综合能力。", "彙總多項標準化測試，適合看綜合能力。") + "\n\n" + AACostHelp(board.Kind),
         "openRouterPrice" => Tr("OpenRouter base text input and output prices per million tokens; context tiers and other charges can differ.", "OpenRouter 文本输入、输出每百万 token 基础价格；长上下文阶梯及其他费用可能不同。", "OpenRouter 文字輸入、輸出每百萬 token 基礎價格；長上下文階梯及其他費用可能不同。"),
         "epochECI" => Tr("Estimates general capability from benchmark results, accounting for difficulty and discrimination.", "结合不同测试的难度与区分度，估计模型的综合能力。", "結合不同測試的難度與區分度，估計模型的綜合能力。"),
-        "arenaText" => Tr("People compare anonymous answers to real prompts.", "真实提问下盲选回答，贴近用户偏好。", "真實提問下盲選回答，貼近使用者偏好。"),
+        "arenaText" => Tr("Anonymous comparisons with style control.", "真实提问下盲选回答，并进行风格控制。", "真實提問下盲選回答，並進行風格控制。"),
+        "arenaTextUncontrolled" => Tr("Anonymous comparisons without style control.", "真实提问下盲选回答，未进行风格控制。", "真實提問下盲選回答，未進行風格控制。"),
         "artificialAnalysisCodingAgent" => Tr("Coding scores and average API cost per task.", "编程成绩与平均每任务 API 成本。", "編程成績與平均每任務 API 成本。") + "\n\n" + CodingCostHelp(),
         "valsSWEbench" => Tr("Archived SWE-bench Verified: score, cost and duration per test. No new models are tested; source ranking stays unchanged.", "已归档的 SWE-bench Verified：每次测试成绩、成本和耗时；不再评测新模型，保留原榜排名。", "已歸檔的 SWE-bench Verified：每次測試成績、成本和耗時；不再評測新模型，保留原榜排名。"),
         "codeArenaWebDev" => Tr("People pick the better result from paired web builds.", "用户盲选网页成品，侧重实际观感。", "使用者盲選網頁成品，側重實際觀感。"),
+        "codeArenaImageToWebDev" => Tr("People compare websites generated from images.", "用户盲选由图片生成的网页。", "使用者盲選由圖片生成的網頁。"),
+        "artificialAnalysisImageEditing" => Tr("Blind votes on edited images.", "盲选图片编辑效果。", "盲選圖片編輯效果。") + "\n\n" + AACostHelp(board.Kind),
+        "artificialAnalysisImageToVideo" => Tr("Blind votes on videos generated from images.", "盲选图片生成视频的效果。", "盲選圖片生成影片的效果。") + "\n\n" + AACostHelp(board.Kind),
+        "artificialAnalysisVideoEditing" => Tr("Blind votes on edited videos.", "盲选视频编辑效果。", "盲選影片編輯效果。") + "\n\n" + AACostHelp(board.Kind),
+        "arenaImageToVideo" => Tr("People vote on videos generated from images.", "用户盲选图片生成的视频。", "使用者盲選圖片生成的影片。"),
+        "arenaImageEditing" => Tr("People vote on edits to one image.", "用户盲选单图编辑效果。", "使用者盲選單圖編輯效果。"),
+        "arenaMultiImageEditing" => Tr("People vote on edits using multiple images.", "用户盲选多图编辑效果。", "使用者盲選多圖編輯效果。"),
+        "artificialAnalysisSpeechProviderVoice" => Tr("Blind votes on each provider's native voices.", "盲选各供应商的原生声音。", "盲選各供應商的原生聲音。"),
+        "artificialAnalysisSpeechControlledVoice" => Tr("Blind votes with controlled voices.", "使用受控声音进行盲选。", "使用受控聲音進行盲選。"),
+        "artificialAnalysisSpeechAgent" => Tr("Blind votes on speech-to-speech agents.", "盲选语音对话代理。", "盲選語音對話代理。"),
+        "artificialAnalysisSpeechToText" => Tr("Speech-to-text word error rate; lower is better.", "语音转文字词错误率，越低越好。", "語音轉文字詞錯誤率，越低越好。"),
+        "artificialAnalysisSpeechToTextStreaming" => Tr("Streaming speech-to-text word error rate; lower is better.", "流式语音转文字词错误率，越低越好。", "串流語音轉文字詞錯誤率，越低越好。"),
+        "arenaVideoEditing" => Tr("People vote on edited videos.", "用户盲选视频编辑效果。", "使用者盲選影片編輯效果。"),
         "artificialAnalysisTextToImage" => Tr("Blind votes across a balanced set of image use cases.", "按用途均衡选题，盲选图片质量。", "按用途均衡選題，盲選圖片品質。") + "\n\n" + AACostHelp(board.Kind),
         "arenaTextToImage" => Tr("People vote on images made from their own prompts.", "用户自由出题并盲选，贴近日常审美。", "使用者自由出題並盲選，貼近日常審美。"),
         "artificialAnalysisTextToVideo" => Tr("Blind votes on videos made with comparable settings.", "相同提示词、统一设置下盲选视频质量。", "相同提示詞、統一設定下盲選影片品質。") + "\n\n" + AACostHelp(board.Kind),
@@ -1124,14 +1194,31 @@ sealed partial class MainWindow
         "vercelUsage" => Tr("Daily share", "每日占比", "每日佔比"),
         "openRouterUsage" => Tr("Daily usage", "每日用量", "每日用量"),
         "epochECI" => Tr("Calibrated tests", "难度校准", "難度校準"),
-        "arenaText" => Tr("User votes", "用户盲测", "使用者盲測"),
+        "arenaText" or "arenaTextUncontrolled" => Tr("User votes", "用户盲测", "使用者盲測"),
         "artificialAnalysisCodingAgent" => Tr("Task completion", "任务完成率", "任務完成率"),
         "valsSWEbench" => Tr("Archived benchmark", "已归档榜单", "已歸檔榜單"),
         "codeArenaWebDev" => Tr("WebDev votes", "网页开发盲选", "網頁開發盲選"),
+        "codeArenaImageToWebDev" => Tr("Image-to-WebDev votes", "图片转代码盲选", "圖片轉程式碼盲選"),
         "artificialAnalysisTextToImage" => Tr("Curated prompts", "场景化盲测", "場景化盲測"),
         "artificialAnalysisTextToVideo" => Tr("Matched settings", "统一设置", "統一設定"),
+        "artificialAnalysisImageEditing" or "artificialAnalysisImageToVideo" or "artificialAnalysisVideoEditing" or "arenaImageEditing" or "arenaMultiImageEditing" or "arenaImageToVideo" or "arenaVideoEditing" => MediaVariantTitle(board.Kind),
+        "artificialAnalysisSpeechProviderVoice" or "artificialAnalysisSpeechControlledVoice" or "artificialAnalysisSpeechAgent" or "artificialAnalysisSpeechToText" or "artificialAnalysisSpeechToTextStreaming" => MediaVariantTitle(board.Kind),
         "arenaTextToImage" or "arenaTextToVideo" => Tr("User prompts", "用户出题", "使用者出題"), _ => "",
     };
+    FrameworkElement CenterElement(FrameworkElement element)
+    {
+        element.HorizontalAlignment = HorizontalAlignment.Center; element.VerticalAlignment = VerticalAlignment.Center; return element;
+    }
+    FrameworkElement CurrencyValue(string value, double size)
+    {
+        if (!value.StartsWith('$')) return Caption(value, PanelMuted, size, numeric: true);
+        var line = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        var symbol = Caption("$", PanelMuted, size, numeric: true);
+        symbol.VerticalAlignment = VerticalAlignment.Center; symbol.RenderTransform = new TranslateTransform(0, 0.8);
+        var number = Caption(value[1..], PanelMuted, size, numeric: true);
+        number.VerticalAlignment = VerticalAlignment.Center;
+        line.Children.Add(symbol); line.Children.Add(number); return line;
+    }
     FrameworkElement FilterHeaderLabel(string title, bool active)
     {
         var ink = PanelInk;
@@ -1309,7 +1396,7 @@ sealed partial class MainWindow
         {
             menu.Items.Clear();
             var category = prefs.Category;
-            var draft = prefs.VisibleBoardKinds().ToHashSet();
+            var draft = prefs.VisibleBaseBoardKinds().ToHashSet();
             var checkboxes = new List<(string Kind, MenuItem Item)>();
             void UpdateCheckboxes()
             {

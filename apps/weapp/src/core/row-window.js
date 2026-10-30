@@ -1,6 +1,6 @@
 // Same approach as Watrek's stream-layout: a stable total height, absolute
 // global offsets, buffered windows and an edge threshold to avoid bridge churn.
-const overscan = 12
+const overscan = 11
 const edge = 6
 const positive = (value, fallback) => Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : fallback
 

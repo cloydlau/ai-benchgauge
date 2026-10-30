@@ -95,7 +95,7 @@ export default defineConfig({
         // remote images are needed when the selected source changes.
         const accents = new Set([sourceThemes.fallback, ...sourceThemes.sources]
           .flatMap(source => [source.light.accent, source.dark.accent]))
-        for (const name of ['general', 'coding', 'image', 'video', 'usage']) {
+        for (const name of ['general', 'coding', 'image', 'video', 'speech', 'usage']) {
           const template = readFileSync(resolve(root, `apps/ios/UI/Resources/CategoryIcons/${name}.svg`), 'utf8')
           for (const accent of accents) {
             const source = await sharp(Buffer.from(template.replaceAll('currentColor', accent))).resize(54, 54).png().toBuffer()

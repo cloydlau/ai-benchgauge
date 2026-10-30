@@ -160,12 +160,20 @@ public struct LeaderboardFetcher: Sendable {
             return try HTMLLeaderboardParser.arenaWebDev(fromHTML: html)
         case .artificialAnalysisTextToImage:
             return try HTMLLeaderboardParser.artificialAnalysisTextToImage(fromHTML: html)
+        case .artificialAnalysisImageEditing, .artificialAnalysisImageToVideo, .artificialAnalysisVideoEditing, .artificialAnalysisSpeechProviderVoice, .artificialAnalysisSpeechControlledVoice:
+            return try HTMLLeaderboardParser.artificialAnalysisMediaVariant(fromHTML: html, kind: kind)
+        case .artificialAnalysisSpeechAgent:
+            return try HTMLLeaderboardParser.artificialAnalysisSpeechAgent(fromHTML: html)
+        case .artificialAnalysisSpeechToText, .artificialAnalysisSpeechToTextStreaming:
+            return try HTMLLeaderboardParser.artificialAnalysisSpeechToText(fromHTML: html, kind: kind)
         case .arenaTextToImage:
             return try HTMLLeaderboardParser.arenaTextToImage(fromHTML: html)
         case .artificialAnalysisTextToVideo:
             return try HTMLLeaderboardParser.artificialAnalysisTextToVideo(fromHTML: html)
         case .arenaTextToVideo:
             return try HTMLLeaderboardParser.arenaTextToVideo(fromHTML: html)
+        case .arenaTextUncontrolled, .codeArenaImageToWebDev, .arenaImageEditing, .arenaMultiImageEditing, .arenaImageToVideo, .arenaVideoEditing:
+            throw URLError(.resourceUnavailable)
         }
     }
 

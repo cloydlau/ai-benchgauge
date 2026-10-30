@@ -206,12 +206,38 @@ public enum HTMLLeaderboardParser {
         )
     }
 
+    public static func artificialAnalysisMediaVariant(fromHTML html: String, kind: LeaderboardKind) throws -> Leaderboard {
+        let title: String
+        switch kind {
+        case .artificialAnalysisImageEditing: title = "Artificial Analysis | 图片编辑"
+        case .artificialAnalysisImageToVideo: title = "Artificial Analysis | 图生视频"
+        case .artificialAnalysisVideoEditing: title = "Artificial Analysis | 视频编辑"
+        case .artificialAnalysisSpeechProviderVoice: title = "Artificial Analysis | 文字转语音 · 原生声音"
+        case .artificialAnalysisSpeechControlledVoice: title = "Artificial Analysis | 文字转语音 · 受控声音"
+        default: throw ParserError.notEnoughArtificialAnalysisRecords(0)
+        }
+        return try artificialAnalysisArena(fromHTML: html, kind: kind, title: title)
+    }
+
     private static func artificialAnalysisArena(
         fromHTML html: String,
         kind: LeaderboardKind,
         title: String
     ) throws -> Leaderboard {
-        let objects = jsonObjects(in: html, containing: "formatted")
+        var objects = jsonObjects(in: html, containing: "formatted")
+        if [.artificialAnalysisImageEditing, .artificialAnalysisImageToVideo, .artificialAnalysisVideoEditing, .artificialAnalysisSpeechProviderVoice, .artificialAnalysisSpeechControlledVoice].contains(kind) {
+            var primary: [[String: Any]] = []
+            var lastRank = 0
+            for object in objects {
+                guard let formatted = object["formatted"] as? [String: Any], object["values"] is [String: Any] else { continue }
+                guard let rank = formatted["rank"] as? Int else { throw ParserError.notEnoughArtificialAnalysisRecords(primary.count) }
+                if rank <= lastRank { break }
+                guard rank == lastRank + 1 else { throw ParserError.notEnoughArtificialAnalysisRecords(primary.count) }
+                lastRank = rank
+                primary.append(object)
+            }
+            objects = primary
+        }
 
         var seenRecords = Set<String>()
         let records: [ParsedArtificialAnalysisRecord] = objects.compactMap { object in
@@ -236,11 +262,11 @@ public enum HTMLLeaderboardParser {
                 organization: organization,
                 logoURL: artificialAnalysisLogoURL(from: logoPath),
                 openness: ModelOpenness.fromSource(values),
-                taskCostUSD: kind == .artificialAnalysisTextToImage ? number(values, key: "pricePer1kImages").map { $0 / 1000 } : number(values, key: "pricePerMinute"), speed: nil
+                taskCostUSD: [.artificialAnalysisTextToImage, .artificialAnalysisImageEditing].contains(kind) ? number(values, key: "pricePer1kImages").map { $0 / 1000 } : kind.isAAVideoCost ? number(values, key: "pricePerMinute") : nil, speed: nil
             )
         }
 
-        guard records.count >= 20 else {
+        guard records.count >= (kind == .artificialAnalysisVideoEditing ? 10 : 20) else {
             throw ParserError.notEnoughArtificialAnalysisRecords(records.count)
         }
 
@@ -276,6 +302,51 @@ public enum HTMLLeaderboardParser {
             entries: entries,
             organizationLogoURLs: organizationLogoURLs
         )
+    }
+
+    public static func artificialAnalysisSpeechAgent(fromHTML html: String) throws -> Leaderboard {
+        let objects = jsonObjects(in: html, containing: "stsHostModelId")
+        var entries: [LeaderboardEntry] = []
+        var ranks = Set<Int>(), identifiers = Set<String>()
+        for value in objects where (value["sliceKey"] as? String) == "overall" {
+            guard let name = value["name"] as? String, !name.isEmpty,
+                  let id = value["id"] as? String, !id.isEmpty,
+                  let rank = value["rank"] as? Int, rank > 0,
+                  let score = number(value, key: "elo"), score.isFinite,
+                  ranks.insert(rank).inserted, identifiers.insert(id).inserted else {
+                throw ParserError.notEnoughArtificialAnalysisRecords(entries.count)
+            }
+            entries.append(LeaderboardEntry(rank: rank, name: name, score: score, modelID: id,
+                organization: value["creatorName"] as? String, logoURL: artificialAnalysisLogoURL(from: value["logo"] as? String)))
+        }
+        entries.sort { $0.rank < $1.rank }
+        guard entries.count >= 20, entries.enumerated().allSatisfy({ $0.element.rank == $0.offset + 1 }),
+              zip(entries, entries.dropFirst()).allSatisfy({ $0.0.score >= $0.1.score }) else {
+            throw ParserError.notEnoughArtificialAnalysisRecords(entries.count)
+        }
+        return Leaderboard(kind: .artificialAnalysisSpeechAgent, title: "Artificial Analysis | 语音对话", entries: entries)
+    }
+
+    public static func artificialAnalysisSpeechToText(fromHTML html: String, kind: LeaderboardKind) throws -> Leaderboard {
+        guard kind.isErrorRate else { throw ParserError.notEnoughArtificialAnalysisRecords(0) }
+        let key = kind == .artificialAnalysisSpeechToTextStreaming ? "aaWerStreamingIndex" : "aaWerIndex"
+        let objects = jsonObjects(in: html, containing: key)
+        var seen = Set<String>(), records: [(name: String, id: String, rate: Double, organization: String?, logo: URL?, openness: ModelOpenness?)] = []
+        for value in objects {
+            guard let model = value["model"] as? [String: Any], let host = value["host"] as? [String: Any],
+                  let id = value["id"] as? String, !id.isEmpty,
+                  let name = (value["displayLabel"] ?? value["displayName"] ?? value["name"]) as? String, !name.isEmpty,
+                  let rate = number(value, key: key), rate.isFinite, (0...1).contains(rate), seen.insert(id).inserted else { continue }
+            let openness: ModelOpenness? = (model["openWeights"] as? Bool).map { $0 ? .open : .closed }
+            records.append((name, id, rate, host["name"] as? String, artificialAnalysisLogoURL(from: value["logo"] as? String), openness))
+        }
+        guard records.count >= 20 else { throw ParserError.notEnoughArtificialAnalysisRecords(records.count) }
+        records.sort { $0.rate == $1.rate ? $0.name < $1.name : $0.rate < $1.rate }
+        let entries = records.enumerated().map { index, record in
+            LeaderboardEntry(rank: index + 1, name: record.name, score: record.rate * 100, modelID: record.id,
+                organization: record.organization, logoURL: record.logo, openness: record.openness)
+        }
+        return Leaderboard(kind: kind, title: "Artificial Analysis | 语音转文字", entries: entries)
     }
 
     private static func arena(

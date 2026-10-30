@@ -32,13 +32,25 @@ public final class LeaderboardPadStore: ObservableObject {
     @Published public var boardTransition: LeaderboardSwitchStyle { didSet { defaults.set(boardTransition.rawValue, forKey: "mobileBoardTransition") } }
     @Published public var selectedSource: Int { didSet { defaults.set(selectedSource, forKey: "mobileSelectedSource") } }
     @Published public private(set) var boardSelections: [String: [String]]
+    @Published public private(set) var mediaSelections: [String: String] = [:]
     public var visibleBoardKinds: [LeaderboardKind] { boardKinds(for: category) }
     public func boardKinds(for category: LeaderboardCategory) -> [LeaderboardKind] {
-        DesktopBoardSelection.kinds(for: category, saved: boardSelections[category.rawValue])
+        DesktopBoardSelection.kinds(for: category, saved: boardSelections[category.rawValue]).map { base in
+            guard let raw = mediaSelections[base.rawValue], let selected = LeaderboardKind(rawValue: raw), base.mediaVariants.contains(selected) else { return base }
+            return selected
+        }
+    }
+    public func selectMediaVariant(_ selected: LeaderboardKind, replacing current: LeaderboardKind) {
+        guard current.mediaVariants.contains(selected), let base = current.mediaVariants.first, selected != current else { return }
+        if selected == base { mediaSelections.removeValue(forKey: base.rawValue) }
+        else { mediaSelections[base.rawValue] = selected.rawValue }
+        defaults.set(mediaSelections, forKey: "mobileMediaSelections")
+        rowPresentations.removeAll()
+        Task { await refresh(kind: selected) }
     }
     public func toggleBoard(_ kind: LeaderboardKind, in category: LeaderboardCategory) {
         let next = DesktopBoardSelection.toggling(kind, in: category, saved: boardSelections[category.rawValue])
-        guard next != boardKinds(for: category).map(\.rawValue) else { return }
+        guard next != DesktopBoardSelection.kinds(for: category, saved: boardSelections[category.rawValue]).map(\.rawValue) else { return }
         var selections = boardSelections
         selections[category.rawValue] = next
         setBoardSelections(selections)
@@ -69,7 +81,7 @@ public final class LeaderboardPadStore: ObservableObject {
     func rowPresentation(for kind: LeaderboardKind) -> PadRowPresentation {
         if let cached = rowPresentations[kind] { return cached }
         let value = PadRowPresentation(board: snapshot.boards[kind], grouping: grouping,
-            country: countryFilter(for: kind), openness: opennessFilter(for: kind), language: language, modelQuery: modelSearchQuery, costOrder: costOrders.contains(kind), speedOrder: speedOrders.contains(kind), priceAscending: priceAscending)
+            country: countryFilter(for: kind), openness: opennessFilter(for: kind), language: language, modelQuery: modelSearchQuery, costOrder: kind != .openRouterUsage && costOrders.contains(kind), speedOrder: kind != .openRouterUsage && speedOrders.contains(kind), priceAscending: priceAscending)
         rowPresentations[kind] = value
         return value
     }
@@ -88,6 +100,7 @@ public final class LeaderboardPadStore: ObservableObject {
         self.boardTransition = LeaderboardSwitchStyle(saved: defaults.string(forKey: "mobileBoardTransition"))
         let selections = defaults.dictionary(forKey: "mobileBoardSelections") as? [String: [String]] ?? [:]
         self.boardSelections = selections
+        self.mediaSelections = defaults.dictionary(forKey: "mobileMediaSelections") as? [String: String] ?? [:]
         self.selectedSource = min(max(0, defaults.integer(forKey: "mobileSelectedSource")),
             DesktopBoardSelection.kinds(for: initialCategory, saved: selections[initialCategory.rawValue]).count - 1)
         for kind in LeaderboardKind.allCases {
@@ -137,6 +150,7 @@ public final class LeaderboardPadStore: ObservableObject {
         boardTransition = source.boardTransition
         selectedSource = source.selectedSource
         boardSelections = source.boardSelections
+        mediaSelections = source.mediaSelections
         filters = source.filters
         opennessFilters = source.opennessFilters
         searchQueries = source.searchQueries

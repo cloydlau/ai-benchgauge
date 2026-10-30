@@ -5,12 +5,26 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
     case valsSWEbench = "valsSWEbench"
     case artificialAnalysisCodingAgent = "artificialAnalysisCodingAgent"
     case arenaText = "arenaText"
+    case arenaTextUncontrolled = "arenaTextUncontrolled"
     case epochECI = "epochECI"
     case codeArenaWebDev = "codeArenaWebDev"
+    case codeArenaImageToWebDev = "codeArenaImageToWebDev"
     case artificialAnalysisTextToImage = "artificialAnalysisTextToImage"
+    case artificialAnalysisImageEditing = "artificialAnalysisImageEditing"
     case arenaTextToImage = "arenaTextToImage"
+    case arenaImageEditing = "arenaImageEditing"
+    case arenaMultiImageEditing = "arenaMultiImageEditing"
     case artificialAnalysisTextToVideo = "artificialAnalysisTextToVideo"
+    case artificialAnalysisImageToVideo = "artificialAnalysisImageToVideo"
+    case artificialAnalysisVideoEditing = "artificialAnalysisVideoEditing"
     case arenaTextToVideo = "arenaTextToVideo"
+    case arenaImageToVideo = "arenaImageToVideo"
+    case arenaVideoEditing = "arenaVideoEditing"
+    case artificialAnalysisSpeechProviderVoice = "artificialAnalysisSpeechProviderVoice"
+    case artificialAnalysisSpeechControlledVoice = "artificialAnalysisSpeechControlledVoice"
+    case artificialAnalysisSpeechAgent = "artificialAnalysisSpeechAgent"
+    case artificialAnalysisSpeechToText = "artificialAnalysisSpeechToText"
+    case artificialAnalysisSpeechToTextStreaming = "artificialAnalysisSpeechToTextStreaming"
     case cloudbaseUsage = "cloudbaseUsage"
     case vercelUsage = "vercelUsage"
     case openRouterUsage = "openRouterUsage"
@@ -19,8 +33,54 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
     public var isUsage: Bool { self == .openRouterUsage || isShareUsage }
     public var isShareUsage: Bool { self == .vercelUsage || self == .cloudbaseUsage }
     public var isPrice: Bool { self == .openRouterPrice }
+    public var isErrorRate: Bool { self == .artificialAnalysisSpeechToText || self == .artificialAnalysisSpeechToTextStreaming }
+    public var isAAImageCost: Bool { self == .artificialAnalysisTextToImage || self == .artificialAnalysisImageEditing }
+    public var isAAVideoCost: Bool { [.artificialAnalysisTextToVideo, .artificialAnalysisImageToVideo, .artificialAnalysisVideoEditing].contains(self) }
+    /// Options belong to one source and one medium; an unavailable counterpart
+    /// must not silently substitute a different source's task.
+    public var mediaVariants: [LeaderboardKind] {
+        switch self {
+        case .arenaText, .arenaTextUncontrolled:
+            [.arenaText, .arenaTextUncontrolled]
+        case .codeArenaWebDev, .codeArenaImageToWebDev:
+            [.codeArenaWebDev, .codeArenaImageToWebDev]
+        case .artificialAnalysisTextToImage, .artificialAnalysisImageEditing:
+            [.artificialAnalysisTextToImage, .artificialAnalysisImageEditing]
+        case .arenaTextToImage, .arenaImageEditing, .arenaMultiImageEditing:
+            [.arenaTextToImage, .arenaImageEditing, .arenaMultiImageEditing]
+        case .artificialAnalysisTextToVideo, .artificialAnalysisImageToVideo, .artificialAnalysisVideoEditing:
+            [.artificialAnalysisTextToVideo, .artificialAnalysisImageToVideo, .artificialAnalysisVideoEditing]
+        case .arenaTextToVideo, .arenaImageToVideo, .arenaVideoEditing:
+            [.arenaTextToVideo, .arenaImageToVideo, .arenaVideoEditing]
+        case .artificialAnalysisSpeechProviderVoice, .artificialAnalysisSpeechControlledVoice, .artificialAnalysisSpeechAgent, .artificialAnalysisSpeechToText, .artificialAnalysisSpeechToTextStreaming:
+            [.artificialAnalysisSpeechProviderVoice, .artificialAnalysisSpeechControlledVoice, .artificialAnalysisSpeechAgent, .artificialAnalysisSpeechToText, .artificialAnalysisSpeechToTextStreaming]
+        default: []
+        }
+    }
+
+    public func mediaVariantTitle(language: AppLanguage) -> String {
+        switch self {
+        case .arenaText: language.text("Style Control", "风格控制")
+        case .arenaTextUncontrolled: language.text("Original", "原始总榜")
+        case .codeArenaWebDev: language.text("WebDev", "网页开发")
+        case .codeArenaImageToWebDev: language.text("Image to WebDev", "图片转代码")
+        case .artificialAnalysisTextToImage, .arenaTextToImage: language.text("Text to image", "文生图")
+        case .artificialAnalysisImageEditing: language.text("Image editing", "图片编辑")
+        case .arenaImageEditing: language.text("Single-image edit", "单图编辑")
+        case .arenaMultiImageEditing: language.text("Multi-image edit", "多图编辑")
+        case .artificialAnalysisTextToVideo, .arenaTextToVideo: language.text("Text to video", "文生视频")
+        case .artificialAnalysisImageToVideo, .arenaImageToVideo: language.text("Image to video", "图生视频")
+        case .artificialAnalysisVideoEditing, .arenaVideoEditing: language.text("Video editing", "视频编辑")
+        case .artificialAnalysisSpeechProviderVoice: language.text("TTS · Provider voice", "文字转语音 · 原生声音")
+        case .artificialAnalysisSpeechControlledVoice: language.text("TTS · Controlled voice", "文字转语音 · 受控声音")
+        case .artificialAnalysisSpeechAgent: language.text("Speech agent", "语音对话")
+        case .artificialAnalysisSpeechToText: language.text("STT · Non-streaming", "语音转文字 · 非流式")
+        case .artificialAnalysisSpeechToTextStreaming: language.text("STT · Streaming", "语音转文字 · 流式")
+        default: ""
+        }
+    }
     public var supportsAACost: Bool {
-        [.openRouterUsage, .artificialAnalysis, .artificialAnalysisCodingAgent, .valsSWEbench, .artificialAnalysisTextToImage, .artificialAnalysisTextToVideo].contains(self)
+        [.openRouterUsage, .artificialAnalysis, .artificialAnalysisCodingAgent, .valsSWEbench, .artificialAnalysisTextToImage, .artificialAnalysisImageEditing, .artificialAnalysisTextToVideo, .artificialAnalysisImageToVideo, .artificialAnalysisVideoEditing].contains(self)
     }
 
     /// Older builds stored these boards under abbreviated raw values.
@@ -68,18 +128,32 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
         case .openRouterPrice: "https://openrouter.ai/models"
         case .epochECI:
             "https://epoch.ai/eci"
-        case .arenaText:
+        case .arenaText, .arenaTextUncontrolled:
             "https://arena.ai/leaderboard/text"
         case .codeArenaWebDev:
             "https://arena.ai/leaderboard/code/webdev"
+        case .codeArenaImageToWebDev:
+            "https://arena.ai/leaderboard/code/image-to-webdev"
         case .artificialAnalysisTextToImage:
             "https://artificialanalysis.ai/image/leaderboard/text-to-image"
+        case .artificialAnalysisImageEditing: "https://artificialanalysis.ai/image/leaderboard/editing"
         case .arenaTextToImage:
             "https://arena.ai/leaderboard/text-to-image"
+        case .arenaImageEditing: "https://arena.ai/leaderboard/image/image-edit/single-image"
+        case .arenaMultiImageEditing: "https://arena.ai/leaderboard/image/image-edit/multi-image"
         case .artificialAnalysisTextToVideo:
             "https://artificialanalysis.ai/video/leaderboard/text-to-video"
+        case .artificialAnalysisImageToVideo: "https://artificialanalysis.ai/video/leaderboard/image-to-video"
+        case .artificialAnalysisVideoEditing: "https://artificialanalysis.ai/video/leaderboard/video-editing"
         case .arenaTextToVideo:
             "https://arena.ai/leaderboard/text-to-video"
+        case .arenaImageToVideo: "https://arena.ai/leaderboard/video/image-to-video"
+        case .arenaVideoEditing: "https://arena.ai/leaderboard/video/video-edit"
+        case .artificialAnalysisSpeechProviderVoice: "https://artificialanalysis.ai/text-to-speech/leaderboard/provider-voice"
+        case .artificialAnalysisSpeechControlledVoice: "https://artificialanalysis.ai/text-to-speech/leaderboard/controlled-voice"
+        case .artificialAnalysisSpeechAgent: "https://artificialanalysis.ai/speech-to-speech/arena"
+        case .artificialAnalysisSpeechToText: "https://artificialanalysis.ai/speech-to-text/non-streaming"
+        case .artificialAnalysisSpeechToTextStreaming: "https://artificialanalysis.ai/speech-to-text/streaming"
         }
         return URL(string: value)!
     }
@@ -94,9 +168,12 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
         case .artificialAnalysis,
              .artificialAnalysisCodingAgent,
              .artificialAnalysisTextToImage,
-             .artificialAnalysisTextToVideo:
+             .artificialAnalysisImageEditing,
+             .artificialAnalysisTextToVideo, .artificialAnalysisImageToVideo, .artificialAnalysisVideoEditing,
+             .artificialAnalysisSpeechProviderVoice, .artificialAnalysisSpeechControlledVoice, .artificialAnalysisSpeechAgent,
+             .artificialAnalysisSpeechToText, .artificialAnalysisSpeechToTextStreaming:
             "Artificial Analysis"
-        case .arenaText, .codeArenaWebDev, .arenaTextToImage, .arenaTextToVideo:
+        case .arenaText, .arenaTextUncontrolled, .codeArenaWebDev, .codeArenaImageToWebDev, .arenaTextToImage, .arenaImageEditing, .arenaMultiImageEditing, .arenaTextToVideo, .arenaImageToVideo, .arenaVideoEditing:
             "Arena"
         case .valsSWEbench: "Vals AI"
         case .epochECI: "Epoch AI"
@@ -112,17 +189,29 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
         case .artificialAnalysis: "Artificial Analysis"
         case .valsSWEbench: "Vals AI · SWE-bench (Archived)"
         case .artificialAnalysisCodingAgent: "Artificial Analysis 编程"
-        case .arenaText: "Text Arena"
+        case .arenaText, .arenaTextUncontrolled: "Text Arena"
         case .epochECI: "Epoch ECI"
         case .cloudbaseUsage: "Tencent Cloud"
         case .vercelUsage: "Vercel AI Gateway"
         case .openRouterUsage: "OpenRouter"
         case .openRouterPrice: "OpenRouter"
-        case .codeArenaWebDev: "Code Arena"
+        case .codeArenaWebDev, .codeArenaImageToWebDev: "Code Arena"
         case .artificialAnalysisTextToImage: "Artificial Analysis 文生图"
+        case .artificialAnalysisImageEditing: "Artificial Analysis 图片编辑"
         case .arenaTextToImage: "Arena 文生图"
+        case .arenaImageEditing: "Arena 单图编辑"
+        case .arenaMultiImageEditing: "Arena 多图编辑"
         case .artificialAnalysisTextToVideo: "Artificial Analysis 文生视频"
+        case .artificialAnalysisImageToVideo: "Artificial Analysis 图生视频"
+        case .artificialAnalysisVideoEditing: "Artificial Analysis 视频编辑"
         case .arenaTextToVideo: "Arena 文生视频"
+        case .arenaImageToVideo: "Arena 图生视频"
+        case .arenaVideoEditing: "Arena 视频编辑"
+        case .artificialAnalysisSpeechProviderVoice: "Artificial Analysis 文字转语音"
+        case .artificialAnalysisSpeechControlledVoice: "Artificial Analysis 受控声音"
+        case .artificialAnalysisSpeechAgent: "Artificial Analysis 语音对话"
+        case .artificialAnalysisSpeechToText: "Artificial Analysis 语音转文字"
+        case .artificialAnalysisSpeechToTextStreaming: "Artificial Analysis 流式语音转文字"
         }
     }
 }
@@ -134,8 +223,9 @@ public enum LeaderboardCategory: String, Codable, CaseIterable, Identifiable, Se
     case coding
     case image
     case video
+    case speech
 
-    public static let allCases: [LeaderboardCategory] = [.usage, .general, .coding, .image, .video]
+    public static let allCases: [LeaderboardCategory] = [.usage, .general, .coding, .image, .speech, .video]
 
     public var id: String { rawValue }
 
@@ -145,6 +235,7 @@ public enum LeaderboardCategory: String, Codable, CaseIterable, Identifiable, Se
         case .coding: "编程"
         case .image: "图片"
         case .video: "视频"
+        case .speech: "语音"
         case .usage: "用量"
         case .price: "价格"
         }
@@ -161,6 +252,7 @@ public enum LeaderboardCategory: String, Codable, CaseIterable, Identifiable, Se
         case .coding: [.artificialAnalysisCodingAgent, .codeArenaWebDev, .valsSWEbench]
         case .image: [.artificialAnalysisTextToImage, .arenaTextToImage]
         case .video: [.artificialAnalysisTextToVideo, .arenaTextToVideo]
+        case .speech: [.artificialAnalysisSpeechProviderVoice]
         case .usage: [.openRouterUsage, .vercelUsage, .cloudbaseUsage]
         case .price: [.openRouterPrice]
         }

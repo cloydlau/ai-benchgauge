@@ -117,6 +117,9 @@
 /* Rank text starts at 4rpx margin + 2rpx padding + (44rpx - 2 × 19rpx) / 2. */
 .metadata { display: flex; align-items: center; gap: 16rpx; padding: 24rpx 6rpx 12rpx 9rpx; }
 .summary { flex: 1; min-width: 0; padding: 0; color: var(--muted); text-align: left; font-size: 22rpx; line-height: 1.5; }
+.variant-picker { flex: none; max-width: 180rpx; color: var(--muted); font-size: 18rpx; }
+.variant-label { display: flex; align-items: center; gap: 4rpx; white-space: nowrap; }
+.variant-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* Match the small timestamp's visible glyph center to the source heading.
    Apply the same correction to the date, caption and reflection. */
 .times { position: relative; top: .1em; color: var(--muted); display: flex; justify-content: flex-start; white-space: nowrap; gap: 8rpx; flex-shrink: 0; text-align: left; align-items: center; font-size: 18rpx; line-height: 1.25; }
@@ -186,6 +189,7 @@
 .table-row { position: absolute; left: 0; right: 0; box-sizing: border-box; padding: 7rpx 4rpx; min-height: 48px; border-radius: 12rpx; }.table-row.alternate { background: rgba(120,135,153,.05); }
 .rank-cell { text-align: center; color: var(--muted); font-size: 23rpx; }.score-cell { text-align: right; color: var(--muted); font-size: 23rpx; padding-right: 4rpx; }
 .score-value { position: relative; }
+.dollar-symbol { position: relative; top: -0.06em; }
 .score-share { position: absolute; top: 100%; right: 4rpx; font-size: 15rpx; line-height: 1; color: var(--source-accent); white-space: nowrap; pointer-events: none; }
 .name-cell { display: flex; align-items: center; gap: 8rpx; text-align: left; border-radius: 10rpx; padding: 8rpx; min-height: 0; height: 100%; box-sizing: border-box; width: 100%; }
 .name-action { flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; gap: 8rpx; padding: 0; text-align: left; }
@@ -292,7 +296,7 @@
 .distribution-source-row { display:flex; align-items:center; gap:6px; min-height:22px; }
 .distribution-note { display:block; font-size:10px; line-height:1.6; color:var(--muted); margin-top:12px; }
 
-.ranking-toggle { display:flex; align-items:center; justify-content:center; gap:6px; width:100%; padding:14px 0; margin:0; background:transparent; color:var(--muted); font-size:13px; line-height:20px; border:0; }
+.ranking-toggle { position:absolute; left:0; height:48px; box-sizing:border-box; display:flex; align-items:center; justify-content:center; gap:6px; width:100%; padding:14px 0; margin:0; background:transparent; color:var(--muted); font-size:13px; line-height:20px; border:0; }
 .ranking-toggle::after { border:0; }
 
 .single-source { justify-content: center; background: transparent; }
@@ -302,10 +306,11 @@
 .source-notice-scroll { box-sizing: border-box; height: 55vh; }
 .source-notice-text { display: block; padding: 8px 24px 24px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.75; text-align: left; }
 
-.cost-sort { padding: 0; margin: 0; min-height: 28rpx; line-height: 28rpx; font-size: 20rpx; color: var(--source-accent); background: transparent; text-align: right; }
+.cost-sort { box-sizing: border-box; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; height: 28px; min-height: 28px; max-height: 28px; padding: 0; margin: 0; line-height: 14px; font-size: 10px; color: var(--source-accent); background: transparent; text-align: right; }
 .cost-sort::after { border: 0; }
-.cost-score-title { display: block; }
-.cost-unit { display: block; font-size: 15rpx; line-height: 18rpx; white-space: nowrap; }
+.cost-score-title { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
+.metric-arrow { display: flex; align-items: center; }
+.cost-unit { display: block; font-size: 7.5px; line-height: 10px; white-space: nowrap; }
 .task-cost { color: var(--muted); }
 
-.cost-sort.is-guided { background: var(--source-accent); color: var(--card); border-radius: 6px; font-size: 16rpx; font-weight: 600; white-space: nowrap; overflow: hidden; }
+.cost-sort.is-guided { background: var(--source-accent); color: var(--card); border-radius: 6px; font-size: 8px; font-weight: 600; white-space: nowrap; overflow: hidden; }

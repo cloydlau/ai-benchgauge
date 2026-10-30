@@ -59,7 +59,7 @@ struct LeaderboardSettingsView: View {
                     Section(LeaderboardPresentation.title(category, language: store.language)) {
                         ForEach(category.boardKinds, id: \.self) { kind in
                             let kinds = store.boardKinds(for: category)
-                            let selected = kinds.contains(kind)
+                            let selected = kinds.contains { ($0.mediaVariants.first ?? $0) == kind }
                             let required = selected && kinds.count == 1
                             Button { store.toggleBoard(kind, in: category) } label: {
                                 HStack(spacing: 12) {

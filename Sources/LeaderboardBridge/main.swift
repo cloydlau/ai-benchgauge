@@ -151,13 +151,16 @@ actor Engine {
         // response must never re-enable a source the user has just disabled.
         let kinds: [LeaderboardKind]
         if request.id >= selectionRequestIDs[category, default: Int.min] {
-            kinds = DesktopBoardSelection.kinds(for: category, saved: request.boards)
+            let requested = (request.boards ?? []).compactMap(LeaderboardKind.init(rawValue:))
+            let canonical = requested.map { $0.mediaVariants.first ?? $0 }
+            let bases = DesktopBoardSelection.kinds(for: category, saved: request.boards == nil ? nil : canonical.map(\.rawValue))
+            kinds = bases.map { base in requested.first { ($0.mediaVariants.first ?? $0) == base } ?? base }
             selectedBoards[category] = kinds
             selectionRequestIDs[category] = request.id
         } else {
             kinds = selectedBoards[category] ?? category.boardKinds
         }
-        for kind in category.boardKinds where !kinds.contains(kind) {
+        for kind in Set(category.boardKinds.flatMap { [$0] + $0.mediaVariants }) where !kinds.contains(kind) {
             if let task = boardTasks.removeValue(forKey: kind) {
                 task.cancel()
                 lastBoardRefresh[kind] = nil
@@ -520,7 +523,7 @@ actor Engine {
                 : OrganizationCountry(rawValue: countryValue).map(LeaderboardCountryFilter.country) ?? .all
             let models = (board?.entries ?? []).filter { sourceFilter.matches($0) && countryFilter.matches($0) }
             let company = grouping == "company" && !kind.isPrice
-            let standings = company ? CompanyLeaderboard.rank(models, summingUsage: kind.isUsage) : []
+            let standings = company ? CompanyLeaderboard.rank(models, summingUsage: kind.isUsage, lowerIsBetter: kind.isErrorRate) : []
             let entries = company ? standings.map(\.entry) : models
             return Board(modelMetadataSource: board?.modelMetadataSource, kind: kind.rawValue, title: kind.sourcePrefix, url: kind.sourceURL.absoluteString,
                          updatedAt: board?.sourceUpdatedAt.map { formatter.string(from: $0) },
@@ -555,7 +558,7 @@ actor Engine {
             for kind in category.boardKinds {
                 let models = snapshot.boards[kind]?.entries ?? []
                 for grouping in LeaderboardGrouping.allCases {
-                    let entries = grouping == .company ? CompanyLeaderboard.rank(models, summingUsage: kind.isUsage).map(\.entry) : models
+                    let entries = grouping == .company ? CompanyLeaderboard.rank(models, summingUsage: kind.isUsage, lowerIsBetter: kind.isErrorRate).map(\.entry) : models
                     for entry in entries {
                         let links = PurchaseLinkCatalog.links(forOrganization: entry.organization, modelName: entry.name)
                         layoutEntries.append(LayoutEntry(name: entry.name,

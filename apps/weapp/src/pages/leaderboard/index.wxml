@@ -32,7 +32,7 @@
     <view wx:for="{{cards}}" wx:for-item="card" wx:key="kind" class="board-face" style="{{cubeFaces[card.index].style}}" aria-hidden="{{face !== card.index}}">
       <!-- The native indicator rests inside the clipped source-tab spacer.
            Keep its loading feedback in the visible part of this cube face. -->
-      <view wx:if="{{pullRefreshKind === card.kind}}" class="pull-refresh-status {{pullRefreshing ? 'refreshing' : 'restoring'}}" role="status" aria-label="{{labels.loading}}">
+      <view wx:if="{{pullRefreshKind === card.kind && !card.headerPinned}}" class="pull-refresh-status {{pullRefreshing ? 'refreshing' : 'restoring'}}" role="status" aria-label="{{labels.loading}}">
         <view class="pull-refresh-dot" /><view class="pull-refresh-dot" /><view class="pull-refresh-dot" />
       </view>
       <scroll-view id="board-scroll-{{card.kind}}" class="board-scroll" scroll-y="{{!backgroundLocked && (!cubeDragging || face !== card.index)}}" enhanced show-scrollbar="{{false}}"
@@ -43,6 +43,12 @@
         <view class="board-card source-{{card.index}}" style="{{card.themeStyle}}">
           <view class="metadata">
             <button class="summary" data-kind="{{card.kind}}" bindtap="sourceHelp">{{card.summary}}</button>
+            <view wx:if="{{card.variantLabels && card.variantLabels.length > 1}}" class="times" aria-role="button" bindtap="timeHelp" aria-label="{{card.timeAccessibility}} · {{labels.timeExplanationTitle}}" aria-busy="{{card.loading}}">
+              <view class="time-copy">
+                <view class="time-row {{card.isSourceTime ? 'time-source' : 'time-fetched'}}"><text class="time-value">{{card.time}}</text><view class="time-caption {{card.loading ? 'time-caption-loading' : ''}}"><text class="time-label">{{card.timeLabel}}</text><view wx:if="{{card.loading}}" class="time-loading" aria-hidden="true" /></view></view>
+                <view wx:if="{{card.polishing}}" class="time-row time-polish {{card.isSourceTime ? 'time-source' : 'time-fetched'}}" aria-hidden="true"><text class="time-value">{{card.time}}</text><view class="time-caption"><text class="time-label">{{card.timeLabel}}</text></view></view>
+              </view>
+            </view>
           </view>
           <view id="head-anchor-{{card.kind}}" class="table-head-anchor" aria-hidden="true" />
           <view id="table-head-{{card.kind}}" class="table-head {{card.headerPinned ? 'table-head-pinned' : ''}} {{modelSearchVisible ? 'model-search-open' : ''}}">
@@ -50,9 +56,12 @@
             <text class="rank-cell">{{labels.rank}}</text>
             <view class="model-heading">
             <view class="source-heading-details">
-            <button class="source-heading" data-kind="{{card.kind}}" bindtap="sourceHelp" aria-label="{{card.title}}">{{card.title}}</button>
+            <button class="source-heading" data-kind="{{card.kind}}" bindtap="sourceHelp" aria-label="{{card.title}}">{{card.heading}}</button>
             <view class="source-heading-actions">
-            <view class="times" aria-role="button" bindtap="timeHelp" aria-label="{{card.timeAccessibility}} · {{labels.timeExplanationTitle}}" aria-busy="{{card.loading}}">
+            <picker wx:if="{{card.variantLabels && card.variantLabels.length > 1}}" class="variant-picker" mode="selector" range="{{card.variantLabels}}" value="{{card.variantIndex}}" data-base="{{card.variantBase}}" bindchange="selectVariant">
+              <view class="variant-label"><text class="variant-text">{{card.variantLabels[card.variantIndex]}}</text><van-icon name="arrow-down" size="9px" /></view>
+            </picker>
+            <view wx:else class="times" aria-role="button" bindtap="timeHelp" aria-label="{{card.timeAccessibility}} · {{labels.timeExplanationTitle}}" aria-busy="{{card.loading}}">
               <view class="time-copy">
                 <view class="time-row {{card.isSourceTime ? 'time-source' : 'time-fetched'}}"><text class="time-value">{{card.time}}</text><view class="time-caption {{card.loading ? 'time-caption-loading' : ''}}"><text class="time-label">{{card.timeLabel}}</text><view wx:if="{{card.loading}}" class="time-loading" aria-hidden="true" /></view></view>
                 <view wx:if="{{card.polishing}}" class="time-row time-polish {{card.isSourceTime ? 'time-source' : 'time-fetched'}}" aria-hidden="true"><text class="time-value">{{card.time}}</text><view class="time-caption"><text class="time-label">{{card.timeLabel}}</text></view></view>
@@ -69,7 +78,8 @@
               <view class="filter-label">{{labels.source}}<view class="filter-arrow" aria-hidden="true"><van-icon name="{{card.sourceFiltered ? 'filter-o' : 'arrow-down'}}" size="{{card.sourceFiltered ? '8px' : '7px'}}" /></view></view>
             </button>
             <button wx:if="{{card.hasTaskCost}}" class="score-cell cost-sort {{card.showMetricGuide ? 'is-guided' : ''}}" data-kind="{{card.kind}}" bindtap="toggleCostOrder" aria-label="{{card.showMetricGuide ? labels.metricGuide : card.costSortLabel}}">
-              <text class="cost-score-title">{{card.showMetricGuide ? labels.metricGuide : card.speedOrder ? card.speedUnit : card.costOrder ? card.costUnit : card.scoreLabel}}⌄</text>
+              <view class="cost-score-title"><text>{{card.showMetricGuide ? labels.metricGuide : card.metricTitle || card.scoreLabel}}</text><van-icon name="arrow-down" size="7px" class="metric-arrow" /></view>
+              <text wx:if="{{!card.showMetricGuide && (card.costOrder || card.speedOrder)}}" class="cost-unit">{{card.speedOrder ? card.speedUnit : card.costUnit}}</text>
             </button>
             <button wx:elif="{{card.hasPrice}}" class="score-cell cost-sort" bindtap="togglePriceOrder" aria-label="{{labels.priceInput}} {{card.priceAscending ? '↑' : '↓'}}"><text class="cost-score-title">{{labels.priceInput}}{{card.priceAscending ? '↑' : '↓'}}</text><text class="cost-unit">{{labels.priceOutput}}</text></button>
             <text wx:else class="score-cell">{{card.scoreLabel}}</text>
@@ -123,16 +133,16 @@
               <text wx:else>—</text>
             </button>
             <view class="score-cell score-value mono">
-              <text>{{row.scoreText}}</text>
-              <text wx:if="{{row.outputPriceText}}" class="score-share task-cost">{{row.outputPriceText}}</text>
+              <text wx:if="{{row.scoreDollar}}">{{row.scoreDollar.before}}<text class="dollar-symbol">$</text>{{row.scoreDollar.after}}</text><text wx:else>{{row.scoreText}}</text>
+              <text wx:if="{{row.outputPriceText}}" class="score-share task-cost"><block wx:if="{{row.outputDollar}}">{{row.outputDollar.before}}<text class="dollar-symbol">$</text>{{row.outputDollar.after}}</block><block wx:else>{{row.outputPriceText}}</block></text>
               <text wx:if="{{row.scoreShare}}" class="score-share">{{row.scoreShare}}</text>
             </view>
           </view>
+          <button wx:if="{{card.hasMore}}" class="ranking-toggle" style="top:{{card.toggleTop}}px;" data-kind="{{card.kind}}" bindtap="toggleRanking" aria-label="{{card.expansionLabel}}" aria-expanded="{{card.expanded}}">
+            <text>{{card.expansionLabel}}</text><van-icon name="{{card.expanded ? 'arrow-up' : 'arrow-down'}}" size="12px" />
+          </button>
           </view>
         </view>
-        <button wx:if="{{card.hasMore}}" class="ranking-toggle" data-kind="{{card.kind}}" bindtap="toggleRanking" aria-label="{{card.expansionLabel}}">
-          <text>{{card.expansionLabel}}</text><van-icon name="{{card.expanded ? 'arrow-up' : 'arrow-down'}}" size="12px" />
-        </button>
         <view class="distribution-charts" aria-label="{{labels.countryShare}} · {{labels.sourceShare}}">
           <view class="distribution-heading"><text>{{labels.countryShare}}</text><text class="distribution-total">{{card.distribution.totalLabel}}</text></view>
           <text wx:if="{{!card.distribution.total}}" class="distribution-note">{{labels.noModels}}</text>

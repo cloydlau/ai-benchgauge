@@ -26,8 +26,11 @@ class Store {
 
 test('all four subsets preserve published scores, ranks, counts, license and date; never mix categories', () => {
   assert.equal(arenaSubsets.arenaText, 'text_style_control');
+  assert.equal(arenaSubsets.arenaTextUncontrolled, 'text');
   for (const kind of Object.keys(arenaSubsets)) {
-    const source = rows(); source[0].license = 'MIT'; source[1].organization = ''; source[2].license = 'Unrecognized new license';
+    const source = rows(); if (kind === 'arenaMultiImageEditing') source.forEach(row => { row.category = 'multi_image_edit'; });
+    if (kind === 'codeArenaImageToWebDev') source.forEach(row => { row.category = 'image_to_webdev'; });
+    source[0].license = 'MIT'; source[1].organization = ''; source[2].license = 'Unrecognized new license';
     const board = parsed(kind, [...source, { category: 'coding', rating: 9999 }]);
     assert.equal(board.entries.length, 22); assert.equal(board.entries[0].score, source[0].rating);
     assert.equal(board.entries[0].rank, 1); assert.equal(board.entries[0].voteCount, 1000);
@@ -150,4 +153,16 @@ test('configured collector preserves official scores and validates the returned 
     await assert.rejects(loadConfiguredArenaDataset('arenaText', { now, environment,
       fetcher: async () => new Response(JSON.stringify({ ...parsed(), ...corrupt })) }));
   }
+});
+
+test('image-to-WebDev round trip selects only its own category and publication date', async () => {
+  const { loadConfiguredArenaDataset } = await import('../fc/arena-collector.mjs');
+  const source = rows().map(row => ({ ...row, category: 'image_to_webdev', leaderboard_publish_date: '2026-10-14' }));
+  const board = parsed('codeArenaImageToWebDev', [...rows(), ...source]);
+  assert.equal(board.sourceUpdatedAt, '2026-10-14T00:00:00.000Z');
+  assert.match(board.sourceNote, /webdev\/latest\/image_to_webdev/);
+  const restored = await loadConfiguredArenaDataset('codeArenaImageToWebDev', { now,
+    environment: { ARENA_COLLECTOR_ENDPOINT: 'https://fixture.ap-southeast-1.fcapp.run', ARENA_COLLECTOR_TOKEN: 'T'.repeat(43) },
+    fetcher: async () => new Response(JSON.stringify(board)) });
+  assert.deepEqual(restored.entries, board.entries);
 });

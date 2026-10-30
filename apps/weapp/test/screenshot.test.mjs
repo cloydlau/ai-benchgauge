@@ -77,6 +77,22 @@ test('exported score shares sit below the score without changing row geometry', 
   }
 })
 
+test('export aligns the dollar glyph for input and output while retaining the complete price', () => {
+  const h = canvasHarness(), source = model([1])
+  Object.assign(source.boards[0].rows[0], { scoreText: '<$0.001', outputPriceText: '$3.00', scoreShare: '' })
+  drawScreenshot(h.context, source, planScreenshot(h.context, source), new Map())
+  const commands = h.commands.filter(([name]) => name === 'fillText')
+  const prefix = commands.find(command => command[1] === '<')
+  const input = commands.find(command => command[1] === '0.001')
+  const output = commands.find(command => command[1] === '3.00')
+  const symbols = commands.filter(command => command[1] === '$')
+  assert.equal(symbols.length, 2)
+  assert.equal(prefix[3], input[3])
+  assert.ok(Math.abs((input[3] - symbols[0][3]) - 14 * 0.06) < 1e-9)
+  assert.ok(Math.abs((output[3] - symbols[1][3]) - 9 * 0.06) < 1e-9)
+  assert.ok(prefix[2] < symbols[0][2] && symbols[0][2] < input[2])
+})
+
 test('exported score bars span every column after rank without narrowing name layout', () => {
   for (const dark of [false, true]) for (const grouping of ['model', 'company']) {
     const h = canvasHarness(), source = model([3, 0], dark)

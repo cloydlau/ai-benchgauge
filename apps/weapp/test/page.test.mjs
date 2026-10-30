@@ -85,6 +85,32 @@ function setup(preferences = {}, count = 0, query = {}, systemTheme = 'light', s
 }
 const event = dataset => ({ currentTarget: { dataset } })
 
+test('media selector switches the source board and persists the selected task', async t => {
+  const h = setup({ category: 'video', language: 'zh-CN' })
+  t.after(() => globalThis.__benchHooks.unload())
+  const before = h.page.cards.value[0]
+  assert.equal(before.kind, 'artificialAnalysisTextToVideo')
+  assert.deepEqual(before.variantLabels, ['文生视频', '图生视频', '视频编辑'])
+  h.page.selectVariant({ currentTarget: { dataset: { base: 'artificialAnalysisTextToVideo' } }, detail: { value: 1 } })
+  assert.equal(h.page.cards.value[0].kind, 'artificialAnalysisImageToVideo')
+  assert.equal(h.page.cards.value[0].variantIndex, 1)
+  assert.ok(h.requests.some(request => request.options.url.endsWith('/artificialAnalysisImageToVideo')))
+  assert.equal(h.writes.at(-1).value.variants.artificialAnalysisTextToVideo, 'artificialAnalysisImageToVideo')
+  h.respondAll()
+})
+
+test('speech category switches between distinct AA speech tasks', async t => {
+  const h = setup({ category: 'speech', language: 'zh-CN' })
+  t.after(() => globalThis.__benchHooks.unload())
+  assert.equal(h.page.cards.value[0].kind, 'artificialAnalysisSpeechProviderVoice')
+  assert.deepEqual(h.page.cards.value[0].variantLabels, ['文字转语音 · 原生声音', '文字转语音 · 受控声音', '语音对话', '语音转文字 · 非流式', '语音转文字 · 流式'])
+  h.page.selectVariant({ currentTarget: { dataset: { base: 'artificialAnalysisSpeechProviderVoice' } }, detail: { value: 2 } })
+  assert.equal(h.page.cards.value[0].kind, 'artificialAnalysisSpeechAgent')
+  assert.ok(h.requests.some(request => request.options.url.endsWith('/artificialAnalysisSpeechAgent')))
+  assert.equal(h.writes.at(-1).value.variants.artificialAnalysisSpeechProviderVoice, 'artificialAnalysisSpeechAgent')
+  h.respondAll()
+})
+
 test('coding cost toggle keeps original ranks, price baselines and companies in every language', async t => {
   for (const language of ['en', 'zh-CN', 'zh-TW']) {
     const kind = 'artificialAnalysisCodingAgent'
@@ -124,7 +150,7 @@ test('coding cost toggle keeps original ranks, price baselines and companies in 
   }
 })
 
-test('OpenRouter usage header switches metrics without changing ranks', async () => {
+test('OpenRouter usage header hides metric selection and retains usage values', async () => {
   const h = setup({ category: 'usage' })
   const loading = h.loadCategory()
   for (let i = 0; i < h.requests.length; i++) h.respond(i, { entries: [
@@ -133,12 +159,14 @@ test('OpenRouter usage header switches metrics without changing ranks', async ()
   ] })
   await loading
   const card = () => h.page.cards.value.find(item => item.kind === 'openRouterUsage')
-  globalThis.wx.showActionSheet = ({ success }) => success({ tapIndex: 1 })
+  const before = card().rows.map(row => [row.rank, row.name, row.scoreText, row.outputPriceText])
+  let opened = false
+  globalThis.wx.showActionSheet = () => { opened = true }
   h.page.toggleCostOrder(event({ kind: 'openRouterUsage' }))
-  assert.deepEqual(card().rows.map(row => [row.rank, row.name, row.scoreText, row.outputPriceText]), [[1, 'Cheap', '$1.00', '$3.00'], [2, 'Expensive', '$5.00', '$7.00']])
-  globalThis.wx.showActionSheet = ({ success }) => success({ tapIndex: 2 })
-  h.page.toggleCostOrder(event({ kind: 'openRouterUsage' }))
-  assert.deepEqual(card().rows.map(row => [row.rank, row.scoreText]), [[1, '20'], [2, '80']])
+  assert.equal(opened, false)
+  assert.equal(card().hasTaskCost, undefined)
+  assert.equal(card().scoreLabel, '用量')
+  assert.deepEqual(card().rows.map(row => [row.rank, row.name, row.scoreText, row.outputPriceText]), before)
   globalThis.__benchHooks.unload()
 })
 
@@ -1224,7 +1252,7 @@ test('rankings show twenty by default, expand independently and reset after sear
     const loaded = h.loadCategory(); h.respondCategory(); await loaded
     const first = h.page.cards.value[0], second = h.page.cards.value[1]
     assert.equal(first.shownCount, Math.min(20, count))
-    assert.equal(first.height, Math.min(20, count) * 48)
+    assert.equal(first.height, Math.min(20, count) * 48 + (count > 20 ? 48 : 0))
     assert.equal(first.hasMore, count > 20)
     assert.equal(first.expanded, false)
     assert.equal(first.rows.at(-1).rank, Math.min(20, count))
@@ -1236,6 +1264,8 @@ test('rankings show twenty by default, expand independently and reset after sear
     if (count > 20) {
       assert.match(first.expansionLabel, /21/)
       assert.equal(h.page.cards.value[0].rows.at(-1).rank, 21)
+      assert.equal(h.page.cards.value[0].toggleTop, first.toggleTop)
+      assert.equal(h.page.cards.value[0].rows.at(-1).top, first.toggleTop + 48)
       h.page.toggleRanking(event({ kind: first.kind }))
       assert.equal(h.page.cards.value[0].shownCount, 20)
       assert.equal(h.page.cards.value[0].rows.at(-1).rank, 20)
@@ -1266,8 +1296,8 @@ test('ten thousand rows only cross the bridge in bounded windows, including fast
   let card = h.page.cards.value[0]
   assert.equal(card.count, 10000)
   assert.ok(card.rows.length < 50)
-  assert.equal(card.height, 480000)
-  assert.ok(JSON.stringify(h.page.cards.value).length < 50000)
+  assert.equal(card.height, 480048)
+  assert.ok(JSON.stringify(h.page.cards.value).length < 50000, `bridge size: ${JSON.stringify(h.page.cards.value).length}`)
   h.page.scroll({ ...event({ kind: card.kind }), detail: { scrollTop: 470000 } })
   card = h.page.cards.value[0]
   assert.ok(card.rows[0].rank > 9700)
@@ -1344,7 +1374,7 @@ test('measured header origin follows the scroll container and stale layout callb
   const current = h.page.cards.value[0]
   assert.equal(current.rows[0].rank, 489)
   assert.ok(current.rows.length <= 35)
-  assert.equal(current.rows[0].top, 488 * 48)
+  assert.equal(current.rows[0].top, 489 * 48)
   globalThis.__benchHooks.unload()
   callbacks.at(-1)([{ top: 0, height: 50 }, { top: -99999 }, null, null])
   assert.equal(h.page.cards.value[0].rows[0].rank, 489)
@@ -2441,7 +2471,7 @@ test('bar drags preview under the finger and commit only the final category once
   const h = setup(); mockTabBounds()
   h.page.tabStart(tabTouch('category', 60))
   h.page.tabMove(tabTouch('category', 190))
-  assert.equal(h.page.categoryIndex.value, 2)
+  assert.equal(h.page.categoryIndex.value, 3)
   assert.equal(h.page.category.value, 'general')
   assert.equal(h.requests.length, 0)
   h.page.tabMove(tabTouch('category', 600))

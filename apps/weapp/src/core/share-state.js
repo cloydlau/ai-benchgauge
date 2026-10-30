@@ -1,4 +1,4 @@
-import { boards, categories, hasOwn, languages } from './catalog.js'
+import { boards, categories, hasOwn, languages, normalizeVariants } from './catalog.js'
 import { normalizedCountryCode } from '../../../../fc/domain.mjs'
 import { visibleBoardKinds, normalizeBoardSelections } from './board-selection.js'
 import { normalizeBoardTransition } from './board-transition.js'
@@ -50,6 +50,7 @@ export function normalizePreferences(value, locale) {
     appearance: theme === 'system' && appearances.includes(value.appearance) ? value.appearance : null,
     filters: normalizeFilters(value.filters, category, face, boardSelections),
     ...(Object.keys(boardSelections).length ? { boardSelections } : {}),
+    ...(Object.keys(normalizeVariants(value.variants)).length ? { variants: normalizeVariants(value.variants) } : {}),
     ...(normalizeBoardTransition(value.boardTransition) !== 'cube' ? { boardTransition: value.boardTransition } : {}),
   }
 }
@@ -72,7 +73,7 @@ export function readSharedPreferences(query = {}) {
     const kind = categories.find(item => item.id === state.c).kinds[state.f]
     const face = Math.max(0, visibleBoardKinds(state.c, selections).indexOf(kind))
     return normalizePreferences({ category: state.c, grouping: state.g, face,
-      language: state.l, theme: state.t, appearance: state.a, filters, boardSelections: state.b })
+      language: state.l, theme: state.t, appearance: state.a, filters, boardSelections: state.b, variants: state.vs })
   } catch { return null }
 }
 
@@ -105,6 +106,7 @@ export function sharePath(value, appearance, path = '/pages/leaderboard/index') 
   const state = { v: 1, c: preferences.category, g: preferences.grouping, f: face,
     l: preferences.language, t: preferences.theme, a: actualAppearance,
     ...(preferences.boardSelections ? { b: preferences.boardSelections } : {}),
+    ...(preferences.variants ? { vs: preferences.variants } : {}),
     // All-default filters are deliberately omitted. The complete snapshot
     // replaces receiver preferences, so omission resets that board's filters.
     // Readers expand the selected board's global pair to all boards.

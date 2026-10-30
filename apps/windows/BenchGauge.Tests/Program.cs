@@ -440,6 +440,40 @@ guidePreferences = JsonSerializer.Deserialize<Preferences>(JsonSerializer.Serial
 if (!guidePreferences.HasSeenMetricGuide("artificialAnalysis") || guidePreferences.HasSeenMetricGuide("openRouterUsage")) throw new Exception("Guide state must persist independently per source");
 Console.WriteLine("PASS: metric guidance persists per eligible source");
 
+var mediaPreferences = new Preferences { Category = "video" };
+if (!mediaPreferences.SelectMediaVariant("artificialAnalysisTextToVideo", "artificialAnalysisImageToVideo") ||
+    !mediaPreferences.SelectMediaVariant("arenaTextToVideo", "arenaVideoEditing") ||
+    !mediaPreferences.VisibleBoardKinds().SequenceEqual(new[] { "artificialAnalysisImageToVideo", "arenaVideoEditing" }))
+    throw new Exception("Media selection must keep independent source variants");
+if (mediaPreferences.SelectMediaVariant("arenaVideoEditing", "artificialAnalysisVideoEditing"))
+    throw new Exception("Media selection must reject another source's variants");
+if (!mediaPreferences.SelectMediaVariant("artificialAnalysisImageToVideo", "artificialAnalysisTextToVideo") ||
+    mediaPreferences.VisibleBaseBoardKinds().Length != 2)
+    throw new Exception("Media selection must restore defaults without changing source visibility");
+Console.WriteLine("PASS: independent media selections");
+var textPreferences = new Preferences { Category = "general" };
+if (!textPreferences.SelectMediaVariant("arenaText", "arenaTextUncontrolled") ||
+    !textPreferences.VisibleBoardKinds().Contains("arenaTextUncontrolled") ||
+    textPreferences.VisibleBoardKinds().Contains("arenaText"))
+    throw new Exception("Text Arena variants must remain independent");
+if (!textPreferences.SelectMediaVariant("arenaTextUncontrolled", "arenaText") ||
+    !textPreferences.VisibleBoardKinds().Contains("arenaText"))
+    throw new Exception("Text Arena must restore the style-controlled default");
+Console.WriteLine("PASS: Arena text scoring variants");
+var codingPreferences = new Preferences { Category = "coding" };
+if (!codingPreferences.SelectMediaVariant("codeArenaWebDev", "codeArenaImageToWebDev") ||
+    !codingPreferences.VisibleBoardKinds().Contains("codeArenaImageToWebDev"))
+    throw new Exception("Arena image-to-code must be independently selectable");
+Console.WriteLine("PASS: Arena image-to-code selection");
+var speechPreferences = new Preferences { Category = "speech" };
+if (!speechPreferences.SelectMediaVariant("artificialAnalysisSpeechProviderVoice", "artificialAnalysisSpeechAgent") ||
+    !speechPreferences.VisibleBoardKinds().SequenceEqual(new[] { "artificialAnalysisSpeechAgent" }))
+    throw new Exception("Speech category must select its own AA speech task");
+if (!speechPreferences.SelectMediaVariant("artificialAnalysisSpeechAgent", "artificialAnalysisSpeechToTextStreaming") ||
+    !speechPreferences.VisibleBoardKinds().SequenceEqual(new[] { "artificialAnalysisSpeechToTextStreaming" }))
+    throw new Exception("Streaming transcription must remain an independent selection");
+Console.WriteLine("PASS: speech selection");
+
 sealed class FixtureHttpHandler(Func<HttpRequestMessage, byte[]> response) : HttpMessageHandler
 {
     public int Requests { get; private set; }

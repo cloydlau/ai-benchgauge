@@ -2,12 +2,26 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { existsSync, readFileSync } from 'node:fs'
 import brandCatalog from '../../../fc/brand-catalog.json' with { type: 'json' }
-import { boards, categories, copy, languages, text } from '../src/core/catalog.js'
-import { normalizeBoard, canReplace, countryCode, countryFlag, countryOptions, companyRows, visibleRows, formatTime, rowView, scoreShareText, modelNameMatches } from '../src/core/leaderboard.js'
+import { boards, categories, boardVariants, copy, languages, text } from '../src/core/catalog.js'
+import { normalizeBoard, canReplace, countryCode, countryFlag, countryOptions, companyRows, visibleRows, formatTime, rowView, scoreShareText, modelNameMatches, dollarParts } from '../src/core/leaderboard.js'
 
 const kind = 'artificialAnalysis'
 const entry = (rank, name, score, organization, fields = {}) => ({ rank, name, score, organization, ...fields })
 const board = (entries, fields = {}) => ({ kind, fetchedAt: '2026-10-13T12:00:00Z', entries, ...fields })
+
+test('currency glyph layout preserves prices, prefixes and non-currency values', () => {
+  assert.deepEqual(dollarParts('$9.48'), { before: '', after: '9.48' })
+  assert.deepEqual(dollarParts('<$0.001'), { before: '<', after: '0.001' })
+  assert.equal(dollarParts('—'), null)
+  const price = rowView(entry(1, 'Model', 0.0001, 'Lab', { outputPriceUSD: 3 }), { kind: 'openRouterPrice' })
+  assert.equal(price.scoreText, '<$0.001')
+  assert.deepEqual(price.scoreDollar, { before: '<', after: '0.001' })
+  assert.equal(price.outputPriceText, '$3.00')
+  assert.deepEqual(price.outputDollar, { before: '', after: '3.00' })
+  const score = rowView(entry(1, 'Model', 42, 'Lab'), { kind: 'artificialAnalysis' })
+  assert.equal(score.scoreText, '42.0')
+  assert.equal(score.scoreDollar, undefined)
+})
 
 test('cached Epoch rows share verified source badges and filtering while keeping hosted and public releases distinct', () => {
   const ids = ['Gemini 4 Argon', 'Qwen 3.6 Max (Preview)', 'Mistral Large 4',
@@ -108,9 +122,16 @@ test('score backgrounds use the unsearched leader, retain full leader width and 
   }
 })
 
-test('the five categories expose all active sources including restored Tencent', () => {
-  assert.equal(categories.length, 5)
-  assert.deepEqual(categories.flatMap(item => item.kinds).sort(), Object.keys(boards).filter(kind => kind !== 'openRouterPrice').sort())
+test('the six categories expose all active sources including restored Tencent and speech', () => {
+  assert.equal(categories.length, 6)
+  const defaults = categories.flatMap(item => item.kinds)
+  const all = defaults.flatMap(kind => boardVariants[kind] || [kind])
+  assert.equal(new Set(all).size, all.length)
+  assert.deepEqual(all.sort(), Object.keys(boards).filter(kind => kind !== 'openRouterPrice').sort())
+  for (const [base, variants] of Object.entries(boardVariants)) {
+    assert.ok(defaults.includes(base))
+    assert.equal(variants[0], base)
+  }
   for (const values of Object.values(copy)) for (const language of languages) assert.ok(text(values, language))
   assert.equal(text(copy.tasks, 'zh-CN'), '任务测评')
   assert.equal(text(copy.votes, 'zh-TW'), '使用者盲測')

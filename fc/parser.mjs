@@ -14,11 +14,25 @@ export const sources = Object.freeze({
   artificialAnalysisCodingAgent: ['https://artificialanalysis.ai/agents/coding-agents', 'Artificial Analysis Coding Agent Index'],
   epochECI: ['https://epoch.ai/data/eci_scores.csv', 'Epoch Capabilities Index'],
   arenaText: ['https://arena.ai/leaderboard/text', 'Arena | Text'],
+  arenaTextUncontrolled: ['https://arena.ai/leaderboard/text', 'Arena | Text · Original'],
   codeArenaWebDev: ['https://arena.ai/leaderboard/code/webdev', 'Code Arena | WebDev'],
+  codeArenaImageToWebDev: ['https://arena.ai/leaderboard/code/image-to-webdev', 'Code Arena | Image-to-WebDev'],
   artificialAnalysisTextToImage: ['https://artificialanalysis.ai/image/leaderboard/text-to-image', 'Artificial Analysis | 文生图'],
+  artificialAnalysisImageEditing: ['https://artificialanalysis.ai/image/leaderboard/editing', 'Artificial Analysis | 图片编辑'],
   arenaTextToImage: ['https://arena.ai/leaderboard/text-to-image', 'Arena | 文生图'],
+  arenaImageEditing: ['https://arena.ai/leaderboard/image/image-edit/single-image', 'Arena | 单图编辑'],
+  arenaMultiImageEditing: ['https://arena.ai/leaderboard/image/image-edit/multi-image', 'Arena | 多图编辑'],
   artificialAnalysisTextToVideo: ['https://artificialanalysis.ai/video/leaderboard/text-to-video', 'Artificial Analysis | 文生视频'],
+  artificialAnalysisImageToVideo: ['https://artificialanalysis.ai/video/leaderboard/image-to-video', 'Artificial Analysis | 图生视频'],
+  artificialAnalysisVideoEditing: ['https://artificialanalysis.ai/video/leaderboard/video-editing', 'Artificial Analysis | 视频编辑'],
+  artificialAnalysisSpeechProviderVoice: ['https://artificialanalysis.ai/text-to-speech/leaderboard/provider-voice', 'Artificial Analysis | 文字转语音 · 原生声音'],
+  artificialAnalysisSpeechControlledVoice: ['https://artificialanalysis.ai/text-to-speech/leaderboard/controlled-voice', 'Artificial Analysis | 文字转语音 · 受控声音'],
+  artificialAnalysisSpeechAgent: ['https://artificialanalysis.ai/speech-to-speech/arena', 'Artificial Analysis | 语音对话'],
+  artificialAnalysisSpeechToText: ['https://artificialanalysis.ai/speech-to-text/non-streaming', 'Artificial Analysis | 语音转文字 · 非流式'],
+  artificialAnalysisSpeechToTextStreaming: ['https://artificialanalysis.ai/speech-to-text/streaming', 'Artificial Analysis | 语音转文字 · 流式'],
   arenaTextToVideo: ['https://arena.ai/leaderboard/text-to-video', 'Arena | 文生视频'],
+  arenaImageToVideo: ['https://arena.ai/leaderboard/video/image-to-video', 'Arena | 图生视频'],
+  arenaVideoEditing: ['https://arena.ai/leaderboard/video/video-edit', 'Arena | 视频编辑'],
 });
 
 function unescape(value) {
@@ -102,15 +116,28 @@ export function parseBoard(kind, html, now) {
   if (!Object.hasOwn(sources, kind) || typeof html !== 'string') throw new Error('Invalid source');
   if (kind === 'epochECI') return parseEpochECI(html, now);
   if (kind === 'valsSWEbench') return parseVals(html, now);
+  if (kind === 'artificialAnalysisSpeechAgent') return parseSpeechAgent(html, now);
+  if (kind === 'artificialAnalysisSpeechToText' || kind === 'artificialAnalysisSpeechToTextStreaming') return parseSpeechToText(kind, html, now);
   const text = payload(html);
-  const arena = kind === 'codeArenaWebDev' || kind.startsWith('arena');
+  const arena = kind.startsWith('codeArena') || kind.startsWith('arena');
   const coding = kind === 'artificialAnalysisCodingAgent';
   const intelligence = kind === 'artificialAnalysis';
   const marker = arena ? 'modelDisplayName' : coding ? 'indexScore' : intelligence ? 'intelligenceIndex' : 'formatted';
   const seen = new Set(), rows = [], organizationLogoURLs = Object.create(null);
+  const mediaVariant = ['artificialAnalysisImageEditing', 'artificialAnalysisImageToVideo', 'artificialAnalysisVideoEditing', 'artificialAnalysisSpeechProviderVoice', 'artificialAnalysisSpeechControlledVoice'].includes(kind);
+  let lastMediaRank = 0;
   for (const record of objects(text, marker)) {
     const value = arena || coding || intelligence ? record : record.formatted && record.values;
     if (!value || intelligence && value.intelligenceIndexIsEstimated === true) continue;
+    // AA embeds additional boards after the default board. Do not merge their
+    // rows into the selected ranking when the source rank starts over.
+    if (mediaVariant) {
+      const rank = record.formatted.rank;
+      if (!Number.isInteger(rank)) throw new Error('Invalid source rank');
+      if (rank <= lastMediaRank) break;
+      if (rank !== lastMediaRank + 1) throw new Error('Incomplete source data');
+      lastMediaRank = rank;
+    }
     const name = safeString(arena ? value.modelDisplayName : coding ? value.displayLabel : value.name);
     const score = arena ? value.rating : coding ? value.indexScore * 100 : intelligence ? value.intelligenceIndex : value.elo;
     const modelID = safeString(arena ? value.modelKey : coding ? value.hostModelSlug : intelligence ? value.slug : value.id);
@@ -132,12 +159,12 @@ export function parseBoard(kind, html, now) {
     // AA image quotes are per 1,000 images; video quotes remain per minute.
     // General/coding costs use their respective source-provided task metrics.
     const taskCostUSD = coding ? value.mean?.costUsd : intelligence ? value.intelligenceIndexCostPerTask?.cost?.total
-      : kind === 'artificialAnalysisTextToImage' && typeof value.pricePer1kImages === 'number' ? value.pricePer1kImages / 1000
-      : kind === 'artificialAnalysisTextToVideo' ? value.pricePerMinute : undefined;
+      : ['artificialAnalysisTextToImage', 'artificialAnalysisImageEditing'].includes(kind) && typeof value.pricePer1kImages === 'number' ? value.pricePer1kImages / 1000
+      : ['artificialAnalysisTextToVideo', 'artificialAnalysisImageToVideo', 'artificialAnalysisVideoEditing'].includes(kind) ? value.pricePerMinute : undefined;
     const speed = coding ? value.mean?.agentWallTimeSec : intelligence ? value.timescaleData?.medianOutputSpeed : undefined;
     rows.push({ name, score, ...(typeof speed === 'number' && Number.isFinite(speed) && speed > 0 && { speed }), ...(typeof taskCostUSD === 'number' && Number.isFinite(taskCostUSD) && taskCostUSD >= 0 && { taskCostUSD }), ...(modelID && { modelID }), ...(organization && { organization }), ...(logoURL && { logoURL }), ...(modelLogoURL && { modelLogoURL }), ...(openness && { openness }), ...(countryHint && { countryHint }), ...(organizationWebsite && { organizationWebsite }) });
   }
-  if (rows.length < (coding ? 10 : 20)) throw new Error('Incomplete source data');
+  if (rows.length < (coding || kind === 'artificialAnalysisVideoEditing' ? 10 : 20)) throw new Error('Incomplete source data');
   const organizationLogoSVGs = Object.create(null);
   if (arena) {
     const rowLogos = arenaRowLogos(html, new Set(rows.map(row => row.name)));
@@ -175,6 +202,45 @@ export function parseBoard(kind, html, now) {
     entries: rows.map((row, index) => ({ rank: index + 1, ...row })),
     ...(Object.keys(organizationLogoURLs).length && { organizationLogoURLs }),
     ...(Object.keys(organizationLogoSVGs).length && { organizationLogoSVGs }) };
+}
+
+// These are provider/model measurements, not human-vote Elo. WER is a
+// fraction in the source; display as a percentage and rank lower values first.
+function parseSpeechToText(kind, html, now) {
+  const key = kind === 'artificialAnalysisSpeechToTextStreaming' ? 'aaWerStreamingIndex' : 'aaWerIndex';
+  const seen = new Set(), rows = [];
+  for (const value of objects(payload(html), key)) {
+    if (!value.model || !value.host) continue;
+    const id = safeString(value.id), name = safeString(value.displayLabel ?? value.displayName ?? value.name);
+    const rate = value[key], organization = safeString(value.host.name);
+    if (!id || !name || typeof rate !== 'number' || !Number.isFinite(rate) || rate < 0 || rate > 1 || seen.has(id)) continue;
+    seen.add(id);
+    const logoURL = logo(value.logo), openness = typeof value.model.openWeights === 'boolean' ? (value.model.openWeights ? 'open' : 'closed') : undefined;
+    rows.push({ name, modelID: id, score: rate * 100, ...(organization && { organization }), ...(logoURL && { logoURL }), ...(openness && { openness }) });
+  }
+  if (rows.length < 20) throw new Error('Incomplete speech-to-text ranking');
+  rows.sort((a, b) => a.score - b.score || a.name.localeCompare(b.name, 'en'));
+  return { kind, title: sources[kind][1], fetchedAt: new Date(now).toISOString(), entries: rows.map((row, i) => ({ rank: i + 1, ...row })) };
+}
+
+// Speech Agent embeds separate overall, agentic and non-agentic results.
+// Select only the published overall slice and retain its source ranks.
+function parseSpeechAgent(html, now) {
+  const rows = [], ids = new Set(), ranks = new Set();
+  for (const value of objects(payload(html), 'stsHostModelId')) {
+    if (value.sliceKey !== 'overall') continue;
+    const name = safeString(value.name), modelID = safeString(value.id);
+    const organization = safeString(value.creatorName), rank = value.rank, score = value.elo;
+    if (!name || !modelID || !Number.isInteger(rank) || rank < 1 || !Number.isFinite(score)
+      || Math.abs(score) > 100000 || ids.has(modelID) || ranks.has(rank)) throw new Error('Invalid speech agent ranking');
+    ids.add(modelID); ranks.add(rank);
+    const logoURL = logo(value.logo);
+    rows.push({ rank, name, score, modelID, ...(organization && { organization }), ...(logoURL && { logoURL }) });
+  }
+  rows.sort((a, b) => a.rank - b.rank);
+  if (rows.length < 20 || rows.some((row, i) => row.rank !== i + 1 || (i && row.score > rows[i - 1].score))) throw new Error('Incomplete speech agent ranking');
+  return { kind: 'artificialAnalysisSpeechAgent', title: sources.artificialAnalysisSpeechAgent[1],
+    fetchedAt: new Date(now).toISOString(), entries: rows };
 }
 
 // Vals publishes one row per model and harness. Preserve the source order and variants.

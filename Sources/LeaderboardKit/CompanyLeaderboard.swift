@@ -10,7 +10,7 @@ public enum CompanyLeaderboard {
     /// Shown on the company score. The number is the flagship, not a blend.
     public static let scoreExplanation = "以最强模型分数为准，弱型号不拉低"
 
-    public static func rank(_ entries: [LeaderboardEntry], summingUsage: Bool = false) -> [CompanyStanding] {
+    public static func rank(_ entries: [LeaderboardEntry], summingUsage: Bool = false, lowerIsBetter: Bool = false) -> [CompanyStanding] {
         var grouped: [String: [LeaderboardEntry]] = [:]
         for entry in entries {
             // A non-positive rank is not a board position.
@@ -23,10 +23,10 @@ public enum CompanyLeaderboard {
         }
 
         let ordered = grouped.map { key, members in
-            aggregate(key: key, members: members, summingUsage: summingUsage)
+            aggregate(key: key, members: members, summingUsage: summingUsage, lowerIsBetter: lowerIsBetter)
         }.sorted { lhs, rhs in
             if lhs.score != rhs.score {
-                return lhs.score > rhs.score
+                return lowerIsBetter ? lhs.score < rhs.score : lhs.score > rhs.score
             }
             // Best rank, not model count. Count must not promote a company.
             if lhs.bestRank != rhs.bestRank {
@@ -62,7 +62,7 @@ public enum CompanyLeaderboard {
         let usage = kind?.isUsage == true || standing.entry.totalTokens != nil
         let details = standing.components.enumerated().map { index, component in
             let rank = language.text("#\(component.rank)", "第\(component.rank)名")
-            let score = usage ? LeaderboardPresentation.scoreText(component.score, kind: share ? .vercelUsage : .openRouterUsage) : scoreText(component.score)
+            let score = usage ? LeaderboardPresentation.scoreText(component.score, kind: share ? .vercelUsage : .openRouterUsage) : kind?.isErrorRate == true ? LeaderboardPresentation.scoreText(component.score, kind: kind!) : scoreText(component.score)
             let marker = index == 0 && !usage ? language.text(" · strongest", " · 最强") : ""
             return "\(component.name) · \(rank) · \(score)\(marker)"
         }
@@ -95,8 +95,8 @@ public enum CompanyLeaderboard {
         var components: [CompanyStandingComponent]
     }
 
-    private static func aggregate(key: String, members: [LeaderboardEntry], summingUsage: Bool) -> Aggregate {
-        let ordered = members.sorted { isStronger($0, than: $1) }
+    private static func aggregate(key: String, members: [LeaderboardEntry], summingUsage: Bool, lowerIsBetter: Bool) -> Aggregate {
+        let ordered = members.sorted { lowerIsBetter && $0.score != $1.score ? $0.score < $1.score : isStronger($0, than: $1) }
         let flagship = ordered[0]
         let components = ordered.map { member in
             CompanyStandingComponent(

@@ -837,7 +837,7 @@ public struct LeaderboardPadView: View {
     private func boardCard(_ kind: LeaderboardKind, isImage: Bool = false, compact: Bool = false, denseColumns: Bool = false, exportScheme: ColorScheme? = nil, viewportHeight: CGFloat = 900, pageRows: Range<Int>? = nil) -> some View {
         PadBoardCard(kind: kind, board: store.snapshot.boards[kind], rowPresentation: pageRows.map { store.rowPresentation(for: kind).page($0) } ?? store.rowPresentation(for: kind), grouping: store.grouping,
             language: store.language, filter: store.countryFilter(for: kind), opennessFilter: store.opennessFilter(for: kind),
-            costOrder: store.costOrders.contains(kind), speedOrder: store.speedOrders.contains(kind), priceAscending: store.priceAscending, togglePrice: { store.priceAscending.toggle(); resetComparison() }, selectMetric: { metric in
+            costOrder: kind != .openRouterUsage && store.costOrders.contains(kind), speedOrder: kind != .openRouterUsage && store.speedOrders.contains(kind), priceAscending: store.priceAscending, togglePrice: { store.priceAscending.toggle(); resetComparison() }, selectMetric: { metric in
                 store.costOrders.remove(kind); store.speedOrders.remove(kind)
                 if metric == 1 { store.costOrders.insert(kind) }
                 if metric == 2 { store.speedOrders.insert(kind) }
@@ -848,6 +848,7 @@ public struct LeaderboardPadView: View {
             modelSearchQuery: $store.modelSearchQuery, modelSearchPresented: $store.modelSearchPresented,
             modelSearchEditing: $store.modelSearchEditing,
             isLoading: store.isLoading(kind), polishRevision: store.timestampPolishRevisions[kind, default: 0], isImage: isImage, guideEligible: scenePhase == .active && (!compact || store.visibleBoardKinds.indices.contains(store.selectedSource) && store.visibleBoardKinds[store.selectedSource] == kind), compact: compact, denseColumns: denseColumns, exportScheme: exportScheme,
+            selectVariant: { selected in store.selectMediaVariant(selected, replacing: kind); resetComparison() },
             selectCountry: { store.setCountryFilter($0, for: kind); resetComparison() },
             clearFilters: { store.clearSearchQueries(); store.setCountryFilter(.all, for: kind); store.setOpennessFilter(.all, for: kind); resetComparison() },
             selectOpenness: { store.setOpennessFilter($0, for: kind); resetComparison() }, openModel: { entry in
@@ -1141,6 +1142,7 @@ private struct PadBoardCard: View {
     let compact: Bool
     let denseColumns: Bool
     let exportScheme: ColorScheme?
+    let selectVariant: (LeaderboardKind) -> Void
     let selectCountry: (LeaderboardCountryFilter) -> Void
     let clearFilters: () -> Void
     let selectOpenness: (LeaderboardOpennessFilter) -> Void
@@ -1257,7 +1259,7 @@ private struct PadBoardCard: View {
         .task(id: "\(guideEligible)-\(isImage)-\(isLoading)-\(board != nil)-\(modelSearchPresented)-\(metricHeaderVisible)") {
             metricGuideVisible = false
             guard guideEligible, metricHeaderVisible, !isImage, !isLoading, !modelSearchPresented,
-                  kind.supportsAACost, !MetricGuide.hasSeen(kind),
+                  kind != .openRouterUsage, kind.supportsAACost, !MetricGuide.hasSeen(kind),
                   !ProcessInfo.processInfo.arguments.contains("--ui-testing") else { return }
             do { try await Task.sleep(for: .seconds(1)) } catch { return }
             guard !Task.isCancelled, !MetricGuide.hasSeen(kind) else { return }
@@ -1367,8 +1369,22 @@ private struct PadBoardCard: View {
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("source-help-\(kind.rawValue)")
                     .frame(maxWidth: .infinity, alignment: .leading)
+                if kind.mediaVariants.count > 1 { timestamp }
             }
         }.font(.caption)
+    }
+    private var variantMenu: some View {
+        Menu {
+            ForEach(kind.mediaVariants, id: \.self) { option in
+                Button { selectVariant(option) } label: {
+                    if option == kind { Label(option.mediaVariantTitle(language: language), systemImage: "checkmark") }
+                    else { Text(option.mediaVariantTitle(language: language)) }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) { Text(kind.mediaVariantTitle(language: language)).lineLimit(1); Image(systemName: "chevron.down") }
+                .font(.caption2).frame(maxWidth: 90)
+        }.accessibilityIdentifier("source-variant-\(kind.rawValue)")
     }
     private var cardMetadata: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1385,19 +1401,21 @@ private struct PadBoardCard: View {
         }.padding(.horizontal, columnPadding).padding(.top, 12).padding(.bottom, 6)
     }
     private var sourceHeading: some View {
-        Text(LeaderboardPresentation.columnTitle(kind, language: language))
+        Text(kind.sourcePrefix == "Artificial Analysis" ? "AA" : LeaderboardPresentation.columnTitle(kind, language: language))
             .font(columnHeaderFont.weight(.semibold))
             .foregroundStyle(sourceAccent)
             .lineLimit(1).minimumScaleFactor(0.8)
             .contentShape(Rectangle())
             .onTapGesture { if !isImage { detail.showingSource = true } }
             .accessibilityAddTraits(isImage ? [] : .isButton)
+            .accessibilityLabel(LeaderboardPresentation.columnTitle(kind, language: language))
             .accessibilityAction { if !isImage { detail.showingSource = true } }
             .accessibilityIdentifier("source-heading-\(kind.rawValue)")
     }
     private var sourceHeadingActions: some View {
         HStack(alignment: .center, spacing: 2) {
-            timestamp
+            if kind.mediaVariants.count > 1 { variantMenu }
+            else { timestamp }
             if !isImage {
                 Button(action: openModelSearch) {
                     Image(systemName: "magnifyingglass")
@@ -1416,7 +1434,12 @@ private struct PadBoardCard: View {
             .layoutPriority(1)
     }
     @ViewBuilder private var sourceHeadingDetails: some View {
-        if isImage { sourceHeading }
+        if isImage {
+            HStack(spacing: 6) {
+                sourceHeading
+                if kind.mediaVariants.count > 1 { Text(kind.mediaVariantTitle(language: language)).lineLimit(1) }
+            }
+        }
         else if language == .english {
             VStack(alignment: .leading, spacing: 2) {
                 sourceHeading
@@ -1477,7 +1500,9 @@ private struct PadBoardCard: View {
                     }
                 }
                 scoreColumn {
-                    if kind.supportsAACost {
+                    // The OpenRouter selector is temporarily hidden; preserve its menu for later.
+                    if kind == .openRouterUsage { Text(tr("Usage", "用量")).font(columnHeaderFont) }
+                    else if kind.supportsAACost {
                         if isImage { costHeading }
                         else {
                             Menu {
@@ -1566,7 +1591,7 @@ private struct PadBoardCard: View {
                     ForEach(rows.indices.prefix(2), id: \.self) { index in rankingRow(rows[index], index: index) }
                 }
                 LazyVStack(spacing: 0) {
-                    ForEach(rows.indices.prefix(visibleRowCount).dropFirst(2), id: \.self) { index in
+                    ForEach(rows.indices.prefix(min(20, visibleRowCount)).dropFirst(2), id: \.self) { index in
                         rankingRow(rows[index], index: index)
                     }
                 }
@@ -1582,6 +1607,13 @@ private struct PadBoardCard: View {
                     .buttonStyle(.plain).foregroundStyle(.secondary)
                     .accessibilityIdentifier("toggle-ranking-\(kind.rawValue)")
                     .accessibilityValue(rankingExpanded ? tr("Expanded", "已展开") : tr("Collapsed", "已收起"))
+                }
+                if rankingExpanded {
+                    LazyVStack(spacing: 0) {
+                        ForEach(rows.indices.dropFirst(20), id: \.self) { index in
+                            rankingRow(rows[index], index: index)
+                        }
+                    }
                 }
             }
         } else if isLoading && !isImage {
@@ -1747,7 +1779,7 @@ private struct PadBoardCard: View {
                 }
             }
             .background {
-                if (!costOrder && !speedOrder) || ((speedOrder ? entry.speed : entry.taskCostUSD) != nil && (rowPresentation.leaderScore ?? 0) > 0) {
+                if !kind.isErrorRate && ((!costOrder && !speedOrder) || ((speedOrder ? entry.speed : entry.taskCostUSD) != nil && (rowPresentation.leaderScore ?? 0) > 0)) {
                     LeaderboardScoreBackground(color: brandColor(entry).opacity(displayScheme == .dark ? 0.26 : 0.18),
                         score: speedOrder ? (entry.speed ?? 0) : costOrder ? (entry.taskCostUSD ?? 0) : entry.score, leaderScore: rowPresentation.leaderScore)
                         .padding(.vertical, 4)
@@ -1792,7 +1824,15 @@ private struct PadBoardCard: View {
         #else
         let guideScreenBounds = CGRect.infinite
         #endif
-        return Text(speedOrder ? ((kind == .artificialAnalysisCodingAgent || kind == .valsSWEbench) ? tr("s/task", "秒/任务") : "token/s") : costOrder ? (kind == .openRouterUsage ? tr("In/Out $/1M", "输入/输出$/百万") : kind == .artificialAnalysisTextToImage ? tr("$/image", "$/张") : kind == .artificialAnalysisTextToVideo ? tr("$/min", "$/分钟") : tr("$/task", "$/任务")) : (kind == .openRouterUsage ? tr("Usage", "用量") : tr("Score", "分数")))
+        let unit = speedOrder ? ((kind == .artificialAnalysisCodingAgent || kind == .valsSWEbench) ? tr("s/task", "秒/任务") : "token/s") : (kind == .openRouterUsage ? tr("In/Out $/1M", "输入/输出$/百万") : kind.isAAImageCost ? tr("$/image", "$/张") : kind.isAAVideoCost ? tr("$/min", "$/分钟") : tr("$/task", "$/任务"))
+        let title = speedOrder ? tr("Speed", "速度") : costOrder ? (kind == .openRouterUsage ? tr("Price", "价格") : tr("Cost", "成本")) : (kind == .openRouterUsage ? tr("Usage", "用量") : tr("Score", "分数"))
+        return VStack(spacing: 0) {
+            HStack(spacing: 2) {
+                Text(title)
+                if !isImage { Image(systemName: "chevron.down").font(.system(size: 6, weight: .semibold)) }
+            }
+            if speedOrder || costOrder { Text(unit).font(.system(size: 8)) }
+        }
             .font(columnHeaderFont)
             .opacity(metricGuideVisible ? 0 : 1)
             .overlay {
@@ -1810,15 +1850,19 @@ private struct PadBoardCard: View {
             } action: { metricHeaderVisible = $0 }
     }
     private func scoreValue(_ entry: LeaderboardEntry) -> some View {
-        Text(speedOrder ? LeaderboardPresentation.speedText(entry.speed) : costOrder ? LeaderboardPresentation.taskCostText(entry.taskCostUSD) : LeaderboardPresentation.scoreText(entry.score, kind: kind)).monospacedDigit()
+        amountText(speedOrder ? LeaderboardPresentation.speedText(entry.speed) : costOrder ? LeaderboardPresentation.taskCostText(entry.taskCostUSD) : LeaderboardPresentation.scoreText(entry.score, kind: kind)).monospacedDigit()
             .overlay(alignment: .bottomTrailing) {
-                let share = (kind.isPrice || (kind == .openRouterUsage && costOrder)) ? LeaderboardPresentation.taskCostText(entry.outputPriceUSD) : kind.isShareUsage ? "" : LeaderboardPresentation.scoreShareText(speedOrder ? (entry.speed ?? .nan) : costOrder ? (entry.taskCostUSD ?? .nan) : entry.score, leaderScore: rowPresentation.leaderScore)
+                let share = (kind.isPrice || (kind == .openRouterUsage && costOrder)) ? LeaderboardPresentation.taskCostText(entry.outputPriceUSD) : (kind.isShareUsage || kind.isErrorRate) ? "" : LeaderboardPresentation.scoreShareText(speedOrder ? (entry.speed ?? .nan) : costOrder ? (entry.taskCostUSD ?? .nan) : entry.score, leaderScore: rowPresentation.leaderScore)
                 if !share.isEmpty {
-                    Text(share).font(.system(size: 8)).monospacedDigit()
+                    amountText(share).font(.system(size: 8)).monospacedDigit()
                         .foregroundStyle(sourceAccent).offset(y: 10)
                         .allowsHitTesting(false)
                 }
             }
+    }
+    private func amountText(_ value: String) -> Text {
+        guard value.hasPrefix("$") else { return Text(value) }
+        return Text("$").baselineOffset(-0.8) + Text(String(value.dropFirst()))
     }
     @ViewBuilder private func entryName(_ entry: LeaderboardEntry) -> some View {
         if isImage { Text(entry.name).foregroundStyle(primaryForeground).fixedSize(horizontal: false, vertical: true) }

@@ -2086,8 +2086,8 @@ packages:
   '@types/esrecurse@4.3.1':
     resolution: {integrity: sha512-xJBAbDifo5hpffDBuHl0Y8ywswbiAp/Wi7Y/GtAgSlZyIABppyurxVueOPE8LUQOxdlgi6Zqce7uoEpqNTeiUw==}
 
-  '@types/estree@1.0.9':
-    resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
+  '@types/estree@1.0.10':
+    resolution: {integrity: sha512-lTyOMnOcmRBzdCv6/4zUZCrEhV0xrqQiUZBZtVcbmLHBXKLnN8q89v/wKRF/Q0HbwVsqbIG3o5HDoFl9sduM+g==}
 
   '@types/gensync@1.0.5':
     resolution: {integrity: sha512-MbsRCT7mTikHwKZ0X+LVUTLRrZZRLipTuXEO9qOYO+zmjMVk81axyClMROf6uoPD9MRVu46bx8zoR0Ad9q3NAg==}
@@ -3512,13 +3512,13 @@ packages:
     peerDependencies:
       postcss: ^8.4
 
-  postcss-pxtrans@1.0.7:
-    resolution: {integrity: sha512-7koV30MTIwdtsEqeQzHAjEEw1cXH+v2xOvuSBxDTuEyz7kvoFF0tsQ+fcMATELtsBLLhmO+EUo+AzwLtjO4WFQ==}
+  postcss-pxtrans@1.1.0:
+    resolution: {integrity: sha512-cADH7nP97Hh+EIkDjDA8suSY5l0vDR5fLwX7y+xtwTNiPY7FHjJtMR81PJuC1yC6B6wmJjcP3u+C4lKU76xQDg==}
     peerDependencies:
       postcss: ^8
 
-  postcss-rem-to-responsive-pixel@7.0.8:
-    resolution: {integrity: sha512-ktsWJMZ00GxZkcs5g67OhnxEJK8L+UQ/JVp6qPXXPvSBBCABk68IJLD0bJpfb6M/RamJG6+3da8smEiEnhpaYA==}
+  postcss-rem-to-responsive-pixel@7.0.9:
+    resolution: {integrity: sha512-eGfXUsp9Nv3EK9jyHStoKjaRgwJmOgtVz+j8YGxxqwCw1RiBJzLpCvHddn/ARBLlDLrP7UA+ldyPmV/txUN0og==}
     engines: {node: '>=16.6.0'}
     peerDependencies:
       postcss: ^8
@@ -3530,6 +3530,12 @@ packages:
 
   postcss-rule-unit-converter@0.2.6:
     resolution: {integrity: sha512-aw51LFWQKnyzebc4SymzGRRImx/kUiMbwYqotCf/ZwVM64zPcYxEfe4LiKYT0pgiLW7Gh1LYykYw1ecBRGsk3g==}
+    engines: {node: '>=20.19.0'}
+    peerDependencies:
+      postcss: ^8
+
+  postcss-rule-unit-converter@0.3.0:
+    resolution: {integrity: sha512-ssgcaJ2d2Foc53lHJC1M6N0LLSLv+T52LVkCJfYajgygGLPm6I3snLYpJgL1cAF+jSB4fM+GihNL8vMle6wN9w==}
     engines: {node: '>=20.19.0'}
     peerDependencies:
       postcss: ^8
@@ -5452,7 +5458,7 @@ snapshots:
 
   '@rollup/pluginutils@5.5.1':
     dependencies:
-      '@types/estree': 1.0.9
+      '@types/estree': 1.0.10
       estree-walker: 2.0.2
       picomatch: 4.0.7
 
@@ -5599,7 +5605,7 @@ snapshots:
 
   '@types/esrecurse@4.3.1': {}
 
-  '@types/estree@1.0.9': {}
+  '@types/estree@1.0.10': {}
 
   '@types/gensync@1.0.5': {}
 
@@ -5908,8 +5914,8 @@ snapshots:
       postcss: 8.5.32
       postcss-load-config: 6.0.1(jiti@2.7.0)(postcss@8.5.32)(yaml@2.9.1)
       postcss-preset-env: 11.6.1(postcss@8.5.32)
-      postcss-pxtrans: 1.0.7(postcss@8.5.32)
-      postcss-rem-to-responsive-pixel: 7.0.8(postcss@8.5.32)
+      postcss-pxtrans: 1.1.0(postcss@8.5.32)
+      postcss-rem-to-responsive-pixel: 7.0.9(postcss@8.5.32)
       postcss-rule-unit-converter: 0.2.6(postcss@8.5.32)
       postcss-scss: 4.0.9(postcss@8.5.32)
       postcss-selector-parser: 7.1.7
@@ -6364,7 +6370,7 @@ snapshots:
   eslint-scope@9.1.2:
     dependencies:
       '@types/esrecurse': 4.3.1
-      '@types/estree': 1.0.9
+      '@types/estree': 1.0.10
       esrecurse: 4.3.0
       estraverse: 5.3.0
 
@@ -6383,7 +6389,7 @@ snapshots:
       '@humanfs/node': 0.16.8
       '@humanwhocodes/module-importer': 1.0.1
       '@humanwhocodes/retry': 0.4.3
-      '@types/estree': 1.0.9
+      '@types/estree': 1.0.10
       ajv: 6.15.0
       cross-spawn: 7.0.6
       debug: 4.4.3
@@ -7136,23 +7142,29 @@ snapshots:
       postcss: 8.5.32
       postcss-selector-parser: 7.1.7
 
-  postcss-pxtrans@1.0.7(postcss@8.5.32):
+  postcss-pxtrans@1.1.0(postcss@8.5.32):
     dependencies:
       postcss: 8.5.32
       postcss-plugin-shared: 1.2.0(postcss@8.5.32)
-      postcss-rule-unit-converter: 0.2.6(postcss@8.5.32)
+      postcss-rule-unit-converter: 0.3.0(postcss@8.5.32)
 
-  postcss-rem-to-responsive-pixel@7.0.8(postcss@8.5.32):
+  postcss-rem-to-responsive-pixel@7.0.9(postcss@8.5.32):
     dependencies:
       postcss: 8.5.32
       postcss-plugin-shared: 1.2.0(postcss@8.5.32)
-      postcss-rule-unit-converter: 0.2.6(postcss@8.5.32)
+      postcss-rule-unit-converter: 0.3.0(postcss@8.5.32)
 
   postcss-replace-overflow-wrap@4.0.0(postcss@8.5.32):
     dependencies:
       postcss: 8.5.32
 
   postcss-rule-unit-converter@0.2.6(postcss@8.5.32):
+    dependencies:
+      '@csstools/css-tokenizer': 4.0.2
+      postcss: 8.5.32
+      postcss-plugin-shared: 1.2.0(postcss@8.5.32)
+
+  postcss-rule-unit-converter@0.3.0(postcss@8.5.32):
     dependencies:
       '@csstools/css-tokenizer': 4.0.2
       postcss: 8.5.32

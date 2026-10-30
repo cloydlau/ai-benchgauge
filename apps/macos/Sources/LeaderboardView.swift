@@ -58,12 +58,16 @@ struct LeaderboardView: View {
     }
 
     private var nameColumnWidth: CGFloat {
-        max(40, (contentWidth - Self.tableChromeWidth(boardCount: visibleKinds.count, includesUsage: visibleKinds.contains(.openRouterUsage))) / CGFloat(visibleKinds.count))
+        max(40, (contentWidth - Self.tableChromeWidth(kinds: visibleKinds)) / CGFloat(visibleKinds.count))
     }
 
-    private static func tableChromeWidth(boardCount: Int, includesUsage: Bool = false) -> CGFloat {
+    private static func tableChromeWidth(kinds: [LeaderboardKind]) -> CGFloat {
         // Rank, four native cell insets per source, country/source icons, score.
-        52 + CGFloat(boardCount) * 192 + (includesUsage ? 30 : 0)
+        52 + CGFloat(kinds.count) * 192 + kinds.reduce(CGFloat.zero) { $0 + scoreColumnExtraWidth($1) }
+    }
+
+    private static func scoreColumnExtraWidth(_ kind: LeaderboardKind) -> CGFloat {
+        kind == .openRouterUsage ? 30 : kind.supportsAACost ? 40 : 0
     }
 
     static func preferredWidth(for state: AppState, maximumWidth: CGFloat) -> CGFloat {
@@ -72,7 +76,7 @@ struct LeaderboardView: View {
         }
         let kinds = state.visibleBoardKinds
         let desired = max(minimumWidth, ceil(measured * CGFloat(kinds.count)
-            + tableChromeWidth(boardCount: kinds.count, includesUsage: kinds.contains(.openRouterUsage)) + 88))
+            + tableChromeWidth(kinds: kinds) + 88))
         return min(desired, maximumWidth)
     }
 
@@ -167,6 +171,27 @@ struct LeaderboardView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            if visibleKinds.contains(where: { $0.mediaVariants.count > 1 }) {
+                HStack(spacing: 12) {
+                    Spacer()
+                    ForEach(visibleKinds.filter { $0.mediaVariants.count > 1 }, id: \.self) { kind in
+                        if screenshot.isCapturing {
+                            Text(kind.sourcePrefix + " · " + kind.mediaVariantTitle(language: language))
+                        } else {
+                            Menu {
+                                ForEach(kind.mediaVariants, id: \.self) { option in
+                                    Button { state.selectMediaVariant(option, replacing: kind) } label: {
+                                        if option == kind { Label(option.mediaVariantTitle(language: language), systemImage: "checkmark") }
+                                        else { Text(option.mediaVariantTitle(language: language)) }
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 4) { Text(kind.sourcePrefix + " · " + kind.mediaVariantTitle(language: language)); Image(systemName: "chevron.down") }
+                            }.menuStyle(.borderlessButton)
+                        }
+                    }
+                }.font(.caption).padding(.horizontal, 12).padding(.vertical, 5)
+            }
             table.overlay {
                 if state.selectedCategory == .usage, visibleKinds.allSatisfy({ state.snapshot.boards[$0]?.entries.isEmpty ?? true }) {
                     VStack(spacing: 10) {
@@ -534,7 +559,7 @@ struct LeaderboardView: View {
         }.width(Self.opennessColumnWidth).alignment(.center)
         TableColumn(LeaderboardPresentation.scoreTitle(kind(at: slot), language: language)) { row in
             ScoreCell(model: row.cells[slot], kind: kind(at: slot), language: language)
-        }.width(kind(at: slot) == .openRouterUsage ? 90 : 60).alignment(.center)
+        }.width(60 + Self.scoreColumnExtraWidth(kind(at: slot))).alignment(.center)
     }
 
     private var pageKey: String {
@@ -574,7 +599,7 @@ struct LeaderboardView: View {
                     sourceDetails: LeaderboardPresentation.sourceHelp(kind, language: language, board: state.snapshot.boards[kind], includesAgreement: true),
                     country: state.countryFilters[kind] ?? .all,
                     countryOptions: countryOptions(for: kind), openness: state.opennessFilters[kind] ?? .all,
-                    costOrder: state.costOrders.contains(kind), speedOrder: state.speedOrders.contains(kind), priceAscending: state.priceAscending, togglePrice: { state.priceAscending.toggle() }, selectMetric: { metric in
+                    costOrder: kind != .openRouterUsage && state.costOrders.contains(kind), speedOrder: kind != .openRouterUsage && state.speedOrders.contains(kind), priceAscending: state.priceAscending, togglePrice: { state.priceAscending.toggle() }, selectMetric: { metric in
                         state.costOrders.remove(kind); state.speedOrders.remove(kind)
                         if metric == 1 { state.costOrders.insert(kind) }
                         if metric == 2 { state.speedOrders.insert(kind) }
@@ -888,7 +913,7 @@ struct LeaderboardView: View {
 
     private var boardVisibilityMenu: some View {
         BoardVisibilityPicker(language: language, category: selectedCategory,
-            selected: visibleKinds, onConfirm: { state.setVisibleBoards($0) })
+            selected: visibleKinds.map { $0.mediaVariants.first ?? $0 }, onConfirm: { state.setVisibleBoards($0) })
             .fixedSize()
     }
 
@@ -1027,18 +1052,18 @@ struct LeaderboardView: View {
         let count = search.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? max(Self.visibleRowCount(for: state), resultCount) : max(4, resultCount)
         let maxima = unsearched.enumerated().map { slot, list -> Double? in
-            if state.costOrders.contains(visibleKinds[slot]) { return list.compactMap(\.entry.taskCostUSD).max() }
-            if state.speedOrders.contains(visibleKinds[slot]) { return list.compactMap(\.entry.speed).max() }
+            if visibleKinds[slot] != .openRouterUsage && state.costOrders.contains(visibleKinds[slot]) { return list.compactMap(\.entry.taskCostUSD).max() }
+            if visibleKinds[slot] != .openRouterUsage && state.speedOrders.contains(visibleKinds[slot]) { return list.compactMap(\.entry.speed).max() }
             return list.map(\.entry.score).max()
         }
         let rows = (0..<min(count, rowPage.count)).map { index in
             let cells = (0..<3).map { slot -> LeaderboardCellModel? in
                 guard entries.indices.contains(slot) else { return nil }
                 let list = entries[slot]
-                let showCost = state.costOrders.contains(visibleKinds[slot])
-                let showSpeed = state.speedOrders.contains(visibleKinds[slot])
+                let showCost = visibleKinds[slot] != .openRouterUsage && state.costOrders.contains(visibleKinds[slot])
+                let showSpeed = visibleKinds[slot] != .openRouterUsage && state.speedOrders.contains(visibleKinds[slot])
                 return cellModel(for: index < list.count ? list[index] : nil, organizationLogos: logos,
-                    leaderScore: maxima[slot], showRelativeShare: !visibleKinds[slot].isShareUsage, costMode: showCost, speedMode: showSpeed)
+                    leaderScore: maxima[slot], showRelativeShare: !visibleKinds[slot].isShareUsage && !visibleKinds[slot].isErrorRate, costMode: showCost, speedMode: showSpeed, isErrorRate: visibleKinds[slot].isErrorRate)
             }
             return LeaderboardRow(rank: index + 1, cells: cells)
         }
@@ -1073,7 +1098,7 @@ struct LeaderboardView: View {
 
     private func cellModel(
         for displayed: DisplayedLeaderboardEntry?,
-        organizationLogos: [String: URL], leaderScore: Double?, showRelativeShare: Bool, costMode: Bool, speedMode: Bool
+        organizationLogos: [String: URL], leaderScore: Double?, showRelativeShare: Bool, costMode: Bool, speedMode: Bool, isErrorRate: Bool
     ) -> LeaderboardCellModel? {
         guard let displayed else { return nil }
         let entry = displayed.entry
@@ -1083,7 +1108,7 @@ struct LeaderboardView: View {
             logoURL: nil,
             scoreHelp: displayed.scoreHelp,
             isCompany: displayed.isCompany,
-            showRelativeShare: showRelativeShare, leaderScore: leaderScore, costMode: costMode, speedMode: speedMode
+            showRelativeShare: showRelativeShare, leaderScore: leaderScore, costMode: costMode, speedMode: speedMode, isErrorRate: isErrorRate
         )
     }
 
@@ -1472,7 +1497,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         guideTimer?.invalidate(); guideTimer = nil
         if ProcessInfo.processInfo.arguments.contains("--visual-test") {
             if ProcessInfo.processInfo.environment["BENCHGAUGE_METRIC_GUIDE_VISUAL"] == "1" {
-                guideUntil = Dictionary(uniqueKeysWithValues: boards.filter { $0.kind.supportsAACost && $0.guideReady && !showsSkeleton }.map { ($0.kind, Double.infinity) })
+                guideUntil = Dictionary(uniqueKeysWithValues: boards.filter { $0.kind != .openRouterUsage && $0.kind.supportsAACost && $0.guideReady && !showsSkeleton }.map { ($0.kind, Double.infinity) })
                 syncMetricGuidePopovers()
                 needsDisplay = true
             }
@@ -1484,7 +1509,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         let visibleX = tableView?.visibleRect ?? .zero
         let eligible = Set(boards.enumerated().compactMap { index, board -> LeaderboardKind? in
             let column = 1 + index * 4 + 3
-            guard board.kind.supportsAACost, board.guideReady, !showsSkeleton,
+            guard board.kind != .openRouterUsage, board.kind.supportsAACost, board.guideReady, !showsSkeleton,
                   let tableView, tableView.tableColumns.indices.contains(column), !tableView.tableColumns[column].isHidden else { return nil }
             let frame = headerRect(ofColumn: column)
             let overlap = max(0, min(frame.maxX, visibleX.maxX) - max(frame.minX, visibleX.minX))
@@ -1505,9 +1530,9 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         syncMetricGuidePopovers()
         needsDisplay = true
         let awaitingLayout = visible && visibleX.width <= 0 && !showsSkeleton
-            && boards.contains { $0.kind.supportsAACost && $0.guideReady && !MetricGuide.hasSeen($0.kind) }
+            && boards.contains { $0.kind != .openRouterUsage && $0.kind.supportsAACost && $0.guideReady && !MetricGuide.hasSeen($0.kind) }
         let awaitingReveal = window?.isVisible == true && !visible && !showsSkeleton
-            && boards.contains { $0.kind.supportsAACost && $0.guideReady && !MetricGuide.hasSeen($0.kind) }
+            && boards.contains { $0.kind != .openRouterUsage && $0.kind.supportsAACost && $0.guideReady && !MetricGuide.hasSeen($0.kind) }
         if !guidePending.isEmpty || awaitingLayout || awaitingReveal {
             guideTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { [weak self] _ in
                 MainActor.assumeIsolated { self?.updateMetricGuide() }
@@ -1581,7 +1606,8 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         if column > 0, (column - 1) % 4 == 3, boards.indices.contains((column - 1) / 4) {
             let board = boards[(column - 1) / 4]
             if board.kind.isPrice { board.togglePrice(); return }
-            if board.kind.supportsAACost {
+            // OpenRouter metric selection is temporarily unavailable; retain the menu implementation below.
+            if board.kind != .openRouterUsage && board.kind.supportsAACost {
                 dismissMetricGuide(board.kind)
                 menuKind = board.kind
                 let menu = NSMenu()
@@ -1725,9 +1751,15 @@ private final class SourceTableHeaderView: NSTableHeaderView {
                         width: max(0, rect.width - rankInset), height: rect.height), kind: board.kind)
             case 1: drawCountryHeader(selected: board.country, in: rect)
             case 2: drawFilterHeader(title: ModelOpenness.columnTitle(language: language), active: board.openness != .all, in: rect)
+            case 3 where board.kind == .openRouterUsage:
+                let cell = NSTableHeaderCell(textCell: language.text("Usage", "用量")); cell.alignment = .center
+                cell.draw(withFrame: rect, in: self)
             case 3 where board.kind.supportsAACost:
-                let label = board.speedOrder ? ((board.kind == .artificialAnalysisCodingAgent || board.kind == .valsSWEbench) ? language.text("s/task", "秒/任务") : "token/s") : board.costOrder ? (board.kind == .openRouterUsage ? language.text("In/Out $/1M", "输入/输出$/百万") : board.kind == .artificialAnalysisTextToImage ? language.text("$/image", "$/张") : board.kind == .artificialAnalysisTextToVideo ? language.text("$/min", "$/分钟") : language.text("$/task", "$/任务")) : (board.kind == .openRouterUsage ? language.text("Usage", "用量") : language.text("Score", "分数"))
-                drawFilterHeader(title: label, active: false, in: rect)
+                let label = board.speedOrder ? ((board.kind == .artificialAnalysisCodingAgent || board.kind == .valsSWEbench) ? language.text("s/task", "秒/任务") : "token/s") : board.costOrder ? (board.kind == .openRouterUsage ? language.text("In/Out $/1M", "输入/输出$/百万") : board.kind.isAAImageCost ? language.text("$/image", "$/张") : board.kind.isAAVideoCost ? language.text("$/min", "$/分钟") : language.text("$/task", "$/任务")) : (board.kind == .openRouterUsage ? language.text("Usage", "用量") : language.text("Score", "分数"))
+                if board.speedOrder || board.costOrder {
+                    let title = board.speedOrder ? language.text("Speed", "速度") : board.kind == .openRouterUsage ? language.text("Price", "价格") : language.text("Cost", "成本")
+                    drawFilterHeader(title: "\(title) \(label)", active: false, in: rect)
+                } else { drawFilterHeader(title: label, active: false, in: rect) }
             case 3 where board.kind.isPrice:
                 let paragraph = NSMutableParagraphStyle(); paragraph.alignment = .center
                 for (line, label) in [language.text("In $/1M", "输入$/百万") + (board.priceAscending ? " ↑" : " ↓"), language.text("Out", "输出")].enumerated() {
@@ -1947,6 +1979,7 @@ private struct LeaderboardCellModel {
     var leaderScore: Double? = nil
     var costMode: Bool = false
     var speedMode: Bool = false
+    var isErrorRate: Bool = false
 
     func brandColor(isDark: Bool) -> Color? {
         guard let brandHex else { return nil }
@@ -2029,7 +2062,7 @@ private struct LeaderboardCell: View {
             // recycled cell adds two GeometryReader layout passes per model.
             let trackWidth = max(0, nameWidth - Self.shareWidth - Self.shareGap)
             let value = model?.speedMode == true ? model?.entry.speed : model?.costMode == true ? model?.entry.taskCostUSD : model?.entry.score
-            let filledWidth = (model?.costMode == true || model?.speedMode == true) && (value == nil || (model?.leaderScore ?? 0) <= 0) ? 0 : trackWidth * LeaderboardPresentation.scoreFillRatio(
+            let filledWidth = model?.isErrorRate == true || ((model?.costMode == true || model?.speedMode == true) && (value == nil || (model?.leaderScore ?? 0) <= 0)) ? 0 : trackWidth * LeaderboardPresentation.scoreFillRatio(
                 value ?? 0, leaderScore: model?.leaderScore)
             let share = LeaderboardPresentation.scoreShareText(
                 value ?? .nan, leaderScore: model?.leaderScore)
@@ -2190,8 +2223,8 @@ private struct ScoreCell: View {
         Group {
             if let entry = model?.entry {
                 VStack(spacing: 1) {
-                    Text(model?.speedMode == true ? LeaderboardPresentation.speedText(entry.speed) : model?.costMode == true ? LeaderboardPresentation.taskCostText(entry.taskCostUSD) : LeaderboardPresentation.scoreText(entry.score, kind: kind)).monospacedDigit()
-                    if kind.isPrice || (kind == .openRouterUsage && model?.costMode == true) { Text(LeaderboardPresentation.taskCostText(entry.outputPriceUSD)).font(.system(size: 8)).monospacedDigit() }
+                    amountText(model?.speedMode == true ? LeaderboardPresentation.speedText(entry.speed) : model?.costMode == true ? LeaderboardPresentation.taskCostText(entry.taskCostUSD) : LeaderboardPresentation.scoreText(entry.score, kind: kind)).monospacedDigit()
+                    if kind.isPrice || (kind == .openRouterUsage && model?.costMode == true) { amountText(LeaderboardPresentation.taskCostText(entry.outputPriceUSD)).font(.system(size: 8)).monospacedDigit() }
                 }.foregroundStyle(.secondary)
             } else {
                 Text("-")
@@ -2202,6 +2235,10 @@ private struct ScoreCell: View {
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(.horizontal, 4)
         .padding(.vertical, 2)
+    }
+    private func amountText(_ value: String) -> Text {
+        guard value.hasPrefix("$") else { return Text(value) }
+        return Text("$").baselineOffset(-0.8) + Text(String(value.dropFirst()))
     }
 }
 
@@ -2267,6 +2304,7 @@ private struct CategorySegmentedControl: NSViewRepresentable {
         case .coding: language.text("Coding", "编程")
         case .image: language.text("Image", "图片")
         case .video: language.text("Video", "视频")
+        case .speech: language.text("Speech", "语音")
         case .usage: language.text("Usage", "用量")
         case .price: language.text("Price", "价格")
         }

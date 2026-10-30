@@ -2,9 +2,15 @@ import { parse, serializeOuter } from 'parse5';
 
 export const arenaSourcePages = Object.freeze({
   arenaText: 'https://arena.ai/leaderboard/text',
+  arenaTextUncontrolled: 'https://arena.ai/leaderboard/text',
+  codeArenaImageToWebDev: 'https://arena.ai/leaderboard/code/image-to-webdev',
   codeArenaWebDev: 'https://arena.ai/leaderboard/code/webdev',
   arenaTextToImage: 'https://arena.ai/leaderboard/text-to-image',
+  arenaImageEditing: 'https://arena.ai/leaderboard/image/image-edit/single-image',
+  arenaMultiImageEditing: 'https://arena.ai/leaderboard/image/image-edit/multi-image',
   arenaTextToVideo: 'https://arena.ai/leaderboard/text-to-video',
+  arenaImageToVideo: 'https://arena.ai/leaderboard/video/image-to-video',
+  arenaVideoEditing: 'https://arena.ai/leaderboard/video/video-edit',
 });
 export const maximumInlineLogoBytes = 64 * 1024;
 const attribute = (node, name) => node.attrs?.find(item => item.name === name)?.value;

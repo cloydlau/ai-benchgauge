@@ -31,6 +31,14 @@
       "url": "https://api.iconify.design/fluent-color/video-20.svg",
       "sha256": "ed2433c83b7d7088ac4b508fcc257add9195641587577a288451bc2a6afe9cb2"
     },
+    "speech": {
+      "icon": "speech-waveform",
+      "source": "Original BenchGauge geometry",
+      "license": "MIT",
+      "licenseFile": "LICENSE",
+      "sha256": "809dede694d250f737b4182b026179b84a23be41bfe7fbfc87e66051cedf3fb5",
+      "hashScope": "speech.svg"
+    },
     "usage": {
       "icon": "usage-donut",
       "source": "Original BenchGauge geometry",

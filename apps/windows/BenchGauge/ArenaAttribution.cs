@@ -16,7 +16,7 @@ static class ArenaAttribution
         return JsonSerializer.Deserialize<Notice>(stream, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidOperationException("Invalid Arena data attribution");
     }
-    public static bool Applies(Board board) => (board.Kind.StartsWith("arena") || board.Kind == "codeArenaWebDev")
+    public static bool Applies(Board board) => (board.Kind.StartsWith("arena") || board.Kind.StartsWith("codeArena"))
         && board.SourceNote?.Contains(Data.SourceURL) == true;
     public static string LicenseURL => Data.LicenseURL;
     public static string FullText(string language) => string.Join("\n", Data.Credit,

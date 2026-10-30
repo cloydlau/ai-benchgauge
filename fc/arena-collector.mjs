@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { isArena, isArenaDataset, loadArenaDataset, parseArenaRows, readBounded } from './arena-dataset.mjs';
+import { isArena, isArenaDataset, arenaCategory, arenaSubsets, loadArenaDataset, parseArenaRows, readBounded } from './arena-dataset.mjs';
 import { loadModelsDev } from './models-dev.mjs';
 import { loadVercelUsage } from './vercel-usage.mjs';
 import { completedUsageDay, loadOpenRouterUsage } from './openrouter-usage.mjs';
@@ -63,12 +63,12 @@ export async function loadConfiguredArenaDataset(kind, { now = Date.now(), fetch
   });
   const board = JSON.parse((await readBounded(response, 4 * 1024 * 1024)).toString('utf8'));
   const fetched = Date.parse(board.fetchedAt);
-  if (!isArenaDataset(board) || board.kind !== kind || !Array.isArray(board.entries)
+  if (!isArenaDataset(board) || board.kind !== kind || !board.sourceNote?.includes(`${arenaSubsets[kind]}/latest/${arenaCategory(kind)}`) || !Array.isArray(board.entries)
     || !Number.isFinite(fetched) || fetched > now + 300000 || fetched < now - 3600000) throw new Error('Invalid collected dataset');
   const { modelOpenness } = await import('./parser.mjs');
   return parseArenaRows(kind, board.entries.map(entry => ({ model_name: entry.name, organization: entry.organization,
     license: entry.modelLicense, rating: entry.score, rank: entry.rank, vote_count: entry.voteCount,
-    category: 'overall', leaderboard_publish_date: board.sourceUpdatedAt?.slice(0, 10) })),
+    category: arenaCategory(kind), leaderboard_publish_date: board.sourceUpdatedAt?.slice(0, 10) })),
   { now: fetched, revision: board.sourceDatasetRevision, classifyLicense: modelOpenness });
 }
 

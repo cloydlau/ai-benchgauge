@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import catalog from '../../../Sources/LeaderboardKit/Resources/SourceTabThemes.json' with { type: 'json' }
-import { categories } from '../src/core/catalog.js'
+import { categories, boardVariants } from '../src/core/catalog.js'
 import { sourceTabTheme } from '../src/core/source-tab-theme.js'
 
 const luminance = hex => {
@@ -13,7 +13,7 @@ const luminance = hex => {
 test('source themes cover enabled boards exactly once and retain readable light and dark pairs', () => {
   const kinds = catalog.sources.flatMap(source => source.kinds)
   assert.equal(kinds.length, new Set(kinds).size)
-  assert.deepEqual([...kinds].sort(), categories.flatMap(category => category.kinds).sort())
+  assert.deepEqual([...kinds].sort(), categories.flatMap(category => category.kinds).flatMap(kind => boardVariants[kind] || [kind]).sort())
   for (const source of [...catalog.sources, catalog.fallback]) {
     for (const mode of ['light', 'dark']) {
       const palette = source[mode]

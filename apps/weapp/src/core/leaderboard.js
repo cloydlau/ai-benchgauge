@@ -69,10 +69,17 @@ export function scoreShareText(score, leaderScore) {
 }
 export const usageScoreText = score => score > 0 && score < 0.01 ? '<0.01B' : `${score.toFixed(2)}B`
 export const shareScoreText = score => score > 0 && score < 0.01 ? '<0.01%' : `${score.toFixed(2)}%`
-export const supportsAACost = kind => ['openRouterUsage', 'artificialAnalysis', 'artificialAnalysisCodingAgent', 'valsSWEbench', 'artificialAnalysisTextToImage', 'artificialAnalysisTextToVideo'].includes(kind)
+export const isAAImageCost = kind => ['artificialAnalysisTextToImage', 'artificialAnalysisImageEditing'].includes(kind)
+export const isAAVideoCost = kind => ['artificialAnalysisTextToVideo', 'artificialAnalysisImageToVideo', 'artificialAnalysisVideoEditing'].includes(kind)
+export const isErrorRate = kind => ['artificialAnalysisSpeechToText', 'artificialAnalysisSpeechToTextStreaming'].includes(kind)
+export const supportsAACost = kind => ['openRouterUsage', 'artificialAnalysis', 'artificialAnalysisCodingAgent', 'valsSWEbench'].includes(kind) || isAAImageCost(kind) || isAAVideoCost(kind)
 export const supportsAASpeed = kind => ['openRouterUsage', 'artificialAnalysis', 'artificialAnalysisCodingAgent', 'valsSWEbench'].includes(kind)
 export const speedText = value => Number.isFinite(value) && value > 0 ? value.toFixed(value < 10 ? 1 : 0) : '—'
 export const isPriceBoard = kind => kind === 'openRouterPrice'
+export function dollarParts(value) {
+  const index = value.indexOf('$')
+  return index < 0 ? null : { before: value.slice(0, index), after: value.slice(index + 1) }
+}
 export function rowView(entry, { company = false, dark = false, details = true, language = 'en', category = 'general', kind, leaderScore, costMode = false, speedMode = false } = {}) {
   const brand = company ? entry.organizationBrand || entry.brand : entry.brand
   const image = typeof brand?.pngData === 'string' && /^[A-Za-z0-9+/=]+$/.test(brand.pngData) && brand.pngData.length < 160000
@@ -88,19 +95,22 @@ export function rowView(entry, { company = false, dark = false, details = true, 
   const rankChangeText = entry.rankChange?.isNew ? (language === 'en' ? 'New' : '新')
     : Number.isSafeInteger(entry.rankChange?.delta) && entry.rankChange.delta !== 0 ? `${entry.rankChange.delta > 0 ? '↑' : '↓'}${Math.abs(entry.rankChange.delta)}` : ''
   const value = speedMode && supportsAASpeed(kind) ? entry.speed : costMode && supportsAACost(kind) ? entry.taskCostUSD : entry.score
+  const scoreText = isErrorRate(kind) ? `${value.toFixed(2)}%` : speedMode && supportsAASpeed(kind) ? speedText(value) : costMode && supportsAACost(kind) || isPriceBoard(kind) ? taskCostText(value) : ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? shareScoreText(value) : kind === 'openRouterUsage' ? usageScoreText(value) : value.toFixed(kind === 'epochECI' ? 2 : 1)
+  const outputPriceText = isPriceBoard(kind) || (kind === 'openRouterUsage' && costMode) ? taskCostText(entry.outputPriceUSD) : null
+  const scoreDollar = dollarParts(scoreText), outputDollar = outputPriceText && dollarParts(outputPriceText)
   return { rank: entry.rank, name: entry.name, score: entry.score, logo: image,
-    ...((isPriceBoard(kind) || (kind === 'openRouterUsage' && costMode)) && { outputPriceText: taskCostText(entry.outputPriceUSD) }),
+    ...(outputPriceText && { outputPriceText }), ...(scoreDollar && { scoreDollar }), ...(outputDollar && { outputDollar }),
     rankChangeText,
     rankChangeTone: rankChangeText ? (entry.rankChange?.isNew ? 'new' : entry.rankChange.delta > 0 ? 'up' : 'down') : undefined,
     purchaseActions: actions,
     initial: [...entry.name][0], countryUnknown: countryCode(entry) === 'unknown', countryName: countryName(countryCode(entry), language),
     flag: countryCode(entry) === 'unknown' ? '?' : countryFlag(countryCode(entry)),
     countryCode: code, flagImage: countryFlagImage(code),
-    components: details ? entry.components?.map(member => ({ name: member.name, rank: member.rank, score: ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? shareScoreText(member.score) : kind === 'openRouterUsage' ? usageScoreText(member.score) : member.score.toFixed(kind === 'epochECI' ? 2 : 1) })) || [] : undefined,
-    scoreText: speedMode && supportsAASpeed(kind) ? speedText(value) : costMode && supportsAACost(kind) || isPriceBoard(kind) ? taskCostText(value) : ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? shareScoreText(value) : kind === 'openRouterUsage' ? usageScoreText(value) : value.toFixed(kind === 'epochECI' ? 2 : 1), scoreShare: ['vercelUsage', 'cloudbaseUsage'].includes(kind) || isPriceBoard(kind) ? '' : scoreShareText(value, leaderScore), openness: company ? null : resolvedOpenness(entry),
+    components: details ? entry.components?.map(member => ({ name: member.name, rank: member.rank, score: isErrorRate(kind) ? `${member.score.toFixed(2)}%` : ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? shareScoreText(member.score) : kind === 'openRouterUsage' ? usageScoreText(member.score) : member.score.toFixed(kind === 'epochECI' ? 2 : 1) })) || [] : undefined,
+    scoreText, scoreShare: isErrorRate(kind) || ['vercelUsage', 'cloudbaseUsage'].includes(kind) || isPriceBoard(kind) ? '' : scoreShareText(value, leaderScore), openness: company ? null : resolvedOpenness(entry),
     opennessIcon: opennessIcon(company ? null : resolvedOpenness(entry), dark),
     fill: `background-color:rgba(${rgb},${dark ? '0.26' : '0.18'});`,
-    fillPercent: Number.isFinite(value) && value >= 0 && Number.isFinite(leaderScore) && leaderScore > 0
+    fillPercent: isErrorRate(kind) ? 0 : Number.isFinite(value) && value >= 0 && Number.isFinite(leaderScore) && leaderScore > 0
       ? Math.min(100, value / leaderScore * 100) : costMode || speedMode || isPriceBoard(kind) ? 0 : 100,
     medal: ['🥇', '🥈', '🥉'][entry.rank - 1] || String(entry.rank),
   }
@@ -117,7 +127,7 @@ export function rankedEntries(board, { grouping = 'model', country = 'all', open
   const entries = (board?.entries || []).filter(entry => (country === 'all' || countryCode(entry) === country)
     && (openness === 'all' || (resolvedOpenness(entry) || 'unknown') === openness))
   const ranked = grouping === 'company' && !isPriceBoard(board?.kind)
-    ? companyRows(entries, { summingUsage: ['openRouterUsage', 'vercelUsage', 'cloudbaseUsage'].includes(board?.kind) }) : entries
+    ? companyRows(entries, { summingUsage: ['openRouterUsage', 'vercelUsage', 'cloudbaseUsage'].includes(board?.kind), lowerIsBetter: isErrorRate(board?.kind) }) : entries
   const ordered = isPriceBoard(board?.kind) ? [...ranked].sort((a, b) => {
     const direction = priceAscending ? 1 : -1
     return direction * (a.score - b.score || (a.outputPriceUSD ?? 0) - (b.outputPriceUSD ?? 0)) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0) || ((a.modelID ?? '') < (b.modelID ?? '') ? -1 : (a.modelID ?? '') > (b.modelID ?? '') ? 1 : 0)

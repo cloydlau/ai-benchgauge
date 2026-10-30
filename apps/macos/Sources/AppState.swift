@@ -36,10 +36,22 @@ final class AppState: ObservableObject {
     @Published private(set) var timestampPolishRevision = 0
     @Published private(set) var lastErrors: [LeaderboardKind: String] = [:]
     @Published private(set) var boardSelections: [String: [String]] = [:]
+    @Published private(set) var mediaSelections: [String: String] = [:]
     var visibleBoardKinds: [LeaderboardKind] { boardKinds(for: selectedCategory) }
 
     func boardKinds(for category: LeaderboardCategory) -> [LeaderboardKind] {
-        DesktopBoardSelection.kinds(for: category, saved: boardSelections[category.rawValue])
+        DesktopBoardSelection.kinds(for: category, saved: boardSelections[category.rawValue]).map { base in
+            guard let raw = mediaSelections[base.rawValue], let selected = LeaderboardKind(rawValue: raw), base.mediaVariants.contains(selected) else { return base }
+            return selected
+        }
+    }
+
+    func selectMediaVariant(_ selected: LeaderboardKind, replacing current: LeaderboardKind) {
+        guard current.mediaVariants.contains(selected), let base = current.mediaVariants.first, selected != current else { return }
+        if selected == base { mediaSelections.removeValue(forKey: base.rawValue) }
+        else { mediaSelections[base.rawValue] = selected.rawValue }
+        defaults.set(mediaSelections, forKey: "desktopMediaSelections")
+        refreshNow(force: false)
     }
 
     func toggleBoard(_ kind: LeaderboardKind) {
@@ -50,13 +62,13 @@ final class AppState: ObservableObject {
 
     func setVisibleBoards(_ kinds: [LeaderboardKind]) {
         let next = selectedCategory.boardKinds.filter { kinds.contains($0) }
-        guard !next.isEmpty, next != visibleBoardKinds else { return }
+        guard !next.isEmpty, next != DesktopBoardSelection.kinds(for: selectedCategory, saved: boardSelections[selectedCategory.rawValue]) else { return }
         boardSelections[selectedCategory.rawValue] = next.map(\.rawValue)
         defaults.set(boardSelections, forKey: "desktopBoardSelections")
         // Cancel only removed sources. Other requests and their refresh limits
         // remain intact when another source is enabled.
         let enabled = Set(visibleBoardKinds)
-        for kind in selectedCategory.boardKinds where !enabled.contains(kind) {
+        for kind in Set(selectedCategory.boardKinds.flatMap { [$0] + $0.mediaVariants }) where !enabled.contains(kind) {
             if let task = boardRefreshTasks.removeValue(forKey: kind) {
                 task.cancel()
                 // A cancelled attempt must not prevent a later re-enable.
@@ -201,6 +213,7 @@ final class AppState: ObservableObject {
         self.defaults = defaults
         self.fetcher = fetcher
         boardSelections = defaults.dictionary(forKey: "desktopBoardSelections") as? [String: [String]] ?? [:]
+        mediaSelections = defaults.dictionary(forKey: "desktopMediaSelections") as? [String: String] ?? [:]
         self.configuration = configuration
         self.quotaProviderLoad = quotaProviderLoad
         showsCodexTaskStatus = CodexTaskStatusPreference.load(from: defaults)

@@ -18,7 +18,12 @@ struct MobilePullRefreshContent: ViewModifier {
 
     @ViewBuilder func body(content: Content) -> some View {
         #if os(iOS)
-        content.padding(.top, refreshing ? 55 : 0)
+        VStack(spacing: 0) {
+            // Keep the refresh space in the scroll content, outside the
+            // padded bounds that determine where section headers pin.
+            if refreshing { Color.clear.frame(height: 55) }
+            content
+        }
             .background {
                 MobilePullRefresh(enabled: enabled, topSpacer: topSpacer,
                     identifier: identifier, loadingLabel: loadingLabel, onRefreshing: { visible in

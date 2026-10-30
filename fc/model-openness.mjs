@@ -11,7 +11,7 @@ function modelName(value) {
   })).join('-');
 }
 
-export const codingKinds = new Set(['artificialAnalysisCodingAgent', 'codeArenaWebDev', 'valsSWEbench']);
+export const codingKinds = new Set(['artificialAnalysisCodingAgent', 'codeArenaWebDev', 'codeArenaImageToWebDev', 'valsSWEbench']);
 
 // Read-time metadata only: never change the stored ranking, its timestamps or
 // the source's explicit classification. Conflicting evidence stays unknown.

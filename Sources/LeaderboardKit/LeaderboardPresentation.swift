@@ -93,7 +93,9 @@ public enum LeaderboardPresentation {
             language.text("Cost and duration per test as published by Vals; source ranking stays unchanged.", "Vals 公布的每次测试成本和耗时；切换指标不改变原榜排名。")
         case .artificialAnalysisTextToImage:
             language.text("API dollars per image, from AA's price per 1,000 images at 1024×1024 default settings.", "每张图片的 API 美元价格，根据 AA 标注的默认设置、1024×1024 每千张价格换算。")
-        case .artificialAnalysisTextToVideo:
+        case .artificialAnalysisImageEditing:
+            language.text("API dollars per edited image, converted from AA's price per 1,000 images; settings can differ by model.", "每张编辑图片的 API 美元价格，根据 AA 每千张价格换算；各模型设置可能不同。")
+        case .artificialAnalysisTextToVideo, .artificialAnalysisImageToVideo, .artificialAnalysisVideoEditing:
             language.text("API dollars per minute of generated video; settings and resolution can differ by model.", "生成视频的 API 美元价格，按分钟计；各模型设置和分辨率可能不同。")
         case .artificialAnalysis:
             language.text("Weighted average API cost per Intelligence Index task; calculated using evaluation token usage and prices.", "综合能力评测每任务的加权平均 API 成本，根据评测 token 用量及价格计算。")
@@ -125,7 +127,7 @@ public enum LeaderboardPresentation {
                             modelQuery: String = "") -> [LeaderboardEntry] {
         let entries = filteredEntries(board, country: filter, openness: openness)
         let matches = modelNameMatcher(modelQuery)
-        return grouping == .company && board?.kind.isPrice != true ? CompanyLeaderboard.rank(entries, summingUsage: board?.kind.isUsage == true).map(\.entry)
+        return grouping == .company && board?.kind.isPrice != true ? CompanyLeaderboard.rank(entries, summingUsage: board?.kind.isUsage == true, lowerIsBetter: board?.kind.isErrorRate == true).map(\.entry)
             : entries.filter { matches($0.name) }
     }
 
@@ -147,7 +149,7 @@ public enum LeaderboardPresentation {
 
     public static func companies(_ board: Leaderboard?, filter: LeaderboardCountryFilter,
                                  openness: LeaderboardOpennessFilter = .all) -> [CompanyStanding] {
-        CompanyLeaderboard.rank(filteredEntries(board, country: filter, openness: openness), summingUsage: board?.kind.isUsage == true)
+        CompanyLeaderboard.rank(filteredEntries(board, country: filter, openness: openness), summingUsage: board?.kind.isUsage == true, lowerIsBetter: board?.kind.isErrorRate == true)
     }
 
     private static func filteredEntries(_ board: Leaderboard?, country: LeaderboardCountryFilter,
@@ -175,6 +177,7 @@ public enum LeaderboardPresentation {
         case .coding: language.text("Coding", "编程")
         case .image: language.text("Image", "图片")
         case .video: language.text("Video", "视频")
+        case .speech: language.text("Speech", "语音")
         case .usage: language.text("Usage", "用量")
         case .price: language.text("Price", "价格")
         }
@@ -186,17 +189,31 @@ public enum LeaderboardPresentation {
         case .artificialAnalysis: "Artificial Analysis Intelligence Index"
         case .valsSWEbench: "Vals AI · SWE-bench Verified (Archived)"
         case .artificialAnalysisCodingAgent: "Artificial Analysis Coding Agent Index"
-        case .arenaText: "Arena | Text"
+        case .arenaText: "Arena | Text · Style Control"
+        case .arenaTextUncontrolled: "Arena | Text · Original"
         case .epochECI: "Epoch Capabilities Index"
         case .cloudbaseUsage: "Tencent Cloud | Token share"
         case .vercelUsage: "Vercel AI Gateway | Token share"
         case .openRouterUsage: "OpenRouter | Token usage"
         case .openRouterPrice: "OpenRouter | API prices"
         case .codeArenaWebDev: "Code Arena | WebDev"
+        case .codeArenaImageToWebDev: "Code Arena | Image-to-WebDev"
         case .artificialAnalysisTextToImage: "Artificial Analysis | 文生图"
+        case .artificialAnalysisImageEditing: language.text("Artificial Analysis | Image editing", "Artificial Analysis | 图片编辑")
         case .arenaTextToImage: "Arena | 文生图"
+        case .arenaImageEditing: language.text("Arena | Single-image edit", "Arena | 单图编辑")
+        case .arenaMultiImageEditing: language.text("Arena | Multi-image edit", "Arena | 多图编辑")
         case .artificialAnalysisTextToVideo: "Artificial Analysis | 文生视频"
+        case .artificialAnalysisImageToVideo: language.text("Artificial Analysis | Image to video", "Artificial Analysis | 图生视频")
+        case .artificialAnalysisVideoEditing: language.text("Artificial Analysis | Video editing", "Artificial Analysis | 视频编辑")
         case .arenaTextToVideo: "Arena | 文生视频"
+        case .arenaImageToVideo: language.text("Arena | Image to video", "Arena | 图生视频")
+        case .arenaVideoEditing: language.text("Arena | Video editing", "Arena | 视频编辑")
+        case .artificialAnalysisSpeechProviderVoice: language.text("Artificial Analysis | TTS · Provider voice", "Artificial Analysis | 文字转语音 · 原生声音")
+        case .artificialAnalysisSpeechControlledVoice: language.text("Artificial Analysis | TTS · Controlled voice", "Artificial Analysis | 文字转语音 · 受控声音")
+        case .artificialAnalysisSpeechAgent: language.text("Artificial Analysis | Speech agent", "Artificial Analysis | 语音对话")
+        case .artificialAnalysisSpeechToText: language.text("Artificial Analysis | STT · Non-streaming", "Artificial Analysis | 语音转文字 · 非流式")
+        case .artificialAnalysisSpeechToTextStreaming: language.text("Artificial Analysis | STT · Streaming", "Artificial Analysis | 语音转文字 · 流式")
         }
     }
 
@@ -220,15 +237,28 @@ public enum LeaderboardPresentation {
         case .valsSWEbench: language.text("Archived benchmark", "已归档榜单")
         case .artificialAnalysisCodingAgent: language.text("Task completion", "任务完成率")
         case .artificialAnalysisTextToImage: language.text("Curated prompts", "场景化盲测")
+        case .artificialAnalysisImageEditing: language.text("Image editing", "图片编辑")
         case .artificialAnalysisTextToVideo: language.text("Matched settings", "统一设置")
-        case .arenaText: language.text("User votes", "用户盲测")
+        case .artificialAnalysisImageToVideo: language.text("Image to video", "图生视频")
+        case .artificialAnalysisVideoEditing: language.text("Video editing", "视频编辑")
+        case .arenaText, .arenaTextUncontrolled: language.text("User votes", "用户盲测")
         case .epochECI: language.text("Calibrated tests", "难度校准")
         case .cloudbaseUsage: language.text("Cumulative share", "累计占比")
         case .vercelUsage: language.text("Daily share", "每日占比")
         case .openRouterUsage: language.text("Daily usage", "每日用量")
         case .openRouterPrice: language.text("API prices", "API 价格")
         case .codeArenaWebDev: language.text("WebDev votes", "网页开发盲选")
+        case .codeArenaImageToWebDev: language.text("Image-to-WebDev votes", "图片转代码盲选")
         case .arenaTextToImage, .arenaTextToVideo: language.text("User prompts", "用户出题")
+        case .arenaImageEditing: language.text("Single-image edit", "单图编辑")
+        case .arenaMultiImageEditing: language.text("Multi-image edit", "多图编辑")
+        case .arenaImageToVideo: language.text("Image to video", "图生视频")
+        case .arenaVideoEditing: language.text("Video editing", "视频编辑")
+        case .artificialAnalysisSpeechProviderVoice: language.text("Provider voice", "原生声音")
+        case .artificialAnalysisSpeechControlledVoice: language.text("Controlled voice", "受控声音")
+        case .artificialAnalysisSpeechAgent: language.text("Speech agent", "语音对话")
+        case .artificialAnalysisSpeechToText: language.text("Non-streaming STT", "非流式语音转文字")
+        case .artificialAnalysisSpeechToTextStreaming: language.text("Streaming STT", "流式语音转文字")
         }
     }
 
@@ -242,16 +272,31 @@ public enum LeaderboardPresentation {
         case .openRouterUsage: language.text("Latest complete UTC day · input + output tokens · 1B = 1 billion tokens.", "最近完整 UTC 日输入与输出 token 用量；1B = 十亿 token。")
         case .openRouterPrice: language.text("OpenRouter base text input and output prices per million tokens; context tiers and other charges can differ.", "OpenRouter 文本输入、输出每百万 token 基础价格；长上下文阶梯及其他费用可能不同。")
         case .epochECI: language.text("Estimates general capability from benchmark results, accounting for difficulty and discrimination.", "结合不同测试的难度与区分度，估计模型的综合能力")
-        case .arenaText: language.text("People compare anonymous answers to real prompts.", "真实提问下盲选回答，贴近用户偏好")
+        case .arenaText: language.text("Anonymous comparisons with style control.", "真实提问下盲选回答，并进行风格控制")
+        case .arenaTextUncontrolled: language.text("Anonymous comparisons without style control.", "真实提问下盲选回答，未进行风格控制")
         case .codeArenaWebDev: language.text("People pick the better result from paired web builds.", "用户盲选网页成品，侧重实际观感")
+        case .codeArenaImageToWebDev: language.text("People compare websites generated from images.", "用户盲选由图片生成的网页")
         case .artificialAnalysisTextToImage: language.text("Blind votes across a balanced set of image use cases.", "按用途均衡选题，盲选图片质量")
+        case .artificialAnalysisImageEditing: language.text("Blind votes on edited images.", "盲选图片编辑效果")
         case .arenaTextToImage: language.text("People vote on images made from their own prompts.", "用户自由出题并盲选，贴近日常审美")
+        case .arenaImageEditing: language.text("People vote on edits to one image.", "用户盲选单图编辑效果")
+        case .arenaMultiImageEditing: language.text("People vote on edits using multiple images.", "用户盲选多图编辑效果")
         case .artificialAnalysisTextToVideo: language.text("Blind votes on videos made with comparable settings.", "相同提示词、统一设置下盲选视频质量")
+        case .artificialAnalysisImageToVideo: language.text("Blind votes on videos generated from images.", "盲选图片生成视频的效果")
+        case .artificialAnalysisVideoEditing: language.text("Blind votes on edited videos.", "盲选视频编辑效果")
         case .arenaTextToVideo: language.text("People vote on paired videos from real prompts.", "用户自由出题并盲选，贴近日常偏好")
+        case .arenaImageToVideo: language.text("People vote on videos generated from images.", "用户盲选图片生成的视频")
+        case .arenaVideoEditing: language.text("People vote on edited videos.", "用户盲选视频编辑效果")
+        case .artificialAnalysisSpeechProviderVoice: language.text("Blind votes on each provider's native voices.", "盲选各供应商的原生声音")
+        case .artificialAnalysisSpeechControlledVoice: language.text("Blind votes with controlled voices.", "使用受控声音进行盲选")
+        case .artificialAnalysisSpeechAgent: language.text("Blind votes on speech-to-speech agents.", "盲选语音对话代理")
+        case .artificialAnalysisSpeechToText: language.text("Speech-to-text word error rate; lower is better.", "语音转文字词错误率，越低越好")
+        case .artificialAnalysisSpeechToTextStreaming: language.text("Streaming speech-to-text word error rate; lower is better.", "流式语音转文字词错误率，越低越好")
         }
     }
 
     public static func scoreText(_ score: Double, kind: LeaderboardKind) -> String {
+        if kind.isErrorRate { return String(format: "%.2f%%", locale: Locale(identifier: "en_US_POSIX"), score) }
         if kind.isPrice { return taskCostText(score) }
         if kind.isShareUsage {
             return score > 0 && score < 0.01 ? "<0.01%" : String(format: "%.2f%%", locale: Locale(identifier: "en_US_POSIX"), score)
@@ -263,7 +308,7 @@ public enum LeaderboardPresentation {
     }
 
     public static func scoreTitle(_ kind: LeaderboardKind, language: AppLanguage) -> String {
-        kind.isPrice ? language.text("In / Out $/1M", "输入/输出 $/百万") : kind.isShareUsage ? language.text("Share", "占比") : kind == .openRouterUsage ? language.text("Tokens", "用量") : language.text("Score", "分数")
+        kind.isErrorRate ? "WER ↓" : kind.isPrice ? language.text("In / Out $/1M", "输入/输出 $/百万") : kind.isShareUsage ? language.text("Share", "占比") : kind == .openRouterUsage ? language.text("Tokens", "用量") : language.text("Score", "分数")
     }
 
     public static func sourceHelp(_ kind: LeaderboardKind, language: AppLanguage, board: Leaderboard?,
@@ -383,7 +428,8 @@ public enum LeaderboardPresentation {
 
     public static func rankingUpdated(_ snapshot: LeaderboardSnapshot, category: LeaderboardCategory,
                                       language: AppLanguage, now: Date = Date()) -> String {
-        guard let date = category.boardKinds.compactMap({ kind in
+        let kinds = Set(category.boardKinds.flatMap { [$0] + $0.mediaVariants })
+        guard let date = kinds.compactMap({ kind in
             snapshot.boards[kind].map { $0.sourceUpdatedAt ?? $0.contentTimestamp }
         }).min() else {
             return language.text("Rankings pending", "榜单 待更新")

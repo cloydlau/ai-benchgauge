@@ -26,8 +26,10 @@ function html(kind = 'arenaText', date = '2026-10-10T00:00:00Z', count = 22, mod
   if (kind === 'epochECI') return 'Model,Display name,eci,Organization,Country (of organization),Accessibility group\n'
     + Array.from({ length: count }, (_, i) => `model-${i},Model ${i},${100-i},Maker,US,Closed weights`).join('\n');
   const rows = Array.from({ length: count }, (_, i) => {
-    if (kind.startsWith('arena') || kind === 'codeArenaWebDev') return { modelDisplayName: `Model ${i}`, rating: 2000 - i, modelKey: `model-${i}`, modelOrganization: 'Maker' };
+    if (kind.startsWith('arena') || kind.startsWith('codeArena')) return { modelDisplayName: `Model ${i}`, rating: 2000 - i, modelKey: `model-${i}`, modelOrganization: 'Maker' };
     if (kind === 'artificialAnalysisCodingAgent') return { displayLabel: `Model ${i}`, indexScore: (100 - i) / 100, display: { creator: { agent: 'Maker' } }, hostModelSlug: `model-${i}`, materializedAt: date };
+    if (kind === 'artificialAnalysisSpeechAgent') return { id: `model-${i}`, name: `Model ${i}`, stsHostModelId: null, sliceKey: 'overall', rank: i + 1, elo: 1200 - i, creatorName: 'Maker' };
+    if (kind === 'artificialAnalysisSpeechToText' || kind === 'artificialAnalysisSpeechToTextStreaming') return { id: `model-${i}`, displayName: `Model ${i}`, host: { name: 'Maker' }, model: {}, [kind.endsWith('Streaming') ? 'aaWerStreamingIndex' : 'aaWerIndex']: (i + 1) / 100 };
     const value = { ...(modelLogoURL && { modelLogoURL }), name: `Model ${i}`, intelligenceIndex: 100 - i, elo: 1200 - i, slug: `model-${i}`, id: `model-${i}`, creator: { name: 'Maker', logo: '/img/logos/maker.svg' } };
     return kind === 'artificialAnalysis' ? value : { formatted: { rank: i + 1 }, values: value };
   });
@@ -138,7 +140,7 @@ test('all parsed sources retain ranking, IDs, organizations and correct source d
     assert.equal(board.entries[0].modelID, kind === 'valsSWEbench' ? 'vals:maker_model-0:Agent' : 'model-0');
     assert.equal(board.entries[0].organization, kind === 'valsSWEbench' ? 'maker' : 'Maker');
     assert.equal(board.fetchedAt, new Date(time).toISOString());
-    if (kind.startsWith('arena') || kind === 'codeArenaWebDev' || kind === 'artificialAnalysisCodingAgent' || kind === 'valsSWEbench') {
+    if (kind.startsWith('arena') || kind.startsWith('codeArena') || kind === 'artificialAnalysisCodingAgent' || kind === 'valsSWEbench') {
       assert.equal(board.sourceUpdatedAt, '2026-10-10T00:00:00.000Z');
     } else assert.equal(board.sourceUpdatedAt, undefined);
   }

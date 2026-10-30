@@ -18,7 +18,15 @@
         "artificialAnalysis",
         "artificialAnalysisCodingAgent",
         "artificialAnalysisTextToImage",
-        "artificialAnalysisTextToVideo"
+        "artificialAnalysisImageEditing",
+        "artificialAnalysisTextToVideo",
+        "artificialAnalysisImageToVideo",
+        "artificialAnalysisVideoEditing",
+        "artificialAnalysisSpeechProviderVoice",
+        "artificialAnalysisSpeechControlledVoice",
+        "artificialAnalysisSpeechAgent",
+        "artificialAnalysisSpeechToText",
+        "artificialAnalysisSpeechToTextStreaming"
       ],
       "reference": "https://artificialanalysis.ai/brand-kit/",
       "light": {
@@ -36,9 +44,15 @@
       "id": "arena",
       "kinds": [
         "arenaText",
+        "arenaTextUncontrolled",
         "codeArenaWebDev",
+        "codeArenaImageToWebDev",
         "arenaTextToImage",
-        "arenaTextToVideo"
+        "arenaImageEditing",
+        "arenaMultiImageEditing",
+        "arenaTextToVideo",
+        "arenaImageToVideo",
+        "arenaVideoEditing"
       ],
       "reference": "https://arena.ai/blog/lmarena-is-now-arena",
       "light": {
