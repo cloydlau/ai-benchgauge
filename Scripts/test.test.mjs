@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { nativeTestAvailability, runTests, testCommands, testInputSignature, testExecutionContext, testEnvironment } from './test.mjs'
+import { nativeTestAvailability, windowsTestAvailability, fullCoverageReuseSignature, runTests, testCommands, testInputSignature, testExecutionContext, testEnvironment } from './test.mjs'
 
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'benchgauge-tests-'))
@@ -15,6 +15,58 @@ function fixture(t) {
   return root
 }
 const logger = { log() {}, error() {} }
+
+test('Windows tests skip only when the .NET 10 SDK is absent', t => {
+  const root = fixture(t)
+  const probe = result => windowsTestAvailability(root, {}, { execute: () => result })
+  assert.equal(probe({ error: { code: 'ENOENT' } }).available, false)
+  assert.equal(probe({ status: 0, stdout: '' }).available, false)
+  assert.equal(probe({ status: 0, stdout: '9.0.100 [/sdk]\n' }).available, false)
+  assert.equal(probe({ status: 0, stdout: '10.0.100 [/sdk]\n' }).available, true)
+  assert.equal(probe({ status: 0, stdout: 'unexpected output' }).available, true)
+  assert.equal(probe({ status: 1, stdout: '' }).available, true)
+  assert.equal(probe({ error: { code: 'ETIMEDOUT' } }).available, true)
+  const bundled = join(root, 'work/toolchains/dotnet/dotnet')
+  mkdirSync(join(bundled, '..'), { recursive: true })
+  writeFileSync(bundled, '')
+  let command
+  windowsTestAvailability(root, {}, { execute: path => { command = path; return { status: 0, stdout: '' } } })
+  assert.equal(command, bundled)
+  const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')
+  try {
+    Object.defineProperty(process, 'platform', { value: 'win32' })
+    windowsTestAvailability(root, {}, { execute: path => { command = path; return { status: 0, stdout: '' } } })
+    assert.equal(command, 'dotnet')
+  } finally { Object.defineProperty(process, 'platform', descriptor) }
+})
+
+test('missing Windows SDK is recorded while available test suites still run', async t => {
+  const root = fixture(t)
+  writeFileSync(join(root, 'Scripts/example.test.mjs'), 'import test from "node:test"; test("available suite", () => {})')
+  const project = join(root, 'apps/windows/BenchGauge.Tests/BenchGauge.Tests.csproj')
+  mkdirSync(join(project, '..'), { recursive: true })
+  writeFileSync(project, '')
+  const env = { ...process.env, BENCHGAUGE_DOTNET: join(root, 'missing-dotnet') }
+  delete env.NODE_TEST_CONTEXT
+  const result = await runTests({ root, scriptsOnly: true, env, logger })
+  assert.equal(result.status, 0, readFileSync(result.logPath, 'utf8'))
+  assert.deepEqual(result.skipped.map(item => item.suite), ['windows'])
+  assert.match(readFileSync(result.logPath, 'utf8'), /已跳过 Windows/)
+  assert.match(readFileSync(result.logPath, 'utf8'), /available suite/)
+})
+
+test('full reuse fingerprint probes Windows availability or uses the measured test-run value', t => {
+  const root = fixture(t)
+  const project = join(root, 'apps/windows/BenchGauge.Tests/BenchGauge.Tests.csproj')
+  mkdirSync(join(project, '..'), { recursive: true })
+  writeFileSync(project, '')
+  writeFileSync(join(root, 'calmmit.config.json'), JSON.stringify({ library: root }))
+  const env = { ...process.env, BENCHGAUGE_DOTNET: join(root, 'missing-dotnet') }
+  // This fixture is not a Git repository, so both proofs fail closed after
+  // exercising the different availability inputs.
+  assert.equal(fullCoverageReuseSignature(root, env, { available: false }), null)
+  assert.equal(fullCoverageReuseSignature(root, env, { available: false }, { available: true }), null)
+})
 
 test('native tests select full Xcode only for an implicit Command Line Tools selection', t => {
   const root = fixture(t)
@@ -71,11 +123,11 @@ test('first failed suite blocks subsequent suites and writes a failing report', 
 
 test('real test children do not inherit a parent commit lock or repository activity ticket', async t => {
   const root = fixture(t)
-  const env = { ...process.env, COMMIT_REQUIRE_LOCK: '1', CALMMIT_AI_COMMIT_TICKET: 'parent-repository-ticket',
-    COMMIT_PUSH: '0', GIT_INDEX_FILE: join(root, 'parent-index'), BENCHGAUGE_TEST_PASS: 'parent-pass', TEST_FIXTURE_VALUE: 'keep' }
+  const env = { ...process.env, COMMIT_REQUIRE_LOCK: '1', CALMMIT_AI_COMMIT_TICKET: 'parent-repository-ticket', CALMMIT_AI_COMMIT_ROOT: '/foreign-root',
+    COMMIT_PUSH: '0', GIT_INDEX_FILE: join(root, 'parent-index'), BENCHGAUGE_TEST_PASS: 'parent-pass', CALMMIT_ROOT: root, CALMMIT_CONFIG: 'parent-config', COMMIT_PLAN_FILE: 'parent-plan', CODEX_TOOL_CALL_ID: 'parent-call', TEST_FIXTURE_VALUE: 'keep' }
   const original = { ...env }
   const code = `const assert = require('node:assert/strict');
-    for (const key of ['COMMIT_REQUIRE_LOCK', 'CALMMIT_AI_COMMIT_TICKET', 'COMMIT_PUSH', 'GIT_INDEX_FILE', 'BENCHGAUGE_TEST_PASS'])
+    for (const key of ['COMMIT_REQUIRE_LOCK', 'CALMMIT_AI_COMMIT_TICKET', 'CALMMIT_AI_COMMIT_ROOT', 'COMMIT_PUSH', 'GIT_INDEX_FILE', 'BENCHGAUGE_TEST_PASS', 'CALMMIT_ROOT', 'CALMMIT_CONFIG', 'COMMIT_PLAN_FILE', 'CODEX_TOOL_CALL_ID'])
       assert.equal(process.env[key], undefined, key);
     assert.equal(process.env.TEST_FIXTURE_VALUE, 'keep');`
   const result = await runTests({ root, logger, env, commands: [[process.execPath, ['-e', code]]] })
@@ -116,16 +168,16 @@ test('mini-program sources and build inputs invalidate cached passes but dist do
   assert.equal(testInputSignature(root, env), before)
 })
 
-test('passing suites yield a receipt which only the same full inputs can reuse', async (t) => {
+test('a partial receipt cannot authorize reuse even when the caller supplies its signature', async (t) => {
   const root = fixture(t); let count = 0
   const options = { root, logger, commands: [['check', []]], run: async () => { count++; return 0 } }
   const passed = await runTests(options)
   const env = { ...process.env, BENCHGAUGE_TEST_PASS: passed.signature }
   const reused = await runTests({ ...options, env, gate: true })
-  assert.equal(reused.reused, true); assert.equal(count, 1)
+  assert.equal(reused.reused, undefined); assert.equal(count, 2)
   writeFileSync(join(root, 'Tests', 'example.swift'), 'changed assertion')
   const rerun = await runTests({ ...options, env, gate: true })
-  assert.equal(rerun.reused, undefined); assert.equal(count, 2)
+  assert.equal(rerun.reused, undefined); assert.equal(count, 3)
   assert.notEqual(rerun.signature, passed.signature)
 })
 

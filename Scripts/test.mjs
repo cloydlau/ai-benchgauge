@@ -9,6 +9,7 @@ import { acquireCommitLock, pidState } from './commit-lock.mjs'
 import { nodeExecutable } from './node-executable.mjs'
 import { withBuildCache } from './build-cache.mjs'
 import { prepareSwiftWorkspace } from './prepare-swift-workspace.mjs'
+import { coverageSummaryDigest, testParentVariables, testReuseSignature } from './test-reuse.mjs'
 
 export const testRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 export const testEnvironmentKeys = ['PATH', 'DEVELOPER_DIR', 'TOOLCHAINS', 'SDKROOT', 'TZ',
@@ -40,14 +41,39 @@ export function nativeTestAvailability(env = process.env, options = {}) {
   }
 }
 
+export function windowsTestAvailability(root, env = process.env, { execute = spawnSync } = {}) {
+  const bundled = join(root, 'work', 'toolchains', 'dotnet', process.platform === 'win32' ? 'dotnet.exe' : 'dotnet')
+  const dotnet = env.BENCHGAUGE_DOTNET || (existsSync(bundled) ? bundled : 'dotnet')
+  const result = execute(dotnet, ['--list-sdks'], { env, encoding: 'utf8', timeout: 10_000 })
+  const reason = '未找到 .NET 10 SDK；已跳过 Windows 共享单元测试，其余测试继续'
+  if (result.error?.code === 'ENOENT') return { available: false, reason }
+  if (result.error || result.status !== 0) return { available: true }
+  const lines = result.stdout.trim().split('\n').filter(Boolean)
+  if (lines.some(line => !/^\d+\.\d+\.\d+/.test(line))) return { available: true }
+  return lines.some(line => Number(line.match(/^\d+/)[0]) >= 10)
+    ? { available: true } : { available: false, reason }
+}
+
 export function testExecutionContext(env = process.env) {
   env = testEnvironment(env)
   return { node: nodeExecutable({ env }), env: Object.fromEntries([...testEnvironmentKeys, 'CALMMIT_PATH']
     .map(key => [key, env[key] ?? null])) }
 }
 
+export function fullCoverageReuseSignature(root = testRoot, env = process.env, native = nativeTestAvailability(env), windowsOverride) {
+  try {
+    env = testEnvironment(env)
+    const config = JSON.parse(readFileSync(join(root, 'calmmit.config.json'), 'utf8'))
+    if (!config.library && !env.CALMMIT_PATH) return null
+    const library = resolve(root, env.CALMMIT_PATH || config.library)
+    const windows = existsSync(join(root, 'apps/windows/BenchGauge.Tests/BenchGauge.Tests.csproj'))
+      ? (windowsOverride ?? windowsTestAvailability(root, env)) : null
+    return testReuseSignature(root, env, { native: { ...native, windows }, node: nodeExecutable({ env }), library })
+  } catch { return null }
+}
+
 // Only a pass for the exact inputs may be reused by child commit/build processes.
-export function testInputSignature(root = testRoot, env = process.env, { includeSources = true } = {}) {
+export function testInputSignature(root = testRoot, env = process.env) {
   env = testEnvironment(env)
   const hash = createHash('sha256')
   hash.update(JSON.stringify([process.version, nodeExecutable({ env }), ...testEnvironmentKeys.map(key => env[key])]))
@@ -62,7 +88,7 @@ export function testInputSignature(root = testRoot, env = process.env, { include
       hash.update(relative(root, path)); hash.update('\0'); hash.update(readFileSync(path)); hash.update('\0')
     }
   }
-  for (const path of [...(includeSources ? ['Sources', 'apps/macos/Sources', 'apps/ios/App', 'apps/ios/UI', 'apps/windows/BenchGauge', 'apps/windows/BenchGauge.Shared'] : []), 'Tests', 'apps/ios/UITests', 'apps/windows/BenchGauge.Tests', 'apps/windows/Directory.Build.props', 'apps/windows/BenchGauge/BenchGauge.csproj', 'apps/windows/BenchGauge/packages.lock.json', 'apps/windows/BenchGauge.Shared/BenchGauge.Shared.csproj', 'apps/windows/BenchGauge.Shared/packages.lock.json', 'apps/windows/installer', 'apps/windows/Licenses', 'assets', 'config', 'Scripts', '.github', 'Package.swift', 'Package.resolved', 'test.sh', 'make-app.sh', 'dev.sh', 'LICENSE']) collect(join(root, path))
+  for (const path of ['Sources', 'apps/macos/Sources', 'apps/ios/App', 'apps/ios/UI', 'apps/windows/BenchGauge', 'apps/windows/BenchGauge.Shared', 'Tests', 'apps/ios/UITests', 'apps/windows/BenchGauge.Tests', 'apps/windows/Directory.Build.props', 'apps/windows/BenchGauge/BenchGauge.csproj', 'apps/windows/BenchGauge/packages.lock.json', 'apps/windows/BenchGauge.Shared/BenchGauge.Shared.csproj', 'apps/windows/BenchGauge.Shared/packages.lock.json', 'apps/windows/installer', 'apps/windows/Licenses', 'assets', 'config', 'Scripts', '.github', 'Package.swift', 'Package.resolved', 'test.sh', 'make-app.sh', 'dev.sh', 'LICENSE']) collect(join(root, path))
   collect(join(root, 'fc'))
   for (const path of ['apps/weapp/src', 'apps/weapp/test', 'apps/weapp/scripts', 'apps/weapp/package.json',
     'apps/weapp/vite.config.js', 'apps/weapp/postcss.config.js', 'apps/weapp/project.config.json',
@@ -80,7 +106,7 @@ export function testInputSignature(root = testRoot, env = process.env, { include
 }
 
 export function testCommands(root = testRoot, { coreOnly = false, scriptsOnly = false, coverage = false, swiftcPath,
-  env = testEnvironment(), node = nodeExecutable({ env }) } = {}) {
+  env = testEnvironment(), node = nodeExecutable({ env }), skipWindows = false } = {}) {
   const commands = []
   if (!coreOnly) {
     const files = readdirSync(join(root, 'Scripts')).filter((name) => name.endsWith('.test.mjs')).sort().map((name) => join(root, 'Scripts', name))
@@ -111,7 +137,7 @@ export function testCommands(root = testRoot, { coreOnly = false, scriptsOnly = 
     }
     commands.push(['swift', args])
   }
-  if (!coreOnly && existsSync(join(root, 'apps/windows/BenchGauge.Tests/BenchGauge.Tests.csproj'))) {
+  if (!coreOnly && !skipWindows && existsSync(join(root, 'apps/windows/BenchGauge.Tests/BenchGauge.Tests.csproj'))) {
     commands.push([node, [join(root, 'Scripts/windows-tests.mjs')]])
   }
   return commands
@@ -158,10 +184,18 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
       })
     : { available: true }
   const skipNative = !native.available
+  const windows = !coreOnly && commands == null && run == null && existsSync(join(root, 'apps/windows/BenchGauge.Tests/BenchGauge.Tests.csproj'))
+    ? windowsTestAvailability(root, env) : { available: true }
+  const skipped = [
+    ...(skipNative ? [{ suite: 'swift', reason: native.reason }] : []),
+    ...(!windows.available ? [{ suite: 'windows', reason: windows.reason }] : []),
+  ]
   let before = testInputSignature(root, env)
+  const canAttest = !coreOnly && !scriptsOnly && coverage && commands == null && run == null
   if (gate && !coreOnly && !scriptsOnly && !coverage && env.BENCHGAUGE_TEST_PASS === before) {
-    logger.log('[test] 当前代码已通过完整测试，沿用本次流程的结果')
-    return { status: 0, signature: before, reused: true }
+    const { readBoundCoveragePass } = await import('./test-repair.mjs')
+    const cached = readBoundCoveragePass({ root, env })
+    if (cached) return cached
   }
   const directory = join(root, 'work', 'test-results')
   mkdirSync(directory, { recursive: true })
@@ -180,10 +214,11 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
   try {
     // Edits made while waiting belong to the new run, not its previous owner.
     if (waited) before = testInputSignature(root, env)
+    const reuseBefore = canAttest ? fullCoverageReuseSignature(root, env, native, windows) : null
     let logPath = env.CI_CHECK_LOG || join(directory, 'latest.log')
     writeFileSync(logPath, '')
-    if (skipNative) {
-      const warning = `[test] 警告：${native.reason}`
+    for (const item of skipped) {
+      const warning = `[test] 警告：${item.reason}`
       if (typeof logger.warn === 'function') logger.warn(warning)
       else logger.log(warning)
       appendFileSync(logPath, warning + '\n')
@@ -196,15 +231,11 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
     const exec = run ?? ((command, args) => new Promise((resolvePromise) => {
       const childEnv = { ...env, CLANG_MODULE_CACHE_PATH: join(root, 'work', 'clang-modules'), TZ: 'Asia/Shanghai' }
       // Never let a private Git index or a parent's pass leak into test fixtures.
-      delete childEnv.GIT_INDEX_FILE
-      delete childEnv.BENCHGAUGE_TEST_PASS
+      for (const key of testParentVariables) delete childEnv[key]
       // Commit workflows set this to 0 while running checks. Isolated watcher
       // fixtures must choose their own push policy rather than inherit it.
-      delete childEnv.COMMIT_PUSH
       // Isolated Git repositories need their own lock and AI activity ticket;
       // the parent repository's commit authorization cannot apply to fixtures.
-      delete childEnv.COMMIT_REQUIRE_LOCK
-      delete childEnv.CALMMIT_AI_COMMIT_TICKET
       if (coverageDirectory) {
         childEnv.NODE_V8_COVERAGE = coverageDirectory
         childEnv.BENCHGAUGE_COVERAGE_DIRECTORY = coverageDirectory
@@ -220,7 +251,7 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
       })
       child.on('close', (code) => resolvePromise(code ?? 1))
     }))
-    const checks = commands ?? testCommands(root, { coreOnly, scriptsOnly: scriptsOnly || skipNative, coverage, env })
+    const checks = commands ?? testCommands(root, { coreOnly, scriptsOnly: scriptsOnly || skipNative, coverage, env, skipWindows: !windows.available })
     if (!checks.length && !skipNative) throw new Error('测试列表为空，拒绝报告通过')
     const runChecks = async () => {
       if (nativeCoverage) {
@@ -267,9 +298,12 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
       copyFileSync(logPath, failurePath)
       logPath = failurePath
     }
+    const reuseAfter = status === 0 && reuseBefore ? fullCoverageReuseSignature(root, env) : null
+    const coverageDigest = status === 0 && reuseBefore && reuseBefore === reuseAfter ? coverageSummaryDigest(root, coverageDirectory) : null
     const result = { status, signature: status === 0 && !coreOnly && !scriptsOnly ? before : null, logPath, durationMs: Date.now() - started,
       scope: coreOnly ? 'core' : scriptsOnly ? 'scripts' : 'all', coverage, coverageDirectory,
-      skipped: skipNative ? [{ suite: 'swift', reason: native.reason }] : [] }
+      ...(coverageDigest ? { reuseFingerprint: reuseBefore, coverageDigest } : {}),
+      skipped }
     writeFileSync(join(directory, 'latest.json'), JSON.stringify(result, null, 2) + '\n')
     // Reporting and all coverage checks have finished before discarding profiles.
     // Cleanup trouble must not turn either a pass or a failure into a new verdict.
@@ -286,9 +320,12 @@ async function main() {
   const args = process.argv.slice(2)
   if (args.some((arg) => !['--core', '--scripts', '--coverage', '--gate'].includes(arg))) throw new Error('用法：./test.sh [--core | --scripts] [--coverage]')
   if (args.includes('--gate') && args.length !== 1) throw new Error('--gate 必须运行完整测试')
-  const boundCoverage = args.length === 1 && args[0] === '--coverage' && process.env.BENCHGAUGE_TEST_PASS
-    ? (await import('./test-repair.mjs')).readBoundCoveragePass()
-    : null
+  let boundCoverage = null
+  if (args.length === 1 && args[0] === '--coverage' && (process.env.BENCHGAUGE_TEST_PASS || process.env.COMMIT_REQUIRE_LOCK === '1')) {
+    const { readBoundCoveragePass, readSharedCoveragePass } = await import('./test-repair.mjs')
+    const requireIndex = process.env.COMMIT_REQUIRE_LOCK === '1'
+    boundCoverage = readBoundCoveragePass({ requireIndex }) || (requireIndex ? readSharedCoveragePass({ requireIndex }) : null)
+  }
   const result = boundCoverage || (args.includes('--gate')
     ? await (await import('./test-repair.mjs')).runTestGate()
     // A complete coverage run can take about three minutes. Let a concurrent

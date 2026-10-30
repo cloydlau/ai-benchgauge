@@ -85,7 +85,7 @@ test('deployment updates code only after the gate and records success only after
       signal: error?.signal ?? null, error, stdout, stderr,
     }))
   })
-  const modes = ['success', 'uppercase-etag', 'proxy', 'env-credentials', 'idle-deploy', 'busy-during-deploy', 'invalid-cli', 'full-gate-fail', 'test-locked', 'gate-fail', 'source-change', 'collector-fail', 'cloud-change', 'archive-mismatch', 'smoke-fail', 'bad-board', 'bad-upload', 'bad-etag', 'bad-download', 'network-download', 'bad-config', 'no-credentials', 'unrelated-main', 'unrelated-collector', 'bad-collector-token', 'missing-collector-token', 'bad-trigger', 'changed-config', 'deploy-locked']
+  const modes = ['success', 'cached-proof', 'cached-proof-change', 'uppercase-etag', 'proxy', 'env-credentials', 'idle-deploy', 'busy-during-deploy', 'invalid-cli', 'full-gate-fail', 'test-locked', 'gate-fail', 'source-change', 'collector-fail', 'cloud-change', 'archive-mismatch', 'smoke-fail', 'bad-board', 'bad-upload', 'bad-etag', 'bad-download', 'network-download', 'bad-config', 'no-credentials', 'unrelated-main', 'unrelated-collector', 'bad-collector-token', 'missing-collector-token', 'bad-trigger', 'changed-config', 'deploy-locked']
   let nextMode = 0
   const runModes = async () => {
     while (nextMode < modes.length) {
@@ -95,8 +95,8 @@ test('deployment updates code only after the gate and records success only after
     for (const name of ['deploy-shared-leaderboards.mjs', 'shared-fc-auto.mjs']) copyFileSync(new URL(`./${name}`, import.meta.url), join(root, 'Scripts', name))
     writeFileSync(join(root, 'Scripts/calmmit.mjs'), `import {resolve} from 'node:path';export const ci={root:resolve(import.meta.dirname,'..'),load:async name=>name==='deployment-watch'?{createWatchSession(){}}:{createRepositoryActivity:()=>({snapshot:()=>({blocked:${mode === 'busy-during-deploy'}})})}}`)
     writeFileSync(join(root, 'Scripts/commit-lock.mjs'), `export const acquireCommitLock=()=>({acquired:${mode !== 'deploy-locked'},release(){}})`)
-    writeFileSync(join(root, 'Scripts/test-repair.mjs'), `export const runTestGate=async({test})=>test()`)
-    writeFileSync(join(root, 'Scripts/test.mjs'), `export const testInputSignature=()=> 'gate-signature';export const runTests=async options=>({status:options.lockWaitMs===300000?${mode === 'full-gate-fail' ? 1 : mode === 'test-locked' ? 75 : 0}:1})`)
+    writeFileSync(join(root, 'Scripts/test-repair.mjs'), `export const runTestGate=async({test})=>${mode.startsWith('cached-proof') ? "({status:0,reused:true,reuseFingerprint:'proof'})" : 'test()'}`)
+    writeFileSync(join(root, 'Scripts/test.mjs'), `export const fullCoverageReuseSignature=()=> '${mode === 'cached-proof-change' ? 'changed' : 'proof'}';export const testInputSignature=()=> 'gate-signature';export const runTests=async options=>({status:options.lockWaitMs===300000?${mode === 'full-gate-fail' ? 1 : mode === 'test-locked' ? 75 : 0}:1})`)
     writeFileSync(join(root, '.benchgauge-cloud.local.json'), JSON.stringify({ region: 'cn-shenzhen', bucket: mode === 'bad-config' ? undefined : 'fixture-bucket', arenaCollector: true, runtimeCredentialsFunction: 'runtime', runtimeIdentityName: 'fixture', ...(mode !== 'env-credentials' && { credentialsFile: 'credentials' }), ...(mode === 'proxy' && { proxy: 'http://proxy.invalid' }) }))
     writeFileSync(join(root, 'credentials'), mode === 'no-credentials' ? '# empty\n' : 'ALIBABA_CLOUD_ACCESS_KEY_ID=id\nALIBABA_CLOUD_ACCESS_KEY_SECRET=secret\n')
     const preload = join(root, 'preload.cjs')
@@ -159,7 +159,7 @@ exports.default=class{
     if (['idle-deploy', 'busy-during-deploy'].includes(mode)) env.SHARED_FC_REQUIRE_IDLE = '1'
     const result = await spawnResult(process.execPath, ['--require', preload, new URL('./shared-fc-auto.mjs', import.meta.url).pathname, mode === 'invalid-cli' ? 'invalid' : 'deploy'], { cwd: root, env, encoding: 'utf8', timeout: 15000 })
     const receiptPath = join(root, 'work/shared-fc-auto/success.json')
-    if (['success', 'uppercase-etag', 'proxy', 'env-credentials', 'idle-deploy'].includes(mode)) {
+    if (['success', 'cached-proof', 'uppercase-etag', 'proxy', 'env-credentials', 'idle-deploy'].includes(mode)) {
       assert.equal(result.status, 0, result.stderr)
       assert.equal(JSON.parse(readFileSync(receiptPath, 'utf8')).status, 'success')
       const updates = JSON.parse(readFileSync(join(root, 'updates.json'), 'utf8'))
@@ -179,7 +179,7 @@ exports.default=class{
       if (mode === 'network-download') assert.match(result.stderr, /线上代码包下载暂时失败：连接中断/)
       if (mode === 'missing-collector-token') assert.match(result.stderr, /采集器缺少已核实的专用令牌/)
       if (mode === 'bad-etag') assert.match(result.stderr, /OSS 发布包校验失败/)
-      if (['gate-fail', 'source-change', 'collector-fail', 'cloud-change', 'network-download', 'missing-collector-token', 'bad-etag'].includes(mode)) assert.equal(existsSync(join(root, 'updates.json')), false, mode)
+      if (['cached-proof-change', 'gate-fail', 'source-change', 'collector-fail', 'cloud-change', 'network-download', 'missing-collector-token', 'bad-etag'].includes(mode)) assert.equal(existsSync(join(root, 'updates.json')), false, mode)
     }
   }
   }
@@ -195,7 +195,7 @@ test('watcher schedules a stable pending candidate and forwards the publish resu
   writeFileSync(join(root, 'credentials'), 'fixture')
   writeFileSync(join(root, 'Scripts/commit-lock.mjs'), `export const acquireCommitLock=()=>({acquired:process.env.FIXTURE_MODE!=='locked',release(){}})`)
   writeFileSync(join(root, 'Scripts/test-repair.mjs'), `export const runTestGate=async()=>({status:0})`)
-  writeFileSync(join(root, 'Scripts/test.mjs'), `import {readFileSync} from 'node:fs';export const testInputSignature=()=>process.env.FIXTURE_MODE==='retry'?readFileSync('gate-input','utf8'):'fixture';export const runTests=async()=>({status:0})`)
+  writeFileSync(join(root, 'Scripts/test.mjs'), `import {readFileSync} from 'node:fs';export const fullCoverageReuseSignature=()=> 'proof';export const testInputSignature=()=>process.env.FIXTURE_MODE==='retry'?readFileSync('gate-input','utf8'):'fixture';export const runTests=async()=>({status:0})`)
   writeFileSync(join(root, 'gate-input'), 'before')
   const { copyFileSync } = await import('node:fs')
   copyFileSync(new URL('./deploy-shared-leaderboards.mjs', import.meta.url), join(root, 'Scripts/deploy-shared-leaderboards.mjs'))

@@ -10,6 +10,7 @@ import { acquireCommitLock } from './commit-lock.mjs'
 
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'benchgauge-repair-boundary-'))
+  cp.execFileSync('git', ['init', '-q', root])
   mkdirSync(join(root, 'work/test-results'), { recursive: true })
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const logPath = join(root, 'work/test-results/failure.log')
@@ -45,6 +46,7 @@ test('Codex repair command validates deadlines and reports, redacts inherited st
       return { status: 0, stdout: '/fixture/Xcode.app/Contents/Developer\n' }
     }
     if (_command === 'git') {
+      if (args[0] === 'ls-files') return { status: 0, stdout: '' }
       assert.equal(args[0], 'rev-parse')
       return { status: 0, stdout: args.includes('--absolute-git-dir') ? join(options.cwd, '.git') + '\n' : 'fixture-head\n' }
     }
@@ -55,7 +57,7 @@ test('Codex repair command validates deadlines and reports, redacts inherited st
     assert.equal(options.env.BENCHGAUGE_TEST_PASS, undefined)
     assert.ok(options.input.includes('外围流程会重新运行完整测试'))
     assert.ok(options.input.includes('不要在修复子进程运行测试、lint 或构建'))
-    assert.ok(options.input.includes('本次用户需求依据：'))
+    assert.ok(options.input.includes(mode === 'pass' ? '本次显式记录的需求依据' : '本次没有有效的需求依据'))
     if (mode === 'pass') assert.ok(options.input.includes('fixture user requirement'))
     const output = args[args.indexOf('-o') + 1]
     writeFileSync(output, mode === 'bad-json' ? 'broken' : JSON.stringify(mode === 'bad-report' ? { ...passed, fixes: [1] } : passed))

@@ -8,7 +8,7 @@ import { ci } from './calmmit.mjs'
 import { acquireCommitLock } from './commit-lock.mjs'
 import { deploymentConfiguration, existingRuntimeCredentials, checkExistingBucket, isManagedFunction, packageCode, runtimeFiles } from './deploy-shared-leaderboards.mjs'
 import { runTestGate } from './test-repair.mjs'
-import { runTests, testInputSignature } from './test.mjs'
+import { fullCoverageReuseSignature, runTests, testInputSignature } from './test.mjs'
 
 const root = ci.root
 const state = join(root, 'work/shared-fc-auto')
@@ -56,8 +56,8 @@ function run(command, args, options = {}) {
   const result = spawnSync(command, args, { cwd: root, stdio: 'inherit', ...options })
   if (result.status !== 0) throw new Error(`${command} failed`)
 }
-function assertCurrent(source, config, gate) {
-  if (sourceSignature() !== source || configSignature() !== config || testInputSignature() !== gate || process.env.SHARED_FC_REQUIRE_IDLE === '1' && createRepositoryActivity({ root }).snapshot().blocked) throw new Error('源码或部署配置发生变化，等待下一轮发布')
+function assertCurrent(source, config, gate, reuseFingerprint, testEnv) {
+  if (sourceSignature() !== source || configSignature() !== config || testInputSignature() !== gate || process.env.SHARED_FC_REQUIRE_IDLE === '1' && createRepositoryActivity({ root }).snapshot().blocked || reuseFingerprint && fullCoverageReuseSignature(root, testEnv) !== reuseFingerprint) throw new Error('源码或部署配置发生变化，等待下一轮发布')
 }
 function credentials(config) {
   const values = config.credentialsFile ? Object.fromEntries(readFileSync(resolve(root, config.credentialsFile), 'utf8').split('\n').flatMap(line => {
@@ -102,17 +102,21 @@ export async function deploy() {
     const source = sourceSignature(), configHash = configSignature(), gate = testInputSignature()
     log('执行项目完整测试和覆盖率门禁')
     const gateEnv = { ...process.env, TEST_AUTO_REPAIR: '0' }
-    const result = await runTestGate({ env: gateEnv,
-      test: () => runTests({ root, env: gateEnv, gate: true, coverage: true, lockWaitMs: 300_000 }) })
+    // This flag governs publication, not the independent test process.
+    const testEnv = { ...process.env }
+    delete testEnv.SHARED_FC_REQUIRE_IDLE
+    const result = await runTestGate({ env: gateEnv, reuseEnv: testEnv, requireSharedProof: true,
+      test: () => runTests({ root, env: testEnv, gate: true, coverage: true, lockWaitMs: 300_000 }) })
     if (result.status === 75) throw new Error('已有云函数发布任务或源码发生变化，等待下一轮发布')
     if (result.status !== 0) throw new Error('完整测试或覆盖率门禁未通过，详见 work/test-results/latest.log')
-    assertCurrent(source, configHash, gate)
+    const verifyCurrent = () => assertCurrent(source, configHash, gate, result.reused ? result.reuseFingerprint : null, testEnv)
+    verifyCurrent()
     log('执行服务端测试')
     run(process.execPath, ['--test', ...gateTests])
-    assertCurrent(source, configHash, gate)
+    verifyCurrent()
     log('打包已验证的服务端代码')
     const archive = packageCode()
-    assertCurrent(source, configHash, gate)
+    verifyCurrent()
     const archiveBytes = readFileSync(archive), archiveHash = hash(archiveBytes)
     const config = deploymentConfiguration(JSON.parse(readFileSync(join(root, '.benchgauge-cloud.local.json'))))
     if (!config.bucket || !config.runtimeCredentialsFunction || config.arenaCollector !== true) throw new Error('自动部署需要已有主函数、运行身份和采集函数配置')
@@ -141,14 +145,14 @@ export async function deploy() {
       const url = new URL(target.trigger)
       if (url.protocol !== 'https:' || !url.hostname.endsWith(target.main ? `.${config.region}.fcapp.run` : '.ap-southeast-1.fcapp.run')) throw new Error('云函数接口地址不符合预期')
     }
-    assertCurrent(source, configHash, gate)
+    verifyCurrent()
     log('上传主服务发布包')
     await oss.put(stageKey, archiveBytes, { headers: { 'x-oss-forbid-overwrite': 'true' } })
     const uploaded = await oss.head(stageKey)
     if (Number(uploaded.res.headers['content-length']) !== archiveBytes.length || String(uploaded.res.headers.etag).replaceAll('"', '').toLowerCase() !== createHash('md5').update(archiveBytes).digest('hex')) throw new Error('OSS 发布包校验失败')
     // Update the collector first so new main-service calls never target an older collector.
     for (const target of targets.slice().reverse()) {
-      assertCurrent(source, configHash, gate)
+      verifyCurrent()
       const current = (await target.client.getFunction(target.name, new FC.GetFunctionRequest())).body
       if (!sameStamp(current, target.before) || !sameConfig(current, target.before)) throw new Error('线上函数已变化，停止覆盖并等待重新部署')
       const code = target.main ? { ossBucketName: config.bucket, ossObjectName: stageKey } : { zipFile: archiveBytes.toString('base64') }
@@ -168,7 +172,7 @@ export async function deploy() {
       const data = await response.json()
       if (!data.board || data.board.kind !== kind || !Array.isArray(data.board.entries) || !data.board.entries.length) throw new Error(`线上榜单 ${kind} 校验失败`)
     }
-    assertCurrent(source, configHash, gate)
+    verifyCurrent()
     await oss.delete(stageKey)
     const tmp = `${receiptPath}.${id}.tmp`
     writeFileSync(tmp, JSON.stringify({ version: 1, status: 'success', sourceSignature: source, configSignature: configHash, archiveHash, publishedAt: Date.now() }) + '\n', { mode: 0o600 })
