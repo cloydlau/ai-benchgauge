@@ -58,9 +58,15 @@ export class OSSStore {
     if (!Number.isSafeInteger(position) || position < 1) throw new Error('Invalid coordination object');
     // Read only the tail, not the ever-growing grant metadata journal. Fix the
     // range to the HEAD position; a concurrent append makes our CAS fail later.
-    const result = await this.client.get(key, { timeout, headers: { Range: `bytes=${Math.max(0, position - 2048)}-${position - 1}` } });
-    const last = result.content.toString('utf8').trimEnd().split('\n').at(-1);
-    return { position, state: JSON.parse(last) };
+    // Older deployments can have a final record larger than 2 KiB. Expand the
+    // bounded tail only when the last record cannot be parsed, retaining the
+    // original HEAD position so append compare-and-swap remains safe.
+    for (let size = 2048; ; size *= 2) {
+      const result = await this.client.get(key, { timeout, headers: { Range: `bytes=${Math.max(0, position - size)}-${position - 1}` } });
+      const last = result.content.toString('utf8').trimEnd().split('\n').at(-1);
+      try { return { position, state: JSON.parse(last) }; }
+      catch (error) { if (size >= position || size >= 65536) throw error; }
+    }
   }
   async appendState(kind, position, state, timeout = 8000) {
     try {

@@ -151,6 +151,26 @@ test('incomplete boards and arbitrary logo URL injection are rejected or sanitiz
   assert.equal(parseBoard('artificialAnalysis', source, time).entries[0].logoURL, undefined);
 });
 
+test('OSS tail expands for an oversized final record while keeping the original CAS position', async () => {
+  const previous = Buffer.from('{"old":true}\n');
+  const record = { boards: { old: { fingerprint: 'a'.repeat(5000), pending: true } } };
+  const content = Buffer.concat([previous, Buffer.from(JSON.stringify(record) + '\n')]);
+  const ranges = [];
+  const store = new OSSStore({
+    async head() { return { res: { headers: { 'content-length': content.length } } }; },
+    async get(_key, { headers }) {
+      ranges.push(headers.Range);
+      const [, start, end] = headers.Range.match(/bytes=(\d+)-(\d+)/);
+      return { content: content.subarray(Number(start), Number(end) + 1) };
+    },
+  });
+  const result = await store.readState('models-dev-requests');
+  assert.equal(result.position, content.length);
+  assert.deepEqual(result.state, record);
+  assert.equal(ranges.length, 3);
+  assert.ok(ranges.every(range => range.endsWith(`-${content.length - 1}`)));
+});
+
 test('OSS tail reads and append position handle real multi-instance conflicts without process locks', async () => {
   const objects = new Map(); const ranges = [];
   const client = {

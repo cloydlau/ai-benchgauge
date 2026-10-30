@@ -286,7 +286,9 @@ test('queue CAS preserves simultaneous boards and gaps added during acquisition;
   } });
   await Promise.all(Object.keys(sources).map(kind => registry.queue({ ...boardWith('Initial gap'), kind })));
   assert.equal(Object.keys(pending(store)).length, Object.keys(sources).length);
-  assert.ok(Buffer.byteLength(JSON.stringify({ boards: pending(store) })) < 2048);
+  // The expanded board catalog no longer fits in 2 KiB. OSS tail reads
+  // expand safely, but the current complete queue must remain below 4 KiB.
+  assert.ok(Buffer.byteLength(JSON.stringify({ boards: pending(store) })) < 4096);
   await registry.sync({ pendingOnly: true });
   assert.equal(pending(store).arenaText.pending, true);
   assert.equal(pending(store).artificialAnalysis.pending, false);
@@ -295,6 +297,29 @@ test('queue CAS preserves simultaneous boards and gaps added during acquisition;
   await registry.queue(boardWith('No scheduling storage'));
   assert.equal(await registry.sync({ pendingOnly: true }), store.value);
   assert.equal(registry.syncFailed, true); assert.equal(store.writes, 0);
+});
+test('legacy full-length gap fingerprints remain readable and migrate on the next queue', async () => {
+  const store = new Store(); store.value = parsed();
+  const registry = new ModelsDevRegistry(store, { clock: () => now });
+  await registry.queue(boardWith('Missing'));
+  const current = pending(store).arenaText;
+  store.states.set('models-dev/requests', { position: 1, state: { boards: { arenaText: { fingerprint: 'a'.repeat(64), queuedAt: now, pending: true } } } });
+  await registry.queue(boardWith('Missing'));
+  assert.equal(pending(store).arenaText.fingerprint, current.fingerprint);
+  assert.equal(pending(store).arenaText.pending, true);
+});
+test('the same gap removed and requeued during acquisition is not acknowledged as the old request', async () => {
+  const store = new Store(); store.value = parsed();
+  const registry = new ModelsDevRegistry(store, { clock: () => now, load: async () => {
+    await registry.queue(boardWith('Model 0'));
+    await registry.queue(boardWith('Missing'));
+    return parsed();
+  } });
+  await registry.queue(boardWith('Missing'));
+  const oldPosition = pending(store).arenaText.queuedAt;
+  await registry.sync({ pendingOnly: true });
+  assert.equal(pending(store).arenaText.pending, true);
+  assert.notEqual(pending(store).arenaText.queuedAt, oldPosition);
 });
 test('failed snapshot publication retains pending gaps, and removed upstream facts are not silently kept', async () => {
   const store = new Store(); store.value = parsed(); const original = store.value;

@@ -200,7 +200,9 @@ function gapFingerprint(board, snapshot) {
     }
     if (missing.length) gaps.add(`${record.id}:${missing.join(',')}`);
   }
-  return gaps.size ? createHash('sha256').update([...gaps].sort().join('\n')).digest('hex') : null;
+  // A 96-bit digest keeps the coordination record compact while retaining
+  // ample collision resistance for gaps; OSS tail reads expand when needed.
+  return gaps.size ? createHash('sha256').update([...gaps].sort().join('\n')).digest().subarray(0, 12).toString('base64url') : null;
 }
 export class ModelsDevRegistry {
   constructor(store, { clock = Date.now, load = loadModelsDev, cache = {} } = {}) { this.store = store; this.clock = clock; this.load = load; this.cache = cache; }
@@ -215,7 +217,7 @@ export class ModelsDevRegistry {
   }
   async queue(board) {
     // Only validated, successfully saved leaderboard updates call this method.
-    // The journal contains at most nine compact fingerprints, never model data.
+    // The journal contains compact fingerprints for known boards, never model data.
     if (!board || !Object.hasOwn(sources, board.kind)) return;
     try {
       const fingerprint = gapFingerprint(board, await this.read()), now = this.clock();
@@ -223,7 +225,9 @@ export class ModelsDevRegistry {
         const { position, state } = await this.store.readState(requestsKey, 1000);
         const boards = { ...state?.boards }, old = boards[board.kind];
         if ((!fingerprint && !old) || (fingerprint && old?.fingerprint === fingerprint && (old.pending || old.retryAfter > now))) return;
-        if (fingerprint) boards[board.kind] = { fingerprint, queuedAt: now, pending: true };
+        // The historical queuedAt field is an opaque enqueue token. The append
+        // position stays unique across requeues and old instances compare it too.
+        if (fingerprint) boards[board.kind] = { fingerprint, queuedAt: position, pending: true };
         else delete boards[board.kind];
         if (await this.store.appendState(requestsKey, position, { boards }, 1000)) return;
       }
@@ -238,7 +242,7 @@ export class ModelsDevRegistry {
         const current = boards[kind];
         // A board that gained a different gap while downloading stays queued.
         if (request.pending && current?.pending && current.fingerprint === request.fingerprint && current.queuedAt === request.queuedAt) {
-          boards[kind] = { ...current, pending: false, retryAfter: now + gapRetryInterval }; changed = true;
+          boards[kind] = { fingerprint: current.fingerprint, pending: false, retryAfter: now + gapRetryInterval }; changed = true;
         }
       }
       if (!changed || await this.store.appendState(requestsKey, position, { boards }, 1000)) return;
