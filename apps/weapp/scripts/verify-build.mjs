@@ -35,6 +35,11 @@ function inspect(directory) {
 }
 inspect(root)
 if (!existsSync(resolve(root, 'assets/header-logo.png'))) throw new Error('Missing existing brand asset')
+const identity = JSON.parse(readFileSync(new URL('../../../calmmit.config.json', import.meta.url), 'utf8')).identity
+for (const file of Object.values(identity.avatarFiles)) {
+  const asset = `${identity.avatarDirectory}/${file}`
+  if (!existsSync(resolve(root, asset))) throw new Error(`Missing contributor avatar: ${asset}`)
+}
 const sourceMarks = JSON.parse(readFileSync(new URL('../../../assets/brand/partners/sources.json', import.meta.url), 'utf8')).sources
 for (const { id } of sourceMarks) {
   for (const suffix of ['', '-dark']) {

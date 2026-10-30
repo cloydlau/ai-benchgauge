@@ -112,14 +112,15 @@ test('每家配置的模型都正确解析本地 PNG 及别名（独立夹具）
   }
 })
 
-test('移除供应商品牌 PNG 后，真实仓库头像回退到远程候选且不伪造本地文件', () => {
+test('真实仓库中已恢复的贡献者头像使用实际本地文件', () => {
   for (const model of ['glm-4.6', 'deepseek-v3.2', 'gpt-6-sol', 'claude-opus-5.5', 'kimi-k3',
     'grok-4.7', 'qwen3-coder', 'gemini-2.5-pro', 'meta-ai', 'MiMo-V2.5-Pro', 'devin-1.2']) {
     const avatar = avatarForModel(model)
-    assert.equal(avatar.bundled, '', model)
-    assert.equal(avatar.probed, false, model)
-    assert.match(avatar.url, /^https:\/\//, model)
-    assert.ok(avatar.candidates.includes(avatar.url), model)
+    assert.ok(avatar.bundled, model)
+    assert.ok(existsSync(avatar.bundled), model)
+    assert.equal(avatar.url, avatar.bundled, model)
+    assert.equal(avatar.probed, true, model)
+    assert.ok(avatar.candidates.some(candidate => /^https:\/\//.test(candidate)), model)
   }
 })
 

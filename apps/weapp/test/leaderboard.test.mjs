@@ -244,9 +244,10 @@ test('MiMo and GLM use shared provider images in both themes', () => {
   }
 })
 
-test('provider rows use shared images or initials, with no packaged supplier PNGs', () => {
+test('provider rows use shared images or initials, independently of contributor avatars', () => {
+  const contributorAvatars = new Set(['anthropic', 'deepseek', 'devin', 'google', 'kimi', 'meta', 'openai', 'qwen', 'spacexai', 'xiaomi', 'zai'])
   for (const key of Object.keys(brandCatalog.colors).filter(key => key !== 'github')) {
-    assert.equal(existsSync(new URL(`../../../assets/logos/${key}.png`, import.meta.url)), false, key)
+    assert.equal(existsSync(new URL(`../../../assets/logos/${key}.png`, import.meta.url)), contributorAvatars.has(key), key)
     const model = entry(1, 'Provider model', 99, key, { brand: { key } })
     assert.equal(rowView(model).logo, '', key)
     assert.equal(rowView(model, { company: true }).logo, '', key)
