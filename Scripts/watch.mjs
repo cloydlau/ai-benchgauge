@@ -21,6 +21,7 @@ import { gitProxyArgs, gitProxyValue } from './git-network.mjs'
 import { nodeExecutable } from './node-executable.mjs'
 import { ci } from './calmmit.mjs'
 import { startWeappUploadWatch } from './weapp-deploy.mjs'
+import { startSharedFcWatch } from './shared-fc-auto.mjs'
 
 const { workflowStatus } = await ci.load('workflow-status')
 const { createRepositoryActivity } = await ci.load('ai-activity')
@@ -36,7 +37,7 @@ const watchLockPath = join(root, '.git', 'benchgauge-watch.lock')
 export function watcherRuntimeSignature() {
   const hash = createHash('sha256')
   for (const name of ['watch.mjs', 'calmmit.mjs', 'commit-identity.mjs', 'commit-lock.mjs',
-    'desktop-notify.mjs', 'git-network.mjs', 'node-executable.mjs', 'weapp-deploy.mjs']) {
+    'desktop-notify.mjs', 'git-network.mjs', 'node-executable.mjs', 'weapp-deploy.mjs', 'shared-fc-auto.mjs']) {
     hash.update(readFileSync(join(root, 'Scripts', name)))
   }
   return hash.digest('hex')
@@ -496,6 +497,7 @@ async function main() {
   }) + '\n')
   // 小程序独立验证自己的源码；不启动第二个提交监听，也不重启桌面应用。
   const stopWeapp = await startWeappUploadWatch()
+  const stopSharedFc = await startSharedFcWatch()
   const commitEnabled = autocommitEnabled()
   const pushEnabled = autopushEnabled()
   const deployEnabled = autodeployEnabled()
@@ -857,7 +859,7 @@ async function main() {
     if (!busy) {
       const runtime = watcherRuntimeSignature()
       if (runtime !== loadedRuntime && runtime !== rejectedRuntime) {
-        const reloaded = reloadWatcher(() => { stopWeapp(); clearTimer(); clearInterval(poll); watchLock.release() })
+        const reloaded = reloadWatcher(() => { stopWeapp(); stopSharedFc(); clearTimer(); clearInterval(poll); watchLock.release() })
         if (reloaded === false) rejectedRuntime = runtime
       }
     }
@@ -909,6 +911,7 @@ async function main() {
 
   const stop = () => {
     stopWeapp()
+    stopSharedFc()
     clearTimer()
     clearInterval(poll)
     console.log('\n[watch] 已停止')

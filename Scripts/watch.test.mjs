@@ -60,6 +60,7 @@ function watcherFixture(t, { binary = 'fresh', restartFails = false, testsFail =
   }
   // These desktop watcher fixtures never construct or upload a mini-program.
   writeFileSync(join(scripts, 'weapp-deploy.mjs'), 'export async function startWeappUploadWatch() { return () => {} }')
+  writeFileSync(join(scripts, 'shared-fc-auto.mjs'), 'export async function startSharedFcWatch() { return () => {} }')
   const config = JSON.parse(readFileSync(join(original, '../calmmit.config.json'), 'utf8'))
   config.library = resolve(original, '..', config.library)
   writeFileSync(join(root, 'calmmit.config.json'), JSON.stringify(config))

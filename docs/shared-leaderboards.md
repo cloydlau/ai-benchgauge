@@ -117,6 +117,8 @@ OSS 新增 `benchgauge/brands/{key}.json`、`benchgauge/brand-assets/{sha256}.pn
 
 当前本机配置使用用户创建的 `ai-benchgauge` 桶、`runtimeCredentialsFunction: "weaveo"`、`runtimeIdentityName: "limphase-runtime"`。STS 已确认 `limphase-runtime` 是本账号的 RAM 用户，Weaveo 使用它的运行凭证。部署脚本不创建 Bucket、RAM 角色或权限策略，也不要求 RAM 管理权限。运行身份需要读取桶配置，并具有快照读取、覆盖写入和协调对象追加权限。
 
+开发入口自动监听共享服务和部署配置。源码静默 60 秒且本仓库的 AI 任务结束后，先运行项目完整测试及覆盖率门禁和服务端测试；通过后打包并依次更新新加坡采集器、深圳主函数的代码。自动部署保留现有函数配置、密钥、触发器和 OSS 数据，并备份发布前的代码包。发布后下载两个线上代码包核对哈希，再检查采集器认证和主服务的榜单读取；全部通过才写入 `work/shared-fc-auto/success.json`。源码、测试输入、部署配置或线上函数在途中发生变化时停止本轮，等待新一轮；失败及部分发布不会记录为成功。日志由开发入口输出，备份和候选包保存在被忽略的 `work/`。暂时关闭本机自动监听可设置 `SHARED_FC_AUTODEPLOY=0`。
+
 ```sh
 node Scripts/deploy-shared-leaderboards.mjs --plan
 node Scripts/deploy-shared-leaderboards.mjs --package

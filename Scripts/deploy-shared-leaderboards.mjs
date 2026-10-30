@@ -72,7 +72,7 @@ function credentials(file) {
   if (!accessKeyId || !accessKeySecret) throw new Error('Missing deployment credentials in the local environment');
   return { accessKeyId, accessKeySecret };
 }
-const runtimeFiles = ['package.json', 'package-lock.json', 'bootstrap', 'server.mjs', 'service.mjs', 'domain.mjs', 'parser.mjs', 'openrouter-usage.mjs', 'price-catalog.mjs', 'aa-general-cost.mjs', 'vercel-usage.mjs', 'cloudbase-usage.mjs', 'epoch-eci.mjs', 'arena-dataset.mjs', 'arena-collector.mjs', 'arena-attribution.json', 'models-dev.mjs', 'models-dev-license.txt', 'model-openness.mjs', 'source-logos.mjs', 'oss-store.mjs', 'brands.mjs', 'brand-catalog.json', 'leaderboard-policy.json', 'countries.mjs', 'country-catalog.json'];
+export const runtimeFiles = ['package.json', 'package-lock.json', 'bootstrap', 'server.mjs', 'service.mjs', 'domain.mjs', 'parser.mjs', 'openrouter-usage.mjs', 'price-catalog.mjs', 'aa-general-cost.mjs', 'vercel-usage.mjs', 'cloudbase-usage.mjs', 'epoch-eci.mjs', 'arena-dataset.mjs', 'arena-collector.mjs', 'arena-attribution.json', 'models-dev.mjs', 'models-dev-license.txt', 'model-openness.mjs', 'source-logos.mjs', 'oss-store.mjs', 'brands.mjs', 'brand-catalog.json', 'leaderboard-policy.json', 'countries.mjs', 'country-catalog.json'];
 function runtimeSignature() {
   const hash = createHash('sha256');
   for (const name of runtimeFiles) hash.update(name).update(readFileSync(join(root, 'fc', name)));

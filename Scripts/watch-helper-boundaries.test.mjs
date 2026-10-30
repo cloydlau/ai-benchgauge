@@ -20,6 +20,7 @@ async function fixture(t){
  'git-network.mjs':`export const gitProxyValue=()=>globalThis.unitProxy||'';export const gitProxyArgs=()=>[]`,
  'node-executable.mjs':`export const nodeExecutable=()=>process.execPath`,
  'weapp-deploy.mjs':`export const startWeappUploadWatch=async()=>()=>{}`,
+ 'shared-fc-auto.mjs':`export const startSharedFcWatch=async()=>()=>{}`,
  'test-repair.mjs':`export const runTestGate=async()=>({status:0})`,
  }
  for(const [name,source]of Object.entries(stubs))fs.writeFileSync(join(root,'Scripts',name),source)
