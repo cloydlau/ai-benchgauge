@@ -637,7 +637,7 @@ async function main() {
       if (phoneOk && commitEnabled && gitSignature && gitSignature !== failedCommitSignature) {
         console.log('[watch] 开始原子提交…')
         const commitEnv = { COMMIT_REQUIRE_LOCK: '1', BENCHGAUGE_TEST_PASS: tested.signature,
-          ...(activity ? { CALMMIT_AI_COMMIT_TICKET: activityState.ticket, CALMMIT_INTERNAL: '1' } : {}) }
+          ...(activity ? { CALMMIT_AI_COMMIT_TICKET: activityState.ticket, CALMMIT_AI_COMMIT_ROOT: root, CALMMIT_INTERNAL: '1' } : {}) }
         if (pushEnabled) commitEnv.COMMIT_PUSH = '0'
         const committed = await runNode(join(root, 'Scripts', 'commit.mjs'), commitEnv)
         commitStatus = committed.status

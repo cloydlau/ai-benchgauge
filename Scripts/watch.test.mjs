@@ -1079,6 +1079,22 @@ test('default event mode waits for both repo turns, then bypasses debounce and t
   assert.equal(existsSync(join(f.root, '.git/calmmit/ai-activity/acknowledged.json')), true)
 })
 
+test('event-triggered commit carries its repository-scoped completion ticket', async t => {
+  const f = watcherFixture(t, { gitWork: true,
+    env: { CALMMIT_COMMIT_TRIGGER: 'ai', WATCH_POLL_MS: '200', CODEX_HOME: '/nonexistent-codex-fixture' },
+    setup(root) {
+      assert.equal(spawnSync('git', ['init', '-q'], { cwd: root }).status, 0)
+      recordActivity(root, { session: 'one', turn: '1', status: 'completed' })
+      writeFileSync(join(root, 'Scripts/commit.mjs'), `import {appendFileSync,writeFileSync} from 'node:fs';
+        writeFileSync('activity-env.json', JSON.stringify({root: process.env.CALMMIT_AI_COMMIT_ROOT, ticket: process.env.CALMMIT_AI_COMMIT_TICKET}));
+        appendFileSync('events', 'commit\\n'); writeFileSync('commit.done', 'done'); writeFileSync('head', 'fixture-head-2')`)
+    } })
+  await waitUntil(f, () => existsSync(join(f.root, 'activity-env.json')))
+  const value = JSON.parse(readFileSync(join(f.root, 'activity-env.json'), 'utf8'))
+  assert.equal(realpathSync(value.root), realpathSync(f.root))
+  assert.match(value.ticket, /^[a-f0-9]{64}$/)
+})
+
 test('a new conversation arriving after scheduling cancels the queued commit until that conversation ends', async (t) => {
   const cli = fileURLToPath(new URL('../../calmmit/bin/calmmit.mjs', import.meta.url))
   const f = watcherFixture(t, { gitWork: true,
