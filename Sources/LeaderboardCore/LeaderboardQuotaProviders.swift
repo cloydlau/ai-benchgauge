@@ -40,6 +40,11 @@ public enum LeaderboardQuotaProviders {
         OrganizationLogoCatalog.normalizedKey(organizationName(for: kind))
     }
 
+    public static func logoPNGData(for kind: CCSwitchQuotaKind, providerLogos: [String: Data]) -> Data? {
+        if kind == .qwen { return OrganizationLogoCatalog.qwenProductPNGData }
+        return providerLogos[organizationKey(for: kind)]
+    }
+
     public static func logoInitial(for kind: CCSwitchQuotaKind) -> String {
         OrganizationLogoCatalog.initial(organization: organizationName(for: kind), modelName: "")
     }

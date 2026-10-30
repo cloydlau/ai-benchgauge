@@ -22,6 +22,23 @@ class Store {
   }
 }
 const board = (organization = 'New Maker', logoURL = url) => ({ kind: 'arenaText', fetchedAt: '2026-10-12T00:00:00Z', entries: [1, 2].map(rank => ({ rank, name: `New Model ${rank}`, score: 100 - rank, organization, logoURL })) });
+test('cached coding and image rows recover verified marks without downloading', async () => {
+  const catalog = JSON.parse(readFileSync(new URL('../fc/brand-catalog.json', import.meta.url)));
+  const registry = new BrandRegistry(new Store(), { download: async () => { throw Error('offline'); } });
+  for (const [kind, name, organization, key] of [
+    ['arenaTextToImage', 'FLUX.2 [max]', 'bfl', 'blackforestlabs'],
+    ['arenaTextToImage', 'Stable Diffusion 3.5 Large', undefined, 'stabilityai'],
+    ['artificialAnalysisCodingAgent', 'Mistral Vibe - Mistral Large 4 (High)', undefined, 'mistral'],
+    ['artificialAnalysisCodingAgent', 'Mistral Vibe - Mistral Large 4 (Medium)', undefined, 'mistral'],
+    ['artificialAnalysisCodingAgent', 'GitHub Copilot - Copilot Fusion (max)', undefined, 'github'],
+    ['artificialAnalysisCodingAgent', 'Mirror - Beam 1.0', undefined, 'reflection'],
+  ]) {
+    const result = await registry.enrich({ kind, entries: [{ name, organization, brand: { key: '', status: 'unknown' } }] });
+    assert.equal(result.entries[0].brand.key, key);
+    assert.equal(result.entries[0].brand.pngData, catalog.providerLogos[key].pngData);
+  }
+  assert.equal(brandKey({ name: 'Mistral Vibe - Mistral Large 4 (High)', organization: 'Another Developer' }), 'anotherdeveloper');
+});
 test('SVG becomes a visible bounded PNG and useful color; blank/malformed/external SVG cannot become cached logos', async () => {
   const result = await normalizeLogo(svg);
   assert.equal(validPNG(result.png), true); assert.equal(result.colorHex, '#319FA8');

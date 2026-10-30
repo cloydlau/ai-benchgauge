@@ -4,6 +4,8 @@ import Foundation
 /// Images travel with the shared snapshot and remain available offline.
 /// Purchase-link keys are separate: Alibaba links stay under `alibaba`.
 public enum OrganizationLogoCatalog {
+    /// The verified Qwen product mark, independent of cached Alibaba company images.
+    public static var qwenProductPNGData: Data { LeaderboardBrandPolicy.qwenProductPNG }
     /// Canonical logo key.
     /// A present organization wins, unless the label is a coding-agent
     /// `Harness - Model` pair and the model belongs to another company.

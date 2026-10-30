@@ -30,7 +30,7 @@ struct QuotaStrip: View {
                 ForEach(AccountQuotaFormatting.sortedChips(chips)) { chip in
                     QuotaChipView(
                         chip: chip,
-                        logoPNG: providerLogos[LeaderboardQuotaProviders.organizationKey(for: chip.kind)],
+                        logoPNG: LeaderboardQuotaProviders.logoPNGData(for: chip.kind, providerLogos: providerLogos),
                         now: context.date,
                         language: language,
                         onConnectQwen: needsQwenConnection(chip) ? onConnectQwen : nil,

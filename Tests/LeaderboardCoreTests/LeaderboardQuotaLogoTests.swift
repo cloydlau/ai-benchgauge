@@ -22,6 +22,17 @@ struct LeaderboardQuotaLogoTests {
         }
     }
 
+    @Test func qwenQuotaUsesProductMarkInsteadOfCachedAlibabaCompanyMark() throws {
+        let alibaba = try png()
+        let logos = ["qwen": alibaba, "openai": alibaba]
+        let qwen = LeaderboardQuotaProviders.logoPNGData(for: .qwen, providerLogos: logos)
+        #expect(qwen == OrganizationLogoCatalog.qwenProductPNGData)
+        #expect(qwen != alibaba)
+        #expect(LeaderboardQuotaProviders.logoPNGData(for: .qwen, providerLogos: [:]) == qwen)
+        #expect(LeaderboardQuotaProviders.logoPNGData(for: .officialNote, providerLogos: logos) == alibaba)
+        #expect(LeaderboardQuotaProviders.logoPNGData(for: .officialNote, providerLogos: [:]) == nil)
+    }
+
     @Test func sharedManufacturerImageSurvivesOfflineCacheWithoutUsingModelMark() throws {
         let image = try png()
         let modelImage = image + Data([0])

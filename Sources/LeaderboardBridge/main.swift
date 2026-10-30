@@ -608,7 +608,7 @@ actor Engine {
                 Run(text: language.quotaText(run.text), light: color(run.tone, dark: false), dark: color(run.tone, dark: true))
             }, accentLight: AccountQuotaFormatting.cardColorLevel(for: chip, now: now).map { color(.remaining($0), dark: false) },
                 isDimmed: AccountQuotaFormatting.isDimmed(chip),
-                logoPNG: providerLogos[LeaderboardQuotaProviders.organizationKey(for: chip.kind)]?.base64EncodedString(),
+                logoPNG: LeaderboardQuotaProviders.logoPNGData(for: chip.kind, providerLogos: providerLogos)?.base64EncodedString(),
                 initials: LeaderboardQuotaProviders.logoInitial(for: chip.kind))
         }
         let previousRecovery = recovery
