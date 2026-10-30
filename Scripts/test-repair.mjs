@@ -63,22 +63,30 @@ function codexRepair(root, first, env) {
   } catch (error) { return { completed: false, summary: error.message } }
 }
 
-export async function runTestGate({ root = testRoot, env = process.env, test = () => runTests({ root, env, gate: true, coverage: true }), repairWithAi } = {}) {
-  const directory = join(root, 'work', 'test-results')
-  mkdirSync(directory, { recursive: true })
-  const statePath = join(directory, 'repair-attempt.json')
+export function readBoundCoveragePass({ root = testRoot, env = process.env } = {}) {
+  if (!env.BENCHGAUGE_TEST_PASS) return null
   const signature = testInputSignature(root, env)
-  // A child build may reuse its parent's verified full coverage run. Explicit
-  // manual --coverage still calls runTests directly and always executes it.
+  // A child may reuse its parent's verified full coverage run. Explicit
+  // manual --coverage without a parent-bound receipt always executes it.
   // Both the caller's receipt and the persisted full-run evidence must match
   // every source, dependency, runtime and environment input.
   let cached
-  try { cached = JSON.parse(readFileSync(join(directory, 'latest.json'), 'utf8')) } catch { /* No reusable pass. */ }
+  try { cached = JSON.parse(readFileSync(join(root, 'work', 'test-results', 'latest.json'), 'utf8')) } catch { /* No reusable pass. */ }
   if (env.BENCHGAUGE_TEST_PASS === signature && cached?.status === 0 && cached.scope === 'all'
     && cached.coverage === true && cached.signature === signature) {
     console.log('[test] 当前源码及环境已有完整覆盖率通过记录，沿用本次流程的结果')
     return { ...cached, reused: true, attemptedAi: false }
   }
+  return null
+}
+
+export async function runTestGate({ root = testRoot, env = process.env, test = () => runTests({ root, env, gate: true, coverage: true }), repairWithAi } = {}) {
+  const directory = join(root, 'work', 'test-results')
+  mkdirSync(directory, { recursive: true })
+  const statePath = join(directory, 'repair-attempt.json')
+  const signature = testInputSignature(root, env)
+  const cached = readBoundCoveragePass({ root, env })
+  if (cached) return cached
   const repair = async (first) => {
     if (env.TEST_AUTO_REPAIR === '0' || env.CODEX_SANDBOX_NETWORK_DISABLED === '1') {
       return { completed: false, attempted: false, summary: '自动修复已关闭或当前环境禁网，保留日志并停止' }

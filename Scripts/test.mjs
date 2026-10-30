@@ -286,11 +286,14 @@ async function main() {
   const args = process.argv.slice(2)
   if (args.some((arg) => !['--core', '--scripts', '--coverage', '--gate'].includes(arg))) throw new Error('用法：./test.sh [--core | --scripts] [--coverage]')
   if (args.includes('--gate') && args.length !== 1) throw new Error('--gate 必须运行完整测试')
-  const result = args.includes('--gate')
+  const boundCoverage = args.length === 1 && args[0] === '--coverage' && process.env.BENCHGAUGE_TEST_PASS
+    ? (await import('./test-repair.mjs')).readBoundCoveragePass()
+    : null
+  const result = boundCoverage || (args.includes('--gate')
     ? await (await import('./test-repair.mjs')).runTestGate()
     // A complete coverage run can take about three minutes. Let a concurrent
     // run finish before starting our own checks, within the outer CI deadline.
-    : await runTests({ coreOnly: args.includes('--core'), scriptsOnly: args.includes('--scripts'), coverage: args.includes('--coverage'), lockWaitMs: 300_000 })
+    : await runTests({ coreOnly: args.includes('--core'), scriptsOnly: args.includes('--scripts'), coverage: args.includes('--coverage'), lockWaitMs: 300_000 }))
   if (result.error) console.error(`[test] ${result.error}`)
   process.exitCode = result.status
 }

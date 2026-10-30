@@ -199,7 +199,7 @@ test('runner CLI validates flags, forwards lock errors and executes only isolate
   fs.copyFileSync(new URL('./prepare-swift-workspace.mjs',import.meta.url),join(root,'Scripts/prepare-swift-workspace.mjs'))
   fs.writeFileSync(join(root,'Scripts/commit-lock.mjs'), `export const pidState=()=> 'gone'; export const acquireCommitLock=()=>process.env.UNIT_BUSY==='1'?{acquired:false,reason:'error'}:{acquired:true,release(){}}`)
   fs.writeFileSync(join(root,'Scripts/node-executable.mjs'), `export const nodeExecutable=()=>process.execPath`)
-  fs.writeFileSync(join(root,'Scripts/test-repair.mjs'), `export const runTestGate=async()=>({status:0})`)
+  fs.writeFileSync(join(root,'Scripts/test-repair.mjs'), `export const runTestGate=async()=>({status:0});export const readBoundCoveragePass=()=>process.env.UNIT_REUSE==='1'?{status:0,reused:true}:null`)
   fs.writeFileSync(join(root,'hook.cjs'), `const cp=require('node:child_process'),{EventEmitter}=require('node:events');cp.spawnSync=()=>({status:0});cp.spawn=()=>{const child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();queueMicrotask(()=>child.emit('close',0));return child};require('node:module').syncBuiltinESMExports();`)
   const invoke=(args=[],env={})=>cp.spawnSync(process.execPath,['--require',join(root,'hook.cjs'),join(root,'Scripts/test.mjs'),...args],{encoding:'utf8',env:{...process.env,...env}})
   for(const args of [[],['--core'],['--scripts'],['--core','--coverage'],['--gate']]) assert.equal(invoke(args).status,0)
@@ -207,6 +207,9 @@ test('runner CLI validates flags, forwards lock errors and executes only isolate
   assert.match(invoke(['--gate','--core']).stderr,/必须运行完整测试/)
   assert.match(invoke(['--core','--scripts']).stderr,/不能同时/)
   assert.match(invoke([], {UNIT_BUSY:'1'}).stderr,/无法获取测试锁/)
+  assert.equal(invoke(['--coverage'], {BENCHGAUGE_TEST_PASS:'bound',UNIT_REUSE:'1',UNIT_BUSY:'1'}).status,0)
+  assert.match(invoke(['--coverage'], {BENCHGAUGE_TEST_PASS:'bound',UNIT_REUSE:'0',UNIT_BUSY:'1'}).stderr,/无法获取测试锁/)
+  assert.match(invoke(['--core','--coverage'], {BENCHGAUGE_TEST_PASS:'bound',UNIT_REUSE:'1',UNIT_BUSY:'1'}).stderr,/无法获取测试锁/)
 })
 
 
