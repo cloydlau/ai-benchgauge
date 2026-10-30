@@ -85,7 +85,7 @@ test('deployment updates code only after the gate and records success only after
       signal: error?.signal ?? null, error, stdout, stderr,
     }))
   })
-  const modes = ['success', 'proxy', 'env-credentials', 'idle-deploy', 'busy-during-deploy', 'invalid-cli', 'full-gate-fail', 'test-locked', 'gate-fail', 'source-change', 'collector-fail', 'cloud-change', 'archive-mismatch', 'smoke-fail', 'bad-board', 'bad-upload', 'bad-download', 'network-download', 'bad-config', 'no-credentials', 'unrelated-main', 'unrelated-collector', 'bad-collector-token', 'missing-collector-token', 'bad-trigger', 'changed-config', 'deploy-locked']
+  const modes = ['success', 'uppercase-etag', 'proxy', 'env-credentials', 'idle-deploy', 'busy-during-deploy', 'invalid-cli', 'full-gate-fail', 'test-locked', 'gate-fail', 'source-change', 'collector-fail', 'cloud-change', 'archive-mismatch', 'smoke-fail', 'bad-board', 'bad-upload', 'bad-etag', 'bad-download', 'network-download', 'bad-config', 'no-credentials', 'unrelated-main', 'unrelated-collector', 'bad-collector-token', 'missing-collector-token', 'bad-trigger', 'changed-config', 'deploy-locked']
   let nextMode = 0
   const runModes = async () => {
     while (nextMode < modes.length) {
@@ -143,7 +143,7 @@ exports.default=class{
  async getBucketVersioning(){return {}}
  async getBucketLifecycle(){return {rules:[]}}
  async put(k,b){f.uploaded=b}
- async head(){return {res:{headers:{'content-length':String(f.mode==='bad-upload'?0:f.uploaded.length),etag:crypto.createHash('md5').update(f.uploaded).digest('hex')}}}}
+ async head(){const hash=crypto.createHash('md5').update(f.uploaded).digest('hex');return {res:{headers:{'content-length':String(f.mode==='bad-upload'?0:f.uploaded.length),etag:f.mode==='bad-etag'?'00000000000000000000000000000000':f.mode==='uppercase-etag'?'"'+hash.toUpperCase()+'"':hash}}}}
  async delete(){}
 }`,
       'httpx': `const {Readable}=require('stream'),f=global.fixture;exports.request=async (url,options)=>{if(options.timeout!==600000)throw Error('unexpected timeout');if(f.mode==='proxy'&&options.agent?.kind!==(new URL(url).protocol==='https:'?'https':'http'))throw Error('incorrect proxy agent');const target=url.split('/').pop(), updated=f.states[target].updated;if(f.mode==='network-download'&&target==='collector'){const r=new Readable({read(){this.destroy(Object.assign(Error('aborted'),{code:'ECONNRESET'}))}});r.statusCode=200;return r}const data=updated?(f.mode==='archive-mismatch'?'wrong':'validated-archive'):'original';const r=Readable.from([Buffer.from(data)]);r.statusCode=f.mode==='bad-download'?503:200;return r}`,
@@ -159,7 +159,7 @@ exports.default=class{
     if (['idle-deploy', 'busy-during-deploy'].includes(mode)) env.SHARED_FC_REQUIRE_IDLE = '1'
     const result = await spawnResult(process.execPath, ['--require', preload, new URL('./shared-fc-auto.mjs', import.meta.url).pathname, mode === 'invalid-cli' ? 'invalid' : 'deploy'], { cwd: root, env, encoding: 'utf8', timeout: 15000 })
     const receiptPath = join(root, 'work/shared-fc-auto/success.json')
-    if (['success', 'proxy', 'env-credentials', 'idle-deploy'].includes(mode)) {
+    if (['success', 'uppercase-etag', 'proxy', 'env-credentials', 'idle-deploy'].includes(mode)) {
       assert.equal(result.status, 0, result.stderr)
       assert.equal(JSON.parse(readFileSync(receiptPath, 'utf8')).status, 'success')
       const updates = JSON.parse(readFileSync(join(root, 'updates.json'), 'utf8'))
@@ -178,7 +178,8 @@ exports.default=class{
       assert.equal(existsSync(receiptPath), false, mode)
       if (mode === 'network-download') assert.match(result.stderr, /线上代码包下载暂时失败：连接中断/)
       if (mode === 'missing-collector-token') assert.match(result.stderr, /采集器缺少已核实的专用令牌/)
-      if (['gate-fail', 'source-change', 'collector-fail', 'cloud-change', 'network-download', 'missing-collector-token'].includes(mode)) assert.equal(existsSync(join(root, 'updates.json')), false, mode)
+      if (mode === 'bad-etag') assert.match(result.stderr, /OSS 发布包校验失败/)
+      if (['gate-fail', 'source-change', 'collector-fail', 'cloud-change', 'network-download', 'missing-collector-token', 'bad-etag'].includes(mode)) assert.equal(existsSync(join(root, 'updates.json')), false, mode)
     }
   }
   }

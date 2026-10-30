@@ -145,7 +145,7 @@ export async function deploy() {
     log('上传主服务发布包')
     await oss.put(stageKey, archiveBytes, { headers: { 'x-oss-forbid-overwrite': 'true' } })
     const uploaded = await oss.head(stageKey)
-    if (Number(uploaded.res.headers['content-length']) !== archiveBytes.length || String(uploaded.res.headers.etag).replaceAll('"', '') !== createHash('md5').update(archiveBytes).digest('hex')) throw new Error('OSS 发布包校验失败')
+    if (Number(uploaded.res.headers['content-length']) !== archiveBytes.length || String(uploaded.res.headers.etag).replaceAll('"', '').toLowerCase() !== createHash('md5').update(archiveBytes).digest('hex')) throw new Error('OSS 发布包校验失败')
     // Update the collector first so new main-service calls never target an older collector.
     for (const target of targets.slice().reverse()) {
       assertCurrent(source, configHash, gate)
