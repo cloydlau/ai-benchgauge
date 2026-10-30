@@ -121,6 +121,11 @@
   "dev": {
     "activity": [
       {
+        "kind": "backend",
+        "receipt": "work/shared-fc-auto/success.json",
+        "sources": ["fc"]
+      },
+      {
         "kind": "mini-program",
         "label": "小程序",
         "receipt": "apps/weapp/.last-publish",
