@@ -1060,8 +1060,9 @@ definePage(query => {
       ? `${text(['Statistical day (UTC): ', '统计日期（UTC）：', '統計日期（UTC）：'], language.value)}${new Date(board.sourceUpdatedAt).toISOString().slice(0, 10)}\n\n` : ''
     const sampled = kind === 'cloudbaseUsage' ? `${text(boards[kind].summaries, language.value)}\n\n` : ''
     const refreshMeaning = refreshOnly ? `\n${tr('timeExplanation')}` : ''
+    const textArenaSummary = ['arenaText', 'arenaTextUncontrolled'].includes(kind) ? `${text(boards[kind].summaries, language.value)}\n\n` : ''
     sourceNotice.value = { open: true, title: boardTitle(kind, language.value),
-      content: `${formerName}${day}${sampled}${text(boards[kind].methodology || boards[kind].summaries, language.value)}\n\n${times}${refreshMeaning}\n\n${boards[kind].url}${agreement ? `\n\n${agreement}` : ''}`,
+      content: `${formerName}${day}${sampled}${textArenaSummary}${text(boards[kind].methodology || boards[kind].summaries, language.value)}\n\n${times}${refreshMeaning}\n\n${boards[kind].url}${agreement ? `\n\n${agreement}` : ''}`,
       url: boards[kind].url }
   }
   function closeSourceNotice() { sourceNotice.value = { ...sourceNotice.value, open: false } }

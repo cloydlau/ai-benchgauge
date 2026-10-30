@@ -2630,3 +2630,25 @@ test('recent header dates remain localized through loading and source help', asy
     else process.env.TZ = originalZone
   }
 })
+
+test('both Arena text introductions explain original and style-controlled rankings in every language', () => {
+  for (const [language, original, controlled] of [
+    ['en', '1. Original:', '2. Style Control:'],
+    ['zh-CN', '1. 原始总榜：', '2. 风格控制：'],
+    ['zh-TW', '1. 原始總榜：', '2. 風格控制：'],
+  ]) {
+    const h = setup({ language })
+    for (const kind of ['arenaText', 'arenaTextUncontrolled']) {
+      h.page.sourceHelp(event({ kind }))
+      const content = h.page.sourceNotice.value.content
+      assert.ok(content.includes(original), kind)
+      assert.ok(content.includes(controlled), kind)
+      assert.ok(content.includes('Markdown'), kind)
+      assert.ok(content.includes('https://arena.ai/blog/style-control'), kind)
+      h.page.closeSourceNotice()
+    }
+    h.page.sourceHelp(event({ kind: 'codeArenaWebDev' }))
+    assert.ok(!h.page.sourceNotice.value.content.includes('https://arena.ai/blog/style-control'))
+    globalThis.__benchHooks.unload()
+  }
+})

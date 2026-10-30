@@ -1163,8 +1163,12 @@ sealed partial class MainWindow
         "artificialAnalysis" => Tr("Combines standardized tests across several abilities.", "汇总多项标准化测试，适合看综合能力。", "彙總多項標準化測試，適合看綜合能力。") + "\n\n" + AACostHelp(board.Kind),
         "openRouterPrice" => Tr("OpenRouter base text input and output prices per million tokens; context tiers and other charges can differ.", "OpenRouter 文本输入、输出每百万 token 基础价格；长上下文阶梯及其他费用可能不同。", "OpenRouter 文字輸入、輸出每百萬 token 基礎價格；長上下文階梯及其他費用可能不同。"),
         "epochECI" => Tr("Estimates general capability from benchmark results, accounting for difficulty and discrimination.", "结合不同测试的难度与区分度，估计模型的综合能力。", "結合不同測試的難度與區分度，估計模型的綜合能力。"),
-        "arenaText" => Tr("Anonymous comparisons with style control.", "真实提问下盲选回答，并进行风格控制。", "真實提問下盲選回答，並進行風格控制。"),
-        "arenaTextUncontrolled" => Tr("Anonymous comparisons without style control.", "真实提问下盲选回答，未进行风格控制。", "真實提問下盲選回答，未進行風格控制。"),
+        "arenaText" or "arenaTextUncontrolled" => (board.Kind == "arenaText"
+            ? Tr("Anonymous comparisons with style control.", "真实提问下盲选回答，并进行风格控制。", "真實提問下盲選回答，並進行風格控制。")
+            : Tr("Anonymous comparisons without style control.", "真实提问下盲选回答，未进行风格控制。", "真實提問下盲選回答，未進行風格控制。")) + "\n\n" + Tr(
+                "1. Original: ranks models from users’ choices between two anonymous answers. Content, length, formatting and tone can all influence overall preference.\n\n2. Style Control: uses the same voting-based approach and statistically adjusts for the estimated effects of response style, such as length, Markdown headings, bold text and lists. This reduces advantages from prettier formatting or longer answers; rankings may differ.\n\nArena explanation: https://arena.ai/blog/style-control",
+                "1. 原始总榜：根据用户对两个匿名回答的选择计算排名。回答内容、长短、格式和语气都会影响用户的整体偏好。\n\n2. 风格控制：在同样基于用户投票的基础上，尝试统计并扣除部分表达风格对投票的影响，比如回答长度、Markdown 标题、加粗和列表，从而减少“排版更漂亮、回答更长”带来的优势。两个榜单的排名因此可能不同。\n\nArena 官方解释：https://arena.ai/blog/style-control",
+                "1. 原始總榜：根據使用者對兩個匿名回答的選擇計算排名。回答內容、長短、格式和語氣都會影響使用者的整體偏好。\n\n2. 風格控制：同樣以使用者投票為基礎，嘗試統計並扣除部分表達風格對投票的影響，例如回答長度、Markdown 標題、粗體和列表，以減少「排版更漂亮、回答更長」帶來的優勢。兩個榜單的排名因此可能不同。\n\nArena 官方解釋：https://arena.ai/blog/style-control"),
         "artificialAnalysisCodingAgent" => Tr("Coding scores and average API cost per task.", "编程成绩与平均每任务 API 成本。", "編程成績與平均每任務 API 成本。") + "\n\n" + CodingCostHelp(),
         "valsSWEbench" => Tr("Archived SWE-bench Verified: score, cost and duration per test. No new models are tested; source ranking stays unchanged.", "已归档的 SWE-bench Verified：每次测试成绩、成本和耗时；不再评测新模型，保留原榜排名。", "已歸檔的 SWE-bench Verified：每次測試成績、成本和耗時；不再評測新模型，保留原榜排名。"),
         "codeArenaWebDev" => Tr("People pick the better result from paired web builds.", "用户盲选网页成品，侧重实际观感。", "使用者盲選網頁成品，側重實際觀感。"),

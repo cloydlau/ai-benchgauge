@@ -335,6 +335,11 @@ public enum LeaderboardPresentation {
         }
         if !kind.isUsage, let note = board?.sourceNote, !note.isEmpty { parts.append(note) }
         var help = parts.joined(separator: language.text(". ", "。"))
+        if kind == .arenaText || kind == .arenaTextUncontrolled {
+            help += "\n\n" + language.text(
+                "1. Original: ranks models from users’ choices between two anonymous answers. Content, length, formatting and tone can all influence overall preference.\n\n2. Style Control: uses the same voting-based approach and statistically adjusts for the estimated effects of response style, such as length, Markdown headings, bold text and lists. This reduces advantages from prettier formatting or longer answers; rankings may differ.\n\nArena explanation: https://arena.ai/blog/style-control",
+                "1. 原始总榜：根据用户对两个匿名回答的选择计算排名。回答内容、长短、格式和语气都会影响用户的整体偏好。\n\n2. 风格控制：在同样基于用户投票的基础上，尝试统计并扣除部分表达风格对投票的影响，比如回答长度、Markdown 标题、加粗和列表，从而减少“排版更漂亮、回答更长”带来的优势。两个榜单的排名因此可能不同。\n\nArena 官方解释：https://arena.ai/blog/style-control")
+        }
         if kind == .epochECI && !includesAgreement { help += "\n\n" + EpochAttribution.fullText(language: language) }
         if includesFetchTime { help += language.text(". ", "。") + sourceTimeHelp(board, language: language) }
         if includesAgreement, let agreement = sourceAgreement(kind, language: language, board: board) {

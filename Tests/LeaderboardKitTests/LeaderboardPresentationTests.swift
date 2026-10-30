@@ -261,3 +261,17 @@ import LeaderboardKit
     #expect(legacy.rankChange == nil)
     #expect(CompanyLeaderboard.rank([LeaderboardEntry(rank: 1, name: "No company delta", score: 90, organization: "OpenAI", rankChange: .init(delta: 3))])[0].entry.rankChange == nil)
 }
+
+@Test func arenaTextHelpExplainsBothRankingMethodsInEveryLanguage() {
+    for language in AppLanguage.allCases {
+        for kind in [LeaderboardKind.arenaText, .arenaTextUncontrolled] {
+            let help = LeaderboardPresentation.sourceHelp(kind, language: language, board: nil)
+            #expect(help.contains(language.text("1. Original:", "1. 原始总榜：")))
+            #expect(help.contains(language.text("2. Style Control:", "2. 风格控制：")))
+            #expect(help.contains("Markdown"))
+            #expect(help.contains("https://arena.ai/blog/style-control"))
+        }
+        #expect(!LeaderboardPresentation.sourceHelp(.codeArenaWebDev, language: language, board: nil)
+            .contains("https://arena.ai/blog/style-control"))
+    }
+}
