@@ -10,9 +10,11 @@ export const sources = Object.freeze({
   vercelUsage: ['https://vercel.com/ai-gateway/leaderboards/models', 'Vercel AI Gateway'],
   openRouterUsage: ['https://openrouter.ai/rankings', 'OpenRouter'],
   artificialAnalysis: ['https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index', 'Artificial Analysis Intelligence Index'],
-  valsSWEbench: ['https://www.vals.ai/benchmarks/swebench', 'Vals AI · SWE-bench Verified'],
   artificialAnalysisCodingAgent: ['https://artificialanalysis.ai/agents/coding-agents', 'Artificial Analysis Coding Agent Index'],
   epochECI: ['https://epoch.ai/data/eci_scores.csv', 'Epoch Capabilities Index'],
+  epochMathECI: ['https://epoch.ai/eci?eciPreset=math', 'Epoch Math ECI'],
+  epochCyberECI: ['https://epoch.ai/eci?eciPreset=cyber', 'Epoch Cyber ECI'],
+  epochSoftwareECI: ['https://epoch.ai/eci?eciPreset=software', 'Epoch Software Engineering ECI'],
   arenaText: ['https://arena.ai/leaderboard/text', 'Arena | Text'],
   arenaTextUncontrolled: ['https://arena.ai/leaderboard/text', 'Arena | Text · Original'],
   codeArenaWebDev: ['https://arena.ai/leaderboard/code/webdev', 'Code Arena | WebDev'],
@@ -113,6 +115,8 @@ export function modelOpenness(value) {
 
 export function parseBoard(kind, html, now) {
   if (kind === 'openRouterUsage' || kind === 'vercelUsage' || kind === 'cloudbaseUsage') throw new Error('Usage requires the official Data API');
+  // Retain parsing of historical fixtures; the source is no longer registered for acquisition.
+  if (kind === 'valsSWEbench' && typeof html === 'string') return parseVals(html, now);
   if (!Object.hasOwn(sources, kind) || typeof html !== 'string') throw new Error('Invalid source');
   if (kind === 'epochECI') return parseEpochECI(html, now);
   if (kind === 'valsSWEbench') return parseVals(html, now);
@@ -276,5 +280,5 @@ function parseVals(html, now) {
     entries.push({ rank, name: `${model} · ${harness}`, score, modelID: `vals:${slug}:${harness}`, ...(organization && { organization }), ...(cost !== undefined && { taskCostUSD: cost }), ...(speed > 0 && { speed }) });
   }
   if (entries.length < 20) throw new Error('Incomplete Vals source data');
-  return { kind: 'valsSWEbench', title: sources.valsSWEbench[1], fetchedAt: new Date(now).toISOString(), sourceUpdatedAt: new Date(sourceDate).toISOString(), sourceNote: 'Archived · SWE-bench Verified', entries };
+  return { kind: 'valsSWEbench', title: 'Vals AI · SWE-bench Verified', fetchedAt: new Date(now).toISOString(), sourceUpdatedAt: new Date(sourceDate).toISOString(), sourceNote: 'Archived · SWE-bench Verified', entries };
 }

@@ -5,6 +5,8 @@ export const arenaSubsets = Object.freeze({ arenaText: 'text_style_control', are
   arenaTextToImage: 'text_to_image', arenaImageEditing: 'image_edit', arenaMultiImageEditing: 'image_edit', arenaTextToVideo: 'text_to_video',
   arenaImageToVideo: 'image_to_video', arenaVideoEditing: 'video_edit' });
 export const isArena = kind => Object.hasOwn(arenaSubsets, kind);
+// Categories in the same Parquet are one acquisition, with independent rankings.
+export const arenaAcquisitionKinds = kind => Object.keys(arenaSubsets).filter(candidate => arenaSubsets[candidate] === arenaSubsets[kind]);
 export const arenaCategory = kind => kind === 'arenaMultiImageEditing' ? 'multi_image_edit' : kind === 'codeArenaImageToWebDev' ? 'image_to_webdev' : 'overall';
 export const isArenaDataset = board => Boolean(board && isArena(board.kind)
   && board.sourceNote?.includes(notice.sourceURL));
@@ -61,7 +63,7 @@ export async function readBounded(response, limit) {
   return Buffer.concat(chunks);
 }
 
-export async function loadArenaDataset(kind, { fetcher = fetch, now = Date.now(), signal = AbortSignal.timeout(7000) } = {}) {
+export async function loadArenaDataset(kind, { fetcher = fetch, now = Date.now(), signal = AbortSignal.timeout(7000), includeRelated = false } = {}) {
   if (!isArena(kind)) throw new Error('Unknown Arena subset');
   const info = JSON.parse((await readBounded(await fetcher('https://huggingface.co/api/datasets/lmarena-ai/leaderboard-dataset',
     { signal, redirect: 'error', headers: { Accept: 'application/json' } }), 250000)).toString('utf8'));
@@ -75,5 +77,16 @@ export async function loadArenaDataset(kind, { fetcher = fetch, now = Date.now()
   const rows = await parquetReadObjects({ file, metadata });
   const { modelOpenness } = await import('./parser.mjs');
   signal.throwIfAborted();
-  return parseArenaRows(kind, rows, { now, revision: info.sha, classifyLicense: modelOpenness });
+  return parseArenaAcquisitionRows(kind, rows, { now, revision: info.sha, classifyLicense: modelOpenness, includeRelated });
+}
+
+export function parseArenaAcquisitionRows(kind, rows, { includeRelated = true, ...options } = {}) {
+  const parse = candidate => parseArenaRows(candidate, rows, options);
+  const board = parse(kind);
+  if (!includeRelated) return board;
+  const relatedBoards = [];
+  for (const candidate of arenaAcquisitionKinds(kind).filter(candidate => candidate !== kind)) {
+    try { relatedBoards.push(parse(candidate)); } catch { /* Keep that category's last complete snapshot. */ }
+  }
+  return { ...board, relatedBoards };
 }

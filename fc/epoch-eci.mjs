@@ -2,7 +2,7 @@ import { normalizedBrandKey } from './brands.mjs';
 import { countryCode } from './countries.mjs';
 
 // Epoch publishes RFC 4180 CSV, including quoted names and JSON model versions.
-function csvRows(source) {
+export function csvRows(source) {
   const rows = []; let row = [], field = '', quoted = false, closed = false;
   const input = source.replace(/^\uFEFF/, '');
   for (let i = 0; i < input.length; i++) {
@@ -37,6 +37,7 @@ for (let a = 65; a <= 90; a++) for (let b = 65; b <= 90; b++) {
   if (code) countryNames.set(english.of(String.fromCharCode(a, b))?.toLowerCase(), code);
 }
 countryNames.set('united states of america', 'US');
+export function epochCountryCode(value) { return countryCode(value) ?? countryNames.get(String(value ?? '').toLowerCase()); }
 
 export function parseEpochECI(source, now) {
   const [header = [], ...data] = csvRows(source);
@@ -53,7 +54,7 @@ export function parseEpochECI(source, now) {
       || !Number.isFinite(score) || Math.abs(score) > 100000 || seen.has(modelID)) throw new Error('Invalid ECI model');
     seen.add(modelID);
     const openness = ({ 'Open weights': 'open', 'Closed weights': 'closed' })[value['Accessibility group']];
-    const code = countryCode(value['Country (of organization)']) ?? countryNames.get(value['Country (of organization)'].toLowerCase());
+    const code = epochCountryCode(value['Country (of organization)']);
     const countryHint = code && organization ? { key: normalizedBrandKey(organization), countryCode: code } : null;
     return { modelID, name, score, ...(organization && { organization }), ...(openness && { openness }), ...(countryHint && { countryHint }) };
   });

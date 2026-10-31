@@ -9,28 +9,30 @@ import { loadConfiguredVercelUsage } from './vercel-usage.mjs';
 import { loadCloudBaseUsage } from './cloudbase-usage.mjs';
 import { loadConfiguredOpenRouterUsage, openRouterConfigured } from './openrouter-usage.mjs';
 import { ModelsDevRegistry, loadConfiguredModelsDev, modelsDevInterval } from './models-dev.mjs';
-import { loadConfiguredOpenRouterPrices, priceBoard } from './price-catalog.mjs';
 import { loadConfiguredAAGeneralCosts } from './aa-general-cost.mjs';
+import { loadEpochDomain } from './epoch-domain-loader.mjs';
 
 const maxHTMLBytes = 24 * 1024 * 1024;
-export function handler(makeService, { syncToken = process.env.MODELS_DEV_SYNC_TOKEN, priceLoader = loadConfiguredOpenRouterPrices } = {}) {
-  let openRouterPrices, priceExpires = 0;
+export function handler(makeService, { syncToken = process.env.MODELS_DEV_SYNC_TOKEN } = {}) {
   return async (request, response) => {
     response.setHeader('Content-Type', 'application/json; charset=utf-8');
     response.setHeader('Cache-Control', 'no-store');
     response.setHeader('X-Content-Type-Options', 'nosniff');
     try {
       const path = new URL(request.url, 'http://localhost').pathname;
-      if (['/v1/prices/openRouter', '/v1/boards/openRouterPrice', '/v1/boards/openRouterPrice/refresh'].includes(path)) {
+      if (['/v1/prices/openRouter', '/v1/boards/openRouterPrice', '/v1/boards/openRouterPrice/refresh'].includes(path)
+        && (path === '/v1/prices/openRouter' || request.headers['x-benchgauge-acquisition'] !== 'client-first')) {
         const refreshing = path.endsWith('/refresh');
         if (request.method !== (refreshing ? 'POST' : 'GET')) throw new RequestError(405, 'Method not allowed');
-        let catalog;
-        if (!openRouterPrices || Date.now() >= priceExpires) {
-          openRouterPrices = Promise.resolve().then(() => priceLoader()); priceExpires = Date.now() + 600000;
-        }
-        try { catalog = await openRouterPrices; }
-        catch { openRouterPrices = undefined; priceExpires = 0; throw new RequestError(503, 'Price catalog unavailable'); }
-        response.end(JSON.stringify(path.startsWith('/v1/boards/') ? { board: priceBoard('openRouterPrice', catalog) } : catalog));
+        // Legacy price clients share the exact durable lease/cooldown used by
+        // client-first acquisition, including across cold FC instances.
+        const result = await (await makeService(request)).refresh('openRouterPrice');
+        if (!result.board) throw new RequestError(503, 'Price catalog unavailable');
+        const catalog = { source: 'OpenRouter', fetchedAt: result.board.fetchedAt,
+          rows: result.board.entries.map(row => ({ id: row.modelID, name: row.name,
+            provider: row.provider, input: row.score, output: row.outputPriceUSD,
+            currency: 'USD', unit: 'per-million-tokens' })) };
+        response.end(JSON.stringify(path.startsWith('/v1/boards/') ? result : catalog));
         return;
       }
       if (path === '/invoke') {
@@ -48,16 +50,17 @@ export function handler(makeService, { syncToken = process.env.MODELS_DEV_SYNC_T
         response.end(JSON.stringify({ source: 'models.dev', models: snapshot?.models.length ?? 0, revision: snapshot?.revision,
           fetchedAt: snapshot?.fetchedAt, checkedAt: Number.isFinite(models.checkedAt) ? new Date(models.checkedAt).toISOString() : snapshot?.fetchedAt })); return;
       }
-      const match = /^\/v1\/boards\/([A-Za-z]+)(?:\/(refresh|contribute))?$/.exec(path);
+      const match = /^\/v1\/boards\/([A-Za-z]+)(?:\/(refresh|contribute|acquire|fallback))?$/.exec(path);
       if (!match) throw new RequestError(404, 'Unknown route');
       const [, kind, action] = match;
       if (action ? request.method !== 'POST' : request.method !== 'GET') throw new RequestError(405, 'Method not allowed');
       const service = await makeService(request);
       let result;
-      if (!action) result = ['openRouterUsage', 'vercelUsage', 'cloudbaseUsage'].includes(kind) ? await service.refresh(kind) : await service.read(kind);
-      else if (action === 'refresh') result = await service.refresh(kind);
+      if (!action) result = request.headers['x-benchgauge-acquisition'] !== 'client-first' && ['openRouterUsage', 'vercelUsage', 'cloudbaseUsage'].includes(kind) ? await service.refresh(kind) : await service.read(kind);
+      else if (action === 'refresh') result = await service.refresh(kind, { clientFirst: request.headers['x-benchgauge-acquisition'] === 'client-first' });
+      else if (action === 'fallback') result = await service.fallback(kind, request.headers['x-benchgauge-grant']);
       else {
-        const contentType = kind === 'epochECI' ? 'text/csv' : 'text/html';
+        const contentType = action === 'acquire' ? 'application/json' : kind === 'epochECI' ? 'text/csv' : 'text/html';
         if (!String(request.headers['content-type'] ?? '').startsWith(contentType)) throw new RequestError(415, 'Expected official source data');
         if (Number(request.headers['content-length']) > maxHTMLBytes) throw new RequestError(413, 'Source HTML too large');
         let size = 0; const chunks = [];
@@ -66,7 +69,11 @@ export function handler(makeService, { syncToken = process.env.MODELS_DEV_SYNC_T
           if (size > maxHTMLBytes) throw new RequestError(413, 'Source HTML too large');
           chunks.push(chunk);
         }
-        result = await service.contribute(kind, request.headers['x-benchgauge-grant'], Buffer.concat(chunks).toString('utf8'));
+        const body = Buffer.concat(chunks).toString('utf8');
+        if (action === 'acquire') {
+          let payload; try { payload = JSON.parse(body); } catch { throw new RequestError(422, 'Invalid source bundle'); }
+          result = await service.acquire(kind, request.headers['x-benchgauge-grant'], payload);
+        } else result = await service.contribute(kind, request.headers['x-benchgauge-grant'], body);
       }
       response.end(JSON.stringify(result));
     } catch (error) {
@@ -96,7 +103,7 @@ async function serviceFor(request) {
   const client = new OSS(configuration);
   const store = new OSSStore(client);
   return new SharedLeaderboards(store, { brands: new BrandRegistry(store), countries: new CountryRegistry(store), arenaDataset: loadConfiguredArenaDataset,
-    generalCosts: loadConfiguredAAGeneralCosts,
+    generalCosts: loadConfiguredAAGeneralCosts, epochDomain: loadEpochDomain,
     cloudbaseUsage: loadCloudBaseUsage, vercelUsage: loadConfiguredVercelUsage, openRouterUsage: loadConfiguredOpenRouterUsage, openRouterConfigured,
     models: new ModelsDevRegistry(store, { load: loadConfiguredModelsDev, cache: modelsCache }) });
 }

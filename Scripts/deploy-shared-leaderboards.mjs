@@ -72,7 +72,7 @@ function credentials(file) {
   if (!accessKeyId || !accessKeySecret) throw new Error('Missing deployment credentials in the local environment');
   return { accessKeyId, accessKeySecret };
 }
-export const runtimeFiles = ['package.json', 'package-lock.json', 'bootstrap', 'server.mjs', 'service.mjs', 'domain.mjs', 'parser.mjs', 'openrouter-usage.mjs', 'price-catalog.mjs', 'aa-general-cost.mjs', 'vercel-usage.mjs', 'cloudbase-usage.mjs', 'epoch-eci.mjs', 'arena-dataset.mjs', 'arena-collector.mjs', 'arena-attribution.json', 'models-dev.mjs', 'models-dev-license.txt', 'model-openness.mjs', 'source-logos.mjs', 'oss-store.mjs', 'brands.mjs', 'brand-catalog.json', 'leaderboard-policy.json', 'countries.mjs', 'country-catalog.json'];
+export const runtimeFiles = ['package.json', 'package-lock.json', 'bootstrap', 'server.mjs', 'service.mjs', 'client-acquisition.mjs', 'domain.mjs', 'parser.mjs', 'openrouter-usage.mjs', 'price-catalog.mjs', 'aa-general-cost.mjs', 'vercel-usage.mjs', 'cloudbase-usage.mjs', 'epoch-eci.mjs', 'epoch-domain-fit.mjs', 'epoch-domain-loader.mjs', 'arena-dataset.mjs', 'arena-collector.mjs', 'arena-attribution.json', 'models-dev.mjs', 'models-dev-license.txt', 'model-openness.mjs', 'source-logos.mjs', 'oss-store.mjs', 'brands.mjs', 'brand-catalog.json', 'leaderboard-policy.json', 'countries.mjs', 'country-catalog.json'];
 function runtimeSignature() {
   const hash = createHash('sha256');
   for (const name of runtimeFiles) hash.update(name).update(readFileSync(join(root, 'fc', name)));
@@ -92,7 +92,7 @@ async function main() {
   const args = process.argv.slice(2);
   if (args.length > 1 || args.some(arg => !['--plan', '--package'].includes(arg))) throw new Error('Usage: deploy-shared-leaderboards.mjs [--plan | --package]');
   if (args.includes('--package')) {
-    run(process.execPath, ['--test', 'Scripts/cloudbase-usage.test.mjs', 'Scripts/vercel-usage.test.mjs', 'Scripts/openrouter-usage.test.mjs', 'Scripts/epoch-eci.test.mjs', 'Scripts/arena-dataset.test.mjs', 'Scripts/models-dev.test.mjs', 'Scripts/shared-leaderboards.test.mjs', 'Scripts/brand-discovery.test.mjs', 'Scripts/country-discovery.test.mjs']);
+    run(process.execPath, ['--test', 'Scripts/client-acquisition.test.mjs', 'Scripts/cloudbase-usage.test.mjs', 'Scripts/vercel-usage.test.mjs', 'Scripts/openrouter-usage.test.mjs', 'Scripts/epoch-eci.test.mjs', 'Scripts/epoch-domain-fit.test.mjs', 'Scripts/epoch-domain-service.test.mjs', 'Scripts/arena-dataset.test.mjs', 'Scripts/models-dev.test.mjs', 'Scripts/shared-leaderboards.test.mjs', 'Scripts/brand-discovery.test.mjs', 'Scripts/country-discovery.test.mjs']);
     console.log(packageCode()); return;
   }
   const file = join(root, '.benchgauge-cloud.local.json');
@@ -108,7 +108,7 @@ async function main() {
   // placed in the ZIP or the app. Existing runtime credentials are transferred
   // in memory between FC configurations, never written into local artifacts.
   const signature = runtimeSignature();
-  run(process.execPath, ['--test', 'Scripts/cloudbase-usage.test.mjs', 'Scripts/vercel-usage.test.mjs', 'Scripts/openrouter-usage.test.mjs', 'Scripts/epoch-eci.test.mjs', 'Scripts/arena-dataset.test.mjs', 'Scripts/models-dev.test.mjs', 'Scripts/shared-leaderboards.test.mjs', 'Scripts/brand-discovery.test.mjs', 'Scripts/country-discovery.test.mjs']);
+  run(process.execPath, ['--test', 'Scripts/client-acquisition.test.mjs', 'Scripts/cloudbase-usage.test.mjs', 'Scripts/vercel-usage.test.mjs', 'Scripts/openrouter-usage.test.mjs', 'Scripts/epoch-eci.test.mjs', 'Scripts/epoch-domain-fit.test.mjs', 'Scripts/epoch-domain-service.test.mjs', 'Scripts/arena-dataset.test.mjs', 'Scripts/models-dev.test.mjs', 'Scripts/shared-leaderboards.test.mjs', 'Scripts/brand-discovery.test.mjs', 'Scripts/country-discovery.test.mjs']);
   if (runtimeSignature() !== signature) throw new Error('Runtime changed during validation');
   const archive = packageCode();
   if (runtimeSignature() !== signature) throw new Error('Runtime changed during packaging');

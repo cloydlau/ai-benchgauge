@@ -21,6 +21,16 @@ class MemoryStore {
   }
 }
 const time = Date.parse('2026-10-12T00:00:00Z');
+test('retired Vals source is not exposed or refreshed, without deleting historical data', async () => {
+  const store = new MemoryStore();
+  const previous = { kind: 'valsSWEbench', entries: [{ name: 'old record' }] };
+  await store.writeBoard('valsSWEbench', previous);
+  const service = new SharedLeaderboards(store, { clock: () => time });
+  assert.equal(Object.hasOwn(sources, 'valsSWEbench'), false);
+  await assert.rejects(service.read('valsSWEbench'), error => error.status === 404);
+  await assert.rejects(service.refresh('valsSWEbench'), error => error.status === 404);
+  assert.equal(await store.readBoard('valsSWEbench'), previous);
+});
 function html(kind = 'arenaText', date = '2026-10-10T00:00:00Z', count = 22, modelLogoURL = undefined) {
   if (kind === 'valsSWEbench') return 'Archived Benchmark Updated 10/10/2026 <table aria-labelledby="benchmark-leaderboard-title"><tr>' + ['Rank', 'Model', 'Harness', 'Score', 'Cost / Test', 'Tokens / Test', 'Duration / Test'].map(x => `<th>${x}</th>`).join('') + '</tr>' + Array.from({ length: count }, (_, i) => `<tr><td>${i + 1}</td><th><a href="/models/maker_model-${i}">Model ${i}</a></th><td>Agent</td><td>${100 - i}%</td><td>$1.25</td><td>1m</td><td>1m</td></tr>`).join('') + '</table>';
   if (kind === 'epochECI') return 'Model,Display name,eci,Organization,Country (of organization),Accessibility group\n'

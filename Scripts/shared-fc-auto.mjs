@@ -18,7 +18,7 @@ const collectorDescription = 'BenchGauge official Arena dataset collector (manag
 const { createWatchSession } = await ci.load('deployment-watch')
 const { createRepositoryActivity } = await ci.load('ai-activity')
 const hash = input => createHash('sha256').update(input).digest('hex')
-export const gateTests = ['cloudbase-usage', 'vercel-usage', 'openrouter-usage', 'epoch-eci', 'arena-dataset', 'models-dev', 'shared-leaderboards', 'brand-discovery', 'country-discovery'].map(name => `Scripts/${name}.test.mjs`)
+export const gateTests = ['client-acquisition', 'cloudbase-usage', 'vercel-usage', 'openrouter-usage', 'epoch-eci', 'arena-dataset', 'models-dev', 'shared-leaderboards', 'brand-discovery', 'country-discovery'].map(name => `Scripts/${name}.test.mjs`)
 export function sourceSignature(directory = root) {
   const h = createHash('sha256')
   for (const name of [...runtimeFiles.map(name => `fc/${name}`), ...gateTests]) h.update(name).update('\0').update(readFileSync(join(directory, name))).update('\0')

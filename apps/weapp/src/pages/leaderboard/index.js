@@ -797,7 +797,7 @@ definePage(query => {
     if (!pullRefreshing.value && event.currentTarget.dataset.kind === pullRefreshKind.value) pullRefreshKind.value = ''
   }
   onLoad(async () => { await autoRefresh(); playEntrance() })
-  onReady(() => { pageReady = true; measureSourceTabs(); playEntrance(); syncTimestampPolish() })
+  onReady(() => { pageReady = true; measureSourceTabs(); measureHeaderText(); playEntrance(); syncTimestampPolish() })
   onShow(() => {
     pageVisible = true
     updateTheme()

@@ -170,6 +170,7 @@ private actor CachedBoardRecorder {
     try await withSharedStub(handler: { request in
         #expect(request.httpMethod == "GET")
         #expect(request.url?.path == "/v1/boards/arenaText")
+        #expect(request.value(forHTTPHeaderField: "X-BenchGauge-Acquisition") == "client-first")
         #expect(request.timeoutInterval == 10)
         return (200, try responseJSON(["board": sharedBoard()]))
     }) { fetcher, id in
@@ -331,6 +332,122 @@ private actor CachedBoardRecorder {
             let board = try await fetcher.fetch(.artificialAnalysis)
             #expect(board.kind == .artificialAnalysis)
             #expect(SharedHTTPStub.routes.recorded(id).count == 1)
+        }
+    }
+}
+
+
+@Test func clientFirstDownloadsRawSourceThenAcceptsOnlyTheServerBoard() async throws {
+    try await withSharedStub(handler: { request in
+        if request.url?.host == "epoch.ai" {
+            #expect(request.httpMethod == "GET")
+            #expect(request.value(forHTTPHeaderField: "Accept") == "text/csv")
+            return (200, Data("raw official CSV".utf8))
+        }
+        if request.url?.path.hasSuffix("/acquire") == true {
+            #expect(request.value(forHTTPHeaderField: "X-BenchGauge-Grant") == String(repeating: "A", count: 43))
+            #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
+            // URLSession may stream the body; the accepted ranking is always server output.
+            return (200, try responseJSON(["board": sharedBoard(kind: "epochECI")]))
+        }
+        #expect(request.url?.path.hasSuffix("/refresh") == true)
+        #expect(request.value(forHTTPHeaderField: "X-BenchGauge-Acquisition") == "client-first")
+        return (200, try responseJSON(["grant": clientGrant()]))
+    }) { fetcher, id in
+        let board = try await fetcher.fetch(.epochECI)
+        #expect(board.entries.first?.name == "GPT")
+        #expect(SharedHTTPStub.routes.recorded(id).count == 3)
+    }
+}
+
+private func clientGrant(url: String = "https://epoch.ai/data/eci_scores.csv", optional: Bool = false) -> [String: Any] {
+    ["token": String(repeating: "A", count: 43), "expiresAt": Date().addingTimeInterval(90).timeIntervalSince1970 * 1000,
+     "sourceURL": url, "acquisition": ["resources": [["url": url, "maxBytes": 8000000, "accept": "text/csv", "optional": optional]]]]
+}
+
+@Test func clientFirstBlockedOriginOrRejectedUploadUsesGrantBoundBackendFallback() async throws {
+    for mode in ["blocked", "rejected", "timeout", "optional", "unavailable"] {
+        try await withSharedStub(contributionTimeout: mode == "timeout" ? 0.1 : 30, handler: { request in
+            if request.url?.host == "epoch.ai" {
+                if mode == "blocked" || mode == "optional" { throw URLError(.cannotConnectToHost) }
+                if mode == "timeout" { return (0, Data()) }
+                return (200, Data("raw CSV".utf8))
+            }
+            if request.url?.path.hasSuffix("/acquire") == true { return (422, Data()) }
+            if request.url?.path.hasSuffix("/fallback") == true {
+                #expect(request.value(forHTTPHeaderField: "X-BenchGauge-Grant") == String(repeating: "A", count: 43))
+                #expect(request.timeoutInterval == 30)
+                return mode == "unavailable" ? (503, Data()) : (200, try responseJSON(["board": sharedBoard(kind: "epochECI")]))
+            }
+            if request.httpMethod == "GET" { return (503, Data()) }
+            return (200, try responseJSON(["board": sharedBoard(kind: "epochECI"), "grant": clientGrant(optional: mode == "optional")]))
+        }) { fetcher, id in
+            let board = try await fetcher.fetch(.epochECI)
+            #expect(board.kind == .epochECI)
+            let requests = SharedHTTPStub.routes.recorded(id)
+            #expect(requests.filter { $0.url?.host == "epoch.ai" }.count == 1)
+            #expect(requests.filter { $0.url?.path.hasSuffix("/fallback") == true }.count == 1)
+        }
+    }
+}
+
+@Test func clientFirstArenaPinsTheDatasetRevisionBeforeUploadingRawParquet() async throws {
+    let revision = String(repeating: "a", count: 40)
+    let metadata = "https://huggingface.co/api/datasets/lmarena-ai/leaderboard-dataset"
+    let dataset = "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset/resolve/{revision}/text/latest-00000-of-00001.parquet"
+    try await withSharedStub(handler: { request in
+        if request.url?.absoluteString == metadata { return (200, try responseJSON(["sha": revision])) }
+        if request.url?.path.hasSuffix(".parquet") == true {
+            #expect(request.url?.path.contains(revision) == true)
+            return (200, Data("raw parquet".utf8))
+        }
+        if request.url?.path.hasSuffix("/acquire") == true { return (200, try responseJSON(["board": sharedBoard()])) }
+        var grant = clientGrant(url: metadata)
+        grant["acquisition"] = ["resources": [["url": metadata, "maxBytes": 250000, "accept": "application/json"],
+            ["url": dataset, "maxBytes": 4194304, "accept": "application/octet-stream", "revisionFrom": 0]]]
+        return (200, try responseJSON(["grant": grant]))
+    }) { fetcher, id in
+        let board = try await fetcher.fetch(.arenaText)
+        #expect(board.kind == .arenaText)
+        #expect(SharedHTTPStub.routes.recorded(id).count == 4)
+    }
+}
+
+
+@Test func clientFirstRejectsUntrustedPlansOversizedSourcesAndExpiredGrants() async throws {
+    for mode in ["host", "empty", "revision", "oversized", "total", "expired", "invalid-board", "status", "expires-during-fetch"] {
+        try await withSharedStub(handler: { request in
+            if request.url?.host == "epoch.ai" {
+                if mode == "revision" { return (200, Data("{}".utf8)) }
+                if mode == "oversized" { return (200, Data(repeating: 32, count: 21)) }
+                if mode == "total" { return (200, Data(repeating: 32, count: 9_000_000)) }
+                if mode == "status" { return (403, Data()) }
+                if mode == "expires-during-fetch" { Thread.sleep(forTimeInterval: 1.1) }
+                return (200, Data("raw".utf8))
+            }
+            if request.url?.path.hasSuffix("/acquire") == true { return (200, Data("{}".utf8)) }
+            if request.url?.path.hasSuffix("/fallback") == true || request.httpMethod == "GET" {
+                return (200, try responseJSON(["board": sharedBoard(kind: "epochECI")]))
+            }
+            var grant = clientGrant(url: mode == "host" ? "https://attacker.invalid/source" : "https://epoch.ai/data/eci_scores.csv")
+            if mode == "expired" { grant["expiresAt"] = 0 }
+            if mode == "expires-during-fetch" { grant["expiresAt"] = Date().addingTimeInterval(1).timeIntervalSince1970 * 1000 }
+            if mode == "empty" { grant["acquisition"] = ["resources": []] }
+            if mode == "oversized" { grant["acquisition"] = ["resources": [["url": "https://epoch.ai/data/eci_scores.csv", "maxBytes": 20, "accept": "text/csv"]]] }
+            if mode == "total" || mode == "revision" {
+                let first: [String: Any] = ["url": "https://epoch.ai/data/eci_scores.csv", "maxBytes": 16000000, "accept": "text/csv"]
+                var second = first
+                if mode == "revision" { second["revisionFrom"] = 0 }
+                grant["acquisition"] = ["resources": [first, second]]
+            }
+            return (200, try responseJSON(["grant": grant]))
+        }) { fetcher, id in
+            let board = try await fetcher.fetch(.epochECI)
+            #expect(board.entries.first?.name == "GPT")
+            let requests = SharedHTTPStub.routes.recorded(id)
+            #expect(!requests.contains { $0.url?.host == "attacker.invalid" })
+            if mode == "total" { #expect(requests.filter { $0.url?.host == "epoch.ai" }.count == 2) }
+            if mode == "expired" { #expect(!requests.contains { $0.url?.host == "epoch.ai" }) }
         }
     }
 }

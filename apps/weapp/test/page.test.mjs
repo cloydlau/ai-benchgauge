@@ -64,7 +64,7 @@ function setup(preferences = {}, count = 0, query = {}, systemTheme = 'light', s
   }
   const page = globalThis.__benchPageFactory(query)
   const respond = (index, metadata = {}) => {
-    const request = requests[index]; request.responded = true; const kind = request.options.url.split('/').at(-1)
+    const request = requests[index]; request.responded = true; const kind = request.options.url.match(/\/v1\/boards\/([^/]+)/)[1]
     request.options.success({ statusCode: 200, data: { board: { kind, fetchedAt: '2026-10-13T12:00:00Z', entries: (count ? Array.from({ length: count }, (_, i) => ({
       rank: i + 1, name: `Model ${i + 1}`, score: count - i, organization: `Maker ${i + 1}`,
       openness: i % 2 ? 'open' : 'closed',
@@ -106,7 +106,7 @@ test('speech category switches between distinct AA speech tasks', async t => {
   assert.deepEqual(h.page.cards.value[0].variantLabels, ['文字转语音 · 原生声音', '文字转语音 · 受控声音', '语音对话', '语音转文字 · 非流式', '语音转文字 · 流式'])
   h.page.selectVariant({ currentTarget: { dataset: { base: 'artificialAnalysisSpeechProviderVoice' } }, detail: { value: 2 } })
   assert.equal(h.page.cards.value[0].kind, 'artificialAnalysisSpeechAgent')
-  assert.ok(h.requests.some(request => request.options.url.endsWith('/artificialAnalysisSpeechAgent')))
+  assert.ok(h.requests.some(request => request.options.url.endsWith('/artificialAnalysisSpeechAgent/refresh')))
   assert.equal(h.writes.at(-1).value.variants.artificialAnalysisSpeechProviderVoice, 'artificialAnalysisSpeechAgent')
   h.respondAll()
 })
@@ -649,7 +649,7 @@ test('purchase links update after switching the interface language inside the sa
   const h = setup({ grouping: 'company', language: 'zh-CN' })
   const loading = h.loadCategory()
   for (let index = 0; index < h.requests.length; index++) {
-    const request = h.requests[index], kind = request.options.url.split('/').at(-1)
+    const request = h.requests[index], kind = request.options.url.match(/\/v1\/boards\/([^/]+)/)[1]
     request.options.success({ statusCode: 200, data: { board: { kind, fetchedAt: '2026-10-16T00:00:00Z',
       entries: [{ rank: 1, name: 'MiniMax M', organization: 'MiniMax', score: 99 }] } } })
     request.options.complete()
@@ -875,7 +875,7 @@ test('pulling each source requests exactly that board and leaves sibling snapsho
       const index = h.requests.length
       const pull = h.page.pullRefresh(event({ kind }))
       assert.equal(h.requests.length, index + 1)
-      assert.equal(h.requests[index].options.url, `https://shared.example/v1/boards/${kind}`)
+      assert.equal(h.requests[index].options.url, `https://shared.example/v1/boards/${kind}/refresh`)
       const duplicate = h.page.pullRefresh(event({ kind }))
       assert.equal(h.requests.length, index + 1, 'Repeated pull cannot duplicate the board request')
       t.mock.timers.tick(350)
@@ -947,7 +947,7 @@ test('entering an expired publication joins a manual pull and only a later board
   assert.equal(h.requests.length, 1, 'Elapsed time and foreground activation cannot poll rankings')
   h.page.changeFace({ detail: { current: 2 } })
   assert.equal(h.requests.length, 2)
-  assert.ok(h.requests[1].options.url.endsWith('/epochECI'))
+  assert.ok(h.requests[1].options.url.endsWith('/epochECI/refresh'))
   h.respondAll(); await h.page.autoRefresh()
 })
 

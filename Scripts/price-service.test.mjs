@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import { once } from 'node:events'
 import { handler } from '../fc/server.mjs'
+import { SharedLeaderboards } from '../fc/service.mjs'
 import { collectorHandler } from '../fc/arena-collector.mjs'
 
 async function serve(t, handler) {
@@ -13,11 +14,21 @@ async function serve(t, handler) {
 test('price endpoints return OpenRouter prices and deduplicate concurrent loads', async t => {
   let calls = 0
   const rows = [{ id: 'a/m', name: 'M', provider: 'OpenRouter', currency: 'USD', unit: 'per-million-tokens', input: 0, output: 3 }]
-  const url = await serve(t, handler(async () => ({}), { priceLoader: async () => { calls++; return { source: 'OpenRouter', fetchedAt: '2026-10-28T00:00:00Z', rows } } }))
+  const boards = new Map(), states = new Map()
+  const store = { readBoard: async k => boards.get(k) ?? null, writeBoard: async (k, b) => boards.set(k, b),
+    readState: async k => states.get(k) ?? { position: 0, state: null },
+    appendState: async (k, p, state) => {
+      if ((states.get(k)?.position ?? 0) !== p) return false
+      states.set(k, { position: p + 1, state }); return true
+    } }
+  const url = await serve(t, handler(async () => new SharedLeaderboards(store, {
+    priceLoader: async () => { calls++; return { source: 'OpenRouter', fetchedAt: '2026-10-28T00:00:00Z', rows } }
+  })))
   const board = (await fetch(url + '/v1/boards/openRouterPrice/refresh', { method: 'POST' }).then(r => r.json())).board
   assert.deepEqual(board.entries.map(row => [row.rank, row.provider, row.score, row.outputPriceUSD]), [[1, 'OpenRouter', 0, 3]])
   const replies = await Promise.all(Array.from({ length: 5 }, () => fetch(url + '/v1/prices/openRouter').then(r => r.json())))
   assert.equal(calls, 1); assert.ok(replies.every(row => row.source === 'OpenRouter'))
+  for (const reply of replies) assert.deepEqual(reply.rows, rows)
   assert.equal((await fetch(url + '/v1/prices/openRouter', { method: 'POST' })).status, 405)
 })
 

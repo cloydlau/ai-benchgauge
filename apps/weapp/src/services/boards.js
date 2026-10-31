@@ -1,3 +1,4 @@
+import { collectSources, validGrant } from './acquisition.js'
 import { boards, hasOwn } from '../core/catalog.js'
 import { normalizeBoard, canReplace, withContentTimestamp } from '../core/leaderboard.js'
 
@@ -48,37 +49,68 @@ export function createBoardStore({ platform, endpoint }) {
     }
   } catch { /* Cache availability does not control network access. */ }
   function read(kind) { return snapshots[kind] || null }
-  function fetch(kind) {
-    if (!hasOwn(boards, kind)) return Promise.reject(new Error('Unknown leaderboard'))
-    if (disposed) return Promise.reject(new Error('Store disposed'))
-    if (pending.has(kind)) return pending.get(kind)
-    const promise = new Promise((resolve, reject) => {
-      let task
-      task = platform.request({
-        url: `${endpoint}/v1/boards/${kind}`, method: 'GET', timeout: kind === 'openRouterPrice' ? 30000 : 15000,
-        header: { Accept: 'application/json' },
+  function request(options) {
+    return new Promise((resolve, reject) => {
+      if (disposed) { reject(new Error('Store disposed')); return }
+      let task, completed = false
+      task = platform.request({ ...options,
         success(result) {
-          if (disposed) { reject(new Error('Store disposed')); return }
-          try {
-            if (result.statusCode !== 200) throw new Error('Shared service unavailable')
-            if (!result.data?.board) {
-              if (result.data?.configurationRequired === true) throw Object.assign(new Error('Data source awaiting configuration'), { code: 'configurationRequired' })
-              throw new Error('No shared snapshot yet')
-            }
-            const next = normalizeBoard(result.data.board, kind)
-            if (canReplace(next, snapshots[kind])) {
-              // Legacy first reads already carry their baseline in fetchedAt.
-              snapshots[kind] = snapshots[kind] ? withContentTimestamp(next, snapshots[kind]) : next
-              try { saveSnapshots(platform, snapshots) } catch { /* Still show a valid network result. */ }
-            }
-            resolve(snapshots[kind])
-          } catch (error) { reject(error) }
+          if (disposed) reject(new Error('Store disposed'))
+          else if (result.statusCode !== 200) reject(new Error('Shared service unavailable'))
+          else resolve(result)
         },
         fail() { reject(new Error('Shared service unavailable')) },
-        complete() { tasks.delete(task) },
+        complete() { completed = true; tasks.delete(task) },
       })
-      tasks.add(task)
-    }).finally(() => pending.delete(kind))
+      if (!completed) tasks.add(task)
+    })
+  }
+  function accept(payload, kind) {
+    if (!payload?.board) {
+      if (payload?.configurationRequired === true) throw Object.assign(new Error('Data source awaiting configuration'), { code: 'configurationRequired' })
+      throw new Error('No shared snapshot yet')
+    }
+    const next = normalizeBoard(payload.board, kind)
+    if (canReplace(next, snapshots[kind])) {
+      snapshots[kind] = snapshots[kind] ? withContentTimestamp(next, snapshots[kind]) : next
+      try { saveSnapshots(platform, snapshots) } catch { /* Still show valid network data. */ }
+    }
+    return snapshots[kind]
+  }
+  function fetch(kind, onCachedBoard) {
+    if (!hasOwn(boards, kind)) return Promise.reject(new Error('Unknown leaderboard'))
+    if (kind === 'valsSWEbench') return Promise.reject(new Error('Leaderboard retired'))
+    if (disposed) return Promise.reject(new Error('Store disposed'))
+    if (pending.has(kind)) return pending.get(kind)
+    const path = `${endpoint}/v1/boards/${kind}`
+    const api = (action, extra = {}) => request({ url: path + action, method: action ? 'POST' : 'GET', timeout: 30000,
+      header: { Accept: 'application/json', 'X-BenchGauge-Acquisition': 'client-first', ...extra.header }, ...extra })
+    const promise = (async () => {
+      const response = (await api('/refresh')).data
+      if (!response?.grant?.acquisition) return accept(response, kind)
+      // Persist shared cache before waiting on the user's origin connection.
+      if (response.board) onCachedBoard?.(accept(response, kind))
+      const grant = response.grant
+      if (!validGrant(grant)) {
+        if (snapshots[kind]) return snapshots[kind]
+        throw new Error('Invalid refresh grant')
+      }
+      const header = { 'X-BenchGauge-Grant': grant.token, 'Content-Type': 'application/json' }
+      try {
+        const data = await collectSources(platform, request, grant)
+        if (!validGrant(grant)) throw new Error('Expired refresh grant')
+        return accept((await api('/acquire', { header, data })).data, kind)
+      } catch {
+        if (disposed) throw new Error('Store disposed')
+        try { return accept((await api('/fallback', { header })).data, kind) }
+        catch {
+          if (disposed) throw new Error('Store disposed')
+          // An upload can commit despite a lost response; check before using cache.
+          try { return accept((await api('')).data, kind) }
+          catch { if (snapshots[kind]) return snapshots[kind]; throw new Error('Shared service unavailable') }
+        }
+      }
+    })().finally(() => pending.delete(kind))
     pending.set(kind, promise)
     return promise
   }

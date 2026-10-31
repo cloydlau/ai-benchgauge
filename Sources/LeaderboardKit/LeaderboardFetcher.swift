@@ -39,12 +39,31 @@ public struct LeaderboardFetcher: Sendable {
         let token: String
         let expiresAt: Double
         let sourceURL: URL
+        let acquisition: Acquisition?
+    }
+    private struct Acquisition: Decodable, Sendable {
+        let resources: [Resource]
+    }
+    private struct Resource: Decodable, Sendable {
+        let url: String
+        let maxBytes: Int
+        let accept: String
+        let revisionFrom: Int?
+        let optional: Bool?
+    }
+    private struct SourceBytes: Encodable {
+        let url: String
+        let data: String
+    }
+    private struct SourceBundle: Encodable {
+        let resources: [SourceBytes?]
     }
 
     private func shared(_ kind: LeaderboardKind, endpoint: URL, onCachedBoard: LeaderboardService.BoardUpdate?) async throws -> Leaderboard {
         let path = endpoint.appendingPathComponent("v1/boards/\(kind.rawValue)")
         var request = URLRequest(url: path.appendingPathComponent("refresh"))
         request.httpMethod = "POST"
+        request.setValue("client-first", forHTTPHeaderField: "X-BenchGauge-Acquisition")
         if kind.sourcePrefix == "Arena" || kind.isPrice { request.timeoutInterval = 30 }
         let response: SharedResponse
         do {
@@ -70,7 +89,10 @@ public struct LeaderboardFetcher: Sendable {
         }
         do {
             return try await withThrowingTaskGroup(of: Leaderboard.self) { group in
-                group.addTask { try await contribute(kind, path: path, grant: grant) }
+                group.addTask {
+                    if let plan = grant.acquisition { return try await acquire(kind, path: path, grant: grant, plan: plan) }
+                    return try await contribute(kind, path: path, grant: grant)
+                }
                 group.addTask {
                     try await Task.sleep(for: .seconds(contributionTimeout))
                     throw URLError(.timedOut)
@@ -81,11 +103,73 @@ public struct LeaderboardFetcher: Sendable {
             }
         } catch {
             try Task.checkCancellation()
-            if let cached { return cached }
+            if grant.acquisition != nil, validGrant(grant) {
+                var fallback = URLRequest(url: path.appendingPathComponent("fallback"))
+                fallback.httpMethod = "POST"
+                fallback.timeoutInterval = 30
+                fallback.setValue(grant.token, forHTTPHeaderField: "X-BenchGauge-Grant")
+                if let accepted = try? await sharedResponse(fallback), let board = valid(accepted.board, kind: kind) { return board }
+                try Task.checkCancellation()
+            }
+            if grant.acquisition == nil, let cached { return cached }
             // Upload timeout may occur after OSS committed the snapshot.
             if let committed = try? await cachedShared(kind, url: path) { return committed }
+            if let cached { return cached }
             throw error
         }
+    }
+
+    private func validGrant(_ grant: Grant) -> Bool {
+        grant.token.range(of: "^[A-Za-z0-9_-]{43}$", options: .regularExpression) != nil
+            && grant.expiresAt / 1000 > Date().timeIntervalSince1970
+    }
+
+    private func acquire(_ kind: LeaderboardKind, path: URL, grant: Grant, plan: Acquisition) async throws -> Leaderboard {
+        guard validGrant(grant), (1...3).contains(plan.resources.count),
+              plan.resources.first?.url == grant.sourceURL.absoluteString else { throw URLError(.badServerResponse) }
+        let hosts: Set<String> = ["artificialanalysis.ai", "epoch.ai", "huggingface.co", "vercel.com", "ai-gateway.vercel.sh", "docs.cloudbase.net", "openrouter.ai"]
+        var raw: [Data?] = [], resources: [SourceBytes?] = [], total = 0
+        for spec in plan.resources {
+            var source = spec.url
+            if let index = spec.revisionFrom {
+                guard raw.indices.contains(index), let data = raw[index],
+                      let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let revision = object["sha"] as? String,
+                      revision.range(of: "^[a-f0-9]{40}$", options: .regularExpression) != nil else { throw URLError(.badServerResponse) }
+                source = source.replacingOccurrences(of: "{revision}", with: revision)
+            }
+            guard let url = URL(string: source), url.scheme == "https", let host = url.host, hosts.contains(host),
+                  url.user == nil, url.password == nil, url.port == nil,
+                  spec.maxBytes > 0, spec.maxBytes <= 16 * 1024 * 1024,
+                  validGrant(grant) else { throw URLError(.badServerResponse) }
+            do {
+                var request = URLRequest(url: url)
+                request.timeoutInterval = 10
+                request.cachePolicy = .reloadIgnoringLocalCacheData
+                request.setValue(spec.accept, forHTTPHeaderField: "Accept")
+                request.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
+                let (data, response) = try await session.data(for: request)
+                guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+                      data.count <= spec.maxBytes else { throw URLError(.badServerResponse) }
+                total += data.count
+                guard total <= 17_000_000 else { throw URLError(.dataLengthExceedsMaximum) }
+                raw.append(data); resources.append(SourceBytes(url: source, data: data.base64EncodedString()))
+            } catch {
+                try Task.checkCancellation()
+                guard spec.optional == true else { throw error }
+                raw.append(nil); resources.append(nil)
+            }
+        }
+        guard validGrant(grant) else { throw URLError(.timedOut) }
+        var upload = URLRequest(url: path.appendingPathComponent("acquire"))
+        upload.httpMethod = "POST"
+        upload.timeoutInterval = 30
+        upload.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        upload.setValue(grant.token, forHTTPHeaderField: "X-BenchGauge-Grant")
+        upload.httpBody = try JSONEncoder().encode(SourceBundle(resources: resources))
+        let accepted = try await sharedResponse(upload)
+        guard let board = valid(accepted.board, kind: kind) else { throw URLError(.badServerResponse) }
+        return board
     }
 
     private func contribute(_ kind: LeaderboardKind, path: URL, grant: Grant) async throws -> Leaderboard {
@@ -115,7 +199,9 @@ public struct LeaderboardFetcher: Sendable {
     }
 
     private func cachedShared(_ kind: LeaderboardKind, url: URL) async throws -> Leaderboard {
-        let response = try await sharedResponse(URLRequest(url: url))
+        var request = URLRequest(url: url)
+        request.setValue("client-first", forHTTPHeaderField: "X-BenchGauge-Acquisition")
+        let response = try await sharedResponse(request)
         if response.configurationRequired == true && response.board == nil { throw LeaderboardConfigurationRequired() }
         guard let board = valid(response.board, kind: kind) else { throw URLError(.resourceUnavailable) }
         return board
@@ -145,7 +231,7 @@ public struct LeaderboardFetcher: Sendable {
 
     func parse(_ kind: LeaderboardKind, html: String) throws -> Leaderboard {
         switch kind {
-        case .openRouterUsage, .vercelUsage, .cloudbaseUsage, .openRouterPrice: throw URLError(.resourceUnavailable)
+        case .openRouterUsage, .vercelUsage, .cloudbaseUsage, .openRouterPrice, .epochMathECI, .epochCyberECI, .epochSoftwareECI: throw URLError(.resourceUnavailable)
         case .epochECI:
             return try EpochECIParser.parse(html)
         case .artificialAnalysis:
