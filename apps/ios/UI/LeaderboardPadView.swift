@@ -169,6 +169,9 @@ public struct LeaderboardPadView: View {
             preview.finishEntrance()
             let position = Double(ProcessInfo.processInfo.environment["BENCHGAUGE_UI_CUBE_POSITION"] ?? "") ?? 0.5
             preview.position = position.isFinite ? min(1, max(0, position)) : 0.5
+            if ProcessInfo.processInfo.arguments.contains("--cube-interruption-preview") {
+                preview.face = 1; preview.turning = true; preview.turnSerial = 1
+            }
             _cube = StateObject(wrappedValue: preview)
         } else if ProcessInfo.processInfo.arguments.contains("--ui-testing") && ProcessInfo.processInfo.arguments.contains("--arena-preview") {
             let preview = LeaderboardCubeState(position: 1)
@@ -410,7 +413,7 @@ public struct LeaderboardPadView: View {
             }
         }
         .modifier(MobileTabDrag(count: store.visibleBoardKinds.count, preview: $sourceDragIndex,
-            enabled: store.visibleBoardKinds.count > 1 && !cube.turning && !store.modelSearchEditing, begin: cancelCubeEntrance) { turnCube(to: $0) })
+            enabled: store.visibleBoardKinds.count > 1 && !store.modelSearchEditing, begin: interruptCubeTurn) { turnCube(to: $0) })
         .background(alignment: .leading) {
             GeometryReader { geometry in
                 let count = store.visibleBoardKinds.count
@@ -452,6 +455,12 @@ public struct LeaderboardPadView: View {
             cube.finishTurn()
             store.selectedSource = cube.face
         }
+    }
+    private func interruptCubeTurn() {
+        cancelCubeEntrance()
+        guard cube.turning else { return }
+        var transaction = Transaction(); transaction.disablesAnimations = true
+        withTransaction(transaction) { cube.finishTurn() }
     }
     private func turnCube(to face: Int, position: Int? = nil) {
         cancelCubeEntrance()
@@ -564,6 +573,9 @@ public struct LeaderboardPadView: View {
                     cubeFace(kind, index: index, size: geometry.size, bottomInset: bottomInset)
                 }
             }
+            // Faces disable row hit testing while turning; the stable viewport
+            // must still receive the next touch, including the gaps between faces.
+            .contentShape(Rectangle())
             .simultaneousGesture(DragGesture(minimumDistance: 8)
                 .updating($cubeDragAxis) { value, axis, _ in
                     let next = LeaderboardCube.dragAxis(current: axis, x: value.translation.width, y: value.translation.height)
@@ -571,8 +583,12 @@ public struct LeaderboardPadView: View {
                 }
                 .onChanged { value in
                     cancelCubeEntrance()
-                    guard !cube.turning, !store.modelSearchEditing else { return }
+                    guard !store.modelSearchEditing else { return }
                     guard LeaderboardCube.dragAxis(current: cubeDragAxis, x: value.translation.width, y: value.translation.height) == .horizontal else { return }
+                    if !cube.dragging {
+                        var transaction = Transaction(); transaction.disablesAnimations = true
+                        withTransaction(transaction) { cube.beginDrag() }
+                    }
                     cube.origin = cube.face
                     cube.direction = value.translation.width > 0 ? -1 : 1
                     cube.dragging = true

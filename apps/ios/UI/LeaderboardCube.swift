@@ -51,6 +51,14 @@ final class LeaderboardCubeState: ObservableObject {
         turning = false
     }
 
+    /// The next drag owns the selected destination immediately, even while
+    /// its previous settle animation is still completing.
+    func beginDrag() {
+        guard !dragging else { return }
+        finishTurn()
+        dragging = true
+    }
+
     func beginEntrance(reduceMotion: Bool) -> Int? {
         guard !entrancePlayed, !dragging, !turning else { return nil }
         entrancePlayed = true

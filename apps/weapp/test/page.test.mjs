@@ -1528,18 +1528,22 @@ test('board headings show localized introductions and copy official links only o
       h.page.sourceHelp(event({ kind: card.kind }))
       const modal = h.page.sourceNotice.value
       assert.equal(modal.title, card.title)
+      if (['arenaText', 'arenaTextUncontrolled', 'codeArenaWebDev', 'codeArenaImageToWebDev'].includes(card.kind)) assert.equal(modal.title, 'Arena')
       const agreement = sourceAgreement(card.kind, undefined, language)
       if (agreement) assert.ok(modal.content.includes(agreement), 'Source help includes its complete offline agreement')
       assert.ok(modal.content.includes(text(boards[card.kind].methodology || boards[card.kind].summaries, language)))
       assert.ok(modal.content.includes(boards[card.kind].url))
       assert.equal(modal.open, true)
       assert.equal(h.clipboard.length, previousCopies, 'Opening the introduction must not copy anything')
+      const closingContent = modal.content
       h.page.closeSourceNotice()
       assert.equal(h.page.sourceNotice.value.open, false)
+      assert.equal(h.page.sourceNotice.value.content, closingContent, 'Closing keeps the displayed content stable during fade-out')
       assert.equal(h.clipboard.length, previousCopies, 'Closing the introduction must not copy anything')
       h.page.sourceHelp(event({ kind: card.kind }))
       h.page.copySourceLink()
       assert.equal(h.page.sourceNotice.value.open, false)
+      assert.equal(h.page.sourceNotice.value.content, closingContent, 'Copy-and-close keeps the body stable too')
       assert.equal(h.clipboard.at(-1), boards[card.kind].url)
     }
     h.page.sourceHelp(event({ kind: 'invalid' }))

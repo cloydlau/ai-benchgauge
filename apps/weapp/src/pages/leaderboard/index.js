@@ -203,7 +203,7 @@ definePage(query => {
     if (!keepTabDrag) cancelTabDrag()
     lastCategoryTap = null
     cubeDragging.value = false
-    cubeWaiting.value = false; preparedScroll = null; queuedCubeFace = null; cubeTurnSerial++
+    cubeWaiting.value = false; preparedScroll = null; cubeTurnSerial++
     cubeClipTop.value = null
     for (const [kind, request] of scrollRequests) if (request.preparing && !request.ready) {
       clearTimeout(request.timer)
@@ -250,9 +250,10 @@ definePage(query => {
   function turnCube(destination, position) {
     destination = cubeIndex(destination, current.value.kinds.length)
     if (gesture?.axis !== 'horizontal' && cubeBusy.value && preparedScroll) {
-      if (!cubeWaiting.value) { queuedCubeFace = destination; return }
-      // A second tab tap during preparation still starts from the visible face.
-      face.value = cubeIndex(cubeOrigin.value, current.value.kinds.length)
+      // A new selection owns the turn immediately. During native scroll
+      // preparation the origin is still visible; otherwise keep the selected
+      // destination as the next origin and invalidate the old completion.
+      if (cubeWaiting.value) face.value = cubeIndex(cubeOrigin.value, current.value.kinds.length)
       stopCube(); updateSourceTabs(scrollPositions[current.value.kinds[face.value]] || 0); persist()
       syncTimestampPolish()
     }
@@ -283,15 +284,13 @@ definePage(query => {
       if (!alive || serial !== cubeTurnSerial) return
       cubeWaiting.value = false
       cubeTimer = setTimeout(() => {
-        if (!alive) return
+        if (!alive || serial !== cubeTurnSerial) return
         cubeDuration.value = 420; cubePosition.value = position; cubeClipTop.value = null
         cubeTimer = setTimeout(() => {
-          if (!alive) return
+          if (!alive || serial !== cubeTurnSerial) return
           cubeBusy.value = false; cubeDuration.value = 0
           cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1
           measureLists(); syncTimestampPolish()
-          const next = queuedCubeFace; queuedCubeFace = null
-          if (next != null && next !== face.value) turnCube(next)
         }, 440)
       }, 24)
     })
@@ -336,10 +335,10 @@ definePage(query => {
   function cubeEnd() {
     if (gesture?.axis === 'horizontal') {
       const position = cubeDestination(gesture, cubeWidth, Date.now())
-      const next = cubeNavigation(categories.findIndex(item => item.id === category.value), position, categories.map(item => visibleBoardKinds(item.id, boardSelections.value).length))
-      if (categories[next.category].id !== category.value) {
+      const next = cubeNavigation(enabledCategories.value.findIndex(item => item.id === category.value), position, enabledCategories.value.map(item => visibleBoardKinds(item.id, boardSelections.value).length))
+      if (enabledCategories.value[next.category].id !== category.value) {
         suppressTapUntil = Date.now() + 500
-        changeCategory(categories[next.category].id, next.face)
+        changeCategory(enabledCategories.value[next.category].id, next.face)
         return
       }
       turnCube(position, position)

@@ -1786,6 +1786,28 @@ final class LeaderboardPhoneTests: XCTestCase {
         }
         XCTAssertTrue(arenaHeaderVisible, "Switching from the top must retain the source and column headers")
     }
+    func testEverySwitchAnimationYieldsToTheNextSwipe() {
+        for style in ["cube", "slide", "fade"] {
+            for reverse in [false, true] {
+                // Launch arguments select the real preference through NSArgumentDomain;
+                // the settings assertion below prevents silently testing cube six times.
+                app.launchArguments = ["--ui-testing", "--offline", "--cube-preview", "--cube-interruption-preview",
+                                       "-mobileBoardTransition", style]
+                app.launch()
+                XCTAssertTrue(app.buttons["face-1"].waitForExistence(timeout: 10))
+                XCTAssertTrue(app.buttons["face-1"].isSelected)
+                if !reverse { capture("\(style)-interrupted-mid") }
+                swipe(left: !reverse)
+                waitForFace(reverse ? "artificialAnalysis" : "epochECI")
+                capture("\(style)-interrupted-\(reverse ? "reverse" : "forward")")
+                app.buttons["settings"].tap()
+                let selected = app.buttons["board-transition-\(style)"]
+                XCTAssertTrue(selected.waitForExistence(timeout: 5))
+                XCTAssertTrue(selected.isSelected, "The interrupted gesture must use \(style)")
+                app.terminate()
+            }
+        }
+    }
     func testCubeMidTurnNativeCapture() {
         app.launchArguments += ["--cube-preview", "--preview-zh"]
         app.launch()

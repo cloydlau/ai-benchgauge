@@ -273,3 +273,25 @@ import Foundation
         }
     }
 }
+
+
+@Test @MainActor func aNewDragImmediatelyOwnsAnInFlightTurnAndInvalidatesItsCompletion() {
+    let cube = LeaderboardCubeState()
+    cube.face = 1; cube.origin = 0; cube.direction = 1
+    cube.position = 1; cube.turning = true; cube.turnSerial = 8
+    cube.beginDrag()
+    #expect(cube.dragging && !cube.turning)
+    #expect(cube.face == 1 && cube.origin == 1 && cube.position == 1)
+    cube.direction = -1; cube.position = 0.6
+    let serial = cube.turnSerial
+    cube.beginDrag()
+    #expect(cube.position == 0.6 && cube.direction == -1 && cube.turnSerial == serial)
+    cube.finishTurn(8)
+    #expect(cube.dragging && cube.position == 0.6)
+    cube.face = 0; cube.position = 0; cube.dragging = false; cube.turning = true
+    cube.turnSerial += 1
+    cube.finishTurn(serial)
+    #expect(cube.turning && cube.face == 0)
+    cube.finishTurn(cube.turnSerial)
+    #expect(!cube.turning && !cube.dragging && cube.position == 0)
+}
