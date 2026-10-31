@@ -15,7 +15,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, statSync, 
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { avatarForModel, detectModelName } from './commit-identity.mjs'
-import { acquireCommitLock } from './commit-lock.mjs'
+import { acquireCommitLock, pidState, DEFAULT_LOCK_STALE_MS } from './commit-lock.mjs'
 import { materializeAvatar, notifyDesktop } from './desktop-notify.mjs'
 import { gitProxyArgs, gitProxyValue } from './git-network.mjs'
 import { nodeExecutable } from './node-executable.mjs'
@@ -63,6 +63,17 @@ export function reloadWatcher(stop, { execve = process.execve, platform = proces
   takeCoverage()
   execve(node, [node, ...process.execArgv, ...process.argv.slice(1)], process.env)
   return true
+}
+
+// Observe only: the test runner owns acquisition and stale-lock recovery.
+export function testGateIsRunning(repo = root) {
+  const path = join(repo, 'work', 'test-results', 'test.lock')
+  try {
+    const age = Date.now() - statSync(path).mtimeMs
+    const owner = Number(readFileSync(path, 'utf8').trim().split(/\r?\n/, 1)[0])
+    const state = pidState(owner)
+    return state === 'alive' || (state === 'unknown' && age < DEFAULT_LOCK_STALE_MS)
+  } catch (error) { return error.code !== 'ENOENT' }
 }
 
 export function successfulTestReceipt() {
@@ -517,6 +528,7 @@ async function main() {
   let lastRebuiltSignature = null
   let lastTestReceipt = successfulTestReceipt()
   let rejectedRuntime = null
+  let waitingForTestGate = false
   const startupHead = currentHead()
   let deployedHead = readDeployedCommit()
   let lastHead = startupHead
@@ -535,6 +547,12 @@ async function main() {
     timer = null
   }
 
+  function waitForTestGate() {
+    clearTimer()
+    if (!waitingForTestGate) reportStatus('waiting', '其他流程正在执行测试，等待测试锁释放；期间的修改会合并检查')
+    waitingForTestGate = true
+  }
+
   function actionLabel() {
     if (!commitEnabled) return '重建并重启'
     return pushEnabled ? '原子提交并推送，并在源码变化时重建重启' : '原子提交，并在源码变化时重建重启'
@@ -543,6 +561,7 @@ async function main() {
   function schedule(reason, at, { retryPush = false, retryCommit = false } = {}) {
     if (retryPush) failedPushSignature = null
     lastChangeAt = at
+    if (waitingForTestGate) return
     const activityState = activity?.snapshot() || { blocked: false, ready: false, ticket: '' }
     if (activity && commitEnabled && (activityState.blocked || !activityState.ready)) {
       clearTimer()
@@ -561,7 +580,8 @@ async function main() {
     })
     clearTimer()
     const eta = new Date(Date.now() + wait).toLocaleTimeString('zh-CN', { hour12: false })
-    reportStatus('waiting', activityState.ready ? `${reason}，本仓库 AI 回合已完成，立即${actionLabel()}`
+    reportStatus('waiting', retryCommit ? `${reason}，1 秒后继续`
+      : activityState.ready ? `${reason}，立即${actionLabel()}`
       : `${reason}，将于 ${eta} ${actionLabel()}（防抖 ${Math.round(debounceMs / 1000)} 秒，节流 ${Math.round(throttleMs / 1000)} 秒）`)
     timer = setTimeout(runScheduled, wait)
   }
@@ -593,7 +613,9 @@ async function main() {
         lastGitSignature = gitStatusSignature()
         if (tested.status === 75 || lastSignature !== builtSignature || lastGitSignature !== gitSignature) {
           retryValidation = true
-          schedule('测试期间有新变更，重新验证', Date.now(), { retryCommit: tested.status === 75 })
+          if (tested.status === 75 && testGateIsRunning()) waitForTestGate()
+          else schedule(lastSignature !== builtSignature || lastGitSignature !== gitSignature
+            ? '测试期间有新变更，重新验证' : '测试暂不可用，稍后重新验证', Date.now(), { retryCommit: tested.status === 75 })
         } else {
           failedTestSignature = testSignature
           reportStatus('manual', `测试失败，已停止提交、推送和重建；等待下次保存；日志：${tested.logPath}`)
@@ -824,7 +846,8 @@ async function main() {
     : '[watch] 监听 Sources/、Tests/、Scripts/ 和构建配置；测试通过后重建重启；Ctrl-C 停止。不自动提交。')
   // 最后输出真实工作流状态；关闭部署不能阻断启动时的提交或推送。
   if (initialMoved || (!started && initialTest.status === 75)) {
-    schedule('测试锁被占用或检查期间有新改动，稍后重新验证', Date.now())
+    if (initialTest.status === 75 && testGateIsRunning()) waitForTestGate()
+    else schedule(initialMoved ? '检查期间有新改动，重新验证' : '测试暂不可用，稍后重新验证', Date.now(), { retryCommit: initialTest.status === 75 })
   } else if (!started && initialTest.status !== 0) {
     reportStatus('manual', `启动测试失败，提交、推送和部署已暂停；等待测试相关文件变更；日志：${initialTest.logPath}`)
   } else if (!started || !phoneOk) {
@@ -841,6 +864,10 @@ async function main() {
   }
 
   const poll = setInterval(() => {
+    if (waitingForTestGate && !testGateIsRunning()) {
+      waitingForTestGate = false
+      schedule('测试锁已释放，验证最新源码', Date.now(), { retryCommit: true })
+    }
     const activityState = activity?.snapshot() || { blocked: false, ready: false, ticket: '' }
     if (!busy && activityState.ready && activityState.ticket !== observedActivityTicket) {
       observedActivityTicket = activityState.ticket

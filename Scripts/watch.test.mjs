@@ -8,7 +8,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpat
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { deploymentNotification, dirtyStatusSignature } from './watch.mjs'
+import { deploymentNotification, dirtyStatusSignature, testGateIsRunning } from './watch.mjs'
 
 test('saving the same dirty file changes the commit retry signature', () => {
   const status = ' M Sources/example.swift\0'
@@ -414,7 +414,7 @@ export async function runTestGate() {
   writeFileSync(fixture.source, '// changed while a test lock is temporarily busy\n')
   await waitUntil(fixture, () => fixture.events().length >= 6)
   assert.deepEqual(fixture.events(), ['test', 'restart', 'test', 'test', 'build', 'restart'])
-  assert.match(fixture.output(), /测试期间有新变更，重新验证/)
+  assert.match(fixture.output(), /测试暂不可用，稍后重新验证/)
 })
 
 test('failed tests stop startup and saving a test file recovers without restarting the watcher', async (t) => {
@@ -741,6 +741,37 @@ test('invalid watch durations fail before any test, commit or restart', async t 
   assert.deepEqual(f.events(), [])
 })
 
+test('every invalid duration requests a failing exit before acquiring the watcher lock or starting work', async t => {
+  for (const [name, value] of [
+    ['WATCH_DEBOUNCE_MS', 'invalid'],
+    ['WATCH_THROTTLE_MS', '-1'],
+    ['WATCH_POLL_MS', 'Infinity'],
+  ]) {
+    const f = watcherFixture(t, { env: {
+      WATCH_DEBOUNCE_MS: '0', WATCH_THROTTLE_MS: '0', WATCH_POLL_MS: '200', [name]: value,
+    }, setup(root) {
+      const hook = join(root, 'exit-hook.cjs')
+      // The abrupt-exit case above verifies the real CLI. Trap its exit here
+      // so ESM evaluation finishes and V8 can retain the startup error path.
+      // Throwing also prevents execution from continuing beyond process.exit.
+      writeFileSync(hook, `const {writeFileSync}=require('node:fs')
+process.exit=code=>{
+  writeFileSync('exit-request.json',JSON.stringify({code}))
+  throw Error('fixture captured exit')
+}
+`)
+      return { NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --require=${JSON.stringify(hook)}`.trim() }
+    } })
+    assert.equal(await f.exited, 1)
+    assert.ok(f.output().includes(`${name} 无效：${value}`), f.output())
+    assert.match(f.output(), /启动失败：fixture captured exit/)
+    assert.deepEqual(JSON.parse(readFileSync(join(f.root, 'exit-request.json'), 'utf8')), { code: 1 })
+    assert.equal(existsSync(join(f.root, '.git', 'benchgauge-watch.lock')), false)
+    assert.equal(existsSync(join(f.root, 'work', 'watch-runtime.json')), false)
+    assert.deepEqual(f.events(), [])
+  }
+})
+
 test('source scan distinguishes permission denials, vanished files, directories and unexpected errors', async t => {
   for (const mode of ['denied-stat', 'denied-read', 'vanished', 'special', 'unexpected']) {
     const f = watcherFixture(t, { setup(root) {
@@ -791,7 +822,8 @@ test('a build failure stays blocked until a newer save arrives', async t => {
   } })
   await waitUntil(f, () => f.output().includes('等待源码变更'))
   writeFileSync(f.source, '// changed to fail build\n')
-  await waitUntil(f, () => f.output().includes('构建失败'))
+  await waitUntil(f, () => f.output().includes('同一签名不再自动重试'))
+  assert.match(f.output(), /构建失败/)
   const count = f.events().filter(event => event === 'build').length
   await new Promise(accept => setTimeout(accept, 350))
   assert.equal(f.events().filter(event => event === 'build').length, count)
@@ -876,7 +908,7 @@ test('edits arriving during a test are rechecked before the commit',async t=>{
 
 test('watcher lock reporting covers an orphan launcher and an unverifiable owner',async t=>{
  const f=watcherFixture(t,{setup(root){
-  writeFileSync(join(root,'Scripts/commit-lock.mjs'),`export function acquireCommitLock(options){if(options.launcherPid!==0)throw Error('wrong orphan marker');options.warn('fixture lock warning');return {acquired:false,owner:null}}`)
+  writeFileSync(join(root,'Scripts/commit-lock.mjs'),`export const pidState=()=> 'alive';export const DEFAULT_LOCK_STALE_MS=1800000;export function acquireCommitLock(options){if(options.launcherPid!==0)throw Error('wrong orphan marker');options.warn('fixture lock warning');return {acquired:false,owner:null}}`)
   writeFileSync(join(root,'hook.cjs'),`Object.defineProperty(process,'ppid',{value:1})`)
   return {NODE_OPTIONS:(process.env.NODE_OPTIONS||'')+` --require=${join(root,'hook.cjs')}`}
  }})
@@ -1154,7 +1186,7 @@ export async function runTestGate() {
         }
       } })
     const acknowledgement = join(f.root, '.git/calmmit/ai-activity/acknowledged.json')
-    await waitUntil(f, () => f.output().includes(phase === 'commit' ? '提交锁被占用' : '测试期间有新变更'))
+    await waitUntil(f, () => f.output().includes(phase === 'commit' ? '提交锁被占用' : '测试暂不可用'))
     assert.equal(existsSync(acknowledgement), false)
     await waitUntil(f, () => existsSync(acknowledgement))
     assert.equal(existsSync(acknowledgement), true)
@@ -1163,3 +1195,76 @@ export async function runTestGate() {
     assert.equal(f.output().includes('需人工介入'), false)
   })
 }
+
+
+for (const phase of ['startup', 'scheduled']) {
+  test(`a live ${phase} test lock waits once, coalesces edits and retains the AI completion until release`, async t => {
+    const f = watcherFixture(t, { gitWork: true,
+      env: { CALMMIT_COMMIT_TRIGGER: 'ai', APP_AUTODEPLOY: '0', WATCH_POLL_MS: '200', CODEX_HOME: '/nonexistent-codex-fixture' },
+      setup(root) {
+        assert.equal(spawnSync('git', ['init', '-q'], { cwd: root }).status, 0)
+        recordActivity(root, { session: 'lock-wait', turn: '1', status: 'active' })
+        mkdirSync(join(root, 'work/test-results'), { recursive: true })
+        if (phase === 'startup') writeFileSync(join(root, 'work/test-results/test.lock'), String(process.pid))
+        writeFileSync(join(root, 'Scripts/test-repair.mjs'), `import {appendFileSync,existsSync,readFileSync} from 'node:fs'
+export async function runTestGate() {
+  appendFileSync('events','test\\n')
+  if (existsSync('work/test-results/test.lock')) return {status:75,signature:null}
+  appendFileSync('events','tested:' + readFileSync('Sources/example.swift','utf8').trim() + '\\n')
+  return {status:0,signature:'mock-pass'}
+}
+`)
+      } })
+    const lock = join(f.root, 'work/test-results/test.lock')
+    if (phase === 'scheduled') {
+      await waitUntil(f, () => f.output().includes('监听 Sources/'))
+      writeFileSync(lock, String(process.pid))
+    }
+    recordActivity(f.root, { session: 'lock-wait', turn: '1', status: 'completed' })
+    await waitUntil(f, () => f.output().includes('等待测试锁释放'))
+    const attempts = f.events().filter(event => event === 'test').length
+    const acknowledgement = join(f.root, '.git/calmmit/ai-activity/acknowledged.json')
+    assert.equal(existsSync(acknowledgement), false)
+    writeFileSync(f.source, '// first pending edit')
+    await new Promise(resolve => setTimeout(resolve, 500))
+    writeFileSync(f.source, '// newest pending edit')
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    assert.equal(f.events().filter(event => event === 'test').length, attempts)
+    assert.equal(f.output().split('等待测试锁释放').length - 1, 1)
+    assert.doesNotMatch(f.output(), /测试期间有新变更/)
+    assert.equal(f.events().includes('commit'), false)
+    assert.equal(existsSync(acknowledgement), false)
+    rmSync(lock)
+    await waitUntil(f, () => existsSync(acknowledgement))
+    assert.equal(f.events().filter(event => event === 'test').length, attempts + 1)
+    assert.equal(f.events().filter(event => event === 'tested:// newest pending edit').length, 1)
+    assert.equal(f.events().filter(event => event === 'commit').length, 1)
+    assert.equal(f.events().filter(event => event === 'push').length, 1)
+    assert.equal(f.output().includes('需人工介入'), false)
+  })
+}
+
+
+test('test-lock observation leaves live and unverifiable locks intact and permits stale-owner recovery', t => {
+  const root = mkdtempSync(join(tmpdir(), 'benchgauge-observe-test-lock-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  const directory = join(root, 'work/test-results'), path = join(directory, 'test.lock')
+  mkdirSync(directory, { recursive: true })
+  assert.equal(testGateIsRunning(root), false)
+  writeFileSync(path, String(process.pid))
+  assert.equal(testGateIsRunning(root), true)
+  t.mock.method(process, 'kill', () => { throw Object.assign(Error('gone'), { code: 'ESRCH' }) })
+  assert.equal(testGateIsRunning(root), false)
+  assert.equal(readFileSync(path, 'utf8'), String(process.pid))
+  process.kill = () => { throw Object.assign(Error('unverifiable'), { code: 'EPERM' }) }
+  assert.equal(testGateIsRunning(root), true)
+  const old = new Date(Date.now() - 31 * 60_000)
+  utimesSync(path, old, old)
+  assert.equal(testGateIsRunning(root), false)
+  writeFileSync(path, '')
+  utimesSync(path, new Date(), new Date())
+  assert.equal(testGateIsRunning(root), true)
+  rmSync(path)
+  mkdirSync(path)
+  assert.equal(testGateIsRunning(root), true)
+})

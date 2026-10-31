@@ -15,7 +15,7 @@ async function fixture(t){
  const stubs={
  'calmmit.mjs':`export const ci={load:async()=>({workflowStatus:(_,message)=>message})}`,
  'commit-identity.mjs':`export const avatarForModel=()=>{if(globalThis.unitAvatarFails)throw Error('avatar fixture');return 'fixture'};export const detectModelName=()=>globalThis.unitModel`,
- 'commit-lock.mjs':`export const acquireCommitLock=()=>({acquired:true,release(){}})`,
+ 'commit-lock.mjs':`export const pidState=()=> 'alive';export const DEFAULT_LOCK_STALE_MS=1800000;export const acquireCommitLock=()=>({acquired:true,release(){}})`,
  'desktop-notify.mjs':`export const materializeAvatar=()=>'fixture';export const notifyDesktop=()=>{if(globalThis.unitNotifyFails)throw Error('notification fixture')}`,
  'git-network.mjs':`export const gitProxyValue=()=>globalThis.unitProxy||'';export const gitProxyArgs=()=>[]`,
  'node-executable.mjs':`export const nodeExecutable=()=>process.execPath`,
