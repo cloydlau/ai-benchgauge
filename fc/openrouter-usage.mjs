@@ -113,7 +113,8 @@ export async function loadOpenRouterUsage({ now = Date.now(), apiKey = process.e
         const id = ids[next++];
         try {
           const url = `https://openrouter.ai/api/v1/models/${id.split('/').map(encodeURIComponent).join('/')}/endpoints`;
-          const response = await fetcher(url, { signal, redirect: 'error', headers: { Accept: 'application/json' } });
+          const response = await fetcher(url, { signal, redirect: 'error',
+            headers: { Authorization: `Bearer ${apiKey.trim()}`, Accept: 'application/json' } });
           responses.set(id, JSON.parse((await readBounded(response, 512000)).toString('utf8')));
         } catch { /* Missing speed does not discard usage or prices. */ }
       }
