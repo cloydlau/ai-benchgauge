@@ -17,10 +17,11 @@ test('Apple/Windows generated policy cannot drift from the server/mini-program c
   writeFileSync(join(dir,'fc/country-catalog.json'),JSON.stringify(countries));writeFileSync(join(dir,'fc/brand-catalog.json'),JSON.stringify(catalog));writeFileSync(join(dir,'fc/leaderboard-policy.json'),JSON.stringify(policy))
   execFileSync(process.execPath,[script.pathname,'--root',dir])
   execFileSync(process.execPath,[script.pathname,'--root',dir,'--check'])
-  const legacyCatalog={...catalog};delete legacyCatalog.modelDevelopers
+  const legacyCatalog={...catalog};delete legacyCatalog.modelDevelopers;delete legacyCatalog.modelDisplayAliases
   writeFileSync(join(dir,'fc/brand-catalog.json'),JSON.stringify(legacyCatalog))
   execFileSync(process.execPath,[script.pathname,'--root',dir])
   assert.match(readFileSync(join(dir,'Sources/LeaderboardKit/LeaderboardBrandPolicy.generated.swift'),'utf8'),/modelDevelopersStorage: \[String: String\] = \[\n\n    \]/)
+  assert.match(readFileSync(join(dir,'Sources/LeaderboardKit/LeaderboardBrandPolicy.generated.swift'),'utf8'),/modelDisplayAliasesStorage: Set<String> = \[\]/)
   const legacyPolicy={...policy};delete legacyPolicy.verifiedModelOpenness
   writeFileSync(join(dir,'fc/leaderboard-policy.json'),JSON.stringify(legacyPolicy))
   execFileSync(process.execPath,[script.pathname,'--root',dir])

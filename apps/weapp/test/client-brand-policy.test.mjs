@@ -12,7 +12,7 @@ test('mini-program keeps shared identities while excluding server artwork from i
   const plugin = clientBrandPolicyPlugin(root)
   const transformed = plugin.transform(source, path)
   const policy = JSON.parse(transformed.code)
-  for (const key of ['aliases', 'families', 'modelDevelopers', 'colors', 'bundledModelMarks'])
+  for (const key of ['aliases', 'families', 'modelDevelopers', 'modelDisplayAliases', 'colors', 'bundledModelMarks'])
     assert.deepEqual(policy[key], original[key], key)
   assert.deepEqual(policy.modelLogos, [])
   assert.deepEqual(policy.providerLogos, {})
@@ -28,6 +28,13 @@ test('mini-program keeps shared identities while excluding server artwork from i
     { organization: null, name: 'Devin Fusion CLI - Claude Opus + GPT' },
     { organization: null, name: 'trinity-large-thinking' }])
     assert.equal(client.brandKey(entry), shared.brandKey(entry))
+  for (const name of original.modelDisplayAliases) {
+    for (const modelID of [undefined, name, name + '-unverified-finetune']) {
+      const entry = { name, modelID }
+      assert.equal(client.brandKey(entry), shared.brandKey(entry), name + ': ' + modelID)
+    }
+  }
+  assert.equal(client.brandKey({ name: 'Yi Lightning', modelID: 'yi-lightning-finetune' }), null)
   assert.equal(client.knownModelBrand({ name: 'Wan 3', organization: 'Alibaba' }), null)
   assert.deepEqual(plugin.transform(source, path + '?import'), transformed)
   assert.equal(plugin.transform(source, path + '.unrelated'), null)

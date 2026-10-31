@@ -9,8 +9,8 @@ export function clientBrandPolicyPlugin(root) {
     enforce: 'pre',
     transform(source, id) {
       if (resolve(id.split('?')[0]) !== catalogPath) return null
-      const { aliases, families, modelDevelopers, colors, bundledModelMarks } = JSON.parse(source)
-      return { code: JSON.stringify({ aliases, families, modelDevelopers, colors, bundledModelMarks,
+      const { aliases, families, modelDevelopers, modelDisplayAliases, colors, bundledModelMarks } = JSON.parse(source)
+      return { code: JSON.stringify({ aliases, families, modelDevelopers, modelDisplayAliases, colors, bundledModelMarks,
         modelLogos: [], providerLogos: {} }), map: null }
     },
   }

@@ -101,10 +101,7 @@ export class CountryRegistry {
       if (canonicalName && normalizedBrandKey(canonicalName) === normalizedBrandKey(entry.organization)) {
         return { ...entry, organization: canonicalName };
       }
-      const name = String(entry.name ?? '').trim().toLowerCase();
-      const id = String(entry.modelID ?? '').trim().toLowerCase();
-      const key = [id, name].filter(Boolean).map(value => Object.prototype.hasOwnProperty.call(brandCatalog.modelDevelopers, value)
-        ? brandCatalog.modelDevelopers[value] : null).find(Boolean);
+      const key = brandKey(entry);
       return !entry.organization?.trim() && key && policy.companyNames[key]
         ? { ...entry, organization: policy.companyNames[key] } : entry;
     }) };

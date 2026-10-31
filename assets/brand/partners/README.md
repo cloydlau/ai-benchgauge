@@ -48,3 +48,5 @@ Icones, with its pinned upstream revision, hashes and complete license. The same
 exporter replaces `assets/logos/github.png` for desktop repository buttons and
 shared contributor avatars. See `github/README.md`; this is Tabler artwork,
 separate from the official leaderboard-source marks.
+
+Leaderboard row model/provider marks are maintained separately in [the shared provider directory](leaderboard-providers/README.md). Its offline generator updates the service catalog consumed by every client and image export.

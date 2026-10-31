@@ -85,3 +85,5 @@ uses its panel palette and a silver selection gradient. Native Mac table surface
 and Windows white ranking surfaces retain platform conventions. Source identity
 blue/purple, organization marks, Open/Closed badges and quota/status colors keep
 their meaning independently of the application accent.
+
+Leaderboard row model/provider marks are maintained separately in [the shared provider directory](partners/leaderboard-providers/README.md). Its offline generator updates the service catalog consumed by every client and image export.

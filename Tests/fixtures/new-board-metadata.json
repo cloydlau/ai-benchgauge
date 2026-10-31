@@ -1,0 +1,1358 @@
+[
+  {
+    "name": "Kling Image O1",
+    "organization": "kling",
+    "key": "klingai",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "P-Image-Edit",
+    "key": "prunaai",
+    "countryCode": "DE",
+    "expectLogo": true
+  },
+  {
+    "name": "vidu-q3-pro",
+    "organization": "shengshu",
+    "key": "vidu",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "kling-v3-pro",
+    "organization": "kling",
+    "key": "klingai",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "kling-2.6-pro",
+    "organization": "kling",
+    "key": "klingai",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "kling-2.5-turbo-1080p",
+    "organization": "kling",
+    "key": "klingai",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "vidu-q2-turbo",
+    "organization": "shengshu",
+    "key": "vidu",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "kling-v2.1-master",
+    "organization": "kling",
+    "key": "klingai",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "kling-v2.1-standard",
+    "organization": "kling",
+    "key": "klingai",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "vidu-q2-pro",
+    "organization": "shengshu",
+    "key": "vidu",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "Trinity Large Thinking",
+    "key": "arceeai",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Yi Lightning",
+    "key": "01ai",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "Athene V2 Chat",
+    "key": "nexusflow",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Athene 70B (0725)",
+    "key": "nexusflow",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Jamba 1.5 Large",
+    "key": "ai21labs",
+    "countryCode": "IL",
+    "expectLogo": true
+  },
+  {
+    "name": "Reka Core (20240904)",
+    "key": "reka",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Gemma 2 9B IT SimPO",
+    "key": "princetonnlp",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Reka Flash (20240904)",
+    "key": "reka",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Jamba 1.5 Mini",
+    "key": "ai21labs",
+    "countryCode": "IL",
+    "expectLogo": true
+  },
+  {
+    "name": "Reka Flash 21B (Online, 20240226)",
+    "key": "reka",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Reka Flash 21B (20240226)",
+    "key": "reka",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Zephyr ORPO 141B A35B v0.1",
+    "key": "huggingface",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Yi 1.5 34B Chat",
+    "key": "01ai",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "DBRX Instruct Preview",
+    "key": "databricks",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "InternLM2.5 20B Chat",
+    "key": "shanghaiailaboratory",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "Yi 34B Chat",
+    "key": "01ai",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "Snowflake Arctic Instruct",
+    "key": "snowflake",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Tulu 2 DPO 70B",
+    "key": "ai2",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Vicuna 33B",
+    "key": "lmsys",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Starling LM 7B Beta",
+    "key": "ucberkeley",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Starling LM 7B Alpha",
+    "key": "ucberkeley",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Nous Hermes 2 Mixtral 8x7B DPO",
+    "key": "nousresearch",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "MPT 30B Chat",
+    "key": "mosaicml",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Falcon 180B Chat",
+    "key": "technologyinnovationinstitute",
+    "countryCode": "AE",
+    "expectLogo": true
+  },
+  {
+    "name": "Vicuna 13B",
+    "key": "lmsys",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Zephyr 7B Beta",
+    "key": "huggingface",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Guanaco 33B",
+    "key": "universityofwashington",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Zephyr 7B Alpha",
+    "key": "huggingface",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "StripedHyena Nous 7B",
+    "key": "togetherai",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Vicuna 7B",
+    "key": "lmsys",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "SmolLM2 1.7B Instruct",
+    "key": "huggingface",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Koala 13B",
+    "key": "ucberkeley",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Alpaca 13B",
+    "key": "stanford",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "GPT4All 13B Snoozy",
+    "key": "nomicai",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "MPT 7B Chat",
+    "key": "mosaicml",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "ChatGLM3 6B",
+    "key": "zai",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "ChatGLM2 6B",
+    "key": "zai",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "OpenAssistant Pythia 12B",
+    "key": "laion",
+    "countryCode": "DE",
+    "expectLogo": true
+  },
+  {
+    "name": "ChatGLM 6B",
+    "key": "zai",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "FastChat-T5 3B",
+    "key": "lmsys",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Dolly 2.0 12B",
+    "key": "databricks",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "StableLM Tuned Alpha 7B",
+    "key": "stabilityai",
+    "countryCode": "GB",
+    "expectLogo": true
+  },
+  {
+    "name": "kling-o1-pro",
+    "organization": "kling",
+    "key": "klingai",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "mochi-v1",
+    "organization": "genmo",
+    "key": "genmoai",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "kling-o3-pro",
+    "organization": "kling",
+    "key": "klingai",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "DreamImage 2.0",
+    "organization": "Newport AI",
+    "key": "newportai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "HeyGen Video 1",
+    "organization": "HeyGen",
+    "key": "heygen",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Cartesia Managed Agents",
+    "organization": "Cartesia",
+    "key": "cartesia",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Phonic 1 (High)",
+    "organization": "Phonic",
+    "key": "phonic",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Eleven Realtime v1 Max",
+    "organization": "ElevenLabs",
+    "key": "elevenlabs",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "ElevenLabs Agents (Default Cascaded System)",
+    "organization": "ElevenLabs",
+    "key": "elevenlabs",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Eleven Realtime v1 Mini",
+    "organization": "ElevenLabs",
+    "key": "elevenlabs",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Nova 2.0 Sonic (Mar 2026)",
+    "organization": "Amazon Bedrock",
+    "key": "amazon",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Deepgram Voice Agent (Default Cascaded System)",
+    "organization": "Deepgram",
+    "key": "deepgram",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Inworld Realtime (Default Cascaded System)",
+    "organization": "Inworld",
+    "key": "inworld",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Qwen Audio 3.0 Realtime Flash",
+    "organization": "Alibaba Cloud",
+    "key": "qwen",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "Qwen3.5 Omni Plus Realtime",
+    "organization": "Alibaba Cloud",
+    "key": "qwen",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "Qwen3.5 Omni Flash Realtime",
+    "organization": "Alibaba Cloud",
+    "key": "qwen",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "Qwen Audio 3.0 Realtime Plus",
+    "organization": "Alibaba Cloud",
+    "key": "qwen",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "HeyGen Voice",
+    "organization": "HeyGen",
+    "key": "heygen",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "HeyGen Voice Turbo",
+    "organization": "HeyGen",
+    "key": "heygen",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Eleven v4",
+    "organization": "ElevenLabs",
+    "key": "elevenlabs",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Eleven v4 Turbo",
+    "organization": "ElevenLabs",
+    "key": "elevenlabs",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Sonic 3.6",
+    "organization": "Cartesia",
+    "key": "cartesia",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Realtime TTS-2",
+    "organization": "Inworld",
+    "key": "inworld",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Sonic 3.5",
+    "organization": "Cartesia",
+    "key": "cartesia",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "AssemblyAI-TTS-1",
+    "organization": "AssemblyAI",
+    "key": "assemblyai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Lightning V3.1 Pro (Oct 2026)",
+    "organization": "Smallest.ai",
+    "key": "smallestai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Fish Audio Drama 3",
+    "organization": "Fish Audio",
+    "key": "fishaudio",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Simba 3.2",
+    "organization": "SpeechifyAI",
+    "key": "speechifyai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Eleven v3",
+    "organization": "ElevenLabs",
+    "key": "elevenlabs",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "v3 Conversational",
+    "organization": "ElevenLabs",
+    "key": "elevenlabs",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Realtime TTS-2 Flash",
+    "organization": "Inworld",
+    "key": "inworld",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Fish Audio Drama 3 Preview",
+    "organization": "Fish Audio",
+    "key": "fishaudio",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Gradium TTS (Sep 2026)",
+    "organization": "Gradium",
+    "key": "gradium",
+    "countryCode": "FR",
+    "expectLogo": false
+  },
+  {
+    "name": "Simba 3.0",
+    "organization": "SpeechifyAI",
+    "key": "speechifyai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Breeze TTS 2",
+    "organization": "BreezeBlue",
+    "key": "breezeblue",
+    "countryCode": null,
+    "expectLogo": false
+  },
+  {
+    "name": "Gradium TTS (Aug 2026)",
+    "organization": "Gradium",
+    "key": "gradium",
+    "countryCode": "FR",
+    "expectLogo": false
+  },
+  {
+    "name": "OpenAudio S1 Mini",
+    "organization": "Fish Audio",
+    "key": "fishaudio",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Fish Audio S2.1 Pro (Oct 2026)",
+    "organization": "Fish Audio",
+    "key": "fishaudio",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Fish Audio S2 Pro",
+    "organization": "Fish Audio",
+    "key": "fishaudio",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "OpenAudio S1",
+    "organization": "Fish Audio",
+    "key": "fishaudio",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Multilingual v2",
+    "organization": "ElevenLabs",
+    "key": "elevenlabs",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Flash v2.5",
+    "organization": "ElevenLabs",
+    "key": "elevenlabs",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Fish Audio S1",
+    "organization": "Fish Audio",
+    "key": "fishaudio",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Turbo v2.5",
+    "organization": "ElevenLabs",
+    "key": "elevenlabs",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Kugel 3",
+    "organization": "KugelAudio",
+    "key": "kugelaudio",
+    "countryCode": "DE",
+    "expectLogo": false
+  },
+  {
+    "name": "Higgs Audio V3 TTS",
+    "organization": "Boson AI",
+    "key": "bosonai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Soniox TTS Real-Time v2",
+    "organization": "Soniox",
+    "key": "soniox",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Sonic 3",
+    "organization": "Cartesia",
+    "key": "cartesia",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Chatterbox",
+    "organization": "Resemble AI",
+    "key": "resembleai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Raon SpeechLM",
+    "organization": "Krafton",
+    "key": "krafton",
+    "countryCode": "KR",
+    "expectLogo": false
+  },
+  {
+    "name": "Noiz TTS",
+    "organization": "Noiz",
+    "key": "noiz",
+    "countryCode": "CN",
+    "expectLogo": false
+  },
+  {
+    "name": "Lightning v3.1",
+    "organization": "Smallest.ai",
+    "key": "smallestai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "XTTS v2",
+    "organization": "Coqui",
+    "key": "coqui",
+    "countryCode": "DE",
+    "expectLogo": false
+  },
+  {
+    "name": "OpenVoice v2",
+    "organization": "OpenVoice",
+    "key": "openvoice",
+    "countryCode": null,
+    "expectLogo": false
+  },
+  {
+    "name": "Luna TTS",
+    "organization": "VUI Labs",
+    "key": "vuilabs",
+    "countryCode": "CN",
+    "expectLogo": false
+  },
+  {
+    "name": "Falcon 2",
+    "organization": "Murf AI",
+    "key": "murfai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Async Flash v1.5",
+    "organization": "async",
+    "key": "async",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Async Pro v1.0",
+    "organization": "async",
+    "key": "async",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Chatterbox HD",
+    "organization": "Resemble AI",
+    "key": "resembleai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Speech 2.6",
+    "organization": "Hithink",
+    "key": "hithink",
+    "countryCode": "CN",
+    "expectLogo": false
+  },
+  {
+    "name": "Maya 2 Flash",
+    "organization": "Maya Research",
+    "key": "mayaresearch",
+    "countryCode": "IN",
+    "expectLogo": false
+  },
+  {
+    "name": "Kokoro 82M v1.0",
+    "organization": "Kokoro",
+    "key": "kokoro",
+    "countryCode": null,
+    "expectLogo": true
+  },
+  {
+    "name": "Octave 2",
+    "organization": "Hume AI",
+    "key": "humeai",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Coda",
+    "organization": "Rime",
+    "key": "rime",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Flux TTS",
+    "organization": "Deepgram",
+    "key": "deepgram",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Async Flash v1.0",
+    "organization": "async",
+    "key": "async",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Maya 2 Global",
+    "organization": "Maya Research",
+    "key": "mayaresearch",
+    "countryCode": "IN",
+    "expectLogo": false
+  },
+  {
+    "name": "Maya1",
+    "organization": "Maya Research",
+    "key": "mayaresearch",
+    "countryCode": "IN",
+    "expectLogo": false
+  },
+  {
+    "name": "Octave TTS",
+    "organization": "Hume AI",
+    "key": "humeai",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Bland Speech v3",
+    "organization": "Bland AI",
+    "key": "blandai",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Zonos-v0.1",
+    "organization": "Zyphra",
+    "key": "zyphra",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Murf Speech Gen 2",
+    "organization": "Murf AI",
+    "key": "murfai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Neuphonic TTS",
+    "organization": "Neuphonic",
+    "key": "neuphonic",
+    "countryCode": "GB",
+    "expectLogo": true
+  },
+  {
+    "name": "Mist V2",
+    "organization": "Rime",
+    "key": "rime",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "StyleTTS 2",
+    "organization": "StyleTTS ",
+    "key": "styletts",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "MetaVoice v1",
+    "organization": "MetaVoice",
+    "key": "metavoice",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Fun-Realtime-ASR-preview, Alibaba",
+    "organization": "Alibaba Cloud",
+    "key": "qwen",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "Scribe v2",
+    "organization": "ElevenLabs",
+    "key": "elevenlabs",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Zoom Scribe V2 Pro",
+    "organization": "Zoom",
+    "key": "zoom",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Universal-3.5 Pro",
+    "organization": "AssemblyAI",
+    "key": "assemblyai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Universal-3 Pro",
+    "organization": "AssemblyAI",
+    "key": "assemblyai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Solaria-3",
+    "organization": "Gladia",
+    "key": "gladia",
+    "countryCode": "FR",
+    "expectLogo": false
+  },
+  {
+    "name": "Smallest AI Pulse",
+    "organization": "Smallest.ai",
+    "key": "smallestai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Resonant-1",
+    "organization": "Reson8",
+    "key": "reson8",
+    "countryCode": "NL",
+    "expectLogo": false
+  },
+  {
+    "name": "Smallest AI Pulse Pro",
+    "organization": "Smallest.ai",
+    "key": "smallestai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Nemotron 3.5 Transcribe",
+    "organization": "DeepInfra",
+    "key": "deepinfra",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Qwen3.5 Omni Plus",
+    "organization": "Alibaba Cloud",
+    "key": "qwen",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "Soniox v5 Async",
+    "organization": "Soniox",
+    "key": "soniox",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Universal",
+    "organization": "AssemblyAI",
+    "key": "assemblyai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Voxtral Mini, Deepinfra",
+    "organization": "DeepInfra",
+    "key": "deepinfra",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Inworld STT 1",
+    "organization": "Inworld",
+    "key": "inworld",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Enhanced",
+    "organization": "Speechmatics",
+    "key": "speechmatics",
+    "countryCode": "GB",
+    "expectLogo": false
+  },
+  {
+    "name": "Solaria-1",
+    "organization": "Gladia",
+    "key": "gladia",
+    "countryCode": "FR",
+    "expectLogo": false
+  },
+  {
+    "name": "Whisper (L, v3), fal.ai",
+    "organization": "fal.ai",
+    "key": "fal",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Amazon Transcribe",
+    "organization": "Amazon Bedrock",
+    "key": "amazon",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Modulate STT Batch English VFast",
+    "organization": "Modulate",
+    "key": "modulate",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Canary Qwen 2.5B, Replicate",
+    "organization": "Replicate",
+    "key": "replicate",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Whisper (L, v3, Turbo), Groq",
+    "organization": "Groq",
+    "key": "groq",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Wizper (L, v3), fal.ai",
+    "organization": "fal.ai",
+    "key": "fal",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Nova-3, Telnyx",
+    "organization": "Telnyx",
+    "key": "telnyx",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Nova 2 Pro",
+    "organization": "Amazon Bedrock",
+    "key": "amazon",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Melia",
+    "organization": "Speechmatics",
+    "key": "speechmatics",
+    "countryCode": "GB",
+    "expectLogo": false
+  },
+  {
+    "name": "Nova-2, Telnyx",
+    "organization": "Telnyx",
+    "key": "telnyx",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Standard",
+    "organization": "Speechmatics",
+    "key": "speechmatics",
+    "countryCode": "GB",
+    "expectLogo": false
+  },
+  {
+    "name": "Nova-3",
+    "organization": "Deepgram",
+    "key": "deepgram",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Parakeet RNNT 1.1B, Replicate",
+    "organization": "Replicate",
+    "key": "replicate",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Whisper Large v3 Turbo, Telnyx",
+    "organization": "Telnyx",
+    "key": "telnyx",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Incredibly Fast, Replicate",
+    "organization": "Replicate",
+    "key": "replicate",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Rev AI",
+    "organization": "Rev AI",
+    "key": "revai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Gradium Speech-to-Text",
+    "organization": "Gradium",
+    "key": "gradium",
+    "countryCode": "FR",
+    "expectLogo": false
+  },
+  {
+    "name": "Whisper (L, v3), Replicate",
+    "organization": "Replicate",
+    "key": "replicate",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Qwen3.5 Omni Flash",
+    "organization": "Alibaba Cloud",
+    "key": "qwen",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "ElevenLabs Scribe v2 Realtime",
+    "organization": "ElevenLabs",
+    "key": "elevenlabs",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Cartesia Ink Preview (external endpoints)",
+    "organization": "Cartesia",
+    "key": "cartesia",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Cartesia Ink-2 (external endpoints)",
+    "organization": "Cartesia",
+    "key": "cartesia",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Cartesia Ink Preview (semantic endpoints)",
+    "organization": "Cartesia",
+    "key": "cartesia",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Resonant-1 Realtime",
+    "organization": "Reson8",
+    "key": "reson8",
+    "countryCode": "NL",
+    "expectLogo": false
+  },
+  {
+    "name": "Cartesia Ink-2 (semantic endpoints)",
+    "organization": "Cartesia",
+    "key": "cartesia",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Saaras v4 Realtime",
+    "organization": "Sarvam",
+    "key": "sarvam",
+    "countryCode": "IN",
+    "expectLogo": false
+  },
+  {
+    "name": "Universal-3.6 Pro Realtime - Min Latency",
+    "organization": "AssemblyAI",
+    "key": "assemblyai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Qwen3 ASR Flash Realtime",
+    "organization": "Alibaba Cloud",
+    "key": "qwen",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "Inworld STT 1 Realtime",
+    "organization": "Inworld",
+    "key": "inworld",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Zoom Scribe Live",
+    "organization": "Zoom",
+    "key": "zoom",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Alebex STT",
+    "organization": "Alebex",
+    "key": "alebex",
+    "countryCode": "CA",
+    "expectLogo": false
+  },
+  {
+    "name": "Universal-3.6 Pro Realtime - Max Accuracy",
+    "organization": "AssemblyAI",
+    "key": "assemblyai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "AssemblyAI U3.5 Realtime Pro - Min Latency",
+    "organization": "AssemblyAI",
+    "key": "assemblyai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "AssemblyAI U3.5 Realtime Pro - Max Accuracy",
+    "organization": "AssemblyAI",
+    "key": "assemblyai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Speechmatics Agent STT Linden 1",
+    "organization": "Speechmatics",
+    "key": "speechmatics",
+    "countryCode": "GB",
+    "expectLogo": false
+  },
+  {
+    "name": "AssemblyAI U3 Realtime Pro",
+    "organization": "AssemblyAI",
+    "key": "assemblyai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Soniox v4 Real-Time",
+    "organization": "Soniox",
+    "key": "soniox",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Soniox v5 Real-Time",
+    "organization": "Soniox",
+    "key": "soniox",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Modulate STT Streaming English",
+    "organization": "Modulate",
+    "key": "modulate",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Amazon Transcribe Streaming",
+    "organization": "Amazon Bedrock",
+    "key": "amazon",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Smallest Pulse realtime",
+    "organization": "Smallest.ai",
+    "key": "smallestai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Azure STT Real-time Transcription",
+    "organization": "Microsoft Azure",
+    "key": "microsoftai",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Deepgram Nova-3 Realtime",
+    "organization": "Deepgram",
+    "key": "deepgram",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Deepgram Flux",
+    "organization": "Deepgram",
+    "key": "deepgram",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "Gradium STT Realtime",
+    "organization": "Gradium",
+    "key": "gradium",
+    "countryCode": "FR",
+    "expectLogo": false
+  },
+  {
+    "name": "Gladia Solaria 1 Realtime",
+    "organization": "Gladia",
+    "key": "gladia",
+    "countryCode": "FR",
+    "expectLogo": false
+  },
+  {
+    "name": "Speechmatics Realtime Enhanced",
+    "organization": "Speechmatics",
+    "key": "speechmatics",
+    "countryCode": "GB",
+    "expectLogo": false
+  },
+  {
+    "name": "Universal Streaming English",
+    "organization": "AssemblyAI",
+    "key": "assemblyai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "RevAI Streaming",
+    "organization": "Rev AI",
+    "key": "revai",
+    "countryCode": "US",
+    "expectLogo": false
+  },
+  {
+    "name": "Spark-X2.6",
+    "organization": "synlan",
+    "key": "synlan",
+    "countryCode": "SG",
+    "expectLogo": true
+  },
+  {
+    "name": "KAT-Coder-Pro V1",
+    "key": "kuaishou",
+    "countryCode": "CN",
+    "expectLogo": true
+  },
+  {
+    "name": "open_llama_7b",
+    "organization": "OpenLM Research",
+    "key": "openlmresearch",
+    "countryCode": null,
+    "expectLogo": true
+  },
+  {
+    "name": "typesafe/jev-1.13-20260917",
+    "organization": "typesafe",
+    "key": "typesafe",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "typesafe/jev-1.14-20261014",
+    "organization": "typesafe",
+    "key": "typesafe",
+    "countryCode": "US",
+    "expectLogo": true
+  },
+  {
+    "name": "dots-studio/dots-3-note-preview-20260813:free",
+    "organization": "dots-studio",
+    "key": "dotsstudio",
+    "countryCode": "CN",
+    "expectLogo": true
+  }
+]

@@ -85,7 +85,7 @@ for (const storageUnavailable of [false, true]) {
       const decoded = await sharp(image).metadata();
       assert.deepEqual([decoded.format, decoded.width, decoded.height], ['png', 64, 64], key);
       assert.equal(output.entries[i].brand.key, key);
-      assert.equal(output.entries[i].brand.pngData, record.pngData, key);
+      assert.equal(output.entries[i].brand.pngData, (catalog.companyLogos?.[key] ?? record).pngData, key);
       assert.equal(output.entries[i].rank, input.entries[i].rank);
       assert.equal(output.entries[i].score, input.entries[i].score);
     }

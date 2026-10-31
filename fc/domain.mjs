@@ -111,7 +111,8 @@ export function createBrandRules(catalog) {
       const name = String(entry.name ?? '').trim().toLowerCase()
       const id = !String(entry.organization ?? '').trim() ? String(entry.modelID ?? '').trim().toLowerCase() : ''
       const developers = catalog.modelDevelopers ?? {}
-      const verified = [id, name].filter(Boolean).map(key => hasOwn(developers, key) ? developers[key] : null).find(Boolean) ?? null
+      const verified = (id && hasOwn(developers, id) ? developers[id] : null)
+        ?? ((!id || id === name || !catalog.modelDisplayAliases?.includes(name)) && hasOwn(developers, name) ? developers[name] : null)
       return normalizedBrandKey(entry.name).startsWith('devin') ? 'devin' : hosted ?? verified
     }
     return hosted ?? organization

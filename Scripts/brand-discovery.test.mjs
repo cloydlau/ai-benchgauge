@@ -115,7 +115,8 @@ test('branding failures do not suppress refresh grants or rankings and budgets s
 });
 test('shared catalog retains Swift established colors/families and stable alias fallback vectors', () => {
   const catalog=JSON.parse(readFileSync(new URL('../fc/brand-catalog.json',import.meta.url)));
-  const swift=readFileSync(new URL('../Sources/LeaderboardKit/OrganizationLogoCatalog.swift',import.meta.url),'utf8');
+  const swift=readFileSync(new URL('../Sources/LeaderboardKit/LeaderboardBrandPolicy.generated.swift',import.meta.url),'utf8');
+  assert.match(readFileSync(new URL('../Sources/LeaderboardKit/OrganizationLogoCatalog.swift',import.meta.url),'utf8'), /brandColors = LeaderboardBrandPolicy\.brandColors/);
   const colors=Object.fromEntries([...swift.matchAll(/"([a-z]+)": "(#[0-9A-F]{6})"/g)].map(m=>[m[1],m[2]]));
   assert.deepEqual(catalog.colors,colors);
   const generated=readFileSync(new URL('../Sources/LeaderboardKit/LeaderboardBrandPolicy.generated.swift',import.meta.url),'utf8');
@@ -316,7 +317,8 @@ test('old cached product images never become company marks and a real sibling co
   const result = await new BrandRegistry(new Store()).enrich({ kind: 'arenaText', entries: [model] });
   assert.equal(result.entries[0].brand.key, 'model-product-qwen');
   assert.equal(result.entries[0].brand.pngData, productPNG);
-  assert.equal(result.entries[0].organizationBrand.pngData, undefined);
+  assert.equal(result.entries[0].organizationBrand.pngData, catalog.companyLogos.qwen.pngData);
+  assert.notEqual(result.entries[0].organizationBrand.pngData, productPNG);
   const { companyRows } = await import('../fc/domain.mjs');
   assert.equal(companyRows([model])[0].brand.pngData, undefined);
   const wan = { ...model, name: 'Wan 3.0', brand: { key: 'model-wan', pngData: catalog.modelLogos.find(item => item.key === 'wan').pngData } };
@@ -334,7 +336,8 @@ test('a cached product mark is replaced when a verified company source becomes a
   const registry = new BrandRegistry(store, { download: async () => svg });
   const entry = { rank: 1, score: 99, name: 'Qwen3.5', organization: 'Alibaba', logoURL: 'https://artificialanalysis.ai/img/logos/alibaba.svg' };
   const stale = await registry.enrich({ entries: [entry] });
-  assert.equal(stale.entries[0].organizationBrand.pngData, undefined);
+  assert.equal(stale.entries[0].organizationBrand.pngData, catalog.companyLogos.qwen.pngData);
+  assert.notEqual(stale.entries[0].organizationBrand.pngData, catalog.providerLogos.qwen.pngData);
   const fixed = await registry.enrich({ entries: [entry] }, { acquire: true });
   assert.equal(fixed.entries[0].brand.key, 'model-product-qwen');
   assert.equal(fixed.entries[0].organizationBrand.pngData, (await normalizeLogo(svg)).png.toString('base64'));

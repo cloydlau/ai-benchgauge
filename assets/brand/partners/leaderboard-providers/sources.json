@@ -1,0 +1,204 @@
+{
+  "normalization": "fc/brands.mjs normalizeLogo",
+  "retrievedAt": "2026-10-31T13:33:37.831Z",
+  "records": [
+    {
+      "key": "cartesia",
+      "scope": "provider",
+      "file": "cartesia/logo.svg",
+      "sourceURL": "https://artificialanalysis.ai/img/logos/cartesia.svg",
+      "referenceURL": "https://artificialanalysis.ai/",
+      "sourceSHA256": "5194c13d9e5f1cd3fb3f0f401efb39c02fe4b0be4eaaf884efc4c9144fa7e050",
+      "downloadSHA256": "5194c13d9e5f1cd3fb3f0f401efb39c02fe4b0be4eaaf884efc4c9144fa7e050",
+      "permissionStatus": "not-confirmed"
+    },
+    {
+      "key": "phonic",
+      "scope": "provider",
+      "file": "phonic/logo.svg",
+      "sourceURL": "https://artificialanalysis.ai/img/logos/phonic.svg",
+      "referenceURL": "https://artificialanalysis.ai/",
+      "sourceSHA256": "c4019425b8e689858c5bef5789566c528299ed90bd52222388fafa9ce653c1a5",
+      "downloadSHA256": "c4019425b8e689858c5bef5789566c528299ed90bd52222388fafa9ce653c1a5",
+      "permissionStatus": "not-confirmed"
+    },
+    {
+      "key": "amazon",
+      "scope": "provider",
+      "file": "amazon/logo.svg",
+      "sourceURL": "https://artificialanalysis.ai/img/logos/aws.svg",
+      "referenceURL": "https://artificialanalysis.ai/",
+      "sourceSHA256": "1da01c7d6f868c1bfa78cf524a142052b8ecf9882c8c283fd16f007f6318ab31",
+      "downloadSHA256": "1da01c7d6f868c1bfa78cf524a142052b8ecf9882c8c283fd16f007f6318ab31",
+      "permissionStatus": "not-confirmed"
+    },
+    {
+      "key": "qwen",
+      "scope": "company",
+      "file": "qwen/logo.svg",
+      "sourceURL": "https://artificialanalysis.ai/img/logos/alibaba.svg",
+      "referenceURL": "https://artificialanalysis.ai/",
+      "sourceSHA256": "1ebf7c1daf047eba7aa8303a49f3e6935869a6a548dc1b736d09425867261b63",
+      "downloadSHA256": "1ebf7c1daf047eba7aa8303a49f3e6935869a6a548dc1b736d09425867261b63",
+      "permissionStatus": "not-confirmed"
+    },
+    {
+      "key": "deepgram",
+      "scope": "provider",
+      "file": "deepgram/logo.png",
+      "sourceURL": "https://artificialanalysis.ai/img/logos/deepgram.png",
+      "referenceURL": "https://artificialanalysis.ai/",
+      "sourceSHA256": "8e95478b6c27308f64b75678a323f34915fac88237a64a58bccdda57911454f2",
+      "downloadSHA256": "a70d37c2698a41480d683d03ebcc1577014924ebd8b509442cc878769b47dd27",
+      "permissionStatus": "not-confirmed",
+      "conversion": "PNG metadata removed losslessly; decoded pixels and normalized runtime artwork unchanged"
+    },
+    {
+      "key": "kokoro",
+      "scope": "provider",
+      "file": "kokoro/logo.png",
+      "sourceURL": "https://artificialanalysis.ai/img/logos/kokoro.jpg",
+      "referenceURL": "https://artificialanalysis.ai/",
+      "sourceSHA256": "d5e608068183d436f1650e8435dc4cf64b84a88e69052abc22eddc50df303b25",
+      "downloadSHA256": "e8bf01d222b0ad563bf7482f348c49ef9756d70d1f4b3a6fe859bc37fa06cf8c",
+      "conversion": "JPEG decoded and losslessly saved as source PNG; PNG metadata removed losslessly; decoded pixels and normalized runtime artwork unchanged",
+      "permissionStatus": "not-confirmed"
+    },
+    {
+      "key": "rime",
+      "scope": "provider",
+      "file": "rime/logo.svg",
+      "sourceURL": "https://artificialanalysis.ai/img/logos/rime.svg",
+      "referenceURL": "https://artificialanalysis.ai/",
+      "sourceSHA256": "d811910598c0effb3db179f2806a778b87beece91e4bd4c24ff893370d99e678",
+      "downloadSHA256": "d811910598c0effb3db179f2806a778b87beece91e4bd4c24ff893370d99e678",
+      "permissionStatus": "not-confirmed"
+    },
+    {
+      "key": "humeai",
+      "scope": "provider",
+      "file": "humeai/logo.svg",
+      "sourceURL": "https://artificialanalysis.ai/img/logos/humeai.svg",
+      "referenceURL": "https://artificialanalysis.ai/",
+      "sourceSHA256": "43a0b0f761d5a2e0a94356ef754d7cdafabba846383f2c83a59c846864ee8cea",
+      "downloadSHA256": "43a0b0f761d5a2e0a94356ef754d7cdafabba846383f2c83a59c846864ee8cea",
+      "permissionStatus": "not-confirmed"
+    },
+    {
+      "key": "blandai",
+      "scope": "provider",
+      "file": "blandai/logo.png",
+      "sourceURL": "https://artificialanalysis.ai/img/logos/bland.png",
+      "referenceURL": "https://artificialanalysis.ai/",
+      "sourceSHA256": "b0ba1dc22565a84a8abee6ac7056b1173c978f1e45edbfee59504261adac3aef",
+      "downloadSHA256": "b0ba1dc22565a84a8abee6ac7056b1173c978f1e45edbfee59504261adac3aef",
+      "permissionStatus": "not-confirmed"
+    },
+    {
+      "key": "zyphra",
+      "scope": "provider",
+      "file": "zyphra/logo.png",
+      "sourceURL": "https://artificialanalysis.ai/img/logos/zyphra.jpg",
+      "referenceURL": "https://artificialanalysis.ai/",
+      "sourceSHA256": "4003395423a79014a88def54936b952029506d6dc5d0e7ab7c499c7610de10d3",
+      "downloadSHA256": "5aeb90beff638f96f596aea41eaa350da4e01e6f72b608110940a263d2345b07",
+      "conversion": "JPEG decoded and losslessly saved as source PNG; PNG metadata removed losslessly; decoded pixels and normalized runtime artwork unchanged",
+      "permissionStatus": "not-confirmed"
+    },
+    {
+      "key": "neuphonic",
+      "scope": "provider",
+      "file": "neuphonic/logo.svg",
+      "sourceURL": "https://artificialanalysis.ai/img/logos/neuphonic.svg",
+      "referenceURL": "https://artificialanalysis.ai/",
+      "sourceSHA256": "eadb441598466013c914a03e1a445ebb1d188e09f7dd311ae15cf10006bee005",
+      "downloadSHA256": "eadb441598466013c914a03e1a445ebb1d188e09f7dd311ae15cf10006bee005",
+      "permissionStatus": "not-confirmed"
+    },
+    {
+      "key": "styletts",
+      "scope": "provider",
+      "file": "styletts/logo.png",
+      "sourceURL": "https://artificialanalysis.ai/img/logos/styletts.png",
+      "referenceURL": "https://artificialanalysis.ai/",
+      "sourceSHA256": "f1a147c3e7547b079a76236d9be8d13a169ce1ab0ab6ca4628dfd5fe207685b9",
+      "downloadSHA256": "f9254268d3b35f03d52d0923dbe2e146ac2f3b6df07901fc2b349e7e3286f017",
+      "permissionStatus": "not-confirmed",
+      "conversion": "PNG metadata removed losslessly; decoded pixels and normalized runtime artwork unchanged"
+    },
+    {
+      "key": "metavoice",
+      "scope": "provider",
+      "file": "metavoice/logo.png",
+      "sourceURL": "https://artificialanalysis.ai/img/logos/metavoice.png",
+      "referenceURL": "https://artificialanalysis.ai/",
+      "sourceSHA256": "231b8fef00e2ce53845f50c503fe4150d0b9f2c66ffa3ba774208f5bfc01d1fa",
+      "downloadSHA256": "80a61f3940d8346a90ef2526ce0647300072ae163cb45eaa0da2ada57cebb980",
+      "permissionStatus": "not-confirmed",
+      "conversion": "PNG metadata removed losslessly; decoded pixels and normalized runtime artwork unchanged"
+    },
+    {
+      "key": "vidu",
+      "scope": "provider",
+      "file": "vidu/logo.svg",
+      "sourceURL": "https://artificialanalysis.ai/img/logos/vidu.svg",
+      "referenceURL": "https://artificialanalysis.ai/",
+      "sourceSHA256": "1ed35302dec7e7ee31cf93d6588afc5d4093a3a9c94367ddd2c1646fda0d991c",
+      "downloadSHA256": "1ed35302dec7e7ee31cf93d6588afc5d4093a3a9c94367ddd2c1646fda0d991c",
+      "permissionStatus": "not-confirmed"
+    },
+    {
+      "key": "prunaai",
+      "scope": "provider",
+      "file": "prunaai/logo.svg",
+      "sourceURL": "https://artificialanalysis.ai/img/logos/pruna.svg",
+      "referenceURL": "https://www.pruna.ai/",
+      "sourceSHA256": "b163d96c32693f1919e1b7f38bb22d99132452b7f6e09db261e28b1a975bdd4a",
+      "downloadSHA256": "b163d96c32693f1919e1b7f38bb22d99132452b7f6e09db261e28b1a975bdd4a",
+      "permissionStatus": "not-confirmed"
+    },
+    {
+      "key": "typesafe",
+      "scope": "provider",
+      "file": "typesafe/logo.png",
+      "sourceURL": "https://framerusercontent.com/images/aNFzSFxM4fjICmnibw7npfZjcQ.png",
+      "referenceURL": "https://typesafe.ai/",
+      "sourceSHA256": "b3053f7cb38f546630704df4ba92d9b61a7f14151f506cfa95634a94b4bfb043",
+      "downloadSHA256": "fcb8f554778c45ff62b97ca05df643588b39c8c66913736b7fe3485cedd96180",
+      "permissionStatus": "not-confirmed",
+      "conversion": "PNG metadata removed losslessly; decoded pixels and normalized runtime artwork unchanged"
+    },
+    {
+      "key": "genmoai",
+      "scope": "provider",
+      "file": "genmoai/logo.png",
+      "sourceURL": "https://avatars.githubusercontent.com/u/120537765?v=4",
+      "referenceURL": "https://github.com/genmoai",
+      "sourceSHA256": "111b3f829c109590b79139c1498bc034f09774b8a661ca7311a2fd0e935e2732",
+      "downloadSHA256": "111b3f829c109590b79139c1498bc034f09774b8a661ca7311a2fd0e935e2732",
+      "permissionStatus": "not-confirmed"
+    },
+    {
+      "key": "dotsstudio",
+      "scope": "provider",
+      "file": "dotsstudio/logo.png",
+      "sourceURL": "https://www.xiaohongshu.com/favicon.ico",
+      "referenceURL": "https://studio.dots.ai/",
+      "sourceSHA256": "3fea38d294575a4d79b3aea4d9b2e6594b7bc41a3fdad30c4d2a0a496ac3cf13",
+      "downloadSHA256": "33b25a8e2b0a67d2fc58eb6739a608211af9e62b3fdd935e7ce7e1ce12963372",
+      "conversion": "Largest ICO frame exported losslessly to RGBA PNG with Pillow",
+      "permissionStatus": "not-confirmed"
+    },
+    {
+      "key": "synlan",
+      "scope": "provider",
+      "file": "synlan/logo.png",
+      "sourceURL": "https://oss-global.xfyun.cn/ucloud/1611647603000/logoen.png",
+      "referenceURL": "https://global.xfyun.cn/",
+      "sourceSHA256": "212dd723eb4c6044ab2e8098cc295783ea3d9907acafc94f54ea8a264c65fa52",
+      "downloadSHA256": "762a9cee77d47e599c16f0fcf00ff7b1edc87cdc33003fae173015021972473c",
+      "permissionStatus": "not-confirmed",
+      "conversion": "PNG metadata removed losslessly; decoded pixels and normalized runtime artwork unchanged"
+    }
+  ]
+}

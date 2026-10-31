@@ -27,9 +27,11 @@ public enum OrganizationLogoCatalog {
         }
         let id = (organization ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? (modelID ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased() : ""
+        let name = (modelName ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let mayUseDisplayName = id.isEmpty || id == name || !LeaderboardBrandPolicy.modelDisplayAliases.contains(name)
         return hostedModelKey(from: modelName)
             ?? LeaderboardBrandPolicy.modelDevelopers[id]
-            ?? LeaderboardBrandPolicy.modelDevelopers[(modelName ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()]
+            ?? (mayUseDisplayName ? LeaderboardBrandPolicy.modelDevelopers[name] : nil)
     }
 
     /// The developer of the lead model may differ from the organization
@@ -243,41 +245,6 @@ public enum OrganizationLogoCatalog {
         return [-0.24, -0.12, 0, 0.12, 0.24][Int(hash % 5)]
     }
 
-    private static let brandColors: [String: String] = [
-        // Hues follow established marks or published brand colors. Nearby
-        // blues/cyans use lighter or darker values within the same hue family.
-        "anthropic": "#D97757",
-        "openai": "#10A37F", // published green; the blossom is black
-        "qwen": "#623AE7",
-        "kimi": "#007CFF", // Kimi brand blue, not its mint/cyan secondary
-        "google": "#4285F4",
-        "deepseek": "#4D6BFE",
-        "tencent": "#0052D9", // darker blue from the mark
-        "meta": "#0068D5", // darker shade of Meta blue beside Kimi
-        "minimax": "#F21985", // magenta petal, off Fal red
-        "mistral": "#F29D38", // orange from the pixel mark
-        "nvidia": "#76B900",
-        "bytedance": "#3C8CFF",
-        "xiaomi": "#FF6900",
-        "klingai": "#009DCB", // deeper cyan from the ring
-        "luma": "#00C8E8", // cyan face, not the purple face
-        "fal": "#EC0648",
-        "pixverse": "#A129FF", // violet on the mark, off Qwen
-        "microsoftai": "#E24B9A", // ribbon magenta, not the blue
-        // These marks are monochrome. Distinguish them by shade.
-        "zai": "#3A3A3A",
-        "spacexai": "#242424",
-        "stepfun": "#505050",
-        "krea": "#666666",
-        "ideogram": "#404040",
-        "runway": "#2C2C2C",
-        "blackforestlabs": "#343434",
-        "opencode": "#5A5A5A",
-        "devin": "#202020",
-        "reve": "#484848",
-        "videorebirth": "#707070",
-        "thinkingmachines": "#606060",
-        "github": "#303030"
-    ]
+    private static let brandColors = LeaderboardBrandPolicy.brandColors
 
 }

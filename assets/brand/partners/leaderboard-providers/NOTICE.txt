@@ -1,0 +1,5 @@
+Leaderboard provider and model marks
+
+All marks retain the rights of their respective owners. They identify leaderboard providers or models and do not imply endorsement. The repository MIT license and leaderboard data licenses do not grant rights to this artwork. Source URLs and hashes are recorded in sources.json; permissionStatus remains not-confirmed, and no artwork permission is asserted.
+
+Marks in this directory: Cartesia, Phonic, AWS (Amazon), Alibaba, Deepgram, Kokoro, Rime, Hume AI, Bland AI, Zyphra, Neuphonic, StyleTTS, MetaVoice, TypeSafe, Genmo, Vidu, Pruna AI, Xiaohongshu (dots studio), iFLYTEK Open Platform (Synlan).

@@ -173,7 +173,10 @@ export class BrandRegistry {
         && brand?.pngData && brand.pngData === bundled?.pngData;
       const companyCached = isProductImage(cached) ? null : cached;
       const companySaved = isProductImage(saved) ? null : saved;
-      const companyFallback = catalog.bundledModelMarks.includes(key) ? null : verified;
+      const companyLogo = catalog.companyLogos?.[key];
+      const companyFallback = companyLogo && validPNG(Buffer.from(companyLogo.pngData ?? '', 'base64'))
+        ? { key, ...companyLogo, status: 'ready' }
+        : catalog.bundledModelMarks.includes(key) ? null : verified;
       const organizationBrand = (companyCached?.pngData ? companyCached : null)
         ?? (companySaved?.pngData ? companySaved : null) ?? companyFallback ?? companyCached ?? companySaved
         ?? { key: key ?? '', colorHex: catalog.colors[key] ?? fallbackColor(key ?? entry.name), status: key ? 'pending' : 'unknown' };
@@ -192,7 +195,7 @@ export class BrandRegistry {
         : productBrand ?? (modelBrand?.pngData ? modelBrand : null)
           ?? (organizationBrand?.pngData ? organizationBrand : verified ?? organizationBrand);
       return { ...entry, brand: selected,
-        ...((model || productBrand || catalog.bundledModelMarks.includes(key)) && { organizationBrand }) };
+        ...((entry.organizationBrand || model || productBrand || catalog.bundledModelMarks.includes(key)) && { organizationBrand }) };
     }) };
   }
   async resolve(brand, acquire, signal) {

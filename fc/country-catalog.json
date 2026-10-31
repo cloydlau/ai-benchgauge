@@ -383,5 +383,225 @@
     "countryCode": "CN",
     "sourceURL": "https://studio.dots.ai/",
     "source": "official"
+  },
+  "elevenlabs": {
+    "countryCode": "US",
+    "sourceURL": "https://elevenlabs.io/contact-legal",
+    "source": "official"
+  },
+  "cartesia": {
+    "countryCode": "US",
+    "sourceURL": "https://www.cartesia.ai/legal/terms",
+    "source": "official"
+  },
+  "inworld": {
+    "countryCode": "US",
+    "sourceURL": "https://inworld.ai/terms",
+    "source": "official"
+  },
+  "assemblyai": {
+    "countryCode": "US",
+    "sourceURL": "https://www.linkedin.com/company/assemblyai/",
+    "source": "official-company-profile"
+  },
+  "smallestai": {
+    "countryCode": "US",
+    "sourceURL": "https://www.linkedin.com/company/smallest/",
+    "source": "official-company-profile"
+  },
+  "fishaudio": {
+    "countryCode": "US",
+    "sourceURL": "https://beta.fish.audio/terms/",
+    "source": "official"
+  },
+  "speechifyai": {
+    "countryCode": "US",
+    "sourceURL": "https://speechify.com/studio-privacy/",
+    "source": "official"
+  },
+  "bosonai": {
+    "countryCode": "US",
+    "sourceURL": "https://www.boson.ai/about/contact",
+    "source": "official"
+  },
+  "soniox": {
+    "countryCode": "US",
+    "sourceURL": "https://soniox.com/policies/privacy-policy",
+    "source": "official"
+  },
+  "resembleai": {
+    "countryCode": "US",
+    "sourceURL": "https://www.resemble.ai/privacy-policy",
+    "source": "official"
+  },
+  "phonic": {
+    "countryCode": "US",
+    "sourceURL": "https://phonic.ai/legal/terms-of-service",
+    "source": "official"
+  },
+  "deepgram": {
+    "countryCode": "US",
+    "sourceURL": "https://static.deepgram.com/business/Business_TOS_Console.pdf",
+    "source": "official"
+  },
+  "murfai": {
+    "countryCode": "US",
+    "sourceURL": "https://murf.ai/legal/data-protection-agreement",
+    "source": "official"
+  },
+  "async": {
+    "countryCode": "US",
+    "sourceURL": "https://async.com/privacy",
+    "source": "official"
+  },
+  "humeai": {
+    "countryCode": "US",
+    "sourceURL": "https://www.hume.ai/careers",
+    "source": "official"
+  },
+  "rime": {
+    "countryCode": "US",
+    "sourceURL": "https://www.rime.ai/company",
+    "source": "official"
+  },
+  "blandai": {
+    "countryCode": "US",
+    "sourceURL": "https://www.bland.ai/ai-information",
+    "source": "official"
+  },
+  "zyphra": {
+    "countryCode": "US",
+    "sourceURL": "https://www.zyphra.com/legal/privacy-policy",
+    "source": "official"
+  },
+  "zoom": {
+    "countryCode": "US",
+    "sourceURL": "https://www.zoom.com/en/about/media-kit/",
+    "source": "official"
+  },
+  "modulate": {
+    "countryCode": "US",
+    "sourceURL": "https://www.modulate.ai/privacy-policy",
+    "source": "official"
+  },
+  "deepinfra": {
+    "countryCode": "US",
+    "sourceURL": "https://deepinfra.com/privacy",
+    "source": "official"
+  },
+  "replicate": {
+    "countryCode": "US",
+    "sourceURL": "https://replicate.com/privacy/",
+    "source": "official"
+  },
+  "groq": {
+    "countryCode": "US",
+    "sourceURL": "https://groq.com/privacy-policy",
+    "source": "official"
+  },
+  "revai": {
+    "countryCode": "US",
+    "sourceURL": "https://www.rev.com/legal/privacy",
+    "source": "official"
+  },
+  "telnyx": {
+    "countryCode": "US",
+    "sourceURL": "https://www.linkedin.com/company/telnyx/",
+    "source": "official-company-profile"
+  },
+  "heygen": {
+    "countryCode": "US",
+    "sourceURL": "https://www.linkedin.com/company/heygen/",
+    "source": "official-company-profile"
+  },
+  "newportai": {
+    "countryCode": "US",
+    "sourceURL": "https://www.linkedin.com/company/new-port-ai/",
+    "source": "official-company-profile"
+  },
+  "metavoice": {
+    "countryCode": "US",
+    "sourceURL": "https://www.linkedin.com/company/familiario/",
+    "source": "official-company-profile"
+  },
+  "styletts": {
+    "countryCode": "US",
+    "sourceURL": "https://arxiv.org/html/2306.07691",
+    "source": "official"
+  },
+  "gradium": {
+    "countryCode": "FR",
+    "sourceURL": "https://gradium.ai/Gradium%20-%20press%20release%20EN%20final.pdf",
+    "source": "official"
+  },
+  "gladia": {
+    "countryCode": "FR",
+    "sourceURL": "https://www.gladia.io/legal-notice",
+    "source": "official"
+  },
+  "kugelaudio": {
+    "countryCode": "DE",
+    "sourceURL": "https://www.kugelaudio.com/en/press",
+    "source": "official"
+  },
+  "coqui": {
+    "countryCode": "DE",
+    "sourceURL": "https://www.linkedin.com/company/coqui-ai/",
+    "source": "official-company-profile"
+  },
+  "krafton": {
+    "countryCode": "KR",
+    "sourceURL": "https://www.krafton.com/wp-content/uploads/2025/08/2024-KRAFTON-ESG-Report-EN.pdf",
+    "source": "official"
+  },
+  "speechmatics": {
+    "countryCode": "GB",
+    "sourceURL": "https://www.speechmatics.com/company/contact",
+    "source": "official"
+  },
+  "neuphonic": {
+    "countryCode": "GB",
+    "sourceURL": "https://find-and-update.company-information.service.gov.uk/company/15612532",
+    "source": "official-register"
+  },
+  "reson8": {
+    "countryCode": "NL",
+    "sourceURL": "https://www.reson8.dev/terms",
+    "source": "official"
+  },
+  "sarvam": {
+    "countryCode": "IN",
+    "sourceURL": "https://www.sarvam.ai/terms-of-service",
+    "source": "official"
+  },
+  "mayaresearch": {
+    "countryCode": "IN",
+    "sourceURL": "https://www.linkedin.com/company/mayaresearch/",
+    "source": "official-company-profile"
+  },
+  "alebex": {
+    "countryCode": "CA",
+    "sourceURL": "https://www.alebex.ai/",
+    "source": "official"
+  },
+  "hithink": {
+    "countryCode": "CN",
+    "sourceURL": "https://www.isca-archive.org/interspeech_2024/ye24_interspeech.pdf",
+    "source": "official"
+  },
+  "vuilabs": {
+    "countryCode": "CN",
+    "sourceURL": "https://hk.linkedin.com/company/vui-labs/",
+    "source": "official-company-profile"
+  },
+  "noiz": {
+    "countryCode": "CN",
+    "sourceURL": "https://www.linkedin.com/company/noiz-ai/",
+    "source": "official-company-profile"
+  },
+  "synlan": {
+    "countryCode": "SG",
+    "sourceURL": "https://anypin.ai/collections/frontpage",
+    "source": "official"
   }
 }
