@@ -78,7 +78,7 @@
               <view class="cost-score-title"><text>{{card.showMetricGuide ? labels.metricGuide : card.metricTitle || card.scoreLabel}}</text><van-icon name="arrow-down" size="7px" class="metric-arrow" /></view>
               <text wx:if="{{!card.showMetricGuide && (card.costOrder || card.speedOrder)}}" class="cost-unit">{{card.speedOrder ? card.speedUnit : card.costUnit}}</text>
             </button>
-            <button wx:elif="{{card.hasPrice}}" class="score-cell cost-sort" bindtap="togglePriceOrder" aria-label="{{labels.priceInput}} {{card.priceAscending ? '↑' : '↓'}}"><text class="cost-score-title">{{labels.priceInput}}{{card.priceAscending ? '↑' : '↓'}}</text><text class="cost-unit">{{labels.priceOutput}}</text></button>
+            <button wx:elif="{{card.hasPrice}}" class="score-cell cost-sort" bindtap="togglePriceOrder" aria-label="{{labels.priceInput}} {{card.priceAscending ? '↑' : '↓'}}"><text class="cost-score-title">{{labels.priceUnit}}{{card.priceAscending ? '↑' : '↓'}}</text></button>
             <text wx:else class="score-cell">{{card.scoreLabel}}</text>
           </view>
           <view class="model-search" style="{{card.searchStyle}}" aria-hidden="{{!modelSearchVisible}}">
@@ -130,8 +130,11 @@
               <text wx:else>—</text>
             </button>
             <view class="score-cell score-value mono">
-              <text wx:if="{{row.scoreDollar}}">{{row.scoreDollar.before}}<text class="dollar-symbol">$</text>{{row.scoreDollar.after}}</text><text wx:else>{{row.scoreText}}</text>
-              <text wx:if="{{row.outputPriceText}}" class="score-share task-cost"><block wx:if="{{row.outputDollar}}">{{row.outputDollar.before}}<text class="dollar-symbol">$</text>{{row.outputDollar.after}}</block><block wx:else>{{row.outputPriceText}}</block></text>
+              <view wx:if="{{row.outputPriceText}}" class="price-values">
+                <view class="price-line"><text>{{row.inputPriceLabel}}</text><text><block wx:if="{{row.scoreDollar}}">{{row.scoreDollar.before}}<text class="dollar-symbol">$</text>{{row.scoreDollar.after}}</block><block wx:else>{{row.scoreText}}</block></text></view>
+                <view class="price-line"><text>{{row.outputPriceLabel}}</text><text><block wx:if="{{row.outputDollar}}">{{row.outputDollar.before}}<text class="dollar-symbol">$</text>{{row.outputDollar.after}}</block><block wx:else>{{row.outputPriceText}}</block></text></view>
+              </view>
+              <block wx:else><text wx:if="{{row.scoreDollar}}">{{row.scoreDollar.before}}<text class="dollar-symbol">$</text>{{row.scoreDollar.after}}</text><text wx:else>{{row.scoreText}}</text></block>
               <text wx:if="{{row.scoreShare}}" class="score-share">{{row.scoreShare}}</text>
             </view>
           </view>

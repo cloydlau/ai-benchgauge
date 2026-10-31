@@ -26,7 +26,7 @@ struct KitCoverageBoundaryTests {
             #expect(LeaderboardPresentation.explanation(.openRouterPrice, language: language) == language.text("API prices", "API 价格"))
             #expect(LeaderboardPresentation.sourceSummary(.valsSWEbench, language: language).contains(language.text("No new models are tested.", "不再评测新模型")))
             #expect(LeaderboardPresentation.sourceSummary(.openRouterPrice, language: language).contains(language.text("per million tokens", "每百万 token")))
-            #expect(LeaderboardPresentation.scoreTitle(.openRouterPrice, language: language) == language.text("In / Out $/1M", "输入/输出 $/百万"))
+            #expect(LeaderboardPresentation.scoreTitle(.openRouterPrice, language: language) == language.text("$/1M tokens", "$/百万 token"))
             #expect(LeaderboardPresentation.aaCostHelp(.valsSWEbench, language: language) == language.text(
                 "Cost and duration per test as published by Vals; source ranking stays unchanged.", "Vals 公布的每次测试成本和耗时；切换指标不改变原榜排名。"))
         }

@@ -323,3 +323,6 @@
 .task-cost { color: var(--muted); }
 
 .cost-sort.is-guided { background: var(--source-accent); color: var(--card); border-radius: 6px; font-size: 8px; font-weight: 600; white-space: nowrap; overflow: hidden; }
+
+.price-values { display: flex; flex-direction: column; gap: 2rpx; font-size: 21rpx; line-height: 1.25; }
+.price-line { display: flex; justify-content: flex-end; gap: 6rpx; white-space: nowrap; }

@@ -1766,14 +1766,14 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             case 1: drawCountryHeader(selected: board.country, in: rect)
             case 2: drawFilterHeader(title: ModelOpenness.columnTitle(language: language), active: board.openness != .all, in: rect)
             case 3 where board.kind.supportsAACost:
-                let label = board.speedOrder ? ((board.kind == .artificialAnalysisCodingAgent || board.kind == .valsSWEbench) ? language.text("s/task", "秒/任务") : "token/s") : board.costOrder ? (board.kind == .openRouterUsage ? language.text("In/Out $/1M", "输入/输出$/百万") : board.kind.isAAImageCost ? language.text("$/image", "$/张") : board.kind.isAAVideoCost ? language.text("$/min", "$/分钟") : language.text("$/task", "$/任务")) : (board.kind == .openRouterUsage ? language.text("Usage", "用量") : language.text("Score", "分数"))
+                let label = board.speedOrder ? ((board.kind == .artificialAnalysisCodingAgent || board.kind == .valsSWEbench) ? language.text("s/task", "秒/任务") : "token/s") : board.costOrder ? (board.kind == .openRouterUsage ? LeaderboardPresentation.tokenPriceUnit(language: language) : board.kind.isAAImageCost ? language.text("$/image", "$/张") : board.kind.isAAVideoCost ? language.text("$/min", "$/分钟") : language.text("$/task", "$/任务")) : (board.kind == .openRouterUsage ? language.text("Usage", "用量") : language.text("Score", "分数"))
                 if board.speedOrder || board.costOrder {
                     let title = board.speedOrder ? language.text("Speed", "速度") : board.kind == .openRouterUsage ? language.text("Price", "价格") : language.text("Cost", "成本")
                     drawFilterHeader(title: "\(title) \(label)", active: false, in: rect)
                 } else { drawFilterHeader(title: label, active: false, in: rect) }
             case 3 where board.kind.isPrice:
                 let paragraph = NSMutableParagraphStyle(); paragraph.alignment = .center
-                for (line, label) in [language.text("In $/1M", "输入$/百万") + (board.priceAscending ? " ↑" : " ↓"), language.text("Out", "输出")].enumerated() {
+                for (line, label) in [LeaderboardPresentation.tokenPriceUnit(language: language) + (board.priceAscending ? " ↑" : " ↓")].enumerated() {
                     (label as NSString).draw(in: NSRect(x: rect.minX, y: rect.minY + CGFloat(line) * rect.height / 2 + 2, width: rect.width, height: rect.height / 2), withAttributes: [.font: NSFont.systemFont(ofSize: 9, weight: .medium), .foregroundColor: NSColor.labelColor, .paragraphStyle: paragraph])
                 }
             default: tableView.tableColumns[index].headerCell.draw(withFrame: rect, in: self)
@@ -2272,8 +2272,14 @@ private struct ScoreCell: View {
         Group {
             if let entry = model?.entry {
                 VStack(spacing: 1) {
-                    amountText(model?.speedMode == true ? LeaderboardPresentation.speedText(entry.speed) : model?.costMode == true ? LeaderboardPresentation.taskCostText(entry.taskCostUSD) : LeaderboardPresentation.scoreText(entry.score, kind: kind)).monospacedDigit()
-                    if kind.isPrice || (kind == .openRouterUsage && model?.costMode == true) { amountText(LeaderboardPresentation.taskCostText(entry.outputPriceUSD)).font(.system(size: 8)).monospacedDigit() }
+                    if kind.isPrice || (kind == .openRouterUsage && model?.costMode == true && model?.speedMode != true) {
+                        VStack(alignment: .trailing, spacing: 1) {
+                            amountText(LeaderboardPresentation.tokenPriceLine(model?.costMode == true ? entry.taskCostUSD : entry.score, output: false, language: language))
+                            amountText(LeaderboardPresentation.tokenPriceLine(entry.outputPriceUSD, output: true, language: language))
+                        }.font(.system(size: 11)).monospacedDigit()
+                    } else {
+                        amountText(model?.speedMode == true ? LeaderboardPresentation.speedText(entry.speed) : model?.costMode == true ? LeaderboardPresentation.taskCostText(entry.taskCostUSD) : LeaderboardPresentation.scoreText(entry.score, kind: kind)).monospacedDigit()
+                    }
                 }.foregroundStyle(.secondary)
             } else {
                 Text("-")
@@ -2286,8 +2292,8 @@ private struct ScoreCell: View {
         .padding(.vertical, 2)
     }
     private func amountText(_ value: String) -> Text {
-        guard value.hasPrefix("$") else { return Text(value) }
-        return Text("$").baselineOffset(-0.8) + Text(String(value.dropFirst()))
+        guard let dollar = value.firstIndex(of: "$") else { return Text(value) }
+        return Text(String(value[..<dollar])) + Text("$").baselineOffset(-0.8) + Text(String(value[value.index(after: dollar)...]))
     }
 }
 

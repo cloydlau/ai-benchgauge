@@ -99,7 +99,7 @@ export function rowView(entry, { company = false, dark = false, details = true, 
   const outputPriceText = isPriceBoard(kind) || (kind === 'openRouterUsage' && costMode) ? taskCostText(entry.outputPriceUSD) : null
   const scoreDollar = dollarParts(scoreText), outputDollar = outputPriceText && dollarParts(outputPriceText)
   return { rank: entry.rank, name: entry.name, score: entry.score, logo: image,
-    ...(outputPriceText && { outputPriceText }), ...(scoreDollar && { scoreDollar }), ...(outputDollar && { outputDollar }),
+    ...(outputPriceText && { outputPriceText, inputPriceLabel: text(copy.inputPriceLabel, language), outputPriceLabel: text(copy.outputPriceLabel, language) }), ...(scoreDollar && { scoreDollar }), ...(outputDollar && { outputDollar }),
     rankChangeText,
     rankChangeTone: rankChangeText ? (entry.rankChange?.isNew ? 'new' : entry.rankChange.delta > 0 ? 'up' : 'down') : undefined,
     purchaseActions: actions,

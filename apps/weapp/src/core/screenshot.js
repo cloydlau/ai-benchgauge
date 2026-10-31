@@ -25,12 +25,25 @@ export function wrapText(context, value, width) {
   return lines
 }
 
+function priceColumnExtraWidth(context, board) {
+  if (!board.rows.some(row => row.outputPriceText)) return 0
+  context.font = '11px monospace'
+  return Math.max(36, ...board.rows.flatMap(row => row.outputPriceText ? [
+    context.measureText(`${row.inputPriceLabel} ${row.scoreText}`).width - 40,
+    context.measureText(`${row.outputPriceLabel} ${row.outputPriceText}`).width - 40,
+  ] : []))
+}
+
 export function planScreenshot(context, model) {
   context.font = '14px sans-serif'
   const columnWidth = boardWidth(model.boards.length)
   const nameWidth = columnWidth - 237 + (model.grouping === 'company' ? sourceColumnWidth : 0)
-  const boards = model.boards.map(board => ({ ...board,
-    rows: board.rows.map(row => ({ ...row, lines: wrapText(context, row.name, nameWidth) })) }))
+  const boards = model.boards.map(board => {
+    const priceExtraWidth = priceColumnExtraWidth(context, board)
+    context.font = '14px sans-serif'
+    return { ...board, priceExtraWidth,
+      rows: board.rows.map(row => ({ ...row, lines: wrapText(context, row.name, nameWidth - priceExtraWidth) })) }
+  })
   const count = Math.max(...boards.map(board => board.rows.length), 0)
   const rows = []; let height = top
   for (let index = 0; index < count; index++) {
@@ -108,20 +121,19 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
     context.font = '13px sans-serif'
     wrapText(context, board.summary, columnWidth - 220).forEach((line, index) => text(context, line, x + 16, 132 + index * 17, 13, colors.muted))
     text(context, board.filterLabel, x + 16, 179, 12, colors.muted)
-    const countryX = x + columnWidth - 122 + extraNameWidth, sourceX = x + columnWidth - 75, scoreX = x + columnWidth - 14
+    const countryX = x + columnWidth - 122 + extraNameWidth - board.priceExtraWidth, sourceX = x + columnWidth - 75 - board.priceExtraWidth, scoreX = x + columnWidth - 14
     text(context, model.labels.rank, x + 24, 213, 12, colors.muted, { align: 'center' })
     text(context, board.heading || board.title, x + 49, board.variantLabel ? 207 : 213, 13, accent, { bold: true, fit: true, maxWidth: Math.max(1, countryX - x - 65) })
     if (board.variantLabel) text(context, board.variantLabel, x + 49, 223, 10, colors.muted, { fit: true, maxWidth: Math.max(1, countryX - x - 65) })
     text(context, model.labels.country, countryX, 213, 11, colors.muted, { align: 'center' })
     if (showSource) text(context, model.labels.source, sourceX, 213, 11, colors.muted, { align: 'center' })
     if (board.priceHeader) {
-      text(context, model.language === 'en' ? 'In / Out' : model.language === 'zh-TW' ? '輸入 / 輸出' : '输入 / 输出', scoreX, 206, 10, colors.muted, { align: 'right' })
+      text(context, model.language === 'en' ? 'Price' : model.language === 'zh-TW' ? '價格' : '价格', scoreX, 206, 10, colors.muted, { align: 'right' })
       text(context, model.language === 'en' ? '$/1M tokens' : model.language === 'zh-TW' ? '$/百萬 token' : '$/百万 token', scoreX, 220, 10, colors.muted, { align: 'right' })
     } else {
-    text(context, board.metricHeading || board.taskCostLabel || (board.kind === 'openRouterPrice' ? model.labels.priceInput : ['vercelUsage', 'cloudbaseUsage'].includes(board.kind) ? (model.language === 'en' ? 'Share' : model.language === 'zh-TW' ? '佔比' : '占比') : board.kind === 'openRouterUsage' ? (model.language === 'en' ? 'Tokens' : '用量') : model.labels.score), scoreX, board.kind === 'openRouterPrice' || board.metricHeading ? 208 : 213, 12, colors.muted, { align: 'right' })
+    text(context, board.metricHeading || board.taskCostLabel || (board.kind === 'openRouterPrice' ? model.labels.priceUnit : ['vercelUsage', 'cloudbaseUsage'].includes(board.kind) ? (model.language === 'en' ? 'Share' : model.language === 'zh-TW' ? '佔比' : '占比') : board.kind === 'openRouterUsage' ? (model.language === 'en' ? 'Tokens' : '用量') : model.labels.score), scoreX, board.kind === 'openRouterPrice' || board.metricHeading ? 208 : 213, 12, colors.muted, { align: 'right' })
     if (board.metricHeading) text(context, board.taskCostLabel, scoreX, 223, 9, colors.muted, { align: 'right' })
     }
-    if (board.kind === 'openRouterPrice') text(context, model.labels.priceOutput, scoreX, 223, 9, colors.muted, { align: 'right' })
     context.strokeStyle = colors.line; context.lineWidth = 1; context.beginPath()
     context.moveTo(x + 12, 232); context.lineTo(x + columnWidth - 12, 232); context.stroke()
     if (!board.rows.length) text(context, board.empty, x + columnWidth / 2, top + 48, 14, colors.muted, { align: 'center' })
@@ -157,8 +169,10 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
         if (statusIcon) context.drawImage(statusIcon, sourceX - 7, center - 7, 14, 14)
         else text(context, row.openness === 'open' ? model.labels.open : row.openness === 'closed' ? model.labels.closed : '—', sourceX, center, 10, colors.muted, { align: 'center' })
       }
-      amountText(context, row.scoreText, scoreX, row.outputPriceText ? center - 5 : center, 14, colors.muted)
-      if (row.outputPriceText) amountText(context, row.outputPriceText, scoreX, center + 10, 9, colors.muted)
+      if (row.outputPriceText) {
+        amountText(context, `${row.inputPriceLabel} ${row.scoreText}`, scoreX, center - 7, 11, colors.muted)
+        amountText(context, `${row.outputPriceLabel} ${row.outputPriceText}`, scoreX, center + 7, 11, colors.muted)
+      } else amountText(context, row.scoreText, scoreX, center, 14, colors.muted)
       if (row.scoreShare) {
         text(context, row.scoreShare, scoreX, center + 12, 9, accent, { align: 'right', numeric: true })
       }

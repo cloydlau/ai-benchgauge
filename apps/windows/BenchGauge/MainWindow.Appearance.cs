@@ -697,7 +697,7 @@ sealed partial class MainWindow
             {
                 var selectedCost = costOrders.Contains(board.Kind);
                 var selectedSpeed = speedOrders.Contains(board.Kind);
-                var unit = board.Kind == "openRouterUsage" ? Tr("In/Out $/1M", "输入/输出$/百万", "輸入/輸出$/百萬") : IsAAImageCost(board.Kind) ? Tr("$/image", "$/张", "$/張") : IsAAVideoCost(board.Kind) ? Tr("$/min", "$/分钟", "$/分鐘") : Tr("$/task", "$/任务", "$/任務");
+                var unit = board.Kind == "openRouterUsage" ? Tr("$/1M tokens", "$/百万 token", "$/百萬 token") : IsAAImageCost(board.Kind) ? Tr("$/image", "$/张", "$/張") : IsAAVideoCost(board.Kind) ? Tr("$/min", "$/分钟", "$/分鐘") : Tr("$/task", "$/任务", "$/任務");
                 var metricLabel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
                 void SetMetricTitle(bool speed, bool cost) {
                     metricLabel.Children.Clear();
@@ -753,8 +753,7 @@ sealed partial class MainWindow
             else if (IsPriceBoard(board.Kind))
             {
                 var label = new StackPanel();
-                label.Children.Add(Center(Caption(Tr("In $/1M", "输入$/百万", "輸入$/百萬") + (priceAscending ? " ↑" : " ↓"), PanelInk, 9)));
-                label.Children.Add(Center(Caption(Tr("Out", "输出", "輸出"), PanelMuted, 8)));
+                label.Children.Add(Center(Caption(Tr("$/1M tokens", "$/百万 token", "$/百萬 token") + (priceAscending ? " ↑" : " ↓"), PanelInk, 9)));
                 var priceButton = new WpfButton { Content = label, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Padding = new Thickness(0), ToolTip = Tr("Sort by input price", "按输入价格排序", "按輸入價格排序") };
                 priceButton.Click += (_, _) => { priceAscending = !priceAscending; Render(); };
                 AddCell(headings, priceButton, column + 3);
@@ -905,8 +904,8 @@ sealed partial class MainWindow
                 else if (IsPriceBoard(pair[side].Kind) || (pair[side].Kind == "openRouterUsage" && showCost))
                 {
                     var values = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-                    values.Children.Add(CenterElement(CurrencyValue(CodingTaskCost.Format(entry.Score), 11)));
-                    values.Children.Add(CenterElement(CurrencyValue(CodingTaskCost.Format(entry.OutputPriceUSD), 8)));
+                    values.Children.Add(CenterElement(CurrencyValue(Tr("Input ", "输入 ", "輸入 ") + CodingTaskCost.Format(showCost ? entry.TaskCostUSD : entry.Score), 11)));
+                    values.Children.Add(CenterElement(CurrencyValue(Tr("Output ", "输出 ", "輸出 ") + CodingTaskCost.Format(entry.OutputPriceUSD), 11)));
                     score.Children.Clear(); score.Children.Add(values);
                 }
                 AddCell(row, score, column + 3);
@@ -1241,12 +1240,14 @@ sealed partial class MainWindow
     }
     FrameworkElement CurrencyValue(string value, double size)
     {
-        if (!value.StartsWith('$')) return Caption(value, PanelMuted, size, numeric: true);
+        var dollar = value.IndexOf('$');
+        if (dollar < 0) return Caption(value, PanelMuted, size, numeric: true);
         var line = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         var symbol = Caption("$", PanelMuted, size, numeric: true);
         symbol.VerticalAlignment = VerticalAlignment.Center; symbol.RenderTransform = new TranslateTransform(0, 0.8);
-        var number = Caption(value[1..], PanelMuted, size, numeric: true);
+        var number = Caption(value[(dollar + 1)..], PanelMuted, size, numeric: true);
         number.VerticalAlignment = VerticalAlignment.Center;
+        if (dollar > 0) line.Children.Add(Caption(value[..dollar], PanelMuted, size, numeric: true));
         line.Children.Add(symbol); line.Children.Add(number); return line;
     }
     FrameworkElement FilterHeaderLabel(string title, bool active)

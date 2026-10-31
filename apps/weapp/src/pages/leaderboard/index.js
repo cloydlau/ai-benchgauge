@@ -482,7 +482,7 @@ definePage(query => {
   }
   const costOrder = ref({})
   const speedOrder = ref({})
-  const costUnit = kind => kind === 'openRouterUsage' ? (language.value === 'en' ? 'In/Out $/1M' : language.value === 'zh-TW' ? '輸入/輸出$/百萬' : '输入/输出$/百万') : tr(isAAImageCost(kind) ? 'imageCostUnit' : isAAVideoCost(kind) ? 'videoCostUnit' : 'taskCostUnit')
+  const costUnit = kind => kind === 'openRouterUsage' ? tr('priceUnit') : tr(isAAImageCost(kind) ? 'imageCostUnit' : isAAVideoCost(kind) ? 'videoCostUnit' : 'taskCostUnit')
   const toggleCostOrder = event => {
     const kind = event.currentTarget.dataset.kind
     if (!metricAvailable(kind) || cubeBusy.value || backgroundLocked.value) return
@@ -558,7 +558,7 @@ definePage(query => {
     const time = boardTime(board, kind)
     const accent = sourceTabTheme(kind, dark.value).accent
     const rgb = [1, 3, 5].map(offset => parseInt(accent.slice(offset, offset + 2), 16)).join(',')
-    return { kind, themeStyle: `--source-accent:${accent};`, variantStyle: `--variant-fill:rgba(${rgb},${dark.value ? 0.12 : 0.06});--variant-border:rgba(${rgb},${dark.value ? 0.16 : 0.10});${headerFits.value[kind]?.pickerWidth != null ? `width:${headerFits.value[kind].pickerWidth}px;flex:0 0 auto;` : ''}`, title: boardTitle(kind, language.value), heading: mobileBoardHeading(kind, language.value),
+    return { kind, themeStyle: `--source-accent:${accent};${(isPriceBoard(kind) || kind === 'openRouterUsage' && costOrder.value[kind]) ? '--score-column:176rpx;' : ''}`, variantStyle: `--variant-fill:rgba(${rgb},${dark.value ? 0.12 : 0.06});--variant-border:rgba(${rgb},${dark.value ? 0.16 : 0.10});${headerFits.value[kind]?.pickerWidth != null ? `width:${headerFits.value[kind].pickerWidth}px;flex:0 0 auto;` : ''}`, title: boardTitle(kind, language.value), heading: mobileBoardHeading(kind, language.value),
       headingFontSize: (language.value === 'en' ? 18 : 21) * (headerFits.value[kind]?.headingScale ?? 1),
       headingFontStyle: headerFits.value[kind] ? `font-size:${headerFits.value[kind].headingPixels}px;` : `font-size:${language.value === 'en' ? 18 : 21}rpx;`,
       variantFontStyle: headerFits.value[kind] ? `font-size:${headerFits.value[kind].variantPixels}px;` : 'font-size:18rpx;',
@@ -1219,7 +1219,7 @@ definePage(query => {
             summary: text(boards[kind].summaries, language.value),
             variantLabel: variantBase(kind) ? text(variantLabels[kind], language.value) : '',
             time: `${time.time} ${time.timeLabel}`, isSourceTime: time.isSourceTime,
-            taskCostLabel: isErrorRate(kind) ? 'WER ↓' : isPriceBoard(kind) ? tr('priceInput') + (priceAscending.value ? ' ↑' : ' ↓') : metricAvailable(kind) && speedOrder.value[kind] ? ((kind === 'artificialAnalysisCodingAgent' || kind === 'valsSWEbench') ? (language.value === 'en' ? 's/task' : language.value === 'zh-TW' ? '秒/任務' : '秒/任务') : 'token/s') : metricAvailable(kind) && costOrder.value[kind] ? costUnit(kind) : '',
+            taskCostLabel: isErrorRate(kind) ? 'WER ↓' : isPriceBoard(kind) ? tr('priceUnit') + (priceAscending.value ? ' ↑' : ' ↓') : metricAvailable(kind) && speedOrder.value[kind] ? ((kind === 'artificialAnalysisCodingAgent' || kind === 'valsSWEbench') ? (language.value === 'en' ? 's/task' : language.value === 'zh-TW' ? '秒/任務' : '秒/任务') : 'token/s') : metricAvailable(kind) && costOrder.value[kind] ? costUnit(kind) : '',
             metricHeading: metricAvailable(kind) && speedOrder.value[kind] ? (language.value === 'en' ? 'Speed' : '速度') : metricAvailable(kind) && costOrder.value[kind] ? costTitle(kind) : '',
             filterLabel: `${metricAvailable(kind) ? (speedOrder.value[kind] ? (language.value === 'en' ? 'Speed' : '速度') : (kind === 'openRouterUsage' ? (costOrder.value[kind] ? costTitle(kind) : tr('tokens')) : tr(costOrder.value[kind] ? 'taskCostAscending' : 'scoreDescending'))) + ' · ' : ''}${tr('country')}: ${country} · ${tr('source')}: ${tr(filter.openness)}`,
             empty: tr(board ? 'empty' : 'noBoard'),

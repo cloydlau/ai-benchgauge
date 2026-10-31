@@ -1219,7 +1219,7 @@ private struct PadBoardCard: View {
         let column = ZStack {
             Text(scoreWidthReference).font(compactColumns ? .caption : .subheadline).monospacedDigit().hidden()
             if kind == .openRouterUsage && costOrder {
-                Text(tr("In / Out\n$/1M tokens", "输入 / 输出\n$/百万 token"))
+                Text(LeaderboardPresentation.tokenPriceUnit(language: language))
                     .font(columnHeaderFont).lineLimit(2).multilineTextAlignment(.center).hidden()
             }
             content()
@@ -1837,7 +1837,7 @@ private struct PadBoardCard: View {
         #endif
     }
     private var priceHeading: some View {
-        VStack(spacing: 1) { Text(tr("In $/1M", "输入$/百万") + (priceAscending ? " ↑" : " ↓")).font(columnHeaderFont); Text(tr("Out", "输出")).font(.system(size: 8)) }
+        Text(LeaderboardPresentation.tokenPriceUnit(language: language) + (priceAscending ? " ↑" : " ↓")).font(columnHeaderFont)
     }
 
     private var costHeading: some View {
@@ -1846,7 +1846,7 @@ private struct PadBoardCard: View {
         #else
         let guideScreenBounds = CGRect.infinite
         #endif
-        let unit = speedOrder ? ((kind == .artificialAnalysisCodingAgent || kind == .valsSWEbench) ? tr("s/task", "秒/任务") : "token/s") : (kind == .openRouterUsage ? tr("In/Out $/1M", "输入/输出$/百万") : kind.isAAImageCost ? tr("$/image", "$/张") : kind.isAAVideoCost ? tr("$/min", "$/分钟") : tr("$/task", "$/任务"))
+        let unit = speedOrder ? ((kind == .artificialAnalysisCodingAgent || kind == .valsSWEbench) ? tr("s/task", "秒/任务") : "token/s") : (kind == .openRouterUsage ? LeaderboardPresentation.tokenPriceUnit(language: language) : kind.isAAImageCost ? tr("$/image", "$/张") : kind.isAAVideoCost ? tr("$/min", "$/分钟") : tr("$/task", "$/任务"))
         let title = speedOrder ? tr("Speed", "速度") : costOrder ? (kind == .openRouterUsage ? tr("Price", "价格") : tr("Cost", "成本")) : (kind == .openRouterUsage ? tr("Usage", "用量") : tr("Score", "分数"))
         return VStack(spacing: 0) {
             HStack(spacing: 2) {
@@ -1873,20 +1873,27 @@ private struct PadBoardCard: View {
                 return !frame.isEmpty && frame.intersects(guideScreenBounds)
             } action: { metricHeaderVisible = $0 }
     }
-    private func scoreValue(_ entry: LeaderboardEntry) -> some View {
-        amountText(speedOrder ? LeaderboardPresentation.speedText(entry.speed) : costOrder ? LeaderboardPresentation.taskCostText(entry.taskCostUSD) : LeaderboardPresentation.scoreText(entry.score, kind: kind)).monospacedDigit()
-            .overlay(alignment: .bottomTrailing) {
-                let share = (kind.isPrice || (kind == .openRouterUsage && costOrder)) ? LeaderboardPresentation.taskCostText(entry.outputPriceUSD) : (kind.isShareUsage || kind.isErrorRate) ? "" : LeaderboardPresentation.scoreShareText(speedOrder ? (entry.speed ?? .nan) : costOrder ? (entry.taskCostUSD ?? .nan) : entry.score, leaderScore: rowPresentation.leaderScore)
-                if !share.isEmpty {
-                    amountText(share).font(.system(size: 8)).monospacedDigit()
-                        .foregroundStyle(sourceAccent).offset(y: 10)
-                        .allowsHitTesting(false)
+    @ViewBuilder private func scoreValue(_ entry: LeaderboardEntry) -> some View {
+        if kind.isPrice || (kind == .openRouterUsage && costOrder && !speedOrder) {
+            VStack(alignment: .trailing, spacing: 1) {
+                amountText(LeaderboardPresentation.tokenPriceLine(costOrder ? entry.taskCostUSD : entry.score, output: false, language: language))
+                amountText(LeaderboardPresentation.tokenPriceLine(entry.outputPriceUSD, output: true, language: language))
+            }.font(.system(size: 11)).monospacedDigit()
+        } else {
+            amountText(speedOrder ? LeaderboardPresentation.speedText(entry.speed) : costOrder ? LeaderboardPresentation.taskCostText(entry.taskCostUSD) : LeaderboardPresentation.scoreText(entry.score, kind: kind)).monospacedDigit()
+                .overlay(alignment: .bottomTrailing) {
+                    let share = (kind.isShareUsage || kind.isErrorRate) ? "" : LeaderboardPresentation.scoreShareText(speedOrder ? (entry.speed ?? .nan) : costOrder ? (entry.taskCostUSD ?? .nan) : entry.score, leaderScore: rowPresentation.leaderScore)
+                    if !share.isEmpty {
+                        amountText(share).font(.system(size: 8)).monospacedDigit()
+                            .foregroundStyle(sourceAccent).offset(y: 10)
+                            .allowsHitTesting(false)
+                    }
                 }
-            }
+        }
     }
     private func amountText(_ value: String) -> Text {
-        guard value.hasPrefix("$") else { return Text(value) }
-        return Text("$").baselineOffset(-0.8) + Text(String(value.dropFirst()))
+        guard let dollar = value.firstIndex(of: "$") else { return Text(value) }
+        return Text(String(value[..<dollar])) + Text("$").baselineOffset(-0.8) + Text(String(value[value.index(after: dollar)...]))
     }
     @ViewBuilder private func entryName(_ entry: LeaderboardEntry) -> some View {
         if isImage { Text(entry.name).foregroundStyle(primaryForeground).fixedSize(horizontal: false, vertical: true) }

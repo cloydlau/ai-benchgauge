@@ -58,3 +58,14 @@ test('usage price rows reserve the second line for output in model and company v
     assert.equal(visibleRows(board, { grouping, sort: 'score' })[1].scoreShare, '50%')
   }
 })
+
+
+test('price direction labels follow the selected language in both groupings', () => {
+  const board = { kind: 'openRouterUsage', entries: [{ rank: 1, name: 'A', organization: 'Alpha', score: 1, taskCostUSD: 0 }] }
+  for (const [language, input, output] of [['en', 'Input', 'Output'], ['zh-CN', '输入', '输出'], ['zh-TW', '輸入', '輸出']]) {
+    for (const grouping of ['model', 'company']) {
+      const [row] = visibleRows(board, { language, grouping, sort: 'cost' })
+      assert.deepEqual([row.inputPriceLabel, row.outputPriceLabel, row.scoreText, row.outputPriceText], [input, output, '$0', '—'])
+    }
+  }
+})

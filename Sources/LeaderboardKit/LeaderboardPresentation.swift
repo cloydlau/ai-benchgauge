@@ -80,6 +80,14 @@ public enum LeaderboardPresentation {
         return String(format: value < 0.01 ? "$%.3f" : "$%.2f", locale: Locale(identifier: "en_US_POSIX"), arguments: [value])
     }
 
+    public static func tokenPriceUnit(language: AppLanguage) -> String {
+        language.text("$/1M tokens", "$/百万 token")
+    }
+
+    public static func tokenPriceLine(_ value: Double?, output: Bool, language: AppLanguage) -> String {
+        language.text(output ? "Output" : "Input", output ? "输出" : "输入") + " " + taskCostText(value)
+    }
+
     public static func taskCostHelp(language: AppLanguage) -> String {
         language.text("Average API cost per task (USD), including applicable cache pricing. Read alongside the benchmark score; this is not cost per successful task or subscription pricing. Company rows show the strongest model's cost. The original ranking and rank changes stay unchanged; missing costs are shown as a dash.",
             "平均每任务 API 成本（美元），包含适用的缓存计费。请结合成绩判断；并非每个成功任务成本或订阅价格。公司行显示最强模型对应的成本。榜单顺序和排名变化保持不变，缺失成本显示为横线。")
@@ -339,7 +347,7 @@ public enum LeaderboardPresentation {
     }
 
     public static func scoreTitle(_ kind: LeaderboardKind, language: AppLanguage) -> String {
-        kind.isErrorRate ? "WER ↓" : kind.isPrice ? language.text("In / Out $/1M", "输入/输出 $/百万") : kind.isShareUsage ? language.text("Share", "占比") : kind == .openRouterUsage ? language.text("Tokens", "用量") : language.text("Score", "分数")
+        kind.isErrorRate ? "WER ↓" : kind.isPrice ? tokenPriceUnit(language: language) : kind.isShareUsage ? language.text("Share", "占比") : kind == .openRouterUsage ? language.text("Tokens", "用量") : language.text("Score", "分数")
     }
 
     public static func sourceHelp(_ kind: LeaderboardKind, language: AppLanguage, board: Leaderboard?,

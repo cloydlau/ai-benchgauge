@@ -279,3 +279,12 @@ import LeaderboardKit
             .contains("https://arena.ai/blog/style-control"))
     }
 }
+
+@Test func tokenPricesLabelBothDirectionsIncludingMissingAndFreeValues() {
+    for language in AppLanguage.allCases {
+        #expect(LeaderboardPresentation.tokenPriceLine(0, output: false, language: language) == language.text("Input $0", "输入 $0"))
+        #expect(LeaderboardPresentation.tokenPriceLine(nil, output: true, language: language) == language.text("Output —", "输出 —"))
+        #expect(LeaderboardPresentation.tokenPriceLine(0.0001, output: true, language: language) == language.text("Output <$0.001", "输出 <$0.001"))
+        #expect(LeaderboardPresentation.tokenPriceUnit(language: language) == language.text("$/1M tokens", "$/百万 token"))
+    }
+}

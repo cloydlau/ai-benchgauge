@@ -79,17 +79,21 @@ test('exported score shares sit below the score without changing row geometry', 
 
 test('export aligns the dollar glyph for input and output while retaining the complete price', () => {
   const h = canvasHarness(), source = model([1])
-  Object.assign(source.boards[0].rows[0], { scoreText: '<$0.001', outputPriceText: '$3.00', scoreShare: '' })
+  const paints = []
+  const fillText = h.context.fillText
+  h.context.fillText = (value, x, y) => { paints.push({ value, font: h.context.font }); fillText(value, x, y) }
+  Object.assign(source.boards[0].rows[0], { scoreText: '<$0.001', outputPriceText: '$3.00', inputPriceLabel: 'Input', outputPriceLabel: 'Output', scoreShare: '' })
   drawScreenshot(h.context, source, planScreenshot(h.context, source), new Map())
   const commands = h.commands.filter(([name]) => name === 'fillText')
-  const prefix = commands.find(command => command[1] === '<')
+  const prefix = commands.find(command => command[1] === 'Input <')
   const input = commands.find(command => command[1] === '0.001')
   const output = commands.find(command => command[1] === '3.00')
   const symbols = commands.filter(command => command[1] === '$')
   assert.equal(symbols.length, 2)
+  assert.equal(paints.find(paint => paint.value === '0.001').font, paints.find(paint => paint.value === '3.00').font)
   assert.equal(prefix[3], input[3])
-  assert.ok(Math.abs((input[3] - symbols[0][3]) - 14 * 0.06) < 1e-9)
-  assert.ok(Math.abs((output[3] - symbols[1][3]) - 9 * 0.06) < 1e-9)
+  assert.ok(Math.abs((input[3] - symbols[0][3]) - 11 * 0.06) < 1e-9)
+  assert.ok(Math.abs((output[3] - symbols[1][3]) - 11 * 0.06) < 1e-9)
   assert.ok(prefix[2] < symbols[0][2] && symbols[0][2] < input[2])
 })
 
@@ -304,10 +308,14 @@ test('OpenRouter price export keeps output prices clear of percentage labels', (
     source.language = 'en'
     source.boards[0].kind = board.kind
     source.boards[0].priceHeader = true
-    source.boards[0].rows = visibleRows(board, { grouping, sort: 'cost' })
+    source.boards[0].rows = visibleRows(board, { grouping, sort: 'cost', language: 'en' })
     drawScreenshot(h.context, source, planScreenshot(h.context, source), new Map())
     const labels = h.commands.filter(([command]) => command === 'fillText').map(([, value]) => value)
-    for (const value of ['2.00', '4.00', '1.00', '3.00', 'In / Out', '$/1M tokens']) assert.ok(labels.includes(value))
+    for (const value of ['2.00', '4.00', '1.00', '3.00', 'Input ', 'Output ', 'Price', '$/1M tokens']) assert.ok(labels.includes(value))
+    const paints = h.commands.filter(([command]) => command === 'fillText')
+    const output = paints.find(paint => paint[1] === 'Output ')
+    const attribute = paints.filter(paint => ['?', '—'].includes(paint[1]) && paint[3] === output[3] - 7).sort((a, b) => b[2] - a[2])[0]
+    assert.ok(output[2] - h.context.measureText('Output ').width > attribute[2] + 13, 'Price labels must clear the country/source attribute')
     assert.equal(labels.filter(value => value === '$').length, 4)
     assert.ok(!labels.includes('50%'))
   }

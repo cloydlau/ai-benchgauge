@@ -125,3 +125,17 @@ import LeaderboardKit
     store.setCountryFilter(.country(.unitedStates), for: .arenaText)
     #expect(store.rowPresentation(for: .arenaText).rows.isEmpty)
 }
+
+@MainActor @Test func priceColumnReservesLabelsAndTheLargerOutputAmount() {
+    let board = Leaderboard(kind: .openRouterUsage, title: "OpenRouter", entries: [
+        LeaderboardEntry(rank: 1, name: "A", score: 10, organization: "Alpha", taskCostUSD: 0, outputPriceUSD: 123.45)
+    ])
+    for language in AppLanguage.allCases {
+        for grouping in LeaderboardGrouping.allCases {
+            let presentation = PadRowPresentation(board: board, grouping: grouping, country: .all, openness: .all, language: language, costOrder: true)
+            #expect(presentation.scoreWidthReference == LeaderboardPresentation.tokenPriceLine(123.45, output: true, language: language))
+            #expect(presentation.page(0..<1).scoreWidthReference == presentation.scoreWidthReference)
+            #expect(presentation.rows.first?.rank == 1)
+        }
+    }
+}

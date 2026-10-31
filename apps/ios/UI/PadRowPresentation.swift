@@ -21,7 +21,11 @@ final class PadRowPresentation {
         rows = unsearched.filter { matches($0.name) }
         let values = rows.flatMap { row in
             let first = showSpeed ? LeaderboardPresentation.speedText(row.speed) : showCost ? LeaderboardPresentation.taskCostText(row.taskCostUSD) : LeaderboardPresentation.scoreText(row.score, kind: board?.kind ?? .artificialAnalysis)
-            return (board?.kind.isPrice == true || (board?.kind == .openRouterUsage && showCost)) ? [first, LeaderboardPresentation.taskCostText(row.outputPriceUSD)] : [first]
+            if board?.kind.isPrice == true || (board?.kind == .openRouterUsage && showCost) {
+                return [LeaderboardPresentation.tokenPriceLine(showCost ? row.taskCostUSD : row.score, output: false, language: language),
+                        LeaderboardPresentation.tokenPriceLine(row.outputPriceUSD, output: true, language: language)]
+            }
+            return [first]
         }
         scoreWidthReference = values.max { $0.count < $1.count } ?? "0.0"
         countries = LeaderboardPresentation.countryFilters(board)
