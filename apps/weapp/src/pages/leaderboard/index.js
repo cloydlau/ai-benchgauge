@@ -493,6 +493,13 @@ definePage(query => {
       speedOrder.value = { ...speedOrder.value, [kind]: tapIndex === 2 }
       expandedBoards.value = {}
       resetScroll([kind])
+      // Old snapshots can predate optional metrics. Recover on explicit selection;
+      // refreshKind coalesces repeated taps while a request is in flight.
+      if (kind === 'openRouterUsage' && (tapIndex === 1 || tapIndex === 2)) {
+        const field = tapIndex === 2 ? 'speed' : 'taskCostUSD'
+        const available = snapshots.value[kind]?.entries?.some(entry => Number.isFinite(entry[field]) && (tapIndex === 2 ? entry[field] > 0 : entry[field] >= 0))
+        if (!available) refreshKind(kind)
+      }
     } })
   }
   const filterFor = kind => ({ country: 'all', openness: 'all', ...filters.value[kind] })

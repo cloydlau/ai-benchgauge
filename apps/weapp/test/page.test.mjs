@@ -2904,3 +2904,54 @@ test('an interrupted turn can reverse, cancel and cross a category without an ol
   assert.equal(h.page.face.value, 0)
   assert.equal(h.page.cubeBusy.value, false)
 })
+
+
+test('selecting speed recovers an old metric-free snapshot and coalesces repeated taps', async t => {
+  const h = setup({ category: 'usage' })
+  t.after(() => globalThis.__benchHooks.unload())
+  const loading = h.loadCategory()
+  h.respondAll()
+  await loading
+  const before = h.requests.length
+  const card = () => h.page.cards.value.find(item => item.kind === 'openRouterUsage')
+  const ranks = card().rows.map(row => [row.rank, row.name])
+  wx.showActionSheet = ({ success }) => success({ tapIndex: 2 })
+  h.page.toggleCostOrder(event({ kind: 'openRouterUsage' }))
+  h.page.toggleCostOrder(event({ kind: 'openRouterUsage' }))
+  assert.equal(h.requests.length, before + 1)
+  assert.ok(h.requests.at(-1).options.url.includes('/openRouterUsage'))
+  h.respond(before, { entries: [
+    { rank: 1, name: ranks[0][1], score: 99, speed: 45 },
+    { rank: 2, name: ranks[1][1], score: 98 },
+  ] })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(card().rows.map(row => [row.rank, row.name]), ranks)
+  assert.deepEqual(card().rows.map(row => row.scoreText), ['45', '—'])
+  h.page.toggleCostOrder(event({ kind: 'openRouterUsage' }))
+  assert.equal(h.requests.length, before + 1)
+})
+
+
+test('metric-free persisted cache is retained on failure and recovers on the next selection', async t => {
+  const now = Date.parse('2026-10-13T12:00:00Z')
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now })
+  const saved = { kind: 'openRouterUsage', fetchedAt: new Date(now).toISOString(), entries: [
+    { rank: 1, name: 'Saved', score: 10 },
+  ] }
+  const h = setup({ category: 'usage' }, 0, {}, 'light', 'zh_CN', { openRouterUsage: saved })
+  t.after(() => globalThis.__benchHooks.unload())
+  await h.enter()
+  assert.equal(h.requests.length, 0)
+  const card = () => h.page.cards.value.find(item => item.kind === 'openRouterUsage')
+  wx.showActionSheet = ({ success }) => success({ tapIndex: 2 })
+  h.page.toggleCostOrder(event({ kind: 'openRouterUsage' }))
+  assert.equal(h.requests.length, 1)
+  h.requests[0].options.fail(); h.requests[0].options.complete()
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(card().rows.map(row => [row.name, row.scoreText]), [['Saved', '—']])
+  h.page.toggleCostOrder(event({ kind: 'openRouterUsage' }))
+  assert.equal(h.requests.length, 2)
+  h.respond(1, { entries: [{ rank: 1, name: 'Saved', score: 10, speed: 88 }] })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(card().rows.map(row => [row.rank, row.name, row.scoreText]), [[1, 'Saved', '88']])
+})
