@@ -21,7 +21,7 @@ test('compare before replacing: rises, falls, new models and removed models with
   assert.equal(refreshed.fetchedAt, '2026-10-28T01:00:00Z')
 })
 
-test('no baseline has no badges, unchanged fetches preserve them, and next real update clears settled ranks', () => {
+test('no baseline has no badges; unchanged positions preserve badges through score updates', () => {
   const next = board([entry('A', 1, 100), entry('B', 2, 90)])
   for (const previous of [undefined, board([]), board(next.entries, 'epochECI')]) {
     assert.equal(withRankChanges(next, previous).entries[0].rankChange, undefined)
@@ -30,7 +30,7 @@ test('no baseline has no badges, unchanged fetches preserve them, and next real 
   assert.deepEqual(same, next)
   const marked = { ...next, entries: next.entries.map(row => ({ ...row, rankChange: { isNew: true }, companyRankChange: { delta: 2 } })) }
   const updated = withRankChanges(board([entry('A', 1, 101), entry('B', 2, 90)]), marked)
-  assert.ok(updated.entries.every(row => !row.rankChange && !row.companyRankChange))
+  assert.ok(updated.entries.every(row => row.rankChange?.isNew && row.companyRankChange?.delta === 2))
   assert.equal(companyRows([{ ...entry('A', 1, 100), rankChange: { delta: 5 } }])[0].rankChange, undefined)
   const dirty = board([{ ...entry('A', 1, 100), rankChange: { isNew: true }, companyRankChange: { isNew: true } }])
   assert.equal(withRankChanges(dirty, undefined).entries[0].rankChange, undefined)
@@ -111,4 +111,29 @@ test('HTML contributions compare the last durable board and failed writes leave 
   const result = await service.contribute('epochECI',grant.token,csv(true))
   assert.deepEqual(result.board.entries[0].rankChange, {delta:1})
   assert.equal(saved.entries[0].modelID, 'model-1')
+})
+
+
+test('AA score-only updates retain movements and advance content time; a new ordering resets settled rows', async () => {
+  const { withContentTimestamp } = await import('../fc/domain.mjs')
+  const original = withRankChanges(board([entry('B', 1, 101, 'Google'), entry('A', 2, 90), entry('C', 3, 80, 'Anthropic')]),
+    board([entry('A', 1, 100), entry('B', 2, 90, 'Google'), entry('C', 3, 80, 'Anthropic')]))
+  const now = '2026-10-31T05:22:57.294Z'
+  const changed = withContentTimestamp(withRankChanges({ ...original, fetchedAt: now,
+    entries: original.entries.map(row => ({ ...row, score: row.score + 0.1 })) }, original), original)
+  assert.equal(changed.contentUpdatedAt, now)
+  assert.deepEqual(changed.entries.map(row => row.rankChange), [{ delta: 1 }, { delta: -1 }, undefined])
+  assert.deepEqual(companyRows(changed.entries).map(row => row.rankChange), [{ delta: 1 }, { delta: -1 }, undefined])
+  const reordered = withRankChanges(board([entry('B', 1, 102, 'Google'), entry('C', 2, 95, 'Anthropic'), entry('A', 3, 90)]), changed)
+  assert.deepEqual(reordered.entries.map(row => row.rankChange), [undefined, { delta: 1 }, { delta: -1 }])
+})
+
+test('model and company movements keep independent baselines when usage shares change without model reordering', () => {
+  const old = board([{ ...entry('A', 1, 60), rankChange: { delta: 2 }, companyRankChange: { delta: -1 } },
+    { ...entry('B', 2, 40, 'Google'), rankChange: { delta: -1 }, companyRankChange: { delta: 1 } },
+    { ...entry('C', 3, 30, 'Google'), companyRankChange: { delta: 1 } }], 'vercelUsage')
+  const next = board([entry('A', 1, 80), entry('B', 2, 40, 'Google'), entry('C', 3, 30, 'Google')], 'vercelUsage')
+  const result = withRankChanges(next, old)
+  assert.deepEqual(result.entries.map(row => row.rankChange), [{ delta: 2 }, { delta: -1 }, undefined])
+  assert.deepEqual(companyRows(result.entries, { summingUsage: true }).map(row => row.rankChange), [{ delta: 1 }, { delta: -1 }])
 })

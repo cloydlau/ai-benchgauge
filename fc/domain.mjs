@@ -45,8 +45,8 @@ export function withContentTimestamp(next, previous) {
 // same movement. Do this before replacing latest.json, never on client refresh.
 const rankingIdentity = entry => String(entry.modelID || `${entry.name}\u0000${entry.organization ?? ''}`)
   .replace(/#arena-rank-\d+$/, '').trim().toLowerCase()
-const rankingContent = board => JSON.stringify([...board.entries].sort((a, b) => a.rank - b.rank)
-  .map(entry => [rankingIdentity(entry), entry.name, entry.organization ?? null, entry.rank, entry.score, entry.totalTokens ?? null]))
+const rankingPositions = (entries, identity) => JSON.stringify([...entries].sort((a, b) => a.rank - b.rank)
+  .map(entry => [identity(entry), entry.rank]))
 function uniqueRanks(entries, identity) {
   const ranks = new Map()
   for (const entry of entries) {
@@ -67,25 +67,25 @@ export function withRankChanges(next, previous) {
     return rest
   }
   if (!previous?.entries.length || next.kind !== previous.kind) return { ...next, entries: next.entries.map(clean) }
-  if (rankingContent(next) === rankingContent(previous)) {
-    const prior = new Map(previous.entries.map(entry => [entry.rank, entry]))
-    return { ...next, entries: next.entries.map(entry => {
-      const old = prior.get(entry.rank)
-      return { ...clean(entry), ...(old.rankChange && { rankChange: old.rankChange }),
-        ...(old.companyRankChange && { companyRankChange: old.companyRankChange }) }
-    }) }
-  }
   const priorRanks = uniqueRanks(previous.entries, rankingIdentity)
   const currentRanks = uniqueRanks(next.entries, rankingIdentity)
   const summingUsage = ['openRouterUsage', 'vercelUsage', 'cloudbaseUsage'].includes(next.kind)
   const lowerIsBetter = ['artificialAnalysisSpeechToText', 'artificialAnalysisSpeechToTextStreaming'].includes(next.kind)
   const companyKey = entry => rules.brandKey(entry.components[0])
-  const priorCompanies = uniqueRanks(companyRows(previous.entries, { summingUsage, lowerIsBetter }), companyKey)
-  const companyChanges = new Map(companyRows(next.entries, { summingUsage, lowerIsBetter })
-    .map(entry => [companyKey(entry), movement(entry.rank, priorCompanies.get(companyKey(entry)))]))
+  const previousCompanies = companyRows(previous.entries, { summingUsage, lowerIsBetter })
+  const nextCompanies = companyRows(next.entries, { summingUsage, lowerIsBetter })
+  const priorCompanies = uniqueRanks(previousCompanies, companyKey)
+  const sameModels = rankingPositions(next.entries, rankingIdentity) === rankingPositions(previous.entries, rankingIdentity)
+  const sameCompanies = rankingPositions(nextCompanies, companyKey) === rankingPositions(previousCompanies, companyKey)
+  const priorEntries = new Map(previous.entries.map(entry => [rankingIdentity(entry), entry]))
+  const priorCompanyEntries = new Map(previousCompanies.map(entry => [companyKey(entry), entry]))
+  const companyChanges = new Map(nextCompanies.map(entry => [companyKey(entry), sameCompanies
+    ? priorCompanyEntries.get(companyKey(entry))?.rankChange
+    : movement(entry.rank, priorCompanies.get(companyKey(entry)))]))
   return { ...next, entries: next.entries.map(entry => {
     const key = rankingIdentity(entry)
-    const rankChange = currentRanks.get(key) === null ? undefined : movement(entry.rank, priorRanks.get(key))
+    const rankChange = currentRanks.get(key) === null || priorRanks.get(key) === null ? undefined
+      : sameModels ? priorEntries.get(key)?.rankChange : movement(entry.rank, priorRanks.get(key))
     const companyRankChange = companyChanges.get(rules.brandKey(entry))
     return { ...clean(entry), ...(rankChange && { rankChange }), ...(companyRankChange && { companyRankChange }) }
   }) }
