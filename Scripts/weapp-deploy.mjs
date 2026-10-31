@@ -61,7 +61,7 @@ function run(command, args, { cwd = root, env = process.env } = {}) {
   return new Promise((done, reject) => {
     const child = spawn(command, args, { cwd, env, stdio: 'inherit', timeout: 600_000 })
     child.once('error', reject)
-    child.once('close', code => code === 0 ? done() : reject(new Error(`${command} 退出码 ${code}`)))
+    child.once('close', (code, signal) => code === 0 ? done() : reject(Object.assign(new Error(`${command} 退出码 ${code}${signal ? `（${signal}）` : ''}`), { exitCode: code, signal })))
   })
 }
 
@@ -70,6 +70,32 @@ export function stageInputs(repo, destination, files) {
   copyInputs(repo, destination, files)
   for (const relative of ['node_modules', 'apps/weapp/node_modules']) {
     symlinkSync(join(repo, relative), join(destination, relative), 'dir')
+  }
+}
+
+// Repair only the live checkout. Never let an AI alter an upload snapshot;
+// recreate it and rerun its original tests after the complete live gate passes.
+async function prepareTestedStage(stage, allowRepair = true) {
+  const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+  const files = inputSnapshot()
+  const signature = sourceSignature(files)
+  stageInputs(root, stage, files)
+  if (sourceSignature(inputSnapshot(stage)) !== signature) throw new Error('复制期间源码发生变化，等待下一轮上传')
+  checkPrivacyGuide({ root: stage, write: false })
+  try {
+    await run(npm, ['--prefix', join(stage, 'apps/weapp'), 'test'], {
+      env: { ...process.env, CALMMIT_PATH: ci.library },
+    })
+    return signature
+  } catch (error) {
+    if (!allowRepair || !Number.isInteger(error.exitCode) || error.signal || process.env.TEST_AUTO_REPAIR === '0') throw error
+    log('隔离副本测试失败，在工作区尝试修复并执行完整门禁')
+    const { runTestGate } = await import('./test-repair.mjs')
+    const result = await runTestGate()
+    if (result.status === 75) throw new Error('测试门禁正在执行或源码发生变化，等待下一轮上传')
+    if (result.status !== 0) throw new Error(`小程序测试自愈未通过（退出码 ${result.status}），详见 work/test-results/latest.log`)
+    rmSync(stage, { recursive: true, force: true })
+    return prepareTestedStage(stage, false)
   }
 }
 
@@ -82,21 +108,11 @@ async function upload() {
   if (!lock.acquired) throw new Error('已有小程序构建或上传任务，稍后再试')
   const stage = join(state, `stage-${process.pid}`)
   try {
-    const files = inputSnapshot()
-    const signature = sourceSignature(files)
-    stageInputs(root, stage, files)
-    if (sourceSignature(inputSnapshot(stage)) !== signature) throw new Error('复制期间源码发生变化，等待下一轮上传')
-    checkPrivacyGuide({ root: stage, write: false })
     log('开始小程序测试与独立构建（不会改写开发中的 dist）')
-    // Freeze once before building so the displayed and uploaded versions match,
-    // including builds that finish after Shanghai midnight.
+    const signature = await prepareTestedStage(stage)
+    // Freeze the tested snapshot's version before building and uploading.
     const version = readAppVersion(stage, process.env.MP_VERSION)
-    // npm runs the exact package scripts against the existing locked binaries;
-    // pnpm's pre-run dependency sync cannot operate on this isolated symlink tree.
     const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
-    await run(npm, ['--prefix', join(stage, 'apps/weapp'), 'test'], {
-      env: { ...process.env, CALMMIT_PATH: ci.library },
-    })
     await run(npm, ['--prefix', join(stage, 'apps/weapp'), 'run', 'build'], {
       env: { ...process.env, CALMMIT_PATH: ci.library, MP_VERSION: version, BENCHGAUGE_INVESTMENT_ROOT: root },
     })

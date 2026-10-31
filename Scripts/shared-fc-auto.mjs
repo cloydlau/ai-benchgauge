@@ -99,16 +99,20 @@ export async function deploy() {
   const lock = acquireCommitLock({ lockPath: join(state, 'deploy.lock'), verifyProcessStart: true })
   if (!lock.acquired) throw new Error('已有云函数发布任务')
   try {
-    const source = sourceSignature(), configHash = configSignature(), gate = testInputSignature()
+    const configHash = configSignature()
     log('执行项目完整测试和覆盖率门禁')
-    const gateEnv = { ...process.env, TEST_AUTO_REPAIR: '0' }
     // This flag governs publication, not the independent test process.
     const testEnv = { ...process.env }
     delete testEnv.SHARED_FC_REQUIRE_IDLE
-    const result = await runTestGate({ env: gateEnv, reuseEnv: testEnv, requireSharedProof: true,
+    const result = await runTestGate({ env: testEnv, reuseEnv: testEnv, requireSharedProof: true,
       test: () => runTests({ root, env: testEnv, gate: true, coverage: true, lockWaitMs: 300_000 }) })
     if (result.status === 75) throw new Error('已有云函数发布任务或源码发生变化，等待下一轮发布')
     if (result.status !== 0) throw new Error('完整测试或覆盖率门禁未通过，详见 work/test-results/latest.log')
+    // A repair may legitimately change sources. Bind packaging to the successful
+    // outer test result, then continue checking for untested concurrent edits.
+    const gate = result.signature
+    if (!gate || gate !== testInputSignature(root, testEnv)) throw new Error('源码或部署配置发生变化，等待下一轮发布')
+    const source = sourceSignature()
     const verifyCurrent = () => assertCurrent(source, configHash, gate, result.reused ? result.reuseFingerprint : null, testEnv)
     verifyCurrent()
     log('执行服务端测试')

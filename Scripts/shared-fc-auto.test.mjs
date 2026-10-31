@@ -85,7 +85,7 @@ test('deployment updates code only after the gate and records success only after
       signal: error?.signal ?? null, error, stdout, stderr,
     }))
   })
-  const modes = ['success', 'cached-proof', 'cached-proof-change', 'uppercase-etag', 'proxy', 'env-credentials', 'idle-deploy', 'busy-during-deploy', 'invalid-cli', 'full-gate-fail', 'test-locked', 'gate-fail', 'source-change', 'collector-fail', 'cloud-change', 'archive-mismatch', 'smoke-fail', 'bad-board', 'bad-upload', 'bad-etag', 'bad-download', 'network-download', 'bad-config', 'no-credentials', 'unrelated-main', 'unrelated-collector', 'bad-collector-token', 'missing-collector-token', 'bad-trigger', 'changed-config', 'deploy-locked']
+  const modes = ['success', 'auto-repair', 'repair-disabled', 'untested-source', 'missing-test-proof', 'cached-proof', 'cached-proof-change', 'uppercase-etag', 'proxy', 'env-credentials', 'idle-deploy', 'busy-during-deploy', 'invalid-cli', 'full-gate-fail', 'test-locked', 'gate-fail', 'source-change', 'collector-fail', 'cloud-change', 'archive-mismatch', 'smoke-fail', 'bad-board', 'bad-upload', 'bad-etag', 'bad-download', 'network-download', 'bad-config', 'no-credentials', 'unrelated-main', 'unrelated-collector', 'bad-collector-token', 'missing-collector-token', 'bad-trigger', 'changed-config', 'deploy-locked']
   let nextMode = 0
   const runModes = async () => {
     while (nextMode < modes.length) {
@@ -95,8 +95,8 @@ test('deployment updates code only after the gate and records success only after
     for (const name of ['deploy-shared-leaderboards.mjs', 'shared-fc-auto.mjs']) copyFileSync(new URL(`./${name}`, import.meta.url), join(root, 'Scripts', name))
     writeFileSync(join(root, 'Scripts/calmmit.mjs'), `import {resolve} from 'node:path';export const ci={root:resolve(import.meta.dirname,'..'),load:async name=>name==='deployment-watch'?{createWatchSession(){}}:{createRepositoryActivity:()=>({snapshot:()=>({blocked:${mode === 'busy-during-deploy'}})})}}`)
     writeFileSync(join(root, 'Scripts/commit-lock.mjs'), `export const acquireCommitLock=()=>({acquired:${mode !== 'deploy-locked'},release(){}})`)
-    writeFileSync(join(root, 'Scripts/test-repair.mjs'), `export const runTestGate=async({test})=>${mode.startsWith('cached-proof') ? "({status:0,reused:true,reuseFingerprint:'proof'})" : 'test()'}`)
-    writeFileSync(join(root, 'Scripts/test.mjs'), `export const fullCoverageReuseSignature=()=> '${mode === 'cached-proof-change' ? 'changed' : 'proof'}';export const testInputSignature=()=> 'gate-signature';export const runTests=async options=>({status:options.lockWaitMs===300000?${mode === 'full-gate-fail' ? 1 : mode === 'test-locked' ? 75 : 0}:1})`)
+    writeFileSync(join(root, 'Scripts/test-repair.mjs'), `export const runTestGate=async({test,env})=>{if(env.TEST_AUTO_REPAIR!==${mode === 'repair-disabled' ? "'0'" : 'undefined'})throw Error('repair environment changed');return ${mode.startsWith('cached-proof') ? "({status:0,signature:'gate-signature',reused:true,reuseFingerprint:'proof'})" : 'test()'}}`)
+    writeFileSync(join(root, 'Scripts/test.mjs'), `import {appendFileSync} from 'node:fs';let revision='gate-signature';export const fullCoverageReuseSignature=()=> '${mode === 'cached-proof-change' ? 'changed' : 'proof'}';export const testInputSignature=()=>revision;export const runTests=async options=>{${['auto-repair', 'untested-source'].includes(mode) ? `appendFileSync(${JSON.stringify(join(root, 'fc/domain.mjs'))},'\\n// repaired source');revision='repaired';` : ''}return {status:options.lockWaitMs===300000?${mode === 'full-gate-fail' ? 1 : mode === 'test-locked' ? 75 : 0}:1,signature:${mode === 'missing-test-proof' ? 'null' : mode === 'untested-source' ? "'gate-signature'" : 'revision'}}}`)
     writeFileSync(join(root, '.benchgauge-cloud.local.json'), JSON.stringify({ region: 'cn-shenzhen', bucket: mode === 'bad-config' ? undefined : 'fixture-bucket', arenaCollector: true, runtimeCredentialsFunction: 'runtime', runtimeIdentityName: 'fixture', ...(mode !== 'env-credentials' && { credentialsFile: 'credentials' }), ...(mode === 'proxy' && { proxy: 'http://proxy.invalid' }) }))
     writeFileSync(join(root, 'credentials'), mode === 'no-credentials' ? '# empty\n' : 'ALIBABA_CLOUD_ACCESS_KEY_ID=id\nALIBABA_CLOUD_ACCESS_KEY_SECRET=secret\n')
     const preload = join(root, 'preload.cjs')
@@ -154,12 +154,12 @@ exports.default=class{
       const path = join(root, 'fc/node_modules', name)
       mkdirSync(path, { recursive: true }); writeFileSync(join(path, 'index.js'), source)
     }
-    const env = { ...process.env }; delete env.ALIBABA_CLOUD_ACCESS_KEY_ID; delete env.ALIBABA_CLOUD_ACCESS_KEY_SECRET
+    const env = { ...process.env }; delete env.TEST_AUTO_REPAIR; if (mode === 'repair-disabled') env.TEST_AUTO_REPAIR = '0'; delete env.ALIBABA_CLOUD_ACCESS_KEY_ID; delete env.ALIBABA_CLOUD_ACCESS_KEY_SECRET
     if (mode === 'env-credentials') { env.ALIBABA_CLOUD_ACCESS_KEY_ID = 'env-id'; env.ALIBABA_CLOUD_ACCESS_KEY_SECRET = 'env-secret' }
     if (['idle-deploy', 'busy-during-deploy'].includes(mode)) env.SHARED_FC_REQUIRE_IDLE = '1'
     const result = await spawnResult(process.execPath, ['--require', preload, new URL('./shared-fc-auto.mjs', import.meta.url).pathname, mode === 'invalid-cli' ? 'invalid' : 'deploy'], { cwd: root, env, encoding: 'utf8', timeout: 15000 })
     const receiptPath = join(root, 'work/shared-fc-auto/success.json')
-    if (['success', 'cached-proof', 'uppercase-etag', 'proxy', 'env-credentials', 'idle-deploy'].includes(mode)) {
+    if (['success', 'auto-repair', 'repair-disabled', 'cached-proof', 'uppercase-etag', 'proxy', 'env-credentials', 'idle-deploy'].includes(mode)) {
       assert.equal(result.status, 0, result.stderr)
       assert.equal(JSON.parse(readFileSync(receiptPath, 'utf8')).status, 'success')
       const updates = JSON.parse(readFileSync(join(root, 'updates.json'), 'utf8'))
@@ -179,7 +179,7 @@ exports.default=class{
       if (mode === 'network-download') assert.match(result.stderr, /线上代码包下载暂时失败：连接中断/)
       if (mode === 'missing-collector-token') assert.match(result.stderr, /采集器缺少已核实的专用令牌/)
       if (mode === 'bad-etag') assert.match(result.stderr, /OSS 发布包校验失败/)
-      if (['cached-proof-change', 'gate-fail', 'source-change', 'collector-fail', 'cloud-change', 'network-download', 'missing-collector-token', 'bad-etag'].includes(mode)) assert.equal(existsSync(join(root, 'updates.json')), false, mode)
+      if (['untested-source', 'missing-test-proof', 'cached-proof-change', 'gate-fail', 'source-change', 'collector-fail', 'cloud-change', 'network-download', 'missing-collector-token', 'bad-etag'].includes(mode)) assert.equal(existsSync(join(root, 'updates.json')), false, mode)
     }
   }
   }

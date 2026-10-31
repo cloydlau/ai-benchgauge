@@ -249,6 +249,7 @@ export const state={ready:true,polls:0,scheduled:[],stops:0,session:null,configC
 const config=()=>{const n=++state.configCalls,mode=process.env.UPLOAD_MODE;return{ready:state.ready&&mode!=='not-ready'&&!(mode==='config-unready'&&n===2),reason:'fixture credentials unavailable',signature:(mode==='config-rotation'&&n>=2||mode==='late-config'&&n>=3)?'rotated':'first',keyChangedAt:0,appid:'fixture-appid',privateKeyPath:'fixture-private-key'}};
 export const ci={root:${JSON.stringify(root)},load:async name=>['privacy-guide','wechat-ci','deployment-source'].includes(name)?import(${JSON.stringify(pathToFileURL(join(ci.library, 'src/')).href)}+name+'.mjs'):name==='deployment-credentials'?{readUploadConfig:config,createUploadConfigMonitor:options=>({initial:options.readConfig(),poll(){state.polls++;if(state.pollError)throw Error('fixture monitor');options.readConfig()}})}:{createWatchSession:options=>{state.session=options;return{schedule:(...args)=>state.scheduled.push(args),stop(){state.stops++}}}}};
 `)
+  writeFileSync(join(root, 'Scripts/test-repair.mjs'), `import {appendFileSync,writeFileSync} from 'node:fs';export async function runTestGate(){appendFileSync('events',JSON.stringify(['repair'])+'\\n');if(process.env.UPLOAD_MODE==='test-repaired')writeFileSync('apps/weapp/src/page.js','repaired');return {status:process.env.UPLOAD_MODE==='test-busy'?75:process.env.UPLOAD_MODE==='test-unfixed'?1:0}}`)
   const installRuntime = () => {
     mkdirSync(join(root, 'apps/weapp/ci-runtime/node_modules/node/bin'), { recursive: true })
     mkdirSync(join(root, 'apps/weapp/ci-runtime/node_modules/miniprogram-ci'), { recursive: true })
@@ -262,6 +263,8 @@ import fs from 'node:fs';import path from 'node:path';const args=process.argv.sl
 fs.appendFileSync('events',JSON.stringify(args)+'\\n');
 if(args.includes('build'))fs.writeFileSync('build-version',process.env.MP_VERSION||'');
 if(mode==='build-failed'&&args.includes('build'))process.exit(2);
+if(args.includes('test')&&mode.startsWith('test-')&&!(mode==='test-repaired'&&fs.readFileSync(path.join(args[args.indexOf('--prefix')+1],'src/page.js'),'utf8')==='repaired'))process.exit(4);
+
 if(args.includes('build')&&mode==='build-source')fs.writeFileSync('apps/weapp/src/page.js','changed');
 if(args.includes('ci')){const runtime=args[args.indexOf('--prefix')+1];fs.mkdirSync(path.join(runtime,'node_modules/node/bin'),{recursive:true});fs.mkdirSync(path.join(runtime,'node_modules/miniprogram-ci'),{recursive:true});for(const n of ['node','node.exe'])fs.symlinkSync(process.execPath,path.join(runtime,'node_modules/node/bin',n));for(const name of ['node','miniprogram-ci','form-data']){fs.mkdirSync(path.join(runtime,'node_modules',name),{recursive:true});fs.writeFileSync(path.join(runtime,'node_modules',name,'package.json'),JSON.stringify({version:'fixture'}))};if(mode==='late-source')fs.writeFileSync('apps/weapp/src/page.js','late change')}
 `
@@ -283,6 +286,7 @@ require('node:module').syncBuiltinESMExports();
     platformPreload = ` --import=${pathToFileURL(platformHook).href}`
   }
   const env = { ...process.env, PATH: join(root, 'bin') + ':' + process.env.PATH, UPLOAD_MODE: mode, MP_VERSION: '20261028', NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --require=${hook}${platformPreload}`.trim() }
+  if (mode.startsWith('test-')) { delete env.TEST_AUTO_REPAIR; if (mode === 'test-disabled') env.TEST_AUTO_REPAIR = '0' }
   if (mode === 'default-version') delete env.MP_VERSION
   return { root, env, script: join(root, 'Scripts/weapp-deploy.mjs') }
 }
@@ -294,6 +298,40 @@ test('actual uploader rejects stale inputs, failed builds, changed credentials a
     assert.equal(result.status, 1, mode + ': ' + result.stdout + result.stderr)
     assert.match(result.stderr, new RegExp(reason), mode)
     assert.equal(existsSync(join(f.root, 'apps/weapp/.last-publish')), false, mode)
+    assert.equal(existsSync(join(f.root, `work/weapp-deploy/stage-${result.pid}`)), false, mode)
+  }
+})
+
+test('failed snapshot tests heal in the live checkout once, then require a fresh passing snapshot before upload', t => {
+  const expectedPhases = {
+    'test-repaired': ['test', 'repair', 'test', 'build', 'upload'],
+    'test-unfixed': ['test', 'repair'],
+    'test-still-failing': ['test', 'repair', 'test'],
+    'test-disabled': ['test'],
+    'test-busy': ['test', 'repair'],
+  }
+  for (const mode of ['test-repaired', 'test-unfixed', 'test-still-failing', 'test-disabled', 'test-busy']) {
+    const f = isolatedUploader(t, mode)
+    const result = spawnSync(process.execPath, [f.script, 'upload'], { cwd: f.root, env: f.env, encoding: 'utf8', timeout: 10_000 })
+    const events = readFileSync(join(f.root, 'events'), 'utf8').trim().split('\n').map(JSON.parse)
+    assert.equal(events.filter(event => event[0] === 'repair').length, mode === 'test-disabled' ? 0 : 1, mode)
+    assert.equal(events.filter(event => event.includes('test')).length, ['test-repaired', 'test-still-failing'].includes(mode) ? 2 : 1, mode)
+    assert.deepEqual(events.map(event => ['repair', 'upload'].includes(event[0]) ? event[0] : event.at(-1)),
+      expectedPhases[mode], mode)
+    const receipt = readReceipt(join(f.root, 'apps/weapp/.last-publish'))
+    if (mode === 'test-repaired') {
+      assert.equal(result.status, 0, result.stdout + result.stderr)
+      assert.equal(readFileSync(join(f.root, 'apps/weapp/src/page.js'), 'utf8'), 'repaired')
+      assert.equal(receipt.sourceSignature, sourceSignature(inputSnapshot(f.root)))
+      assert.equal(events.at(-1)[0], 'upload')
+    } else {
+      assert.equal(result.status, 1, mode)
+      assert.equal(receipt, null, mode)
+      if (mode === 'test-busy') assert.match(result.stderr, /测试门禁正在执行或源码发生变化/)
+      if (mode === 'test-still-failing') assert.match(result.stderr, /退出码 4/,
+        'The second snapshot failure must terminate the upload without another repair or an untested signature')
+      assert.equal(events.some(event => event.includes('build') || event[0] === 'upload'), false, mode)
+    }
     assert.equal(existsSync(join(f.root, `work/weapp-deploy/stage-${result.pid}`)), false, mode)
   }
 })
@@ -381,7 +419,7 @@ test('upload watcher owns its lifetime, only queues new publishable inputs and f
   process.kill=()=>{throw Object.assign(Error('missing'),{code:'ESRCH'})};tick();assert.ok(cleared.includes(42));assert.ok(control.state.stops>0)
   const options=control.state.session
   assert.equal(options.uploadConfig().ready,false)
-  assert.equal(options.classifyFailure('已有小程序构建'), 'retry');assert.equal(options.classifyFailure('broken'),'pause');assert.equal(options.classifyFailure(undefined),'pause')
+  assert.equal(options.classifyFailure('测试门禁正在执行或源码发生变化，等待下一轮上传'), 'retry');assert.equal(options.classifyFailure('小程序测试自愈未通过（退出码 1）'), 'pause');assert.equal(options.classifyFailure('已有小程序构建'), 'retry');assert.equal(options.classifyFailure('broken'),'pause');assert.equal(options.classifyFailure(undefined),'pause')
   options.log('提交已完成，开始完整构建并发布');assert.ok(messages.some(value=>value.includes('开始小程序检查')))
   const child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter()
   t.mock.method(cp,'spawn',()=>child);syncBuiltinESMExports()
