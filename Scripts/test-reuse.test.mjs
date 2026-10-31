@@ -146,3 +146,41 @@ test('coverage evidence must be a local regular summary and its digest changes w
   symlinkSync('/etc/hosts', summary)
   assert.equal(coverageSummaryDigest(root, directory), null)
 })
+
+
+test('Xcode proof uses the stable version command and rejects failed probes', t => {
+  const root = mkdtempSync(join(tmpdir(), 'benchgauge-xcode-proof-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  execFileSync('git', ['init', '-q', root])
+  writeFileSync(join(root, 'source'), 'source')
+  const original = childProcess.spawnSync
+  let version = 'Xcode 16.0\nBuild version 16A\n', fail = false, missing = false, calls = 0
+  t.mock.method(childProcess, 'spawnSync', (command, args, options) => {
+    if (command === 'xcodebuild') {
+      calls++; assert.deepEqual(args, ['-version'])
+      if (missing) return { status: null, error: Object.assign(new Error('not found'), { code: 'ENOENT' }) }
+      return fail ? { status: 1, stdout: '', stderr: 'unstable diagnostic' } : { status: 0, stdout: version, stderr: '' }
+    }
+    if (command === '/usr/bin/which' && args[0] === 'xcodebuild') return { status: 1, stdout: '' }
+    return original(command, args, options)
+  })
+  syncBuiltinESMExports()
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports() })
+  const options = { native: { available: true }, node: process.execPath }
+  const first = testReuseSignature(root, process.env, options)
+  assert.match(first, /^[a-f0-9]{64}$/)
+  assert.equal(testReuseSignature(root, process.env, options), first)
+  version = 'Xcode 16.1\nBuild version 16B\n'
+  assert.notEqual(testReuseSignature(root, process.env, options), first)
+  fail = true
+  assert.equal(testReuseSignature(root, process.env, options), null)
+  const unavailable = { ...options, native: { available: false } }
+  const unavailableProof = testReuseSignature(root, process.env, unavailable)
+  assert.match(unavailableProof, /^[a-f0-9]{64}$/)
+  assert.equal(testReuseSignature(root, process.env, unavailable), unavailableProof)
+  missing = true
+  const missingProof = testReuseSignature(root, process.env, options)
+  assert.match(missingProof, /^[a-f0-9]{64}$/)
+  assert.equal(testReuseSignature(root, process.env, options), missingProof)
+  assert.equal(calls, 8)
+})

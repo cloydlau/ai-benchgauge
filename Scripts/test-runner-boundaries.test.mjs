@@ -6,9 +6,12 @@ import { syncBuiltinESMExports } from 'node:module'
 import { EventEmitter } from 'node:events'
 import { dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
+import { pathToFileURL } from 'node:url'
 import { fullCoverageReuseSignature, nativeTestAvailability, runTests, testCommands, testInputSignature, testEnvironment } from './test.mjs'
 import { runTestGate } from './test-repair.mjs'
 import { cacheLock } from './build-cache.mjs'
+import { acquireCommitLock } from './commit-lock.mjs'
+import { coverageSummaryDigest } from './test-reuse.mjs'
 
 function fixture(t) {
   const root = fs.realpathSync(fs.mkdtempSync(join(tmpdir(), 'benchgauge-runner-unit-')))
@@ -26,6 +29,36 @@ test('coverage proof fails closed when the shared library is missing or unspecif
   assert.equal(fullCoverageReuseSignature(root, env, { available: true }), null)
   env.CALMMIT_PATH = join(root, 'missing-library')
   assert.equal(fullCoverageReuseSignature(root, env, { available: true }), null)
+})
+
+test('explicit native availability stays consistent when host Xcode differs', async t => {
+  const root = fixture(t)
+  fs.mkdirSync(join(root, 'library/src'), { recursive: true })
+  fs.writeFileSync(join(root, 'library/src/fixture.mjs'), 'shared')
+  fs.writeFileSync(join(root, 'calmmit.config.json'), JSON.stringify({ library: 'library' }))
+  fs.writeFileSync(join(root, 'README.md'), 'before')
+  const originalExists = fs.existsSync
+  t.mock.method(fs, 'existsSync', path => String(path) === '/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild' || originalExists(path))
+  t.mock.method(cp, 'spawnSync', (command, args) => {
+    if (command === 'xcode-select') return { status: 0, stdout: '/Library/Developer/CommandLineTools\n' }
+    if (command === 'git' && args.includes('ls-files')) return { status: 0, stdout: Buffer.from('README.md\0calmmit.config.json\0Scripts/fixture.test.mjs\0') }
+    if (command === 'git' && args.includes('--show-origin')) return { status: 0, stdout: Buffer.from('git-config') }
+    if (command === '/usr/bin/which') return { status: 1, stdout: '' }
+    if (args[0] === '--expose-internals') { fs.mkdirSync(args[2], { recursive: true }); fs.writeFileSync(join(args[2], 'summary.json'), '{}') }
+    return { status: 0, stdout: '', stderr: '' }
+  })
+  t.mock.method(cp, 'spawn', () => {
+    const child = new EventEmitter(); child.stdout = new EventEmitter(); child.stderr = new EventEmitter()
+    queueMicrotask(() => child.emit('close', 0)); return child
+  })
+  syncBuiltinESMExports()
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports() })
+  const env = { ...process.env, CALMMIT_PATH: '' }
+  for (const key of ['DEVELOPER_DIR', 'TOOLCHAINS', 'SDKROOT', 'SWIFT_EXEC', 'SWIFT_DRIVER_SWIFT_FRONTEND_EXEC']) delete env[key]
+  const result = await runTests({ root, logger, nativeAvailable: false, coverage: true, env })
+  assert.equal(result.status, 0)
+  assert.match(result.reuseFingerprint, /^[a-f0-9]{64}$/)
+  assert.match(result.coverageDigest, /^[a-f0-9]{64}$/)
 })
 
 for (const mode of ['stable', 'changed', 'missing-summary']) test(`coverage receipt attests only a stable complete run: ${mode}`, async t => {
@@ -84,6 +117,48 @@ function mockCommands(t, { mode = '', collector = 0 } = {}) {
   t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports() })
   return calls
 }
+
+for (const mode of ['', 'failure']) test(`shared scheduling preserves native job limits, timing output and child status: ${mode || 'success'}`, async t => {
+  const root = fixture(t), calls = mockCommands(t, { mode }), messages = []
+  const library = join(root, 'shared library')
+  fs.mkdirSync(join(library, 'src'), { recursive: true })
+  fs.writeFileSync(join(root, 'calmmit.config.json'), JSON.stringify({ library }))
+  const modulePath = join(library, 'src/business-tests.mjs')
+  fs.writeFileSync(modulePath, `
+export const prepared = [], timings = []
+export const selfTestConcurrency = () => 3
+export function prepareNodeTestCommand(command, args, { root }) {
+  prepared.push({ command, args, root })
+  return args[0] === '--test' ? { command: 'fixture-scheduled-node', args: ['fixture-scheduler', ...args] } : null
+}
+export function recordCommandTiming(entry) {
+  timings.push(entry)
+  entry.output('fixture timing recorded')
+}
+`)
+  const result = await runTests({ root, nativeAvailable: true, env: { ...process.env, CALMMIT_PATH: '' },
+    logger: { log: message => messages.push(message), error() {} } })
+  const runtime = await import(pathToFileURL(modulePath).href)
+  const scheduled = calls.find(call => call[0] === 'fixture-scheduled-node')
+  assert.ok(scheduled, 'Node suites must use the shared scheduler command')
+  assert.equal(scheduled[1][0], 'fixture-scheduler')
+  assert.equal(scheduled[1][1], '--test')
+  assert.ok(scheduled[1].includes(join(root, 'Scripts/fixture.test.mjs')))
+  assert.equal(result.status, mode === 'failure' ? 2 : 0)
+  assert.equal(Boolean(result.signature), mode !== 'failure')
+  assert.deepEqual(runtime.prepared.map(entry => entry.root), mode === 'failure' ? [root] : [root, root])
+  assert.deepEqual(runtime.timings.map(entry => [entry.cwd, entry.command, entry.args, entry.status]),
+    runtime.prepared.map(entry => [root, entry.command, entry.args, result.status]))
+  assert.ok(runtime.timings.every(entry => Number.isFinite(entry.durationMs) && entry.durationMs >= 0))
+  assert.equal(messages.filter(message => message === 'fixture timing recorded').length, runtime.timings.length)
+  const swift = calls.find(call => call[0] === 'swift')
+  if (mode === 'failure') assert.equal(swift, undefined, 'A failed Node suite must block native tests')
+  else {
+    assert.deepEqual(swift[1], runtime.prepared.find(entry => entry.command === 'swift').args,
+      'Commands outside Node testing must retain their original arguments')
+    assert.equal(swift[1][swift[1].indexOf('--jobs') + 1], '3')
+  }
+})
 
 test('Xcode discovery reads the caller selection and safely retains it when discovery fails', t => {
   const root = fixture(t), xcodeDeveloperDir = join(root, 'Xcode.app/Contents/Developer')
@@ -182,6 +257,105 @@ test('runner waits for an owned lock and rehashes edits made during the wait', a
   await assert.rejects(runTests({ root, coreOnly: true, scriptsOnly: true }), /不能同时/)
 })
 
+for (const mode of ['busy', 'released', 'source-changed', 'failed', 'partial', 'summary-changed', 'environment-changed', 'index-mismatch', 'manual']) {
+  test(`waiting coverage gates validate a concurrent complete proof: ${mode}`, async t => {
+    const root = fixture(t)
+    fs.mkdirSync(join(root, 'library/src'), { recursive: true })
+    fs.writeFileSync(join(root, 'library/src/fixture.mjs'), 'shared')
+    fs.writeFileSync(join(root, 'calmmit.config.json'), JSON.stringify({ library: 'library' }))
+    fs.writeFileSync(join(root, 'Sources/fixture.swift'), 'before')
+    t.mock.method(cp, 'spawnSync', (command, args) => {
+      if (command === 'git' && args.includes('ls-files')) return { status: 0, stdout: Buffer.from('Sources/fixture.swift\0calmmit.config.json\0Scripts/fixture.test.mjs\0') }
+      if (command === 'git' && args.includes('--show-origin')) return { status: 0, stdout: Buffer.from('git-config') }
+      if (command === '/usr/bin/which') return { status: 1, stdout: '' }
+      return { status: 0, stdout: '', stderr: '' }
+    })
+    let children = 0
+    t.mock.method(cp, 'spawn', () => { children++; throw new Error('A verified concurrent proof must not spawn another suite') })
+    syncBuiltinESMExports()
+    t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports() })
+    const env = { ...process.env, CALMMIT_PATH: '' }
+    for (const key of ['BENCHGAUGE_TEST_PASS', 'COMMIT_REQUIRE_LOCK', 'CALMMIT_TEST_INDEX']) delete env[key]
+    if (mode === 'index-mismatch') env.CALMMIT_TEST_INDEX = join(root, 'missing-commit-index')
+    const directory = join(root, 'work/test-results')
+    const coverageDirectory = join(directory, 'coverage-123-456')
+    fs.mkdirSync(coverageDirectory, { recursive: true })
+    fs.writeFileSync(join(coverageDirectory, 'summary.json'), '{}')
+    const receipt = { status: 0, scope: 'all', coverage: true,
+      signature: testInputSignature(root, env), reuseFingerprint: fullCoverageReuseSignature(root, env),
+      coverageDirectory, coverageDigest: coverageSummaryDigest(root, coverageDirectory) }
+    assert.match(receipt.reuseFingerprint, /^[a-f0-9]{64}$/)
+    fs.writeFileSync(join(directory, 'latest.log'), 'concurrent log')
+    const held = acquireCommitLock({ lockPath: join(directory, 'test.lock') })
+    assert.equal(held.acquired, true)
+    t.after(() => held.release())
+    const messages = []
+    const waiting = runTests({ root, env, gate: mode !== 'manual', coverage: true, lockWaitMs: 30,
+      logger: { log: message => messages.push(message), error() {} } })
+    if (mode === 'source-changed') fs.writeFileSync(join(root, 'Sources/fixture.swift'), 'after')
+    if (mode === 'failed') receipt.status = 1
+    if (mode === 'partial') receipt.scope = 'scripts'
+    if (mode === 'summary-changed') fs.writeFileSync(join(coverageDirectory, 'summary.json'), '{"changed":true}')
+    if (mode === 'environment-changed') receipt.reuseFingerprint = '0'.repeat(64)
+    const serialized = JSON.stringify(receipt)
+    fs.writeFileSync(join(directory, 'latest.json'), serialized)
+    if (mode === 'released') held.release()
+    const result = await waiting
+    const valid = mode === 'busy' || mode === 'released'
+    assert.equal(result.status, valid ? 0 : 75)
+    assert.equal(result.reused, valid ? true : undefined)
+    assert.equal(children, 0)
+    assert.equal(messages.filter(message => message.includes('等待正在运行')).length, 1)
+    assert.equal(fs.readFileSync(join(directory, 'latest.log'), 'utf8'), 'concurrent log')
+    assert.equal(fs.readFileSync(join(directory, 'latest.json'), 'utf8'), serialized)
+    assert.equal(fs.existsSync(join(directory, 'test.lock')), mode !== 'released')
+  })
+}
+
+for (const mode of ['missing', 'unchanged']) test(`waiting coverage gates reject ${mode} receipts across repeated polls`, async t => {
+  const root = fixture(t), calls = mockCommands(t)
+  const directory = join(root, 'work/test-results')
+  fs.mkdirSync(directory, { recursive: true })
+  const receiptPath = join(directory, 'latest.json')
+  const receipt = JSON.stringify({ status: 1, scope: 'all', coverage: true })
+  if (mode === 'unchanged') fs.writeFileSync(receiptPath, receipt)
+  fs.writeFileSync(join(directory, 'latest.log'), 'previous failure')
+  const lockPath = join(directory, 'test.lock')
+  const held = acquireCommitLock({ lockPath })
+  assert.equal(held.acquired, true)
+  t.after(() => held.release())
+  const lockContents = fs.readFileSync(lockPath, 'utf8')
+  const read = fs.readFileSync
+  let clock = Date.now(), receiptReads = 0
+  t.mock.method(Date, 'now', () => clock)
+  t.mock.method(fs, 'readFileSync', (path, ...args) => {
+    if (path === receiptPath) {
+      receiptReads++
+      // Advance only on receipt reads so host scheduling cannot consume the
+      // deadline before the missing/unchanged receipt has been polled again.
+      clock++
+    }
+    return read(path, ...args)
+  })
+  syncBuiltinESMExports()
+  const messages = []
+  const result = await runTests({ root, nativeAvailable: true, gate: true, coverage: true, lockWaitMs: 3,
+    logger: { log: message => messages.push(message), error() {} } })
+  assert.equal(result.status, 75)
+  assert.equal(result.signature, null)
+  assert.equal(result.reused, undefined)
+  assert.match(result.error, /等待超时/)
+  // Missing: three failed reads. Unchanged: initial read plus validation,
+  // then one repeat read; the unchanged failure must not be validated twice.
+  assert.equal(receiptReads, 3)
+  assert.equal(calls.some(call => call[2]?.stdio), false, 'Waiting must not spawn test children')
+  assert.equal(messages.filter(message => message.includes('等待正在运行')).length, 1)
+  assert.equal(read(join(directory, 'latest.log'), 'utf8'), 'previous failure')
+  assert.equal(read(lockPath, 'utf8'), lockContents)
+  if (mode === 'unchanged') assert.equal(read(receiptPath, 'utf8'), receipt)
+  else assert.equal(fs.existsSync(receiptPath), false)
+})
+
 test('runner waits for the shared native-build lease before executing native tests', async t => {
   const root = fixture(t); mockCommands(t)
   const held = await cacheLock(root)
@@ -242,7 +416,7 @@ test('runner CLI validates flags, forwards lock errors and executes only isolate
   fs.copyFileSync(new URL('./prepare-swift-workspace.mjs',import.meta.url),join(root,'Scripts/prepare-swift-workspace.mjs'))
   fs.writeFileSync(join(root,'Scripts/commit-lock.mjs'), `export const pidState=()=> 'gone'; export const acquireCommitLock=()=>process.env.UNIT_BUSY==='1'?{acquired:false,reason:'error'}:{acquired:true,release(){}}`)
   fs.writeFileSync(join(root,'Scripts/node-executable.mjs'), `export const nodeExecutable=()=>process.execPath`)
-  fs.writeFileSync(join(root,'Scripts/test-repair.mjs'), `export const runTestGate=async()=>({status:0});export const readBoundCoveragePass=()=>process.env.UNIT_REUSE==='1'?{status:0,reused:true}:null;export const readSharedCoveragePass=()=>process.env.UNIT_SHARED==='1'?{status:0,reused:true}:null`)
+  fs.writeFileSync(join(root,'Scripts/test-repair.mjs'), `export const runTestGate=async()=>({status:0});export const readBoundCoveragePass=()=>process.env.UNIT_REUSE==='1'?{status:0,reused:true}:null;export const readSharedCoveragePass=({requireIndex}={})=>{if(process.env.UNIT_EXPECT_INDEX==='1'&&!requireIndex)throw Error('private index validation is required');return process.env.UNIT_SHARED==='1'?{status:0,reused:true}:null}`)
   fs.writeFileSync(join(root,'hook.cjs'), `const cp=require('node:child_process'),{EventEmitter}=require('node:events');cp.spawnSync=()=>({status:0});cp.spawn=()=>{const child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();queueMicrotask(()=>child.emit('close',0));return child};require('node:module').syncBuiltinESMExports();`)
   const invoke=(args=[],env={})=>cp.spawnSync(process.execPath,['--require',join(root,'hook.cjs'),join(root,'Scripts/test.mjs'),...args],{encoding:'utf8',env:{...process.env,...env}})
   for(const args of [[],['--core'],['--scripts'],['--core','--coverage'],['--gate']]) assert.equal(invoke(args).status,0)
@@ -256,6 +430,8 @@ test('runner CLI validates flags, forwards lock errors and executes only isolate
   assert.equal(invoke(['--coverage'], {COMMIT_REQUIRE_LOCK:'1',UNIT_SHARED:'1',UNIT_BUSY:'1'}).status,0)
   assert.match(invoke(['--coverage'], {COMMIT_REQUIRE_LOCK:'1',UNIT_SHARED:'0',UNIT_BUSY:'1'}).stderr,/无法获取测试锁/)
   assert.match(invoke(['--coverage'], {UNIT_SHARED:'1',UNIT_BUSY:'1'}).stderr,/无法获取测试锁/)
+  assert.equal(invoke(['--coverage'], {CALMMIT_TEST_INDEX:'/fixture/commit-index-1',UNIT_EXPECT_INDEX:'1',UNIT_SHARED:'1',UNIT_BUSY:'1'}).status,0)
+  assert.match(invoke(['--coverage'], {CALMMIT_TEST_INDEX:'/fixture/commit-index-1',UNIT_EXPECT_INDEX:'1',UNIT_SHARED:'0',UNIT_BUSY:'1'}).stderr,/无法获取测试锁/)
 })
 
 

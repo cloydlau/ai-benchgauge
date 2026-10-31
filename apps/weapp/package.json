@@ -7,7 +7,7 @@
     "dev": "weapp-vite dev",
     "open": "weapp-vite open",
     "build": "weapp-vite build && vant-tree-shaking --vantPath=dist/miniprogram_npm/@vant/weapp && node scripts/verify-build.mjs",
-    "test": "node --test test/*.test.mjs"
+    "test": "node ../../Scripts/calmmit.mjs test-node --cwd apps/weapp 'test/*.test.mjs'"
   },
   "dependencies": {
     "@vant/weapp": "1.11.7",

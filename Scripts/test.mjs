@@ -3,7 +3,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { appendFileSync, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'
 import { acquireCommitLock, pidState } from './commit-lock.mjs'
 import { nodeExecutable } from './node-executable.mjs'
@@ -106,7 +106,7 @@ export function testInputSignature(root = testRoot, env = process.env) {
 }
 
 export function testCommands(root = testRoot, { coreOnly = false, scriptsOnly = false, coverage = false, swiftcPath,
-  env = testEnvironment(), node = nodeExecutable({ env }), skipWindows = false } = {}) {
+  env = testEnvironment(), node = nodeExecutable({ env }), skipWindows = false, nativeJobs } = {}) {
   const commands = []
   if (!coreOnly) {
     const files = readdirSync(join(root, 'Scripts')).filter((name) => name.endsWith('.test.mjs')).sort().map((name) => join(root, 'Scripts', name))
@@ -128,6 +128,7 @@ export function testCommands(root = testRoot, { coreOnly = false, scriptsOnly = 
     const args = ['test', '--no-parallel', '--disable-xctest', '--package-path', root,
       '--scratch-path', join(root, 'work', 'unit-test-build'),
       '--cache-path', join(root, 'work', 'swiftpm-cache'), '--manifest-cache', 'local', '--disable-sandbox']
+    if (nativeJobs != null) args.push('--jobs', String(nativeJobs))
     if (coverage) args.push('--enable-code-coverage')
     // Swift Build in recent Command Line Tools omits TestingMacros from its search path.
     const swiftc = swiftcPath ?? spawnSync('xcrun', ['--find', 'swiftc'], { env, encoding: 'utf8' }).stdout?.trim()
@@ -200,6 +201,17 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
   const directory = join(root, 'work', 'test-results')
   mkdirSync(directory, { recursive: true })
   const lockPath = join(directory, 'test.lock')
+  let observedReceipt = null
+  const concurrentCoveragePass = async (force = false) => {
+    if (!gate || !canAttest) return null
+    let receipt
+    try { receipt = readFileSync(join(directory, 'latest.json'), 'utf8') } catch { return null }
+    if (!force && receipt === observedReceipt) return null
+    observedReceipt = receipt
+    const { readSharedCoveragePass } = await import('./test-repair.mjs')
+    return readSharedCoveragePass({ root, env,
+      requireIndex: env.COMMIT_REQUIRE_LOCK === '1' || Boolean(env.CALMMIT_TEST_INDEX) })
+  }
   const waitStarted = Date.now()
   let lock = acquireCommitLock({ lockPath })
   let waited = false
@@ -208,12 +220,22 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
     waited = true
     await delay(Math.min(1000, Math.max(1, lockWaitMs - (Date.now() - waitStarted))))
     lock = acquireCommitLock({ lockPath })
+    // Another waiter may already own the lock. Its predecessor's complete
+    // proof can still satisfy this gate without queueing another full run.
+    if (!lock.acquired) {
+      const cached = await concurrentCoveragePass()
+      if (cached) return cached
+    }
   }
   if (!lock.acquired) return { status: 75, signature: null,
     error: `无法获取测试锁：${lockPath}（${lock.reason}，pid ${lock.owner || '未知'}${waited ? '，等待超时' : ''}）` }
   try {
     // Edits made while waiting belong to the new run, not its previous owner.
-    if (waited) before = testInputSignature(root, env)
+    if (waited) {
+      before = testInputSignature(root, env)
+      const cached = await concurrentCoveragePass(true)
+      if (cached) return cached
+    }
     const reuseBefore = canAttest ? fullCoverageReuseSignature(root, env, native, windows) : null
     let logPath = env.CI_CHECK_LOG || join(directory, 'latest.log')
     writeFileSync(logPath, '')
@@ -227,8 +249,21 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
     const coverageDirectory = coverage && !coreOnly && !run
       ? join(directory, `coverage-${started}-${process.pid}`) : null
     const nativeCoverage = coverage && !scriptsOnly && !run && !skipNative
+    let runtime = null
+    if (!run && existsSync(join(root, 'calmmit.config.json'))) {
+      try {
+        const config = JSON.parse(readFileSync(join(root, 'calmmit.config.json'), 'utf8'))
+        const library = env.CALMMIT_PATH || config.library
+        if (library) {
+          const modulePath = resolve(root, library, 'src/business-tests.mjs')
+          if (existsSync(modulePath)) runtime = await import(pathToFileURL(modulePath).href)
+        }
+      } catch (error) { throw new Error(`无法加载测试调度配置：${error.message}`) }
+    }
     let status = 0
     const exec = run ?? ((command, args) => new Promise((resolvePromise) => {
+      const commandStarted = performance.now()
+
       const childEnv = { ...env, CLANG_MODULE_CACHE_PATH: join(root, 'work', 'clang-modules'), TZ: 'Asia/Shanghai' }
       // Never let a private Git index or a parent's pass leak into test fixtures.
       for (const key of testParentVariables) delete childEnv[key]
@@ -242,16 +277,20 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
         childEnv.BENCHGAUGE_COVERAGE_ROOT = root
         childEnv.NODE_OPTIONS = `${childEnv.NODE_OPTIONS || ''} --require=${JSON.stringify(join(root, 'Scripts', 'coverage-preload.cjs'))}`.trim()
       }
-      const child = spawn(command, args, { cwd: root, env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] })
+      const planned = runtime?.prepareNodeTestCommand(command, args, { root }) || { command, args }
+      const child = spawn(planned.command, planned.args, { cwd: root, env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] })
       for (const stream of [child.stdout, child.stderr]) stream.on('data', (data) => {
         process.stdout.write(data); appendFileSync(logPath, data)
       })
       child.on('error', (error) => {
         logger.error(error.message); appendFileSync(logPath, error.message + '\n'); resolvePromise(1)
       })
-      child.on('close', (code) => resolvePromise(code ?? 1))
+      child.on('close', (code) => {
+        runtime?.recordCommandTiming({cwd: root, command, args, durationMs: performance.now() - commandStarted, status: code, output: message => logger.log(message)})
+        resolvePromise(code ?? 1)
+      })
     }))
-    const checks = commands ?? testCommands(root, { coreOnly, scriptsOnly: scriptsOnly || skipNative, coverage, env, skipWindows: !windows.available })
+    const checks = commands ?? testCommands(root, { coreOnly, scriptsOnly: scriptsOnly || skipNative, coverage, env, skipWindows: !windows.available, nativeJobs: runtime?.selfTestConcurrency() })
     if (!checks.length && !skipNative) throw new Error('测试列表为空，拒绝报告通过')
     const runChecks = async () => {
       if (nativeCoverage) {
@@ -298,7 +337,8 @@ export async function runTests({ root = testRoot, coreOnly = false, scriptsOnly 
       copyFileSync(logPath, failurePath)
       logPath = failurePath
     }
-    const reuseAfter = status === 0 && reuseBefore ? fullCoverageReuseSignature(root, env) : null
+    // Explicit test overrides must remain consistent; real runs re-probe the environment.
+    const reuseAfter = status === 0 && reuseBefore ? fullCoverageReuseSignature(root, env, nativeAvailable == null ? undefined : native) : null
     const coverageDigest = status === 0 && reuseBefore && reuseBefore === reuseAfter ? coverageSummaryDigest(root, coverageDirectory) : null
     const result = { status, signature: status === 0 && !coreOnly && !scriptsOnly ? before : null, logPath, durationMs: Date.now() - started,
       scope: coreOnly ? 'core' : scriptsOnly ? 'scripts' : 'all', coverage, coverageDirectory,
@@ -321,16 +361,18 @@ async function main() {
   if (args.some((arg) => !['--core', '--scripts', '--coverage', '--gate'].includes(arg))) throw new Error('用法：./test.sh [--core | --scripts] [--coverage]')
   if (args.includes('--gate') && args.length !== 1) throw new Error('--gate 必须运行完整测试')
   let boundCoverage = null
-  if (args.length === 1 && args[0] === '--coverage' && (process.env.BENCHGAUGE_TEST_PASS || process.env.COMMIT_REQUIRE_LOCK === '1')) {
+  const coverageGate = args.length === 1 && args[0] === '--coverage'
+    && Boolean(process.env.BENCHGAUGE_TEST_PASS || process.env.COMMIT_REQUIRE_LOCK === '1' || process.env.CALMMIT_TEST_INDEX)
+  if (coverageGate) {
     const { readBoundCoveragePass, readSharedCoveragePass } = await import('./test-repair.mjs')
-    const requireIndex = process.env.COMMIT_REQUIRE_LOCK === '1'
+    const requireIndex = process.env.COMMIT_REQUIRE_LOCK === '1' || Boolean(process.env.CALMMIT_TEST_INDEX)
     boundCoverage = readBoundCoveragePass({ requireIndex }) || (requireIndex ? readSharedCoveragePass({ requireIndex }) : null)
   }
   const result = boundCoverage || (args.includes('--gate')
     ? await (await import('./test-repair.mjs')).runTestGate()
     // A complete coverage run can take about three minutes. Let a concurrent
     // run finish before starting our own checks, within the outer CI deadline.
-    : await runTests({ coreOnly: args.includes('--core'), scriptsOnly: args.includes('--scripts'), coverage: args.includes('--coverage'), lockWaitMs: 300_000 }))
+    : await runTests({ coreOnly: args.includes('--core'), scriptsOnly: args.includes('--scripts'), coverage: args.includes('--coverage'), gate: coverageGate, lockWaitMs: 300_000 }))
   if (result.error) console.error(`[test] ${result.error}`)
   process.exitCode = result.status
 }

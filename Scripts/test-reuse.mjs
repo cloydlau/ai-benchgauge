@@ -94,8 +94,13 @@ export function testReuseSignature(root, env, { native, node, library, versions 
     }
     if (versions) hash.update(JSON.stringify(versions))
     else for (const command of ['git', 'swift', 'dotnet', 'xcodebuild']) {
-      const result = spawnSync(command, ['--version'], { env, encoding: 'utf8', timeout: 5000 })
-      hash.update(JSON.stringify([command, result.status, result.error?.code, result.stdout, result.stderr]))
+      // xcodebuild uses -version; --version emits a timestamped result bundle
+      // and makes identical inputs appear different on every invocation.
+      const result = spawnSync(command, [command === 'xcodebuild' ? '-version' : '--version'], { env, encoding: 'utf8', timeout: 5000 })
+      if (command === 'xcodebuild' && result.error?.code !== 'ENOENT' && (result.error || result.status !== 0)) {
+        if (native?.available === true) return null
+        hash.update(JSON.stringify([command, 'unavailable', result.status, result.error?.code]))
+      } else hash.update(JSON.stringify([command, result.status, result.error?.code, result.stdout, result.stderr]))
     }
     if (!versions) for (const command of ['git', 'swift', 'dotnet', 'xcodebuild', 'xcrun', 'npm', 'pnpm', 'sh', 'zsh']) {
       const located = spawnSync('/usr/bin/which', [command], { env, encoding: 'utf8', timeout: 5000 })
