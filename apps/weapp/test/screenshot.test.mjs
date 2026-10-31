@@ -4,7 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { bundledFlags } from '../src/core/flag-catalog.js'
 import { planScreenshot, drawScreenshot, screenshotStripHeight, screenshotWidth } from '../src/core/screenshot.js'
 import { exportScreenshot, removeScreenshot } from '../src/services/screenshot.js'
-import { rowView } from '../src/core/leaderboard.js'
+import { rowView, visibleRows } from '../src/core/leaderboard.js'
 import { sourceTabTheme } from '../src/core/source-tab-theme.js'
 import { copy, text } from '../src/core/catalog.js'
 import { canvasHarness } from './helpers/canvas.mjs'
@@ -289,5 +289,26 @@ test('image export retains every movement badge without increasing row height', 
     }
     assert.equal(paints.find(paint => paint.value === '↑12').color, dark ? '#ff9292' : '#c24748')
     assert.equal(paints.find(paint => paint.value === '↓3').color, dark ? '#73d7ae' : '#0f8561')
+  }
+})
+
+
+test('OpenRouter price export keeps output prices clear of percentage labels', () => {
+  for (const grouping of ['model', 'company']) {
+    const h = canvasHarness(), source = model([0])
+    const board = { kind: 'openRouterUsage', entries: [
+      { rank: 1, name: 'A', organization: 'Alpha', score: 10, taskCostUSD: 2, outputPriceUSD: 4 },
+      { rank: 2, name: 'B', organization: 'Beta', score: 5, taskCostUSD: 1, outputPriceUSD: 3 },
+    ] }
+    source.grouping = grouping
+    source.language = 'en'
+    source.boards[0].kind = board.kind
+    source.boards[0].priceHeader = true
+    source.boards[0].rows = visibleRows(board, { grouping, sort: 'cost' })
+    drawScreenshot(h.context, source, planScreenshot(h.context, source), new Map())
+    const labels = h.commands.filter(([command]) => command === 'fillText').map(([, value]) => value)
+    for (const value of ['2.00', '4.00', '1.00', '3.00', 'In / Out', '$/1M tokens']) assert.ok(labels.includes(value))
+    assert.equal(labels.filter(value => value === '$').length, 4)
+    assert.ok(!labels.includes('50%'))
   }
 })

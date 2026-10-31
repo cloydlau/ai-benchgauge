@@ -67,7 +67,7 @@ struct LeaderboardView: View {
     }
 
     private static func scoreColumnExtraWidth(_ kind: LeaderboardKind) -> CGFloat {
-        kind == .openRouterUsage ? 30 : kind.supportsAACost ? 40 : 0
+        kind.supportsAACost ? 40 : 0
     }
 
     static func preferredWidth(for state: AppState, maximumWidth: CGFloat) -> CGFloat {
@@ -579,7 +579,7 @@ struct LeaderboardView: View {
                     country: state.countryFilters[kind] ?? .all,
                     countryOptions: countryOptions(for: kind), openness: state.opennessFilters[kind] ?? .all,
                     selectVariant: { state.selectMediaVariant($0, replacing: kind) },
-                    costOrder: kind != .openRouterUsage && state.costOrders.contains(kind), speedOrder: kind != .openRouterUsage && state.speedOrders.contains(kind), priceAscending: state.priceAscending, togglePrice: { state.priceAscending.toggle() }, selectMetric: { metric in
+                    costOrder: state.costOrders.contains(kind), speedOrder: state.speedOrders.contains(kind), priceAscending: state.priceAscending, togglePrice: { state.priceAscending.toggle() }, selectMetric: { metric in
                         state.costOrders.remove(kind); state.speedOrders.remove(kind)
                         if metric == 1 { state.costOrders.insert(kind) }
                         if metric == 2 { state.speedOrders.insert(kind) }
@@ -1032,16 +1032,16 @@ struct LeaderboardView: View {
         let count = search.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? max(Self.visibleRowCount(for: state), resultCount) : max(4, resultCount)
         let maxima = unsearched.enumerated().map { slot, list -> Double? in
-            if visibleKinds[slot] != .openRouterUsage && state.costOrders.contains(visibleKinds[slot]) { return list.compactMap(\.entry.taskCostUSD).max() }
-            if visibleKinds[slot] != .openRouterUsage && state.speedOrders.contains(visibleKinds[slot]) { return list.compactMap(\.entry.speed).max() }
+            if state.costOrders.contains(visibleKinds[slot]) { return list.compactMap(\.entry.taskCostUSD).max() }
+            if state.speedOrders.contains(visibleKinds[slot]) { return list.compactMap(\.entry.speed).max() }
             return list.map(\.entry.score).max()
         }
         let rows = (0..<min(count, rowPage.count)).map { index in
             let cells = (0..<3).map { slot -> LeaderboardCellModel? in
                 guard entries.indices.contains(slot) else { return nil }
                 let list = entries[slot]
-                let showCost = visibleKinds[slot] != .openRouterUsage && state.costOrders.contains(visibleKinds[slot])
-                let showSpeed = visibleKinds[slot] != .openRouterUsage && state.speedOrders.contains(visibleKinds[slot])
+                let showCost = state.costOrders.contains(visibleKinds[slot])
+                let showSpeed = state.speedOrders.contains(visibleKinds[slot])
                 return cellModel(for: index < list.count ? list[index] : nil, organizationLogos: logos,
                     leaderScore: maxima[slot], showRelativeShare: !visibleKinds[slot].isShareUsage && !visibleKinds[slot].isErrorRate, costMode: showCost, speedMode: showSpeed, isErrorRate: visibleKinds[slot].isErrorRate)
             }
@@ -1479,7 +1479,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         guideTimer?.invalidate(); guideTimer = nil
         if ProcessInfo.processInfo.arguments.contains("--visual-test") {
             if ProcessInfo.processInfo.environment["BENCHGAUGE_METRIC_GUIDE_VISUAL"] == "1" {
-                guideUntil = Dictionary(uniqueKeysWithValues: boards.filter { $0.kind != .openRouterUsage && $0.kind.supportsAACost && $0.guideReady && !showsSkeleton }.map { ($0.kind, Double.infinity) })
+                guideUntil = Dictionary(uniqueKeysWithValues: boards.filter { $0.kind.supportsAACost && $0.guideReady && !showsSkeleton }.map { ($0.kind, Double.infinity) })
                 syncMetricGuidePopovers()
                 needsDisplay = true
             }
@@ -1491,7 +1491,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         let visibleX = tableView?.visibleRect ?? .zero
         let eligible = Set(boards.enumerated().compactMap { index, board -> LeaderboardKind? in
             let column = 1 + index * 4 + 3
-            guard board.kind != .openRouterUsage, board.kind.supportsAACost, board.guideReady, !showsSkeleton,
+            guard board.kind.supportsAACost, board.guideReady, !showsSkeleton,
                   let tableView, tableView.tableColumns.indices.contains(column), !tableView.tableColumns[column].isHidden else { return nil }
             let frame = headerRect(ofColumn: column)
             let overlap = max(0, min(frame.maxX, visibleX.maxX) - max(frame.minX, visibleX.minX))
@@ -1512,9 +1512,9 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         syncMetricGuidePopovers()
         needsDisplay = true
         let awaitingLayout = visible && visibleX.width <= 0 && !showsSkeleton
-            && boards.contains { $0.kind != .openRouterUsage && $0.kind.supportsAACost && $0.guideReady && !MetricGuide.hasSeen($0.kind) }
+            && boards.contains { $0.kind.supportsAACost && $0.guideReady && !MetricGuide.hasSeen($0.kind) }
         let awaitingReveal = window?.isVisible == true && !visible && !showsSkeleton
-            && boards.contains { $0.kind != .openRouterUsage && $0.kind.supportsAACost && $0.guideReady && !MetricGuide.hasSeen($0.kind) }
+            && boards.contains { $0.kind.supportsAACost && $0.guideReady && !MetricGuide.hasSeen($0.kind) }
         if !guidePending.isEmpty || awaitingLayout || awaitingReveal {
             guideTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { [weak self] _ in
                 MainActor.assumeIsolated { self?.updateMetricGuide() }
@@ -1607,8 +1607,7 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         if column > 0, (column - 1) % 4 == 3, boards.indices.contains((column - 1) / 4) {
             let board = boards[(column - 1) / 4]
             if board.kind.isPrice { board.togglePrice(); return }
-            // OpenRouter metric selection is temporarily unavailable; retain the menu implementation below.
-            if board.kind != .openRouterUsage && board.kind.supportsAACost {
+            if board.kind.supportsAACost {
                 dismissMetricGuide(board.kind)
                 menuKind = board.kind
                 let menu = NSMenu()
@@ -1756,9 +1755,6 @@ private final class SourceTableHeaderView: NSTableHeaderView {
                         width: max(0, headerRect(ofColumn: index + 3).maxX - fullRect.minX), height: 18), kind: board.kind)
             case 1: drawCountryHeader(selected: board.country, in: rect)
             case 2: drawFilterHeader(title: ModelOpenness.columnTitle(language: language), active: board.openness != .all, in: rect)
-            case 3 where board.kind == .openRouterUsage:
-                let cell = NSTableHeaderCell(textCell: language.text("Usage", "用量")); cell.alignment = .center
-                cell.draw(withFrame: rect, in: self)
             case 3 where board.kind.supportsAACost:
                 let label = board.speedOrder ? ((board.kind == .artificialAnalysisCodingAgent || board.kind == .valsSWEbench) ? language.text("s/task", "秒/任务") : "token/s") : board.costOrder ? (board.kind == .openRouterUsage ? language.text("In/Out $/1M", "输入/输出$/百万") : board.kind.isAAImageCost ? language.text("$/image", "$/张") : board.kind.isAAVideoCost ? language.text("$/min", "$/分钟") : language.text("$/task", "$/任务")) : (board.kind == .openRouterUsage ? language.text("Usage", "用量") : language.text("Score", "分数"))
                 if board.speedOrder || board.costOrder {
@@ -1887,9 +1883,8 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             .underlineStyle: NSUnderlineStyle.single.rawValue]
         let timeSize = (time.text as NSString).size(withAttributes: timeAttributes)
         let titleRect = NSTableHeaderCell(textCell: "").titleRect(forBounds: rect)
-        let titleFont = NSFont.systemFont(ofSize: 11, weight: .semibold)
+        var titleFont = NSFont.systemFont(ofSize: 11, weight: .semibold)
         let sourceTitle = kind.mediaVariants.count > 1 ? kind.sourcePrefix : title
-        let compactTitle = sourceTitle.replacingOccurrences(of: "Artificial Analysis", with: "AA")
         let timeY = timeArea.midY - timeSize.height / 2
         let timeOrigin = NSPoint(x: timeArea.maxX - timeSize.width - 5, y: timeY)
         timeRects[kind] = NSRect(origin: timeOrigin, size: timeSize).insetBy(dx: -3, dy: -3).intersection(timeArea)

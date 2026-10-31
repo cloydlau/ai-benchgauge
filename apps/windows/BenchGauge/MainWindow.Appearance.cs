@@ -659,7 +659,7 @@ sealed partial class MainWindow
         "平均每任務 API 成本（美元），包含適用的快取計費。請結合成績判斷；並非訂閱價格或每個成功任務成本。公司行顯示最強模型對應的成本。榜單順序和排名變化保持不變，缺失成本顯示為橫線。");
 
     string AACostHelp(string kind) => kind switch {
-        "openRouterUsage" => Tr("Input/output prices in USD per million tokens; speed is the best available provider 30-minute p50 throughput. Company values use its most-used listed model; usage ranking stays unchanged.", "输入/输出价格为每百万 token 美元报价；速度为可用供应商最近 30 分钟最高的 P50 吞吐量。公司值取用量最高的上榜模型；保持原用量排名。", "輸入/輸出價格為每百萬 token 美元報價；速度為可用供應商最近 30 分鐘最高的 P50 吞吐量。公司值取用量最高的上榜模型；保持原用量排名。"),
+        "openRouterUsage" => Tr("Input (first line) and output (second line) prices are USD per million tokens. At $1 input and $4 output, 100,000 input and 20,000 output tokens cost $0.18 before other charges. Speed is the best available provider 30-minute p50 throughput. Company values use its most-used listed model; usage ranking stays unchanged.", "第一行是输入价格，第二行是输出价格，单位为美元/百万 token。例如输入 $1、输出 $4 时，10 万输入 token 加 2 万输出 token 的基础费用为 $0.18；实际费用可能另有差异。速度为可用供应商最近 30 分钟最高的 P50 吞吐量。公司值取用量最高的上榜模型；保持原用量排名。", "第一行是輸入價格，第二行是輸出價格，單位為美元/百萬 token。例如輸入 $1、輸出 $4 時，10 萬輸入 token 加 2 萬輸出 token 的基礎費用為 $0.18；實際費用可能另有差異。速度為可用供應商最近 30 分鐘最高的 P50 吞吐量。公司值取用量最高的上榜模型；保持原用量排名。"),
         "valsSWEbench" => Tr("Cost and duration per test as published by Vals; source ranking stays unchanged.", "Vals 公布的每次测试成本和耗时；切换指标不改变原榜排名。", "Vals 公布的每次測試成本和耗時；切換指標不改變原榜排名。"),
         "artificialAnalysisTextToImage" or "artificialAnalysisImageEditing" => Tr("API dollars per image, converted from AA's price per 1,000 images.", "每张图片的 API 美元价格，按 AA 每千张价格换算。", "每張圖片的 API 美元價格，按 AA 每千張價格換算。"),
         "artificialAnalysisTextToVideo" or "artificialAnalysisImageToVideo" or "artificialAnalysisVideoEditing" => Tr("API dollars per minute of video; settings and resolution can differ by model.", "视频的 API 美元价格按分钟计；各模型设置和分辨率可能不同。", "影片的 API 美元價格按分鐘計；各模型設定和解析度可能不同。"),
@@ -682,8 +682,7 @@ sealed partial class MainWindow
         for (var i = 0; i < pair.Length; i++)
         {
             var board = pair[i]; var column = 1 + i * 4;
-            // Temporarily hide OpenRouter's selector; its metric code remains available.
-            if (board.Kind != "openRouterUsage" && SupportsAACost(board.Kind))
+            if (SupportsAACost(board.Kind))
             {
                 var selectedCost = costOrders.Contains(board.Kind);
                 var selectedSpeed = speedOrders.Contains(board.Kind);
@@ -843,9 +842,9 @@ sealed partial class MainWindow
         var matches = LeaderboardSearch.Compile(leaderboardQuery);
         var entries = unsearched.Select(board => board.Where(entry => matches(entry.Name)).ToArray()).ToArray();
         var count = entries.Length == 0 ? 20 : Math.Max(string.IsNullOrWhiteSpace(leaderboardQuery) ? 1 : 4, entries.Max(values => values.Length));
-        double[] computeMaxima() => unsearched.Select((board, side) => pair[side].Kind != "openRouterUsage" && speedOrders.Contains(pair[side].Kind)
+        double[] computeMaxima() => unsearched.Select((board, side) => speedOrders.Contains(pair[side].Kind)
             ? board.Select(value => value.Speed ?? 0).DefaultIfEmpty().Max()
-            : pair[side].Kind != "openRouterUsage" && costOrders.Contains(pair[side].Kind)
+            : costOrders.Contains(pair[side].Kind)
                 ? board.Select(value => value.TaskCostUSD is { } amount && double.IsFinite(amount) && amount >= 0 ? amount : 0).DefaultIfEmpty().Max()
                 : board.Select(value => value.Score).DefaultIfEmpty().Max()).ToArray();
         var maxima = computeMaxima();
@@ -861,8 +860,8 @@ sealed partial class MainWindow
                 var column = 1 + side * 4;
                 if (index >= entries[side].Length) continue;
                 var entry = entries[side][index];
-                var showCost = pair[side].Kind != "openRouterUsage" && costOrders.Contains(pair[side].Kind);
-                var showSpeed = pair[side].Kind != "openRouterUsage" && speedOrders.Contains(pair[side].Kind);
+                var showCost = costOrders.Contains(pair[side].Kind);
+                var showSpeed = speedOrders.Contains(pair[side].Kind);
                 var maximum = maxima[side];
                 var model = ModelCell(entry, maximum, BoardTint(pair[side].Kind), pair[side].Kind is not ("vercelUsage" or "cloudbaseUsage") && !IsErrorRate(pair[side].Kind), showCost, showSpeed, IsErrorRate(pair[side].Kind));
                 if (side > 0)
@@ -1017,7 +1016,7 @@ sealed partial class MainWindow
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
         var boards = VisibleBoards();
         for (var i = 0; i < boardCount; i++)
-            foreach (var width in new[] { new GridLength(1, GridUnitType.Star), new GridLength(CountryColumnWidth), new GridLength(SourceColumnWidth), new GridLength(boards[i].Kind != "openRouterUsage" && SupportsAACost(boards[i].Kind) ? 104 : compact ? 56 : 78) })
+            foreach (var width in new[] { new GridLength(1, GridUnitType.Star), new GridLength(CountryColumnWidth), new GridLength(SourceColumnWidth), new GridLength(SupportsAACost(boards[i].Kind) ? 104 : compact ? 56 : 78) })
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
         return grid;
     }

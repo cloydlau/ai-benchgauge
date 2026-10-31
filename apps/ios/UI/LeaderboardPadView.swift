@@ -884,16 +884,17 @@ public struct LeaderboardPadView: View {
                 appTitle(fontSize: 21)
                 Text(tr(store.grouping == .model ? "Models" : "Companies", store.grouping == .model ? "模型" : "公司"))
                 Text(LeaderboardPresentation.title(store.category, language: store.language))
+                if store.category == .speech { Text(store.selectedKind.isEpoch ? store.selectedKind.mediaVariantTitle(language: store.language) : tr("Speech", "语音")) }
                 Spacer()
                 Text(tr("UPDATED", "更新时间") + " " + LeaderboardPresentation.rankingUpdated(
-                    LeaderboardSnapshot(boards: store.snapshot.boards.filter { store.visibleBoardKinds.contains($0.key) }),
+                    LeaderboardSnapshot(boards: store.snapshot.boards.filter { exportBoardKinds.contains($0.key) }),
                     category: store.category, language: store.language)).font(.caption).foregroundStyle(secondary)
             }
             boardPair(wide: width >= 760, isImage: true, exportScheme: scheme, pageRows: pageRows)
             if store.category == .usage {
                 Text(store.visibleBoardKinds.compactMap { store.snapshot.boards[$0]?.sourceNote }.joined(separator: "\n\n")).font(.system(size: 11)).foregroundStyle(secondary).fixedSize(horizontal: false, vertical: true)
             }
-            if store.visibleBoardKinds.contains(.epochECI) {
+            if exportBoardKinds.contains(where: \.isEpoch) {
                 Text(EpochAttribution.fullText(language: store.language))
                     .font(.system(size: 11)).foregroundStyle(secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -1259,7 +1260,7 @@ private struct PadBoardCard: View {
         .task(id: "\(guideEligible)-\(isImage)-\(isLoading)-\(board != nil)-\(modelSearchPresented)-\(metricHeaderVisible)") {
             metricGuideVisible = false
             guard guideEligible, metricHeaderVisible, !isImage, !isLoading, !modelSearchPresented,
-                  kind != .openRouterUsage, kind.supportsAACost, !MetricGuide.hasSeen(kind),
+                  kind.supportsAACost, !MetricGuide.hasSeen(kind),
                   !ProcessInfo.processInfo.arguments.contains("--ui-testing") else { return }
             do { try await Task.sleep(for: .seconds(1)) } catch { return }
             guard !Task.isCancelled, !MetricGuide.hasSeen(kind) else { return }
@@ -1499,9 +1500,7 @@ private struct PadBoardCard: View {
                     }
                 }
                 scoreColumn {
-                    // The OpenRouter selector is temporarily hidden; preserve its menu for later.
-                    if kind == .openRouterUsage { Text(tr("Usage", "用量")).font(columnHeaderFont) }
-                    else if kind.supportsAACost {
+                    if kind.supportsAACost {
                         if isImage { costHeading }
                         else {
                             Menu {
@@ -1833,6 +1832,8 @@ private struct PadBoardCard: View {
             if speedOrder || costOrder { Text(unit).font(.system(size: 8)) }
         }
             .font(columnHeaderFont)
+            .lineLimit(2)
+            .multilineTextAlignment(.center)
             .opacity(metricGuideVisible ? 0 : 1)
             .overlay {
                 if metricGuideVisible {

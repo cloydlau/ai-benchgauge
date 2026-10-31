@@ -88,7 +88,7 @@ public enum LeaderboardPresentation {
     public static func aaCostHelp(_ kind: LeaderboardKind, language: AppLanguage) -> String {
         switch kind {
         case .openRouterUsage:
-            language.text("Input/output prices in USD per million tokens; speed is the best available provider's 30-minute p50 throughput. Company values use its most-used listed model. Usage ranking stays unchanged.", "输入/输出价格为每百万 token 美元报价；速度为可用供应商最近 30 分钟最高的 P50 吞吐量。公司值取用量最高的上榜模型；保持原用量排名。")
+            language.text("Input (first line) and output (second line) prices are USD per million tokens. At $1 input and $4 output, 100,000 input and 20,000 output tokens cost $0.18 before other charges. Speed is the best available provider's 30-minute p50 throughput. Company values use its most-used listed model. Usage ranking stays unchanged.", "第一行是输入价格，第二行是输出价格，单位为美元/百万 token。例如输入 $1、输出 $4 时，10 万输入 token 加 2 万输出 token 的基础费用为 $0.18；实际费用可能另有差异。速度为可用供应商最近 30 分钟最高的 P50 吞吐量。公司值取用量最高的上榜模型；保持原用量排名。")
         case .valsSWEbench:
             language.text("Cost and duration per test as published by Vals; source ranking stays unchanged.", "Vals 公布的每次测试成本和耗时；切换指标不改变原榜排名。")
         case .artificialAnalysisTextToImage:

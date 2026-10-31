@@ -862,7 +862,10 @@
             "logo": "openai",
             "country": "unitedStates",
             "totalTokens": "123456000000",
-            "openness": "closed"
+            "openness": "closed",
+            "taskCostUSD": 0,
+            "outputPriceUSD": 0,
+            "speed": 291
           },
           {
             "rank": 2,
@@ -872,7 +875,10 @@
             "logo": "anthropic",
             "country": "unitedStates",
             "totalTokens": "110010000000",
-            "openness": "closed"
+            "openness": "closed",
+            "taskCostUSD": 1.25,
+            "outputPriceUSD": 5,
+            "speed": 80
           },
           {
             "rank": 3,

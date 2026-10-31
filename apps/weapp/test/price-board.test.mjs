@@ -44,3 +44,17 @@ test('OpenRouter usage toggles price and speed without changing usage ranks', ()
   assert.deepEqual(visibleRows(board, { sort: 'cost' }).map(row => [row.scoreText, row.outputPriceText]), [['$1.00', '$4.00'], ['$3.00', '$5.00']]);
   assert.deepEqual(visibleRows(board, { sort: 'speed' }).map(row => row.scoreText), ['20', '80']);
 });
+
+
+test('usage price rows reserve the second line for output in model and company views', () => {
+  const board = { kind: 'openRouterUsage', entries: [
+    { rank: 1, name: 'A', organization: 'Alpha', score: 10, taskCostUSD: 2, outputPriceUSD: 4 },
+    { rank: 2, name: 'B', organization: 'Beta', score: 5, taskCostUSD: 1, outputPriceUSD: 3 },
+  ] }
+  for (const grouping of ['model', 'company']) {
+    const prices = visibleRows(board, { grouping, sort: 'cost' })
+    assert.deepEqual(prices.map(row => [row.scoreText, row.outputPriceText, row.scoreShare, row.fillPercent]),
+      [['$2.00', '$4.00', '', 100], ['$1.00', '$3.00', '', 50]])
+    assert.equal(visibleRows(board, { grouping, sort: 'score' })[1].scoreShare, '50%')
+  }
+})

@@ -150,24 +150,65 @@ test('coding cost toggle keeps original ranks, price baselines and companies in 
   }
 })
 
-test('OpenRouter usage header hides metric selection and retains usage values', async () => {
+test('OpenRouter usage header switches price and speed without changing usage ranks', async t => {
   const h = setup({ category: 'usage' })
+  t.after(() => globalThis.__benchHooks.unload())
   const loading = h.loadCategory()
   for (let i = 0; i < h.requests.length; i++) h.respond(i, { entries: [
     { rank: 1, name: 'Cheap', score: 9, taskCostUSD: 1, outputPriceUSD: 3, speed: 20 },
     { rank: 2, name: 'Expensive', score: 5, taskCostUSD: 5, outputPriceUSD: 7, speed: 80 },
+    { rank: 3, name: 'Unavailable', score: 2 },
   ] })
   await loading
   const card = () => h.page.cards.value.find(item => item.kind === 'openRouterUsage')
   const before = card().rows.map(row => [row.rank, row.name, row.scoreText, row.outputPriceText])
-  let opened = false
-  globalThis.wx.showActionSheet = () => { opened = true }
-  h.page.toggleCostOrder(event({ kind: 'openRouterUsage' }))
-  assert.equal(opened, false)
-  assert.equal(card().hasTaskCost, undefined)
+  let opened = 0
+  const select = tapIndex => {
+    globalThis.wx.showActionSheet = ({ itemList, success }) => {
+      opened++
+      assert.deepEqual(itemList, ['用量', '价格', '速度'])
+      success({ tapIndex })
+    }
+    h.page.toggleCostOrder(event({ kind: 'openRouterUsage' }))
+    assert.deepEqual(card().rows.map(row => row.rank), [1, 2, 3])
+  }
+  assert.equal(card().hasTaskCost, true)
   assert.equal(card().scoreLabel, '用量')
+  select(1)
+  assert.equal(card().costOrder, true)
+  assert.equal(card().metricTitle, '价格')
+  assert.match(card().costUnit, /百万/)
+  assert.deepEqual(card().rows.map(row => row.scoreText), ['$1.00', '$5.00', '—'])
+  assert.deepEqual(card().rows.map(row => row.outputPriceText), ['$3.00', '$7.00', '—'])
+  const canvas = canvasHarness()
+  Object.assign(wx, canvas.platform, { showLoading() {}, hideLoading() {}, showToast() {},
+    createSelectorQuery: () => {
+      let scroll = false
+      const query = {
+        select() { return { fields: () => query, boundingClientRect: () => query, node: () => { scroll = true; return query } } },
+        exec: callback => callback([{ node: scroll ? { scrollTo() {} } : canvas.canvas }]),
+      }
+      return query
+    },
+  })
+  await h.page.screenshot()
+  const exportedTexts = canvas.commands.filter(([command]) => command === 'fillText').map(([, value]) => value)
+  assert.ok(exportedTexts.includes('价格'))
+  assert.ok(exportedTexts.includes(card().costUnit))
+  assert.ok(exportedTexts.includes('7.00'))
+  assert.equal(exportedTexts.filter(value => value === '$').length, 4)
+  h.page.closeCapture()
+  select(2)
+  assert.equal(card().costOrder, false)
+  assert.equal(card().speedOrder, true)
+  assert.equal(card().metricTitle, '速度')
+  assert.equal(card().speedUnit, 'token/s')
+  assert.deepEqual(card().rows.map(row => row.scoreText), ['20', '80', '—'])
+  select(0)
+  assert.equal(opened, 3)
+  assert.equal(card().costOrder, false)
+  assert.equal(card().speedOrder, false)
   assert.deepEqual(card().rows.map(row => [row.rank, row.name, row.scoreText, row.outputPriceText]), before)
-  globalThis.__benchHooks.unload()
 })
 
 test('timestamp polish follows load completion, thirty-second cadence and page visibility', async t => {

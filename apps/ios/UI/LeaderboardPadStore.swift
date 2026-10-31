@@ -81,7 +81,7 @@ public final class LeaderboardPadStore: ObservableObject {
     func rowPresentation(for kind: LeaderboardKind) -> PadRowPresentation {
         if let cached = rowPresentations[kind] { return cached }
         let value = PadRowPresentation(board: snapshot.boards[kind], grouping: grouping,
-            country: countryFilter(for: kind), openness: opennessFilter(for: kind), language: language, modelQuery: modelSearchQuery, costOrder: kind != .openRouterUsage && costOrders.contains(kind), speedOrder: kind != .openRouterUsage && speedOrders.contains(kind), priceAscending: priceAscending)
+            country: countryFilter(for: kind), openness: opennessFilter(for: kind), language: language, modelQuery: modelSearchQuery, costOrder: costOrders.contains(kind), speedOrder: speedOrders.contains(kind), priceAscending: priceAscending)
         rowPresentations[kind] = value
         return value
     }

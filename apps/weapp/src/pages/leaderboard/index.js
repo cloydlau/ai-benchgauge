@@ -173,16 +173,16 @@ definePage(query => {
     if (drag?.axis !== 'horizontal' || destination == null || backgroundLocked.value) return
     tabSuppressTapUntil = suppressTapUntil = Date.now() + 400
     if (drag.kind === 'category') {
-      if (categories[destination].id !== category.value) changeCategory(categories[destination].id)
+      if (enabledCategories.value[destination].id !== category.value) changeCategory(enabledCategories.value[destination].id)
     } else { entrancePlayed = true; turnCube(destination) }
   }
   let gesture, cubeTimer, entranceTimer, entrancePlayed = false
-  let preparedScroll, queuedCubeFace, cubeTurnSerial = 0
+  let preparedScroll, cubeTurnSerial = 0
   let pageReady = false, pageVisible = false
   const polishingKind = ref(null)
   const metricGuideKind = ref(null)
-  // OpenRouter's selector is temporarily hidden; keep its underlying metric support.
-  const metricAvailable = kind => kind !== 'openRouterUsage' && supportsAACost(kind)
+  const metricAvailable = kind => supportsAACost(kind)
+  const costTitle = kind => kind === 'openRouterUsage' ? (language.value === 'en' ? 'Price' : language.value === 'zh-TW' ? '價格' : '价格') : (language.value === 'en' ? 'Cost' : '成本')
   const metricGuide = createMetricGuide({ supports: metricAvailable,
     read: () => { const value = wx.getStorageSync('benchgauge.metricGuideSeen'); return Array.isArray(value) ? value : [] },
     write: value => wx.setStorageSync('benchgauge.metricGuideSeen', value), show: value => { metricGuideKind.value = value },
@@ -665,7 +665,48 @@ definePage(query => {
       for (const callback of request.callbacks.splice(0)) callback()
     })
   }
+  function measureHeaderText() {
+    if (!pageReady || !alive || cubeBusy.value || !wx.createSelectorQuery) return
+    const kinds = [...current.value.kinds]
+    const key = `${headerWidth.value}:${language.value}:${grouping.value}:${face.value}:${kinds.join(',')}`
+    if (key === headerFitKey) return
+    headerFitKey = key
+    const serial = ++headerMeasureSerial
+    const run = () => {
+      if (!alive || serial !== headerMeasureSerial) return
+      const query = wx.createSelectorQuery()
+      for (const kind of kinds) for (const selector of ['.source-heading-details', '.source-heading-measure', '.variant-measure', '.variant-chrome-measure', '.model-filter-toggle']) {
+        query.select(`#table-head-${kind} ${selector}`).fields({ size: true, computedStyle: ['font-size'] })
+      }
+      query.exec(results => {
+        if (!alive || serial !== headerMeasureSerial || key !== headerFitKey) return
+        const next = { ...headerFits.value }
+        kinds.forEach((kind, index) => {
+          const [row, heading, variant, chrome, search] = results.slice(index * 5, index * 5 + 5)
+          if (!row?.width || !heading?.width) return
+          const hasVariant = (boardVariants[variantBase(kind)] || []).length > 1
+          if (hasVariant && (!variant?.width || !chrome?.width)) return
+          const pickerChrome = hasVariant ? chrome.width : 0
+          const chromeWidth = (search?.width || 28) + pickerChrome
+            + headerWidth.value / 750 * (hasVariant ? 24 : 2)
+          const fit = fitSourceHeader({ width: row.width, headingWidth: heading.width,
+            variantWidth: hasVariant ? variant.width : 0, chromeWidth })
+          // rpx font sizes are rounded by WeChat. Fit from the rendered probe
+          // fonts in px and reserve the resulting picker width explicitly: a
+          // native picker must not shrink the fitted text a second time.
+          next[kind] = { ...fit,
+            headingPixels: (parseFloat(heading['font-size']) || (language.value === 'en' ? 18 : 21) * headerWidth.value / 750) * fit.headingScale,
+            variantPixels: (parseFloat(variant?.['font-size']) || 18 * headerWidth.value / 750) * fit.variantScale,
+            ...(hasVariant && { pickerWidth: variant.width * fit.variantScale + pickerChrome + 1 }) }
+        })
+        headerFits.value = next
+      })
+    }
+    if (wx.nextTick) wx.nextTick(run)
+    else run()
+  }
   function measureLists() {
+    measureHeaderText()
     const serial = ++measureSerial
     const kinds = current.value.kinds
     const run = () => {
