@@ -459,3 +459,42 @@ test('standalone upload watcher handles an explicit stop signal and exits cleanl
   const code=await new Promise(resolve=>child.once('close',resolve));clearTimeout(timer)
   assert.equal(code,0,output);assert.match(output,/已监听源码/)
 })
+
+
+test('isolated upload stages shared sub-leaderboard explanations and changes their input signature', t => {
+  const root = mkdtempSync(join(tmpdir(), 'benchgauge-variant-help-stage-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  const relative = 'Sources/LeaderboardKit/Resources/LeaderboardVariantHelp.json'
+  assert.ok(sourcePaths.includes(relative))
+  mkdirSync(join(root, relative, '..'), { recursive: true })
+  for (const path of ['node_modules', 'apps/weapp/node_modules']) mkdirSync(join(root, path), { recursive: true })
+  writeFileSync(join(root, 'apps/weapp/package.json'), '{}')
+  const bytes = readFileSync(new URL(`../${relative}`, import.meta.url))
+  writeFileSync(join(root, relative), bytes)
+  const inputs = inputSnapshot(root), signature = sourceSignature(inputs)
+  const stage = join(root, 'stage')
+  stageInputs(root, stage, inputs)
+  assert.deepEqual(readFileSync(join(stage, relative)), bytes)
+  writeFileSync(join(root, relative), bytes.toString() + '\n')
+  assert.notEqual(sourceSignature(inputSnapshot(root)), signature)
+})
+
+
+test('isolated upload executes sub-leaderboard regressions with their native comparison fixture', t => {
+  const stage = mkdtempSync(join(tmpdir(), 'benchgauge-variant-help-real-stage-'))
+  t.after(() => rmSync(stage, { recursive: true, force: true }))
+  const inputs = inputSnapshot(ci.root)
+  for (const relative of ['Tests/fixtures/visual-state.json', 'Sources/LeaderboardKit/Resources/LeaderboardVariantHelp.json']) {
+    assert.ok(inputs.has(relative), relative)
+  }
+  stageInputs(ci.root, stage, inputs)
+  const env = { ...process.env, CALMMIT_PATH: ci.library }
+  delete env.NODE_TEST_CONTEXT
+  const result = spawnSync(process.execPath, ['--test', '--test-reporter=tap', 'apps/weapp/test/variant-help.test.mjs'], {
+    cwd: stage, env, encoding: 'utf8', timeout: 30_000,
+  })
+  assert.equal(result.status, 0, result.stdout + result.stderr)
+  assert.match(result.stdout, /tests 3/)
+  const config = JSON.parse(readFileSync(join(stage, 'calmmit.config.json'), 'utf8'))
+  assert.deepEqual(new Set(config.dev.activity.find(item => item.kind === 'mini-program').sources), new Set(sourcePaths))
+})

@@ -177,7 +177,7 @@ public enum LeaderboardPresentation {
         case .coding: language.text("Coding", "编程")
         case .image: language.text("Image", "图片")
         case .video: language.text("Video", "视频")
-        case .speech: language.text("Speech", "语音")
+        case .speech: language.text("Specialist", "专业")
         case .usage: language.text("Usage", "用量")
         case .price: language.text("Price", "价格")
         }
@@ -192,12 +192,15 @@ public enum LeaderboardPresentation {
         case .arenaText: "Arena | Text · Style Control"
         case .arenaTextUncontrolled: "Arena | Text · Original"
         case .epochECI: "Epoch Capabilities Index"
+        case .epochMathECI: "Epoch Math ECI"
+        case .epochCyberECI: "Epoch Cyber ECI"
+        case .epochSoftwareECI: "Epoch Software Engineering ECI"
         case .cloudbaseUsage: "Tencent Cloud | Token share"
         case .vercelUsage: "Vercel AI Gateway | Token share"
         case .openRouterUsage: "OpenRouter | Token usage"
         case .openRouterPrice: "OpenRouter | API prices"
-        case .codeArenaWebDev: "Code Arena | WebDev"
-        case .codeArenaImageToWebDev: "Code Arena | Image-to-WebDev"
+        case .codeArenaWebDev: "Arena | WebDev"
+        case .codeArenaImageToWebDev: "Arena | Image-to-WebDev"
         case .artificialAnalysisTextToImage: "Artificial Analysis | 文生图"
         case .artificialAnalysisImageEditing: language.text("Artificial Analysis | Image editing", "Artificial Analysis | 图片编辑")
         case .arenaTextToImage: "Arena | 文生图"
@@ -227,6 +230,31 @@ public enum LeaderboardPresentation {
         }
     }
 
+    /// Settings identify source families while table headings stay concise.
+    public static func boardSelectionTitle(_ kind: LeaderboardKind, language: AppLanguage) -> String {
+        switch kind {
+        case .artificialAnalysis:
+            language == .traditionalChinese ? "Artificial Analysis 綜合" : language.text("Artificial Analysis General", "Artificial Analysis 综合")
+        case .artificialAnalysisCodingAgent:
+            language == .traditionalChinese ? "Artificial Analysis 編程" : language.text("Artificial Analysis Coding", "Artificial Analysis 编程")
+        case .artificialAnalysisTextToImage, .artificialAnalysisImageEditing:
+            language == .traditionalChinese ? "Artificial Analysis 圖片" : language.text("Artificial Analysis Image", "Artificial Analysis 图片")
+        case .artificialAnalysisTextToVideo, .artificialAnalysisImageToVideo, .artificialAnalysisVideoEditing:
+            language == .traditionalChinese ? "Artificial Analysis 影片" : language.text("Artificial Analysis Video", "Artificial Analysis 视频")
+        case .arenaText, .arenaTextUncontrolled: language.text("Arena Text", "Arena 文本")
+        case .codeArenaWebDev, .codeArenaImageToWebDev: language.text("Arena Coding", "Arena 编程")
+        case .artificialAnalysisSpeechProviderVoice, .artificialAnalysisSpeechControlledVoice, .artificialAnalysisSpeechAgent, .artificialAnalysisSpeechToText, .artificialAnalysisSpeechToTextStreaming:
+            language.text("Artificial Analysis Speech", "Artificial Analysis 语音")
+        case .epochECI, .epochMathECI:
+            "Epoch ECI " + kind.mediaVariantTitle(language: language)
+        case .epochCyberECI:
+            language == .traditionalChinese ? "Epoch ECI 網路安全" : language.text("Epoch ECI Cybersecurity", "Epoch ECI 网络安全")
+        case .epochSoftwareECI:
+            language == .traditionalChinese ? "Epoch ECI 軟體工程" : language.text("Epoch ECI Software engineering", "Epoch ECI 软件工程")
+        default: columnTitle(kind, language: language)
+        }
+    }
+
     public static func sourceTabTitle(_ kind: LeaderboardKind, language: AppLanguage) -> String {
         explanation(kind, language: language)
     }
@@ -242,7 +270,7 @@ public enum LeaderboardPresentation {
         case .artificialAnalysisImageToVideo: language.text("Image to video", "图生视频")
         case .artificialAnalysisVideoEditing: language.text("Video editing", "视频编辑")
         case .arenaText, .arenaTextUncontrolled: language.text("User votes", "用户盲测")
-        case .epochECI: language.text("Calibrated tests", "难度校准")
+        case .epochECI, .epochMathECI, .epochCyberECI, .epochSoftwareECI: language.text("Calibrated tests", "难度校准")
         case .cloudbaseUsage: language.text("Cumulative share", "累计占比")
         case .vercelUsage: language.text("Daily share", "每日占比")
         case .openRouterUsage: language.text("Daily usage", "每日用量")
@@ -267,11 +295,14 @@ public enum LeaderboardPresentation {
         case .artificialAnalysis: language.text("Combines standardized tests across several abilities.", "汇总多项标准化测试，适合看综合能力")
         case .valsSWEbench: language.text("Archived SWE-bench Verified: score, cost and duration per test; model and harness variants retain source order. No new models are tested.", "已归档的 SWE-bench Verified：每次测试的分数、成本和耗时；保留模型与代理组合及原榜顺序，不再评测新模型。")
         case .artificialAnalysisCodingAgent: language.text("Coding scores and average API cost per task.", "编程成绩与平均每任务 API 成本")
-        case .cloudbaseUsage: language.text("Cumulative text-token share across sampled Beijing-time days; full dates unavailable.", "北京时间抽样统计日的文本 token 累计占比；未公开完整日期。")
+        case .cloudbaseUsage: language.text("Sampled days · cumulative share", "抽样统计日累计占比")
         case .vercelUsage: language.text("Latest complete day · text token share · absolute volumes unavailable.", "最近完整一天的文本 token 用量占比；不提供绝对用量。")
-        case .openRouterUsage: language.text("Latest complete UTC day · input + output tokens · 1B = 1 billion tokens.", "最近完整 UTC 日输入与输出 token 用量；1B = 十亿 token。")
+        case .openRouterUsage: language.text("Latest complete UTC day · usage", "最近完整 UTC 日用量")
         case .openRouterPrice: language.text("OpenRouter base text input and output prices per million tokens; context tiers and other charges can differ.", "OpenRouter 文本输入、输出每百万 token 基础价格；长上下文阶梯及其他费用可能不同。")
         case .epochECI: language.text("Estimates general capability from benchmark results, accounting for difficulty and discrimination.", "结合不同测试的难度与区分度，估计模型的综合能力")
+        case .epochMathECI: language.text("Math capability from Epoch domain benchmarks.", "根据 Epoch 数学领域评测估计模型能力")
+        case .epochCyberECI: language.text("Cybersecurity capability from Epoch domain benchmarks.", "根据 Epoch 网络安全评测估计模型能力")
+        case .epochSoftwareECI: language.text("Software engineering capability from Epoch domain benchmarks.", "根据 Epoch 软件工程评测估计模型能力")
         case .arenaText: language.text("Anonymous comparisons with style control.", "真实提问下盲选回答，并进行风格控制")
         case .arenaTextUncontrolled: language.text("Anonymous comparisons without style control.", "真实提问下盲选回答，未进行风格控制")
         case .codeArenaWebDev: language.text("People pick the better result from paired web builds.", "用户盲选网页成品，侧重实际观感")
@@ -304,7 +335,7 @@ public enum LeaderboardPresentation {
         if kind == .openRouterUsage {
             return score > 0 && score < 0.01 ? "<0.01B" : String(format: "%.2fB", locale: Locale(identifier: "en_US_POSIX"), score)
         }
-        return String(format: kind == .epochECI ? "%.2f" : "%.1f", locale: Locale(identifier: "en_US_POSIX"), score)
+        return String(format: kind.isEpoch ? "%.2f" : "%.1f", locale: Locale(identifier: "en_US_POSIX"), score)
     }
 
     public static func scoreTitle(_ kind: LeaderboardKind, language: AppLanguage) -> String {
@@ -316,13 +347,13 @@ public enum LeaderboardPresentation {
         var parts = [sourceSummary(kind, language: language), language.text("Scores are not directly comparable across lists", "各榜分数不直接互比")]
         if kind.supportsAACost { parts.append(aaCostHelp(kind, language: language)) }
         if kind == .openRouterUsage {
-            parts = [sourceSummary(kind, language: language), language.text("Top 50 public models; excludes private and zero-data-retention traffic. Provider tokenizers differ. Company totals cover listed models only.", "展示公开流量前 50 名，排除私有及零数据留存流量；各供应商分词方式不同。公司用量仅汇总榜内模型。"), aaCostHelp(kind, language: language)]
+            parts = [sourceSummary(kind, language: language), language.text("Input + output tokens · 1B = 1 billion tokens.", "输入与输出 token 用量；1B = 十亿 token。"), language.text("Top 50 public models; excludes private and zero-data-retention traffic. Provider tokenizers differ. Company totals cover listed models only.", "展示公开流量前 50 名，排除私有及零数据留存流量；各供应商分词方式不同。公司用量仅汇总榜内模型。"), aaCostHelp(kind, language: language)]
         }
         if kind.sourcePrefix == "Arena" {
             parts.insert(language.text("Formerly LMSYS Chatbot Arena / LMArena", "原 LMSYS Chatbot Arena / LMArena"), at: 1)
         }
         if kind == .vercelUsage { parts = [sourceSummary(kind, language: language), language.text("Daily data uses UTC 00:00 to 00:00 the next day (08:00 to 08:00 the next day in Beijing). Includes input, output, reasoning and cached tokens; only published model buckets are listed. Company shares sum listed models only. Not comparable to OpenRouter absolute totals.", "按 UTC 当天 00:00 至次日 00:00 统计，对应北京时间当天 08:00 至次日 08:00。包含输入、输出、推理及缓存 token，仅列出官方公布的模型；公司占比只汇总榜内模型。与 OpenRouter 绝对用量口径不同。例外的 Other 不作为模型展示。") ] }
-        if kind == .cloudbaseUsage { parts = [sourceSummary(kind, language: language), language.text("Input + output tokens including cache hits. Published model families only; Other excluded. Shares retain source rounding; company totals cover listed families. No absolute volumes or open-data license stated. Refresh time does not indicate a new source update.", "输入与输出 token 之和，含缓存命中；按官方模型系列汇总，排除 Other。保留来源舍入，公司仅汇总榜内系列；未公开绝对用量或开放数据许可。刷新时间不代表来源发布了新数据。") ] }
+        if kind == .cloudbaseUsage { parts = [sourceSummary(kind, language: language), language.text("Text-token share across sampled Beijing-time days; full dates unavailable.", "按北京时间抽样统计日计算，未公开完整日期。"), language.text("Input + output tokens including cache hits. Published model families only; Other excluded. Shares retain source rounding; company totals cover listed families. No absolute volumes or open-data license stated. Refresh time does not indicate a new source update.", "输入与输出 token 之和，含缓存命中；按官方模型系列汇总，排除 Other。保留来源舍入，公司仅汇总榜内系列；未公开绝对用量或开放数据许可。刷新时间不代表来源发布了新数据。") ] }
         if kind == .vercelUsage, let date = board?.sourceUpdatedAt {
             let formatter = DateFormatter()
             formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -335,13 +366,10 @@ public enum LeaderboardPresentation {
         }
         if !kind.isUsage, let note = board?.sourceNote, !note.isEmpty { parts.append(note) }
         var help = parts.joined(separator: language.text(". ", "。"))
-        if kind == .arenaText || kind == .arenaTextUncontrolled {
-            help += "\n\n" + language.text(
-                "1. Original: ranks models from users’ choices between two anonymous answers. Content, length, formatting and tone can all influence overall preference.\n\n2. Style Control: uses the same voting-based approach and statistically adjusts for the estimated effects of response style, such as length, Markdown headings, bold text and lists. This reduces advantages from prettier formatting or longer answers; rankings may differ.\n\nArena explanation: https://arena.ai/blog/style-control",
-                "1. 原始总榜：根据用户对两个匿名回答的选择计算排名。回答内容、长短、格式和语气都会影响用户的整体偏好。\n\n2. 风格控制：在同样基于用户投票的基础上，尝试统计并扣除部分表达风格对投票的影响，比如回答长度、Markdown 标题、加粗和列表，从而减少“排版更漂亮、回答更长”带来的优势。两个榜单的排名因此可能不同。\n\nArena 官方解释：https://arena.ai/blog/style-control")
-        }
-        if kind == .epochECI && !includesAgreement { help += "\n\n" + EpochAttribution.fullText(language: language) }
-        if includesFetchTime { help += language.text(". ", "。") + sourceTimeHelp(board, language: language) }
+        let optionHelp = LeaderboardVariantHelp.text(kind, language: language)
+        if !optionHelp.isEmpty { help += "\n\n" + optionHelp }
+        if kind.isEpoch && !includesAgreement { help += "\n\n" + EpochAttribution.fullText(language: language) }
+        if includesFetchTime { help += (optionHelp.isEmpty ? language.text(". ", "。") : "\n\n") + sourceTimeHelp(board, language: language) }
         if includesAgreement, let agreement = sourceAgreement(kind, language: language, board: board) {
             help += "\n\n" + agreement
         }
@@ -354,7 +382,7 @@ public enum LeaderboardPresentation {
         case .openRouterUsage: return CCBYLicense.openRouterText(sourceNote: board?.sourceNote, language: language)
         case .vercelUsage: return CCBYLicense.vercelText(sourceNote: board?.sourceNote, language: language)
         case .cloudbaseUsage: return CloudBaseAttribution.text(sourceNote: board?.sourceNote, language: language)
-        case .epochECI: return EpochAttribution.fullText(language: language) + "\n\n" + CCBYLicense.text(language: language)
+        case .epochECI, .epochMathECI, .epochCyberECI, .epochSoftwareECI: return EpochAttribution.fullText(language: language) + "\n\n" + CCBYLicense.text(language: language)
         default:
             guard board?.kind == kind, ArenaAttribution.applies(board) else { return nil }
             return ArenaAttribution.fullText(language: language) + "\n\n" + CCBYLicense.text(language: language)

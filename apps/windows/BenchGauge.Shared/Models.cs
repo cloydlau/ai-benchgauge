@@ -50,7 +50,8 @@ public static class LeaderboardCountryPolicy
 public sealed class Preferences
 {
     string category = "general";
-    public string Category { get => category; set => category = value == "price" ? "usage" : value; }
+    public string Category { get => VisibleCategories().Contains(category) ? category : VisibleCategories()[0]; set => category = value == "price" ? "usage" : value; }
+    public int SpecialistIndex { get; set; }
     public Dictionary<string, string[]> BoardSelections { get; set; } = [];
     public Dictionary<string, string> MediaSelections { get; set; } = [];
     public static string[] MediaVariants(string kind) => kind switch {
@@ -80,39 +81,71 @@ public sealed class Preferences
         MetricGuidesSeen ??= [];
         return MetricGuidesSeen.Add(kind);
     }
-    public string[] AvailableBoardKinds() => Category switch {
-        "coding" => ["artificialAnalysisCodingAgent", "codeArenaWebDev", "valsSWEbench"],
+    public static readonly string[] Categories = ["usage", "general", "image", "video", "coding", "speech"];
+    public string[] AvailableBoardKinds() => AvailableBoardKinds(Category);
+    public static string[] AvailableBoardKinds(string category) => category switch {
+        "coding" => ["artificialAnalysisCodingAgent", "codeArenaWebDev", "epochSoftwareECI"],
         "image" => ["artificialAnalysisTextToImage", "arenaTextToImage"],
         "video" => ["artificialAnalysisTextToVideo", "arenaTextToVideo"],
-        "speech" => ["artificialAnalysisSpeechProviderVoice"],
+        "speech" => ["artificialAnalysisSpeechProviderVoice", "epochMathECI", "epochCyberECI"],
         "usage" => ["openRouterUsage", "vercelUsage", "cloudbaseUsage"],
         "price" => ["openRouterPrice"],
         _ => ["artificialAnalysis", "arenaText", "epochECI"]
     };
+    public string[] SelectedBoardKinds(string category)
+    {
+        var all = AvailableBoardKinds(category);
+        var selected = BoardSelections?.GetValueOrDefault(category);
+        if (selected is null) return all;
+        var valid = all.Where(selected.Contains).ToArray();
+        return selected.Length == 0 ? [] : valid.Length == 0 ? all : valid;
+    }
+    public string[] VisibleCategories()
+    {
+        var visible = Categories.Where(value => SelectedBoardKinds(value).Length > 0).ToArray();
+        return visible.Length == 0 ? Categories : visible;
+    }
+    public int SelectedBoardCount() => Categories.Sum(value => SelectedBoardKinds(value).Length);
+    public void NormalizeBoardSelections()
+    {
+        if (SelectedBoardCount() == 0) BoardSelections = [];
+        BoardSelections = Categories.Select(value => (Category: value, Kinds: SelectedBoardKinds(value)))
+            .Where(value => !value.Kinds.SequenceEqual(AvailableBoardKinds(value.Category)))
+            .ToDictionary(value => value.Category, value => value.Kinds);
+        category = Category;
+    }
     public string[] VisibleBaseBoardKinds()
     {
-        var all = AvailableBoardKinds();
-        var defaults = Category == "coding" ? all.Where(kind => kind != "valsSWEbench").ToArray() : all;
-        var selected = BoardSelections?.GetValueOrDefault(Category);
-        if (selected is null) return defaults;
-        var valid = all.Where(selected.Contains).ToArray();
-        return valid.Length == 0 ? defaults : valid;
+        var selected = SelectedBoardKinds(Category);
+        return Category == "speech" && selected.Length > 0 ? [selected[Math.Clamp(SpecialistIndex, 0, selected.Length - 1)]] : selected;
     }
     public string[] VisibleBoardKinds() => VisibleBaseBoardKinds().Select(kind =>
         MediaSelections?.TryGetValue(kind, out var chosen) == true && MediaVariants(kind).Contains(chosen) ? chosen : kind).ToArray();
     public void ToggleBoard(string kind)
     {
-        var current = VisibleBaseBoardKinds();
-        if (!AvailableBoardKinds().Contains(kind) || (current.Length == 1 && current.Contains(kind))) return;
+        var current = SelectedBoardKinds(Category);
+        if (!AvailableBoardKinds().Contains(kind) || (SelectedBoardCount() == 1 && current.Contains(kind))) return;
         SetVisibleBoards(AvailableBoardKinds().Where(value => value == kind ? !current.Contains(value) : current.Contains(value)));
     }
     public bool SetVisibleBoards(IEnumerable<string> kinds)
     {
         var selected = kinds.ToHashSet();
-        var next = AvailableBoardKinds().Where(selected.Contains).ToArray();
-        if (next.Length == 0 || next.SequenceEqual(VisibleBaseBoardKinds())) return false;
-        BoardSelections ??= [];
-        BoardSelections[Category] = next;
+        if (selected.Any(value => !AvailableBoardKinds().Contains(value))) return false;
+        var draft = new Dictionary<string, string[]>(BoardSelections ?? []);
+        draft[Category] = AvailableBoardKinds().Where(selected.Contains).ToArray();
+        return SetBoardSelections(draft);
+    }
+    public bool SetBoardSelections(Dictionary<string, string[]> selections)
+    {
+        var draft = new Preferences { BoardSelections = selections };
+        if (draft.SelectedBoardCount() == 0) return false;
+        draft.NormalizeBoardSelections();
+        if (Categories.All(value => draft.SelectedBoardKinds(value).SequenceEqual(SelectedBoardKinds(value)))) return false;
+        var previous = Category;
+        var specialist = Category == "speech" ? VisibleBaseBoardKinds().FirstOrDefault() : null;
+        BoardSelections = draft.BoardSelections;
+        category = VisibleCategories().Contains(previous) ? previous : VisibleCategories()[0];
+        if (specialist is not null) SpecialistIndex = Math.Max(0, Array.IndexOf(SelectedBoardKinds("speech"), specialist));
         return true;
     }
     public string Grouping { get; set; } = "model";
@@ -134,7 +167,7 @@ public sealed class Preferences
     public static string DirectoryPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AI-BenchGauge");
     public static Preferences Load()
     {
-        try { return JsonSerializer.Deserialize<Preferences>(File.ReadAllText(Path.Combine(DirectoryPath, "settings.json")), AppConfig.Json) ?? new(); }
+        try { var value = JsonSerializer.Deserialize<Preferences>(File.ReadAllText(Path.Combine(DirectoryPath, "settings.json")), AppConfig.Json) ?? new(); value.NormalizeBoardSelections(); return value; }
         catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException) { return new(); }
     }
     public void Save()

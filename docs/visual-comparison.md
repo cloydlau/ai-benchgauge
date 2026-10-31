@@ -1,3 +1,25 @@
+## 子榜选项说明 — 2026-10-31
+
+共用 `LeaderboardVariantHelp.json` 增加 7 组、20 个子榜选项的英文、简中、繁中解释，Mac / Windows 沿用可滚动原生来源介绍窗口。共享原生夹具增加语音与多图编辑的三语场景，并补充真实捕获所需的确定性榜单数据，防止 Windows 按 kind 查找时缺少夹具。静态导出不包含弹窗，不变更图片导出。
+
+`work/variant-help/` 保存微信官方模拟器截图、Mac 原生捕获、夹具和源码/二进制哈希及检查记录。Mac 使用 macOS 27.0.1、1× backing scale，底层内容视口 850×720pt；来源弹窗单独按原生尺寸捕获，检查浅深色、三语、顶部/底部滚动和按钮。初次截图的时间与末段解释相连，已调整为分段，旧截图保存在 `attempt-time-joined/`。英文弹窗标题原有中文领域后缀仍存在，本轮只改子榜说明内容。
+
+小程序验证长内容可滚动，换榜重新打开从顶部开始，关闭时保留淡出内容；原偏好未变更。Apple 共用实现定向测试 3 项通过，Mac 构建通过；小程序相关测试、构建及隔离上传输入回归通过；Windows 共享测试、WPF Release 交叉编译通过。iPhone/iPad 未进行原生运行或安装，Windows 无本机原生截图/DPI 环境；没有同源 CI 视觉工件、完整需求前基线或受保护发布审批，不宣称双桌面视觉验收完成。会话没有运行全仓测试，完整门禁由 Calmmit 执行。
+
+## 全局榜单选择与空分类 — 2026-10-31
+
+小程序、iPhone/iPad、Mac、Windows 以全部分类合计至少一榜为限制，首页隐藏空分类并恢复有效当前分类；桌面选择器列出全部分类供重新启用。共用原生夹具新增两分类变为单分类的英文、简中、繁中场景，以及确认/取消全局选择的英文场景，并补充确定性的 Epoch 领域榜单夹具数据。
+
+`work/category-visibility/verification.json` 绑定源码、二进制及夹具哈希。Mac 实际 AppKit/SwiftUI 在 macOS 27.0.1、1× backing scale、1100×720pt 视口保存 30 帧：24 张主界面、6 张选择器。已查看两个可见分类、仅剩专业/数学、繁中深色及全局选择器，分类栏正确收缩，领域标签保留具体名称，设置仍可找回隐藏分类。初次缺少领域数据的失败夹具截图单独保留在 `attempt-missing-fixture/`，不作为最终验收。
+
+本轮无改动前同夹具基线、Windows 原生截图/实际 DPI 或同源 CI 视觉工件，不能据此宣称双桌面视觉验收完成。Windows 共享测试及 WPF 交叉编译通过；iPhone/iPad 共用 store 回归在 Mac 测试通过，尚未完成 iOS 模拟器或真机安装验收。未审批或绕过受保护的发布门禁。
+
+## 子榜选择器小圆角 — 2026-10-31
+
+子榜背景和描边统一收至约 3px/pt：小程序 6rpx，iPhone/iPad、Mac、Windows 为 3pt。高度、字体、内外间距及主题色保留。官方微信开发者工具的实际前后截图和测量记录位于忽略目录 `work/variant-radius/`；375px 视口下按钮仍为 102×21px，位置、9px 字号、3px 8px 内边距和颜色一致，仅 borderRadius 从 6px 变成 3px，目视未见标签裁切。13 项相关定向测试、小程序生产构建及 Apple 界面语法解析通过；完整门禁交由 Calmmit，未重复全量测试。
+
+这次没有取得 Mac/Windows 同夹具原生前后截图，没有匹配当前源代码的 CI 视觉验收工件，Windows 原生环境不可用；不以源代码检查代替双桌面视觉验收。iPhone/iPad 原生运行、各端安装及受保护发布未验收。
+
 ## OpenAI additional credits — 2026-10-26
 
 macOS and the Windows shared engine retain Codex credits from both direct usage
@@ -2829,3 +2851,10 @@ Mac Release-installer build. Windows native/DPI screenshots, cross-desktop CI
 visual review, new iOS device/simulator verification and export-specific runtime
 checks remain unavailable. No client was installed or published, and no
 protected release approval is claimed.
+
+
+## Variant selector capsule — 2026-10-31
+
+The mini-program, iPhone/iPad, Mac and Windows source-variant controls now use subtle source-tinted capsule fills, lighter outlines, medium-weight neutral labels and thin chevrons. Desktop controls retain their 20-point height; mobile labels truncate within the available header width. Exported images retain static variant labels.
+
+Ignored `work/variant-selector-polish/` records capture intent, the actual capture fixture, source hashes, before/after native Mac frames and verification results. General-category cases cover EN/简中/繁中, light/dark and shown/refreshed/settled at 950×720 points, actual 1× backing scale on macOS 27.0.1. The attempted speech cases show placeholders because their selected subboard is not resolved by the fixture; they are excluded from successful review and removed from the shared runnable additions. Narrow three-board headings still truncate variant names. Windows Release cross-build/shared tests, mini-program production build and iOS syntax parsing pass; mini-program full tests have 250 passes and two existing category-order failures. Native Windows comparison, iPhone/iPad runtime and protected human visual approval remain unavailable. No installation or publication is claimed.

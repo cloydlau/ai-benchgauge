@@ -39,7 +39,7 @@ export function planScreenshot(context, model) {
     rows.push({ pair, height: rowHeight, y: height }); height += rowHeight
   }
   context.font = '11px sans-serif'
-  const notices = [boards.some(board => board.kind === 'epochECI') ? epochAttribution(model.language).fullText : '',
+  const notices = [boards.some(board => board.kind?.startsWith('epoch')) ? epochAttribution(model.language).fullText : '',
     ...boards.filter(board => ['openRouterUsage', 'vercelUsage', 'cloudbaseUsage'].includes(board.kind)).map(board => board.sourceNote || ''),
     boards.some(isArenaDatasetBoard) ? arenaAttribution(model.language).fullText : ''].filter(Boolean)
   const attributionLines = notices.flatMap(notice => wrapText(context, notice, screenshotWidth - margin * 2))
@@ -58,8 +58,12 @@ function rounded(context, x, y, width, height, radius, color) {
   context.lineTo(x, y + radius); context.quadraticCurveTo(x, y, x + radius, y)
   context.closePath(); context.fill()
 }
-function text(context, value, x, y, size, color, { bold = false, align = 'left', numeric = false, maxWidth } = {}) {
+function text(context, value, x, y, size, color, { bold = false, align = 'left', numeric = false, maxWidth, fit = false } = {}) {
   context.font = `${bold ? '600 ' : ''}${size}px ${numeric ? 'monospace' : 'sans-serif'}`
+  if (fit && maxWidth != null) {
+    const scale = Math.min(1, Math.max(0, maxWidth) / Math.max(1, context.measureText(String(value)).width))
+    context.font = `${bold ? '600 ' : ''}${size * scale}px ${numeric ? 'monospace' : 'sans-serif'}`
+  }
   context.fillStyle = color; context.textAlign = align; context.textBaseline = 'middle'
   if (maxWidth != null) context.fillText(String(value), x, y, maxWidth)
   else context.fillText(String(value), x, y)
@@ -106,12 +110,17 @@ export function drawScreenshot(context, model, image, images, { offset = 0, heig
     text(context, board.filterLabel, x + 16, 179, 12, colors.muted)
     const countryX = x + columnWidth - 122 + extraNameWidth, sourceX = x + columnWidth - 75, scoreX = x + columnWidth - 14
     text(context, model.labels.rank, x + 24, 213, 12, colors.muted, { align: 'center' })
-    text(context, board.heading || board.title, x + 49, board.variantLabel ? 207 : 213, 13, accent, { bold: true })
-    if (board.variantLabel) text(context, board.variantLabel, x + 49, 223, 10, colors.muted, { maxWidth: Math.max(1, countryX - x - 65) })
+    text(context, board.heading || board.title, x + 49, board.variantLabel ? 207 : 213, 13, accent, { bold: true, fit: true, maxWidth: Math.max(1, countryX - x - 65) })
+    if (board.variantLabel) text(context, board.variantLabel, x + 49, 223, 10, colors.muted, { fit: true, maxWidth: Math.max(1, countryX - x - 65) })
     text(context, model.labels.country, countryX, 213, 11, colors.muted, { align: 'center' })
     if (showSource) text(context, model.labels.source, sourceX, 213, 11, colors.muted, { align: 'center' })
+    if (board.priceHeader) {
+      text(context, model.language === 'en' ? 'In / Out' : model.language === 'zh-TW' ? '輸入 / 輸出' : '输入 / 输出', scoreX, 206, 10, colors.muted, { align: 'right' })
+      text(context, model.language === 'en' ? '$/1M tokens' : model.language === 'zh-TW' ? '$/百萬 token' : '$/百万 token', scoreX, 220, 10, colors.muted, { align: 'right' })
+    } else {
     text(context, board.metricHeading || board.taskCostLabel || (board.kind === 'openRouterPrice' ? model.labels.priceInput : ['vercelUsage', 'cloudbaseUsage'].includes(board.kind) ? (model.language === 'en' ? 'Share' : model.language === 'zh-TW' ? '佔比' : '占比') : board.kind === 'openRouterUsage' ? (model.language === 'en' ? 'Tokens' : '用量') : model.labels.score), scoreX, board.kind === 'openRouterPrice' || board.metricHeading ? 208 : 213, 12, colors.muted, { align: 'right' })
     if (board.metricHeading) text(context, board.taskCostLabel, scoreX, 223, 9, colors.muted, { align: 'right' })
+    }
     if (board.kind === 'openRouterPrice') text(context, model.labels.priceOutput, scoreX, 223, 9, colors.muted, { align: 'right' })
     context.strokeStyle = colors.line; context.lineWidth = 1; context.beginPath()
     context.moveTo(x + 12, 232); context.lineTo(x + columnWidth - 12, 232); context.stroke()

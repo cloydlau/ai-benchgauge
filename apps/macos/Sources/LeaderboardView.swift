@@ -357,7 +357,16 @@ struct LeaderboardView: View {
 
     private var navigationPickers: some View {
         DesktopLeaderboardSearchNavigation(state: search, language: language) {
-            HStack(spacing: 8) { groupingPicker; categoryPicker }
+            VStack(spacing: 6) {
+                HStack(spacing: 8) { groupingPicker; categoryPicker }
+                if state.selectedCategory == .speech {
+                    Picker(tr("Specialist field", "专业领域"), selection: $state.specialistIndex) {
+                        ForEach(Array(state.boardKinds(for: .speech).enumerated()), id: \.offset) { index, kind in
+                            Text(kind.isEpoch ? kind.mediaVariantTitle(language: language) : tr("Speech", "语音")).tag(index)
+                        }
+                    }.pickerStyle(.segmented).frame(width: 300)
+                }
+            }
         }
     }
 
@@ -415,6 +424,7 @@ struct LeaderboardView: View {
         CategorySegmentedControl(
             language: language,
             compact: visibleKinds.count == 1,
+            categories: state.visibleCategories,
             selection: Binding(
                 get: { state.selectedCategory },
                 set: { state.selectCategory($0) }
@@ -893,7 +903,7 @@ struct LeaderboardView: View {
 
     private var boardVisibilityMenu: some View {
         BoardVisibilityPicker(language: language, category: selectedCategory,
-            selected: visibleKinds.map { $0.mediaVariants.first ?? $0 }, onConfirm: { state.setVisibleBoards($0) })
+            selections: state.boardSelections, onConfirm: { state.setBoardSelections($0) })
             .fixedSize()
     }
 
@@ -1908,26 +1918,43 @@ private final class SourceTableHeaderView: NSTableHeaderView {
         }
         var nameRect = rect
         if kind.mediaVariants.count > 1 {
-            let variantFont = NSFont.systemFont(ofSize: 9)
+            var variantFont = NSFont.systemFont(ofSize: 9, weight: .medium)
             let variantText = kind.mediaVariantTitle(language: language)
-            let width = min(ceil((variantText as NSString).size(withAttributes: [.font: variantFont]).width) + 20,
-                            max(0, rect.width - 47))
+            let naturalWidth = (variantText as NSString).size(withAttributes: [.font: variantFont]).width
+            let sourceWidth = (sourceTitle as NSString).size(withAttributes: [.font: titleFont]).width
+            let textBudget = max(0, rect.width - 38)
+            let taskScale = (textBudget - sourceWidth) / max(1, naturalWidth)
+            let sharedScale = min(1, max(0.01, textBudget / max(1, sourceWidth + naturalWidth)))
+            let variantScale = taskScale >= 0.6 ? min(1, taskScale) : sharedScale
+            if taskScale < 0.6 { titleFont = NSFont.systemFont(ofSize: 11 * sharedScale, weight: .semibold) }
+            variantFont = NSFont.systemFont(ofSize: 9 * variantScale, weight: .medium)
+            let width = min(ceil(naturalWidth * variantScale) + 28, max(0, rect.width))
             if width > 0 {
                 let variantRect = NSRect(x: rect.maxX - width, y: rect.minY, width: width, height: rect.height)
                 variantRects[kind] = variantRect
-                let dark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                let background = dark ? NSColor(calibratedRed: 39 / 255, green: 46 / 255, blue: 56 / 255, alpha: 1)
-                    : NSColor(calibratedRed: 231 / 255, green: 234 / 255, blue: 240 / 255, alpha: 1)
-                background.setFill()
                 let backgroundRect = NSRect(x: variantRect.minX, y: variantRect.midY - 10, width: width, height: 20)
-                NSBezierPath(roundedRect: backgroundRect, xRadius: 5, yRadius: 5).fill()
-                let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byTruncatingTail
+                let variantDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                let backgroundPath = NSBezierPath(roundedRect: backgroundRect.insetBy(dx: 0.5, dy: 0.5), xRadius: 3, yRadius: 3)
+                tint.withAlphaComponent(variantDark ? 0.12 : 0.06).setFill()
+                backgroundPath.fill()
+                tint.withAlphaComponent(variantDark ? 0.16 : 0.10).setStroke()
+                backgroundPath.lineWidth = 0.5
+                backgroundPath.stroke()
+                let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byClipping
                 let textHeight = ceil(variantFont.ascender - variantFont.descender + variantFont.leading)
-                (variantText as NSString).draw(in: NSRect(x: variantRect.minX + 5, y: titleRect.midY - textHeight / 2,
-                    width: max(0, width - 19), height: textHeight), withAttributes: [.font: variantFont,
-                    .foregroundColor: NSColor.secondaryLabelColor, .paragraphStyle: paragraph])
-                ("▾" as NSString).draw(at: NSPoint(x: variantRect.maxX - 10, y: titleRect.midY - textHeight / 2),
-                    withAttributes: [.font: variantFont, .foregroundColor: NSColor.secondaryLabelColor])
+                (variantText as NSString).draw(in: NSRect(x: variantRect.minX + 8, y: titleRect.midY - textHeight / 2,
+                    width: max(0, width - 27), height: textHeight), withAttributes: [.font: variantFont,
+                    .foregroundColor: tint, .paragraphStyle: paragraph])
+                let chevron = NSBezierPath()
+                let arrowX = variantRect.maxX - 10
+                let arrowY = titleRect.midY
+                let direction: CGFloat = isFlipped ? 1 : -1
+                chevron.move(to: NSPoint(x: arrowX - 2, y: arrowY - direction))
+                chevron.line(to: NSPoint(x: arrowX, y: arrowY + direction))
+                chevron.line(to: NSPoint(x: arrowX + 2, y: arrowY - direction))
+                chevron.lineWidth = 0.8; chevron.lineCapStyle = .round; chevron.lineJoinStyle = .round
+                NSColor.secondaryLabelColor.withAlphaComponent(0.65).setStroke()
+                chevron.stroke()
                 nameRect.size.width = max(0, rect.width - width)
             }
         }
@@ -1938,13 +1965,14 @@ private final class SourceTableHeaderView: NSTableHeaderView {
             ? "" : summary.emphasis + " · "
         let explanation = NSAttributedString(string: explanationText,
             attributes: [.font: summaryFont, .foregroundColor: tint])
-        // Keep the introduction first while retaining the source in narrow columns.
-        let visibleTitle = explanation.size().width + titleWidth > available ? compactTitle : sourceTitle
+        // Keep the complete source name; shrink within the original font ceiling.
+        titleFont = NSFont.systemFont(ofSize: titleFont.pointSize * min(1, max(0.01, available / max(1, titleWidth))), weight: .semibold)
+        let visibleTitle = sourceTitle
         let text = NSMutableAttributedString(string: visibleTitle, attributes: [
             .font: titleFont, .foregroundColor: tint
         ])
         if explanation.size().width + text.size().width <= available {
-            text.insert(explanation, at: 0)
+            if explanation.size().width + titleWidth <= available { text.insert(explanation, at: 0) }
         }
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineBreakMode = .byTruncatingTail
@@ -2317,6 +2345,7 @@ private struct CategorySegmentedControl: NSViewRepresentable {
 
     let language: AppLanguage
     var compact = false
+    var categories: [LeaderboardCategory] = LeaderboardCategory.allCases
     @Binding var selection: LeaderboardCategory
 
     private func label(_ category: LeaderboardCategory) -> String {
@@ -2325,21 +2354,21 @@ private struct CategorySegmentedControl: NSViewRepresentable {
         case .coding: language.text("Coding", "编程")
         case .image: language.text("Image", "图片")
         case .video: language.text("Video", "视频")
-        case .speech: language.text("Speech", "语音")
+        case .speech: language.text("Specialist", "专业")
         case .usage: language.text("Usage", "用量")
         case .price: language.text("Price", "价格")
         }
     }
 
     private var controlWidth: CGFloat {
-        DesktopSegmentMetrics.width(labels: LeaderboardCategory.allCases.map(label),
+        DesktopSegmentMetrics.width(labels: categories.map(label),
                                     regular: Self.width, compact: compact)
     }
 
     private func configureLabels(_ control: NSSegmentedControl) {
-        for (index, category) in LeaderboardCategory.allCases.enumerated() {
+        for (index, category) in categories.enumerated() {
             control.setLabel(label(category), forSegment: index)
-            let width = controlWidth / CGFloat(LeaderboardCategory.allCases.count)
+            let width = controlWidth / CGFloat(categories.count)
             if control.width(forSegment: index) != width { control.setWidth(width, forSegment: index) }
         }
         control.toolTip = language.text("Switch leaderboard category", "切换榜单类别")
@@ -2347,7 +2376,7 @@ private struct CategorySegmentedControl: NSViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(selection: $selection)
+        Coordinator(selection: $selection, categories: categories)
     }
 
     func makeNSView(context: Context) -> CategorySegmentedControlView {
@@ -2357,7 +2386,7 @@ private struct CategorySegmentedControl: NSViewRepresentable {
         // Selected labels are heavier. Content-sized segments then change width
         // and the whole control jitters. Equal widths stay put.
         control.segmentDistribution = .fillEqually
-        control.segmentCount = LeaderboardCategory.allCases.count
+        if control.segmentCount != categories.count { control.segmentCount = categories.count }
         configureLabels(control)
         control.selectedSegment = selectedIndex
         control.target = context.coordinator
@@ -2369,6 +2398,8 @@ private struct CategorySegmentedControl: NSViewRepresentable {
 
     func updateNSView(_ control: CategorySegmentedControlView, context: Context) {
         context.coordinator.selection = $selection
+        context.coordinator.categories = categories
+        if control.segmentCount != categories.count { control.segmentCount = categories.count }
         configureLabels(control)
         let index = selectedIndex
         guard control.selectedSegment != index else { return }
@@ -2388,20 +2419,22 @@ private struct CategorySegmentedControl: NSViewRepresentable {
     }
 
     private var selectedIndex: Int {
-        LeaderboardCategory.allCases.firstIndex(of: selection) ?? 0
+        categories.firstIndex(of: selection) ?? 0
     }
 
     @MainActor final class Coordinator: NSObject {
         var selection: Binding<LeaderboardCategory>
+        var categories: [LeaderboardCategory]
 
-        init(selection: Binding<LeaderboardCategory>) {
+        init(selection: Binding<LeaderboardCategory>, categories: [LeaderboardCategory]) {
             self.selection = selection
+            self.categories = categories
         }
 
         @objc func changed(_ sender: NSSegmentedControl) {
             let index = sender.selectedSegment
-            guard LeaderboardCategory.allCases.indices.contains(index) else { return }
-            let category = LeaderboardCategory.allCases[index]
+            guard categories.indices.contains(index) else { return }
+            let category = categories[index]
             guard selection.wrappedValue != category else { return }
             selection.wrappedValue = category
         }

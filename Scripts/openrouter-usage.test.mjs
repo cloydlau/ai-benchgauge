@@ -68,7 +68,7 @@ test('one completed UTC day preserves exact tokens, variants, original meta and 
   assert.match(board.sourceNote, /Source: OpenRouter \(openrouter.ai\/rankings\), as of 2026-10-23T00:00:30Z\./);
   assert.match(board.sourceNote, /Licensed under CC BY 4.0/);
   assert.match(board.sourceNote, /UTC 2026-10-22/);
-  assert.deepEqual(categories.map(category => category.id), ['usage', 'general', 'coding', 'image', 'speech', 'video']);
+  assert.deepEqual(categories.map(category => category.id), ['usage', 'general', 'image', 'video', 'coding', 'speech']);
   assert.deepEqual(categories[0].kinds, ['openRouterUsage', 'vercelUsage', 'cloudbaseUsage']);
   assert.equal(boards.openRouterUsage.title, 'OpenRouter');
   const normalized = normalizeBoard(board, board.kind);

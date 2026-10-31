@@ -32,11 +32,11 @@
       "sha256": "ed2433c83b7d7088ac4b508fcc257add9195641587577a288451bc2a6afe9cb2"
     },
     "speech": {
-      "icon": "speech-waveform",
+      "icon": "specialist-compass",
       "source": "Original BenchGauge geometry",
       "license": "MIT",
       "licenseFile": "LICENSE",
-      "sha256": "809dede694d250f737b4182b026179b84a23be41bfe7fbfc87e66051cedf3fb5",
+      "sha256": "62e4a972f6c7f3e75363b36857d74d225ccc3aeba2aaa0d21534c95e5f60ee31",
       "hashScope": "speech.svg"
     },
     "usage": {

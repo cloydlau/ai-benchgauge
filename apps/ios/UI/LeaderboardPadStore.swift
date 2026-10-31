@@ -33,6 +33,8 @@ public final class LeaderboardPadStore: ObservableObject {
     @Published public var selectedSource: Int { didSet { defaults.set(selectedSource, forKey: "mobileSelectedSource") } }
     @Published public private(set) var boardSelections: [String: [String]]
     @Published public private(set) var mediaSelections: [String: String] = [:]
+    public var visibleCategories: [LeaderboardCategory] { DesktopBoardSelection.categories(in: boardSelections) }
+    public var selectedBoardCount: Int { DesktopBoardSelection.count(in: boardSelections) }
     public var visibleBoardKinds: [LeaderboardKind] { boardKinds(for: category) }
     public func boardKinds(for category: LeaderboardCategory) -> [LeaderboardKind] {
         DesktopBoardSelection.kinds(for: category, saved: boardSelections[category.rawValue]).map { base in
@@ -49,16 +51,15 @@ public final class LeaderboardPadStore: ObservableObject {
         Task { await refresh(kind: selected) }
     }
     public func toggleBoard(_ kind: LeaderboardKind, in category: LeaderboardCategory) {
-        let next = DesktopBoardSelection.toggling(kind, in: category, saved: boardSelections[category.rawValue])
-        guard next != DesktopBoardSelection.kinds(for: category, saved: boardSelections[category.rawValue]).map(\.rawValue) else { return }
-        var selections = boardSelections
-        selections[category.rawValue] = next
-        setBoardSelections(selections)
+        let next = DesktopBoardSelection.toggling(kind, in: category, selections: boardSelections)
+        guard next != boardSelections else { return }
+        setBoardSelections(next)
     }
     public func resetBoardSelections() { setBoardSelections([:]) }
     private func setBoardSelections(_ selections: [String: [String]]) {
         let kind = selectedKind
-        boardSelections = selections
+        boardSelections = DesktopBoardSelection.normalized(selections)
+        if !visibleCategories.contains(category) { category = visibleCategories[0]; selectedSource = 0 }
         selectedSource = visibleBoardKinds.firstIndex(of: kind) ?? min(max(0, selectedSource), visibleBoardKinds.count - 1)
         defaults.set(boardSelections, forKey: "mobileBoardSelections")
     }
@@ -92,13 +93,15 @@ public final class LeaderboardPadStore: ObservableObject {
         self.cache = cache ?? (try? LeaderboardCache(fileURL: LeaderboardCache.defaultFileURL()))
         self.service = service
         self.snapshot = self.cache?.load() ?? LeaderboardSnapshot()
-        let initialCategory = CategoryPreference.load(from: defaults)
+        let selections = DesktopBoardSelection.normalized(defaults.dictionary(forKey: "mobileBoardSelections") as? [String: [String]] ?? [:])
+        let categories = DesktopBoardSelection.categories(in: selections)
+        let savedCategory = CategoryPreference.load(from: defaults)
+        let initialCategory = categories.contains(savedCategory) ? savedCategory : categories[0]
         self.category = initialCategory
         self.grouping = initialCategory == .price ? .model : GroupingPreference.load(from: defaults)
         self.language = AppLanguage.load(from: defaults)
         self.appearance = defaults.string(forKey: "mobileAppearance") ?? "system"
         self.boardTransition = LeaderboardSwitchStyle(saved: defaults.string(forKey: "mobileBoardTransition"))
-        let selections = defaults.dictionary(forKey: "mobileBoardSelections") as? [String: [String]] ?? [:]
         self.boardSelections = selections
         self.mediaSelections = defaults.dictionary(forKey: "mobileMediaSelections") as? [String: String] ?? [:]
         self.selectedSource = min(max(0, defaults.integer(forKey: "mobileSelectedSource")),

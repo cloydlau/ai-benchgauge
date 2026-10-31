@@ -1214,6 +1214,192 @@
             "modelID": "anthropic/fixture"
           }
         ]
+      },
+      {
+        "kind": "epochSoftwareECI",
+        "title": "Epoch Software engineering ECI",
+        "url": "https://epoch.ai/data/eci",
+        "updatedAt": "2026-09-29T00:00:00Z",
+        "error": null,
+        "entries": [
+          {
+            "rank": 1,
+            "name": "GPT-5.2 (high)",
+            "score": 150.25,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 2,
+            "name": "Claude Sonnet 4.5 (extended thinking)",
+            "score": 148.07,
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 3,
+            "name": "Gemini 3 Pro Preview",
+            "score": 145.89,
+            "organization": "Google",
+            "logo": "google",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 4,
+            "name": "Qwen3-Max-Thinking 长名称测试模型",
+            "score": 143.71,
+            "organization": "Alibaba",
+            "logo": "qwen",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          }
+        ],
+        "fetchedAt": "2026-09-29T00:00:00Z"
+      },
+      {
+        "kind": "epochMathECI",
+        "title": "Epoch Math ECI",
+        "url": "https://epoch.ai/data/eci",
+        "updatedAt": "2026-09-29T00:00:00Z",
+        "error": null,
+        "entries": [
+          {
+            "rank": 1,
+            "name": "GPT-5.2 (high)",
+            "score": 150.25,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 2,
+            "name": "Claude Sonnet 4.5 (extended thinking)",
+            "score": 148.07,
+            "organization": "Anthropic",
+            "logo": "anthropic",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 3,
+            "name": "Gemini 3 Pro Preview",
+            "score": 145.89,
+            "organization": "Google",
+            "logo": "google",
+            "country": "unitedStates",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          },
+          {
+            "rank": 4,
+            "name": "Qwen3-Max-Thinking 长名称测试模型",
+            "score": 143.71,
+            "organization": "Alibaba",
+            "logo": "qwen",
+            "country": "china",
+            "codingURL": null,
+            "apiURL": null,
+            "help": null
+          }
+        ],
+        "fetchedAt": "2026-09-29T00:00:00Z"
+      },
+      {
+        "kind": "artificialAnalysisSpeechProviderVoice",
+        "title": "Artificial Analysis",
+        "url": "https://artificialanalysis.ai/text-to-speech/leaderboard/provider-voice",
+        "updatedAt": "2026-10-30T00:00:00Z",
+        "fetchedAt": "2026-10-31T08:00:00Z",
+        "error": null,
+        "entries": [
+          {
+            "rank": 1,
+            "name": "Fixture model A",
+            "score": 1100,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates"
+          },
+          {
+            "rank": 2,
+            "name": "Fixture model B",
+            "score": 1000,
+            "organization": "Google",
+            "logo": "google",
+            "country": "unitedStates"
+          }
+        ]
+      },
+      {
+        "kind": "arenaTextToImage",
+        "title": "Arena",
+        "url": "https://arena.ai/leaderboard/image",
+        "updatedAt": "2026-10-30T00:00:00Z",
+        "fetchedAt": "2026-10-31T08:00:00Z",
+        "error": null,
+        "entries": [
+          {
+            "rank": 1,
+            "name": "Fixture model A",
+            "score": 1100,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates"
+          },
+          {
+            "rank": 2,
+            "name": "Fixture model B",
+            "score": 1000,
+            "organization": "Google",
+            "logo": "google",
+            "country": "unitedStates"
+          }
+        ]
+      },
+      {
+        "kind": "arenaMultiImageEditing",
+        "title": "Arena",
+        "url": "https://arena.ai/leaderboard/image/image-edit/multi-image",
+        "updatedAt": "2026-10-30T00:00:00Z",
+        "fetchedAt": "2026-10-31T08:00:00Z",
+        "error": null,
+        "entries": [
+          {
+            "rank": 1,
+            "name": "Fixture model A",
+            "score": 1100,
+            "organization": "OpenAI",
+            "logo": "openai",
+            "country": "unitedStates"
+          },
+          {
+            "rank": 2,
+            "name": "Fixture model B",
+            "score": 1000,
+            "organization": "Google",
+            "logo": "google",
+            "country": "unitedStates"
+          }
+        ]
       }
     ],
     "quotas": [
@@ -4892,6 +5078,324 @@
       "selectedBoards": [
         "artificialAnalysis",
         "arenaText"
+      ]
+    },
+    {
+      "id": "variant-selector-en-general",
+      "language": "en",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "variantSelector",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ]
+    },
+    {
+      "id": "variant-selector-zh-general",
+      "language": "zh",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "variantSelector",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ]
+    },
+    {
+      "id": "variant-selector-zh-Hant-general",
+      "language": "zh-Hant",
+      "width": 950,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "variantSelector",
+      "category": "general",
+      "grouping": "model",
+      "selectedBoards": [
+        "artificialAnalysis",
+        "arenaText",
+        "epochECI"
+      ]
+    },
+    {
+      "id": "category-visibility-en",
+      "language": "en",
+      "width": 1100,
+      "height": 720,
+      "scenario": "categoryVisibility",
+      "mode": "clickToClose",
+      "category": "general",
+      "boardSelections": {
+        "usage": [],
+        "general": [],
+        "image": [],
+        "video": [],
+        "coding": [
+          "epochSoftwareECI"
+        ],
+        "speech": [
+          "epochMathECI"
+        ]
+      },
+      "refreshedBoardSelections": {
+        "usage": [],
+        "general": [],
+        "image": [],
+        "video": [],
+        "coding": [],
+        "speech": [
+          "epochMathECI"
+        ]
+      }
+    },
+    {
+      "id": "category-visibility-zh",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "scenario": "categoryVisibility",
+      "mode": "clickToClose",
+      "category": "general",
+      "boardSelections": {
+        "usage": [],
+        "general": [],
+        "image": [],
+        "video": [],
+        "coding": [
+          "epochSoftwareECI"
+        ],
+        "speech": [
+          "epochMathECI"
+        ]
+      },
+      "refreshedBoardSelections": {
+        "usage": [],
+        "general": [],
+        "image": [],
+        "video": [],
+        "coding": [],
+        "speech": [
+          "epochMathECI"
+        ]
+      }
+    },
+    {
+      "id": "category-visibility-zh-Hant",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "scenario": "categoryVisibility",
+      "mode": "clickToClose",
+      "category": "general",
+      "boardSelections": {
+        "usage": [],
+        "general": [],
+        "image": [],
+        "video": [],
+        "coding": [
+          "epochSoftwareECI"
+        ],
+        "speech": [
+          "epochMathECI"
+        ]
+      },
+      "refreshedBoardSelections": {
+        "usage": [],
+        "general": [],
+        "image": [],
+        "video": [],
+        "coding": [],
+        "speech": [
+          "epochMathECI"
+        ]
+      }
+    },
+    {
+      "id": "category-visibility-selector-en",
+      "language": "en",
+      "width": 1100,
+      "height": 720,
+      "scenario": "boardSelectionConfirm",
+      "mode": "clickToClose",
+      "category": "general"
+    },
+    {
+      "id": "source-details-variants-artificialAnalysisSpeechProviderVoice-en",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceDetails",
+      "comparisonKind": "artificialAnalysisSpeechProviderVoice",
+      "category": "speech"
+    },
+    {
+      "id": "source-details-variants-arenaMultiImageEditing-en",
+      "language": "en",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceDetails",
+      "comparisonKind": "arenaMultiImageEditing",
+      "category": "image"
+    },
+    {
+      "id": "source-details-variants-artificialAnalysisSpeechProviderVoice-zh",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceDetails",
+      "comparisonKind": "artificialAnalysisSpeechProviderVoice",
+      "category": "speech"
+    },
+    {
+      "id": "source-details-variants-arenaMultiImageEditing-zh",
+      "language": "zh",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceDetails",
+      "comparisonKind": "arenaMultiImageEditing",
+      "category": "image"
+    },
+    {
+      "id": "source-details-variants-artificialAnalysisSpeechProviderVoice-zh-Hant",
+      "language": "zh-Hant",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceDetails",
+      "comparisonKind": "artificialAnalysisSpeechProviderVoice",
+      "category": "speech"
+    },
+    {
+      "id": "source-details-variants-arenaMultiImageEditing-zh-Hant",
+      "language": "zh-Hant",
+      "width": 850,
+      "height": 720,
+      "scenario": "sourceDetails",
+      "comparisonKind": "arenaMultiImageEditing",
+      "category": "image"
+    },
+    {
+      "id": "openrouter-metrics-en-usage",
+      "language": "en",
+      "width": 1100,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "usage",
+      "category": "usage",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterUsage"
+      ]
+    },
+    {
+      "id": "openrouter-metrics-en-price",
+      "language": "en",
+      "width": 1100,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostOrder",
+      "category": "usage",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterUsage"
+      ]
+    },
+    {
+      "id": "openrouter-metrics-en-speed",
+      "language": "en",
+      "width": 1100,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaSpeedOrder",
+      "category": "usage",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterUsage"
+      ]
+    },
+    {
+      "id": "openrouter-metrics-zh-usage",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "usage",
+      "category": "usage",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterUsage"
+      ]
+    },
+    {
+      "id": "openrouter-metrics-zh-price",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostOrder",
+      "category": "usage",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterUsage"
+      ]
+    },
+    {
+      "id": "openrouter-metrics-zh-speed",
+      "language": "zh",
+      "width": 1100,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaSpeedOrder",
+      "category": "usage",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterUsage"
+      ]
+    },
+    {
+      "id": "openrouter-metrics-zh-Hant-usage",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "usage",
+      "category": "usage",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterUsage"
+      ]
+    },
+    {
+      "id": "openrouter-metrics-zh-Hant-price",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaCostOrder",
+      "category": "usage",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterUsage"
+      ]
+    },
+    {
+      "id": "openrouter-metrics-zh-Hant-speed",
+      "language": "zh-Hant",
+      "width": 1100,
+      "height": 720,
+      "mode": "clickToClose",
+      "scenario": "aaSpeedOrder",
+      "category": "usage",
+      "grouping": "model",
+      "selectedBoards": [
+        "openRouterUsage"
       ]
     }
   ],

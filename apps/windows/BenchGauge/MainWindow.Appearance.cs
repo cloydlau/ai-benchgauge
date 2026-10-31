@@ -246,12 +246,11 @@ sealed partial class MainWindow
 
     static Binding ParentBinding(string property) => new(property) { RelativeSource = RelativeSource.TemplatedParent };
 
-    void ConfigurePanelStyles()
+    ControlTemplate CreatePanelButtonTemplate(double cornerRadius)
     {
-        Foreground = PanelInk; Background = PanelBackground;
         var buttonTemplate = new ControlTemplate(typeof(NativeButton));
         var frame = new FrameworkElementFactory(typeof(Border), "frame");
-        frame.SetValue(Border.CornerRadiusProperty, new CornerRadius(5));
+        frame.SetValue(Border.CornerRadiusProperty, new CornerRadius(cornerRadius));
         frame.SetBinding(Border.BackgroundProperty, ParentBinding("Background"));
         frame.SetBinding(Border.BorderBrushProperty, ParentBinding("BorderBrush"));
         frame.SetBinding(Border.BorderThicknessProperty, ParentBinding("BorderThickness"));
@@ -268,6 +267,13 @@ sealed partial class MainWindow
         buttonTemplate.Triggers.Add(pressed);
         var disabled = new Trigger { Property = WpfButton.IsEnabledProperty, Value = false };
         disabled.Setters.Add(new Setter(WpfButton.OpacityProperty, 0.5)); buttonTemplate.Triggers.Add(disabled);
+        return buttonTemplate;
+    }
+
+    void ConfigurePanelStyles()
+    {
+        Foreground = PanelInk; Background = PanelBackground;
+        var buttonTemplate = CreatePanelButtonTemplate(5);
         var buttons = new Style(typeof(NativeButton));
         buttons.Setters.Add(new Setter(WpfButton.TemplateProperty, buttonTemplate));
         buttons.Setters.Add(new Setter(WpfButton.ForegroundProperty, PanelInk));
@@ -404,7 +410,7 @@ sealed partial class MainWindow
             async value => { if (prefs.Category == "price") return; prefs.Grouping = value; SaveFrame(); await Refresh("state"); if (engine is null) Render(); }, compact: compactTabs);
         grouping.IsEnabled = prefs.Category != "price";
         switches.Children.Add(grouping);
-        var categories = Segments([("usage",Tr("Usage","用量","用量")),("general",Tr("General","综合","綜合")),("coding",Tr("Coding","编程","編程")),("image",Tr("Image","图片","圖片")),("speech",Tr("Speech","语音","語音")),("video",Tr("Video","视频","視頻"))], prefs.Category, 540,
+        var categories = Segments(new (string, string)[] { ("usage",Tr("Usage","用量","用量")),("general",Tr("General","综合","綜合")),("image",Tr("Image","图片","圖片")),("video",Tr("Video","视频","視頻")),("coding",Tr("Coding","编程","編程")),("speech",Tr("Specialist","专业","專業")) }.Where(item => prefs.VisibleCategories().Contains(item.Item1)).ToArray(), prefs.Category, 540,
             async value => { prefs.Category = value; if (value == "price") prefs.Grouping = "model"; SaveFrame(); await Refresh("refreshBoardsIfStale"); if (engine is null) Render(); }, compact: compactTabs);
         categories.Margin = new Thickness(8, 0, 0, 0); switches.Children.Add(categories);
         var tabs = SearchNavigation(switches);
@@ -432,6 +438,11 @@ sealed partial class MainWindow
             freshness.HorizontalAlignment = HorizontalAlignment.Right; header.Children.Add(wide);
         }
         else { header.Children.Add(titleLine); tabs.Margin = new Thickness(0, 10, 0, 0); header.Children.Add(tabs); }
+        if (prefs.Category == "speech") {
+            var specialist = Segments(prefs.SelectedBoardKinds("speech").Select((kind, index) => (index.ToString(), kind == "epochMathECI" ? Tr("Math", "数学", "數學") : kind == "epochCyberECI" ? Tr("Cybersecurity", "网络安全", "網路安全") : Tr("Speech", "语音", "語音"))).ToArray(), Math.Clamp(prefs.SpecialistIndex, 0, prefs.SelectedBoardKinds("speech").Length - 1).ToString(), 300,
+                async value => { prefs.SpecialistIndex = int.Parse(value, CultureInfo.InvariantCulture); SaveFrame(); await Refresh("refreshBoardsIfStale"); if (engine is null) Render(); }, compact: true);
+            specialist.Margin = new Thickness(0, 8, 0, 0); header.Children.Add(specialist);
+        }
         return header;
     }
     Button AddModelButton(Func<Task> action)
@@ -546,10 +557,10 @@ sealed partial class MainWindow
                     + (ArenaAttribution.Applies(board) ? "\n" + ArenaAttribution.FullText(prefs.Language) : "");
 
     internal Window CreateSourceDetailsWindow(Board board) => CreateInformationDialog(BoardTitle(board),
-                BoardSourceDescription(board) + (string.IsNullOrEmpty(board.Url) ? "" : "\n\n" + board.Url)
+                BoardSourceDescription(board) + (LeaderboardVariantHelp.Text(board.Kind, prefs.Language) is { Length: > 0 } optionHelp ? "\n\n" + optionHelp : "") + (string.IsNullOrEmpty(board.Url) ? "" : "\n\n" + board.Url)
                     + (board.Kind is "openRouterUsage" or "vercelUsage" or "cloudbaseUsage"
                         ? "\n\n" + UsageLicense.Text(board.Kind, board.SourceNote, prefs.Language)
-                        : board.Kind == "epochECI" ? "\n\n" + EpochAttribution.FullText(prefs.Language) + "\n\n" + UsageLicense.FullLicense(prefs.Language)
+                        : board.Kind.StartsWith("epoch", StringComparison.Ordinal) ? "\n\n" + EpochAttribution.FullText(prefs.Language) + "\n\n" + UsageLicense.FullLicense(prefs.Language)
                         : ArenaAttribution.Applies(board) ? "\n\n" + UsageLicense.FullLicense(prefs.Language) : ""), board.Url);
 
     Button QuietButton(string text, Action action) => Quiet(Button(text, action));
@@ -762,19 +773,18 @@ sealed partial class MainWindow
                     new Typeface(summary.FontFamily, FontStyles.Normal, weight, FontStretches.Normal),
                     size, PanelInk, VisualTreeHelper.GetDpi(this).PixelsPerDip).WidthIncludingTrailingWhitespace;
                 var hasVariants = Preferences.MediaVariants(board.Kind).Length > 1;
-                var title = hasVariants ? (board.Kind.StartsWith("artificialAnalysis", StringComparison.Ordinal) ? "Artificial Analysis" : "Arena") : BoardTitle(board);
+                var title = hasVariants ? (board.Kind.StartsWith("artificialAnalysis", StringComparison.Ordinal) ? "Artificial Analysis" : board.Kind.StartsWith("epoch", StringComparison.Ordinal) ? "Epoch AI" : "Arena") : BoardTitle(board);
                 var available = summary.ActualWidth;
                 var sourceLens = SourceLens(board);
                 var lens = hasVariants && sourceLens == MediaVariantTitle(board.Kind) ? "" : sourceLens + " · ";
                 var lensWidth = Measure(lens, 10, FontWeights.Normal);
-                if (available > 0 && lensWidth + Measure(title, 11, FontWeights.SemiBold) > available)
-                    title = title.Replace("Artificial Analysis", "AA", StringComparison.Ordinal);
                 var titleWidth = Measure(title, 11, FontWeights.SemiBold);
                 var showsLens = lensWidth + titleWidth <= available;
                 summary.Inlines.Clear();
                 if (showsLens)
                     summary.Inlines.Add(new TextRun(lens) { Foreground = BoardTint(board.Kind), FontSize = 10, FontWeight = FontWeights.Normal });
-                summary.Inlines.Add(new TextRun(title) { Foreground = BoardTint(board.Kind) });
+                var titleSize = available > 0 ? 11 * Math.Min(1, available / Math.Max(1, titleWidth)) : 11;
+                summary.Inlines.Add(new TextRun(title) { Foreground = BoardTint(board.Kind), FontSize = titleSize });
             }
             summary.SizeChanged += (_, _) => UpdateHeading();
             UpdateHeading();
@@ -786,12 +796,20 @@ sealed partial class MainWindow
             {
                 heading.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 var variant = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-                variant.Children.Add(new TextBlock { Text = MediaVariantTitle(board.Kind), FontSize = 9,
-                    TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 85, VerticalAlignment = VerticalAlignment.Center });
-                variant.Children.Add(new TextBlock { Text = " ▾", FontSize = 9, VerticalAlignment = VerticalAlignment.Center });
-                var variantButton = new Button { Content = variant, Background = PanelSurface, BorderThickness = new Thickness(0),
+                variant.Children.Add(new Viewbox { Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly,
+                    MaxWidth = 85, VerticalAlignment = VerticalAlignment.Center,
+                    Child = new TextBlock { Text = MediaVariantTitle(board.Kind), FontSize = 9, FontWeight = FontWeights.Medium,
+                        TextWrapping = TextWrapping.NoWrap } });
+                variant.Children.Add(new System.Windows.Shapes.Path {
+                    Data = Geometry.Parse("M 0,0 L 2,2 L 4,0"), Stroke = PanelMuted, Opacity = 0.65,
+                    StrokeThickness = 0.8, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
+                    StrokeLineJoin = PenLineJoin.Round, Margin = new Thickness(5, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
+                var variantAccent = SourceTabTheme.For(board.Kind, panelDark).Accent;
+                var variantButton = new Button { Content = variant, Template = CreatePanelButtonTemplate(3),
+                    Background = Tint(variantAccent, panelDark ? 0.12 : 0.06),
+                    BorderBrush = Tint(variantAccent, panelDark ? 0.16 : 0.10), BorderThickness = new Thickness(0.5),
                     Height = 20, VerticalAlignment = VerticalAlignment.Center,
-                    Padding = new Thickness(5, 0, 5, 0), Foreground = PanelMuted, Cursor = Cursors.Hand,
+                    Padding = new Thickness(8, 0, 8, 0), Foreground = Tint(variantAccent, 1), Cursor = Cursors.Hand,
                     ToolTip = MediaVariantTitle(board.Kind) };
                 var menu = new ContextMenu();
                 foreach (var option in Preferences.MediaVariants(board.Kind))
@@ -875,7 +893,7 @@ sealed partial class MainWindow
                 }
                 else AddCell(row, model, column);
                 var score = new Grid();
-                score.Children.Add(Center(Caption((IsErrorRate(pair[side].Kind) ? entry.Score.ToString("0.00", CultureInfo.InvariantCulture) + "%" : pair[side].Kind is "vercelUsage" or "cloudbaseUsage" ? (entry.Score > 0 && entry.Score < 0.01 ? "<0.01%" : entry.Score.ToString("0.00", CultureInfo.InvariantCulture) + "%") : pair[side].Kind == "openRouterUsage" && entry.Score > 0 && entry.Score < 0.01 ? "<0.01B" : entry.Score.ToString(pair[side].Kind == "openRouterUsage" ? "0.00\"B\"" : pair[side].Kind == "epochECI" ? "0.00" : "0.0", CultureInfo.InvariantCulture)), PanelMuted, 13, numeric: true)));
+                score.Children.Add(Center(Caption((IsErrorRate(pair[side].Kind) ? entry.Score.ToString("0.00", CultureInfo.InvariantCulture) + "%" : pair[side].Kind is "vercelUsage" or "cloudbaseUsage" ? (entry.Score > 0 && entry.Score < 0.01 ? "<0.01%" : entry.Score.ToString("0.00", CultureInfo.InvariantCulture) + "%") : pair[side].Kind == "openRouterUsage" && entry.Score > 0 && entry.Score < 0.01 ? "<0.01B" : entry.Score.ToString(pair[side].Kind == "openRouterUsage" ? "0.00\"B\"" : pair[side].Kind.StartsWith("epoch", StringComparison.Ordinal) ? "0.00" : "0.0", CultureInfo.InvariantCulture)), PanelMuted, 13, numeric: true)));
                 if (showSpeed)
                 {
                     score.Children.Clear(); score.Children.Add(Center(Caption(entry.Speed is { } speed ? speed.ToString(speed < 10 ? "0.0" : "0", CultureInfo.InvariantCulture) : "—", PanelMuted, 13, numeric: true)));
@@ -950,8 +968,11 @@ sealed partial class MainWindow
     }
 
     string MediaVariantTitle(string kind) => kind switch {
-        "arenaText" => Tr("Style Control", "风格控制", "風格控制"),
-        "arenaTextUncontrolled" => Tr("Original", "原始总榜", "原始總榜"),
+        "epochECI" => Tr("General", "综合", "綜合"),
+        "epochMathECI" => Tr("Math", "数学", "數學"),
+        "epochCyberECI" => Tr("Cybersecurity", "网络安全", "網路安全"),
+        "arenaText" => Tr("Text Style Control", "文本（风格控制）", "文本（風格控制）"),
+        "arenaTextUncontrolled" => Tr("Text Original", "文本（原始总榜）", "文本（原始總榜）"),
         "codeArenaWebDev" => Tr("WebDev", "网页开发", "網頁開發"),
         "codeArenaImageToWebDev" => Tr("Image to WebDev", "图片转代码", "圖片轉程式碼"),
         "artificialAnalysisTextToImage" or "arenaTextToImage" => Tr("Text to image", "文生图", "文生圖"),
@@ -1005,7 +1026,7 @@ sealed partial class MainWindow
     {
         var saved = state?.Boards ?? [];
         return prefs.VisibleBoardKinds().Select(kind => saved.FirstOrDefault(board => board.Kind == kind)
-            ?? new Board(kind, kind == "epochECI" ? "Epoch AI" : kind.StartsWith("artificialAnalysis") ? "Artificial Analysis" : "Arena", "", null, null, [])).ToArray();
+            ?? new Board(kind, kind.StartsWith("epoch", StringComparison.Ordinal) ? "Epoch AI" : kind.StartsWith("artificialAnalysis") ? "Artificial Analysis" : "Arena", "", null, null, [])).ToArray();
     }
     Brush BoardTint(string kind) => Tint(SourceTabTheme.For(kind, panelDark).Accent);
 
@@ -1149,10 +1170,10 @@ sealed partial class MainWindow
         "cloudbaseUsage" => "Tencent Cloud",
         "vercelUsage" => "Vercel AI Gateway",
         "openRouterUsage" => "OpenRouter",
-        "artificialAnalysis" => "Artificial Analysis", "arenaText" or "arenaTextUncontrolled" => "Text Arena", "epochECI" => "Epoch ECI",
+        "artificialAnalysis" => "Artificial Analysis", "arenaText" or "arenaTextUncontrolled" => "Arena", "epochECI" or "epochMathECI" or "epochCyberECI" or "epochSoftwareECI" => "Epoch ECI",
         "artificialAnalysisCodingAgent" => "Artificial Analysis",
         "valsSWEbench" => "Vals AI · SWE-bench (Archived)",
-        "codeArenaWebDev" or "codeArenaImageToWebDev" => "Code Arena",
+        "codeArenaWebDev" or "codeArenaImageToWebDev" => "Arena",
         "artificialAnalysisTextToImage" => "Artificial Analysis",
         "artificialAnalysisImageEditing" or "artificialAnalysisImageToVideo" or "artificialAnalysisVideoEditing" => "Artificial Analysis",
         "arenaTextToImage" => Tr("Text to Image Arena", "Arena 文生图", "Arena 文生圖"),
@@ -1169,13 +1190,11 @@ sealed partial class MainWindow
     {
         "artificialAnalysis" => Tr("Combines standardized tests across several abilities.", "汇总多项标准化测试，适合看综合能力。", "彙總多項標準化測試，適合看綜合能力。") + "\n\n" + AACostHelp(board.Kind),
         "openRouterPrice" => Tr("OpenRouter base text input and output prices per million tokens; context tiers and other charges can differ.", "OpenRouter 文本输入、输出每百万 token 基础价格；长上下文阶梯及其他费用可能不同。", "OpenRouter 文字輸入、輸出每百萬 token 基礎價格；長上下文階梯及其他費用可能不同。"),
+        "epochMathECI" => Tr("Math capability from Epoch domain benchmarks.", "根据 Epoch 数学领域评测估计模型能力。", "根據 Epoch 數學領域評測估計模型能力。"),
+        "epochCyberECI" => Tr("Cybersecurity capability from Epoch domain benchmarks.", "根据 Epoch 网络安全评测估计模型能力。", "根據 Epoch 網路安全評測估計模型能力。"),
+        "epochSoftwareECI" => Tr("Software engineering capability from Epoch domain benchmarks.", "根据 Epoch 软件工程评测估计模型能力。", "根據 Epoch 軟體工程評測估計模型能力。"),
         "epochECI" => Tr("Estimates general capability from benchmark results, accounting for difficulty and discrimination.", "结合不同测试的难度与区分度，估计模型的综合能力。", "結合不同測試的難度與區分度，估計模型的綜合能力。"),
-        "arenaText" or "arenaTextUncontrolled" => (board.Kind == "arenaText"
-            ? Tr("Anonymous comparisons with style control.", "真实提问下盲选回答，并进行风格控制。", "真實提問下盲選回答，並進行風格控制。")
-            : Tr("Anonymous comparisons without style control.", "真实提问下盲选回答，未进行风格控制。", "真實提問下盲選回答，未進行風格控制。")) + "\n\n" + Tr(
-                "1. Original: ranks models from users’ choices between two anonymous answers. Content, length, formatting and tone can all influence overall preference.\n\n2. Style Control: uses the same voting-based approach and statistically adjusts for the estimated effects of response style, such as length, Markdown headings, bold text and lists. This reduces advantages from prettier formatting or longer answers; rankings may differ.\n\nArena explanation: https://arena.ai/blog/style-control",
-                "1. 原始总榜：根据用户对两个匿名回答的选择计算排名。回答内容、长短、格式和语气都会影响用户的整体偏好。\n\n2. 风格控制：在同样基于用户投票的基础上，尝试统计并扣除部分表达风格对投票的影响，比如回答长度、Markdown 标题、加粗和列表，从而减少“排版更漂亮、回答更长”带来的优势。两个榜单的排名因此可能不同。\n\nArena 官方解释：https://arena.ai/blog/style-control",
-                "1. 原始總榜：根據使用者對兩個匿名回答的選擇計算排名。回答內容、長短、格式和語氣都會影響使用者的整體偏好。\n\n2. 風格控制：同樣以使用者投票為基礎，嘗試統計並扣除部分表達風格對投票的影響，例如回答長度、Markdown 標題、粗體和列表，以減少「排版更漂亮、回答更長」帶來的優勢。兩個榜單的排名因此可能不同。\n\nArena 官方解釋：https://arena.ai/blog/style-control"),
+        "arenaText" or "arenaTextUncontrolled" => Tr("People compare anonymous answers.", "用户盲选匿名回答。", "使用者盲選匿名回答。"),
         "artificialAnalysisCodingAgent" => Tr("Coding scores and average API cost per task.", "编程成绩与平均每任务 API 成本。", "編程成績與平均每任務 API 成本。") + "\n\n" + CodingCostHelp(),
         "valsSWEbench" => Tr("Archived SWE-bench Verified: score, cost and duration per test. No new models are tested; source ranking stays unchanged.", "已归档的 SWE-bench Verified：每次测试成绩、成本和耗时；不再评测新模型，保留原榜排名。", "已歸檔的 SWE-bench Verified：每次測試成績、成本和耗時；不再評測新模型，保留原榜排名。"),
         "codeArenaWebDev" => Tr("People pick the better result from paired web builds.", "用户盲选网页成品，侧重实际观感。", "使用者盲選網頁成品，側重實際觀感。"),
@@ -1204,7 +1223,7 @@ sealed partial class MainWindow
         "cloudbaseUsage" => Tr("Cumulative share", "累计占比", "累計佔比"),
         "vercelUsage" => Tr("Daily share", "每日占比", "每日佔比"),
         "openRouterUsage" => Tr("Daily usage", "每日用量", "每日用量"),
-        "epochECI" => Tr("Calibrated tests", "难度校准", "難度校準"),
+        "epochECI" or "epochMathECI" or "epochCyberECI" or "epochSoftwareECI" => Tr("Calibrated tests", "难度校准", "難度校準"),
         "arenaText" or "arenaTextUncontrolled" => Tr("User votes", "用户盲测", "使用者盲測"),
         "artificialAnalysisCodingAgent" => Tr("Task completion", "任务完成率", "任務完成率"),
         "valsSWEbench" => Tr("Archived benchmark", "已归档榜单", "已歸檔榜單"),
@@ -1406,32 +1425,39 @@ sealed partial class MainWindow
         void Populate()
         {
             menu.Items.Clear();
-            var category = prefs.Category;
-            var draft = prefs.VisibleBaseBoardKinds().ToHashSet();
-            var checkboxes = new List<(string Kind, MenuItem Item)>();
+            var draft = Preferences.Categories.ToDictionary(value => value, value => prefs.SelectedBoardKinds(value).ToHashSet());
+            var checkboxes = new List<(string Category, string Kind, MenuItem Item)>();
             void UpdateCheckboxes()
             {
-                foreach (var (kind, item) in checkboxes)
+                foreach (var (category, kind, item) in checkboxes)
                 {
-                    item.IsChecked = draft.Contains(kind);
-                    item.IsEnabled = draft.Count > 1 || !draft.Contains(kind);
+                    item.IsChecked = draft[category].Contains(kind);
+                    item.IsEnabled = draft.Values.Sum(value => value.Count) > 1 || !draft[category].Contains(kind);
                 }
             }
-            foreach (var kind in prefs.AvailableBoardKinds())
+            foreach (var category in new[] { prefs.Category }.Concat(Preferences.Categories.Where(value => value != prefs.Category)))
             {
+                var group = new MenuItem { Header = category switch {
+                    "usage" => Tr("Usage", "用量", "用量"), "general" => Tr("General", "综合", "綜合"),
+                    "image" => Tr("Image", "图片", "圖片"), "video" => Tr("Video", "视频", "視頻"),
+                    "coding" => Tr("Coding", "编程", "編程"), _ => Tr("Specialist", "专业", "專業") } };
+                menu.Items.Add(group);
+                foreach (var kind in Preferences.AvailableBoardKinds(category))
+                {
                 var board = VisibleBoards().FirstOrDefault(value => value.Kind == kind)
                     ?? state?.Boards.FirstOrDefault(value => value.Kind == kind)
-                    ?? new Board(kind, kind == "epochECI" ? "Epoch AI" : kind.StartsWith("artificialAnalysis") ? "Artificial Analysis" : "Arena", "", null, null, []);
-                var item = new MenuItem { Header = (kind == "cloudbaseUsage" ? "Tencent Cloud" : kind == "vercelUsage" ? "Vercel AI Gateway" : kind == "openRouterUsage" ? "OpenRouter" : kind == "epochECI" ? "Epoch AI" : kind.StartsWith("artificialAnalysis") ? "Artificial Analysis" : "Arena") + " · " + SourceLens(board), IsCheckable = true,
-                    IsChecked = draft.Contains(kind), IsEnabled = draft.Count > 1 || !draft.Contains(kind), StaysOpenOnClick = true };
+                    ?? new Board(kind, kind.StartsWith("epoch", StringComparison.Ordinal) ? "Epoch AI" : kind.StartsWith("artificialAnalysis") ? "Artificial Analysis" : "Arena", "", null, null, []);
+                var item = new MenuItem { Header = (kind == "cloudbaseUsage" ? "Tencent Cloud" : kind == "vercelUsage" ? "Vercel AI Gateway" : kind == "openRouterUsage" ? "OpenRouter" : kind.StartsWith("epoch", StringComparison.Ordinal) ? "Epoch AI" : kind.StartsWith("artificialAnalysis") ? "Artificial Analysis" : "Arena") + " · " + SourceLens(board), IsCheckable = true,
+                    IsChecked = draft[category].Contains(kind), IsEnabled = draft.Values.Sum(value => value.Count) > 1 || !draft[category].Contains(kind), StaysOpenOnClick = true };
                 System.Windows.Automation.AutomationProperties.SetAutomationId(item, "board-visibility-" + kind);
                 item.Click += (_, _) => {
-                    if (item.IsChecked) draft.Add(kind);
-                    else if (draft.Count > 1) draft.Remove(kind);
+                    if (item.IsChecked) draft[category].Add(kind);
+                    else if (draft.Values.Sum(value => value.Count) > 1) draft[category].Remove(kind);
                     UpdateCheckboxes();
                 };
-                checkboxes.Add((kind, item));
-                menu.Items.Add(item);
+                checkboxes.Add((category, kind, item));
+                group.Items.Add(item);
+                }
             }
             menu.Items.Add(new Separator());
             menu.Items.Add(new MenuItem { Header = Tr("Keep at least one leaderboard", "至少保留一个榜单", "至少保留一個榜單"), IsEnabled = false });
@@ -1439,7 +1465,7 @@ sealed partial class MainWindow
             System.Windows.Automation.AutomationProperties.SetAutomationId(confirm, "board-visibility-confirm");
             confirm.Click += async (_, _) => {
                 menu.IsOpen = false;
-                if (prefs.Category != category || !prefs.SetVisibleBoards(draft)) return;
+                if (!prefs.SetBoardSelections(draft.ToDictionary(value => value.Key, value => value.Value.ToArray()))) return;
                 SaveFrame(); Render(); await Refresh("refreshBoardsIfStale");
             };
             menu.Items.Add(confirm);

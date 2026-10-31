@@ -1,0 +1,259 @@
+{
+  "heading": [
+    "Sub-leaderboard options",
+    "子榜选项说明",
+    "子榜選項說明"
+  ],
+  "options": {
+    "arenaText": {
+      "title": [
+        "Text Style Control",
+        "文本（风格控制）",
+        "文本（風格控制）"
+      ],
+      "detail": [
+        "Adjusts voting results for answer length and Markdown headings, bold and lists, reducing advantages from presentation style. It does not ask models to follow a style instruction.",
+        "在用户投票基础上，统计调整回答长度、Markdown 标题、加粗和列表等风格因素的影响，减少排版或长回答带来的优势；不是测试模型遵守风格指令的能力。",
+        "在使用者投票基礎上，統計調整回答長度、Markdown 標題、粗體和列表等風格因素的影響，減少排版或長回答帶來的優勢；不是測試模型遵守風格指令的能力。"
+      ]
+    },
+    "arenaTextUncontrolled": {
+      "title": [
+        "Text Original",
+        "文本（原始总榜）",
+        "文本（原始總榜）"
+      ],
+      "detail": [
+        "Ranks anonymous answer pairs by user preference without style adjustment. Content, length, formatting and tone can all affect the result.",
+        "根据用户对匿名回答的整体偏好排名，不扣除表达风格影响；内容、篇幅、排版和语气都会影响结果。",
+        "根據使用者對匿名回答的整體偏好排名，不扣除表達風格影響；內容、篇幅、排版和語氣都會影響結果。"
+      ]
+    },
+    "codeArenaWebDev": {
+      "title": [
+        "WebDev",
+        "网页开发",
+        "網頁開發"
+      ],
+      "detail": [
+        "Generates a website from written requirements; users compare the resulting pages. This focuses on front-end web development.",
+        "按文字需求生成网页，由用户比较成品效果；主要反映前端网页开发能力。",
+        "按文字需求產生網頁，由使用者比較成品效果；主要反映前端網頁開發能力。"
+      ]
+    },
+    "codeArenaImageToWebDev": {
+      "title": [
+        "Image to WebDev",
+        "图片转代码",
+        "圖片轉程式碼"
+      ],
+      "detail": [
+        "Generates a website from an image or screenshot, testing how well the model recreates the reference as a working page.",
+        "参照图片或截图生成网页代码，看模型能否把参考设计还原为可运行的页面。",
+        "參照圖片或截圖產生網頁程式碼，看模型能否把參考設計還原為可執行的頁面。"
+      ]
+    },
+    "artificialAnalysisTextToImage": {
+      "title": [
+        "Text to image",
+        "文生图",
+        "文生圖"
+      ],
+      "detail": [
+        "Creates a new image from a text description; users compare the generated results.",
+        "输入文字描述生成新图片，比较生成效果。",
+        "輸入文字描述產生新圖片，比較生成效果。"
+      ]
+    },
+    "artificialAnalysisTextToVideo": {
+      "title": [
+        "Text to video",
+        "文生视频",
+        "文生影片"
+      ],
+      "detail": [
+        "Creates a video from a text description, without a starting image or source video.",
+        "根据文字描述生成视频，不以已有图片或视频作为起点。",
+        "根據文字描述產生影片，不以現有圖片或影片作為起點。"
+      ]
+    },
+    "artificialAnalysisImageToVideo": {
+      "title": [
+        "Image to video",
+        "图生视频",
+        "圖生影片"
+      ],
+      "detail": [
+        "Uses an input image plus instructions to generate a video, turning a still reference into moving content.",
+        "以输入图片为基础，结合提示生成动态视频，适合看“让图片动起来”的能力。",
+        "以輸入圖片為基礎，結合提示產生動態影片，適合看「讓圖片動起來」的能力。"
+      ]
+    },
+    "artificialAnalysisVideoEditing": {
+      "title": [
+        "Video editing",
+        "视频编辑",
+        "影片編輯"
+      ],
+      "detail": [
+        "Modifies an existing video according to instructions, rather than generating from text or a still image alone.",
+        "根据指令修改已有视频，比较编辑效果；输入包含原视频。",
+        "根據指令修改現有影片，比較編輯效果；輸入包含原影片。"
+      ]
+    },
+    "arenaTextToImage": {
+      "title": [
+        "Text to image",
+        "文生图",
+        "文生圖"
+      ],
+      "detail": [
+        "Creates a new image from a text description; users compare the generated results.",
+        "输入文字描述生成新图片，比较生成效果。",
+        "輸入文字描述產生新圖片，比較生成效果。"
+      ]
+    },
+    "arenaTextToVideo": {
+      "title": [
+        "Text to video",
+        "文生视频",
+        "文生影片"
+      ],
+      "detail": [
+        "Creates a video from a text description, without a starting image or source video.",
+        "根据文字描述生成视频，不以已有图片或视频作为起点。",
+        "根據文字描述產生影片，不以現有圖片或影片作為起點。"
+      ]
+    },
+    "arenaImageToVideo": {
+      "title": [
+        "Image to video",
+        "图生视频",
+        "圖生影片"
+      ],
+      "detail": [
+        "Uses an input image plus instructions to generate a video, turning a still reference into moving content.",
+        "以输入图片为基础，结合提示生成动态视频，适合看“让图片动起来”的能力。",
+        "以輸入圖片為基礎，結合提示產生動態影片，適合看「讓圖片動起來」的能力。"
+      ]
+    },
+    "arenaVideoEditing": {
+      "title": [
+        "Video editing",
+        "视频编辑",
+        "影片編輯"
+      ],
+      "detail": [
+        "Modifies an existing video according to instructions, rather than generating from text or a still image alone.",
+        "根据指令修改已有视频，比较编辑效果；输入包含原视频。",
+        "根據指令修改現有影片，比較編輯效果；輸入包含原影片。"
+      ]
+    },
+    "artificialAnalysisImageEditing": {
+      "title": [
+        "Image editing",
+        "图片编辑",
+        "圖片編輯"
+      ],
+      "detail": [
+        "Changes an existing image according to instructions, rather than creating an image from text alone.",
+        "输入已有图片并按指令修改，比较编辑效果；区别于仅凭文字从头生成图片。",
+        "輸入現有圖片並按指令修改，比較編輯效果；區別於僅憑文字從頭產生圖片。"
+      ]
+    },
+    "arenaImageEditing": {
+      "title": [
+        "Single-image edit",
+        "单图编辑",
+        "單圖編輯"
+      ],
+      "detail": [
+        "Edits one input image according to instructions, such as changing an object or background.",
+        "以一张输入图片为基础修改，例如替换物体或背景。",
+        "以一張輸入圖片為基礎修改，例如替換物件或背景。"
+      ]
+    },
+    "arenaMultiImageEditing": {
+      "title": [
+        "Multi-image edit",
+        "多图编辑",
+        "多圖編輯"
+      ],
+      "detail": [
+        "Uses multiple input images together, for example combining a subject from one image with another background. It does not mean generating multiple output images.",
+        "同时使用多张输入图片进行编辑，例如融合不同图片中的人物和背景；“多图”指输入参考图，不是一次生成多张结果。",
+        "同時使用多張輸入圖片進行編輯，例如融合不同圖片中的人物和背景；「多圖」指輸入參考圖，不是一次產生多張結果。"
+      ]
+    },
+    "artificialAnalysisSpeechProviderVoice": {
+      "title": [
+        "TTS · Provider voice",
+        "文字转语音 · 原生声音",
+        "文字轉語音 · 原生聲音"
+      ],
+      "detail": [
+        "Reads text using representative voices offered by each provider. Listener preference reflects both the model and its voice choices, closer to using the provider’s own voices directly.",
+        "用各厂商提供的代表性音色把文字读出来，更接近直接使用厂商音色的体验；投票同时受模型表现和音色喜好影响。",
+        "用各廠商提供的代表性音色把文字讀出來，更接近直接使用廠商音色的體驗；投票同時受模型表現和音色喜好影響。"
+      ]
+    },
+    "artificialAnalysisSpeechControlledVoice": {
+      "title": [
+        "TTS · Controlled voice",
+        "文字转语音 · 受控声音",
+        "文字轉語音 · 受控聲音"
+      ],
+      "detail": [
+        "Models clone the same reference voices to reduce differences in voice preference, comparing naturalness, pronunciation, pacing and audio quality. “Controlled” refers to matched voices, not emotion-control ability.",
+        "让不同模型克隆同一组参考声音，尽量减少音色偏好的影响，比较自然度、发音、节奏和音质；“受控”指统一音色条件，不是情绪或语气控制能力。",
+        "讓不同模型複製同一組參考聲音，盡量減少音色偏好的影響，比較自然度、發音、節奏和音質；「受控」指統一音色條件，不是情緒或語氣控制能力。"
+      ]
+    },
+    "artificialAnalysisSpeechAgent": {
+      "title": [
+        "Speech agent",
+        "语音对话",
+        "語音對話"
+      ],
+      "detail": [
+        "Compares live voice conversations with speech agents by blind preference votes. It evaluates the conversational experience, rather than just reading text or transcribing audio.",
+        "通过实时语音交谈后的盲选投票，比较语音代理的对话体验；不是单纯读文字，也不是把录音转成文字。",
+        "透過即時語音交談後的盲選投票，比較語音代理的對話體驗；不是單純讀文字，也不是把錄音轉成文字。"
+      ]
+    },
+    "artificialAnalysisSpeechToText": {
+      "title": [
+        "STT · Non-streaming",
+        "语音转文字 · 非流式",
+        "語音轉文字 · 非串流"
+      ],
+      "detail": [
+        "Transcribes submitted audio in batch, suitable for recordings. Ranked by word error rate (WER): lower means fewer transcription errors.",
+        "将提交的音频按批次转成文字，适合录音转写；以词错误率（WER）比较准确度，越低越好。",
+        "將提交的音訊按批次轉成文字，適合錄音轉寫；以詞錯誤率（WER）比較準確度，越低越好。"
+      ]
+    },
+    "artificialAnalysisSpeechToTextStreaming": {
+      "title": [
+        "STT · Streaming",
+        "语音转文字 · 流式",
+        "語音轉文字 · 串流"
+      ],
+      "detail": [
+        "Receives audio progressively and returns text while audio is arriving, suitable for live captions. Ranked by WER, lower is better; this ranking is not a latency ranking.",
+        "边接收音频边返回识别文字，适合实时字幕和通话；这里按词错误率（WER）排名，越低越好，不是按响应延迟排名。",
+        "邊接收音訊邊回傳辨識文字，適合即時字幕和通話；這裡按詞錯誤率（WER）排名，越低越好，不是按回應延遲排名。"
+      ]
+    }
+  },
+  "references": {
+    "arenaText": [
+      "https://arena.ai/blog/style-control"
+    ],
+    "artificialAnalysisSpeechProviderVoice": [
+      "https://artificialanalysis.ai/methodology/text-to-speech",
+      "https://artificialanalysis.ai/speech-to-speech/arena",
+      "https://artificialanalysis.ai/speech-to-text"
+    ]
+  }
+}

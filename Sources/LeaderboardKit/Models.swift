@@ -7,6 +7,9 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
     case arenaText = "arenaText"
     case arenaTextUncontrolled = "arenaTextUncontrolled"
     case epochECI = "epochECI"
+    case epochMathECI = "epochMathECI"
+    case epochCyberECI = "epochCyberECI"
+    case epochSoftwareECI = "epochSoftwareECI"
     case codeArenaWebDev = "codeArenaWebDev"
     case codeArenaImageToWebDev = "codeArenaImageToWebDev"
     case artificialAnalysisTextToImage = "artificialAnalysisTextToImage"
@@ -30,6 +33,15 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
     case openRouterUsage = "openRouterUsage"
     case openRouterPrice = "openRouterPrice"
 
+    // Retired kinds remain decodable, but active enumeration includes every
+    // selectable variant so shared filters also reach newly added media boards.
+    public static var allCases: [LeaderboardKind] {
+        LeaderboardCategory.allCases.flatMap(\.boardKinds).flatMap { kind in
+            kind.mediaVariants.isEmpty ? [kind] : kind.mediaVariants
+        }
+    }
+
+    public var isEpoch: Bool { [.epochECI, .epochMathECI, .epochCyberECI, .epochSoftwareECI].contains(self) }
     public var isUsage: Bool { self == .openRouterUsage || isShareUsage }
     public var isShareUsage: Bool { self == .vercelUsage || self == .cloudbaseUsage }
     public var isPrice: Bool { self == .openRouterPrice }
@@ -60,8 +72,11 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
 
     public func mediaVariantTitle(language: AppLanguage) -> String {
         switch self {
-        case .arenaText: language.text("Style Control", "风格控制")
-        case .arenaTextUncontrolled: language.text("Original", "原始总榜")
+        case .epochECI: language.text("General", "综合")
+        case .epochMathECI: language.text("Math", "数学")
+        case .epochCyberECI: language.text("Cybersecurity", "网络安全")
+        case .arenaText: language.text("Text Style Control", "文本（风格控制）")
+        case .arenaTextUncontrolled: language.text("Text Original", "文本（原始总榜）")
         case .codeArenaWebDev: language.text("WebDev", "网页开发")
         case .codeArenaImageToWebDev: language.text("Image to WebDev", "图片转代码")
         case .artificialAnalysisTextToImage, .arenaTextToImage: language.text("Text to image", "文生图")
@@ -126,7 +141,7 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
         case .vercelUsage: "https://vercel.com/ai-gateway/leaderboards/models"
         case .openRouterUsage: "https://openrouter.ai/rankings"
         case .openRouterPrice: "https://openrouter.ai/models"
-        case .epochECI:
+        case .epochECI, .epochMathECI, .epochCyberECI, .epochSoftwareECI:
             "https://epoch.ai/eci"
         case .arenaText, .arenaTextUncontrolled:
             "https://arena.ai/leaderboard/text"
@@ -176,7 +191,7 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
         case .arenaText, .arenaTextUncontrolled, .codeArenaWebDev, .codeArenaImageToWebDev, .arenaTextToImage, .arenaImageEditing, .arenaMultiImageEditing, .arenaTextToVideo, .arenaImageToVideo, .arenaVideoEditing:
             "Arena"
         case .valsSWEbench: "Vals AI"
-        case .epochECI: "Epoch AI"
+        case .epochECI, .epochMathECI, .epochCyberECI, .epochSoftwareECI: "Epoch AI"
         case .cloudbaseUsage: "Tencent Cloud"
         case .vercelUsage: "Vercel AI Gateway"
         case .openRouterUsage: "OpenRouter"
@@ -189,13 +204,13 @@ public enum LeaderboardKind: String, Codable, CaseIterable, Sendable {
         case .artificialAnalysis: "Artificial Analysis"
         case .valsSWEbench: "Vals AI · SWE-bench (Archived)"
         case .artificialAnalysisCodingAgent: "Artificial Analysis 编程"
-        case .arenaText, .arenaTextUncontrolled: "Text Arena"
-        case .epochECI: "Epoch ECI"
+        case .arenaText, .arenaTextUncontrolled: "Arena"
+        case .epochECI, .epochMathECI, .epochCyberECI, .epochSoftwareECI: "Epoch ECI"
         case .cloudbaseUsage: "Tencent Cloud"
         case .vercelUsage: "Vercel AI Gateway"
         case .openRouterUsage: "OpenRouter"
         case .openRouterPrice: "OpenRouter"
-        case .codeArenaWebDev, .codeArenaImageToWebDev: "Code Arena"
+        case .codeArenaWebDev, .codeArenaImageToWebDev: "Arena"
         case .artificialAnalysisTextToImage: "Artificial Analysis 文生图"
         case .artificialAnalysisImageEditing: "Artificial Analysis 图片编辑"
         case .arenaTextToImage: "Arena 文生图"
@@ -225,7 +240,7 @@ public enum LeaderboardCategory: String, Codable, CaseIterable, Identifiable, Se
     case video
     case speech
 
-    public static let allCases: [LeaderboardCategory] = [.usage, .general, .coding, .image, .speech, .video]
+    public static let allCases: [LeaderboardCategory] = [.usage, .general, .image, .video, .coding, .speech]
 
     public var id: String { rawValue }
 
@@ -235,24 +250,23 @@ public enum LeaderboardCategory: String, Codable, CaseIterable, Identifiable, Se
         case .coding: "编程"
         case .image: "图片"
         case .video: "视频"
-        case .speech: "语音"
+        case .speech: "专业"
         case .usage: "用量"
         case .price: "价格"
         }
     }
 
-    /// The archived Vals snapshot remains selectable for historical comparison.
     public var defaultBoardKinds: [LeaderboardKind] {
-        self == .coding ? [.artificialAnalysisCodingAgent, .codeArenaWebDev] : boardKinds
+        boardKinds
     }
 
     public var boardKinds: [LeaderboardKind] {
         switch self {
         case .general: [.artificialAnalysis, .arenaText, .epochECI]
-        case .coding: [.artificialAnalysisCodingAgent, .codeArenaWebDev, .valsSWEbench]
+        case .coding: [.artificialAnalysisCodingAgent, .codeArenaWebDev, .epochSoftwareECI]
         case .image: [.artificialAnalysisTextToImage, .arenaTextToImage]
         case .video: [.artificialAnalysisTextToVideo, .arenaTextToVideo]
-        case .speech: [.artificialAnalysisSpeechProviderVoice]
+        case .speech: [.artificialAnalysisSpeechProviderVoice, .epochMathECI, .epochCyberECI]
         case .usage: [.openRouterUsage, .vercelUsage, .cloudbaseUsage]
         case .price: [.openRouterPrice]
         }

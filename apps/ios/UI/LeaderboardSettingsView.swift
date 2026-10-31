@@ -45,7 +45,7 @@ struct LeaderboardSettingsView: View {
                     Text(tr("For swipes and tab switches in the single-board view.", "用于单榜视图的左右滑动与标签切换。"))
                 }
                 Section {
-                    Text(tr("Keep at least one leaderboard in each category.", "每个分类至少保留一个榜单。"))
+                    Text(tr("Keep at least one leaderboard in total. Empty categories are hidden on the home page.", "总共至少保留一个榜单，空分类将不在首页显示。"))
                         .foregroundStyle(.secondary)
                 } header: {
                     HStack {
@@ -60,13 +60,13 @@ struct LeaderboardSettingsView: View {
                         ForEach(category.boardKinds, id: \.self) { kind in
                             let kinds = store.boardKinds(for: category)
                             let selected = kinds.contains { ($0.mediaVariants.first ?? $0) == kind }
-                            let required = selected && kinds.count == 1
+                            let required = selected && store.selectedBoardCount == 1
                             Button { store.toggleBoard(kind, in: category) } label: {
                                 HStack(spacing: 12) {
                                     if let sourceID = SourceTabTheme.sourceID(for: kind) {
                                         SourceBrandIcon(sourceID: sourceID, dark: colorScheme == .dark, size: 24)
                                     }
-                                    Text(LeaderboardPresentation.columnTitle(kind, language: store.language))
+                                    Text(LeaderboardPresentation.boardSelectionTitle(kind, language: store.language))
                                         .foregroundStyle(.primary).frame(maxWidth: .infinity, alignment: .leading)
                                     Image(systemName: selected ? "checkmark.circle.fill" : "circle")
                                         .foregroundStyle(selected ? Color.green : Color.secondary)

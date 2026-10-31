@@ -1,13 +1,15 @@
 # Mobile category templates
 
 `usage.svg` (ring statistics), `general.svg` (layers representing combined dimensions),
-`image.svg` (landscape picture frame), and `speech.svg` (waveform) are original BenchGauge glyphs, licensed
+`image.svg` (landscape picture frame), and `speech.svg` (compass for specialist fields) are original BenchGauge glyphs, licensed
 under the repository root MIT license. The other two SVGs
 adapt Microsoft Fluent UI System Color Icons into monochrome templates; their
 MIT notice remains in `LICENSE.txt`. Per-icon provenance is in `sources.json`. Geometry for
 picture/video details uses transparent cutouts or strokes so tinting cannot
 turn a picture into a solid square. The SVGs are the editable sources; PNGs
 are 54×54 native template exports (18 points at 3×).
+
+The specialist category keeps the legacy `speech` resource key to preserve category IDs and saved selections; its compass represents the full specialist category, including speech, mathematics and cybersecurity.
 
 iOS renders the PNG alpha as a template in the current source's accent.
 The mini-program build reads the same SVGs and `SourceTabThemes.json`, rendering

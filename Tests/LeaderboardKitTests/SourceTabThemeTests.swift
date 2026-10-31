@@ -3,10 +3,12 @@ import Testing
 
 @Test func sourceTabLogosFollowSourceIdentityAcrossAllCategories() {
     let sources: [(String, [LeaderboardKind])] = [
-        ("artificialAnalysis", [.artificialAnalysis, .artificialAnalysisCodingAgent,
-            .artificialAnalysisTextToImage, .artificialAnalysisTextToVideo]),
-        ("arena", [.arenaText, .codeArenaWebDev, .arenaTextToImage, .arenaTextToVideo]),
-        ("epoch", [.epochECI]), ("openRouter", [.openRouterUsage]),
+        ("artificialAnalysis", [LeaderboardKind.artificialAnalysis, .artificialAnalysisCodingAgent,
+            .artificialAnalysisTextToImage, .artificialAnalysisTextToVideo, .artificialAnalysisSpeechProviderVoice]
+            .flatMap { $0.mediaVariants.isEmpty ? [$0] : $0.mediaVariants }),
+        ("arena", [LeaderboardKind.arenaText, .codeArenaWebDev, .arenaTextToImage, .arenaTextToVideo]
+            .flatMap { $0.mediaVariants.isEmpty ? [$0] : $0.mediaVariants }),
+        ("epoch", [.epochECI, .epochMathECI, .epochCyberECI, .epochSoftwareECI]), ("openRouter", [.openRouterUsage]),
         ("vercel", [.vercelUsage]), ("cloudbase", [.cloudbaseUsage])
     ]
     #expect(Set(sources.flatMap { $0.1 }) == Set(LeaderboardKind.allCases))
@@ -19,16 +21,18 @@ import Testing
 
 @Test func nativeSourceTabsKeepEachBrandsColorsAcrossCategoriesAndAppearances() {
     let brands: [([LeaderboardKind], [String], [String])] = [
-        ([.artificialAnalysis, .artificialAnalysisCodingAgent, .artificialAnalysisTextToImage, .artificialAnalysisTextToVideo],
+        ([LeaderboardKind.artificialAnalysis, .artificialAnalysisCodingAgent, .artificialAnalysisTextToImage, .artificialAnalysisTextToVideo, .artificialAnalysisSpeechProviderVoice]
+            .flatMap { $0.mediaVariants.isEmpty ? [$0] : $0.mediaVariants },
          ["#8842FD", "#FFFFFF", "#8842FD"], ["#C394FF", "#43003B", "#C394FF"]),
-        ([.arenaText, .codeArenaWebDev, .arenaTextToImage, .arenaTextToVideo],
+        ([LeaderboardKind.arenaText, .codeArenaWebDev, .arenaTextToImage, .arenaTextToVideo]
+            .flatMap { $0.mediaVariants.isEmpty ? [$0] : $0.mediaVariants },
          ["#1A1919", "#FCFAF7", "#1A1919"], ["#FCFAF7", "#1A1919", "#FCFAF7"]),
-        ([.epochECI], ["#70EFD1", "#072B33", "#026B70"], ["#70EFD1", "#072B33", "#70EFD1"]),
+        ([.epochECI, .epochMathECI, .epochCyberECI, .epochSoftwareECI], ["#70EFD1", "#072B33", "#026B70"], ["#70EFD1", "#072B33", "#70EFD1"]),
         ([.openRouterUsage], ["#7624F4", "#FCFCFE", "#7624F4"], ["#C8FF00", "#03080A", "#C8FF00"]),
         ([.vercelUsage], ["#000000", "#FFFFFF", "#000000"], ["#FFFFFF", "#000000", "#FFFFFF"]),
         ([.cloudbaseUsage], ["#0052D9", "#FFFFFF", "#0052D9"], ["#00A4FF", "#101216", "#00A4FF"])
     ]
-    #expect(Set(brands.flatMap { $0.0 }) == Set(LeaderboardCategory.allCases.flatMap(\.boardKinds)))
+    #expect(Set(brands.flatMap { $0.0 }) == Set(LeaderboardKind.allCases))
     for (kinds, light, dark) in brands {
         for kind in kinds {
             let lightPalette = SourceTabTheme.palette(for: kind, dark: false)

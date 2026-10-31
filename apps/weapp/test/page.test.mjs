@@ -1,3 +1,4 @@
+import { variantHelp } from '../src/core/variant-help.js'
 import { sourceAgreement } from '../src/core/source-agreement.js'
 import assert from 'node:assert/strict'
 import test from 'node:test'
@@ -5,12 +6,13 @@ import { registerHooks } from 'node:module'
 import { readFileSync } from 'node:fs'
 import { canvasHarness } from './helpers/canvas.mjs'
 import { pagePreferences } from '../src/core/share-state.js'
-import { boards, categories, copy, text, desktopDownloadURL } from '../src/core/catalog.js'
+import { boardVariants, boards, categories, copy, text, desktopDownloadURL } from '../src/core/catalog.js'
 import { formatTime } from '../src/core/leaderboard.js'
 import { sourceTabTheme } from '../src/core/source-tab-theme.js'
 
 // Exercise the real page controller with deterministic lifecycle/network hooks.
 // This does not substitute for WeChat's Vue bridge or native visual verification.
+const reactivityURL = import.meta.resolve('@vue-mini/core')
 const registration = registerHooks({
   resolve(specifier, context, next) {
     return specifier === '@vue-mini/core' ? { url: 'benchgauge:test-vue', shortCircuit: true } : next(specifier, context)
@@ -19,8 +21,7 @@ const registration = registerHooks({
     if (url !== 'benchgauge:test-vue') return next(url, context)
     return { format: 'module', shortCircuit: true, source: `
       export const definePage = (factory, config) => { globalThis.__benchPageFactory = factory; globalThis.__benchPageConfig = config }
-      export const ref = value => ({ value })
-      export const computed = getter => ({ get value() { return getter() } })
+      export { ref, computed } from ${JSON.stringify(reactivityURL)}
       export const onLoad = fn => { globalThis.__benchHooks.load = fn }
       export const onReady = fn => { globalThis.__benchHooks.ready = fn }
       export const onShow = fn => { globalThis.__benchHooks.show = fn }
@@ -94,9 +95,48 @@ test('media selector switches the source board and persists the selected task', 
   h.page.selectVariant({ currentTarget: { dataset: { base: 'artificialAnalysisTextToVideo' } }, detail: { value: 1 } })
   assert.equal(h.page.cards.value[0].kind, 'artificialAnalysisImageToVideo')
   assert.equal(h.page.cards.value[0].variantIndex, 1)
-  assert.ok(h.requests.some(request => request.options.url.endsWith('/artificialAnalysisImageToVideo')))
+  assert.ok(h.requests.some(request => request.options.url.endsWith('/artificialAnalysisImageToVideo/refresh')))
   assert.equal(h.writes.at(-1).value.variants.artificialAnalysisTextToVideo, 'artificialAnalysisImageToVideo')
   h.respondAll()
+})
+
+test('source header fitting remeasures natural sizes after a resize and never grows past the original fonts', () => {
+  const h = setup({ category: 'speech', grouping: 'model', language: 'zh-CN' })
+  let windowWidth = 375, available = 160
+  wx.getWindowInfo = () => ({ statusBarHeight: 24, windowWidth })
+  wx.createSelectorQuery = () => {
+    const results = []
+    const query = {
+      select(selector) {
+        const width = selector.endsWith('.source-heading-details') ? available
+          : selector.endsWith('.source-heading-measure') ? 90
+          : selector.endsWith('.variant-measure') ? 120
+          : selector.endsWith('.variant-chrome-measure') ? 30
+          : selector.endsWith('.model-filter-toggle') ? 28 : null
+        return {
+          fields() { results.push(width == null ? null : { width }); return query },
+          boundingClientRect() { results.push(null); return query },
+        }
+      },
+      exec(callback) { callback(results) },
+    }
+    return query
+  }
+  globalThis.__benchHooks.ready()
+  let header = h.page.cards.value[0]
+  assert.equal(header.heading, 'Artificial Analysis')
+  assert.ok(header.variantFontSize < 18)
+  assert.ok(header.headingFontSize <= 21)
+  windowWidth = 500; available = 400
+  globalThis.__benchHooks.resize()
+  header = h.page.cards.value[0]
+  assert.equal(header.variantFontSize, 18)
+  assert.equal(header.headingFontSize, 21)
+  windowWidth = 900; available = 700
+  globalThis.__benchHooks.resize()
+  assert.equal(h.page.cards.value[0].variantFontSize, 18)
+  assert.equal(h.page.cards.value[0].headingFontSize, 21)
+  globalThis.__benchHooks.unload()
 })
 
 test('speech category switches between distinct AA speech tasks', async t => {
@@ -934,18 +974,18 @@ test('page entry and category switches load only the active source, with no fore
   assert.equal(h.page.capsuleWidth.value, 113)
   globalThis.__benchHooks.show()
   assert.equal(h.requests.length, 1)
-  assert.ok(h.requests[0].options.url.endsWith('/artificialAnalysis'))
+  assert.ok(h.requests[0].options.url.endsWith('/artificialAnalysis/refresh'))
   assert.deepEqual(h.page.tabs.value, ['任务测评', '用户盲测', '难度校准'])
   h.respond(0); await loading
-  assert.deepEqual(h.page.cards.value.map(card => [card.title, card.rows.length]), [['Artificial Analysis', 2], ['Text Arena', 0], ['Epoch ECI', 0]])
+  assert.deepEqual(h.page.cards.value.map(card => [card.title, card.rows.length]), [['Artificial Analysis', 2], ['Arena', 0], ['Epoch ECI', 0]])
   assert.notEqual(h.page.cards.value[0].time, '—')
   assert.equal(h.page.cards.value[0].timeLabel, '刷新')
   assert.equal(h.page.cards.value[0].isSourceTime, false)
   h.page.selectFace(event({ index: 1 })); assert.equal(h.page.face.value, 1)
   assert.equal(h.requests.length, 2)
-  assert.ok(h.requests[1].options.url.endsWith('/arenaText'))
+  assert.ok(h.requests[1].options.url.endsWith('/arenaText/refresh'))
   h.page.selectCategory(event({ id: 'video' })); assert.equal(h.requests.length, 3)
-  assert.ok(h.requests[2].options.url.endsWith('/arenaTextToVideo'))
+  assert.ok(h.requests[2].options.url.endsWith('/arenaTextToVideo/refresh'))
   h.respondAll(); await new Promise(resolve => setImmediate(resolve))
   assert.equal(h.page.cards.value[0].kind, 'artificialAnalysisTextToVideo')
   const shared = pagePreferences(Object.fromEntries(new URL('https://shared.example' + globalThis.__benchHooks.share().path).searchParams))
@@ -1015,7 +1055,7 @@ test('every category and source shares the current page title and only the local
   for (const language of ['en', 'zh-CN', 'zh-TW']) for (const category of categories) for (const face of category.kinds.keys()) {
     const h = setup({ language, category: category.id, face, boardSelections: { [category.id]: category.kinds } })
     const message = globalThis.__benchHooks.share()
-    const title = category.kinds[face] === 'valsSWEbench' ? text(copy.archivedBenchmark, language) : category.id === 'price' ? 'API' : category.id === 'usage' ? text([copy.dailyUsage, copy.dailyShare, copy.cumulativeShare][face], language) : text([copy.tasks, copy.votes, copy.capabilityIndex][face], language)
+    const title = category.id === 'speech' ? text([['Speech', '语音', '語音'], ['Math', '数学', '數學'], ['Cybersecurity', '网络安全', '網路安全']][face], language) : category.kinds[face] === 'valsSWEbench' ? text(copy.archivedBenchmark, language) : category.id === 'price' ? 'API' : category.id === 'usage' ? text([copy.dailyUsage, copy.dailyShare, copy.cumulativeShare][face], language) : text([copy.tasks, copy.votes, copy.capabilityIndex][face], language)
     assert.equal(message.title, `${title}｜${text(copy.rankingSummary, language)}`)
     assert.ok(!message.title.includes(text(copy.tagline, language)))
     const shared = pagePreferences(Object.fromEntries(new URL('https://shared.example' + message.path).searchParams))
@@ -1485,14 +1525,14 @@ test('each switch style follows drags, settles tab switches, preserves source bo
     assert.equal(h.writes.at(-1).value.boardTransition ?? 'cube', style)
     assert.equal(h.page.grouping.value, 'company')
     h.page.cubeStart(touch(280, 200)); h.page.cubeMove(touch(40, 202)); h.page.cubeEnd()
-    assert.equal(h.page.category.value, 'coding')
+    assert.equal(h.page.category.value, 'image')
     assert.equal(h.page.face.value, 0)
     const next = style === 'fade' ? 'cube' : 'fade'
     saved.boardTransition = next
     globalThis.__benchHooks.show()
     assert.equal(h.page.boardTransition.value, next)
     assert.equal(h.page.cubeBusy.value, false)
-    assert.equal(h.page.category.value, 'coding')
+    assert.equal(h.page.category.value, 'image')
     assert.equal(h.page.face.value, 0)
     globalThis.__benchHooks.unload()
   }
@@ -1521,6 +1561,11 @@ test('Arena source help includes the full localized dataset agreement only for d
 test('board headings show localized introductions and copy official links only on explicit confirmation', () => {
   const template = readFileSync(new URL('../src/pages/leaderboard/index.wxml', import.meta.url), 'utf8')
   assert.match(template, /class="source-heading"[^>]*bindtap="sourceHelp"/)
+  const sourceDialog = template.match(/<van-dialog id="source-notice"[\s\S]*?<\/van-dialog>/)?.[0]
+  assert.ok(sourceDialog)
+  assert.match(sourceDialog, /transition="fade"/)
+  assert.match(sourceDialog, /<scroll-view[^>]*class="source-notice-scroll"/)
+  assert.doesNotMatch(sourceDialog, /wx:if="\{\{sourceNotice\.open\}\}"/, 'Closing must retain the body through the exit transition')
   for (const language of ['en', 'zh-CN', 'zh-TW']) for (const category of categories) for (const grouping of ['model', 'company']) {
     const h = setup({ language, category: category.id, grouping, boardSelections: { [category.id]: category.kinds } })
     for (const card of h.page.cards.value) {
@@ -1869,7 +1914,7 @@ test('a native scroll that never reaches its destination cancels the turn instea
   assert.equal(h.writes.filter(write => write.key === 'benchgauge.preferences').at(-1).value.face, 1)
 })
 
-test('rapid tab changes reuse the visible origin while waiting and finish an in-flight rotation before the next one', t => {
+test('rapid tab changes reuse the visible origin while waiting and immediately interrupt an in-flight rotation', t => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
   const h = setup({ face: 1 }, 0, {}, 'light', 'zh_CN', unequalBoards())
   expandRankings(h)
@@ -1887,9 +1932,11 @@ test('rapid tab changes reuse the visible origin while waiting and finish an in-
   states.artificialAnalysis.scrollTop = 1164
   t.mock.timers.tick(32); t.mock.timers.tick(32); t.mock.timers.tick(24)
   h.page.selectFace(event({ index: 2 }))
-  assert.equal(h.page.face.value, 0, 'Do not snap to a different origin halfway through the current rotation')
+  assert.equal(h.page.face.value, 2, 'The latest selection takes ownership without waiting for the prior rotation')
+  assert.equal(h.page.cubeDuration.value, 0)
   t.mock.timers.tick(440)
-  assert.equal(h.page.face.value, 2, 'The most recent tab selection starts after the prior rotation finishes')
+  assert.equal(h.page.face.value, 2)
+  assert.equal(h.page.cubeBusy.value, true, 'The old completion cannot finish the new scroll preparation')
   states.epochECI.scrollTop = 1200
   t.mock.timers.tick(32); t.mock.timers.tick(32); t.mock.timers.tick(24); t.mock.timers.tick(440)
   assert.equal(h.page.cubeBusy.value, false)
@@ -2087,7 +2134,7 @@ test('cancelled and reversed boundary drags cannot switch categories or let an o
   t.mock.timers.tick(400)
   assert.equal(h.page.cubePosition.value, 2); assert.equal(h.page.cubeBusy.value, false)
   h.page.selectCategory(event({ id: 'coding' }))
-  assert.equal(h.page.face.value, 1); assert.equal(h.page.cubePosition.value, 1)
+  assert.equal(h.page.face.value, 2); assert.equal(h.page.cubePosition.value, 2)
   globalThis.__benchHooks.unload()
 })
 
@@ -2522,10 +2569,10 @@ test('bar drags preview under the finger and commit only the final category once
   h.page.tabMove(tabTouch('category', 600))
   assert.equal(h.page.categoryIndex.value, categories.length - 1)
   h.page.tabEnd(tabTouch('category', 600, 740, true))
-  assert.equal(h.page.category.value, 'video')
+  assert.equal(h.page.category.value, 'speech')
   assert.equal(h.requests.length, 1, 'Only the active source in the released category is fetched')
   h.page.selectCategory(event({ id: 'coding' }))
-  assert.equal(h.page.category.value, 'video', 'A synthesized tap cannot overwrite the drag result')
+  assert.equal(h.page.category.value, 'speech', 'A synthesized tap cannot overwrite the drag result')
   h.page.tabStart(tabTouch('category', 300))
   h.page.tabMove(tabTouch('category', -100))
   h.page.tabEnd(tabTouch('category', -100, 740, true))
@@ -2607,9 +2654,9 @@ test('Epoch is a third live source with original score precision, persistent sha
   const shared = pagePreferences(Object.fromEntries(new URL('https://shared.example' + globalThis.__benchHooks.share().path).searchParams));
   assert.equal(shared.face, 2);
   h.page.selectCategory(event({ id: 'coding' })); h.respondCategory();
-  assert.equal(h.page.face.value, 1);
-  assert.equal(h.page.cubePosition.value, 1);
-  assert.equal(h.page.cubeFaces.value.length, 2);
+  assert.equal(h.page.face.value, 2);
+  assert.equal(h.page.cubePosition.value, 2);
+  assert.equal(h.page.cubeFaces.value.length, 3);
   globalThis.__benchHooks.unload();
 });
 
@@ -2678,22 +2725,182 @@ test('recent header dates remain localized through loading and source help', asy
 
 test('both Arena text introductions explain original and style-controlled rankings in every language', () => {
   for (const [language, original, controlled] of [
-    ['en', '1. Original:', '2. Style Control:'],
-    ['zh-CN', '1. 原始总榜：', '2. 风格控制：'],
-    ['zh-TW', '1. 原始總榜：', '2. 風格控制：'],
+    ['en', 'Text Original', 'Text Style Control'],
+    ['zh-CN', '文本（原始总榜）', '文本（风格控制）'],
+    ['zh-TW', '文本（原始總榜）', '文本（風格控制）'],
   ]) {
     const h = setup({ language })
     for (const kind of ['arenaText', 'arenaTextUncontrolled']) {
       h.page.sourceHelp(event({ kind }))
       const content = h.page.sourceNotice.value.content
+      assert.equal(h.page.sourceNotice.value.title, 'Arena')
       assert.ok(content.includes(original), kind)
       assert.ok(content.includes(controlled), kind)
       assert.ok(content.includes('Markdown'), kind)
       assert.ok(content.includes('https://arena.ai/blog/style-control'), kind)
       h.page.closeSourceNotice()
     }
-    h.page.sourceHelp(event({ kind: 'codeArenaWebDev' }))
-    assert.ok(!h.page.sourceNotice.value.content.includes('https://arena.ai/blog/style-control'))
+    for (const kind of ['codeArenaWebDev', 'codeArenaImageToWebDev']) {
+      h.page.sourceHelp(event({ kind }))
+      assert.equal(h.page.sourceNotice.value.title, 'Arena')
+      assert.ok(!h.page.sourceNotice.value.content.includes('https://arena.ai/blog/style-control'))
+      h.page.closeSourceNotice()
+    }
     globalThis.__benchHooks.unload()
   }
+})
+
+test('empty category tabs disappear, returning from settings selects a valid board, and swipes skip hidden categories', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const preferences = { category: 'general', face: 2 }
+  const h = setup(preferences)
+  try {
+    preferences.boardSelections = { usage: [], general: [], image: ['arenaTextToImage'], video: [], coding: ['epochSoftwareECI'], speech: [] }
+    globalThis.__benchHooks.show()
+    assert.deepEqual(h.page.categoryItems.value.map(item => item.id), ['image', 'coding'])
+    assert.equal(h.page.category.value, 'image')
+    assert.equal(h.page.face.value, 0)
+    assert.equal(h.page.cards.value[0].kind, 'arenaTextToImage')
+    h.page.selectCategory(event({ id: 'general' }))
+    assert.equal(h.page.category.value, 'image')
+    const touch = x => ({ touches: [{ clientX: x, clientY: 200 }] })
+    for (const category of ['coding', 'image', 'coding']) {
+      h.page.cubeStart(touch(180)); h.page.cubeMove(touch(-60)); h.page.cubeEnd()
+      assert.equal(h.page.category.value, category)
+      assert.equal(h.page.face.value, 0)
+    }
+    preferences.boardSelections = { usage: [], general: [], image: [], video: [], coding: ['epochSoftwareECI'], speech: [] }
+    globalThis.__benchHooks.show()
+    assert.deepEqual(h.page.categoryItems.value.map(item => item.id), ['coding'])
+    h.page.cubeStart(touch(180)); h.page.cubeMove(touch(-60)); h.page.cubeEnd()
+    assert.equal(h.page.category.value, 'coding')
+    assert.equal(h.page.cards.value[0].kind, 'epochSoftwareECI')
+    preferences.boardSelections = {}
+    globalThis.__benchHooks.show()
+    assert.deepEqual(h.page.categoryItems.value.map(item => item.id), categories.map(item => item.id))
+  } finally { globalThis.__benchHooks.unload() }
+})
+
+
+test('source-name dialogs explain the whole selected sub-leaderboard family and preserve explicit copying', () => {
+  for (const language of ['en', 'zh-CN', 'zh-TW']) {
+    const h = setup({ language })
+    for (const options of Object.values(boardVariants)) {
+      for (const kind of options) {
+        h.page.sourceHelp(event({ kind }))
+        const notice = h.page.sourceNotice.value
+        assert.equal(notice.open, true)
+        assert.ok(notice.content.includes(variantHelp(kind, language)), kind)
+        assert.equal(notice.url, boards[kind].url)
+        h.page.closeSourceNotice()
+      }
+    }
+    globalThis.__benchHooks.unload()
+  }
+})
+
+
+test('long source explanations reopen at the top while closing retains the body for fade-out', () => {
+  const h = setup()
+  h.page.sourceHelp(event({ kind: 'artificialAnalysisSpeechProviderVoice' }))
+  const { anchor, content } = h.page.sourceNotice.value
+  h.page.closeSourceNotice()
+  assert.equal(h.page.sourceNotice.value.anchor, anchor)
+  assert.equal(h.page.sourceNotice.value.content, content)
+  h.page.sourceHelp(event({ kind: 'arenaMultiImageEditing' }))
+  assert.notEqual(h.page.sourceNotice.value.anchor, anchor)
+  assert.ok(h.page.sourceNotice.value.content.includes('多图编辑'))
+  const template = readFileSync(new URL('../src/pages/leaderboard/index.wxml', import.meta.url), 'utf8')
+  assert.match(template, /scroll-into-view="\{\{sourceNotice\.anchor\}\}"/)
+  assert.match(template, /<view id="\{\{sourceNotice\.anchor\}\}">/)
+  globalThis.__benchHooks.unload()
+})
+
+
+test('speech fitting assigns an explicit picker budget using rendered pixel fonts in company and model views', () => {
+  const h = setup({ category: 'speech', grouping: 'model', language: 'zh-CN' })
+  let available = 206
+  wx.createSelectorQuery = () => {
+    const results = []
+    const query = {
+      select(selector) {
+        const metrics = selector.endsWith('.source-heading-details') ? { width: available }
+          : selector.endsWith('.source-heading-measure') ? { width: 82.4375, 'font-size': '10px' }
+          : selector.endsWith('.variant-measure') ? { width: 91.5, 'font-size': '9px' }
+          : selector.endsWith('.variant-chrome-measure') ? { width: 30 }
+          : selector.endsWith('.model-filter-toggle') ? { width: 20 } : null
+        return { fields() { results.push(metrics); return query }, node() { results.push({ node: { scrollTo() {} } }); return query }, boundingClientRect() { results.push(null); return query } }
+      },
+      exec(callback) { callback(results) },
+    }
+    return query
+  }
+  globalThis.__benchHooks.ready()
+  let header = h.page.cards.value[0]
+  const font = parseFloat(header.variantFontStyle.split(':')[1])
+  const picker = parseFloat(header.variantStyle.match(/width:([\d.]+)px/)[1])
+  assert.ok(font > 7.2 && font <= 9, 'Narrow model view must retain a readable single-line option')
+  assert.ok(picker >= 91.5 * font / 9 + 30, 'Picker must contain fitted text, padding, border and chevron')
+  assert.ok(header.variantStyle.includes('flex:0 0 auto;'), 'The native picker must not shrink the allocated width again')
+  available = 238
+  h.page.selectGrouping({ currentTarget: { dataset: { id: 'company' } } })
+  globalThis.__benchHooks.resize()
+  header = h.page.cards.value[0]
+  assert.equal(header.variantFontStyle, 'font-size:9px;')
+  assert.equal(header.headingFontStyle, 'font-size:10px;')
+  const css = readFileSync(new URL('../src/pages/leaderboard/index.css', import.meta.url), 'utf8')
+  assert.doesNotMatch(css.match(/\.variant-text\s*\{([^}]+)\}/)[1], /text-overflow:\s*ellipsis/)
+  globalThis.__benchHooks.unload()
+})
+
+
+test('rapid successive swipes interrupt every settle phase in both directions and every switch style', t => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 1000 })
+  const touch = x => ({ touches: [{ clientX: x, clientY: 200 }] })
+  for (const style of ['cube', 'slide', 'fade']) for (const delay of [0, 12, 80, 200, 430]) for (const reverse of [false, true]) {
+    const h = setup({ category: 'general', face: 0, boardTransition: style })
+    h.page.cubeStart(touch(280)); h.page.cubeMove(touch(40)); h.page.cubeEnd()
+    assert.equal(h.page.face.value, 1)
+    t.mock.timers.tick(delay)
+    h.page.cubeStart(touch(reverse ? 60 : 280))
+    assert.equal(h.page.cubeBusy.value, false)
+    assert.equal(h.page.cubeDuration.value, 0)
+    assert.equal(h.page.cubePosition.value, 1)
+    h.page.cubeMove(touch(reverse ? 300 : 40))
+    assert.equal(h.page.cubeDragging.value, true)
+    assert.ok(reverse ? h.page.cubePosition.value < 1 : h.page.cubePosition.value > 1)
+    h.page.cubeEnd()
+    const destination = reverse ? 0 : 2
+    assert.equal(h.page.face.value, destination, `${style} ${delay} ${reverse}`)
+    t.mock.timers.tick(24)
+    t.mock.timers.tick(440)
+    assert.equal(h.page.cubeBusy.value, false)
+    assert.equal(h.page.cubePosition.value, destination)
+    assert.match(h.page.cubeFaces.value[destination].style, /transform:none.*pointer-events:auto/)
+    t.mock.timers.tick(1000)
+    assert.equal(h.page.face.value, destination)
+    assert.equal(h.writes.filter(write => write.key === 'benchgauge.preferences').at(-1).value.face, destination)
+    globalThis.__benchHooks.unload()
+  }
+})
+
+test('an interrupted turn can reverse, cancel and cross a category without an old callback restoring its face', t => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 1000 })
+  const touch = x => ({ touches: [{ clientX: x, clientY: 200 }] })
+  const h = setup({ category: 'general', face: 0 })
+  t.after(() => globalThis.__benchHooks.unload())
+  const swipe = () => { h.page.cubeStart(touch(280)); h.page.cubeMove(touch(40)); h.page.cubeEnd() }
+  swipe(); t.mock.timers.tick(24)
+  h.page.cubeStart(touch(60)); h.page.cubeMove(touch(300)); h.page.cubeCancel()
+  assert.equal(h.page.face.value, 1)
+  t.mock.timers.tick(24)
+  swipe()
+  assert.equal(h.page.face.value, 2)
+  swipe()
+  assert.equal(h.page.category.value, 'image')
+  assert.equal(h.page.face.value, 0)
+  t.mock.timers.tick(1000)
+  assert.equal(h.page.category.value, 'image')
+  assert.equal(h.page.face.value, 0)
+  assert.equal(h.page.cubeBusy.value, false)
 })

@@ -193,7 +193,7 @@ public struct LeaderboardPadView: View {
         GeometryReader { geometry in
             let layout = MobileLeaderboardLayout(width: geometry.size.width, boardCount: store.visibleBoardKinds.count)
             Group {
-                if layout.usesCube {
+                if layout.usesCube || store.category == .speech {
                     VStack(alignment: .leading, spacing: 12) {
                         mobileHeader
                         cubeBoards(bottomInset: geometry.safeAreaInsets.bottom)
@@ -220,7 +220,7 @@ public struct LeaderboardPadView: View {
         .accentColor(BrandTheme.accent(for: colorScheme))
         .background { Color.padBackground.ignoresSafeArea() }
         .overlay(alignment: .bottom) {
-            MobileCategoryBar(category: $store.category, language: store.language,
+            MobileCategoryBar(category: $store.category, categories: store.visibleCategories, language: store.language,
                 accent: sourceTabColor(SourceTabTheme.palette(for: store.visibleBoardKinds[
                     min(max(0, sourceDragIndex ?? cube.face), store.visibleBoardKinds.count - 1)],
                     dark: colorScheme == .dark).accent), select: cancelCubeEntrance)
@@ -402,7 +402,7 @@ public struct LeaderboardPadView: View {
                                 .background(selectedIndex == index ? Color.padBackground : Color.clear,
                                     in: RoundedRectangle(cornerRadius: 4))
                         }
-                        Text(LeaderboardPresentation.sourceTabTitle(kind, language: store.language))
+                        Text(store.category == .speech ? (kind.isEpoch ? kind.mediaVariantTitle(language: store.language) : tr("Speech", "语音")) : LeaderboardPresentation.sourceTabTitle(kind, language: store.language))
                             .font(.caption.weight(.semibold)).lineLimit(2)
                     }.id(kind).transition(.opacity)
                         .frame(maxWidth: .infinity, minHeight: 38)
@@ -483,7 +483,7 @@ public struct LeaderboardPadView: View {
         }
     }
     private func navigateCube(to target: Int) {
-        let categories = LeaderboardCategory.allCases
+        let categories = store.visibleCategories
         let next = LeaderboardCube.navigation(category: categories.firstIndex(of: store.category)!,
             destination: target, counts: categories.map { store.boardKinds(for: $0).count })
         guard categories[next.category] != store.category else {
@@ -839,21 +839,22 @@ public struct LeaderboardPadView: View {
         switch language { case .english: "EN"; case .chinese: "简中"; case .traditionalChinese: "繁中" }
     }
 
+    private var exportBoardKinds: [LeaderboardKind] { store.category == .speech ? [store.selectedKind] : store.visibleBoardKinds }
     @ViewBuilder private func boardPair(wide: Bool, isImage: Bool = false, exportScheme: ColorScheme? = nil, pageRows: Range<Int>? = nil, viewportHeight: CGFloat = 900) -> some View {
         if wide {
             HStack(alignment: .top, spacing: 12) {
-                ForEach(store.visibleBoardKinds, id: \.self) { kind in boardCard(kind, isImage: isImage, exportScheme: exportScheme, viewportHeight: viewportHeight, pageRows: pageRows) }
+                ForEach(isImage ? exportBoardKinds : store.visibleBoardKinds, id: \.self) { kind in boardCard(kind, isImage: isImage, exportScheme: exportScheme, viewportHeight: viewportHeight, pageRows: pageRows) }
             }
         } else {
             VStack(spacing: 12) {
-                ForEach(store.visibleBoardKinds, id: \.self) { kind in boardCard(kind, isImage: isImage, exportScheme: exportScheme, viewportHeight: viewportHeight, pageRows: pageRows) }
+                ForEach(isImage ? exportBoardKinds : store.visibleBoardKinds, id: \.self) { kind in boardCard(kind, isImage: isImage, exportScheme: exportScheme, viewportHeight: viewportHeight, pageRows: pageRows) }
             }
         }
     }
     private func boardCard(_ kind: LeaderboardKind, isImage: Bool = false, compact: Bool = false, denseColumns: Bool = false, exportScheme: ColorScheme? = nil, viewportHeight: CGFloat = 900, pageRows: Range<Int>? = nil) -> some View {
         PadBoardCard(kind: kind, board: store.snapshot.boards[kind], rowPresentation: pageRows.map { store.rowPresentation(for: kind).page($0) } ?? store.rowPresentation(for: kind), grouping: store.grouping,
             language: store.language, filter: store.countryFilter(for: kind), opennessFilter: store.opennessFilter(for: kind),
-            costOrder: kind != .openRouterUsage && store.costOrders.contains(kind), speedOrder: kind != .openRouterUsage && store.speedOrders.contains(kind), priceAscending: store.priceAscending, togglePrice: { store.priceAscending.toggle(); resetComparison() }, selectMetric: { metric in
+            costOrder: store.costOrders.contains(kind), speedOrder: store.speedOrders.contains(kind), priceAscending: store.priceAscending, togglePrice: { store.priceAscending.toggle(); resetComparison() }, selectMetric: { metric in
                 store.costOrders.remove(kind); store.speedOrders.remove(kind)
                 if metric == 1 { store.costOrders.insert(kind) }
                 if metric == 2 { store.speedOrders.insert(kind) }
@@ -881,7 +882,7 @@ public struct LeaderboardPadView: View {
         Button { Task { await prepareScreenshotPreview() } } label: {
             screenshotLabel(compact: compact).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
         }
-            .disabled(presentation.generatingCapture || presentation.savingScreenshot || !store.visibleBoardKinds.contains { store.snapshot.boards[$0] != nil })
+            .disabled(presentation.generatingCapture || presentation.savingScreenshot || !exportBoardKinds.contains { store.snapshot.boards[$0] != nil })
             .accessibilityLabel(tr("Screenshot", "截图")).accessibilityIdentifier("share")
         #else
         Button { copyScreenshot() } label: { screenshotLabel(compact: compact) }
@@ -952,7 +953,7 @@ public struct LeaderboardPadView: View {
     }
     func screenshotPageRanges(pageSize: Int = 24) -> [Range<Int>] {
         let size = max(1, pageSize)
-        let count = store.visibleBoardKinds.map { store.rowPresentation(for: $0).rows.count }.max() ?? 0
+        let count = exportBoardKinds.map { store.rowPresentation(for: $0).rows.count }.max() ?? 0
         return stride(from: 0, to: max(1, count), by: size).map { $0..<min(count, $0 + size) }
     }
     #if os(iOS)
@@ -1217,6 +1218,10 @@ private struct PadBoardCard: View {
     @ViewBuilder private func scoreColumn<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         let column = ZStack {
             Text(scoreWidthReference).font(compactColumns ? .caption : .subheadline).monospacedDigit().hidden()
+            if kind == .openRouterUsage && costOrder {
+                Text(tr("In / Out\n$/1M tokens", "输入 / 输出\n$/百万 token"))
+                    .font(columnHeaderFont).lineLimit(2).multilineTextAlignment(.center).hidden()
+            }
             content()
         }.lineLimit(1).fixedSize(horizontal: true, vertical: false).frame(minWidth: compactColumns ? 32 : 44)
         if compactColumns { column.font(.caption) }
@@ -1399,8 +1404,17 @@ private struct PadBoardCard: View {
                 }
             }
         } label: {
-            HStack(spacing: 4) { Text(kind.mediaVariantTitle(language: language)).lineLimit(1); Image(systemName: "chevron.down") }
-                .font(.caption2).frame(maxWidth: 90)
+            HStack(spacing: 5) {
+                Text(kind.mediaVariantTitle(language: language)).lineLimit(1).minimumScaleFactor(0.25).allowsTightening(true)
+                    .frame(minHeight: 13)
+                    .foregroundStyle(sourceAccent)
+                Image(systemName: "chevron.down").font(.system(size: 8, weight: .medium))
+                    .foregroundStyle(secondaryForeground.opacity(0.65))
+            }
+                .font(.caption2.weight(.medium))
+                .padding(.horizontal, 9).padding(.vertical, 4)
+                .background(sourceAccent.opacity(displayScheme == .dark ? 0.12 : 0.06), in: RoundedRectangle(cornerRadius: 3, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous).stroke(sourceAccent.opacity(displayScheme == .dark ? 0.16 : 0.10), lineWidth: 0.5))
         }.accessibilityIdentifier("source-variant-\(kind.rawValue)")
     }
     private var cardMetadata: some View {
@@ -1418,10 +1432,11 @@ private struct PadBoardCard: View {
         }.padding(.horizontal, columnPadding).padding(.top, 12).padding(.bottom, 6)
     }
     private var sourceHeading: some View {
-        Text(kind.sourcePrefix == "Artificial Analysis" ? "AA" : LeaderboardPresentation.columnTitle(kind, language: language))
+        Text(kind.sourcePrefix == "Artificial Analysis" ? "Artificial Analysis" :
+             kind.sourcePrefix == "Arena" ? "Arena" : LeaderboardPresentation.columnTitle(kind, language: language))
             .font(columnHeaderFont.weight(.semibold))
             .foregroundStyle(sourceAccent)
-            .lineLimit(1).minimumScaleFactor(0.8)
+            .lineLimit(1).minimumScaleFactor(0.4).allowsTightening(true).layoutPriority(1)
             .contentShape(Rectangle())
             .onTapGesture { if !isImage { detail.showingSource = true } }
             .accessibilityAddTraits(isImage ? [] : .isButton)
@@ -1430,14 +1445,14 @@ private struct PadBoardCard: View {
             .accessibilityIdentifier("source-heading-\(kind.rawValue)")
     }
     private var sourceHeadingActions: some View {
-        HStack(alignment: .center, spacing: 2) {
+        HStack(alignment: .center, spacing: kind.mediaVariants.count > 1 ? 6 : 2) {
             if kind.mediaVariants.count > 1 { variantMenu }
             if !isImage {
                 Button(action: openModelSearch) {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 12))
-                        .padding(.leading, 3)
-                        .frame(width: 28, height: 28, alignment: .leading).contentShape(Rectangle())
+                        .padding(.leading, kind.mediaVariants.count > 1 ? 0 : 3)
+                        .frame(width: kind.mediaVariants.count > 1 ? 20 : 28, height: 28, alignment: .leading).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(sourceAccent)
@@ -1446,24 +1461,17 @@ private struct PadBoardCard: View {
                 .accessibilityIdentifier("model-filter-\(kind.rawValue)")
                 .anchorPreference(key: MobileModelSearchOrigin.self, value: .bounds) { $0 }
             }
-        }.fixedSize(horizontal: true, vertical: false)
-            .layoutPriority(1)
+        }
     }
     @ViewBuilder private var sourceHeadingDetails: some View {
         if isImage {
             HStack(spacing: 6) {
                 sourceHeading
-                if kind.mediaVariants.count > 1 { Text(kind.mediaVariantTitle(language: language)).lineLimit(1) }
-            }
-        }
-        else if language == .english {
-            VStack(alignment: .leading, spacing: 2) {
-                sourceHeading
-                sourceHeadingActions
+                if kind.mediaVariants.count > 1 { Text(kind.mediaVariantTitle(language: language)).lineLimit(1).minimumScaleFactor(0.4) }
             }
         }
         else {
-            HStack(alignment: .center, spacing: 6) {
+            HStack(alignment: .center, spacing: kind.mediaVariants.count > 1 ? 6 : 1) {
                 sourceHeading
                 sourceHeadingActions
             }

@@ -5,6 +5,7 @@ import LeaderboardKit
 @MainActor
 struct MobileCategoryBar: View {
     @Binding var category: LeaderboardCategory
+    let categories: [LeaderboardCategory]
     let language: AppLanguage
     let accent: Color
     let select: () -> Void
@@ -19,12 +20,12 @@ struct MobileCategoryBar: View {
         images[category.rawValue] = image
     }
     private var selectedCategory: LeaderboardCategory {
-        dragIndex.map { LeaderboardCategory.allCases[$0] } ?? category
+        dragIndex.flatMap { categories.indices.contains($0) ? categories[$0] : nil } ?? category
     }
 
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(LeaderboardCategory.allCases, id: \.self) { item in
+            ForEach(categories, id: \.self) { item in
                 Button {
                     select()
                     withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.24)) { category = item }
@@ -37,13 +38,13 @@ struct MobileCategoryBar: View {
                                 .renderingMode(.template).resizable().scaledToFit().frame(width: 18, height: 18)
                                 .foregroundStyle(accent)
                         }
-                        Text(LeaderboardPresentation.title(item, language: language)).font(.system(size: 11, weight: selectedCategory == item ? .semibold : .regular))
+                        Text(LeaderboardPresentation.title(item, language: language)).font(.system(size: 10, weight: selectedCategory == item ? .semibold : .regular))
                     }
                     .frame(maxWidth: .infinity, minHeight: 50)
                     .foregroundStyle(selectedCategory == item ? accent : Color.secondary)
                     .background {
                         if selectedCategory == item {
-                            Capsule().fill(BrandTheme.selection(for: colorScheme)).matchedGeometryEffect(id: "selection", in: selection)
+                            Circle().fill(BrandTheme.selection(for: colorScheme)).frame(width: 50, height: 50).matchedGeometryEffect(id: "selection", in: selection)
                                 .shadow(color: .black.opacity(0.06), radius: 3, y: 1)
                         }
                     }
@@ -54,13 +55,15 @@ struct MobileCategoryBar: View {
                     .accessibilityAddTraits(category == item ? .isSelected : [])
             }
         }
-        .modifier(MobileTabDrag(count: LeaderboardCategory.allCases.count, preview: $dragIndex,
+        .modifier(MobileTabDrag(count: categories.count, preview: $dragIndex,
             begin: select) { index in
-                let item = LeaderboardCategory.allCases[index]
+                guard categories.indices.contains(index) else { return }
+                let item = categories[index]
                 guard item != category else { return }
                 select()
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.24)) { category = item }
             })
+        .onChange(of: categories) { _, _ in dragIndex = nil }
         .padding(4)
         .modifier(MobileCategoryGlass())
         .shadow(color: .black.opacity(0.12), radius: 14, y: 5)

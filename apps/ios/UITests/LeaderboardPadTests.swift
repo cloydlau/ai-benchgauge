@@ -367,7 +367,7 @@ final class LeaderboardSourceDescriptionTests: XCTestCase {
         for pending in [false, true] {
             app.launchArguments = ["--ui-testing", "--preview-zh", pending ? "--pending-boards" : "--offline"]
             app.launch()
-            for (kind, label) in [("artificialAnalysis", "Artificial Analysis"), ("arenaText", "Text Arena")] {
+            for (kind, label) in [("artificialAnalysis", "Artificial Analysis"), ("arenaText", "Arena")] {
                 show(kind)
                 let source = app.buttons["source-help-\(kind)"]
                 XCTAssertTrue(source.waitForExistence(timeout: 10))

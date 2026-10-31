@@ -372,17 +372,17 @@ finally { if (Directory.Exists(fixtureDirectory)) Directory.Delete(fixtureDirect
 var visibility = new Preferences();
 if (!visibility.VisibleBoardKinds().SequenceEqual(new[] { "artificialAnalysis", "arenaText", "epochECI" }))
     throw new Exception("Desktop must default to all three boards");
-visibility.ToggleBoard("arenaText"); visibility.ToggleBoard("artificialAnalysis"); visibility.ToggleBoard("epochECI");
+visibility.ToggleBoard("arenaText"); visibility.ToggleBoard("artificialAnalysis");
 if (!visibility.VisibleBoardKinds().SequenceEqual(new[] { "epochECI" })) throw new Exception("Last board was deselected");
 visibility = JsonSerializer.Deserialize<Preferences>(JsonSerializer.Serialize(visibility, AppConfig.Json), AppConfig.Json)!;
 if (!visibility.VisibleBoardKinds().SequenceEqual(new[] { "epochECI" })) throw new Exception("Board selection did not persist");
 visibility.Category = "coding";
-if (!visibility.VisibleBoardKinds().SequenceEqual(new[] { "artificialAnalysisCodingAgent", "codeArenaWebDev" })) throw new Exception("Coding default must omit the archived source");
+if (!visibility.VisibleBoardKinds().SequenceEqual(new[] { "artificialAnalysisCodingAgent", "codeArenaWebDev", "epochSoftwareECI" })) throw new Exception("Coding default must omit the archived source");
 visibility.ToggleBoard("valsSWEbench");
-if (!visibility.VisibleBoardKinds().SequenceEqual(new[] { "artificialAnalysisCodingAgent", "codeArenaWebDev", "valsSWEbench" })) throw new Exception("Archived source must remain explicitly selectable");
+if (!visibility.VisibleBoardKinds().SequenceEqual(new[] { "artificialAnalysisCodingAgent", "codeArenaWebDev", "epochSoftwareECI" })) throw new Exception("Retired source must not be selectable");
 visibility.Category = "general"; visibility.ToggleBoard("artificialAnalysis");
 if (!visibility.VisibleBoardKinds().SequenceEqual(new[] { "artificialAnalysis", "epochECI" })) throw new Exception("Restored board order is wrong");
-foreach (var invalid in new[] { Array.Empty<string>(), new[] { "retired" }, new[] { "arenaTextToImage" } }) {
+foreach (var invalid in new[] { new[] { "retired" }, new[] { "arenaTextToImage" } }) {
     visibility.BoardSelections["general"] = invalid;
     if (visibility.VisibleBoardKinds().Length != 3) throw new Exception("Invalid board preferences were not repaired");
 }
@@ -395,7 +395,7 @@ if (stagedPreferences.VisibleBoardKinds().Length != 3 || stagedPreferences.Board
     throw new Exception("Draft board selection changed preferences before confirmation");
 if (!stagedPreferences.SetVisibleBoards(draftBoards) || !stagedPreferences.VisibleBoardKinds().SequenceEqual(new[] { "epochECI" }))
     throw new Exception("Confirmed board selection was not applied as a batch");
-if (stagedPreferences.SetVisibleBoards(draftBoards) || stagedPreferences.SetVisibleBoards([]) || stagedPreferences.SetVisibleBoards(["retired"]))
+if (stagedPreferences.SetVisibleBoards(draftBoards) || stagedPreferences.SetBoardSelections(Preferences.Categories.ToDictionary(value => value, _ => Array.Empty<string>())) || stagedPreferences.SetVisibleBoards(["retired"]))
     throw new Exception("Unchanged or invalid selections should not trigger a refresh");
 if (!stagedPreferences.SetVisibleBoards(["epochECI", "artificialAnalysis", "epochECI"]) ||
     !stagedPreferences.VisibleBoardKinds().SequenceEqual(new[] { "artificialAnalysis", "epochECI" }))
@@ -473,6 +473,43 @@ if (!speechPreferences.SelectMediaVariant("artificialAnalysisSpeechAgent", "arti
     !speechPreferences.VisibleBoardKinds().SequenceEqual(new[] { "artificialAnalysisSpeechToTextStreaming" }))
     throw new Exception("Streaming transcription must remain an independent selection");
 Console.WriteLine("PASS: speech selection");
+
+var globallySelected = new Preferences();
+if (!globallySelected.SetVisibleBoards([]) || globallySelected.VisibleCategories().Contains("general") || globallySelected.Category != "usage")
+    throw new Exception("Empty current category must be hidden and selection must move to a visible category");
+var onlyMath = Preferences.Categories.ToDictionary(value => value, value => value == "speech" ? new[] { "epochMathECI" } : Array.Empty<string>());
+if (!globallySelected.SetBoardSelections(onlyMath) || globallySelected.Category != "speech" || !globallySelected.VisibleBoardKinds().SequenceEqual(new[] { "epochMathECI" }))
+    throw new Exception("Only enabled professional board must be selected");
+globallySelected.ToggleBoard("epochMathECI");
+if (globallySelected.SelectedBoardCount() != 1 || !globallySelected.VisibleCategories().SequenceEqual(new[] { "speech" }))
+    throw new Exception("Only the final global board must be protected");
+var restoredGlobal = JsonSerializer.Deserialize<Preferences>(JsonSerializer.Serialize(globallySelected, AppConfig.Json), AppConfig.Json)!;
+restoredGlobal.NormalizeBoardSelections();
+if (restoredGlobal.Category != "speech" || restoredGlobal.SelectedBoardCount() != 1 || restoredGlobal.SelectedBoardKinds("general").Length != 0)
+    throw new Exception("Empty categories must survive persistence");
+restoredGlobal.SetBoardSelections([]);
+if (restoredGlobal.VisibleCategories().Length != Preferences.Categories.Length || restoredGlobal.SelectedBoardCount() < 2)
+    throw new Exception("Restoring defaults must re-enable hidden categories");
+Console.WriteLine("PASS: global minimum selection, empty category navigation, professional filtering and persistence");
+
+// Every member opens the full family explanation using the shared embedded copy.
+foreach (var language in new[] { "en", "zh", "zh-Hant", "zh-TW" })
+{
+    foreach (var category in new[] { "usage", "general", "image", "video", "coding", "speech" })
+    foreach (var kind in Preferences.AvailableBoardKinds(category))
+    foreach (var variant in Preferences.MediaVariants(kind))
+    {
+        var help = LeaderboardVariantHelp.Text(variant, language);
+        if (string.IsNullOrWhiteSpace(help) || help != LeaderboardVariantHelp.Text(kind, language))
+            throw new Exception("All sub-leaderboard options must open the full localized family explanation");
+    }
+    if (LeaderboardVariantHelp.Text("epochECI", language) != "" || LeaderboardVariantHelp.Text("unknown", language) != "")
+        throw new Exception("Standalone boards must not invent sub-leaderboards");
+}
+foreach (var phrase in new[] { "各厂商提供", "克隆同一组参考声音", "不是情绪或语气控制能力", "实时语音交谈", "按批次", "边接收音频边返回", "不是按响应延迟排名" })
+    if (!LeaderboardVariantHelp.Text("artificialAnalysisSpeechProviderVoice", "zh").Contains(phrase))
+        throw new Exception("Missing speech option distinction: " + phrase);
+Console.WriteLine("PASS: shared sub-leaderboard explanations in every language and family");
 
 sealed class FixtureHttpHandler(Func<HttpRequestMessage, byte[]> response) : HttpMessageHandler
 {

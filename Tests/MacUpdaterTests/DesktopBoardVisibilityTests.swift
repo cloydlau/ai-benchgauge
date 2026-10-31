@@ -72,13 +72,13 @@ struct DesktopBoardVisibilityTests {
         state.refreshNow(force: false)
         try await waitFor { BoardVisibilityHTTP.log.read().requests.count == 3 }
         let picker = BoardVisibilitySelectionView(language: .english, category: .general,
-            selected: state.visibleBoardKinds, onConfirm: { state.setVisibleBoards($0) }, onCancel: {})
+            selections: state.boardSelections, onConfirm: { state.setBoardSelections($0) }, onCancel: {})
         picker.checkboxes[0].performClick(nil)
         picker.checkboxes[1].performClick(nil)
         #expect(state.visibleBoardKinds == LeaderboardCategory.general.boardKinds)
         #expect((defaults.dictionary(forKey: "desktopBoardSelections") ?? [:]).isEmpty)
         #expect(Set(BoardVisibilityHTTP.log.read().cancellations).isDisjoint(with: ["artificialAnalysis", "arenaText"]))
-        #expect(!picker.checkboxes[2].isEnabled)
+        #expect(picker.checkboxes[2].isEnabled, "Other categories still have selected boards")
         picker.confirmButton.performClick(nil)
         try await waitFor { Set(BoardVisibilityHTTP.log.read().cancellations).isSuperset(of: ["artificialAnalysis", "arenaText"]) && !state.isRefreshing }
         #expect(state.visibleBoardKinds == [.epochECI])
@@ -90,13 +90,13 @@ struct DesktopBoardVisibilityTests {
         defer { state.beginQuitting(); session.invalidateAndCancel() }
         var cancelled = false
         let picker = BoardVisibilitySelectionView(language: .english, category: .general,
-            selected: state.visibleBoardKinds, onConfirm: { state.setVisibleBoards($0) }, onCancel: { cancelled = true })
+            selections: state.boardSelections, onConfirm: { state.setBoardSelections($0) }, onCancel: { cancelled = true })
         picker.checkboxes[0].performClick(nil)
         picker.cancelButton.performClick(nil)
         #expect(cancelled)
         #expect(state.visibleBoardKinds == LeaderboardCategory.general.boardKinds)
         state.setVisibleBoards(state.visibleBoardKinds)
-        state.setVisibleBoards([])
+        state.setBoardSelections(Dictionary(uniqueKeysWithValues: LeaderboardCategory.allCases.map { ($0.rawValue, [String]()) }))
         #expect((defaults.dictionary(forKey: "desktopBoardSelections") ?? [:]).isEmpty)
         #expect(BoardVisibilityHTTP.log.read().requests.isEmpty)
     }
@@ -141,7 +141,7 @@ struct DesktopBoardVisibilityTests {
         #expect(BoardVisibilityHTTP.log.read().requests == ["epochECI", "artificialAnalysis"])
         #expect(defaults.dictionary(forKey: "desktopBoardSelections") as? [String: [String]] == ["general": ["artificialAnalysis", "epochECI"]])
         state.toggleBoard(.artificialAnalysis)
-        state.toggleBoard(.epochECI) // The last selected board stays selected.
+        // Other categories still allow clearing General; verify that separately below.
         #expect(state.visibleBoardKinds == [.epochECI])
         #expect(BoardVisibilityHTTP.log.read().requests.count == 2)
         let restored = AppState(cache: LeaderboardCache(fileURL: URL(fileURLWithPath: "/nonexistent-fixture")), defaults: defaults)
@@ -164,5 +164,33 @@ struct DesktopBoardVisibilityTests {
         try await waitFor { !state.isRefreshing }
         #expect(state.snapshot.boards[.artificialAnalysis]?.entries.count == 1)
         #expect(BoardVisibilityHTTP.log.read().requests.count == 3)
+    }
+}
+
+@Suite(.serialized) @MainActor
+struct GlobalDesktopBoardVisibilityTests {
+    @Test func emptyCategoriesPersistAndOnlyLastGlobalBoardIsProtected() throws {
+        let name = "global-desktop-visibility-\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        var selections = Dictionary(uniqueKeysWithValues: LeaderboardCategory.allCases.map { ($0.rawValue, [String]()) })
+        selections["speech"] = ["epochMathECI"]
+        defaults.set(selections, forKey: "desktopBoardSelections")
+        CategoryPreference.save(.general, to: defaults)
+        let state = AppState(cache: LeaderboardCache(fileURL: URL(fileURLWithPath: "/nonexistent-fixture")), defaults: defaults)
+        defer { state.beginQuitting() }
+        #expect(state.selectedCategory == .speech && state.visibleCategories == [.speech])
+        #expect(state.visibleBoardKinds == [.epochMathECI])
+        state.toggleBoard(.epochMathECI)
+        #expect(state.boardSelections == selections)
+        let picker = BoardVisibilitySelectionView(language: .english, category: .speech, selections: state.boardSelections,
+            onConfirm: { state.setBoardSelections($0) }, onCancel: {})
+        #expect(!picker.checkboxes[1].isEnabled)
+        #expect(picker.checkboxes[0].isEnabled)
+        picker.checkboxes[0].performClick(nil)
+        #expect(picker.checkboxes[1].isEnabled)
+        picker.confirmButton.performClick(nil)
+        #expect(state.boardKinds(for: .speech) == [.artificialAnalysisSpeechProviderVoice, .epochMathECI])
+        #expect(defaults.dictionary(forKey: "desktopBoardSelections") as? [String: [String]] == state.boardSelections)
     }
 }

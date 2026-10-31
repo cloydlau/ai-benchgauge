@@ -7,6 +7,69 @@ import SwiftUI
 #endif
 
 struct KitCoverageBoundaryTests {
+    @Test func cachedRetiredBoardsKeepTheirMetadataWithoutReturningToActiveNavigation() {
+        #expect(!LeaderboardKind.allCases.contains(.valsSWEbench))
+        #expect(!LeaderboardCategory.allCases.contains(.price))
+        #expect(LeaderboardCategory.price.boardKinds == [.openRouterPrice])
+        #expect(LeaderboardCategory.price.title == "价格")
+        #expect(LeaderboardKind.valsSWEbench.sourceURL.absoluteString == "https://www.vals.ai/benchmarks/swebench")
+        #expect(LeaderboardKind.valsSWEbench.sourcePrefix == "Vals AI")
+        #expect(LeaderboardKind.valsSWEbench.sourceLinkTitle == "Vals AI · SWE-bench (Archived)")
+        #expect(LeaderboardKind.openRouterPrice.sourceURL.absoluteString == "https://openrouter.ai/models")
+        #expect(LeaderboardKind.openRouterPrice.sourcePrefix == "OpenRouter")
+        #expect(LeaderboardKind.openRouterPrice.sourceLinkTitle == "OpenRouter")
+        for language in AppLanguage.allCases {
+            #expect(LeaderboardPresentation.title(.price, language: language) == language.text("Price", "价格"))
+            #expect(LeaderboardPresentation.title(.valsSWEbench, language: language) == "Vals AI · SWE-bench Verified (Archived)")
+            #expect(LeaderboardPresentation.title(.openRouterPrice, language: language) == "OpenRouter | API prices")
+            #expect(LeaderboardPresentation.explanation(.valsSWEbench, language: language) == language.text("Archived benchmark", "已归档榜单"))
+            #expect(LeaderboardPresentation.explanation(.openRouterPrice, language: language) == language.text("API prices", "API 价格"))
+            #expect(LeaderboardPresentation.sourceSummary(.valsSWEbench, language: language).contains(language.text("No new models are tested.", "不再评测新模型")))
+            #expect(LeaderboardPresentation.sourceSummary(.openRouterPrice, language: language).contains(language.text("per million tokens", "每百万 token")))
+            #expect(LeaderboardPresentation.scoreTitle(.openRouterPrice, language: language) == language.text("In / Out $/1M", "输入/输出 $/百万"))
+            #expect(LeaderboardPresentation.aaCostHelp(.valsSWEbench, language: language) == language.text(
+                "Cost and duration per test as published by Vals; source ranking stays unchanged.", "Vals 公布的每次测试成本和耗时；切换指标不改变原榜排名。"))
+        }
+    }
+
+    @Test func variantLabelsCoverEverySelectableTaskInAllLanguages() {
+        let variants: [(LeaderboardKind, String, String)] = [
+            (.epochECI, "General", "综合"),
+            (.epochMathECI, "Math", "数学"),
+            (.epochCyberECI, "Cybersecurity", "网络安全"),
+            (.arenaText, "Text Style Control", "文本（风格控制）"),
+            (.arenaTextUncontrolled, "Text Original", "文本（原始总榜）"),
+            (.codeArenaWebDev, "WebDev", "网页开发"),
+            (.codeArenaImageToWebDev, "Image to WebDev", "图片转代码"),
+            (.artificialAnalysisTextToImage, "Text to image", "文生图"),
+            (.arenaTextToImage, "Text to image", "文生图"),
+            (.artificialAnalysisImageEditing, "Image editing", "图片编辑"),
+            (.arenaImageEditing, "Single-image edit", "单图编辑"),
+            (.arenaMultiImageEditing, "Multi-image edit", "多图编辑"),
+            (.artificialAnalysisTextToVideo, "Text to video", "文生视频"),
+            (.arenaTextToVideo, "Text to video", "文生视频"),
+            (.artificialAnalysisImageToVideo, "Image to video", "图生视频"),
+            (.arenaImageToVideo, "Image to video", "图生视频"),
+            (.artificialAnalysisVideoEditing, "Video editing", "视频编辑"),
+            (.arenaVideoEditing, "Video editing", "视频编辑"),
+            (.artificialAnalysisSpeechProviderVoice, "TTS · Provider voice", "文字转语音 · 原生声音"),
+            (.artificialAnalysisSpeechControlledVoice, "TTS · Controlled voice", "文字转语音 · 受控声音"),
+            (.artificialAnalysisSpeechAgent, "Speech agent", "语音对话"),
+            (.artificialAnalysisSpeechToText, "STT · Non-streaming", "语音转文字 · 非流式"),
+            (.artificialAnalysisSpeechToTextStreaming, "STT · Streaming", "语音转文字 · 流式"),
+        ]
+        for language in AppLanguage.allCases {
+            for (kind, english, chinese) in variants {
+                #expect(kind.mediaVariantTitle(language: language) == language.text(english, chinese))
+            }
+            #expect(LeaderboardKind.artificialAnalysis.mediaVariantTitle(language: language).isEmpty)
+            #expect(LeaderboardPresentation.explanation(.arenaVideoEditing, language: language) == language.text("Video editing", "视频编辑"))
+            #expect(LeaderboardPresentation.explanation(.artificialAnalysisSpeechToTextStreaming, language: language) == language.text("Streaming STT", "流式语音转文字"))
+            #expect(LeaderboardPresentation.boardSelectionTitle(.epochCyberECI, language: language) == (language == .traditionalChinese ? "Epoch ECI 網路安全" : language.text("Epoch ECI Cybersecurity", "Epoch ECI 网络安全")))
+        }
+        #expect(LeaderboardPresentation.scoreText(1.25, kind: .artificialAnalysisSpeechToTextStreaming) == "1.25%")
+    }
+
     @Test func presentationSupportsEverySourceLanguageAndMissingDate() throws {
         for language in AppLanguage.allCases {
             #expect(!language.locale.identifier.isEmpty)

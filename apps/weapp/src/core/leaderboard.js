@@ -95,7 +95,7 @@ export function rowView(entry, { company = false, dark = false, details = true, 
   const rankChangeText = entry.rankChange?.isNew ? (language === 'en' ? 'New' : '新')
     : Number.isSafeInteger(entry.rankChange?.delta) && entry.rankChange.delta !== 0 ? `${entry.rankChange.delta > 0 ? '↑' : '↓'}${Math.abs(entry.rankChange.delta)}` : ''
   const value = speedMode && supportsAASpeed(kind) ? entry.speed : costMode && supportsAACost(kind) ? entry.taskCostUSD : entry.score
-  const scoreText = isErrorRate(kind) ? `${value.toFixed(2)}%` : speedMode && supportsAASpeed(kind) ? speedText(value) : costMode && supportsAACost(kind) || isPriceBoard(kind) ? taskCostText(value) : ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? shareScoreText(value) : kind === 'openRouterUsage' ? usageScoreText(value) : value.toFixed(kind === 'epochECI' ? 2 : 1)
+  const scoreText = isErrorRate(kind) ? `${value.toFixed(2)}%` : speedMode && supportsAASpeed(kind) ? speedText(value) : costMode && supportsAACost(kind) || isPriceBoard(kind) ? taskCostText(value) : ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? shareScoreText(value) : kind === 'openRouterUsage' ? usageScoreText(value) : value.toFixed(kind?.startsWith('epoch') ? 2 : 1)
   const outputPriceText = isPriceBoard(kind) || (kind === 'openRouterUsage' && costMode) ? taskCostText(entry.outputPriceUSD) : null
   const scoreDollar = dollarParts(scoreText), outputDollar = outputPriceText && dollarParts(outputPriceText)
   return { rank: entry.rank, name: entry.name, score: entry.score, logo: image,

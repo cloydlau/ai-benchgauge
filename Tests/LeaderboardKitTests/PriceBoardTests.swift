@@ -10,7 +10,27 @@ import Testing
     #expect(board.entries[0].provider == "OpenRouter")
     #expect(board.entries[0].outputPriceUSD == 4)
     #expect(LeaderboardPresentation.scoreText(board.entries[0].score, kind: board.kind) == "$1.00")
-    #expect(LeaderboardCategory.allCases.prefix(3) == [.usage, .general, .coding])
+    #expect(LeaderboardCategory.allCases.prefix(3) == [.usage, .general, .image])
+}
+
+@Test func priceTiesUseOutputThenNameThenIdentifierIncludingMissingMetadata() {
+    let entries = [
+        LeaderboardEntry(rank: 8, name: "Same", score: 1, modelID: "b"),
+        LeaderboardEntry(rank: 7, name: "Same", score: 1, outputPriceUSD: 0),
+        LeaderboardEntry(rank: 6, name: "Same", score: 1, modelID: "a"),
+        LeaderboardEntry(rank: 5, name: "Alpha", score: 1, outputPriceUSD: 0),
+        LeaderboardEntry(rank: 4, name: "Paid", score: 1, outputPriceUSD: 2),
+    ]
+    for input in [entries, Array(entries.reversed())] {
+        for ascending in [false, true] {
+            let ordered = LeaderboardPresentation.priceOrdered(input, ascending: ascending)
+            #expect(ordered.map(\.name) == (ascending ? ["Alpha", "Same", "Same", "Same", "Paid"] : ["Paid", "Alpha", "Same", "Same", "Same"]))
+            #expect(ordered.filter { $0.name == "Same" }.map(\.modelID) == [nil, "a", "b"])
+            #expect(ordered.map(\.rank) == [1, 2, 3, 4, 5])
+            #expect(ordered.first { $0.name == "Paid" }?.outputPriceUSD == 2)
+        }
+    }
+    #expect(entries.map(\.rank) == [8, 7, 6, 5, 4])
 }
 
 @Test func priceDirectionPreservesValuesAndReassignsRanks() {

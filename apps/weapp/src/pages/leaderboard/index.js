@@ -1,3 +1,5 @@
+import { variantHelp } from '../../core/variant-help.js'
+import { fitSourceHeader } from '../../core/source-header-fit.js'
 import { sourceAgreement } from '../../core/source-agreement.js'
 import { isArenaDatasetBoard } from '../../core/arena-attribution.js'
 import { definePage, ref, computed, onLoad, onReady, onShow, onHide, onUnload, onShareAppMessage, onResize } from '@vue-mini/core'
@@ -16,7 +18,7 @@ import { cubeIndex, cubeTarget, cubeNavigation, cubeRenderedFace, cubeTabPositio
 import { createBrandMeasurer, createSubtitleMeasurer } from '../../core/brand-title.js'
 import { pagePreferences, sharePath, systemLanguage } from '../../core/share-state.js'
 import { purchaseLinks, preferredPurchaseLink } from '../../core/purchase-links.js'
-import { visibleBoardKinds, normalizeBoardSelections, selectedBoardFace } from '../../core/board-selection.js'
+import { visibleBoardKinds, normalizeBoardSelections, selectedBoardFace, visibleCategories, selectedBoardCategory } from '../../core/board-selection.js'
 import { boardFaceStyle, normalizeBoardTransition } from '../../core/board-transition.js'
 
 definePage(query => {
@@ -136,7 +138,7 @@ definePage(query => {
   }
   function previewTabDrag(drag) {
     if (drag.axis !== 'horizontal' || !drag.rect) return
-    const count = drag.kind === 'category' ? categories.length : current.value.kinds.length
+    const count = drag.kind === 'category' ? enabledCategories.value.length : current.value.kinds.length
     const index = Math.max(0, Math.min(count - 1, Math.floor((drag.lastX - drag.rect.left) / drag.rect.width * count)))
     if (drag.kind === 'category') categoryDragIndex.value = index
     else sourceDragIndex.value = index
@@ -412,13 +414,16 @@ definePage(query => {
   const backTopBoards = ref({})
   const rowRenderers = new Map()
   let measureSerial = 0
+  let headerMeasureSerial = 0, headerFitKey = ''
+  const headerFits = ref({})
   const scrollRequests = new Map()
   const sheet = ref({ open: false, title: '', actions: [], kind: '', mode: '' })
   const capturing = ref(false)
   const emptyCapture = () => ({ open: false, path: '', saving: false, saved: false })
   const capture = ref(emptyCapture())
   const showingFeatureHelp = ref(false)
-  const sourceNotice = ref({ open: false, title: '', content: '', url: '' })
+  let sourceNoticeSequence = 0
+  const sourceNotice = ref({ open: false, title: '', content: '', url: '', anchor: '' })
   const companyDetails = ref({ open: false, name: '', content: '', members: [] })
   // Vant locks its mask, but touches inside popup content can still reach a
   // native scroll-view underneath. Lock every board as well as the page root.
@@ -457,13 +462,14 @@ definePage(query => {
       // into that space rather than adding another gap after the glyph box.
       subtitleHelpOffset: /。$/.test(subtitleParts.value[1]) ? -0.55 : 0.08 }
   })
-  const categoryItems = computed(() => categories.map(item => ({ id: item.id, label: text(item.labels, language.value),
+  const enabledCategories = computed(() => visibleCategories(boardSelections.value))
+  const categoryItems = computed(() => enabledCategories.value.map(item => ({ id: item.id, label: text(item.labels, language.value),
     icon: `/assets/categories/${item.id}-${selectedSourceTheme.value.accent.slice(1)}.png` })))
-  const categoryIndex = computed(() => categoryDragIndex.value ?? categories.findIndex(item => item.id === category.value))
+  const categoryIndex = computed(() => categoryDragIndex.value ?? enabledCategories.value.findIndex(item => item.id === category.value))
   const categoryThemeStyle = computed(() => `--category-accent:${selectedSourceTheme.value.accent};`)
   const current = computed(() => ({ ...categoryFor(category.value), kinds: visibleBoardKinds(category.value, boardSelections.value).map(kind => variants.value[kind] || kind) }))
   const sourceTabIcons = computed(() => current.value.kinds.map(kind => sourceTabLogo(kind, dark.value)))
-  const tabs = computed(() => current.value.kinds.map(kind => isPriceBoard(kind) ? 'API' : kind === 'openRouterUsage' ? tr('dailyUsage') : kind === 'cloudbaseUsage' ? tr('cumulativeShare') : kind === 'vercelUsage' ? tr('dailyShare') : kind === 'valsSWEbench' ? tr('archivedBenchmark') : kind === 'epochECI' ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
+  const tabs = computed(() => current.value.kinds.map(kind => category.value === 'speech' ? (kind.startsWith('artificialAnalysisSpeech') ? text(['Speech', '语音', '語音'], language.value) : kind === 'epochMathECI' ? text(['Math', '数学', '數學'], language.value) : text(['Cybersecurity', '网络安全', '網路安全'], language.value)) : isPriceBoard(kind) ? 'API' : kind === 'openRouterUsage' ? tr('dailyUsage') : kind === 'cloudbaseUsage' ? tr('cumulativeShare') : kind === 'vercelUsage' ? tr('dailyShare') : kind === 'valsSWEbench' ? tr('archivedBenchmark') : kind.startsWith('epoch') ? tr('capabilityIndex') : kind.startsWith('artificial') ? tr('tasks') : tr('votes')))
   // Retain each slot's geometry while replacing its source identity and label.
   const sourceTabItems = computed(() => current.value.kinds.map((kind, index) => ({ index,
     content: [{ kind, label: tabs.value[index], icon: sourceTabIcons.value[index] }] })))
@@ -543,7 +549,13 @@ definePage(query => {
     const filter = filterFor(kind)
     const range = rangeFor(kind, entries.length)
     const time = boardTime(board, kind)
-    return { kind, themeStyle: `--source-accent:${sourceTabTheme(kind, dark.value).accent};`, title: boardTitle(kind, language.value), heading: mobileBoardHeading(kind, language.value), index, summary: text(boards[kind].summaries, language.value),
+    const accent = sourceTabTheme(kind, dark.value).accent
+    const rgb = [1, 3, 5].map(offset => parseInt(accent.slice(offset, offset + 2), 16)).join(',')
+    return { kind, themeStyle: `--source-accent:${accent};`, variantStyle: `--variant-fill:rgba(${rgb},${dark.value ? 0.12 : 0.06});--variant-border:rgba(${rgb},${dark.value ? 0.16 : 0.10});${headerFits.value[kind]?.pickerWidth != null ? `width:${headerFits.value[kind].pickerWidth}px;flex:0 0 auto;` : ''}`, title: boardTitle(kind, language.value), heading: mobileBoardHeading(kind, language.value),
+      headingFontSize: (language.value === 'en' ? 18 : 21) * (headerFits.value[kind]?.headingScale ?? 1),
+      headingFontStyle: headerFits.value[kind] ? `font-size:${headerFits.value[kind].headingPixels}px;` : `font-size:${language.value === 'en' ? 18 : 21}rpx;`,
+      variantFontStyle: headerFits.value[kind] ? `font-size:${headerFits.value[kind].variantPixels}px;` : 'font-size:18rpx;',
+      variantFontSize: 18 * (headerFits.value[kind]?.variantScale ?? 1), index, summary: text(boards[kind].summaries, language.value),
       ...(options.length > 1 && { variantBase: base, variantLabels: options.map(option => text(variantLabels[option], language.value)), variantIndex: options.indexOf(kind) }),
       ...time, timeAccessibility: `${time.time} ${time.timeLabel}`,
       count: totalCount, shownCount: entries.length, hasMore: totalCount > 20, expanded: !!expandedBoards.value[kind],
@@ -557,7 +569,7 @@ definePage(query => {
       rows: renderRows(kind, entries, range, leaderScore).map(row => ({ ...row, top: row.top + (expandedBoards.value[kind] && row.top >= 20 * geometry.value.rowHeight ? 48 : 0) })),
       searchStyle: modelSearchVisible.value ? 'left:0px;right:0px;' : searchOrigins.value[kind] || 'left:50%;right:50%;',
       ...(isPriceBoard(kind) && { hasPrice: true, priceAscending: priceAscending.value }),
-      ...(metricAvailable(kind) && { hasTaskCost: true, ...(metricGuideKind.value === kind && { showMetricGuide: true }), ...(kind in costOrder.value && { costOrder: !!costOrder.value[kind] }), ...(kind in speedOrder.value && { speedOrder: !!speedOrder.value[kind] }), ...((speedOrder.value[kind] || costOrder.value[kind]) && { metricTitle: speedOrder.value[kind] ? (language.value === 'en' ? 'Speed' : '速度') : (language.value === 'en' ? 'Cost' : '成本') }), ...(speedOrder.value[kind] && { speedUnit: (kind === "artificialAnalysisCodingAgent" || kind === "valsSWEbench") ? (language.value === "en" ? "s/task" : language.value === "zh-TW" ? "秒/任務" : "秒/任务") : "token/s" }), ...(costOrder.value[kind] && { costUnit: costUnit(kind) }),
+      ...(metricAvailable(kind) && { hasTaskCost: true, ...(metricGuideKind.value === kind && { showMetricGuide: true }), ...(kind in costOrder.value && { costOrder: !!costOrder.value[kind] }), ...(kind in speedOrder.value && { speedOrder: !!speedOrder.value[kind] }), ...((speedOrder.value[kind] || costOrder.value[kind]) && { metricTitle: speedOrder.value[kind] ? (language.value === 'en' ? 'Speed' : '速度') : costTitle(kind) }), ...(speedOrder.value[kind] && { speedUnit: (kind === "artificialAnalysisCodingAgent" || kind === "valsSWEbench") ? (language.value === "en" ? "s/task" : language.value === "zh-TW" ? "秒/任務" : "秒/任务") : "token/s" }), ...(costOrder.value[kind] && { costUnit: costUnit(kind) }),
         costSortLabel: speedOrder.value[kind] ? (language.value === "en" ? "Speed" : "速度") : kind === 'openRouterUsage' ? (costOrder.value[kind] ? (language.value === 'en' ? 'Price' : language.value === 'zh-TW' ? '價格' : '价格') : tr('tokens')) : costOrder.value[kind] ? tr('taskCostAscending') : tr('scoreDescending') }),
       scoreLabel: isErrorRate(kind) ? 'WER ↓' : ['vercelUsage', 'cloudbaseUsage'].includes(kind) ? tr('tokenShare') : kind === 'openRouterUsage' ? tr('tokens') : tr('score'),
       pendingConfiguration: !!configurationRequired.value[kind],
@@ -796,7 +808,12 @@ definePage(query => {
     refreshing.value = { ...refreshing.value, [kind]: true }
     syncTimestampPolish()
     try {
-      const board = await store.fetch(kind)
+      const board = await store.fetch(kind, cached => {
+        if (!alive) return
+        snapshots.value = { ...snapshots.value, [kind]: cached }
+        syncWindow(kind, true)
+        measureLists()
+      })
       if (!alive) return
       configurationRequired.value = { ...configurationRequired.value, [kind]: false }
       snapshots.value = { ...snapshots.value, [kind]: board }
@@ -846,8 +863,10 @@ definePage(query => {
     if (nextTransition !== boardTransition.value) { stopCube(); boardTransition.value = nextTransition }
     const latest = normalizeBoardSelections(latestSaved.boardSelections)
     if (JSON.stringify(latest) !== JSON.stringify(boardSelections.value)) {
-      const nextFace = selectedBoardFace(category.value, face.value, boardSelections.value, latest)
-      stopCube(); boardSelections.value = latest; face.value = nextFace
+      const nextCategory = selectedBoardCategory(category.value, latest)
+      const nextFace = nextCategory === category.value ? selectedBoardFace(category.value, face.value, boardSelections.value, latest) : 0
+      cancelTabDrag()
+      stopCube(); boardSelections.value = latest; category.value = nextCategory; face.value = nextFace
       cubePosition.value = nextFace; cubeOrigin.value = nextFace
       expandedBoards.value = {}; rowRenderers.clear(); resetScroll(); measureSourceTabs(); measureLists()
       persist(); autoRefresh()
@@ -870,7 +889,7 @@ definePage(query => {
   function selectCategory(event) {
     if (Date.now() < tabSuppressTapUntil) return
     const id = event.currentTarget.dataset.id
-    if (!categories.some(item => item.id === id)) return
+    if (!enabledCategories.value.some(item => item.id === id)) return
     if (id === category.value) {
       const now = Date.now()
       if (lastCategoryTap?.id === id && lastCategoryTap.face === face.value && now - lastCategoryTap.time <= 300) {
@@ -883,6 +902,7 @@ definePage(query => {
     changeCategory(id)
   }
   function changeCategory(id, destination = face.value) {
+    if (!enabledCategories.value.some(item => item.id === id)) return
     blurModelSearch(); stopCube(); entrancePlayed = true
     if (id === 'price') grouping.value = 'model'
     expandedBoards.value = {}; category.value = id; face.value = Math.min(destination, current.value.kinds.length - 1); cubePosition.value = face.value; cubeOrigin.value = face.value; cubeDirection.value = 1; rowRenderers.clear(); resetScroll(); persist(); autoRefresh()
@@ -1100,9 +1120,9 @@ definePage(query => {
       ? `${text(['Statistical day (UTC): ', '统计日期（UTC）：', '統計日期（UTC）：'], language.value)}${new Date(board.sourceUpdatedAt).toISOString().slice(0, 10)}\n\n` : ''
     const sampled = kind === 'cloudbaseUsage' ? `${text(boards[kind].summaries, language.value)}\n\n` : ''
     const refreshMeaning = refreshOnly ? `\n${tr('timeExplanation')}` : ''
-    const textArenaSummary = ['arenaText', 'arenaTextUncontrolled'].includes(kind) ? `${text(boards[kind].summaries, language.value)}\n\n` : ''
-    sourceNotice.value = { open: true, title: boardTitle(kind, language.value),
-      content: `${formerName}${day}${sampled}${textArenaSummary}${text(boards[kind].methodology || boards[kind].summaries, language.value)}\n\n${times}${refreshMeaning}\n\n${boards[kind].url}${agreement ? `\n\n${agreement}` : ''}`,
+    const optionHelp = variantHelp(kind, language.value)
+    sourceNotice.value = { open: true, anchor: `source-notice-start-${++sourceNoticeSequence}`, title: boardTitle(kind, language.value),
+      content: `${formerName}${day}${sampled}${text(boards[kind].methodology || boards[kind].summaries, language.value)}\n\n${optionHelp ? `${optionHelp}\n\n` : ''}${times}${refreshMeaning}\n\n${boards[kind].url}${agreement ? `\n\n${agreement}` : ''}`,
       url: boards[kind].url }
   }
   function closeSourceNotice() { sourceNotice.value = { ...sourceNotice.value, open: false } }
@@ -1171,7 +1191,7 @@ definePage(query => {
   }
   async function screenshot() {
     if (capturing.value || capture.value.saving) return
-    if (!current.value.kinds.some(kind => snapshots.value[kind])) {
+    if (!(category.value === 'speech' ? [current.value.kinds[face.value]] : current.value.kinds).some(kind => snapshots.value[kind])) {
       wx.showToast({ title: tr('noBoard'), icon: 'none' }); return
     }
     stopCube(); entrancePlayed = true
@@ -1193,12 +1213,12 @@ definePage(query => {
             variantLabel: variantBase(kind) ? text(variantLabels[kind], language.value) : '',
             time: `${time.time} ${time.timeLabel}`, isSourceTime: time.isSourceTime,
             taskCostLabel: isErrorRate(kind) ? 'WER ↓' : isPriceBoard(kind) ? tr('priceInput') + (priceAscending.value ? ' ↑' : ' ↓') : metricAvailable(kind) && speedOrder.value[kind] ? ((kind === 'artificialAnalysisCodingAgent' || kind === 'valsSWEbench') ? (language.value === 'en' ? 's/task' : language.value === 'zh-TW' ? '秒/任務' : '秒/任务') : 'token/s') : metricAvailable(kind) && costOrder.value[kind] ? costUnit(kind) : '',
-            metricHeading: metricAvailable(kind) && speedOrder.value[kind] ? (language.value === 'en' ? 'Speed' : '速度') : metricAvailable(kind) && costOrder.value[kind] ? (language.value === 'en' ? 'Cost' : '成本') : '',
-            filterLabel: `${metricAvailable(kind) ? (speedOrder.value[kind] ? (language.value === 'en' ? 'Speed' : '速度') : tr(costOrder.value[kind] ? 'taskCostAscending' : 'scoreDescending')) + ' · ' : ''}${tr('country')}: ${country} · ${tr('source')}: ${tr(filter.openness)}`,
+            metricHeading: metricAvailable(kind) && speedOrder.value[kind] ? (language.value === 'en' ? 'Speed' : '速度') : metricAvailable(kind) && costOrder.value[kind] ? costTitle(kind) : '',
+            filterLabel: `${metricAvailable(kind) ? (speedOrder.value[kind] ? (language.value === 'en' ? 'Speed' : '速度') : (kind === 'openRouterUsage' ? (costOrder.value[kind] ? costTitle(kind) : tr('tokens')) : tr(costOrder.value[kind] ? 'taskCostAscending' : 'scoreDescending'))) + ' · ' : ''}${tr('country')}: ${country} · ${tr('source')}: ${tr(filter.openness)}`,
             empty: tr(board ? 'empty' : 'noBoard'),
             rows: rankedCards.value[index].entries.map(entry =>
               rowView(entry, { company: grouping.value === 'company', dark: dark.value, language: language.value, details: false, kind: rankedCards.value[index].kind, costMode: metricAvailable(kind) && !!costOrder.value[kind], speedMode: metricAvailable(kind) && !!speedOrder.value[kind], leaderScore: rankedCards.value[index].leaderScore })) }
-        }) }
+        }).filter((_, index) => category.value !== 'speech' || index === face.value) }
       const canvas = await new Promise((resolve, reject) => {
         wx.createSelectorQuery().select('#leaderboard-export').fields({ node: true }).exec(result => {
           if (result?.[0]?.node) resolve(result[0].node)

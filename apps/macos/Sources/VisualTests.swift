@@ -23,7 +23,7 @@ enum NativeVisualCapture {
         let credits: OpenAICredits?
     }
     struct State: Decodable { let boards: [Board]; let quotas: [Quota]; let quotaUpdatedAt: String? }
-    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String?; let codexModel: String?; let codexProvider: String?; let codexBaseURL: String?; let taskCounts: CodexTaskCounts?; let refreshedTaskCounts: CodexTaskCounts?; let codexDesktopRunning: Bool?; let refreshedCodexDesktopRunning: Bool?; let showsCodexTaskStatus: Bool?; let refreshedShowsCodexTaskStatus: Bool?; let officialAccountChecking: Bool?; let sources: [String: LeaderboardOpennessFilter]?; let countries: [String: String]?; let grouping: LeaderboardGrouping?; let category: LeaderboardCategory?; let comparisonKind: LeaderboardKind?; let selectedBoards: [LeaderboardKind]?; let refreshedSelectedBoards: [LeaderboardKind]?; let rowCount: Int?; let searchQuery: String?; let contentUpdatedAt: String? }
+    struct Case: Decodable { let id: String; let language: String; let width: Int; let height: Int; let scenario: String; let quotaAgeSeconds: Int?; let versionText: String?; let codexModel: String?; let codexProvider: String?; let codexBaseURL: String?; let taskCounts: CodexTaskCounts?; let refreshedTaskCounts: CodexTaskCounts?; let codexDesktopRunning: Bool?; let refreshedCodexDesktopRunning: Bool?; let showsCodexTaskStatus: Bool?; let refreshedShowsCodexTaskStatus: Bool?; let officialAccountChecking: Bool?; let sources: [String: LeaderboardOpennessFilter]?; let countries: [String: String]?; let grouping: LeaderboardGrouping?; let category: LeaderboardCategory?; let comparisonKind: LeaderboardKind?; let selectedBoards: [LeaderboardKind]?; let refreshedSelectedBoards: [LeaderboardKind]?; let rowCount: Int?; let searchQuery: String?; let contentUpdatedAt: String?; let boardSelections: [String: [String]]?; let refreshedBoardSelections: [String: [String]]? }
     struct Fixture: Decodable { let state: State; let cases: [Case]; let quotaScenarios: [String: [Quota]]? }
 
     static func run() async throws {
@@ -182,7 +182,7 @@ enum NativeVisualCapture {
                         }, taskCounts: refreshed ? (test.refreshedTaskCounts ?? test.taskCounts) : test.taskCounts,
                         codexDesktopRunning: refreshed ? (test.refreshedCodexDesktopRunning ?? test.codexDesktopRunning ?? true) : (test.codexDesktopRunning ?? true),
                         category: test.category ?? .general, boardKinds: refreshed ? (test.refreshedSelectedBoards ?? test.selectedBoards ?? (test.category ?? .general).boardKinds) : (test.selectedBoards ?? test.comparisonKind.map { [.artificialAnalysis, $0] } ?? (test.category ?? .general).boardKinds),
-                        boardRefreshing: loadingScenario && phase < 2)
+                        boardRefreshing: loadingScenario && phase < 2, selections: refreshed ? (test.refreshedBoardSelections ?? test.boardSelections) : test.boardSelections)
                     for (raw, filter) in test.sources ?? [:] {
                         if let kind = LeaderboardKind(rawValue: raw) { state.selectOpennessFilter(filter, for: kind) }
                     }
@@ -403,6 +403,13 @@ enum NativeVisualCapture {
                     else if frame == 1 { apply(refreshed: true) }
                     try await Task.sleep(for: .milliseconds(300))
                     host.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                    if test.scenario == "categoryVisibility" {
+                        func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+                        guard let bar = descendants(host).compactMap({ $0 as? NSSegmentedControl }).first(where: { ["Leaderboard category", "榜单类别", "榜單類別"].contains($0.accessibilityLabel() ?? "") }),
+                              bar.segmentCount == state.visibleCategories.count else {
+                            throw CaptureError.blankFrame("empty categories remain in the native category bar")
+                        }
+                    }
                     if test.scenario == "sourceMenu" {
                         func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
                         func sourceButton() throws -> DataSourcesButton {
@@ -582,7 +589,7 @@ enum NativeVisualCapture {
                             button.performClick(nil)
                             try await Task.sleep(for: .milliseconds(200))
                             guard let reopened = button.selectionPopover?.contentViewController?.view as? BoardVisibilitySelectionView,
-                                  reopened.checkboxes.map(\.state) == [.off, .off, .on], state.visibleBoardKinds == [.epochECI] else {
+                                  Array(reopened.checkboxes.prefix(3)).map(\.state) == [.off, .off, .on], state.visibleBoardKinds == [.epochECI] else {
                                 throw CaptureError.blankFrame("cancelled draft was applied")
                             }
                             reopened.checkboxes[0].performClick(nil)

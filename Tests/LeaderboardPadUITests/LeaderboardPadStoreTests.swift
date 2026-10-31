@@ -16,9 +16,13 @@ import LeaderboardKit
     store.toggleBoard(.arenaText, in: .general)
     #expect(store.visibleBoardKinds == [.epochECI] && store.selectedSource == 0)
     store.toggleBoard(.epochECI, in: .general)
+    #expect(store.boardKinds(for: .general).isEmpty)
+    #expect(store.category == .usage && store.selectedSource == 0)
+    store.toggleBoard(.epochECI, in: .general)
+    store.category = .general
     #expect(store.visibleBoardKinds == [.epochECI])
     store.toggleBoard(.artificialAnalysisCodingAgent, in: .coding)
-    #expect(store.boardKinds(for: .coding) == [.codeArenaWebDev])
+    #expect(store.boardKinds(for: .coding) == [.codeArenaWebDev, .epochSoftwareECI])
     #expect(store.visibleBoardKinds == [.epochECI])
     let restored = LeaderboardPadStore(defaults: defaults)
     #expect(restored.visibleBoardKinds == [.epochECI] && restored.selectedKind == .epochECI)
@@ -33,14 +37,14 @@ import LeaderboardKit
     #expect(restored.selectedKind == .arenaText && restored.selectedSource == 1)
 }
 
-@MainActor @Test func mobileBoardSettingsRepairAnEmptyOrRetiredSelectionInEveryCategory() throws {
+@MainActor @Test func mobileBoardSettingsKeepEmptyCategoriesAndRepairRetiredSelections() throws {
     let name = "obsolete-board-settings-\(UUID())"
     let defaults = try #require(UserDefaults(suiteName: name))
     defer { defaults.removePersistentDomain(forName: name) }
     defaults.set(["general": [], "coding": ["retired"]], forKey: "mobileBoardSelections")
     let store = LeaderboardPadStore(defaults: defaults)
     for category in LeaderboardCategory.allCases {
-        #expect(store.boardKinds(for: category) == category.boardKinds)
+        #expect(store.boardKinds(for: category) == (category == .general ? [] : category.boardKinds))
     }
 }
 
@@ -429,4 +433,51 @@ private actor RecoveringBoardSource {
     defaults.set("CN", forKey: "country.artificialAnalysisTextToVideo")
     let restored = LeaderboardPadStore(defaults: defaults)
     #expect(LeaderboardKind.allCases.allSatisfy { restored.countryFilter(for: $0) == .all && restored.opennessFilter(for: $0) == .all })
+}
+
+@MainActor @Test func mobileOnlyLastGlobalBoardIsProtectedAcrossRestartAndExport() throws {
+    let name = "global-board-settings-\(UUID())"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    var selections = Dictionary(uniqueKeysWithValues: LeaderboardCategory.allCases.map { ($0.rawValue, [String]()) })
+    selections["speech"] = ["epochMathECI"]
+    defaults.set(selections, forKey: "mobileBoardSelections")
+    CategoryPreference.save(.general, to: defaults)
+    let store = LeaderboardPadStore(defaults: defaults)
+    #expect(store.category == .speech && store.selectedKind == .epochMathECI)
+    #expect(store.visibleCategories == [.speech])
+    store.toggleBoard(.epochMathECI, in: .speech)
+    #expect(store.selectedBoardCount == 1 && store.selectedKind == .epochMathECI)
+    #expect(LeaderboardPadStore(exporting: store).visibleCategories == [.speech])
+    store.toggleBoard(.epochECI, in: .general)
+    #expect(store.visibleCategories == [.general, .speech])
+}
+
+@MainActor @Test func openRouterMetricSelectionUpdatesCachedRowsAndExportStore() async throws {
+    let name = "openrouter-metrics-\(UUID())"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    let directory = FileManager.default.temporaryDirectory.appending(path: name)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let board = Leaderboard(kind: .openRouterUsage, title: "OpenRouter", entries: [
+        LeaderboardEntry(rank: 1, name: "Popular", score: 90, taskCostUSD: 1, speed: 20, outputPriceUSD: 3),
+        LeaderboardEntry(rank: 2, name: "Fast", score: 10, taskCostUSD: 5, speed: 80, outputPriceUSD: 7),
+        LeaderboardEntry(rank: 3, name: "Unavailable", score: 2),
+    ])
+    let store = LeaderboardPadStore(defaults: defaults,
+        cache: LeaderboardCache(fileURL: directory.appending(path: "cache.json")),
+        service: LeaderboardService { _ in board })
+    await store.refresh(kind: .openRouterUsage, force: true)
+    #expect(store.rowPresentation(for: .openRouterUsage).leaderScore == 90)
+    store.costOrders.insert(.openRouterUsage)
+    #expect(store.rowPresentation(for: .openRouterUsage).leaderScore == 5)
+    #expect(store.rowPresentation(for: .openRouterUsage).rows.map(\.rank) == [1, 2, 3])
+    #expect(LeaderboardPadStore(exporting: store).rowPresentation(for: .openRouterUsage).leaderScore == 5)
+    store.costOrders.remove(.openRouterUsage)
+    store.speedOrders.insert(.openRouterUsage)
+    #expect(store.rowPresentation(for: .openRouterUsage).leaderScore == 80)
+    #expect(store.rowPresentation(for: .openRouterUsage).rows.map(\.rank) == [1, 2, 3])
+    #expect(LeaderboardPadStore(exporting: store).rowPresentation(for: .openRouterUsage).leaderScore == 80)
+    store.speedOrders.remove(.openRouterUsage)
+    #expect(store.rowPresentation(for: .openRouterUsage).leaderScore == 90)
 }

@@ -7,12 +7,12 @@ import LeaderboardCore
 struct BoardVisibilityPicker: NSViewRepresentable {
     let language: AppLanguage
     let category: LeaderboardCategory
-    let selected: [LeaderboardKind]
-    let onConfirm: ([LeaderboardKind]) -> Void
+    let selections: [String: [String]]
+    let onConfirm: ([String: [String]]) -> Void
 
     func makeNSView(context: Context) -> BoardVisibilityButton { BoardVisibilityButton() }
     func updateNSView(_ button: BoardVisibilityButton, context: Context) {
-        button.configure(language: language, category: category, selected: selected, onConfirm: onConfirm)
+        button.configure(language: language, category: category, selections: selections, onConfirm: onConfirm)
     }
 }
 
@@ -20,8 +20,8 @@ struct BoardVisibilityPicker: NSViewRepresentable {
 final class BoardVisibilityButton: NSButton, NSPopoverDelegate {
     private var language = AppLanguage.english
     private var category = LeaderboardCategory.general
-    private var selected: [LeaderboardKind] = []
-    private var onConfirm: ([LeaderboardKind]) -> Void = { _ in }
+    private var selections: [String: [String]] = [:]
+    private var onConfirm: ([String: [String]]) -> Void = { _ in }
     private(set) var selectionPopover: NSPopover?
 
     init() {
@@ -37,13 +37,13 @@ final class BoardVisibilityButton: NSButton, NSPopoverDelegate {
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    func configure(language: AppLanguage, category: LeaderboardCategory, selected: [LeaderboardKind],
-                   onConfirm: @escaping ([LeaderboardKind]) -> Void) {
+    func configure(language: AppLanguage, category: LeaderboardCategory, selections: [String: [String]],
+                   onConfirm: @escaping ([String: [String]]) -> Void) {
         // A category/language change closes an obsolete draft without applying it.
         if self.category != category || self.language != language { closeSelection() }
         self.language = language
         self.category = category
-        self.selected = selected
+        self.selections = selections
         self.onConfirm = onConfirm
         title = language.text("Leaderboards", "显示榜单")
         toolTip = language.text("Choose leaderboards, then confirm. Keep at least one.", "选择榜单后点击确认，至少保留一个。")
@@ -54,7 +54,7 @@ final class BoardVisibilityButton: NSButton, NSPopoverDelegate {
         if let selectionPopover, selectionPopover.isShown { closeSelection(); return }
         let popover = NSPopover()
         let controller = NSViewController()
-        controller.view = BoardVisibilitySelectionView(language: language, category: category, selected: selected,
+        controller.view = BoardVisibilitySelectionView(language: language, category: category, selections: selections,
             onConfirm: { [weak self] kinds in
                 self?.closeSelection()
                 self?.onConfirm(kinds)
@@ -80,18 +80,19 @@ final class BoardVisibilityButton: NSButton, NSPopoverDelegate {
 
 @MainActor
 final class BoardVisibilitySelectionView: NSView {
-    private let onConfirm: ([LeaderboardKind]) -> Void
+    private let onConfirm: ([String: [String]]) -> Void
     private let onCancel: () -> Void
-    private let choices: [LeaderboardKind]
-    private var draft: Set<LeaderboardKind>
+    private let choices: [(category: LeaderboardCategory, kind: LeaderboardKind)]
+    private var draft: [String: [String]]
     private(set) var checkboxes: [NSButton] = []
     let confirmButton: NSButton
     let cancelButton: NSButton
 
-    init(language: AppLanguage, category: LeaderboardCategory, selected: [LeaderboardKind],
-         onConfirm: @escaping ([LeaderboardKind]) -> Void, onCancel: @escaping () -> Void) {
-        choices = category.boardKinds
-        draft = Set(DesktopBoardSelection.kinds(for: category, saved: selected.map(\.rawValue)))
+    init(language: AppLanguage, category: LeaderboardCategory, selections: [String: [String]],
+         onConfirm: @escaping ([String: [String]]) -> Void, onCancel: @escaping () -> Void) {
+        let categories = [category] + LeaderboardCategory.allCases.filter { $0 != category }
+        choices = categories.flatMap { item in item.boardKinds.map { (item, $0) } }
+        draft = DesktopBoardSelection.normalized(selections)
         self.onConfirm = onConfirm
         self.onCancel = onCancel
         confirmButton = NSButton(title: language.text("Confirm", "确认"), target: nil, action: nil)
@@ -101,15 +102,40 @@ final class BoardVisibilitySelectionView: NSView {
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 10
-        for (index, kind) in choices.enumerated() {
-            let title = kind.sourceLinkTitle + " · " + LeaderboardPresentation.explanation(kind, language: language)
+        let list = NSStackView()
+        list.orientation = .vertical
+        list.alignment = .leading
+        list.spacing = 10
+        for (index, choice) in choices.enumerated() {
+            let kind = choice.kind
+            if index == 0 || choices[index - 1].category != choice.category {
+                let heading = NSTextField(labelWithString: LeaderboardPresentation.title(choice.category, language: language))
+                heading.font = .systemFont(ofSize: 11, weight: .semibold)
+                heading.textColor = .secondaryLabelColor
+                list.addArrangedSubview(heading)
+            }
+            let title = LeaderboardPresentation.boardSelectionTitle(kind, language: language)
             let checkbox = NSButton(checkboxWithTitle: title, target: self, action: #selector(toggle(_:)))
             checkbox.tag = index
             checkbox.font = .systemFont(ofSize: 12)
             checkbox.identifier = NSUserInterfaceItemIdentifier("board-visibility-\(kind.rawValue)")
             checkboxes.append(checkbox)
-            stack.addArrangedSubview(checkbox)
+            list.addArrangedSubview(checkbox)
         }
+        let scroll = NSScrollView()
+        scroll.drawsBackground = false
+        scroll.hasVerticalScroller = true
+        scroll.documentView = list
+        list.translatesAutoresizingMaskIntoConstraints = false
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        stack.addArrangedSubview(scroll)
+        NSLayoutConstraint.activate([
+            scroll.widthAnchor.constraint(equalToConstant: 330),
+            scroll.heightAnchor.constraint(equalToConstant: 380),
+            list.leadingAnchor.constraint(equalTo: scroll.contentView.leadingAnchor),
+            list.topAnchor.constraint(equalTo: scroll.contentView.topAnchor),
+            list.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
+        ])
         let note = NSTextField(labelWithString: language.text("Keep at least one leaderboard", "至少保留一个榜单"))
         note.font = .systemFont(ofSize: 11)
         note.textColor = .secondaryLabelColor
@@ -142,17 +168,17 @@ final class BoardVisibilitySelectionView: NSView {
 
     private func updateCheckboxes() {
         for (index, checkbox) in checkboxes.enumerated() {
-            let selected = draft.contains(choices[index])
+            let choice = choices[index]
+            let selected = DesktopBoardSelection.kinds(for: choice.category, saved: draft[choice.category.rawValue]).contains(choice.kind)
             checkbox.state = selected ? .on : .off
-            checkbox.isEnabled = draft.count > 1 || !selected
+            checkbox.isEnabled = DesktopBoardSelection.count(in: draft) > 1 || !selected
         }
     }
     @objc private func toggle(_ sender: NSButton) {
-        let kind = choices[sender.tag]
-        if draft.contains(kind) { if draft.count > 1 { draft.remove(kind) } }
-        else { draft.insert(kind) }
+        let choice = choices[sender.tag]
+        draft = DesktopBoardSelection.toggling(choice.kind, in: choice.category, selections: draft)
         updateCheckboxes()
     }
-    @objc private func confirm() { onConfirm(choices.filter { draft.contains($0) }) }
+    @objc private func confirm() { onConfirm(draft) }
     @objc private func cancel() { onCancel() }
 }

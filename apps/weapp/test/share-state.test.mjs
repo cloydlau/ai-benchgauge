@@ -24,7 +24,7 @@ test('shared selections restore exactly the visible boards and repair empty or o
   assert.deepEqual(restored.boardSelections, preferences.boardSelections)
   assert.equal(restored.face, 0)
   assert.equal(restored.filters.epochECI.country, 'CN')
-  assert.deepEqual(normalizePreferences({ boardSelections: { general: [], coding: ['retired'] } }).boardSelections, undefined)
+  assert.deepEqual(normalizePreferences({ boardSelections: { general: [], coding: ['retired'] } }).boardSelections, { general: [] })
   const legacy = readSharedPreferences(queryFor(sharePath({ category: 'general', face: 2 }, 'light')))
   assert.equal(legacy.face, 2)
   assert.equal(legacy.boardSelections, undefined)
@@ -124,4 +124,17 @@ test('saved and incoming shared Hong Kong, Macao and Taiwan filters migrate to C
     state.x.artificialAnalysis[0] = code
     assert.equal(readSharedPreferences({ state: JSON.stringify(state) }).filters.artificialAnalysis.country, 'CN')
   }
+})
+
+test('empty categories survive preferences and shares while hidden-category links choose a visible category', () => {
+  const boardSelections = { usage: [], general: [], image: [], video: [], coding: [], speech: ['epochMathECI'] }
+  const saved = normalizePreferences({ category: 'speech', boardSelections, face: 0 }, 'zh_CN')
+  assert.deepEqual(saved.boardSelections, boardSelections)
+  const path = sharePath(saved, 'light')
+  const shared = readSharedPreferences(Object.fromEntries(new URL(path, 'https://test.invalid').searchParams))
+  assert.deepEqual(shared.boardSelections, boardSelections)
+  assert.equal(shared.category, 'speech')
+  const linked = pagePreferences({ category: 'general', face: '2' }, saved, 'zh_CN')
+  assert.equal(linked.category, 'speech')
+  assert.equal(linked.face, 0)
 })

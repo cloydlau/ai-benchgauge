@@ -1,6 +1,6 @@
 import { boards, categories, hasOwn, languages, normalizeVariants } from './catalog.js'
 import { normalizedCountryCode } from '../../../../fc/domain.mjs'
-import { visibleBoardKinds, normalizeBoardSelections } from './board-selection.js'
+import { visibleBoardKinds, normalizeBoardSelections, selectedBoardCategory } from './board-selection.js'
 import { normalizeBoardTransition } from './board-transition.js'
 
 const groupings = ['model', 'company']
@@ -35,9 +35,19 @@ export function normalizePreferences(value, locale) {
   // Old saved language choices remain explicit. New automatic preferences
   // keep following the host language even when another setting is saved.
   const manualLanguage = languages.includes(value.language) && value.languageMode !== 'system'
-  const category = value.category === 'price' ? 'usage' : validCategory(value.category) ? value.category : 'general'
+  let category = value.category === 'price' ? 'usage' : validCategory(value.category) ? value.category : 'general'
   const boardSelections = normalizeBoardSelections(value.boardSelections)
-  const face = Math.max(0, Math.min(visibleBoardKinds(category, boardSelections).length - 1, Number.isInteger(Number(value.face)) ? Number(value.face) : 0))
+  category = selectedBoardCategory(category, boardSelections)
+  let face = Math.max(0, Math.min(visibleBoardKinds(category, boardSelections).length - 1, Number.isInteger(Number(value.face)) ? Number(value.face) : 0))
+  // Previously Math and Cyber were variants of the general ECI board.
+  const oldEpochVariant = value.variants?.epochECI
+  if (category === 'general' && visibleBoardKinds(category, boardSelections)[face] === 'epochECI'
+      && ['epochMathECI', 'epochCyberECI'].includes(oldEpochVariant)) {
+    category = 'speech'
+    if (!visibleBoardKinds(category, boardSelections).includes(oldEpochVariant)) delete boardSelections.speech
+    face = visibleBoardKinds(category, boardSelections).indexOf(oldEpochVariant)
+    if (face < 0) face = 0
+  }
   return {
     category,
     grouping: groupings.includes(value.grouping) ? value.grouping : 'model',
@@ -89,7 +99,9 @@ export function pagePreferences(query = {}, saved = {}, locale) {
   if (validCategory(query.category)) preferences.category = query.category
   if (groupings.includes(query.grouping)) preferences.grouping = query.grouping
   if (/^[0-2]$/.test(query.face)) preferences.face = Number(query.face)
-  preferences.face = Math.min(preferences.face, visibleBoardKinds(preferences.category, preferences.boardSelections).length - 1)
+  const category = selectedBoardCategory(preferences.category, preferences.boardSelections)
+  preferences.face = category === preferences.category ? Math.max(0, Math.min(preferences.face, visibleBoardKinds(category, preferences.boardSelections).length - 1)) : 0
+  preferences.category = category
   if (languages.includes(query.language)) { preferences.language = query.language; preferences.languageMode = 'manual' }
   if (themes.includes(query.theme)) { preferences.theme = query.theme; preferences.appearance = null }
   preferences.filters = normalizeFilters(saved.filters, preferences.category, preferences.face, preferences.boardSelections)

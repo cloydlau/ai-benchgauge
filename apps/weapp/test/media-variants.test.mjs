@@ -1,7 +1,7 @@
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
-import { boards, copy, text, mobileBoardHeading } from '../src/core/catalog.js'
+import { boards, categories, boardVariants, copy, text, mobileBoardHeading } from '../src/core/catalog.js'
 import { normalizeBoard, visibleRows, isAAImageCost, isAAVideoCost } from '../src/core/leaderboard.js'
 import { normalizePreferences, readSharedPreferences, sharePath } from '../src/core/share-state.js'
 import { planScreenshot, drawScreenshot } from '../src/core/screenshot.js'
@@ -34,11 +34,13 @@ test('new media snapshots retain their source and price units', () => {
   }
 })
 
-test('mobile headings abbreviate all Artificial Analysis boards without changing other sources', () => {
+test('mobile headings spell out Artificial Analysis and show only Arena across text, coding, image and video', () => {
   for (const kind of Object.keys(boards).filter(kind => kind.startsWith('artificialAnalysis'))) {
-    for (const language of ['en', 'zh-CN', 'zh-TW']) assert.equal(mobileBoardHeading(kind, language), 'AA')
+    for (const language of ['en', 'zh-CN', 'zh-TW']) assert.equal(mobileBoardHeading(kind, language), 'Artificial Analysis')
   }
-  assert.equal(mobileBoardHeading('arenaText', 'en'), 'Text Arena')
+  for (const kind of ['arenaText', 'arenaTextUncontrolled', 'codeArenaWebDev', 'codeArenaImageToWebDev', 'arenaTextToVideo', 'arenaImageToVideo', 'arenaVideoEditing', 'arenaTextToImage', 'arenaImageEditing', 'arenaMultiImageEditing']) {
+    for (const language of ['en', 'zh-CN', 'zh-TW']) assert.equal(mobileBoardHeading(kind, language), 'Arena')
+  }
 })
 
 test('speech-to-text renders errors as percentages and ranks companies by the lowest WER', () => {
@@ -80,14 +82,14 @@ test('variant exports keep the timestamp in metadata and the selected task in th
   const h = canvasHarness()
   const model = { language: 'en', dark: false, grouping: 'model', groupingLabel: 'Models', categoryLabel: 'Video',
     labels: Object.fromEntries(Object.entries(copy).map(([key, value]) => [key, text(value, 'en')])),
-    boards: [{ kind: 'artificialAnalysisImageToVideo', title: 'Artificial Analysis', heading: 'AA', tab: 'Video',
+    boards: [{ kind: 'artificialAnalysisImageToVideo', title: 'Artificial Analysis', heading: 'Artificial Analysis', tab: 'Video',
       summary: 'Video ranking', time: 'Today Published', variantLabel: 'Image to video', filterLabel: 'All', rows: [] }] }
   drawScreenshot(h.context, model, planScreenshot(h.context, model), new Map())
   const labels = h.commands.filter(command => command[0] === 'fillText')
   assert.equal(labels.find(command => command[1] === 'Today Published')[3], 132)
   assert.equal(labels.find(command => command[1] === 'Image to video')[3], 223)
-  assert.ok(labels.some(command => command[1] === 'AA'))
-  assert.ok(!labels.some(command => command[1] === 'Artificial Analysis'))
+  assert.ok(labels.some(command => command[1] === 'Artificial Analysis'))
+  assert.ok(!labels.some(command => command[1] === 'AA'))
 })
 
 
@@ -99,4 +101,23 @@ test('every mobile board has one timestamp above the header, independent of vari
   assert.ok(metadata >= 0 && timestamp > metadata && timestamp < header)
   assert.equal((template.match(/class="times"/g) || []).length, 1)
   assert.match(template.slice(timestamp, header), /bindtap="timeHelp"/)
+})
+
+
+test('professional category contains speech, math and cybersecurity in the requested navigation order', () => {
+  assert.deepEqual(categories.map(({ id }) => id), ['usage', 'general', 'image', 'video', 'coding', 'speech'])
+  assert.deepEqual(categories.at(-1).kinds, ['artificialAnalysisSpeechProviderVoice', 'epochMathECI', 'epochCyberECI'])
+  assert.equal(boardVariants.epochECI, undefined)
+  for (const face of [0, 1, 2]) {
+    const path = sharePath({ category: 'speech', face }, 'light')
+    const query = Object.fromEntries(new URL('https://example.test' + path).searchParams)
+    assert.equal(readSharedPreferences(query).face, face)
+  }
+  const old = normalizePreferences({ category: 'general', face: 2, boardSelections: { speech: ['artificialAnalysisSpeechProviderVoice'] }, variants: { epochECI: 'epochCyberECI' } })
+  assert.equal(old.category, 'speech')
+  assert.equal(old.face, 2)
+  const legacy = { v: 1, c: 'general', g: 'model', f: 2, l: 'zh-CN', t: 'light', a: 'light', x: {}, vs: { epochECI: 'epochMathECI' } }
+  const migrated = readSharedPreferences({ state: JSON.stringify(legacy) })
+  assert.equal(migrated.category, 'speech')
+  assert.equal(migrated.face, 1)
 })

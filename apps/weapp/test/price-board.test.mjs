@@ -5,7 +5,7 @@ import { normalizeBoard, visibleRows } from '../src/core/leaderboard.js'
 import { categories } from '../src/core/catalog.js'
 
 test('price category shows OpenRouter input and output per million tokens', () => {
-  assert.deepEqual(categories.slice(0, 3).map(category => category.id), ['usage', 'general', 'coding'])
+  assert.deepEqual(categories.slice(0, 3).map(category => category.id), ['usage', 'general', 'image'])
   const board = priceBoard('openRouterPrice', { source: 'OpenRouter', fetchedAt: '2026-10-28T00:00:00Z', rows: [
     { id: 'a/one', name: 'One', provider: 'OpenRouter', input: 2, output: 3, currency: 'USD', unit: 'per-million-tokens' },
     { id: 'a/two', name: 'Two', provider: 'OpenRouter', input: 1, output: 4, currency: 'USD', unit: 'per-million-tokens' },

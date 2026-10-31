@@ -15,7 +15,14 @@ struct LeaderboardQuotaProviderTests {
         // The historical fixture predates ECI. Add a source-specific board without rewriting its eight original snapshots.
         snapshot.boards[.epochECI] = Leaderboard(kind: .epochECI, title: "Epoch Capabilities Index",
             entries: snapshot.boards[.artificialAnalysis]!.entries)
-        #expect(snapshot.boards.count == 9)
+        // Speech was added after this fixture; reuse twenty known entries to
+        // exercise category coverage without changing the historical snapshots.
+        snapshot.boards[.artificialAnalysisSpeechProviderVoice] = Leaderboard(kind: .artificialAnalysisSpeechProviderVoice, title: "Speech",
+            entries: snapshot.boards[.artificialAnalysis]!.entries)
+        snapshot.boards[.epochSoftwareECI] = Leaderboard(kind: .epochSoftwareECI, title: "Software", entries: snapshot.boards[.artificialAnalysis]!.entries)
+        snapshot.boards[.epochMathECI] = Leaderboard(kind: .epochMathECI, title: "Math", entries: snapshot.boards[.artificialAnalysis]!.entries)
+        snapshot.boards[.epochCyberECI] = Leaderboard(kind: .epochCyberECI, title: "Cyber", entries: snapshot.boards[.artificialAnalysis]!.entries)
+        #expect(snapshot.boards.count == 13)
         #expect(LeaderboardCategory.allCases.filter { $0 != .usage }.allSatisfy { $0.boardKinds.allSatisfy { snapshot.boards[$0]?.entries.count == 20 } })
         let organizations = LeaderboardQuotaProviders.rankedOrganizations(in: snapshot)
         #expect(organizations.contains("minimax")) // video only in this snapshot

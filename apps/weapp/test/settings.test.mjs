@@ -42,6 +42,20 @@ function setup(saved = {}) {
   return { page, hooks, toggle, colors, stored: () => stored, backs: () => backs, launched: () => launched }
 }
 
+test('settings localize tasks consistently and identify all AA and Epoch domains by source', () => {
+  for (const [language, expected] of [
+    ['zh-CN', ['Artificial Analysis 综合', 'Artificial Analysis 编程', 'Artificial Analysis 图片', 'Artificial Analysis 视频', 'Arena 文本', 'Arena 编程', 'Arena 文生图', 'Arena 文生视频', 'Artificial Analysis 语音', 'Epoch ECI 数学', 'Epoch ECI 网络安全', 'Epoch ECI 综合', 'Epoch ECI 软件工程']],
+    ['zh-TW', ['Artificial Analysis 綜合', 'Artificial Analysis 編程', 'Artificial Analysis 圖片', 'Artificial Analysis 影片', 'Arena 文本', 'Arena 編程', 'Arena 文生圖', 'Arena 文生影片', 'Artificial Analysis 語音', 'Epoch ECI 數學', 'Epoch ECI 網路安全', 'Epoch ECI 綜合', 'Epoch ECI 軟體工程']],
+    ['en', ['Artificial Analysis General', 'Artificial Analysis Coding', 'Artificial Analysis Image', 'Artificial Analysis Video', 'Arena Text', 'Arena Coding', 'Text to Image Arena', 'Text to Video Arena', 'Artificial Analysis Speech', 'Epoch ECI Math', 'Epoch ECI Cybersecurity', 'Epoch ECI General', 'Epoch ECI Software engineering']],
+  ]) {
+    const h = setup({ language })
+    const rows = h.page.groups.value.flatMap(group => group.boards)
+    const kinds = ['artificialAnalysis', 'artificialAnalysisCodingAgent', 'artificialAnalysisTextToImage', 'artificialAnalysisTextToVideo', 'arenaText', 'codeArenaWebDev', 'arenaTextToImage', 'arenaTextToVideo', 'artificialAnalysisSpeechProviderVoice', 'epochMathECI', 'epochCyberECI', 'epochECI', 'epochSoftwareECI']
+    assert.deepEqual(kinds.map(kind => rows.find(row => row.kind === kind).title), expected)
+    assert.ok(rows.every(row => row.selected))
+  }
+})
+
 test('motion preview waits for the first render, stops when hidden and restarts on return', t => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const { page, hooks } = setup()
@@ -113,9 +127,9 @@ test('settings immediately persists independent category selections, protects th
     for (const kind of category.kinds.slice(0, -1)) h.toggle(category.id, kind)
     const group = h.page.groups.value.find(group => group.id === category.id)
     assert.equal(group.boards.filter(board => board.selected).length, 1)
-    assert.equal(group.boards.at(-1).disabled, true)
+    assert.equal(group.boards.at(-1).disabled, category === categories.at(-1))
     h.toggle(category.id, category.kinds.at(-1))
-    assert.deepEqual(h.stored().boardSelections[category.id], category.kinds.length === 1 ? undefined : [category.kinds.at(-1)])
+    assert.deepEqual(h.stored().boardSelections[category.id], category === categories.at(-1) ? [category.kinds.at(-1)] : [])
   }
   assert.equal(h.stored().face, 0)
   assert.equal(h.stored().theme, 'dark')
@@ -128,11 +142,12 @@ test('settings immediately persists independent category selections, protects th
   assert.equal(h.stored(), before)
   h.page.reset()
   assert.equal(h.stored().boardSelections, undefined)
-  assert.equal(h.stored().face, 2, 'Reset restores the selected board at its catalog position')
+  assert.equal(h.stored().category, categories.at(-1).id)
+  assert.equal(h.stored().face, categories.at(-1).kinds.length - 1, 'Reset retains the surviving board at its catalog position')
   assert.ok(h.page.groups.value.every(group => {
     const category = categories.find(item => item.id === group.id)
     const defaults = category.defaultKinds || category.kinds
-    return group.boards.every(board => board.selected === defaults.includes(board.kind) && board.disabled === (defaults.length === 1 && board.selected))
+    return group.boards.every(board => board.selected === defaults.includes(board.kind) && board.disabled === false)
   }))
 })
 

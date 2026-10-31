@@ -82,7 +82,11 @@ import LeaderboardKit
                 } else {
                     #expect(compact.contains(language.text("Scores are not directly comparable across lists", "各榜分数不直接互比")))
                 }
-                #expect(detailed == compact + language.text(". ", "。") + LeaderboardPresentation.sourceTimeHelp(board, language: language))
+                let timeSeparator = kind.mediaVariants.isEmpty ? language.text(". ", "。") : "\n\n"
+                if !kind.mediaVariants.isEmpty {
+                    #expect(compact.hasSuffix("\n\n" + LeaderboardVariantHelp.text(kind, language: language)))
+                }
+                #expect(detailed == compact + timeSeparator + LeaderboardPresentation.sourceTimeHelp(board, language: language))
                 #expect(compact.contains("Source note") == (board != nil && !kind.isUsage))
             }
         }
@@ -266,8 +270,8 @@ import LeaderboardKit
     for language in AppLanguage.allCases {
         for kind in [LeaderboardKind.arenaText, .arenaTextUncontrolled] {
             let help = LeaderboardPresentation.sourceHelp(kind, language: language, board: nil)
-            #expect(help.contains(language.text("1. Original:", "1. 原始总榜：")))
-            #expect(help.contains(language.text("2. Style Control:", "2. 风格控制：")))
+            #expect(help.contains(LeaderboardKind.arenaTextUncontrolled.mediaVariantTitle(language: language)))
+            #expect(help.contains(LeaderboardKind.arenaText.mediaVariantTitle(language: language)))
             #expect(help.contains("Markdown"))
             #expect(help.contains("https://arena.ai/blog/style-control"))
         }

@@ -1,7 +1,7 @@
 import { computed, definePage, ref, onReady, onShow, onHide, onUnload } from '@vue-mini/core'
-import { categories, copy, text, boardTitle } from '../../core/catalog.js'
+import { categories, copy, text } from '../../core/catalog.js'
 import { pagePreferences, normalizePreferences } from '../../core/share-state.js'
-import { visibleBoardKinds, toggleBoardSelection, selectedBoardFace } from '../../core/board-selection.js'
+import { visibleBoardKinds, toggleBoardSelection, selectedBoardFace, selectedBoardCategory, selectedBoardCount, boardSelectionTitle } from '../../core/board-selection.js'
 import { sourceTabLogo } from '../../core/source-tab-theme.js'
 import { boardTransitions, normalizeBoardTransition, boardFaceStyle } from '../../core/board-transition.js'
 
@@ -58,11 +58,13 @@ definePage(query => {
   const groups = computed(() => categories.map(category => {
     const visible = visibleBoardKinds(category.id, selections.value)
     return { id: category.id, title: text(category.labels, preferences.language),
-      boards: category.kinds.map(kind => ({ kind, title: boardTitle(kind, preferences.language),
-        icon: sourceTabLogo(kind, dark), selected: visible.includes(kind), disabled: visible.length === 1 && visible.includes(kind) })) }
+      boards: category.kinds.map(kind => ({ kind, title: boardSelectionTitle(kind, preferences.language),
+        icon: sourceTabLogo(kind, dark), selected: visible.includes(kind), disabled: selectedBoardCount(selections.value) === 1 && visible.includes(kind) })) }
   }))
   function save(next) {
-    preferences.face = selectedBoardFace(preferences.category, preferences.face, selections.value, next)
+    const category = selectedBoardCategory(preferences.category, next)
+    preferences.face = category === preferences.category ? selectedBoardFace(category, preferences.face, selections.value, next) : 0
+    preferences.category = category
     selections.value = next
     preferences.boardSelections = next
     try { wx.setStorageSync('benchgauge.preferences', normalizePreferences(preferences, wx.getAppBaseInfo?.().language)) } catch { /* Local preferences are optional. */ }

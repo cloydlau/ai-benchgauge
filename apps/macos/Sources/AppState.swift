@@ -37,7 +37,18 @@ final class AppState: ObservableObject {
     @Published private(set) var lastErrors: [LeaderboardKind: String] = [:]
     @Published private(set) var boardSelections: [String: [String]] = [:]
     @Published private(set) var mediaSelections: [String: String] = [:]
-    var visibleBoardKinds: [LeaderboardKind] { boardKinds(for: selectedCategory) }
+    @Published var specialistIndex = 0 {
+        didSet { defaults.set(specialistIndex, forKey: "desktopSpecialistIndex"); refreshNow(force: false) }
+    }
+    var visibleCategories: [LeaderboardCategory] { DesktopBoardSelection.categories(in: boardSelections) }
+    var visibleBoardKinds: [LeaderboardKind] {
+        guard selectedCategory == .speech else { return boardKinds(for: selectedCategory) }
+        let kinds = boardKinds(for: .speech)
+        guard !kinds.isEmpty else { return [] }
+        let base = kinds[min(max(specialistIndex, 0), kinds.count - 1)]
+        if let raw = mediaSelections[base.rawValue], let chosen = LeaderboardKind(rawValue: raw), base.mediaVariants.contains(chosen) { return [chosen] }
+        return [base]
+    }
 
     func boardKinds(for category: LeaderboardCategory) -> [LeaderboardKind] {
         DesktopBoardSelection.kinds(for: category, saved: boardSelections[category.rawValue]).map { base in
@@ -55,20 +66,33 @@ final class AppState: ObservableObject {
     }
 
     func toggleBoard(_ kind: LeaderboardKind) {
-        let next = DesktopBoardSelection.toggling(
-            kind, in: selectedCategory, saved: boardSelections[selectedCategory.rawValue])
-        setVisibleBoards(next.compactMap(LeaderboardKind.init(rawValue:)))
+        setBoardSelections(DesktopBoardSelection.toggling(kind, in: selectedCategory, selections: boardSelections))
     }
 
     func setVisibleBoards(_ kinds: [LeaderboardKind]) {
-        let next = selectedCategory.boardKinds.filter { kinds.contains($0) }
-        guard !next.isEmpty, next != DesktopBoardSelection.kinds(for: selectedCategory, saved: boardSelections[selectedCategory.rawValue]) else { return }
-        boardSelections[selectedCategory.rawValue] = next.map(\.rawValue)
+        setBoardSelections(DesktopBoardSelection.updating(kinds, in: selectedCategory, selections: boardSelections))
+    }
+
+    func setBoardSelections(_ selections: [String: [String]]) {
+        // Reject an empty dashboard rather than unexpectedly resetting every category.
+        guard DesktopBoardSelection.count(in: selections) > 0 else { return }
+        let next = DesktopBoardSelection.normalized(selections)
+        guard next != boardSelections else { return }
+        let specialist = visibleBoardKinds.first
+        boardSelections = next
+        if !visibleCategories.contains(selectedCategory) {
+            selectedCategory = visibleCategories[0]
+            CategoryPreference.save(selectedCategory, to: defaults)
+        }
+        if selectedCategory == .speech {
+            let index = specialist.flatMap { boardKinds(for: .speech).firstIndex(of: $0) } ?? 0
+            if specialistIndex != index { specialistIndex = index }
+        }
         defaults.set(boardSelections, forKey: "desktopBoardSelections")
         // Cancel only removed sources. Other requests and their refresh limits
         // remain intact when another source is enabled.
-        let enabled = Set(visibleBoardKinds)
-        for kind in Set(selectedCategory.boardKinds.flatMap { [$0] + $0.mediaVariants }) where !enabled.contains(kind) {
+        let enabled = Set(visibleCategories.flatMap { boardKinds(for: $0) }.flatMap { [$0] + $0.mediaVariants })
+        for kind in Set(LeaderboardCategory.allCases.flatMap(\.boardKinds).flatMap { [$0] + $0.mediaVariants }) where !enabled.contains(kind) {
             if let task = boardRefreshTasks.removeValue(forKey: kind) {
                 task.cancel()
                 // A cancelled attempt must not prevent a later re-enable.
@@ -211,8 +235,9 @@ final class AppState: ObservableObject {
         self.cache = cache
         snapshotPersistence = SnapshotPersistence(cache: cache)
         self.defaults = defaults
+        self.specialistIndex = min(max(defaults.integer(forKey: "desktopSpecialistIndex"), 0), 2)
         self.fetcher = fetcher
-        boardSelections = defaults.dictionary(forKey: "desktopBoardSelections") as? [String: [String]] ?? [:]
+        boardSelections = DesktopBoardSelection.normalized(defaults.dictionary(forKey: "desktopBoardSelections") as? [String: [String]] ?? [:])
         mediaSelections = defaults.dictionary(forKey: "desktopMediaSelections") as? [String: String] ?? [:]
         self.configuration = configuration
         self.quotaProviderLoad = quotaProviderLoad
@@ -245,7 +270,8 @@ final class AppState: ObservableObject {
         if let cached = cache.load() {
             snapshot = cached
         }
-        selectedCategory = CategoryPreference.load()
+        selectedCategory = CategoryPreference.load(from: defaults)
+        if !visibleCategories.contains(selectedCategory) { selectedCategory = visibleCategories[0] }
         selectedGrouping = selectedCategory == .price ? .model : GroupingPreference.load()
         codexDesktopRunning = isCodexRunning
     }
@@ -297,7 +323,7 @@ final class AppState: ObservableObject {
                             language: AppLanguage, errors: [LeaderboardKind: String],
                             emptyState: CCSwitchState?, panelMode: PanelMode = .clickToClose, quotaUpdatedAt: Date? = nil, quotaUnavailable: Bool = false,
                             modelConfiguration: CodexModelConfiguration? = nil, targets: [CCSwitchQuotaTarget] = [], taskCounts: CodexTaskCounts? = nil,
-                            codexDesktopRunning: Bool = true, category: LeaderboardCategory = .general, boardKinds: [LeaderboardKind]? = nil, boardRefreshing: Bool = false) {
+                            codexDesktopRunning: Bool = true, category: LeaderboardCategory = .general, boardKinds: [LeaderboardKind]? = nil, boardRefreshing: Bool = false, selections: [String: [String]]? = nil) {
         self.snapshot = snapshot
         self.isRefreshing = boardRefreshing
         self.quotaUpdatedAt = quotaUpdatedAt
@@ -309,7 +335,10 @@ final class AppState: ObservableObject {
         quotaTargetsByID = Dictionary(uniqueKeysWithValues: targets.map { ($0.id, $0) })
         selectedLanguage = language
         selectedCategory = category
-        if let boardKinds { boardSelections[category.rawValue] = boardKinds.map(\.rawValue) }
+        if let selections {
+            boardSelections = DesktopBoardSelection.normalized(selections)
+            if !visibleCategories.contains(selectedCategory) { selectedCategory = visibleCategories[0] }
+        } else if let boardKinds { boardSelections[category.rawValue] = boardKinds.map(\.rawValue) }
         selectedGrouping = .model
         self.panelMode = panelMode
         lastErrors = errors
@@ -433,6 +462,7 @@ final class AppState: ObservableObject {
     }
 
     func selectCategory(_ category: LeaderboardCategory) {
+        guard visibleCategories.contains(category) else { return }
         guard category != selectedCategory else { return }
         if category == .price { selectGrouping(.model) }
         selectedCategory = category

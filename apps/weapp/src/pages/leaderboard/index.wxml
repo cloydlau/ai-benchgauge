@@ -55,14 +55,17 @@
           <view class="table-head-content table-grid" aria-hidden="{{modelSearchVisible}}">
             <text class="rank-cell">{{labels.rank}}</text>
             <view class="model-heading">
-            <view class="source-heading-details">
-            <button class="source-heading" data-kind="{{card.kind}}" bindtap="sourceHelp" aria-label="{{card.title}}">{{card.heading}}</button>
+            <view class="source-heading-details {{card.variantLabels && card.variantLabels.length > 1 ? '' : 'no-variants'}}">
+            <text class="source-heading-measure" aria-hidden="true">{{card.heading}}</text>
+            <text wx:if="{{card.variantLabels}}" class="variant-measure" aria-hidden="true">{{card.variantLabels[card.variantIndex]}}</text>
+            <button class="source-heading" style="{{card.headingFontStyle}}" data-kind="{{card.kind}}" bindtap="sourceHelp" aria-label="{{card.title}}">{{card.heading}}</button>
             <view class="source-heading-actions">
-            <picker wx:if="{{card.variantLabels && card.variantLabels.length > 1}}" class="variant-picker" mode="selector" range="{{card.variantLabels}}" value="{{card.variantIndex}}" data-base="{{card.variantBase}}" bindchange="selectVariant">
-              <view class="variant-label"><text class="variant-text">{{card.variantLabels[card.variantIndex]}}</text><van-icon name="arrow-down" size="9px" /></view>
+            <picker wx:if="{{card.variantLabels && card.variantLabels.length > 1}}" class="variant-picker" style="{{card.variantStyle}}" mode="selector" range="{{card.variantLabels}}" value="{{card.variantIndex}}" data-base="{{card.variantBase}}" bindchange="selectVariant">
+              <view class="variant-label" hover-class="variant-pressed"><text class="variant-text" style="{{card.variantFontStyle}}">{{card.variantLabels[card.variantIndex]}}</text><van-icon custom-class="variant-chevron" name="arrow-down" size="8px" /></view>
             </picker>
             <button id="model-filter-{{card.kind}}" class="model-filter-toggle" data-kind="{{card.kind}}" bindtap="openModelSearch" aria-label="{{grouping === 'company' ? labels.searchCompanies : labels.searchModels}}"><van-icon name="search" size="13px" /></button>
             </view>
+            <view wx:if="{{card.variantLabels}}" class="variant-chrome-measure variant-label" aria-hidden="true"><view style="width:0;flex:none;" /><van-icon name="arrow-down" size="8px" /></view>
             </view>
             </view>
             <button class="filter {{card.countryFiltered ? 'filtered' : ''}}" data-kind="{{card.kind}}" data-mode="country" bindtap="filterMenu">
@@ -184,14 +187,15 @@
       </view>
     </view>
   </van-dialog>
-  <van-dialog id="source-notice" show="{{sourceNotice.open}}" title="{{sourceNotice.title}}" use-slot
+  <van-dialog id="source-notice" show="{{sourceNotice.open}}" title="{{sourceNotice.title}}" transition="fade" use-slot
     show-cancel-button cancel-button-text="OK" confirm-button-text="{{labels.copyLink}}"
     confirm-button-color="{{dark ? '#d1dce8' : '#414d5c'}}" cancel-button-color="{{dark ? '#f2f5fa' : '#20262f'}}"
     close-on-click-overlay="{{true}}"
     custom-style="background:var(--card);color:var(--ink);--button-default-background-color:var(--card);"
     bindconfirm="copySourceLink" bindcancel="closeSourceNotice" bindclose="closeSourceNotice">
-    <scroll-view wx:if="{{sourceNotice.open}}" scroll-y class="source-notice-scroll">
-      <text class="source-notice-text" selectable>{{sourceNotice.content}}</text>
+    <!-- Keep the body mounted while the dialog fades out so its height stays stable. -->
+    <scroll-view scroll-y class="source-notice-scroll" scroll-into-view="{{sourceNotice.anchor}}">
+      <view id="{{sourceNotice.anchor}}"><text class="source-notice-text" selectable>{{sourceNotice.content}}</text></view>
     </scroll-view>
   </van-dialog>
   <van-dialog show="{{showingFeatureHelp}}" title="{{labels.featureDetails}}" message="{{quotaHelpContent}}"

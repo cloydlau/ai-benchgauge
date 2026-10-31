@@ -18,7 +18,7 @@ namespace BenchGauge;
 // reading accounts or using the privacy-redacted Copy command.
 static class VisualTests
 {
-    sealed record Case(string Id, string Language, int Width, int Height, string Scenario, string Mode, int? QuotaAgeSeconds, string? VersionText, int? RowCount, string? Category, string[]? SelectedBoards, string[]? RefreshedSelectedBoards, string? SearchQuery, string? Grouping, Dictionary<string, string>? Countries, Dictionary<string, string>? Sources, string? ContentUpdatedAt, string? ComparisonKind);
+    sealed record Case(string Id, string Language, int Width, int Height, string Scenario, string Mode, int? QuotaAgeSeconds, string? VersionText, int? RowCount, string? Category, string[]? SelectedBoards, string[]? RefreshedSelectedBoards, string? SearchQuery, string? Grouping, Dictionary<string, string>? Countries, Dictionary<string, string>? Sources, string? ContentUpdatedAt, string? ComparisonKind, Dictionary<string, string[]>? BoardSelections, Dictionary<string, string[]>? RefreshedBoardSelections);
     sealed record Fixture(DisplayState State, Case[] Cases, Dictionary<string, Quota[]>? QuotaScenarios, Dictionary<string, ModelDetailSection[]>? ModelDetails);
     [StructLayout(LayoutKind.Sequential)] struct Rect { public int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Sequential)] struct Point { public int X, Y; }
@@ -107,6 +107,7 @@ static class VisualTests
             state = state with { Boards = state.Boards.Select(board => board with { Distribution = LeaderboardDistribution.FromEntries(board.Entries) }).ToArray() };
             if (test.Scenario == "usagePending") state = state with { Boards = state.Boards.Select(board => board.Kind == "openRouterUsage" ? board with { Entries = [], Error = "Data source awaiting configuration / 数据源待配置" } : board).ToArray() };
             var preferences = new Preferences { Language = test.Language, Category = test.Category ?? "general", PanelMode = test.Scenario == "window" ? "window" : test.Mode };
+            if (test.BoardSelections is { } selections) { preferences.BoardSelections = selections; preferences.NormalizeBoardSelections(); }
             if (test.SelectedBoards is { } selected) preferences.BoardSelections[preferences.Category] = selected;
             if (test.Grouping is { } grouping) preferences.Grouping = grouping;
             if (test.Countries is { } countries) preferences.Countries = countries;
@@ -188,7 +189,7 @@ static class VisualTests
                             displayed = state with { Boards = state.Boards.Select(board => board.Kind is "openRouterUsage" or "vercelUsage" ? board with { Entries = [], Error = test.Scenario == "usageLoadingFailure" && frame == 2 ? "Refresh failed / 加载失败（测试）" : null } : board).ToArray() };
                         panel.SetVisualBoardLoading(loading); panel.SetState(displayed);
                     }
-                    else if (frame == 1) { if (test.RefreshedSelectedBoards is { } selectedBoards) preferences.BoardSelections[preferences.Category] = selectedBoards; panel.SetState(state); window.InvalidateVisual(); } // Catch layout changes after refresh.
+                    else if (frame == 1) { if (test.RefreshedBoardSelections is { } refreshedSelections) preferences.SetBoardSelections(refreshedSelections); if (test.RefreshedSelectedBoards is { } selectedBoards) preferences.BoardSelections[preferences.Category] = selectedBoards; panel.SetState(state); window.InvalidateVisual(); } // Catch layout changes after refresh.
                     Settle(window);
                     if (test.Scenario == "distributionCharts" && frame > 0) {
                         static System.Collections.Generic.IEnumerable<DependencyObject> Walk(DependencyObject view) {

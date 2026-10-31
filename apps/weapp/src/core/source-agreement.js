@@ -7,7 +7,7 @@ export function sourceAgreement(kind, board, language = 'en') {
   if (kind === 'openRouterUsage') return openRouterLicense(board?.sourceNote, language)
   if (kind === 'vercelUsage') return vercelLicense(board?.sourceNote, language)
   if (kind === 'cloudbaseUsage') return cloudbaseNotice(board?.sourceNote, language)
-  const attribution = kind === 'epochECI' ? epochAttribution(language)
+  const attribution = kind?.startsWith('epoch') ? epochAttribution(language)
     : board?.kind === kind && isArenaDatasetBoard(board) ? arenaAttribution(language) : null
   return attribution ? `${attribution.fullText}\n\n${ccByLicense(language).text}` : ''
 }

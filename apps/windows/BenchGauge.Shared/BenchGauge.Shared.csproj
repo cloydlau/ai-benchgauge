@@ -5,6 +5,7 @@
     <EmbeddedResource Include="../../../Sources/LeaderboardKit/Resources/CC-BY-4.0.json" Link="CC-BY-4.0.json" />
     <EmbeddedResource Include="../../../Sources/LeaderboardKit/Resources/SourceTabThemes.json" Link="SourceTabThemes.json" />
     <EmbeddedResource Include="../../../Sources/LeaderboardKit/Resources/ApplicationLicense.json" Link="ApplicationLicense.json" />
+    <EmbeddedResource Include="../../../Sources/LeaderboardKit/Resources/LeaderboardVariantHelp.json" Link="LeaderboardVariantHelp.json" />
     <EmbeddedResource Include="../../../config/app.json" Link="app.json" />
     <EmbeddedResource Include="../../../fc/leaderboard-policy.json" Link="leaderboard-policy.json" />
   </ItemGroup>

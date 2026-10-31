@@ -85,7 +85,12 @@ private func board(_ kind: LeaderboardKind, score: Double = 90, fetchedAt: Date 
     #expect(china.first?.rank == 2)
     #expect(LeaderboardPresentation.rows(source, grouping: .company, country: .unitedStates).first?.score == 90)
     #expect(LeaderboardPresentation.countries(source, grouping: .model) == [.china, .unitedStates])
-    #expect(Set(LeaderboardCategory.allCases.flatMap(\.boardKinds)) == Set(LeaderboardKind.allCases))
+    let baseKinds = LeaderboardCategory.allCases.flatMap(\.boardKinds)
+    let variants = baseKinds.flatMap { $0.mediaVariants.isEmpty ? [$0] : $0.mediaVariants }
+    #expect(Set(variants).count == variants.count)
+    #expect(Set(variants) == Set(LeaderboardKind.allCases))
+    #expect(!LeaderboardKind.allCases.contains(.valsSWEbench))
+    #expect(!LeaderboardKind.allCases.contains(.openRouterPrice))
 }
 
 @Test func cacheRoundTripUsesPortableLibrary() throws {

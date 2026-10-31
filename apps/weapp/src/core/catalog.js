@@ -1,16 +1,10 @@
-export const arenaTextMethodology = [
-  '1. Original: ranks models from users’ choices between two anonymous answers. Content, length, formatting and tone can all influence overall preference.\n\n2. Style Control: uses the same voting-based approach and statistically adjusts for the estimated effects of response style, such as length, Markdown headings, bold text and lists. This reduces advantages from prettier formatting or longer answers; rankings may differ.\n\nArena explanation: https://arena.ai/blog/style-control',
-  '1. 原始总榜：根据用户对两个匿名回答的选择计算排名。回答内容、长短、格式和语气都会影响用户的整体偏好。\n\n2. 风格控制：在同样基于用户投票的基础上，尝试统计并扣除部分表达风格对投票的影响，比如回答长度、Markdown 标题、加粗和列表，从而减少“排版更漂亮、回答更长”带来的优势。两个榜单的排名因此可能不同。\n\nArena 官方解释：https://arena.ai/blog/style-control',
-  '1. 原始總榜：根據使用者對兩個匿名回答的選擇計算排名。回答內容、長短、格式和語氣都會影響使用者的整體偏好。\n\n2. 風格控制：同樣以使用者投票為基礎，嘗試統計並扣除部分表達風格對投票的影響，例如回答長度、Markdown 標題、粗體和列表，以減少「排版更漂亮、回答更長」帶來的優勢。兩個榜單的排名因此可能不同。\n\nArena 官方解釋：https://arena.ai/blog/style-control',
-]
-
 export const categories = [
   { id: 'usage', labels: ['Usage', '用量', '用量'], kinds: ['openRouterUsage', 'vercelUsage', 'cloudbaseUsage'] },
   { id: 'general', labels: ['General', '综合', '綜合'], kinds: ['artificialAnalysis', 'arenaText', 'epochECI'] },
-  { id: 'coding', labels: ['Coding', '编程', '編程'], kinds: ['artificialAnalysisCodingAgent', 'codeArenaWebDev', 'valsSWEbench'], defaultKinds: ['artificialAnalysisCodingAgent', 'codeArenaWebDev'] },
   { id: 'image', labels: ['Image', '图片', '圖片'], kinds: ['artificialAnalysisTextToImage', 'arenaTextToImage'] },
-  { id: 'speech', labels: ['Speech', '语音', '語音'], kinds: ['artificialAnalysisSpeechProviderVoice'] },
   { id: 'video', labels: ['Video', '视频', '影片'], kinds: ['artificialAnalysisTextToVideo', 'arenaTextToVideo'] },
+  { id: 'coding', labels: ['Coding', '编程', '編程'], kinds: ['artificialAnalysisCodingAgent', 'codeArenaWebDev', 'epochSoftwareECI'] },
+  { id: 'speech', labels: ['Specialist', '专业', '專業'], kinds: ['artificialAnalysisSpeechProviderVoice', 'epochMathECI', 'epochCyberECI'] },
 ]
 // Each family represents one source in one category; its members must not be
 // merged or treated as equivalent rankings.
@@ -24,8 +18,11 @@ export const boardVariants = Object.freeze({
   artificialAnalysisSpeechProviderVoice: ['artificialAnalysisSpeechProviderVoice', 'artificialAnalysisSpeechControlledVoice', 'artificialAnalysisSpeechAgent', 'artificialAnalysisSpeechToText', 'artificialAnalysisSpeechToTextStreaming'],
 })
 export const variantLabels = Object.freeze({
-  arenaText: ['Style Control', '风格控制', '風格控制'],
-  arenaTextUncontrolled: ['Original', '原始总榜', '原始總榜'],
+  epochECI: ['General', '综合', '綜合'],
+  epochMathECI: ['Math', '数学', '數學'],
+  epochCyberECI: ['Cybersecurity', '网络安全', '網路安全'],
+  arenaText: ['Text Style Control', '文本（风格控制）', '文本（風格控制）'],
+  arenaTextUncontrolled: ['Text Original', '文本（原始总榜）', '文本（原始總榜）'],
   codeArenaWebDev: ['WebDev', '网页开发', '網頁開發'],
   codeArenaImageToWebDev: ['Image to WebDev', '图片转代码', '圖片轉程式碼'],
   artificialAnalysisTextToImage: ['Text to image', '文生图', '文生圖'],
@@ -63,17 +60,20 @@ export const leaderboardSources = [
 ]
 export const boards = {
   openRouterPrice: { title: 'OpenRouter', summaries: ['OpenRouter text API prices per million tokens.', 'OpenRouter 文本 API 每百万 token 价格。', 'OpenRouter 文字 API 每百萬 token 價格。'], methodology: ['Base input and output prices are USD per million text tokens. Context tiers, provider routing and other fees can affect the final cost.', '输入与输出为每百万文本 token 美元基础价格；长上下文阶梯、供应商路由和其他费用可能影响最终成本。', '輸入與輸出為每百萬文字 token 美元基礎價格；長上下文階梯、供應商路由和其他費用可能影響最終成本。'], url: 'https://openrouter.ai/models' },
-  cloudbaseUsage: { title: 'Tencent Cloud', summaries: ['Cumulative text-token share across sampled Beijing-time days; full dates unavailable.', '北京时间抽样统计日的文本 token 累计占比；未公开完整日期。', '北京時間抽樣統計日的文字 token 累計佔比；未公開完整日期。'], methodology: ['Input + output tokens including cache hits; official model-family buckets. Other excluded; company shares sum listed families. No absolute volumes or open-data license stated. Refresh time does not indicate a new source update.', '输入与输出 token 之和，含缓存命中；按官方模型系列汇总，排除 Other。公司占比仅汇总榜内系列。未公开绝对用量或开放数据许可。刷新时间不代表来源发布了新数据。', '輸入與輸出 token 之和，含快取命中；按官方模型系列彙總，排除 Other。公司佔比僅彙總榜內系列。未公開絕對用量或開放資料授權。重新整理時間不代表來源發布了新資料。'], url: 'https://docs.cloudbase.net/ai/announcement/model-token-volume' },
+  cloudbaseUsage: { title: 'Tencent Cloud', summaries: ['Sampled days · cumulative share', '抽样统计日累计占比', '抽樣統計日累計佔比'], methodology: ['Cumulative text-token share across sampled Beijing-time days; full dates unavailable. Input + output tokens including cache hits; official model-family buckets. Other excluded; company shares sum listed families. No absolute volumes or open-data license stated. Refresh time does not indicate a new source update.', '北京时间抽样统计日的文本 token 累计占比；未公开完整日期。输入与输出 token 之和，含缓存命中；按官方模型系列汇总，排除 Other。公司占比仅汇总榜内系列。未公开绝对用量或开放数据许可。刷新时间不代表来源发布了新数据。', '北京時間抽樣統計日的文字 token 累計佔比；未公開完整日期。輸入與輸出 token 之和，含快取命中；按官方模型系列彙總，排除 Other。公司佔比僅彙總榜內系列。未公開絕對用量或開放資料授權。重新整理時間不代表來源發布了新資料。'], url: 'https://docs.cloudbase.net/ai/announcement/model-token-volume' },
   vercelUsage: { title: 'Vercel AI Gateway', summaries: ['Latest complete day · text token share · absolute volumes unavailable.', '最近完整一天的文本 token 用量占比；不提供绝对用量。', '最近完整一天的文字 token 用量佔比；不提供絕對用量。'], methodology: ['Daily data uses UTC 00:00 to 00:00 the next day (08:00 to 08:00 the next day in Beijing). Includes input, output, reasoning and cached tokens. Only published models are listed; Other is excluded. Company shares sum listed models only. Not comparable to OpenRouter absolute totals.', '按 UTC 当天 00:00 至次日 00:00 统计，对应北京时间当天 08:00 至次日 08:00。包含输入、输出、推理及缓存 token；仅列出官方公布的模型，Other 不作为模型展示。公司占比只汇总榜内模型。与 OpenRouter 绝对用量口径不同。', '按 UTC 當天 00:00 至次日 00:00 統計，對應北京時間當天 08:00 至次日 08:00。包含輸入、輸出、推理及快取 token；僅列出官方公布的模型，Other 不作為模型展示。公司佔比只彙總榜內模型。與 OpenRouter 絕對用量口徑不同。'], url: 'https://vercel.com/ai-gateway/leaderboards/models' },
-  openRouterUsage: { title: 'OpenRouter', summaries: ['Latest complete UTC day · input + output tokens · 1B = 1 billion tokens.', '最近完整 UTC 日输入与输出 token 用量；1B = 十亿 token。', '最近完整 UTC 日輸入與輸出 token 用量；1B = 十億 token。'], methodology: ['Latest complete UTC day · prompt + completion tokens · top 50 public models. 1B = 1 billion tokens. Excludes private and zero-data-retention traffic; provider tokenizers differ. Company totals cover listed models only. Prices are input/output USD per million tokens; speed is the highest available provider 30-minute p50 throughput. Company metrics use its most-used listed model; usage ranking remains unchanged.', '最近完整 UTC 日的输入与输出 token 用量，展示公开流量前 50 名。1B = 十亿 token。排除私有及零数据留存流量；各供应商分词方式不同。公司用量仅汇总榜内模型。价格为每百万 token 输入/输出美元报价；速度为可用供应商最近 30 分钟最高 P50 吞吐量。公司指标取用量最高的上榜模型，保持原用量排名。', '最近完整 UTC 日的輸入與輸出 token 用量，展示公開流量前 50 名。1B = 十億 token。排除私有及零資料留存流量；各供應商分詞方式不同。公司用量僅彙總榜內模型。價格為每百萬 token 輸入/輸出美元報價；速度為可用供應商最近 30 分鐘最高 P50 吞吐量。公司指標取用量最高的上榜模型，保持原用量排名。'], url: 'https://openrouter.ai/rankings' },
+  openRouterUsage: { title: 'OpenRouter', summaries: ['Latest complete UTC day · usage', '最近完整 UTC 日用量', '最近完整 UTC 日用量'], methodology: ['Latest complete UTC day · prompt + completion tokens · top 50 public models. 1B = 1 billion tokens. Excludes private and zero-data-retention traffic; provider tokenizers differ. Company totals cover listed models only. Input (first line) and output (second line) are USD per million tokens. For example, at $1 input and $4 output, 100,000 input tokens plus 20,000 output tokens cost $0.18 before other charges. Speed is the highest available provider 30-minute p50 throughput. Company metrics use its most-used listed model; usage ranking remains unchanged.', '最近完整 UTC 日的输入与输出 token 用量，展示公开流量前 50 名。1B = 十亿 token。排除私有及零数据留存流量；各供应商分词方式不同。公司用量仅汇总榜内模型。价格第一行是输入、第二行是输出，单位为美元/百万 token。例如输入 $1、输出 $4 时，10 万输入 token 加 2 万输出 token 的基础费用为 $0.18；实际费用可能另有差异。速度为可用供应商最近 30 分钟最高 P50 吞吐量。公司指标取用量最高的上榜模型，保持原用量排名。', '最近完整 UTC 日的輸入與輸出 token 用量，展示公開流量前 50 名。1B = 十億 token。排除私有及零資料留存流量；各供應商分詞方式不同。公司用量僅彙總榜內模型。價格第一行是輸入、第二行是輸出，單位為美元/百萬 token。例如輸入 $1、輸出 $4 時，10 萬輸入 token 加 2 萬輸出 token 的基礎費用為 $0.18；實際費用可能另有差異。速度為可用供應商最近 30 分鐘最高 P50 吞吐量。公司指標取用量最高的上榜模型，保持原用量排名。'], url: 'https://openrouter.ai/rankings' },
   epochECI: { title: 'Epoch ECI', summaries: ['Estimates general capability from benchmark results, accounting for difficulty and discrimination.', '结合不同测试的难度与区分度，估计模型的综合能力', '結合不同測試的難度與區分度，估計模型的綜合能力'], url: 'https://epoch.ai/eci' },
+  epochMathECI: { title: 'Epoch ECI', summaries: ['Math capability from Epoch domain benchmarks.', '根据 Epoch 数学领域评测估计模型能力', '根據 Epoch 數學領域評測估計模型能力'], url: 'https://epoch.ai/eci?eciPreset=math' },
+  epochCyberECI: { title: 'Epoch ECI', summaries: ['Cybersecurity capability from Epoch domain benchmarks.', '根据 Epoch 网络安全评测估计模型能力', '根據 Epoch 網路安全評測估計模型能力'], url: 'https://epoch.ai/eci?eciPreset=cyber' },
+  epochSoftwareECI: { title: 'Epoch ECI', summaries: ['Software engineering capability from Epoch domain benchmarks.', '根据 Epoch 软件工程评测估计模型能力', '根據 Epoch 軟體工程評測估計模型能力'], url: 'https://epoch.ai/eci?eciPreset=software' },
   artificialAnalysis: { title: 'Artificial Analysis', summaries: ['Combines standardized tests across several abilities.', '汇总多项标准化测试，适合看综合能力', '彙總多項標準化測試，適合看綜合能力'], methodology: ['Cost is the weighted average API cost per Intelligence Index task, based on evaluation tokens and prices.', '成本为综合能力评测每任务的加权平均 API 成本，根据评测 token 用量及价格计算。', '成本為綜合能力評測每任務的加權平均 API 成本，根據評測 token 用量及價格計算。'], url: 'https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index' },
-  arenaText: { title: 'Text Arena', summaries: ['Anonymous comparisons with style control.', '真实提问下盲选回答，并进行风格控制', '真實提問下盲選回答，並進行風格控制'], methodology: arenaTextMethodology, url: 'https://arena.ai/leaderboard/text' },
-  arenaTextUncontrolled: { title: 'Text Arena', summaries: ['Anonymous comparisons without style control.', '真实提问下盲选回答，未进行风格控制', '真實提問下盲選回答，未進行風格控制'], methodology: arenaTextMethodology, url: 'https://arena.ai/leaderboard/text' },
+  arenaText: { title: 'Arena', summaries: ['Anonymous comparisons with style control.', '真实提问下盲选回答，并进行风格控制', '真實提問下盲選回答，並進行風格控制'], url: 'https://arena.ai/leaderboard/text' },
+  arenaTextUncontrolled: { title: 'Arena', summaries: ['Anonymous comparisons without style control.', '真实提问下盲选回答，未进行风格控制', '真實提問下盲選回答，未進行風格控制'], url: 'https://arena.ai/leaderboard/text' },
   valsSWEbench: { title: 'Vals AI · SWE-bench (Archived)', summaries: ['Archived SWE-bench Verified: score, cost and duration per test.', '已归档的 SWE-bench Verified：每次测试的成绩、成本和耗时。', '已歸檔的 SWE-bench Verified：每次測試的成績、成本和耗時。'], methodology: ['Archived; no new models are tested. Model and harness variants retain source order.', '榜单已归档，不再评测新模型。保留模型与代理组合及原榜顺序。', '榜單已歸檔，不再評測新模型。保留模型與代理組合及原榜順序。'], url: 'https://www.vals.ai/benchmarks/swebench' },
   artificialAnalysisCodingAgent: { title: 'Artificial Analysis', summaries: ['Coding scores and average API cost per task.', '编程成绩与平均每任务 API 成本', '編程成績與平均每任務 API 成本'], methodology: ['Coding performance and average API dollars per task; switch the displayed metric in the header; ranking stays unchanged. Costs include applicable cache pricing, not subscription fees or cost per successful task. Company cost is for its strongest model; original capability ranks are retained.', '编程成绩与平均每任务 API 美元成本；通过表头切换指标，榜单顺序不变。成本含适用缓存计费，非订阅价格或每个成功任务成本。公司成本对应最强模型；保留原能力排名。', '編程成績與平均每任務 API 美元成本；透過表頭切換指標，榜單順序不變。成本含適用快取計費，非訂閱價格或每個成功任務成本。公司成本對應最強模型；保留原能力排名。'], url: 'https://artificialanalysis.ai/agents/coding-agents' },
-  codeArenaWebDev: { title: 'Code Arena', summaries: ['People pick the better result from paired web builds.', '用户盲选网页成品，侧重实际观感', '使用者盲選網頁成品，側重實際觀感'], url: 'https://arena.ai/leaderboard/code/webdev' },
-  codeArenaImageToWebDev: { title: 'Code Arena', summaries: ['People compare websites generated from images.', '用户盲选由图片生成的网页', '使用者盲選由圖片生成的網頁'], url: 'https://arena.ai/leaderboard/code/image-to-webdev' },
+  codeArenaWebDev: { title: 'Arena', summaries: ['People pick the better result from paired web builds.', '用户盲选网页成品，侧重实际观感', '使用者盲選網頁成品，側重實際觀感'], url: 'https://arena.ai/leaderboard/code/webdev' },
+  codeArenaImageToWebDev: { title: 'Arena', summaries: ['People compare websites generated from images.', '用户盲选由图片生成的网页', '使用者盲選由圖片生成的網頁'], url: 'https://arena.ai/leaderboard/code/image-to-webdev' },
   artificialAnalysisTextToImage: { title: 'Artificial Analysis', summaries: ['Blind votes across a balanced set of image use cases.', '按用途均衡选题，盲选图片质量', '按用途均衡選題，盲選圖片品質'], methodology: ['API dollars per image, converted from AA’s price per 1,000 images at 1024×1024 default settings.', '每张图片的 API 美元价格，按 AA 默认设置、1024×1024 每千张价格换算。', '每張圖片的 API 美元價格，按 AA 預設設定、1024×1024 每千張價格換算。'], url: 'https://artificialanalysis.ai/image/leaderboard/text-to-image' },
   artificialAnalysisImageEditing: { title: 'Artificial Analysis', summaries: ['Blind votes on edited images.', '盲选图片编辑效果', '盲選圖片編輯效果'], methodology: ['API dollars per image, converted from AA’s price per 1,000 images.', '每张图片的 API 美元价格，按 AA 每千张价格换算。', '每張圖片的 API 美元價格，按 AA 每千張價格換算。'], url: 'https://artificialanalysis.ai/image/leaderboard/editing' },
   arenaTextToImage: { title: 'Arena 文生图', titles: ["Text to Image Arena", "Arena 文生图", "Arena 文生圖"], summaries: ['People vote on images made from their own prompts.', '用户自由出题并盲选，贴近日常审美', '使用者自由出題並盲選，貼近日常審美'], url: 'https://arena.ai/leaderboard/text-to-image' },
@@ -95,7 +95,7 @@ export const languages = ['en', 'zh-CN', 'zh-TW']
 export const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key)
 export const text = (values, language) => values[Math.max(0, languages.indexOf(language))]
 export const boardTitle = (kind, language) => boards[kind].titles ? text(boards[kind].titles, language) : boards[kind].title
-export const mobileBoardHeading = (kind, language) => kind.startsWith('artificialAnalysis') ? 'AA' : boardTitle(kind, language)
+export const mobileBoardHeading = (kind, language) => kind.startsWith('artificialAnalysis') ? 'Artificial Analysis' : (kind.startsWith('arena') || kind.startsWith('codeArena')) ? 'Arena' : boardTitle(kind, language)
 export const categoryFor = id => categories.find(category => category.id === id) || categories.find(category => category.id === 'general')
 
 const tagline = ['Compare across dimensions, choose with clarity; track your quotas, stay informed.',
@@ -124,7 +124,7 @@ export const copy = {
   transitionSlideHint: ['Smooth & direct', '顺滑推进', '順滑推進'],
   transitionFadeHint: ['Soft & subtle', '轻柔交融', '輕柔交融'],
   displayedBoards: ['Leaderboards', '显示榜单', '顯示榜單'],
-  boardSelectionHint: ['Keep at least one leaderboard in each category.', '每个分类至少保留一个榜单。', '每個分類至少保留一個榜單。'],
+  boardSelectionHint: ['Keep at least one leaderboard in total. Empty categories are hidden on the home page.', '总共至少保留一个榜单，空分类将不在首页显示。', '總共至少保留一個榜單，空分類將不在首頁顯示。'],
   resetBoards: ['Reset', '重置', '重設'],
   usageDay: ['Data', '数据', '資料'],
   tokenShare: ['Share', '占比', '佔比'],

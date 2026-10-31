@@ -153,7 +153,9 @@ actor Engine {
         if request.id >= selectionRequestIDs[category, default: Int.min] {
             let requested = (request.boards ?? []).compactMap(LeaderboardKind.init(rawValue:))
             let canonical = requested.map { $0.mediaVariants.first ?? $0 }
-            let bases = DesktopBoardSelection.kinds(for: category, saved: request.boards == nil ? nil : canonical.map(\.rawValue))
+            // Preserve an intentional empty category without treating obsolete nonempty input as empty.
+            let saved = request.boards.map { $0.isEmpty || !canonical.isEmpty ? canonical.map(\.rawValue) : $0 }
+            let bases = DesktopBoardSelection.kinds(for: category, saved: saved)
             kinds = bases.map { base in requested.first { ($0.mediaVariants.first ?? $0) == base } ?? base }
             selectedBoards[category] = kinds
             selectionRequestIDs[category] = request.id

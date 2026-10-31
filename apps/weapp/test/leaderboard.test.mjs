@@ -127,7 +127,7 @@ test('the six categories expose all active sources including restored Tencent an
   const defaults = categories.flatMap(item => item.kinds)
   const all = defaults.flatMap(kind => boardVariants[kind] || [kind])
   assert.equal(new Set(all).size, all.length)
-  assert.deepEqual(all.sort(), Object.keys(boards).filter(kind => kind !== 'openRouterPrice').sort())
+  assert.deepEqual(all.sort(), Object.keys(boards).filter(kind => !['openRouterPrice', 'valsSWEbench'].includes(kind)).sort())
   for (const [base, variants] of Object.entries(boardVariants)) {
     assert.ok(defaults.includes(base))
     assert.equal(variants[0], base)

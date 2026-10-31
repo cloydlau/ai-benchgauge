@@ -20,7 +20,7 @@ struct SpeechVariantsTests {
         #expect(throws: (any Error).self) { try HTMLLeaderboardParser.artificialAnalysisSpeechAgent(fromHTML: page(Array(rows("overall").dropLast()))) }
     }
     @Test func categoryKeepsThreeDistinctSpeechTasks() {
-        #expect(LeaderboardCategory.speech.boardKinds == [.artificialAnalysisSpeechProviderVoice])
+        #expect(LeaderboardCategory.speech.boardKinds == [.artificialAnalysisSpeechProviderVoice, .epochMathECI, .epochCyberECI])
         #expect(LeaderboardKind.artificialAnalysisSpeechAgent.mediaVariants == [.artificialAnalysisSpeechProviderVoice, .artificialAnalysisSpeechControlledVoice, .artificialAnalysisSpeechAgent, .artificialAnalysisSpeechToText, .artificialAnalysisSpeechToTextStreaming])
         #expect(!LeaderboardKind.artificialAnalysisSpeechProviderVoice.supportsAACost)
     }
