@@ -13,7 +13,7 @@ export const investmentSchedule = { startedAt: DEVELOPMENT_STARTED_AT, meanMonth
 
 const costGroups = [
   { id: 'infrastructure', title: ['Infrastructure', '基础设施', '基礎設施'], items: [
-    { id: 'server', amount: 600, title: ['Cloud services', '云服务', '雲端服務'],
+    { id: 'server', amount: 600, title: ['Server', '服务器', '伺服器'],
       body: ['For leaderboard updates, data queries and synchronization.',
         '用于榜单更新、数据查询和同步。', '用於榜單更新、資料查詢和同步。'] },
     { id: 'storage', amount: 100, title: ['Object storage', '对象存储', '物件儲存'],

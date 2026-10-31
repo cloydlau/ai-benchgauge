@@ -22,6 +22,8 @@ test('iOS About exports the same localized descriptions, metrics and cost defini
     assert.equal(entry.descriptionLines.join(language === 'en' ? ' ' : ''), text(copy.description, language))
     assert.deepEqual(entry.investment.metrics.map(metric => metric.value), ['1,234', '56,789'])
     assert.deepEqual(entry.investment, investmentContent(stats, language, { now: investmentSchedule.startedAt }))
+    assert.equal(entry.investment.groups.find(group => group.id === 'infrastructure').items.find(item => item.id === 'server').title,
+      { en: 'Server', 'zh-CN': '服务器', 'zh-TW': '伺服器' }[language])
     assert.deepEqual(entry.platforms, aboutPlatforms(language))
     assert.deepEqual(entry.contributors, contributorsContent(null, language))
     const development = entry.investment.groups.find(group => group.id === 'development')

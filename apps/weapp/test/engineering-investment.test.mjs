@@ -73,6 +73,8 @@ test('investment content localizes counters, budget estimates and excluded expen
   ]) {
     const content = investmentContent({ commitCount: 1234, codeLineCount: 56789 }, language, { now: Date.parse('2026-10-16T12:00:00+08:00') })
     assert.equal(content.title, title)
+    assert.equal(content.groups.find(group => group.id === 'infrastructure').items.find(item => item.id === 'server').title,
+      { en: 'Server', 'zh-CN': '服务器', 'zh-TW': '伺服器' }[language])
     assert.deepEqual(content.metrics.map(metric => metric.value), ['1,234', '56,789'])
     assert.equal(content.metrics[0].label, commits)
     assert.match(content.costNote, note)
