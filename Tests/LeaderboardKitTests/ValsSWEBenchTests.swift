@@ -16,5 +16,30 @@ import Testing
     #expect(board.entries[0].speed == 3840)
     #expect(board.entries[1].speed == 108.54)
     #expect(board.entries[0].modelID != board.entries[1].modelID)
+    #expect(try LeaderboardFetcher(sharedEndpoint: nil).parse(.valsSWEbench, html: html).entries == board.entries)
     #expect(throws: HTMLLeaderboardParser.ParserError.self) { try HTMLLeaderboardParser.valsSWEbench(fromHTML: html.replacingOccurrences(of: "Archived Benchmark", with: "")) }
+}
+
+@Test func valsSWEBenchRejectsIncompleteTablesAndInvalidRows() {
+    let headings = ["Rank", "Model", "Harness", "Score", "Cost / Test", "Tokens / Test", "Duration / Test"]
+        .map { "<th>\($0)</th>" }.joined()
+    let header = "<tr>\(headings)</tr>"
+    func row(_ rank: Int) -> String {
+        "<tr><td>\(rank)</td><td><a href=\"/models/fixture_model\">Model</a></td><td>Agent</td><td>90%</td><td>$1</td><td>1m</td><td>1s</td></tr>"
+    }
+    let rows = (1...20).map(row).joined()
+    let invalidTables = [
+        "",
+        header.replacingOccurrences(of: "Tokens / Test", with: "Tokens") + rows,
+        header + rows.replacingOccurrences(of: row(2), with: row(3)),
+        header + rows.replacingOccurrences(of: "/models/fixture_model", with: "/other/fixture_model"),
+        header + rows.replacingOccurrences(of: ">Agent<", with: "><"),
+        header + (1...19).map(row).joined(),
+    ]
+    for table in invalidTables {
+        let html = "Archived Benchmark Updated 9/1/2026 <table aria-labelledby=\"benchmark-leaderboard-title\">\(table)</table>"
+        #expect(throws: HTMLLeaderboardParser.ParserError.invalidValsSource) {
+            try HTMLLeaderboardParser.valsSWEbench(fromHTML: html)
+        }
+    }
 }

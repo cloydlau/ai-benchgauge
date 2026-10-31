@@ -37,6 +37,28 @@ struct CompanyLeaderboardTests {
     }
 
     @Test
+    func testSpeechToTextCompanyHelpPreservesPercentageScores() throws {
+        let standing = try #require(CompanyLeaderboard.rank([
+            entry(2, "Higher WER", 2.5, organization: "OpenAI"),
+            entry(1, "Lower WER", 1.25, organization: "OpenAI"),
+        ], lowerIsBetter: true).first)
+        #expect(standing.entry.score == 1.25)
+        #expect(standing.components.map(\.name) == ["Lower WER", "Higher WER"])
+        for kind in [LeaderboardKind.artificialAnalysisSpeechToText, .artificialAnalysisSpeechToTextStreaming] {
+            #expect(CompanyLeaderboard.scoreHelp(for: standing, language: .english, kind: kind) == """
+                Score uses the strongest model
+                Lower WER · #1 · 1.25% · strongest
+                Higher WER · #2 · 2.50%
+                """)
+            #expect(CompanyLeaderboard.scoreHelp(for: standing, language: .chinese, kind: kind) == """
+                以最强模型分数为准，弱型号不拉低
+                Lower WER · 第1名 · 1.25% · 最强
+                Higher WER · 第2名 · 2.50%
+                """)
+        }
+    }
+
+    @Test
     func testWeakerSiblingDoesNotRankBelowAStrongerFlagship() {
         // Reciprocal-rank mean would score xAI at 72*(4/7)+40*(3/7) ≈ 58.3,
         // behind Xiaomi's 68, even though Grok 4.7 is the stronger model.

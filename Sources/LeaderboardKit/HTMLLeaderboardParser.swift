@@ -123,8 +123,8 @@ public enum HTMLLeaderboardParser {
     }
 
     public static func valsSWEbench(fromHTML html: String) throws -> Leaderboard {
-        func matches(_ pattern: String, _ text: String) -> [NSTextCheckingResult] {
-            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators, .caseInsensitive]) else { return [] }
+        func matches(_ pattern: String, _ text: String) throws -> [NSTextCheckingResult] {
+            let regex = try NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators, .caseInsensitive])
             return regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
         }
         func group(_ result: NSTextCheckingResult, _ index: Int, _ text: String) -> String? {
@@ -137,30 +137,30 @@ public enum HTMLLeaderboardParser {
             return entities.reduce(stripped) { $0.replacingOccurrences(of: $1.key, with: $1.value) }.trimmingCharacters(in: .whitespacesAndNewlines)
         }
         guard html.contains("Archived Benchmark"),
-              let dm = matches(#"Updated\s+(\d{1,2})/(\d{1,2})/(\d{4})"#, html).first,
+              let dm = try matches(#"Updated\s+(\d{1,2})/(\d{1,2})/(\d{4})"#, html).first,
               let month = group(dm, 1, html).flatMap(Int.init), let day = group(dm, 2, html).flatMap(Int.init),
               let year = group(dm, 3, html).flatMap(Int.init),
               let date = Calendar(identifier: .gregorian).date(from: DateComponents(timeZone: TimeZone(secondsFromGMT: 0), year: year, month: month, day: day)),
               date <= Date().addingTimeInterval(300),
-              let tm = matches(#"<table\b[^>]*aria-labelledby="benchmark-leaderboard-title"[^>]*>(.*?)</table>"#, html).first,
+              let tm = try matches(#"<table\b[^>]*aria-labelledby="benchmark-leaderboard-title"[^>]*>(.*?)</table>"#, html).first,
               let table = group(tm, 1, html) else { throw ParserError.invalidValsSource }
-        let trs = matches(#"<tr\b[^>]*>(.*?)</tr>"#, table).compactMap { group($0, 1, table) }
+        let trs = try matches(#"<tr\b[^>]*>(.*?)</tr>"#, table).compactMap { group($0, 1, table) }
         guard let header = trs.first else { throw ParserError.invalidValsSource }
-        let headers = matches(#"<th\b[^>]*>(.*?)</th>"#, header).compactMap { group($0, 1, header).map(clean) }
+        let headers = try matches(#"<th\b[^>]*>(.*?)</th>"#, header).compactMap { group($0, 1, header).map(clean) }
         guard headers == ["Rank", "Model", "Harness", "Score", "Cost / Test", "Tokens / Test", "Duration / Test"] else { throw ParserError.invalidValsSource }
         var entries: [LeaderboardEntry] = []
         for row in trs.dropFirst() {
-            let cells = matches(#"<t[dh]\b[^>]*>(.*?)</t[dh]>"#, row).compactMap { group($0, 1, row) }
+            let cells = try matches(#"<t[dh]\b[^>]*>(.*?)</t[dh]>"#, row).compactMap { group($0, 1, row) }
             guard cells.count == 7, let rank = Int(clean(cells[0])), rank == entries.count + 1,
-                  let sm = matches(#"^(\d+(?:\.\d+)?)%$"#, clean(cells[3])).first,
+                  let sm = try matches(#"^(\d+(?:\.\d+)?)%$"#, clean(cells[3])).first,
                   let score = group(sm, 1, clean(cells[3])).flatMap(Double.init), score <= 100,
-                  let lm = matches(#"href="/models/([a-zA-Z0-9_.-]+)""#, cells[1]).first,
+                  let lm = try matches(#"href="/models/([a-zA-Z0-9_.-]+)""#, cells[1]).first,
                   let slug = group(lm, 1, cells[1]) else { throw ParserError.invalidValsSource }
             let model = clean(cells[1]), harness = clean(cells[2]), costText = clean(cells[4]), duration = clean(cells[6])
             guard !model.isEmpty, !harness.isEmpty else { throw ParserError.invalidValsSource }
-            let cost = matches(#"^\$(\d+(?:\.\d+)?)$"#, costText).first.flatMap { group($0, 1, costText).flatMap(Double.init) }
+            let cost = try matches(#"^\$(\d+(?:\.\d+)?)$"#, costText).first.flatMap { group($0, 1, costText).flatMap(Double.init) }
             var speed: Double? = nil
-            if let d = matches(#"^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+(?:\.\d+)?)s)?$"#, duration).first {
+            if let d = try matches(#"^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+(?:\.\d+)?)s)?$"#, duration).first {
                 let hours = group(d, 1, duration).flatMap(Double.init) ?? 0
                 let minutes = group(d, 2, duration).flatMap(Double.init) ?? 0
                 let seconds = group(d, 3, duration).flatMap(Double.init) ?? 0

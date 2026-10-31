@@ -17,6 +17,19 @@ import Testing
     #expect(restored == board)
 }
 
+@Test func invalidCachedCostsSortLastOnEitherSideAndNewEntriesRejectInvalidPrices() throws {
+    let invalid = try JSONDecoder().decode(LeaderboardEntry.self,
+        from: Data(#"{"rank":1,"name":"Legacy invalid","score":90,"taskCostUSD":-1}"#.utf8))
+    let valid = LeaderboardEntry(rank: 2, name: "Valid", score: 80, taskCostUSD: 1)
+    #expect(!LeaderboardPresentation.taskCostPrecedes(invalid, valid))
+    #expect(LeaderboardPresentation.taskCostPrecedes(valid, invalid))
+    for value in [-1.0, .nan, .infinity] {
+        let entry = LeaderboardEntry(rank: 1, name: "Fixture", score: 90, taskCostUSD: value, outputPriceUSD: value)
+        #expect(entry.taskCostUSD == nil)
+        #expect(entry.outputPriceUSD == nil)
+    }
+}
+
 @Test func taskCostOrderingRetainsRanksMovementAndScoresWithUnknownLast() {
     let entries = [
         LeaderboardEntry(rank: 1, name: "Strong", score: 90, organization: "OpenAI", rankChange: .init(delta: 2), taskCostUSD: 9.48),

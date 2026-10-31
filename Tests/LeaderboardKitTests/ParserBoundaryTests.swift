@@ -38,6 +38,48 @@ struct ParserBoundaryTests {
         #expect(OrganizationLogoCatalog.resolvedKey(organization: "Unknown", modelName: "Harness - Mystery") == nil)
         #expect(HTMLLeaderboardParser.jsonObjects(in: #"self.__next_f.push([1,"{\"name\":\"a\\\"b\",\"marker\":1}"])"#, containing: "marker").isEmpty)
     }
+
+    @Test func mediaParsersRejectWrongTasksAndBrokenPrimaryRanks() throws {
+        #expect(throws: HTMLLeaderboardParser.ParserError.notEnoughArtificialAnalysisRecords(0)) {
+            try HTMLLeaderboardParser.artificialAnalysisMediaVariant(fromHTML: page([]), kind: .arenaText)
+        }
+        #expect(throws: HTMLLeaderboardParser.ParserError.notEnoughArtificialAnalysisRecords(0)) {
+            try HTMLLeaderboardParser.artificialAnalysisSpeechToText(fromHTML: page([]), kind: .arenaText)
+        }
+        let values: [String: Any] = ["id": "fixture", "name": "Fixture", "elo": 1000]
+        let brokenRanks: [[String: Any]] = [[:], ["rank": 2]]
+        for formatted in brokenRanks {
+            #expect(throws: HTMLLeaderboardParser.ParserError.notEnoughArtificialAnalysisRecords(0)) {
+                try HTMLLeaderboardParser.artificialAnalysisMediaVariant(
+                    fromHTML: page([["formatted": formatted, "values": values]]), kind: .artificialAnalysisImageEditing)
+            }
+        }
+    }
+
+    @Test func speechAgentsRejectDuplicateRanksAndIdentifiers() throws {
+        let rows: [[String: Any]] = (1...20).map { rank in
+            ["id": "agent-\(rank)", "name": "Agent \(rank)", "stsHostModelId": NSNull(),
+             "sliceKey": "overall", "rank": rank, "elo": 1200 - rank]
+        }
+        for key in ["id", "rank"] {
+            var invalid = rows
+            invalid[1][key] = rows[0][key]
+            #expect(throws: HTMLLeaderboardParser.ParserError.notEnoughArtificialAnalysisRecords(1)) {
+                try HTMLLeaderboardParser.artificialAnalysisSpeechAgent(fromHTML: page(invalid))
+            }
+        }
+    }
+
+    @Test func speechTranscriptionUsesFallbackNamesClosedWeightsAndStableTies() throws {
+        let rows: [[String: Any]] = (0..<20).reversed().map { index in
+            ["id": "stt-\(index)", "name": String(format: "M%02d", index),
+             "host": ["name": "Fixture"], "model": ["openWeights": false], "aaWerIndex": 0.1]
+        }
+        let board = try HTMLLeaderboardParser.artificialAnalysisSpeechToText(fromHTML: page(rows), kind: .artificialAnalysisSpeechToText)
+        #expect(board.entries.map(\.name) == (0..<20).map { String(format: "M%02d", $0) })
+        #expect(board.entries.map(\.score) == Array(repeating: 10, count: 20))
+        #expect(board.entries.map(\.openness) == Array(repeating: ModelOpenness.closed, count: 20))
+    }
 }
 
 
