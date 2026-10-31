@@ -1,4 +1,5 @@
 import { collectSources, validGrant } from './acquisition.js'
+import { shouldAutoRefresh } from '../core/freshness.js'
 import { boards, hasOwn } from '../core/catalog.js'
 import { normalizeBoard, canReplace, withContentTimestamp } from '../core/leaderboard.js'
 
@@ -77,7 +78,7 @@ export function createBoardStore({ platform, endpoint }) {
     }
     return snapshots[kind]
   }
-  function fetch(kind, onCachedBoard) {
+  function fetch(kind, onCachedBoard, { readFirst = false } = {}) {
     if (!hasOwn(boards, kind)) return Promise.reject(new Error('Unknown leaderboard'))
     if (kind === 'valsSWEbench') return Promise.reject(new Error('Leaderboard retired'))
     if (disposed) return Promise.reject(new Error('Store disposed'))
@@ -86,6 +87,16 @@ export function createBoardStore({ platform, endpoint }) {
     const api = (action, extra = {}) => request({ url: path + action, method: action ? 'POST' : 'GET', timeout: 30000,
       header: { Accept: 'application/json', 'X-BenchGauge-Acquisition': 'client-first', ...extra.header }, ...extra })
     const promise = (async () => {
+      if (readFirst) {
+        // First render must not wait for a refresh lease or an origin download.
+        // Network failure ends this attempt promptly; explicit refresh can retry.
+        const shared = (await api('', { timeout: 8000 })).data
+        if (shared?.board) {
+          const cached = accept(shared, kind)
+          onCachedBoard?.(cached)
+          if (!shouldAutoRefresh(cached, null)) return cached
+        } else if (shared?.configurationRequired) return accept(shared, kind)
+      }
       const response = (await api('/refresh')).data
       if (!response?.grant?.acquisition) return accept(response, kind)
       // Persist shared cache before waiting on the user's origin connection.

@@ -140,3 +140,42 @@ test('origin and backend failure retain cache and a lost upload response re-read
     assert.equal(h.requests.filter(r => r.options.url.endsWith('/refresh')).length, 1)
   }
 })
+
+
+test('uncached entry reads fresh shared data once without claiming or collecting', async () => {
+  const h = harness(), paints = []
+  const pending = h.store.fetch(kind, cached => paints.push(cached), { readFirst: true })
+  assert.equal(h.requests[0].options.method, 'GET')
+  assert.equal(h.requests[0].options.url, `https://shared.example/v1/boards/${kind}`)
+  assert.equal(h.requests[0].options.timeout, 8000)
+  const fresh = board({ fetchedAt: new Date().toISOString() })
+  h.respond(0, { board: fresh })
+  assert.equal((await pending).entries[0].name, 'Public model')
+  assert.equal(paints.length, 1)
+  assert.equal(h.requests.length, 1)
+})
+
+test('stale shared rows paint before a blocked origin or refresh completes', async () => {
+  const h = harness(), paints = []
+  const pending = h.store.fetch(kind, cached => paints.push(cached), { readFirst: true })
+  h.respond(0, { board: board() }); await tick()
+  assert.equal(paints.length, 1)
+  assert.equal(h.store.read(kind).entries[0].name, 'Public model')
+  assert.ok(h.requests[1].options.url.endsWith('/refresh'))
+  h.respond(1, { grant: grant(), board: board() }); await tick()
+  assert.equal(h.requests[2].options.url, 'https://epoch.ai/data/eci_scores.csv')
+  h.requests[2].options.fail(); await tick()
+  h.respond(3, { board: board() })
+  assert.equal((await pending).entries[0].name, 'Public model')
+})
+
+test('failed first shared read ends without a serial refresh timeout and manual retry remains available', async () => {
+  const h = harness()
+  const initial = h.store.fetch(kind, undefined, { readFirst: true })
+  h.requests[0].options.fail(); h.requests[0].options.complete()
+  await assert.rejects(initial)
+  assert.equal(h.requests.length, 1)
+  const manual = h.store.fetch(kind)
+  assert.ok(h.requests[1].options.url.endsWith('/refresh'))
+  h.respond(1, { board: board() }); await manual
+})

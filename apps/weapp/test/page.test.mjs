@@ -20,7 +20,7 @@ const registration = registerHooks({
   load(url, context, next) {
     if (url !== 'benchgauge:test-vue') return next(url, context)
     return { format: 'module', shortCircuit: true, source: `
-      export const definePage = (factory, config) => { globalThis.__benchPageFactory = factory; globalThis.__benchPageConfig = config }
+      export const definePage = (options, config) => { globalThis.__benchPageFactory = options.setup; globalThis.__benchPageOptions = options; globalThis.__benchPageConfig = config }
       export { ref, computed } from ${JSON.stringify(reactivityURL)}
       export const onLoad = fn => { globalThis.__benchHooks.load = fn }
       export const onReady = fn => { globalThis.__benchHooks.ready = fn }
@@ -66,7 +66,7 @@ function setup(preferences = {}, count = 0, query = {}, systemTheme = 'light', s
   const page = globalThis.__benchPageFactory(query)
   const respond = (index, metadata = {}) => {
     const request = requests[index]; request.responded = true; const kind = request.options.url.match(/\/v1\/boards\/([^/]+)/)[1]
-    request.options.success({ statusCode: 200, data: { board: { kind, fetchedAt: '2026-10-13T12:00:00Z', entries: (count ? Array.from({ length: count }, (_, i) => ({
+    request.options.success({ statusCode: 200, data: { board: { kind, fetchedAt: request.options.method === 'GET' ? new Date().toISOString() : '2026-10-13T12:00:00Z', entries: (count ? Array.from({ length: count }, (_, i) => ({
       rank: i + 1, name: `Model ${i + 1}`, score: count - i, organization: `Maker ${i + 1}`,
       openness: i % 2 ? 'open' : 'closed',
     })) : [
@@ -79,7 +79,7 @@ function setup(preferences = {}, count = 0, query = {}, systemTheme = 'light', s
   // manual requests. Lifecycle/refresh-policy tests below use enter/respondAll
   // to exercise production's lazy, single-board loading instead.
   const requestCategory = () => Promise.all(page.cards.value.map(card => page.refreshTap({ currentTarget: { dataset: { kind: card.kind } } })))
-  const enter = globalThis.__benchHooks.load
+  const enter = () => globalThis.__benchPageOptions.onLoad.call(page)
   const loadCategory = () => { const loading = requestCategory(); return Promise.all([loading, enter()]) }
   const respondCategory = () => { requestCategory(); respondAll() }
   return { page, requests, writes, modals, clipboard, scrolls, respond, respondAll, respondCategory, requestCategory, loadCategory, enter, theme: theme => themeListener?.({ theme }) }
@@ -95,7 +95,7 @@ test('media selector switches the source board and persists the selected task', 
   h.page.selectVariant({ currentTarget: { dataset: { base: 'artificialAnalysisTextToVideo' } }, detail: { value: 1 } })
   assert.equal(h.page.cards.value[0].kind, 'artificialAnalysisImageToVideo')
   assert.equal(h.page.cards.value[0].variantIndex, 1)
-  assert.ok(h.requests.some(request => request.options.url.endsWith('/artificialAnalysisImageToVideo/refresh')))
+  assert.ok(h.requests.some(request => request.options.url.endsWith('/artificialAnalysisImageToVideo')))
   assert.equal(h.writes.at(-1).value.variants.artificialAnalysisTextToVideo, 'artificialAnalysisImageToVideo')
   h.respondAll()
 })
@@ -146,7 +146,7 @@ test('speech category switches between distinct AA speech tasks', async t => {
   assert.deepEqual(h.page.cards.value[0].variantLabels, ['文字转语音 · 原生声音', '文字转语音 · 受控声音', '语音对话', '语音转文字 · 非流式', '语音转文字 · 流式'])
   h.page.selectVariant({ currentTarget: { dataset: { base: 'artificialAnalysisSpeechProviderVoice' } }, detail: { value: 2 } })
   assert.equal(h.page.cards.value[0].kind, 'artificialAnalysisSpeechAgent')
-  assert.ok(h.requests.some(request => request.options.url.endsWith('/artificialAnalysisSpeechAgent/refresh')))
+  assert.ok(h.requests.some(request => request.options.url.endsWith('/artificialAnalysisSpeechAgent')))
   assert.equal(h.writes.at(-1).value.variants.artificialAnalysisSpeechProviderVoice, 'artificialAnalysisSpeechAgent')
   h.respondAll()
 })
@@ -974,7 +974,7 @@ test('page entry and category switches load only the active source, with no fore
   assert.equal(h.page.capsuleWidth.value, 113)
   globalThis.__benchHooks.show()
   assert.equal(h.requests.length, 1)
-  assert.ok(h.requests[0].options.url.endsWith('/artificialAnalysis/refresh'))
+  assert.ok(h.requests[0].options.url.endsWith('/artificialAnalysis'))
   assert.deepEqual(h.page.tabs.value, ['任务测评', '用户盲测', '难度校准'])
   h.respond(0); await loading
   assert.deepEqual(h.page.cards.value.map(card => [card.title, card.rows.length]), [['Artificial Analysis', 2], ['Arena', 0], ['Epoch ECI', 0]])
@@ -983,9 +983,9 @@ test('page entry and category switches load only the active source, with no fore
   assert.equal(h.page.cards.value[0].isSourceTime, false)
   h.page.selectFace(event({ index: 1 })); assert.equal(h.page.face.value, 1)
   assert.equal(h.requests.length, 2)
-  assert.ok(h.requests[1].options.url.endsWith('/arenaText/refresh'))
+  assert.ok(h.requests[1].options.url.endsWith('/arenaText'))
   h.page.selectCategory(event({ id: 'video' })); assert.equal(h.requests.length, 3)
-  assert.ok(h.requests[2].options.url.endsWith('/arenaTextToVideo/refresh'))
+  assert.ok(h.requests[2].options.url.endsWith('/arenaTextToVideo'))
   h.respondAll(); await new Promise(resolve => setImmediate(resolve))
   assert.equal(h.page.cards.value[0].kind, 'artificialAnalysisTextToVideo')
   const shared = pagePreferences(Object.fromEntries(new URL('https://shared.example' + globalThis.__benchHooks.share().path).searchParams))

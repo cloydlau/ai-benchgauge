@@ -2,7 +2,7 @@ import { variantHelp } from '../../core/variant-help.js'
 import { fitSourceHeader } from '../../core/source-header-fit.js'
 import { sourceAgreement } from '../../core/source-agreement.js'
 import { isArenaDatasetBoard } from '../../core/arena-attribution.js'
-import { definePage, ref, computed, onLoad, onReady, onShow, onHide, onUnload, onShareAppMessage, onResize } from '@vue-mini/core'
+import { definePage, ref, computed, onReady, onShow, onHide, onUnload, onShareAppMessage, onResize } from '@vue-mini/core'
 import { boards, categories, categoryFor, boardVariants, variantLabels, variantBase, normalizeVariants, copy, text, languages, boardTitle, mobileBoardHeading, hasOwn, desktopDownloadURL } from '../../core/catalog.js'
 import { rankedEntries, rowView, supportsAACost, supportsAASpeed, isAAImageCost, isAAVideoCost, isErrorRate, isPriceBoard, countryCode, countryName, countryFlag, countryFlagImage, countryOptions, formatTime, contentTimestamp } from '../../core/leaderboard.js'
 import { opennessIcon, opennessColor } from '../../core/openness-icon.js'
@@ -21,7 +21,11 @@ import { purchaseLinks, preferredPurchaseLink } from '../../core/purchase-links.
 import { visibleBoardKinds, normalizeBoardSelections, selectedBoardFace, visibleCategories, selectedBoardCategory } from '../../core/board-selection.js'
 import { boardFaceStyle, normalizeBoardTransition } from '../../core/board-transition.js'
 
-definePage(query => {
+definePage({
+  // Vue Mini's exported onLoad hook belongs to defineComponent. A Page must
+  // start from its native options hook, after setup has bound autoRefresh.
+  onLoad() { return this.autoRefresh() },
+  setup: query => {
   const saved = (() => { try { return wx.getStorageSync('benchgauge.preferences') || {} } catch { return {} } })()
   const initial = pagePreferences(query, saved, wx.getAppBaseInfo?.().language)
   const language = ref(initial.language)
@@ -804,13 +808,13 @@ definePage(query => {
   wx.onThemeChange?.(themeListener)
   updateTheme()
 
-  function refreshKind(kind) {
+  function refreshKind(kind, options) {
     if (refreshTasks.has(kind)) return refreshTasks.get(kind)
-    const task = loadKind(kind).finally(() => refreshTasks.delete(kind))
+    const task = loadKind(kind, options).finally(() => refreshTasks.delete(kind))
     refreshTasks.set(kind, task)
     return task
   }
-  async function loadKind(kind) {
+  async function loadKind(kind, options) {
     lastAttempt[kind] = Date.now()
     refreshing.value = { ...refreshing.value, [kind]: true }
     syncTimestampPolish()
@@ -820,7 +824,7 @@ definePage(query => {
         snapshots.value = { ...snapshots.value, [kind]: cached }
         syncWindow(kind, true)
         measureLists()
-      })
+      }, options)
       if (!alive) return
       configurationRequired.value = { ...configurationRequired.value, [kind]: false }
       snapshots.value = { ...snapshots.value, [kind]: board }
@@ -840,7 +844,7 @@ definePage(query => {
   function autoRefresh() {
     const kind = current.value.kinds[face.value]
     if (refreshTasks.has(kind)) return refreshTasks.get(kind)
-    return shouldAutoRefresh(snapshots.value[kind], lastAttempt[kind]) ? refreshKind(kind) : Promise.resolve()
+    return shouldAutoRefresh(snapshots.value[kind], lastAttempt[kind]) ? refreshKind(kind, { readFirst: !snapshots.value[kind] }) : Promise.resolve()
   }
   async function pullRefresh(event) {
     if (backgroundLocked.value || pullRefreshing.value) return
@@ -860,7 +864,6 @@ definePage(query => {
   function finishPullRefresh(event) {
     if (!pullRefreshing.value && event.currentTarget.dataset.kind === pullRefreshKind.value) pullRefreshKind.value = ''
   }
-  onLoad(async () => { await autoRefresh(); playEntrance() })
   onReady(() => { pageReady = true; measureSourceTabs(); measureHeaderText(); playEntrance(); syncTimestampPolish() })
   onShow(() => {
     pageVisible = true
@@ -1291,4 +1294,4 @@ definePage(query => {
     clearFilters, preferences, sheetSelect, closeSheet, sourceHelp, timeHelp, countryHelp, copyPurchaseLink, rowDetails, companyDetails, closeCompanyDetails, copyCompanyName, about, openSettings,
     quotaHelp, quotaHelpContent, showingFeatureHelp, closeFeatureHelp, copyDesktopLink, refreshTap, autoRefresh, pullRefresh, pullRefreshing, pullRefreshKind, finishPullRefresh,
     capturing, capture, screenshot, closeCapture, previewScreenshot, saveScreenshot }
-}, { canShareToOthers: true })
+} }, { canShareToOthers: true })
